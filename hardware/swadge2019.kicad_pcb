@@ -2,11 +2,11 @@
 
   (general
     (links 93)
-    (no_connects 1)
+    (no_connects 0)
     (area 47.115654 20.888155 126.100919 97.583048)
     (thickness 1.6)
     (drawings 40)
-    (tracks 389)
+    (tracks 393)
     (zones 0)
     (modules 45)
     (nets 27)
@@ -39,7 +39,7 @@
   (setup
     (last_trace_width 0.381)
     (trace_clearance 0.2159)
-    (zone_clearance 0.3)
+    (zone_clearance 0.381)
     (zone_45_only yes)
     (trace_min 0.2)
     (segment_width 0.15)
@@ -1391,7 +1391,7 @@
   (segment (start 96.76 63.24) (end 96.125 63.24) (width 0.381) (layer F.Cu) (net 0) (tstamp 5B94A81D))
   (segment (start 87.65 78.12) (end 87.98 80.94) (width 0.381) (layer B.Cu) (net 0) (tstamp 5B94AA6D))
   (via (at 87.98 80.94) (size 0.6) (drill 0.35) (layers F.Cu B.Cu) (net 0))
-  (segment (start 77.14 58.48) (end 76.836 54.434) (width 0.381) (layer F.Cu) (net 1) (tstamp 5B94AADD) (status C00000))
+  (segment (start 77.14 58.48) (end 76.836 54.434) (width 0.381) (layer F.Cu) (net 1) (tstamp 5B94AADD))
   (segment (start 93.203754 87.153005) (end 104.89 79.71) (width 0.381) (layer B.Cu) (net 1) (tstamp 5B94AA4F))
   (segment (start 104.89 79.71) (end 110.26 71.1) (width 0.381) (layer B.Cu) (net 1) (tstamp 5B94AA50))
   (via (at 110.26 71.1) (size 0.6) (drill 0.35) (layers F.Cu B.Cu) (net 1))
@@ -1468,6 +1468,10 @@
   (segment (start 69.430192 45.434478) (end 65.053013 43.181808) (width 0.381) (layer F.Cu) (net 1) (tstamp 5B94A092))
   (segment (start 68.701751 48.281751) (end 70.583365 46.027947) (width 0.381) (layer F.Cu) (net 1) (tstamp 5B94A018))
   (segment (start 70.583365 46.027947) (end 70.59 46.02) (width 0.381) (layer F.Cu) (net 1) (tstamp 5B94A020))
+  (segment (start 87.76 30.472) (end 90.7 30.01) (width 0.381) (layer F.Cu) (net 2) (tstamp 5B94AB12))
+  (segment (start 90.7 30.01) (end 92.33 30.29) (width 0.381) (layer F.Cu) (net 2) (tstamp 5B94AB13))
+  (via (at 92.33 30.29) (size 0.6) (drill 0.35) (layers F.Cu B.Cu) (net 2))
+  (segment (start 92.33 30.29) (end 92.33 30.12) (width 0.381) (layer B.Cu) (net 2) (tstamp 5B94AB17))
   (segment (start 70.14 70.45) (end 72.84 62) (width 0.381) (layer B.Cu) (net 2) (tstamp 5B94AAFE))
   (via (at 72.84 62) (size 0.6) (drill 0.35) (layers F.Cu B.Cu) (net 2))
   (segment (start 72.84 62) (end 74.4 62.42) (width 0.381) (layer F.Cu) (net 2) (tstamp 5B94AB01))
@@ -1749,7 +1753,7 @@
   (via (at 78.56 53.11) (size 0.6) (drill 0.35) (layers F.Cu B.Cu) (net 25))
   (segment (start 78.56 53.11) (end 81.92 60.92) (width 0.381) (layer B.Cu) (net 25) (tstamp 5B94AA09))
   (segment (start 81.92 60.92) (end 81.03 66.11) (width 0.381) (layer B.Cu) (net 25) (tstamp 5B94AA0A))
-  (segment (start 79.04 58.48) (end 81.98 58.25) (width 0.381) (layer F.Cu) (net 26) (tstamp 5B94AAD4) (status 400000))
+  (segment (start 79.04 58.48) (end 81.98 58.25) (width 0.381) (layer F.Cu) (net 26) (tstamp 5B94AAD4))
   (via (at 81.98 58.25) (size 0.6) (drill 0.35) (layers F.Cu B.Cu) (net 26))
   (segment (start 81.98 58.25) (end 81.659719 58.216094) (width 0.381) (layer B.Cu) (net 26) (tstamp 5B94AAD7))
   (segment (start 77.358 92.71) (end 77.42 87.51) (width 0.381) (layer B.Cu) (net 26) (tstamp 5B94AA23))
@@ -1767,7 +1771,7 @@
     (connect_pads (clearance 0.381))
     (min_thickness 0.254)
     (keepout (tracks not_allowed) (vias not_allowed) (copperpour allowed))
-    (fill (arc_segments 16) (thermal_gap 0.508) (thermal_bridge_width 0.508))
+    (fill yes (arc_segments 16) (thermal_gap 0.508) (thermal_bridge_width 0.508))
     (polygon
       (pts
         (xy 74.15 39.45) (xy 74.07 39.45) (xy 74.15 39.448978) (xy 74.15 39.45)
@@ -1777,8 +1781,8 @@
   (zone (net 0) (net_name "") (layer F.Cu) (tstamp 5B94A86C) (hatch edge 0.508)
     (connect_pads (clearance 0.381))
     (min_thickness 0.254)
-    (keepout (tracks not_allowed) (vias not_allowed) (copperpour not_allowed))
-    (fill (arc_segments 16) (thermal_gap 0.508) (thermal_bridge_width 0.508))
+    (keepout (tracks allowed) (vias allowed) (copperpour not_allowed))
+    (fill yes (arc_segments 16) (thermal_gap 0.508) (thermal_bridge_width 0.508))
     (polygon
       (pts
         (xy 94.22 39.745) (xy 94.22 32.76) (xy 92.315 30.855) (xy 77.075 30.855) (xy 75.17 32.76)
@@ -1789,8 +1793,8 @@
   (zone (net 0) (net_name "") (layer B.Cu) (tstamp 5B94A86E) (hatch edge 0.508)
     (connect_pads (clearance 0.381))
     (min_thickness 0.254)
-    (keepout (tracks not_allowed) (vias not_allowed) (copperpour not_allowed))
-    (fill (arc_segments 16) (thermal_gap 0.508) (thermal_bridge_width 0.508))
+    (keepout (tracks allowed) (vias allowed) (copperpour not_allowed))
+    (fill yes (arc_segments 16) (thermal_gap 0.508) (thermal_bridge_width 0.508))
     (polygon
       (pts
         (xy 75.17 39.745) (xy 75.17 32.76) (xy 77.075 30.855) (xy 92.315 30.855) (xy 94.22 32.76)
