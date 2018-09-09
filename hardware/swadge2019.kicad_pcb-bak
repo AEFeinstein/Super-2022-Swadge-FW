@@ -5,7 +5,7 @@
     (no_connects 0)
     (area -37.799025 -16.142108 129.780001 101.340001)
     (thickness 1.6)
-    (drawings 40)
+    (drawings 41)
     (tracks 393)
     (zones 0)
     (modules 45)
@@ -1332,6 +1332,9 @@
     )
   )
 
+  (gr_text "SWADGE2019\nREV -\nHi, Nick." (at 84.28 85.46) (layer F.SilkS)
+    (effects (font (size 1.5 1.5) (thickness 0.3)))
+  )
   (gr_line (start 101.556689 29.040001) (end 116.556687 55.020764) (layer F.Fab) (width 0.1))
   (gr_line (start 71.556689 29.040001) (end 101.556689 29.040001) (layer F.Fab) (width 0.1))
   (gr_line (start 56.556689 55.020764) (end 71.556689 29.040001) (layer F.Fab) (width 0.1))
