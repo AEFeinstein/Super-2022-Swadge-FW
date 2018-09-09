@@ -1,4 +1,4 @@
-update=Sat 01 Sep 2018 01:20:53 AM EDT
+update=Sat 08 Sep 2018 09:55:59 PM EDT
 version=1
 last_client=kicad
 [pcbnew]
@@ -236,3 +236,6 @@ LibName204=/home/cnlohr/electrical/kicad/ws_switch
 LibName205=/home/cnlohr/electrical/kicad/xfrmr2x2
 LibName206=/home/cnlohr/electrical/kicad/xor_sot_353_74lvc1g86
 LibName207=/home/cnlohr/electrical/kicad/zener-sot23-3
+LibName208=/home/cnlohr/electrical/kicad/ws2812side
+LibName209=/home/cnlohr/electrical/kicad/sk6812side
+LibName210=/home/cnlohr/electrical/kicad/ap1117sot223
