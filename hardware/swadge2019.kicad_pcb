@@ -1303,7 +1303,7 @@
     )
   )
 
-  (module R_0805 (layer F.Cu) (tedit 5B94A8CB) (tstamp 5B94AA05)
+  (module R_0805 (layer F.Cu) (tedit 5BA457FA) (tstamp 5B94AA05)
     (at 78.09 58.48)
     (descr "Resistor SMD 0805, reflow soldering, Vishay (see dcrcw.pdf)")
     (tags "resistor 0805")
@@ -1312,7 +1312,7 @@
     (fp_text reference R9 (at -3.07 -0.95) (layer F.SilkS)
       (effects (font (size 1 1) (thickness 0.15)))
     )
-    (fp_text value 1.5k (at 0 2.1) (layer F.Fab)
+    (fp_text value 1.5k (at -0.81 -1.94) (layer F.SilkS)
       (effects (font (size 1 1) (thickness 0.15)))
     )
     (fp_line (start -1.6 -1) (end 1.6 -1) (layer F.CrtYd) (width 0.05))
