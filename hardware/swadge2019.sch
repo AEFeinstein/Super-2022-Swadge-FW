@@ -1548,4 +1548,26 @@ F 3 "" H 8900 6000 60  0000 C CNN
 	1    8900 6000
 	-1   0    0    1   
 $EndComp
+$Comp
+L CONN_1 P5
+U 1 1 5BC40D15
+P 8900 6150
+F 0 "P5" H 8980 6150 40  0000 L CNN
+F 1 "~" H 8900 6205 30  0001 C CNN
+F 2 "front_silkscreen" H 8900 6150 60  0000 C CNN
+F 3 "" H 8900 6150 60  0000 C CNN
+	1    8900 6150
+	-1   0    0    1   
+$EndComp
+$Comp
+L CONN_1 P6
+U 1 1 5BC41066
+P 8900 5850
+F 0 "P6" H 8980 5850 40  0000 L CNN
+F 1 "CONN_1" H 8900 5905 30  0001 C CNN
+F 2 "round_suncats_half_mask" H 8900 5850 60  0000 C CNN
+F 3 "" H 8900 5850 60  0000 C CNN
+	1    8900 5850
+	-1   0    0    1   
+$EndComp
 $EndSCHEMATC
