@@ -1537,4 +1537,15 @@ F 3 "" H 8050 2400 50  0000 C CNN
 	1    8050 2400
 	1    0    0    -1  
 $EndComp
+$Comp
+L CONN_1 P4
+U 1 1 5BC40676
+P 8900 6000
+F 0 "P4" H 8980 6000 40  0000 L CNN
+F 1 "CONN_1" H 8900 6055 30  0001 C CNN
+F 2 "round_suncats_half" H 8900 6000 60  0000 C CNN
+F 3 "" H 8900 6000 60  0000 C CNN
+	1    8900 6000
+	-1   0    0    1   
+$EndComp
 $EndSCHEMATC
