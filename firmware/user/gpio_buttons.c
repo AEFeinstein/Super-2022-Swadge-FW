@@ -1,3 +1,7 @@
+/*============================================================================
+ * Includes
+ *==========================================================================*/
+
 #include "gpio_buttons.h"
 #include "user_interface.h"
 #include "c_types.h"
@@ -5,9 +9,15 @@
 #include <ets_sys.h>
 #include <esp82xxutil.h>
 
-
+/*============================================================================
+ * Prototypes
+ *==========================================================================*/
 
 void gpio_pin_intr_state_set(uint32 i, GPIO_INT_TYPE intr_state);
+
+/*============================================================================
+ * Varialbes
+ *==========================================================================*/
 
 volatile uint8_t LastGPIOState;
 
@@ -15,7 +25,14 @@ static const uint8_t GPID[] = { 0, 2, 12, 13, 14, 15, 4, 5 };
 static const uint8_t Func[] = { FUNC_GPIO0, FUNC_GPIO2, FUNC_GPIO12, FUNC_GPIO13, FUNC_GPIO14, FUNC_GPIO15, FUNC_GPIO4, FUNC_GPIO5 };
 static const int  Periphs[] = { PERIPHS_IO_MUX_GPIO0_U, PERIPHS_IO_MUX_GPIO2_U, PERIPHS_IO_MUX_MTDI_U, PERIPHS_IO_MUX_MTCK_U, PERIPHS_IO_MUX_MTMS_U, PERIPHS_IO_MUX_MTDO_U, PERIPHS_IO_MUX_GPIO4_U, PERIPHS_IO_MUX_GPIO5_U };
 
+/*============================================================================
+ * Functions
+ *==========================================================================*/
 
+/**
+ * TODO doc
+ * @param v
+ */
 void interupt_test( void * v )
 {
 	int i;
@@ -37,7 +54,9 @@ void interupt_test( void * v )
 	GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, gpio_status);
 }
 
-
+/**
+ * TODO doc
+ */
 void ICACHE_FLASH_ATTR SetupGPIO()
 {
 	int i;
@@ -55,7 +74,10 @@ void ICACHE_FLASH_ATTR SetupGPIO()
  	printf( "Setup GPIO Complete\n" );
 }
 
-
+/**
+ * TODO doc
+ * @return
+ */
 uint8_t ICACHE_FLASH_ATTR GetButtons()
 {
 	uint8_t ret = 0;
