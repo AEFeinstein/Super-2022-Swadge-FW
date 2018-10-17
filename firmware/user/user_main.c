@@ -562,8 +562,8 @@ void ICACHE_FLASH_ATTR user_init(void)
 
         // Turn on LEDs
         ws2812_init();
-        memset( ledOut, 255, sizeof(ledOut) );
-        ws2812_push( ledOut, sizeof(ledOut) );
+        memset( ledOut, 255, USE_NUM_LIN_LEDS * 3 );
+        ws2812_push( ledOut, USE_NUM_LIN_LEDS );
 
         // Small delay
         ets_delay_us(10000);
