@@ -11,6 +11,7 @@
 
 #define memcpy ets_memcpy
 #define memset ets_memset
+#define strlen ets
 
 #define ROOT_NOTE_OFFSET	CCS.gROOT_NOTE_OFFSET
 #define DFTIIR				CCS.gDFTIIR
