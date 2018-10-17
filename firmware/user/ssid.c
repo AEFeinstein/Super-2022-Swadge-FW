@@ -5,6 +5,7 @@
 #include "mem.h"
 #include "c_types.h"
 #include "user_interface.h"
+#include "ssid.h"
 
 /*============================================================================
  * Functions
@@ -15,10 +16,10 @@
  * @param ssid
  * @param password
  */
-void ICACHE_FLASH_ATTR LoadSSIDAndPassword( char * ssid, char * password )
+void ICACHE_FLASH_ATTR LoadSSIDAndPassword( char* ssid, char* password )
 {
-	ets_memcpy( ssid, "testnet", 7 );
-	ets_memcpy( password, "testpass", 8 );
+    ets_memcpy( ssid, "testnet", 7 );
+    ets_memcpy( password, "testpass", 8 );
 }
 
 

@@ -12,8 +12,8 @@
 
 #define SLC_CONF0                                (REG_SLC_BASE + 0x0)
 #ifndef ESP_MAC_5
-#define SLC_MODE 0x00000003
-#define SLC_MODE_S 12
+    #define SLC_MODE 0x00000003
+    #define SLC_MODE_S 12
 #endif
 #define SLC_DATA_BURST_EN (BIT(9))
 #define SLC_DSCR_BURST_EN (BIT(8))
@@ -186,9 +186,9 @@
 
 #define SLC_BRIDGE_CONF                          (REG_SLC_BASE + 0x44)
 #ifndef ESP_MAC_5
-#define SLC_TX_PUSH_IDLE_NUM 0x0000FFFF
-#define SLC_TX_PUSH_IDLE_NUM_S 16
-#define SLC_TX_DUMMY_MODE (BIT(12))
+    #define SLC_TX_PUSH_IDLE_NUM 0x0000FFFF
+    #define SLC_TX_PUSH_IDLE_NUM_S 16
+    #define SLC_TX_DUMMY_MODE (BIT(12))
 #endif
 #define SLC_FIFO_MAP_ENA 0x0000000F
 #define SLC_FIFO_MAP_ENA_S 8
@@ -218,16 +218,16 @@
 
 #define SLC_RX_DSCR_CONF                        (REG_SLC_BASE + 0x5C)
 #ifdef ESP_MAC_5
-#define SLC_INFOR_NO_REPLACE (BIT(9))
-#define SLC_TOKEN_NO_REPLACE (BIT(8))
-#define SLC_POP_IDLE_CNT 0x000000FF
+    #define SLC_INFOR_NO_REPLACE (BIT(9))
+    #define SLC_TOKEN_NO_REPLACE (BIT(8))
+    #define SLC_POP_IDLE_CNT 0x000000FF
 #else
-#define SLC_RX_FILL_EN (BIT(20))
-#define SLC_RX_EOF_MODE (BIT(19))
-#define SLC_RX_FILL_MODE (BIT(18))
-#define SLC_INFOR_NO_REPLACE (BIT(17))
-#define SLC_TOKEN_NO_REPLACE (BIT(16))
-#define SLC_POP_IDLE_CNT 0x0000FFFF
+    #define SLC_RX_FILL_EN (BIT(20))
+    #define SLC_RX_EOF_MODE (BIT(19))
+    #define SLC_RX_FILL_MODE (BIT(18))
+    #define SLC_INFOR_NO_REPLACE (BIT(17))
+    #define SLC_TOKEN_NO_REPLACE (BIT(16))
+    #define SLC_POP_IDLE_CNT 0x0000FFFF
 #endif
 #define SLC_POP_IDLE_CNT_S 0
 
@@ -251,27 +251,27 @@
 #define SLC_HOST_INTR_SOF_BIT                     (BIT(12))
 
 #define SLC_HOST_INTR_ENA                         (REG_SLC_BASE + 0x80 + 0x34)
-#define SLC_RX_NEW_PACKET_INT_ENA 		(BIT23)
-#define SLC_HOST_TOHOST_BIT0_INT_ENA		(BIT0)
+#define SLC_RX_NEW_PACKET_INT_ENA       (BIT23)
+#define SLC_HOST_TOHOST_BIT0_INT_ENA        (BIT0)
 #define SLC_HOST_CONF_W5                          (REG_SLC_BASE + 0x80 + 0x3C)
 #define SLC_HOST_INTR_RAW                         (REG_SLC_BASE + 0x80 + 0x8)
 #define SLC_HOST_INTR_ENA_BIT                      (BIT(23))
 //[15:12]: 0x3ff9xxxx -- 0b01  from_host
 //         0x3ffaxxxx -- 0b10  general
 //         0x3ffbxxxx -- 0b11  to_host
-#define SLC_DATA_ADDR_CLEAR_MASK                    (~(0xf<<12)) 
+#define SLC_DATA_ADDR_CLEAR_MASK                    (~(0xf<<12))
 #define SLC_FROM_HOST_ADDR_MASK                     (0x1<<12)
 #define SLC_TO_HOST_ADDR_MASK                       (0x3<<12)
 
 #define SLC_SET_FROM_HOST_ADDR_MASK(v)   do { \
-    (v) &= SLC_DATA_ADDR_CLEAR_MASK;  \
-    (v) |= SLC_FROM_HOST_ADDR_MASK;   \
-} while(0);
+        (v) &= SLC_DATA_ADDR_CLEAR_MASK;  \
+        (v) |= SLC_FROM_HOST_ADDR_MASK;   \
+    } while(0);
 
 #define SLC_SET_TO_HOST_ADDR_MASK(v)   do { \
-    (v) &= SLC_DATA_ADDR_CLEAR_MASK;  \
-    (v) |= SLC_TO_HOST_ADDR_MASK;   \
-} while(0);
+        (v) &= SLC_DATA_ADDR_CLEAR_MASK;  \
+        (v) |= SLC_TO_HOST_ADDR_MASK;   \
+    } while(0);
 
 
 #define SLC_TX_DESC_DEBUG_REG  0x3ff0002c  //[15:0] set to 0xcccc

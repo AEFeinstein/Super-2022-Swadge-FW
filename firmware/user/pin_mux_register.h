@@ -6,7 +6,7 @@
 #ifndef _PIN_MUX_H_
 #define _PIN_MUX_H_
 
-#define PERIPHS_IO_MUX			        0x60000800
+#define PERIPHS_IO_MUX                  0x60000800
 
 #define PERIPHS_IO_MUX_FUNC             0x13
 #define PERIPHS_IO_MUX_FUNC_S           4

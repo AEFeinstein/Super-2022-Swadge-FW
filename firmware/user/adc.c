@@ -50,28 +50,29 @@ uint16 hs_adc_read(void)
 {
     uint8 i;
     uint16 sardata[8];
-	uint16_t sar_dout = 0;
+    uint16_t sar_dout = 0;
 
     while (GET_PERI_REG_BITS(0x60000D50, 26, 24) > 0); //wait r_state == 0
 
     read_sar_dout(sardata);
 
-    for (i = 0; i < 8; i++) {
+    for (i = 0; i < 8; i++)
+    {
         sar_dout += sardata[i];
     }
 
 #ifdef OLDWAY_NEEDS_RESTART
     //tout = (sar_dout + 8) >> 4;   //tout is 10 bits fraction
-// ??? Why does this exist ??? It didn't start commented out, but now that I did comment it, it still seems happy.
-//    i2c_writeReg_Mask_def(i2c_saradc, i2c_saradc_en_test, 1); //select test mux
-//    while (GET_PERI_REG_BITS(0x60000D50, 26, 24) > 0); //wait r_state == 0
+    // ??? Why does this exist ??? It didn't start commented out, but now that I did comment it, it still seems happy.
+    //    i2c_writeReg_Mask_def(i2c_saradc, i2c_saradc_en_test, 1); //select test mux
+    //    while (GET_PERI_REG_BITS(0x60000D50, 26, 24) > 0); //wait r_state == 0
 
-//    CLEAR_PERI_REG_MASK(0x60000D5C, 0x200000);
- //   SET_PERI_REG_MASK(0x60000D60, 0x1);    //force_en=1
- //   CLEAR_PERI_REG_MASK(0x60000D60, 0x1);    //force_en=1
+    //    CLEAR_PERI_REG_MASK(0x60000D5C, 0x200000);
+    //   SET_PERI_REG_MASK(0x60000D60, 0x1);    //force_en=1
+    //   CLEAR_PERI_REG_MASK(0x60000D60, 0x1);    //force_en=1
 #else
 
-	//Start reading a new sample.
+    //Start reading a new sample.
     CLEAR_PERI_REG_MASK(0x60000D50, 0x02);    //force_en=0
     SET_PERI_REG_MASK(0x60000D50, 0x02);    //force_en=1
 #endif

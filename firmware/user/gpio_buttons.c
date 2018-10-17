@@ -33,25 +33,25 @@ static const int  Periphs[] = { PERIPHS_IO_MUX_GPIO0_U, PERIPHS_IO_MUX_GPIO2_U, 
  * TODO doc
  * @param v
  */
-void interupt_test( void * v )
+void interupt_test( void* v )
 {
-	int i;
+    int i;
 
-	uint8_t stat = GetButtons();
+    uint8_t stat = GetButtons();
 
-	for( i = 0; i < TOTAL_BUTTONS_THIS_CONTROLLER; i++ )
-	{
-		int mask = 1<<i;
-		if( (stat & mask) != (LastGPIOState & mask) )
-		{
-			HandleButtonEvent( stat, i, (stat & mask)?1:0 );
-		}
-	}
-	LastGPIOState = stat;
+    for( i = 0; i < TOTAL_BUTTONS_THIS_CONTROLLER; i++ )
+    {
+        int mask = 1 << i;
+        if( (stat & mask) != (LastGPIOState & mask) )
+        {
+            HandleButtonEvent( stat, i, (stat & mask) ? 1 : 0 );
+        }
+    }
+    LastGPIOState = stat;
 
-	//clear interrupt status
-	uint32  gpio_status = GPIO_REG_READ(GPIO_STATUS_ADDRESS);
-	GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, gpio_status);
+    //clear interrupt status
+    uint32  gpio_status = GPIO_REG_READ(GPIO_STATUS_ADDRESS);
+    GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, gpio_status);
 }
 
 /**
@@ -59,19 +59,24 @@ void interupt_test( void * v )
  */
 void ICACHE_FLASH_ATTR SetupGPIO()
 {
-	int i;
-	ETS_GPIO_INTR_DISABLE(); // Disable gpio interrupts
-	ETS_GPIO_INTR_ATTACH(interupt_test, 0); // GPIO12 interrupt handler
-	for( i = 0; i < TOTAL_BUTTONS_THIS_CONTROLLER; i++ )
-	{
-		PIN_FUNC_SELECT(Periphs[i], Func[i]);
-		PIN_DIR_INPUT = 1<<GPID[i];
-		gpio_pin_intr_state_set(GPIO_ID_PIN(GPID[i]), 3); // Interrupt on any GPIO12 edge
-		GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, BIT(GPID[i])); // Clear GPIO12 status
-	}
-	ETS_GPIO_INTR_ENABLE(); // Disable gpio interrupts
-	LastGPIOState = GetButtons();
- 	printf( "Setup GPIO Complete\n" );
+    int i;
+    ETS_GPIO_INTR_DISABLE(); // Disable gpio interrupts
+    ETS_GPIO_INTR_ATTACH(interupt_test, 0); // GPIO12 interrupt handler
+    for( i = 0; i < TOTAL_BUTTONS_THIS_CONTROLLER; i++ )
+    {
+        PIN_FUNC_SELECT(Periphs[i], Func[i]);
+        PIN_DIR_INPUT = 1 << GPID[i];
+        gpio_pin_intr_state_set(GPIO_ID_PIN(GPID[i]), 3); // Interrupt on any GPIO12 edge
+        GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, BIT(GPID[i])); // Clear GPIO12 status
+    }
+    ETS_GPIO_INTR_ENABLE(); // Disable gpio interrupts
+    LastGPIOState = GetButtons();
+
+    // TODO pull GPIO 14 high
+    PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTMS_U, FUNC_GPIO14);
+    GPIO_OUTPUT_SET(GPIO_ID_PIN(14), 1 );
+
+    printf( "Setup GPIO Complete\n" );
 }
 
 /**
@@ -80,17 +85,17 @@ void ICACHE_FLASH_ATTR SetupGPIO()
  */
 uint8_t ICACHE_FLASH_ATTR GetButtons()
 {
-	uint8_t ret = 0;
-	int i;
-	uint32_t pin = PIN_IN;
-	int mask = 1;
-	for( i = 0; i < TOTAL_BUTTONS_THIS_CONTROLLER; i++ )
-	{
-		ret |= (pin & (1<<GPID[i]))?mask:0;
-		mask <<= 1;
-	}
-	ret ^= ~32; //GPIO15's logic is inverted.  Don't flip it but flip everything else.
-	return ret;
+    uint8_t ret = 0;
+    int i;
+    uint32_t pin = PIN_IN;
+    int mask = 1;
+    for( i = 0; i < TOTAL_BUTTONS_THIS_CONTROLLER; i++ )
+    {
+        ret |= (pin & (1 << GPID[i])) ? mask : 0;
+        mask <<= 1;
+    }
+    ret ^= ~32; //GPIO15's logic is inverted.  Don't flip it but flip everything else.
+    return ret;
 }
 
 

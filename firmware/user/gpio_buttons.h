@@ -19,7 +19,8 @@ unsigned char ICACHE_FLASH_ATTR GetButtons();
 //You write.
 void ICACHE_FLASH_ATTR HandleButtonEvent( uint8_t state, int button, int down );
 
-extern volatile uint8_t LastGPIOState; //From last "GetButtons()" command.  Will not be updated until after interrupt and all HandleButtonEvent messages have been called.
+extern volatile uint8_t
+LastGPIOState; //From last "GetButtons()" command.  Will not be updated until after interrupt and all HandleButtonEvent messages have been called.
 
 #endif
 

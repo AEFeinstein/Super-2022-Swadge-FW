@@ -1,7 +1,7 @@
 //Copyright 2015 <>< Charles Lohr Under the MIT/x11 License, NewBSD License or
 // ColorChord License.  You Choose.
 
-//This is a tool to make the ESP8266 run its ADC and pipe the samples into 
+//This is a tool to make the ESP8266 run its ADC and pipe the samples into
 //the sounddata fifo.
 
 #ifndef _HPATIMER_H
