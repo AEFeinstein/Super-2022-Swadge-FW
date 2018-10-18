@@ -139,7 +139,7 @@ void ICACHE_FLASH_ATTR SetupGPIO(ButtonHandler handler)
 
     // Disable gpio interrupts
     ETS_GPIO_INTR_DISABLE();
-    // GPIO12 interrupt handler
+    // interrupt handler for GPIOs in gpioInfo[]
     ETS_GPIO_INTR_ATTACH(gpioInterrupt, 0);
 
     // For each button
