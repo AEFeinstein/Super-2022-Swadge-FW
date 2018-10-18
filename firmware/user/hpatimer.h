@@ -14,13 +14,13 @@
 
 //BUFFSIZE must be a power-of-two
 #define HPABUFFSIZE 512
-uint8_t getSample(void);
-bool sampleAvailable(void);
 
-void StartHPATimer();
+uint8_t ICACHE_FLASH_ATTR getSample(void);
+bool ICACHE_FLASH_ATTR sampleAvailable(void);
 
-void ICACHE_FLASH_ATTR ContinueHPATimer();
-void ICACHE_FLASH_ATTR PauseHPATimer();
+void ICACHE_FLASH_ATTR StartHPATimer(void);
+void ICACHE_FLASH_ATTR ContinueHPATimer(void);
+void ICACHE_FLASH_ATTR PauseHPATimer(void);
 
 
 #endif

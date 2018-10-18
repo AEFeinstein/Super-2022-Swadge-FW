@@ -8,6 +8,6 @@
 #ifndef USER_CUSTOM_COMMANDS_H_
 #define USER_CUSTOM_COMMANDS_H_
 
-void ICACHE_FLASH_ATTR CustomStart( );
+void ICACHE_FLASH_ATTR LoadSettings( );
 
 #endif /* USER_CUSTOM_COMMANDS_H_ */

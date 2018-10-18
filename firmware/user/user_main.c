@@ -529,7 +529,7 @@ void ICACHE_FLASH_ATTR user_init(void)
     // system_restore();
 
     // Load configurable parameters from SPI memory
-    CustomStart();
+    LoadSettings();
 
 #ifdef PROFILE
     GPIO_OUTPUT_SET(GPIO_ID_PIN(0), 0);

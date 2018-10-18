@@ -3,10 +3,18 @@
 // renounce any copyright over this file, so all of my modifications
 // are hereby placed into the public domain.
 
+/*============================================================================
+ * Includes
+ *==========================================================================*/
+
 #include "ets_sys.h"
 #include "osapi.h"
 
 #include "adc.h"
+
+/*============================================================================
+ * Defines
+ *==========================================================================*/
 
 #define i2c_bbpll                           0x67
 #define i2c_bbpll_en_audio_clock_out        4
@@ -32,6 +40,10 @@
 #define i2c_readReg_Mask_def(block, reg_add) \
     i2c_readReg_Mask(block, block##_hostid, reg_add, reg_add##_msb, reg_add##_lsb)
 
+/*============================================================================
+ * Functions
+ *==========================================================================*/
+
 /**
  * Start an ADC measurement, but don't take it yet
  */
@@ -56,7 +68,7 @@ void ICACHE_FLASH_ATTR hs_adc_start(void)
  *
  * @return A 16 bit ADC measurement
  */
-uint16 hs_adc_read(void)
+uint16 ICACHE_FLASH_ATTR hs_adc_read(void)
 {
     uint8 i;
     uint16 sardata[8];
@@ -92,5 +104,3 @@ uint16 hs_adc_read(void)
     // tout is 10 bits fraction
     return sar_dout;
 }
-
-

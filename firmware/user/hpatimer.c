@@ -49,6 +49,12 @@ volatile uint16_t soundtail = 0;
 bool hpaRunning = false;
 
 /*============================================================================
+ * Prototypes
+ *==========================================================================*/
+
+static ICACHE_FLASH_ATTR void timerhandle( void* v );
+
+/*============================================================================
  * Functions
  *==========================================================================*/
 
@@ -58,7 +64,7 @@ bool hpaRunning = false;
  *
  * @param v unused
  */
-static void timerhandle( void* v )
+static ICACHE_FLASH_ATTR void timerhandle( void* v )
 {
     RTC_CLR_REG_MASK(FRC1_INT_ADDRESS, FRC1_INT_CLR_MASK);
     uint16_t r = hs_adc_read();
@@ -69,7 +75,7 @@ static void timerhandle( void* v )
 /**
  * @return true if a sample has been read from the ADC and is queued for processing
  */
-bool sampleAvailable(void)
+bool ICACHE_FLASH_ATTR sampleAvailable(void)
 {
     return soundhead != soundtail;
 }
@@ -80,7 +86,7 @@ bool sampleAvailable(void)
  *
  * @return the sample which was read from the ADC
  */
-uint8_t getSample(void)
+uint8_t ICACHE_FLASH_ATTR getSample(void)
 {
     uint8_t samp = sounddata[soundtail];
     soundtail = (soundtail + 1) % (HPABUFFSIZE);
@@ -93,7 +99,7 @@ uint8_t getSample(void)
  *
  * Calls ContinueHPATimer() to fully enable to timer and start an ADC reading with hs_adc_start()
  */
-void ICACHE_FLASH_ATTR StartHPATimer()
+void ICACHE_FLASH_ATTR StartHPATimer(void)
 {
 
     RTC_REG_WRITE(FRC1_CTRL_ADDRESS,  FRC1_AUTO_RELOAD |
@@ -115,7 +121,7 @@ void ICACHE_FLASH_ATTR StartHPATimer()
 /**
  * Pause the hardware timer used to sample the ADC
  */
-void ICACHE_FLASH_ATTR PauseHPATimer()
+void ICACHE_FLASH_ATTR PauseHPATimer(void)
 {
     TM1_EDGE_INT_DISABLE();
     ETS_FRC1_INTR_DISABLE();
@@ -126,7 +132,7 @@ void ICACHE_FLASH_ATTR PauseHPATimer()
 /**
  * Start the hardware timer used to sample the ADC
  */
-void ICACHE_FLASH_ATTR ContinueHPATimer()
+void ICACHE_FLASH_ATTR ContinueHPATimer(void)
 {
     TM1_EDGE_INT_ENABLE();
     ETS_FRC1_INTR_ENABLE();
@@ -138,8 +144,7 @@ void ICACHE_FLASH_ATTR ContinueHPATimer()
 /**
  * @return true if the hpa timer is running, false otherwise
  */
-bool isHpaRunning(void)
+bool ICACHE_FLASH_ATTR isHpaRunning(void)
 {
     return hpaRunning;
 }
-

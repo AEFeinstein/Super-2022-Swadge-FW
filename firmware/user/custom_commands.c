@@ -45,8 +45,6 @@ extern volatile uint16_t soundhead;
 
 struct CCSettings CCS = {0};
 
-settings_t settings = {0};
-
 configurable_t gConfigs[CONFIGURABLES] =
 {
     {
@@ -147,10 +145,13 @@ configurable_t gConfigs[CONFIGURABLES] =
 
 /**
  * Initialization for settings, called by user_init().
- * Reads settings from SPI flash, uses defaults if a key value isn't present
+ * Reads settings from SPI flash into gConfigs.
+ * This will load defaults if a key value isn't present in SPI flash.
  */
-void ICACHE_FLASH_ATTR CustomStart( )
+void ICACHE_FLASH_ATTR LoadSettings(void)
 {
+    settings_t settings = {0};
+
     int i;
     spi_flash_read( 0x3D000, (uint32*)&settings, sizeof( settings ) );
     if( settings.SaveLoadKey == SAVE_LOAD_KEY )
@@ -176,10 +177,11 @@ void ICACHE_FLASH_ATTR CustomStart( )
 }
 
 /**
- * TODO doc
+ * Save all settings from gConfigs[] to SPI flash
  */
-void ICACHE_FLASH_ATTR SaveSettings()
+void ICACHE_FLASH_ATTR SaveSettings(void)
 {
+    settings_t settings = {0};
     int i;
     for( i = 0; i < CONFIGURABLES - 1; i++ )
     {
@@ -188,7 +190,7 @@ void ICACHE_FLASH_ATTR SaveSettings()
             settings.configs[i] = *(gConfigs[i].val);
         }
     }
-    settings.SaveLoadKey = 0xAA;
+    settings.SaveLoadKey = SAVE_LOAD_KEY;
 
     EnterCritical();
     ets_intr_lock();
@@ -196,21 +198,26 @@ void ICACHE_FLASH_ATTR SaveSettings()
     spi_flash_write( 0x3D000, (uint32*)&settings, ((sizeof( settings ) - 1) & (~0xf)) + 0x10 );
     ets_intr_unlock();
     ExitCritical();
-
 }
 
 /**
- * TODO doc
+ * Revert all settings to their default values, except gUSE_NUM_LIN_LEDS
+ * Once the settings are reverted, except for gUSE_NUM_LIN_LEDS, write
+ * the settings to SPI flash
  */
 void ICACHE_FLASH_ATTR RevertAndSaveAllSettingsExceptLEDs()
 {
-    int i;
     printf( "Restoring all values.\n" );
+
+    // Save gUSE_NUM_LIN_LEDS
     int led = CCS.gUSE_NUM_LIN_LEDS;
     if( led == 0 )
     {
         led = 5;
     }
+
+    // Restore to defaults
+    int i;
     for( i = 0; i < CONFIGURABLES; i++ )
     {
         if( gConfigs[i].val )
@@ -218,7 +225,11 @@ void ICACHE_FLASH_ATTR RevertAndSaveAllSettingsExceptLEDs()
             *(gConfigs[i].val) = gConfigs[i].defaultVal;
         }
     }
+
+    // Restore saved gUSE_NUM_LIN_LEDS
     CCS.gUSE_NUM_LIN_LEDS = led;
+
+    // Write to SPI flash
     SaveSettings();
 }
 
@@ -240,8 +251,6 @@ int ICACHE_FLASH_ATTR CustomCommand(char* buffer, int retsize, char* pusrdata, u
     // Start with pusrdata[1] because pusrdata[0] is 'C' or 'c'
     switch( pusrdata[1] )
     {
-
-
         case 'b':
         case 'B': //bins
         {
@@ -279,7 +288,6 @@ int ICACHE_FLASH_ATTR CustomCommand(char* buffer, int retsize, char* pusrdata, u
             return buffend - buffer;
         }
 
-
         case 'l':
         case 'L': //LEDs
         {
@@ -298,7 +306,6 @@ int ICACHE_FLASH_ATTR CustomCommand(char* buffer, int retsize, char* pusrdata, u
             }
             return buffend - buffer;
         }
-
 
         case 'm':
         case 'M': //Oscilloscope
@@ -343,7 +350,6 @@ int ICACHE_FLASH_ATTR CustomCommand(char* buffer, int retsize, char* pusrdata, u
             return buffend - buffer;
         }
 
-
         case 's':
         case 'S':
         {
@@ -361,21 +367,15 @@ int ICACHE_FLASH_ATTR CustomCommand(char* buffer, int retsize, char* pusrdata, u
                             *gConfigs[i].val = gConfigs[i].defaultVal;
                         }
                     }
-                    buffend += ets_sprintf( buffend, "CD" );
+                    buffend += ets_sprintf( buffend, "CSD" );
                     return buffend - buffer;
                 }
 
                 case 'r':
                 case 'R':
                 {
-                    int i;
-                    for( i = 0; i < CONFIGURABLES - 1; i++ )
-                    {
-                        if( gConfigs[i].val )
-                        {
-                            *gConfigs[i].val = settings.configs[i];
-                        }
-                    }
+                    LoadSettings();
+
                     buffend += ets_sprintf( buffend, "CSR" );
                     return buffend - buffer;
                 }
@@ -385,15 +385,13 @@ int ICACHE_FLASH_ATTR CustomCommand(char* buffer, int retsize, char* pusrdata, u
                 {
                     SaveSettings();
 
-                    buffend += ets_sprintf( buffend, "CS" );
+                    buffend += ets_sprintf( buffend, "CSS" );
                     return buffend - buffer;
                 }
             }
             buffend += ets_sprintf( buffend, "!CS" );
             return buffend - buffer;
         }
-
-
 
         case 'v':
         case 'V': //ColorChord Values
@@ -447,10 +445,7 @@ int ICACHE_FLASH_ATTR CustomCommand(char* buffer, int retsize, char* pusrdata, u
                 buffend += ets_sprintf( buffend, "!CV" );
                 return buffend - buffer;
             }
-
         }
-
-
     }
     return -1;
 }
