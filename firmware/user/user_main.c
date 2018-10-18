@@ -72,6 +72,12 @@ uint8_t last_button_event_btn = 0;
 uint8_t last_button_event_dn = 0;
 
 /*============================================================================
+ * Prototypes
+ *==========================================================================*/
+
+void ICACHE_FLASH_ATTR HandleButtonEvent( uint8_t stat, int btn, int down );
+
+/*============================================================================
  * Functions
  *==========================================================================*/
 
@@ -209,7 +215,7 @@ void ICACHE_FLASH_ATTR TransmitGenericEvent(void)
     packetIdx += sizeof(stationConf.bssid);
 
     // GPIO & button info
-    sendpack[packetIdx++] = LastGPIOState;
+    sendpack[packetIdx++] = getLastGPIOState();
     sendpack[packetIdx++] = last_button_event_btn;
     sendpack[packetIdx++] = last_button_event_dn;
     last_button_event_btn = 0;
@@ -493,14 +499,17 @@ void ICACHE_FLASH_ATTR charrx( uint8_t c )
 }
 
 /**
- * TODO doc
+ * This function is passed into SetupGPIO() as the callback for button interrupts.
+ * It is called every time a button is pressed or released
  *
- * @param stat
- * @param btn
- * @param down
+ * @param stat A bitmask of all button statuses
+ * @param btn  The button number which was pressed
+ * @param down 1 if the button was pressed, 0 if it was released
  */
 void ICACHE_FLASH_ATTR HandleButtonEvent( uint8_t stat, int btn, int down )
 {
+    printf("button %d %s\r\n", btn, down ? "down" : "up");
+
     // XXX WOULD BE NICE: Implement some sort of event queue.
     last_button_event_btn = btn + 1;
     last_button_event_dn = down;
@@ -527,7 +536,7 @@ void ICACHE_FLASH_ATTR user_init(void)
 #endif
 
     // Initialize GPIOs
-    SetupGPIO();
+    SetupGPIO(HandleButtonEvent);
 
     // Set GPIO16 for Input,  mux configuration for XPD_DCDC and rtc_gpio0 connection
     WRITE_PERI_REG(PAD_XPD_DCDC_CONF,
