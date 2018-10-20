@@ -27,6 +27,7 @@
 #include "ssid.h"
 #include "user_main.h"
 #include "mode_colorchord.h"
+#include "mode_led_patterns.h"
 
 /*============================================================================
  * Defines
@@ -121,7 +122,8 @@ void ICACHE_FLASH_ATTR RegisterSwadgeMode(swadgeMode * mode)
 }
 
 /**
- * TODO doc
+ * Switch to the next registered swadge mode. This will cleanly exit the
+ * current mode and initialize the next one, and swap it in
  */
 void ICACHE_FLASH_ATTR NextSwadgeMode(void)
 {
@@ -692,6 +694,7 @@ void ICACHE_FLASH_ATTR user_init(void)
 
     // Register all swadge modes
     RegisterSwadgeMode(&colorchordMode);
+    RegisterSwadgeMode(&ledPatternsMode);
 
     // Initialize the current mode
     if(NULL != currentMode && NULL != currentMode->enterMode)
@@ -721,9 +724,13 @@ void ICACHE_FLASH_ATTR ExitCritical(void)
 }
 
 /**
- * TODO doc
- * @param ledData
- * @param ledDataLen
+ * Set the state of the six RGB LEDs, but don't overwrite if the LEDs were
+ * set via UDP for at least TICKER_TIMEOUT increments of 100ms
+ *
+ * @param ledData    Array of LED color data. Every three bytes corresponds to
+ *                   one LED in RGB order. So index 0 is LED1_R, index 1 is
+ *                   LED1_G, index 2 is LED1_B, index 3 is LED2_R, etc.
+ * @param ledDataLen The length of buffer, most likely 6*3
  */
 void ICACHE_FLASH_ATTR setLeds(uint8_t * ledData, uint16_t ledDataLen)
 {
@@ -741,11 +748,12 @@ void ICACHE_FLASH_ATTR setLeds(uint8_t * ledData, uint16_t ledDataLen)
 }
 
 /**
- * TODO
- * @param packet
- * @param packetLen
+ * Send a UDP packet to the swadge this swadge is connected to, if it's connected
+ *
+ * @param packet    The bytes to send to the other swadge
+ * @param packetLen The length of the bytes to send to the other swadge
  */
 void ICACHE_FLASH_ATTR sendPacket(uint8_t * packet, uint16_t packetLen)
 {
-	; // TODO
+	; // TODO Implement
 }

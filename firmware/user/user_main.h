@@ -26,15 +26,16 @@ typedef void (*fnPacketCallback)(uint8_t * packet, uint8_t packetLen);
 
 typedef struct _swadgeMode swadgeMode;
 
-struct _swadgeMode {
-	bool shouldConnect;
+struct _swadgeMode
+{
 	fnEnterMode enterMode;
 	fnExitMode exitMode;
 	fnTimerCallback timerCallback;
 	fnButtonCallback buttonCallback;
 	fnAudioCallback audioCallback;
-	fnConnectionCallback connectionCallback;
-	fnPacketCallback packetCallback;
+	bool shouldConnect; // TODO implement this
+	fnConnectionCallback connectionCallback; // TODO implement this
+	fnPacketCallback packetCallback; // TODO implement this
 	swadgeMode * next;
 };
 
