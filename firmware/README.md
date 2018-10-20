@@ -67,22 +67,26 @@ struct _swadgeMode
      * This swadge mode's name. Used if this mode connects to other swadges
      * over WiFi to label packets. Must be distinct for each mode.
      */
-    char* modeName;  // TODO implement this
+    char* modeName;
+    
     /**
      * This function is called when this mode is started. It should initialize
      * any necessary variables
      */
     void (*fnEnterMode)(void);
+    
     /**
      * This function is called when the mode is exited. It should clean up
      * anything that shouldn't happen when the mode is not active
      */
     void (*fnExitMode)(void);
+    
     /**
      * This function is called every 100ms from user_main.c's timerFunc100ms().
      * It should be used to update any state based on time
      */
     void (*fnTimerCallback)(void);
+    
     /**
      * This function is called when a button press is detected from user_main.c's
      * HandleButtonEvent(). It does not pass mode select button events. It is
@@ -96,6 +100,7 @@ struct _swadgeMode
      * @param down 1 if the button was pressed, 0 if it was released
      */
     void (*fnButtonCallback)(uint8_t state, int button, int down);
+    
     /**
      * This function is called whenever an audio sample is read from the
      * microphone (ADC), is filtered, and is ready for processing
@@ -103,6 +108,7 @@ struct _swadgeMode
      * @param audoSample A 32 bit audio sample
      */
     void (*fnAudioCallback)(int32_t audoSample);
+    
     /**
      * This is a setting, not a function pointer. Set it to one of these
      * values to have the system configure the swadge's WiFi
@@ -113,12 +119,14 @@ struct _swadgeMode
      * STATIONAP_MODE - Attempt to connect to the physically closest swadge
      *                  in an ad-hoc manner
      */
-    uint8_t shouldConnect; // TODO implement this
+    uint8_t shouldConnect;
+    
     /**
      * If shouldConnect is set to STATIONAP_MODE, the LED color to be used
      * during the connection process. Must be distinct for each mode.
      */
-    uint32_t connectionColor; // TODO implement this
+    uint32_t connectionColor;
+    
     /**
      * If shouldConnect is set to STATIONAP_MODE, this function will be called
      * when the swadge connects or disconnects to another swadge. While the
@@ -127,7 +135,8 @@ struct _swadgeMode
      *
      * @param isConnected true if the swadge connects, false if it disconnects
      */
-    void (*fnConnectionCallback)(bool isConnected); // TODO implement this
+    void (*fnConnectionCallback)(bool isConnected);
+    
     /**
      * If shouldConnect is set to STATIONAP_MODE, this function will be called
      * when a packet is received from the other swadge
@@ -135,7 +144,8 @@ struct _swadgeMode
      * @param packet    The data to send to the connected swadge
      * @param packetLen The length of the data to send to the connected swadge
      */
-    void (*fnPacketCallback)(uint8_t* packet, uint8_t packetLen); // TODO implement this
+    void (*fnPacketCallback)(uint8_t* packet, uint8_t packetLen);
+    
     /**
      * A pointer to another swadgeMode, used by the system to register a
      * linked list of modes. This must be initialized to NULL.
