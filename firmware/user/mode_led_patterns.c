@@ -18,28 +18,32 @@
  * Enums
  *==========================================================================*/
 
-typedef enum {
-	RED,
-	GREEN,
-	BLUE,
-	MAX_COLORS
+typedef enum
+{
+    RED,
+    GREEN,
+    BLUE,
+    MAX_COLORS
 } color_t;
 
-typedef enum {
-	LEFT,
-	RIGHT,
-	MAX_DIRECTION
+typedef enum
+{
+    LEFT,
+    RIGHT,
+    MAX_DIRECTION
 } direction_t;
 
 /*============================================================================
  * Structs
  *==========================================================================*/
 
-typedef struct __attribute__ ((__packed__)) {
-	uint8_t g;
-	uint8_t r;
-	uint8_t b;
-} led_t;
+typedef struct __attribute__ ((__packed__))
+{
+    uint8_t g;
+    uint8_t r;
+    uint8_t b;
+}
+led_t;
 
 /*============================================================================
  * Function prototypes
@@ -53,16 +57,17 @@ void ICACHE_FLASH_ATTR ledPatternTimerCallback(void);
  * Variables
  *==========================================================================*/
 
-swadgeMode ledPatternsMode = {
-	.shouldConnect = false,
-	.enterMode = ledPatternEnterMode,
-	.exitMode = NULL,
-	.timerCallback = ledPatternTimerCallback,
-	.buttonCallback = ledPatternButtonCallback,
-	.audioCallback = NULL,
-	.connectionCallback = NULL,
-	.packetCallback = NULL,
-	.next = NULL
+swadgeMode ledPatternsMode =
+{
+    .shouldConnect = false,
+    .enterMode = ledPatternEnterMode,
+    .exitMode = NULL,
+    .timerCallback = ledPatternTimerCallback,
+    .buttonCallback = ledPatternButtonCallback,
+    .audioCallback = NULL,
+    .connectionCallback = NULL,
+    .packetCallback = NULL,
+    .next = NULL
 };
 
 static led_t ledData[NUM_LIN_LEDS] = {0};
@@ -81,12 +86,12 @@ static uint8_t currentLed = 0;
  */
 bool ICACHE_FLASH_ATTR ledPatternEnterMode(void)
 {
-	color = RED;
-	direction = LEFT;
-	currentLed = 0;
+    color = RED;
+    direction = LEFT;
+    currentLed = 0;
     memset(ledData, 0, sizeof(ledData));
-	setLeds((uint8_t*)ledData, sizeof(ledData));
-	return true;
+    setLeds((uint8_t*)ledData, sizeof(ledData));
+    return true;
 }
 
 /**
@@ -98,14 +103,14 @@ bool ICACHE_FLASH_ATTR ledPatternEnterMode(void)
  */
 void ICACHE_FLASH_ATTR ledPatternButtonCallback(uint8_t state, int button, int down)
 {
-	if(1 == button && down)
-	{
-		color = (color + 1) % MAX_COLORS;
-	}
-	else if(2 == button && down)
-	{
-		direction = (direction + 1) % MAX_DIRECTION;
-	}
+    if(1 == button && down)
+    {
+        color = (color + 1) % MAX_COLORS;
+    }
+    else if(2 == button && down)
+    {
+        direction = (direction + 1) % MAX_DIRECTION;
+    }
 }
 
 /**
@@ -113,47 +118,47 @@ void ICACHE_FLASH_ATTR ledPatternButtonCallback(uint8_t state, int button, int d
  */
 void ICACHE_FLASH_ATTR ledPatternTimerCallback(void)
 {
-	memset(ledData, 0, sizeof(ledData));
+    memset(ledData, 0, sizeof(ledData));
 
-	switch(direction)
-	{
-		case LEFT:
-		{
-			currentLed = (currentLed + 1) % NUM_LIN_LEDS;
-			break;
-		}
-		case RIGHT:
-		{
-			if(0 == currentLed)
-			{
-				currentLed = NUM_LIN_LEDS - 1;
-			}
-			else
-			{
-				currentLed = (currentLed - 1) % NUM_LIN_LEDS;
-			}
-			break;
-		}
-	}
+    switch(direction)
+    {
+        case LEFT:
+        {
+            currentLed = (currentLed + 1) % NUM_LIN_LEDS;
+            break;
+        }
+        case RIGHT:
+        {
+            if(0 == currentLed)
+            {
+                currentLed = NUM_LIN_LEDS - 1;
+            }
+            else
+            {
+                currentLed = (currentLed - 1) % NUM_LIN_LEDS;
+            }
+            break;
+        }
+    }
 
-	switch(color)
-	{
-		case RED:
-		{
-			ledData[currentLed].r = 0xFF;
-			break;
-		}
-		case GREEN:
-		{
-			ledData[currentLed].g = 0xFF;
-			break;
-		}
-		case BLUE:
-		{
-			ledData[currentLed].b = 0xFF;
-			break;
-		}
-	}
+    switch(color)
+    {
+        case RED:
+        {
+            ledData[currentLed].r = 0xFF;
+            break;
+        }
+        case GREEN:
+        {
+            ledData[currentLed].g = 0xFF;
+            break;
+        }
+        case BLUE:
+        {
+            ledData[currentLed].b = 0xFF;
+            break;
+        }
+    }
 
-	setLeds((uint8_t*)ledData, sizeof(ledData));
+    setLeds((uint8_t*)ledData, sizeof(ledData));
 }

@@ -22,24 +22,24 @@ typedef void (*fnAudioCallback)(int32_t audoSample);
 typedef void (*fnButtonCallback)(uint8_t state, int button, int down);
 
 typedef void (*fnConnectionCallback)(bool isConnected);
-typedef void (*fnPacketCallback)(uint8_t * packet, uint8_t packetLen);
+typedef void (*fnPacketCallback)(uint8_t* packet, uint8_t packetLen);
 
 typedef struct _swadgeMode swadgeMode;
 
 struct _swadgeMode
 {
-	fnEnterMode enterMode;
-	fnExitMode exitMode;
-	fnTimerCallback timerCallback;
-	fnButtonCallback buttonCallback;
-	fnAudioCallback audioCallback;
-	bool shouldConnect; // TODO implement this
-	fnConnectionCallback connectionCallback; // TODO implement this
-	fnPacketCallback packetCallback; // TODO implement this
-	swadgeMode * next;
+    fnEnterMode enterMode;
+    fnExitMode exitMode;
+    fnTimerCallback timerCallback;
+    fnButtonCallback buttonCallback;
+    fnAudioCallback audioCallback;
+    bool shouldConnect; // TODO implement this
+    fnConnectionCallback connectionCallback; // TODO implement this
+    fnPacketCallback packetCallback; // TODO implement this
+    swadgeMode* next;
 };
 
-void ICACHE_FLASH_ATTR setLeds(uint8_t * ledData, uint16_t ledDataLen);
-void ICACHE_FLASH_ATTR sendPacket(uint8_t * packet, uint16_t packetLen);
+void ICACHE_FLASH_ATTR setLeds(uint8_t* ledData, uint16_t ledDataLen);
+void ICACHE_FLASH_ATTR sendPacket(uint8_t* packet, uint16_t packetLen);
 
 #endif /* USER_USER_MAIN_H_ */

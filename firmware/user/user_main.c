@@ -73,15 +73,15 @@ uint8_t mymac[6] = {0};
 uint8_t last_button_event_btn = 0;
 uint8_t last_button_event_dn = 0;
 
-swadgeMode * rootMode = NULL;
-swadgeMode * currentMode = NULL;
+swadgeMode* rootMode = NULL;
+swadgeMode* currentMode = NULL;
 
 /*============================================================================
  * Prototypes
  *==========================================================================*/
 
 void ICACHE_FLASH_ATTR HandleButtonEvent( uint8_t stat, int btn, int down );
-void ICACHE_FLASH_ATTR RegisterSwadgeMode(swadgeMode * mode);
+void ICACHE_FLASH_ATTR RegisterSwadgeMode(swadgeMode* mode);
 void ICACHE_FLASH_ATTR NextSwadgeMode(void);
 
 static int ICACHE_FLASH_ATTR SwitchToSoftAP(void);
@@ -103,22 +103,22 @@ static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned
  *
  * @param mode The mode to register in the linked list of modes
  */
-void ICACHE_FLASH_ATTR RegisterSwadgeMode(swadgeMode * mode)
+void ICACHE_FLASH_ATTR RegisterSwadgeMode(swadgeMode* mode)
 {
-	if(NULL == rootMode)
-	{
-		rootMode = mode;
-		currentMode = rootMode;
-	}
-	else
-	{
-		swadgeMode * modeList = rootMode;
-		while(modeList->next != NULL)
-		{
-			modeList = modeList->next;
-		}
-		modeList->next = mode;
-	}
+    if(NULL == rootMode)
+    {
+        rootMode = mode;
+        currentMode = rootMode;
+    }
+    else
+    {
+        swadgeMode* modeList = rootMode;
+        while(modeList->next != NULL)
+        {
+            modeList = modeList->next;
+        }
+        modeList->next = mode;
+    }
 }
 
 /**
@@ -127,35 +127,35 @@ void ICACHE_FLASH_ATTR RegisterSwadgeMode(swadgeMode * mode)
  */
 void ICACHE_FLASH_ATTR NextSwadgeMode(void)
 {
-	if(NULL == currentMode)
-	{
-		// No modes at all!
-		return;
-	}
-	else
-	{
-		// Call the exit callback for the current mode
-		if(NULL != currentMode->exitMode)
-		{
-			currentMode->exitMode();
-		}
+    if(NULL == currentMode)
+    {
+        // No modes at all!
+        return;
+    }
+    else
+    {
+        // Call the exit callback for the current mode
+        if(NULL != currentMode->exitMode)
+        {
+            currentMode->exitMode();
+        }
 
-		// Switch to the next mode, or start from the beginning if we're at the end
-		if(NULL == currentMode->next)
-		{
-			currentMode = rootMode;
-		}
-		else
-		{
-			currentMode = currentMode->next;
-		}
+        // Switch to the next mode, or start from the beginning if we're at the end
+        if(NULL == currentMode->next)
+        {
+            currentMode = rootMode;
+        }
+        else
+        {
+            currentMode = currentMode->next;
+        }
 
-		// Call the enter callback for the current mode
-		if(NULL != currentMode->enterMode)
-		{
-			currentMode->enterMode();
-		}
-	}
+        // Call the enter callback for the current mode
+        if(NULL != currentMode->enterMode)
+        {
+            currentMode->enterMode();
+        }
+    }
 }
 
 /**
@@ -372,7 +372,7 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
         // Pass the button to the mode
         if(NULL != currentMode && NULL != currentMode->audioCallback)
         {
-        	currentMode->audioCallback(samp);
+            currentMode->audioCallback(samp);
         }
     }
 
@@ -403,7 +403,7 @@ static void ICACHE_FLASH_ATTR myTimer(void* arg)
     // Tick the current mode every 100ms
     if(NULL != currentMode && NULL != currentMode->timerCallback)
     {
-    	currentMode->timerCallback();
+        currentMode->timerCallback();
     }
 
     if( udp_pending )
@@ -422,42 +422,42 @@ static void ICACHE_FLASH_ATTR myTimer(void* arg)
         hpa_is_paused_for_wifi = 0; // only need to do once prevents unstable ADC
     }
 
-	struct station_config wcfg;
-	struct ip_info ipi;
-	int stat = wifi_station_get_connect_status();
-	if( stat == STATION_WRONG_PASSWORD || stat == STATION_NO_AP_FOUND || stat == STATION_CONNECT_FAIL )
-	{
-		wifi_station_disconnect();
-		wifi_fails++;
-		printf( "Connection failed with code %d... Retrying, try: %d", stat, wifi_fails );
-		printf("\n");
-		if( wifi_fails == 2 )
-		{
-			SwitchToSoftAP();
-			got_an_ip = 1;
-			printed_ip = 1;
-		}
-		else
-		{
-			wifi_station_connect();
-			got_an_ip = 0;
-		}
-		memset(  ledOut + wifi_fails * 3, 255, 3 );
-		setLeds( ledOut, USE_NUM_LIN_LEDS * 3 );
-	}
-	else if( stat == STATION_GOT_IP && !got_an_ip )
-	{
-		wifi_station_get_config( &wcfg );
-		wifi_get_ip_info(0, &ipi);
-		printf( "STAT: %d\n", stat );
+    struct station_config wcfg;
+    struct ip_info ipi;
+    int stat = wifi_station_get_connect_status();
+    if( stat == STATION_WRONG_PASSWORD || stat == STATION_NO_AP_FOUND || stat == STATION_CONNECT_FAIL )
+    {
+        wifi_station_disconnect();
+        wifi_fails++;
+        printf( "Connection failed with code %d... Retrying, try: %d", stat, wifi_fails );
+        printf("\n");
+        if( wifi_fails == 2 )
+        {
+            SwitchToSoftAP();
+            got_an_ip = 1;
+            printed_ip = 1;
+        }
+        else
+        {
+            wifi_station_connect();
+            got_an_ip = 0;
+        }
+        memset(  ledOut + wifi_fails * 3, 255, 3 );
+        setLeds( ledOut, USE_NUM_LIN_LEDS * 3 );
+    }
+    else if( stat == STATION_GOT_IP && !got_an_ip )
+    {
+        wifi_station_get_config( &wcfg );
+        wifi_get_ip_info(0, &ipi);
+        printf( "STAT: %d\n", stat );
 #define chop_ip(x) (((x)>>0)&0xff), (((x)>>8)&0xff), (((x)>>16)&0xff), (((x)>>24)&0xff)
-		printf( "IP: %d.%d.%d.%d\n", chop_ip(ipi.ip.addr)      );
-		printf( "NM: %d.%d.%d.%d\n", chop_ip(ipi.netmask.addr) );
-		printf( "GW: %d.%d.%d.%d\n", chop_ip(ipi.gw.addr)      );
-		printf( "Connected to: /%s/\n", wcfg.ssid );
-		got_an_ip = 1;
-		wifi_fails = 0;
-	}
+        printf( "IP: %d.%d.%d.%d\n", chop_ip(ipi.ip.addr)      );
+        printf( "NM: %d.%d.%d.%d\n", chop_ip(ipi.netmask.addr) );
+        printf( "GW: %d.%d.%d.%d\n", chop_ip(ipi.gw.addr)      );
+        printf( "Connected to: /%s/\n", wcfg.ssid );
+        got_an_ip = 1;
+        wifi_fails = 0;
+    }
 }
 
 /**
@@ -547,15 +547,15 @@ void ICACHE_FLASH_ATTR HandleButtonEvent( uint8_t stat, int btn, int down )
     // The 0th button is the mode switch button, don't pass that to the mode
     if(0 == btn)
     {
-    	if(down)
-    	{
-    		NextSwadgeMode();
-    	}
+        if(down)
+        {
+            NextSwadgeMode();
+        }
     }
     // Pass the button to the mode
     else if(NULL != currentMode && NULL != currentMode->buttonCallback)
     {
-    	currentMode->buttonCallback(stat, btn, down);
+        currentMode->buttonCallback(stat, btn, down);
     }
 
     // XXX WOULD BE NICE: Implement some sort of event queue.
@@ -699,7 +699,7 @@ void ICACHE_FLASH_ATTR user_init(void)
     // Initialize the current mode
     if(NULL != currentMode && NULL != currentMode->enterMode)
     {
-    	currentMode->enterMode();
+        currentMode->enterMode();
     }
 }
 
@@ -732,7 +732,7 @@ void ICACHE_FLASH_ATTR ExitCritical(void)
  *                   LED1_G, index 2 is LED1_B, index 3 is LED2_R, etc.
  * @param ledDataLen The length of buffer, most likely 6*3
  */
-void ICACHE_FLASH_ATTR setLeds(uint8_t * ledData, uint16_t ledDataLen)
+void ICACHE_FLASH_ATTR setLeds(uint8_t* ledData, uint16_t ledDataLen)
 {
     // If the LEDs were overwritten with a UDP command, keep them that way for a while
     if( ticks_since_override < TICKER_TIMEOUT )
@@ -753,7 +753,7 @@ void ICACHE_FLASH_ATTR setLeds(uint8_t * ledData, uint16_t ledDataLen)
  * @param packet    The bytes to send to the other swadge
  * @param packetLen The length of the bytes to send to the other swadge
  */
-void ICACHE_FLASH_ATTR sendPacket(uint8_t * packet, uint16_t packetLen)
+void ICACHE_FLASH_ATTR sendPacket(uint8_t* packet, uint16_t packetLen)
 {
-	; // TODO Implement
+    ; // TODO Implement
 }
