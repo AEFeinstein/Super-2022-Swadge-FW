@@ -49,7 +49,7 @@ led_t;
  * Function prototypes
  *==========================================================================*/
 
-bool ICACHE_FLASH_ATTR ledPatternEnterMode(void);
+void ICACHE_FLASH_ATTR ledPatternEnterMode(void);
 void ICACHE_FLASH_ATTR ledPatternButtonCallback(uint8_t state, int button, int down);
 void ICACHE_FLASH_ATTR ledPatternTimerCallback(void);
 
@@ -59,21 +59,23 @@ void ICACHE_FLASH_ATTR ledPatternTimerCallback(void);
 
 swadgeMode ledPatternsMode =
 {
-    .shouldConnect = false,
-    .enterMode = ledPatternEnterMode,
-    .exitMode = NULL,
-    .timerCallback = ledPatternTimerCallback,
-    .buttonCallback = ledPatternButtonCallback,
-    .audioCallback = NULL,
-    .connectionCallback = NULL,
-    .packetCallback = NULL,
+    .modeName = "ledPatterns",
+    .fnEnterMode = ledPatternEnterMode,
+    .fnExitMode = NULL,
+    .fnTimerCallback = ledPatternTimerCallback,
+    .fnButtonCallback = ledPatternButtonCallback,
+    .fnAudioCallback = NULL,
+    .shouldConnect = NULL_MODE,
+    .connectionColor = 0x00000000,
+    .fnConnectionCallback = NULL,
+    .fnPacketCallback = NULL,
     .next = NULL
 };
 
 static led_t ledData[NUM_LIN_LEDS] = {0};
-static color_t color = RED;
-static direction_t direction = LEFT;
 static uint8_t currentLed = 0;
+static volatile color_t color = RED;
+static volatile direction_t direction = LEFT;
 
 /*============================================================================
  * Functions
@@ -84,14 +86,13 @@ static uint8_t currentLed = 0;
  *
  * @return true, initialization never fails
  */
-bool ICACHE_FLASH_ATTR ledPatternEnterMode(void)
+void ICACHE_FLASH_ATTR ledPatternEnterMode(void)
 {
     color = RED;
     direction = LEFT;
     currentLed = 0;
     memset(ledData, 0, sizeof(ledData));
     setLeds((uint8_t*)ledData, sizeof(ledData));
-    return true;
 }
 
 /**

@@ -18,7 +18,7 @@
  * Prototypes
  *==========================================================================*/
 
-bool ICACHE_FLASH_ATTR colorchordEnterMode(void);
+void ICACHE_FLASH_ATTR colorchordEnterMode(void);
 void ICACHE_FLASH_ATTR colorchordSampleHandler(int32_t samp);
 
 /*============================================================================
@@ -27,14 +27,16 @@ void ICACHE_FLASH_ATTR colorchordSampleHandler(int32_t samp);
 
 swadgeMode colorchordMode =
 {
-    .shouldConnect = false,
-    .enterMode = colorchordEnterMode,
-    .exitMode = NULL,
-    .timerCallback = NULL,
-    .buttonCallback = NULL,
-    .audioCallback = colorchordSampleHandler,
-    .connectionCallback = NULL,
-    .packetCallback = NULL,
+    .modeName = "colorchord",
+    .fnEnterMode = colorchordEnterMode,
+    .fnExitMode = NULL,
+    .fnTimerCallback = NULL,
+    .fnButtonCallback = NULL,
+    .fnAudioCallback = colorchordSampleHandler,
+    .shouldConnect = SOFTAP_MODE,
+    .connectionColor = 0x00000000,
+    .fnConnectionCallback = NULL,
+    .fnPacketCallback = NULL,
     .next = NULL
 };
 
@@ -46,12 +48,10 @@ static int samplesProcessed = 0;
 
 /**
  * Initializer for colorchord
- * @return true, initialization always succeeds
  */
-bool ICACHE_FLASH_ATTR colorchordEnterMode(void)
+void ICACHE_FLASH_ATTR colorchordEnterMode(void)
 {
     InitColorChord();
-    return true;
 }
 
 /**

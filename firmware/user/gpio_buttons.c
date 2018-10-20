@@ -38,7 +38,7 @@ typedef struct
  * Variables
  *==========================================================================*/
 
-fnButtonCallback mButtonHandler = NULL;
+void (*mButtonHandler)(uint8_t state, int button, int down) = NULL;
 volatile uint8_t LastGPIOState;
 
 #if defined(REV_A)
@@ -132,7 +132,7 @@ void ICACHE_FLASH_ATTR gpioInterrupt( void* v )
  * Initialize the GPIOs as button inputs with internal pullups and interrupts
  * Also set 14 high for the microphone
  */
-void ICACHE_FLASH_ATTR SetupGPIO(fnButtonCallback handler)
+void ICACHE_FLASH_ATTR SetupGPIO(void (*handler)(uint8_t state, int button, int down))
 {
     // Save the handler
     mButtonHandler = handler;

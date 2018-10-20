@@ -91,7 +91,7 @@ void ICACHE_FLASH_ATTR RETick(void);
 static void ICACHE_FLASH_ATTR procTask(os_event_t* events);
 
 void ICACHE_FLASH_ATTR user_init(void);
-static void ICACHE_FLASH_ATTR myTimer(void* arg);
+static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg);
 static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned short len);
 
 /*============================================================================
@@ -135,9 +135,9 @@ void ICACHE_FLASH_ATTR NextSwadgeMode(void)
     else
     {
         // Call the exit callback for the current mode
-        if(NULL != currentMode->exitMode)
+        if(NULL != currentMode->fnExitMode)
         {
-            currentMode->exitMode();
+            currentMode->fnExitMode();
         }
 
         // Switch to the next mode, or start from the beginning if we're at the end
@@ -151,10 +151,12 @@ void ICACHE_FLASH_ATTR NextSwadgeMode(void)
         }
 
         // Call the enter callback for the current mode
-        if(NULL != currentMode->enterMode)
+        if(NULL != currentMode->fnEnterMode)
         {
-            currentMode->enterMode();
+            currentMode->fnEnterMode();
         }
+
+        // TODO check wifi connection stuff here
     }
 }
 
@@ -370,9 +372,9 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
         // Push the sample to colorchord
 
         // Pass the button to the mode
-        if(NULL != currentMode && NULL != currentMode->audioCallback)
+        if(NULL != currentMode && NULL != currentMode->fnAudioCallback)
         {
-            currentMode->audioCallback(samp);
+            currentMode->fnAudioCallback(samp);
         }
     }
 
@@ -396,14 +398,14 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
  *
  * @param arg unused
  */
-static void ICACHE_FLASH_ATTR myTimer(void* arg)
+static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg)
 {
     CSTick( 1 );
 
     // Tick the current mode every 100ms
-    if(NULL != currentMode && NULL != currentMode->timerCallback)
+    if(NULL != currentMode && NULL != currentMode->fnTimerCallback)
     {
-        currentMode->timerCallback();
+        currentMode->fnTimerCallback();
     }
 
     if( udp_pending )
@@ -553,9 +555,9 @@ void ICACHE_FLASH_ATTR HandleButtonEvent( uint8_t stat, int btn, int down )
         }
     }
     // Pass the button to the mode
-    else if(NULL != currentMode && NULL != currentMode->buttonCallback)
+    else if(NULL != currentMode && NULL != currentMode->fnButtonCallback)
     {
-        currentMode->buttonCallback(stat, btn, down);
+        currentMode->fnButtonCallback(stat, btn, down);
     }
 
     // XXX WOULD BE NICE: Implement some sort of event queue.
@@ -666,7 +668,7 @@ void ICACHE_FLASH_ATTR user_init(void)
 
     // Start a software timer to call CSTick() every 100ms and start the hw timer eventually
     os_timer_disarm(&some_timer);
-    os_timer_setfn(&some_timer, (os_timer_func_t*)myTimer, NULL);
+    os_timer_setfn(&some_timer, (os_timer_func_t*)timerFunc100ms, NULL);
     os_timer_arm(&some_timer, 100, 1);
 
     // Tricky: If we are in station mode, wait for that to get resolved before enabling the high speed timer.
@@ -697,9 +699,9 @@ void ICACHE_FLASH_ATTR user_init(void)
     RegisterSwadgeMode(&ledPatternsMode);
 
     // Initialize the current mode
-    if(NULL != currentMode && NULL != currentMode->enterMode)
+    if(NULL != currentMode && NULL != currentMode->fnEnterMode)
     {
-        currentMode->enterMode();
+        currentMode->fnEnterMode();
     }
 }
 
