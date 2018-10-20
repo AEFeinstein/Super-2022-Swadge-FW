@@ -38,7 +38,7 @@ typedef struct
  * Variables
  *==========================================================================*/
 
-ButtonHandler mButtonHandler = NULL;
+fnButtonCallback mButtonHandler = NULL;
 volatile uint8_t LastGPIOState;
 
 #if defined(REV_A)
@@ -132,7 +132,7 @@ void ICACHE_FLASH_ATTR gpioInterrupt( void* v )
  * Initialize the GPIOs as button inputs with internal pullups and interrupts
  * Also set 14 high for the microphone
  */
-void ICACHE_FLASH_ATTR SetupGPIO(ButtonHandler handler)
+void ICACHE_FLASH_ATTR SetupGPIO(fnButtonCallback handler)
 {
     // Save the handler
     mButtonHandler = handler;
@@ -168,6 +168,19 @@ void ICACHE_FLASH_ATTR SetupGPIO(ButtonHandler handler)
     // Pull GPIO 14 high, this is for the microphone
     PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTMS_U, FUNC_GPIO14);
     GPIO_OUTPUT_SET(GPIO_ID_PIN(14), 1 );
+
+    // Set GPIO16 for Input,  mux configuration for XPD_DCDC and rtc_gpio0 connection
+    WRITE_PERI_REG(PAD_XPD_DCDC_CONF,
+                   (READ_PERI_REG(PAD_XPD_DCDC_CONF) & 0xffffffbc) | (uint32)
+                   0x1);
+
+    // mux configuration for out enable
+    WRITE_PERI_REG(RTC_GPIO_CONF,
+                   (READ_PERI_REG(RTC_GPIO_CONF) & (uint32)0xfffffffe) | (uint32)0x0);
+
+    // out disable
+    WRITE_PERI_REG(RTC_GPIO_ENABLE,
+                   READ_PERI_REG(RTC_GPIO_ENABLE) & (uint32)0xfffffffe);
 
     printf( "Setup GPIO Complete\n" );
 }

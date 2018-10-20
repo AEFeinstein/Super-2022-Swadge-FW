@@ -123,7 +123,7 @@ configurable_t gConfigs[CONFIGURABLES] =
         .val = &CCS.gCOLORCHORD_ACTIVE
     },
     {
-        .defaultVal = 0,
+        .defaultVal = 1,
         .name = "gCOLORCHORD_OUTPUT_DRIVER",
         .val = &CCS.gCOLORCHORD_OUTPUT_DRIVER
     },

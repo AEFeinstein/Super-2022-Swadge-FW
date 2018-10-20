@@ -25,6 +25,8 @@
 #include "gpio_buttons.h"
 #include "custom_commands.h"
 #include "ssid.h"
+#include "user_main.h"
+#include "mode_colorchord.h"
 
 /*============================================================================
  * Defines
@@ -56,7 +58,6 @@ static bool hpa_is_paused_for_wifi = false;
 
 os_event_t    procTaskQueue[PROC_TASK_QUEUE_LEN] = {0};
 uint32_t samp_iir = 0;
-int samplesProcessed = 0;
 
 int send_back_on_ip = 0;
 int send_back_on_port = 0;
@@ -71,15 +72,89 @@ uint8_t mymac[6] = {0};
 uint8_t last_button_event_btn = 0;
 uint8_t last_button_event_dn = 0;
 
+swadgeMode * rootMode = NULL;
+swadgeMode * currentMode = NULL;
+
 /*============================================================================
  * Prototypes
  *==========================================================================*/
 
 void ICACHE_FLASH_ATTR HandleButtonEvent( uint8_t stat, int btn, int down );
+void ICACHE_FLASH_ATTR RegisterSwadgeMode(swadgeMode * mode);
+void ICACHE_FLASH_ATTR NextSwadgeMode(void);
+
+static int ICACHE_FLASH_ATTR SwitchToSoftAP(void);
+void ICACHE_FLASH_ATTR TransmitGenericEvent(void);
+
+void ICACHE_FLASH_ATTR RETick(void);
+static void ICACHE_FLASH_ATTR procTask(os_event_t* events);
+
+void ICACHE_FLASH_ATTR user_init(void);
+static void ICACHE_FLASH_ATTR myTimer(void* arg);
+static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned short len);
 
 /*============================================================================
  * Functions
  *==========================================================================*/
+
+/**
+ * Register a swadge mode
+ *
+ * @param mode The mode to register in the linked list of modes
+ */
+void ICACHE_FLASH_ATTR RegisterSwadgeMode(swadgeMode * mode)
+{
+	if(NULL == rootMode)
+	{
+		rootMode = mode;
+		currentMode = rootMode;
+	}
+	else
+	{
+		swadgeMode * modeList = rootMode;
+		while(modeList->next != NULL)
+		{
+			modeList = modeList->next;
+		}
+		modeList->next = mode;
+	}
+}
+
+/**
+ * TODO doc
+ */
+void ICACHE_FLASH_ATTR NextSwadgeMode(void)
+{
+	if(NULL == currentMode)
+	{
+		// No modes at all!
+		return;
+	}
+	else
+	{
+		// Call the exit callback for the current mode
+		if(NULL != currentMode->exitMode)
+		{
+			currentMode->exitMode();
+		}
+
+		// Switch to the next mode, or start from the beginning if we're at the end
+		if(NULL == currentMode->next)
+		{
+			currentMode = rootMode;
+		}
+		else
+		{
+			currentMode = currentMode->next;
+		}
+
+		// Call the enter callback for the current mode
+		if(NULL != currentMode->enterMode)
+		{
+			currentMode->enterMode();
+		}
+	}
+}
 
 /**
  * Configure and enable SoftAP mode. This will have the ESP broadcast a SSID
@@ -150,41 +225,6 @@ static int ICACHE_FLASH_ATTR SwitchToSoftAP(void)
 void ICACHE_FLASH_ATTR user_rf_pre_init(void)
 {
     ;
-}
-
-/**
- * Call this once we've stacked together one full colorchord frame.
- */
-static void ICACHE_FLASH_ATTR NewFrame(void)
-{
-    // Don't bother if colorchord is inactive
-    if( !COLORCHORD_ACTIVE )
-    {
-        return;
-    }
-
-    // If the LEDs were overwritten with a UDP command, keep them that way for a while
-    if( ticks_since_override < TICKER_TIMEOUT )
-    {
-        return;
-    }
-
-    // Colorchord magic
-    HandleFrameInfo();
-
-    // Update the LEDs as necessary
-    switch( COLORCHORD_OUTPUT_DRIVER )
-    {
-        case 0:
-            UpdateLinearLEDs();
-            break;
-        case 1:
-            UpdateAllSameLEDs();
-            break;
-    };
-
-    // Push out the LED data
-    ws2812_push( ledOut, USE_NUM_LIN_LEDS * 3 );
 }
 
 /**
@@ -315,7 +355,7 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
     WRITE_PERI_REG( PERIPHS_GPIO_BASEADDR + GPIO_ID_PIN(0), 1 );
 #endif
 
-    // While there are samples availbe from the ADC
+    // While there are samples available from the ADC
     while( sampleAvailable() )
     {
         // Get the sample
@@ -326,15 +366,11 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
         // Amplify the sample
         samp = (samp * CCS.gINITIAL_AMP) >> 4;
         // Push the sample to colorchord
-        PushSample32( samp );
-        samplesProcessed++;
 
-        // If 128 samples have been processed
-        if( samplesProcessed == 128 )
+        // Pass the button to the mode
+        if(NULL != currentMode && NULL != currentMode->audioCallback)
         {
-            // Update the LEDs
-            NewFrame();
-            samplesProcessed = 0;
+        	currentMode->audioCallback(samp);
         }
     }
 
@@ -342,12 +378,10 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
     WRITE_PERI_REG( PERIPHS_GPIO_BASEADDR + GPIO_ID_PIN(0), 0 );
 #endif
 
-
     if( events->sig == 0 && events->par == 0 )
     {
         RETick();
     }
-
 }
 
 /**
@@ -363,6 +397,12 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
 static void ICACHE_FLASH_ATTR myTimer(void* arg)
 {
     CSTick( 1 );
+
+    // Tick the current mode every 100ms
+    if(NULL != currentMode && NULL != currentMode->timerCallback)
+    {
+    	currentMode->timerCallback();
+    }
 
     if( udp_pending )
     {
@@ -380,50 +420,42 @@ static void ICACHE_FLASH_ATTR myTimer(void* arg)
         hpa_is_paused_for_wifi = 0; // only need to do once prevents unstable ADC
     }
 
-    {
-        struct station_config wcfg;
-        struct ip_info ipi;
-        int stat = wifi_station_get_connect_status();
-        if( stat == STATION_WRONG_PASSWORD || stat == STATION_NO_AP_FOUND || stat == STATION_CONNECT_FAIL )
-        {
-            wifi_station_disconnect();
-            wifi_fails++;
-            printf( "Connection failed with code %d... Retrying, try: %d", stat, wifi_fails );
-            printf("\n");
-            if( wifi_fails == 2 )
-            {
-                SwitchToSoftAP();
-                got_an_ip = 1;
-                printed_ip = 1;
-            }
-            else
-            {
-                wifi_station_connect();
-                got_an_ip = 0;
-            }
-            memset(  ledOut + wifi_fails * 3, 255, 3 );
-            ws2812_push( ledOut, USE_NUM_LIN_LEDS * 3 );
-        }
-        else if( stat == STATION_GOT_IP && !got_an_ip )
-        {
-            wifi_station_get_config( &wcfg );
-            wifi_get_ip_info(0, &ipi);
-            printf( "STAT: %d\n", stat );
+	struct station_config wcfg;
+	struct ip_info ipi;
+	int stat = wifi_station_get_connect_status();
+	if( stat == STATION_WRONG_PASSWORD || stat == STATION_NO_AP_FOUND || stat == STATION_CONNECT_FAIL )
+	{
+		wifi_station_disconnect();
+		wifi_fails++;
+		printf( "Connection failed with code %d... Retrying, try: %d", stat, wifi_fails );
+		printf("\n");
+		if( wifi_fails == 2 )
+		{
+			SwitchToSoftAP();
+			got_an_ip = 1;
+			printed_ip = 1;
+		}
+		else
+		{
+			wifi_station_connect();
+			got_an_ip = 0;
+		}
+		memset(  ledOut + wifi_fails * 3, 255, 3 );
+		setLeds( ledOut, USE_NUM_LIN_LEDS * 3 );
+	}
+	else if( stat == STATION_GOT_IP && !got_an_ip )
+	{
+		wifi_station_get_config( &wcfg );
+		wifi_get_ip_info(0, &ipi);
+		printf( "STAT: %d\n", stat );
 #define chop_ip(x) (((x)>>0)&0xff), (((x)>>8)&0xff), (((x)>>16)&0xff), (((x)>>24)&0xff)
-            printf( "IP: %d.%d.%d.%d\n", chop_ip(ipi.ip.addr)      );
-            printf( "NM: %d.%d.%d.%d\n", chop_ip(ipi.netmask.addr) );
-            printf( "GW: %d.%d.%d.%d\n", chop_ip(ipi.gw.addr)      );
-            printf( "Connected to: /%s/\n", wcfg.ssid );
-            got_an_ip = 1;
-            wifi_fails = 0;
-        }
-    }
-
-    //  printf(".");
-    //  printf( "%d/%d\n",soundtail,soundhead );
-    //  printf( "%d/%d\n",soundtail,soundhead );
-    //  uint8_t ledout[] = { 0x00, 0xff, 0xaa, 0x00, 0xff, 0xaa, };
-    //  ws2812_push( ledout, 6 );
+		printf( "IP: %d.%d.%d.%d\n", chop_ip(ipi.ip.addr)      );
+		printf( "NM: %d.%d.%d.%d\n", chop_ip(ipi.netmask.addr) );
+		printf( "GW: %d.%d.%d.%d\n", chop_ip(ipi.gw.addr)      );
+		printf( "Connected to: /%s/\n", wcfg.ssid );
+		got_an_ip = 1;
+		wifi_fails = 0;
+	}
 }
 
 /**
@@ -481,10 +513,10 @@ static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned
         if (! ((mymac[5] ^ pusrdata[7])&pusrdata[8]) )
         {
             ets_memcpy( ledOut, pusrdata + 10, len - 10 );
-            ws2812_push( ledOut, 255 * 3 );
+            ticks_since_override = TICKER_TIMEOUT + 1;
+            setLeds( ledOut, 255 * 3 );
             ticks_since_override = 0;
         }
-
     }
 }
 
@@ -509,6 +541,20 @@ void ICACHE_FLASH_ATTR charrx( uint8_t c )
 void ICACHE_FLASH_ATTR HandleButtonEvent( uint8_t stat, int btn, int down )
 {
     printf("button %d %s\r\n", btn, down ? "down" : "up");
+
+    // The 0th button is the mode switch button, don't pass that to the mode
+    if(0 == btn)
+    {
+    	if(down)
+    	{
+    		NextSwadgeMode();
+    	}
+    }
+    // Pass the button to the mode
+    else if(NULL != currentMode && NULL != currentMode->buttonCallback)
+    {
+    	currentMode->buttonCallback(stat, btn, down);
+    }
 
     // XXX WOULD BE NICE: Implement some sort of event queue.
     last_button_event_btn = btn + 1;
@@ -538,56 +584,16 @@ void ICACHE_FLASH_ATTR user_init(void)
     // Initialize GPIOs
     SetupGPIO(HandleButtonEvent);
 
-    // Set GPIO16 for Input,  mux configuration for XPD_DCDC and rtc_gpio0 connection
-    WRITE_PERI_REG(PAD_XPD_DCDC_CONF,
-                   (READ_PERI_REG(PAD_XPD_DCDC_CONF) & 0xffffffbc) | (uint32)
-                   0x1);
-
-    // mux configuration for out enable
-    WRITE_PERI_REG(RTC_GPIO_CONF,
-                   (READ_PERI_REG(RTC_GPIO_CONF) & (uint32)0xfffffffe) | (uint32)0x0);
-
-    // out disable
-    WRITE_PERI_REG(RTC_GPIO_ENABLE,
-                   READ_PERI_REG(RTC_GPIO_ENABLE) & (uint32)0xfffffffe);
+    // Can't use buttons 0, 1, or 5 for startup options.
+    // 0x08 will be to restore default colorchord settings.
+    // 0x10 will be to start in softAP mode, otherwise it tries to connect to infrastructure
+    // 0x20 will disable deep sleep, but its commented out
 
     int firstbuttons = GetButtons();
     // if( firstbuttons & 0x20 )
     // {
     //     disable_deep_sleep = 1;
     // }
-
-    // Can't use buttons 0, 1, or 5 for startup options.
-    // 0x04 will be flashlight mode.
-    // 0x08 will be to restore default colorchord settings.
-    // 0x10 will be to start in softAP mode, otherwise it tries to connect to infrastructure
-
-    if( (firstbuttons & 0x04) )
-    {
-        printf( "Flashlight mode.\n" );
-
-        // Turn off wifi
-        wifi_set_opmode_current( 0 );
-
-        // Turn on LEDs
-        ws2812_init();
-        memset( ledOut, 255, USE_NUM_LIN_LEDS * 3 );
-        ws2812_push( ledOut, USE_NUM_LIN_LEDS );
-
-        // Small delay
-        ets_delay_us(10000);
-
-        // Turn of i2s, i.e. data out to LEDs
-        stop_i2s();
-
-        // Loop forever, feeding the watchdog so the system doesn't reset
-        while(1)
-        {
-            ets_delay_us(100000);
-            system_soft_wdt_feed();
-        }
-    }
-
     if( (firstbuttons & 0x08) )
     {
         // Restore all settings to
@@ -661,9 +667,6 @@ void ICACHE_FLASH_ATTR user_init(void)
     os_timer_setfn(&some_timer, (os_timer_func_t*)myTimer, NULL);
     os_timer_arm(&some_timer, 100, 1);
 
-    // Init colorchord
-    InitColorChord();
-
     // Tricky: If we are in station mode, wait for that to get resolved before enabling the high speed timer.
     if( wifi_get_opmode() == 1 )
     {
@@ -678,10 +681,6 @@ void ICACHE_FLASH_ATTR user_init(void)
     // Initialize LEDs
     ws2812_init();
 
-    // Turn jus tthe first LED on
-    memset( ledOut, 255, 3 );
-    ws2812_push( ledOut, USE_NUM_LIN_LEDS * 3 );
-
     // Attempt to make ADC more stable
     // https:// github.com/esp8266/Arduino/issues/2070
     // see peripherals https:// espressif.com/en/support/explore/faq
@@ -690,13 +689,22 @@ void ICACHE_FLASH_ATTR user_init(void)
 
     // Kick off procTask()
     system_os_post(PROC_TASK_PRIO, 0, 0 );
+
+    // Register all swadge modes
+    RegisterSwadgeMode(&colorchordMode);
+
+    // Initialize the current mode
+    if(NULL != currentMode && NULL != currentMode->enterMode)
+    {
+    	currentMode->enterMode();
+    }
 }
 
 /**
  * If the firmware enters a critical section, disable the hardware timer
  * used to sample the ADC and the corresponding interrupt
  */
-void ICACHE_FLASH_ATTR EnterCritical()
+void ICACHE_FLASH_ATTR EnterCritical(void)
 {
     PauseHPATimer();
     // ets_intr_lock();
@@ -706,9 +714,38 @@ void ICACHE_FLASH_ATTR EnterCritical()
  * If the firmware leaves a critical section, enable the hardware timer
  * used to sample the ADC. This allows the interrupt to fire.
  */
-void ICACHE_FLASH_ATTR ExitCritical()
+void ICACHE_FLASH_ATTR ExitCritical(void)
 {
     // ets_intr_unlock();
     ContinueHPATimer();
 }
 
+/**
+ * TODO doc
+ * @param ledData
+ * @param ledDataLen
+ */
+void ICACHE_FLASH_ATTR setLeds(uint8_t * ledData, uint16_t ledDataLen)
+{
+    // If the LEDs were overwritten with a UDP command, keep them that way for a while
+    if( ticks_since_override < TICKER_TIMEOUT )
+    {
+        return;
+    }
+    else
+    {
+        // Otherwise send out the LED data
+        ws2812_push( ledData, ledDataLen );
+        //printf("%s, %d LEDs\r\n", __func__, ledDataLen / 3);
+    }
+}
+
+/**
+ * TODO
+ * @param packet
+ * @param packetLen
+ */
+void ICACHE_FLASH_ATTR sendPacket(uint8_t * packet, uint16_t packetLen)
+{
+	; // TODO
+}
