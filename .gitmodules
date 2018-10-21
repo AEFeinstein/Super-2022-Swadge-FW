@@ -1,0 +1,3 @@
+[submodule "nonos-3.0"]
+	path = firmware/esp82xx
+	url = https://github.com/AEFeinstein/esp82xx.git
