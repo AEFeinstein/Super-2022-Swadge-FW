@@ -13,6 +13,14 @@
 #include "user_main.h"
 #include "mode_led_patterns.h"
 #include <stdint.h>
+#include "user_interface.h"
+
+/*============================================================================
+ * Defines
+ *==========================================================================*/
+
+#define STEP_SIZE 16
+#define SLEEP_US  2000000
 
 /*============================================================================
  * Enums
@@ -25,13 +33,6 @@ typedef enum
     BLUE,
     MAX_COLORS
 } color_t;
-
-typedef enum
-{
-    LEFT,
-    RIGHT,
-    MAX_DIRECTION
-} direction_t;
 
 /*============================================================================
  * Structs
@@ -72,10 +73,10 @@ swadgeMode ledPatternsMode =
     .next = NULL
 };
 
-static led_t ledData[NUM_LIN_LEDS] = {0};
-static uint8_t currentLed = 0;
 static volatile color_t color = RED;
-static volatile direction_t direction = LEFT;
+
+static uint8_t brightness = 0x00;
+static bool gettingBrighter = true;
 
 /*============================================================================
  * Functions
@@ -89,9 +90,10 @@ static volatile direction_t direction = LEFT;
 void ICACHE_FLASH_ATTR ledPatternEnterMode(void)
 {
     color = RED;
-    direction = LEFT;
-    currentLed = 0;
-    memset(ledData, 0, sizeof(ledData));
+    brightness = 0x00;
+    gettingBrighter = true;
+
+    led_t ledData[NUM_LIN_LEDS] = {0};
     setLeds((uint8_t*)ledData, sizeof(ledData));
 }
 
@@ -108,10 +110,6 @@ void ICACHE_FLASH_ATTR ledPatternButtonCallback(uint8_t state, int button, int d
     {
         color = (color + 1) % MAX_COLORS;
     }
-    else if(2 == button && down)
-    {
-        direction = (direction + 1) % MAX_DIRECTION;
-    }
 }
 
 /**
@@ -119,47 +117,56 @@ void ICACHE_FLASH_ATTR ledPatternButtonCallback(uint8_t state, int button, int d
  */
 void ICACHE_FLASH_ATTR ledPatternTimerCallback(void)
 {
-    memset(ledData, 0, sizeof(ledData));
-
-    switch(direction)
+    // Either get brighter or dimmer
+	if(true == gettingBrighter)
     {
-        case LEFT:
+        brightness += STEP_SIZE;
+        if(256 - STEP_SIZE == brightness)
         {
-            currentLed = (currentLed + 1) % NUM_LIN_LEDS;
-            break;
+            gettingBrighter = false;
         }
-        case RIGHT:
+    }
+    else
+    {
+        brightness -= STEP_SIZE;
+        if(0x00 == brightness)
         {
-            if(0 == currentLed)
-            {
-                currentLed = NUM_LIN_LEDS - 1;
-            }
-            else
-            {
-                currentLed = (currentLed - 1) % NUM_LIN_LEDS;
-            }
-            break;
+            gettingBrighter = true;
         }
     }
 
-    switch(color)
+	// Set the current LEDs
+    led_t ledData[NUM_LIN_LEDS] = {0};
+    uint8_t idx;
+    for(idx = 0; idx < NUM_LIN_LEDS; idx++)
     {
-        case RED:
+        switch(color)
         {
-            ledData[currentLed].r = 0xFF;
-            break;
-        }
-        case GREEN:
-        {
-            ledData[currentLed].g = 0xFF;
-            break;
-        }
-        case BLUE:
-        {
-            ledData[currentLed].b = 0xFF;
-            break;
+            case RED:
+            {
+                ledData[idx].r = brightness;
+                break;
+            }
+            case GREEN:
+            {
+                ledData[idx].g = brightness;
+                break;
+            }
+            case BLUE:
+            {
+                ledData[idx].b = brightness;
+                break;
+            }
         }
     }
-
     setLeds((uint8_t*)ledData, sizeof(ledData));
+
+    // If the LEDs have dimmed back to zero, sleep for a while
+    if(0x00 == brightness)
+    {
+        // Disable RF
+    	system_deep_sleep_set_option(4);
+        // Sleeeeep
+    	system_deep_sleep(SLEEP_US);
+    }
 }

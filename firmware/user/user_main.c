@@ -695,8 +695,8 @@ void ICACHE_FLASH_ATTR user_init(void)
     system_os_post(PROC_TASK_PRIO, 0, 0 );
 
     // Register all swadge modes
-    RegisterSwadgeMode(&colorchordMode);
     RegisterSwadgeMode(&ledPatternsMode);
+    RegisterSwadgeMode(&colorchordMode);
 
     // Initialize the current mode
     if(NULL != currentMode && NULL != currentMode->fnEnterMode)
