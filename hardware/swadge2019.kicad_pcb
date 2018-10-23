@@ -3,7 +3,7 @@
   (general
     (links 98)
     (no_connects 0)
-    (area 26.149999 32.848729 126.250001 128.211525)
+    (area 17.593375 24.188475 134.806625 132.340001)
     (thickness 1.6)
     (drawings 148)
     (tracks 511)
@@ -88,7 +88,7 @@
       (mirror false)
       (drillshape 0)
       (scaleselection 1)
-      (outputdirectory swadge2019-revB))
+      (outputdirectory swadge2019-revC))
   )
 
   (net 0 "")
