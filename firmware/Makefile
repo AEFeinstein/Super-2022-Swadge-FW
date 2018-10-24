@@ -7,6 +7,8 @@ include user.cfg
 	$(warning This is the empty rule. Something went wrong.)
 	@true
 
+OPTS += -DSPI_FLASH_SIZE_MAP=4
+
 SRCS += user/ws2812_i2s.c \
 	user/hpatimer.c \
 	user/adc.c \
@@ -18,6 +20,7 @@ SRCS += user/ws2812_i2s.c \
 
 LDFLAGS_CORE += -Wl,-Map,output.map
 
+CLEAN_EXTRA += *.bin *.map *.lst
 
 ifndef TARGET
 $(info Modules were not checked out... use git clone --recursive in the future. Pulling now.)

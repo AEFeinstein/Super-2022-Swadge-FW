@@ -118,7 +118,7 @@ void ICACHE_FLASH_ATTR ledPatternButtonCallback(uint8_t state, int button, int d
 void ICACHE_FLASH_ATTR ledPatternTimerCallback(void)
 {
     // Either get brighter or dimmer
-	if(true == gettingBrighter)
+    if(true == gettingBrighter)
     {
         brightness += STEP_SIZE;
         if(256 - STEP_SIZE == brightness)
@@ -135,7 +135,7 @@ void ICACHE_FLASH_ATTR ledPatternTimerCallback(void)
         }
     }
 
-	// Set the current LEDs
+    // Set the current LEDs
     led_t ledData[NUM_LIN_LEDS] = {0};
     uint8_t idx;
     for(idx = 0; idx < NUM_LIN_LEDS; idx++)
@@ -165,8 +165,8 @@ void ICACHE_FLASH_ATTR ledPatternTimerCallback(void)
     if(0x00 == brightness)
     {
         // Disable RF
-    	system_deep_sleep_set_option(4);
+        system_deep_sleep_set_option(4);
         // Sleeeeep
-    	system_deep_sleep(SLEEP_US);
+        system_deep_sleep(SLEEP_US);
     }
 }
