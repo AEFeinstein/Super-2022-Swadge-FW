@@ -2,3 +2,6 @@
 *.bin
 *.map
 *.lst
+execute_reflash
+mfsmaker
+pushtodev
