@@ -1,1 +1,1 @@
-../esp82xx/web/Makefile
+include ../esp82xx/web/Makefile
