@@ -2,7 +2,6 @@
 *.bin
 *.map
 *.lst
-*.mpfs
 execute_reflash
 mfsmaker
 pushtodev
