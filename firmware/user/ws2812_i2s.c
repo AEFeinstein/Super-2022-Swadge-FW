@@ -41,6 +41,7 @@ Extra copyright info:
 #include "ws2812_i2s.h"
 #include "user_interface.h"
 #include "pin_mux_register.h"
+#include "missingEspFnPrototypes.h"
 
 // This should be defined in the cfg file, but if the eclipse indexer can't see that...
 #if !defined(WS2812_THREE_SAMPLE) && !defined(WS2812_FOUR_SAMPLE)
@@ -282,7 +283,7 @@ LOCAL void slc_isr(void)
  */
 void ICACHE_FLASH_ATTR ws2812_init()
 {
-    int x, y;
+    int x;
 
     //Reset DMA
     SET_PERI_REG_MASK(SLC_CONF0, SLC_RXLINK_RST);//|SLC_TXLINK_RST);

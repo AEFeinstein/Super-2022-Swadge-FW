@@ -6,6 +6,7 @@
 #include "c_types.h"
 #include "user_interface.h"
 #include "ssid.h"
+#include <osapi.h>
 
 /*============================================================================
  * Functions

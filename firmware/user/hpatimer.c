@@ -12,6 +12,7 @@
 #include "eagle_soc.h"
 #include "user_interface.h"
 #include "ets_sys.h"
+#include <missingEspFnPrototypes.h>
 
 /*============================================================================
  * Defines
@@ -52,7 +53,7 @@ bool hpaRunning = false;
  * Prototypes
  *==========================================================================*/
 
-static ICACHE_FLASH_ATTR void timerhandle( void* v );
+static void timerhandle( void* v );
 
 /*============================================================================
  * Functions
@@ -62,9 +63,11 @@ static ICACHE_FLASH_ATTR void timerhandle( void* v );
  * Timer callback function, registered by ETS_FRC_TIMER1_INTR_ATTACH() in StartHPATimer()
  * Calls hs_adc_read() to read a sample off the ADC
  *
+ * This timer is attached to an interrupt, so it shouldn't be ICACHE_FLASH_ATTR
+ *
  * @param v unused
  */
-static ICACHE_FLASH_ATTR void timerhandle( void* v )
+static void timerhandle( void* v __attribute__((unused)))
 {
     RTC_CLR_REG_MASK(FRC1_INT_ADDRESS, FRC1_INT_CLR_MASK);
     uint16_t r = hs_adc_read();

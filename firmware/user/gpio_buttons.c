@@ -8,6 +8,9 @@
 #include <gpio.h>
 #include <ets_sys.h>
 #include <esp82xxutil.h>
+#include <osapi.h>
+#include "missingEspFnPrototypes.h"
+#include <uart.h>
 
 /*============================================================================
  * Defines
@@ -97,16 +100,17 @@ static const gpioInfo_t gpioInfo[] =
 
 /**
  * This interrupt is called ever time a button is pressed or released
+ * Should not be ICACHE_FLASH_ATTR because it's an interrupt
  *
  * @param v unused
  */
-void ICACHE_FLASH_ATTR gpioInterrupt( void* v )
+void gpioInterrupt( void* v __attribute__((unused)))
 {
     // Get the current button status
     uint8_t status = GetButtons();
 
     // For all the buttons
-    int i;
+    uint8_t i;
     for( i = 0; i < lengthof(gpioInfo); i++ )
     {
         int mask = 1 << i;
@@ -143,7 +147,7 @@ void ICACHE_FLASH_ATTR SetupGPIO(void (*handler)(uint8_t state, int button, int 
     ETS_GPIO_INTR_ATTACH(gpioInterrupt, 0);
 
     // For each button
-    int i;
+    uint8_t i;
     for(i = 0; i < lengthof(gpioInfo); i++ )
     {
         // Set the function
@@ -196,7 +200,7 @@ uint8_t ICACHE_FLASH_ATTR GetButtons()
     uint8_t ret = 0;
 
     // For each button, read it and set it in ret
-    int i;
+    uint8_t i;
     for( i = 0; i < lengthof(gpioInfo); i++ )
     {
         ret |= (PIN_IN & (1 << gpioInfo[i].GPID)) ? (1 << i) : 0;

@@ -92,7 +92,7 @@ void ICACHE_FLASH_ATTR ledPatternEnterMode(void)
     brightness = 0x00;
     gettingBrighter = true;
 
-    led_t ledData[NUM_LIN_LEDS] = {0};
+    led_t ledData[NUM_LIN_LEDS] = {{0}};
     setLeds((uint8_t*)ledData, sizeof(ledData));
 }
 
@@ -103,7 +103,7 @@ void ICACHE_FLASH_ATTR ledPatternEnterMode(void)
  * @param button The button ID that triggered this callback
  * @param down The state of the button that triggered this callback
  */
-void ICACHE_FLASH_ATTR ledPatternButtonCallback(uint8_t state, int button, int down)
+void ICACHE_FLASH_ATTR ledPatternButtonCallback(uint8_t state __attribute__((unused)), int button, int down)
 {
     if(1 == button && down)
     {
@@ -135,7 +135,7 @@ void ICACHE_FLASH_ATTR ledPatternTimerCallback(void)
     }
 
     // Set the current LEDs
-    led_t ledData[NUM_LIN_LEDS] = {0};
+    led_t ledData[NUM_LIN_LEDS] = {{0}};
     uint8_t idx;
     for(idx = 0; idx < NUM_LIN_LEDS; idx++)
     {
@@ -154,6 +154,10 @@ void ICACHE_FLASH_ATTR ledPatternTimerCallback(void)
             case BLUE:
             {
                 ledData[idx].b = brightness;
+                break;
+            }
+            case MAX_COLORS:
+            {
                 break;
             }
         }

@@ -29,6 +29,7 @@
 #include "mode_colorchord.h"
 #include "mode_led_patterns.h"
 #include "espnow.h"
+#include "missingEspFnPrototypes.h"
 
 /*============================================================================
  * Defines
@@ -129,7 +130,7 @@ static struct espconn* pUdpServer = NULL;
 
 static bool hpa_is_paused_for_wifi = false;
 
-os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {0};
+os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 uint32_t samp_iir = 0;
 
 int send_back_on_ip = 0;
@@ -157,7 +158,7 @@ static const partition_item_t partition_table[] =
     { SYSTEM_PARTITION_SYSTEM_PARAMETER, SYSTEM_PARTITION_SYSTEM_PARAMETER_ADDR, 0x3000},
 };
 
-buttonEvt buttonQueue[NUM_BUTTON_EVTS] = {0};
+buttonEvt buttonQueue[NUM_BUTTON_EVTS] = {{0}};
 uint8_t buttonEvtHead = 0;
 uint8_t buttonEvtTail = 0;
 
@@ -263,11 +264,11 @@ static int ICACHE_FLASH_ATTR SwitchToSoftAP(void)
     {
         return -1;
     }
-    ets_sprintf( c.ssid + 9, "%02x%02x%02x", mymac[3], mymac[4], mymac[5] );
+    ets_sprintf( (char*)(&c.ssid[9]), "%02x%02x%02x", mymac[3], mymac[4], mymac[5] );
 
     // Set the SSID parameters, no authentication
     c.password[0] = 0;
-    c.ssid_len = ets_strlen( c.ssid );
+    c.ssid_len = ets_strlen( (char*)c.ssid );
     c.channel = 1;
     c.authmode = NULL_MODE;
     c.ssid_hidden = 0;
@@ -476,7 +477,7 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
  *
  * @param arg unused
  */
-static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg)
+static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
 {
     CSTick( 1 );
 
@@ -608,7 +609,7 @@ static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned
  *
  * @param c The char received on the UART
  */
-void charrx( uint8_t c )
+void charrx( uint8_t c __attribute__((unused)))
 {
     ;
 }
@@ -745,6 +746,11 @@ void ICACHE_FLASH_ATTR user_init(void)
         {
             esp_now_init();
             printf( "Booting in ESP-NOW\n" );
+            break;
+        }
+        case NO_WIFI:
+        {
+            printf( "Booting with no wifi\n" );
             break;
         }
     }

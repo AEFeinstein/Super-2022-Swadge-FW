@@ -11,6 +11,7 @@
 #include "osapi.h"
 
 #include "adc.h"
+#include "missingEspFnPrototypes.h"
 
 /*============================================================================
  * Defines

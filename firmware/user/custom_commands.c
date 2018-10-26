@@ -11,6 +11,8 @@
 #include <embeddednf.h>
 #include <embeddedout.h>
 #include "custom_commands.h"
+#include <osapi.h>
+#include <uart.h>
 
 /*============================================================================
  * Defines
@@ -151,9 +153,9 @@ configurable_t gConfigs[CONFIGURABLES] =
  */
 void ICACHE_FLASH_ATTR LoadSettings(void)
 {
-    settings_t settings = {0};
+    settings_t settings = {{0}, 0};
 
-    int i;
+    uint8_t i;
     spi_flash_read( SETTINGS_ADDR, (uint32*)&settings, sizeof( settings ) );
     if( settings.SaveLoadKey == SAVE_LOAD_KEY )
     {
@@ -184,8 +186,8 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
  */
 void ICACHE_FLASH_ATTR SaveSettings(void)
 {
-    settings_t settings = {0};
-    int i;
+    settings_t settings = {{0}, 0};
+    uint8_t i;
     for( i = 0; i < CONFIGURABLES - 1; i++ )
     {
         if( gConfigs[i].val )
@@ -220,7 +222,7 @@ void ICACHE_FLASH_ATTR RevertAndSaveAllSettingsExceptLEDs()
     }
 
     // Restore to defaults
-    int i;
+    uint8_t i;
     for( i = 0; i < CONFIGURABLES; i++ )
     {
         if( gConfigs[i].val )
@@ -362,7 +364,7 @@ int ICACHE_FLASH_ATTR CustomCommand(char* buffer, int retsize, char* pusrdata, u
                 case 'd':
                 case 'D':
                 {
-                    int i;
+                    uint8_t i;
                     for( i = 0; i < CONFIGURABLES - 1; i++ )
                     {
                         if( gConfigs[i].val )
