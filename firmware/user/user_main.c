@@ -1,5 +1,5 @@
 // Copyright 2015 <>< Charles Lohr Under the MIT/x11 License, NewBSD License or
-// ColorChord License.  You Choose.
+// ColorChord License. You Choose.
 
 /*============================================================================
  * Includes
@@ -42,8 +42,8 @@
 #define MAX_FRAME 2000
 #define TICKER_TIMEOUT 100
 
-#define PROC_TASK_PRIO        0
-#define PROC_TASK_QUEUE_LEN    1
+#define PROC_TASK_PRIO 0
+#define PROC_TASK_QUEUE_LEN 1
 
 #define REMOTE_IP_CODE 0x0a00c90a // = 10.201.0.10
 
@@ -57,49 +57,47 @@
 #if ((SPI_FLASH_SIZE_MAP == 0) || (SPI_FLASH_SIZE_MAP == 1))
     #error "The flash map is not supported"
 #elif (SPI_FLASH_SIZE_MAP == 2)
-    #define SYSTEM_PARTITION_OTA_SIZE                           0x6A000
-    #define SYSTEM_PARTITION_OTA_2_ADDR                         0x81000
-    #define SYSTEM_PARTITION_RF_CAL_ADDR                        0xfb000
-    #define SYSTEM_PARTITION_PHY_DATA_ADDR                      0xfc000
-    #define SYSTEM_PARTITION_SYSTEM_PARAMETER_ADDR              0xfd000
-    #define SYSTEM_PARTITION_CUSTOMER_PRIV_PARAM_ADDR           0x7c000
+    #define SYSTEM_PARTITION_OTA_SIZE 0x6A000
+    #define SYSTEM_PARTITION_OTA_2_ADDR 0x81000
+    #define SYSTEM_PARTITION_RF_CAL_ADDR 0xfb000
+    #define SYSTEM_PARTITION_PHY_DATA_ADDR 0xfc000
+    #define SYSTEM_PARTITION_SYSTEM_PARAMETER_ADDR 0xfd000
+    #define SYSTEM_PARTITION_CUSTOMER_PRIV_PARAM_ADDR 0x7c000
 #elif (SPI_FLASH_SIZE_MAP == 3)
-    #define SYSTEM_PARTITION_OTA_SIZE                           0x6A000
-    #define SYSTEM_PARTITION_OTA_2_ADDR                         0x81000
-    #define SYSTEM_PARTITION_RF_CAL_ADDR                        0x1fb000
-    #define SYSTEM_PARTITION_PHY_DATA_ADDR                      0x1fc000
-    #define SYSTEM_PARTITION_SYSTEM_PARAMETER_ADDR              0x1fd000
-    #define SYSTEM_PARTITION_CUSTOMER_PRIV_PARAM_ADDR           0x7c000
+    #define SYSTEM_PARTITION_OTA_SIZE 0x6A000
+    #define SYSTEM_PARTITION_OTA_2_ADDR 0x81000
+    #define SYSTEM_PARTITION_RF_CAL_ADDR 0x1fb000
+    #define SYSTEM_PARTITION_PHY_DATA_ADDR 0x1fc000
+    #define SYSTEM_PARTITION_SYSTEM_PARAMETER_ADDR 0x1fd000
+    #define SYSTEM_PARTITION_CUSTOMER_PRIV_PARAM_ADDR 0x7c000
 #elif (SPI_FLASH_SIZE_MAP == 4)
-    #define SYSTEM_PARTITION_OTA_SIZE                           0x6A000
-    #define SYSTEM_PARTITION_OTA_2_ADDR                         0x81000
-    #define SYSTEM_PARTITION_RF_CAL_ADDR                        0x3fb000
-    #define SYSTEM_PARTITION_PHY_DATA_ADDR                      0x3fc000
-    #define SYSTEM_PARTITION_SYSTEM_PARAMETER_ADDR              0x3fd000
-    #define SYSTEM_PARTITION_CUSTOMER_PRIV_PARAM_ADDR           0x7c000
+    #define SYSTEM_PARTITION_OTA_SIZE 0x6A000
+    #define SYSTEM_PARTITION_OTA_2_ADDR 0x81000
+    #define SYSTEM_PARTITION_RF_CAL_ADDR 0x3fb000
+    #define SYSTEM_PARTITION_PHY_DATA_ADDR 0x3fc000
+    #define SYSTEM_PARTITION_SYSTEM_PARAMETER_ADDR 0x3fd000
+    #define SYSTEM_PARTITION_CUSTOMER_PRIV_PARAM_ADDR 0x7c000
 #elif (SPI_FLASH_SIZE_MAP == 5)
-    #define SYSTEM_PARTITION_OTA_SIZE                           0x6A000
-    #define SYSTEM_PARTITION_OTA_2_ADDR                         0x101000
-    #define SYSTEM_PARTITION_RF_CAL_ADDR                        0x1fb000
-    #define SYSTEM_PARTITION_PHY_DATA_ADDR                      0x1fc000
-    #define SYSTEM_PARTITION_SYSTEM_PARAMETER_ADDR              0x1fd000
-    #define SYSTEM_PARTITION_CUSTOMER_PRIV_PARAM_ADDR           0xfc000
+    #define SYSTEM_PARTITION_OTA_SIZE 0x6A000
+    #define SYSTEM_PARTITION_OTA_2_ADDR 0x101000
+    #define SYSTEM_PARTITION_RF_CAL_ADDR 0x1fb000
+    #define SYSTEM_PARTITION_PHY_DATA_ADDR 0x1fc000
+    #define SYSTEM_PARTITION_SYSTEM_PARAMETER_ADDR 0x1fd000
+    #define SYSTEM_PARTITION_CUSTOMER_PRIV_PARAM_ADDR 0xfc000
 #elif (SPI_FLASH_SIZE_MAP == 6)
-    #define SYSTEM_PARTITION_OTA_SIZE                           0x6A000
-    #define SYSTEM_PARTITION_OTA_2_ADDR                         0x101000
-    #define SYSTEM_PARTITION_RF_CAL_ADDR                        0x3fb000
-    #define SYSTEM_PARTITION_PHY_DATA_ADDR                      0x3fc000
-    #define SYSTEM_PARTITION_SYSTEM_PARAMETER_ADDR              0x3fd000
-    #define SYSTEM_PARTITION_CUSTOMER_PRIV_PARAM_ADDR           0xfc000
+    #define SYSTEM_PARTITION_OTA_SIZE 0x6A000
+    #define SYSTEM_PARTITION_OTA_2_ADDR 0x101000
+    #define SYSTEM_PARTITION_RF_CAL_ADDR 0x3fb000
+    #define SYSTEM_PARTITION_PHY_DATA_ADDR 0x3fc000
+    #define SYSTEM_PARTITION_SYSTEM_PARAMETER_ADDR 0x3fd000
+    #define SYSTEM_PARTITION_CUSTOMER_PRIV_PARAM_ADDR 0xfc000
 #else
     #error "The flash map is not supported"
 #endif
 
 #define SYSTEM_PARTITION_CUSTOMER_PRIV_PARAM SYSTEM_PARTITION_CUSTOMER_BEGIN
-#define EAGLE_FLASH_BIN_ADDR                 SYSTEM_PARTITION_CUSTOMER_BEGIN + 1
-#define EAGLE_IROM0TEXT_BIN_ADDR             SYSTEM_PARTITION_CUSTOMER_BEGIN + 2
-
-#define NUM_MODES 2
+#define EAGLE_FLASH_BIN_ADDR SYSTEM_PARTITION_CUSTOMER_BEGIN + 1
+#define EAGLE_IROM0TEXT_BIN_ADDR SYSTEM_PARTITION_CUSTOMER_BEGIN + 2
 
 #define NUM_BUTTON_EVTS 10
 
@@ -131,7 +129,7 @@ static struct espconn* pUdpServer = NULL;
 
 static bool hpa_is_paused_for_wifi = false;
 
-os_event_t    procTaskQueue[PROC_TASK_QUEUE_LEN] = {0};
+os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {0};
 uint32_t samp_iir = 0;
 
 int send_back_on_ip = 0;
@@ -144,14 +142,18 @@ int wifi_fails = 0;
 int ticks_since_override = 1000000;
 uint8_t mymac[6] = {0};
 
-swadgeMode swadgeModes[NUM_MODES] = {0};
+swadgeMode* swadgeModes[] =
+{
+    &ledPatternsMode,
+    &colorchordMode
+};
 
 static const partition_item_t partition_table[] =
 {
-    { EAGLE_FLASH_BIN_ADDR,              0x00000,                               0x10000},
-    { EAGLE_IROM0TEXT_BIN_ADDR,          0x10000,                               0x60000},
-    { SYSTEM_PARTITION_RF_CAL,           SYSTEM_PARTITION_RF_CAL_ADDR,           0x1000},
-    { SYSTEM_PARTITION_PHY_DATA,         SYSTEM_PARTITION_PHY_DATA_ADDR,         0x1000},
+    { EAGLE_FLASH_BIN_ADDR, 0x00000, 0x10000},
+    { EAGLE_IROM0TEXT_BIN_ADDR, 0x10000, 0x60000},
+    { SYSTEM_PARTITION_RF_CAL, SYSTEM_PARTITION_RF_CAL_ADDR, 0x1000},
+    { SYSTEM_PARTITION_PHY_DATA, SYSTEM_PARTITION_PHY_DATA_ADDR, 0x1000},
     { SYSTEM_PARTITION_SYSTEM_PARAMETER, SYSTEM_PARTITION_SYSTEM_PARAMETER_ADDR, 0x3000},
 };
 
@@ -190,19 +192,19 @@ static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned
 void ICACHE_FLASH_ATTR NextSwadgeMode(void)
 {
     // Call the exit callback for the current mode
-    if(NULL != swadgeModes[rtcMem.currentSwadgeMode].fnExitMode)
+    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode)
     {
-        swadgeModes[rtcMem.currentSwadgeMode].fnExitMode();
+        swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode();
     }
 
     // Switch to the next mode, or start from the beginning if we're at the end
     printf("old mode %d\r\n", rtcMem.currentSwadgeMode);
-    rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % NUM_MODES;
+    rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
     printf("new mode %d\r\n", rtcMem.currentSwadgeMode);
-    printf("wifi mode %d\r\n", swadgeModes[rtcMem.currentSwadgeMode].wifiMode);
+    printf("wifi mode %d\r\n", swadgeModes[rtcMem.currentSwadgeMode]->wifiMode);
 
     // Check if the next mode wants wifi or not
-    switch(swadgeModes[rtcMem.currentSwadgeMode].wifiMode)
+    switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
     {
         case SOFT_AP:
         case ESP_NOW:
@@ -448,9 +450,9 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
         // Push the sample to colorchord
 
         // Pass the button to the mode
-        if(NULL != swadgeModes[rtcMem.currentSwadgeMode].fnAudioCallback)
+        if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
         {
-            swadgeModes[rtcMem.currentSwadgeMode].fnAudioCallback(samp);
+            swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback(samp);
         }
     }
 
@@ -479,9 +481,9 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg)
     CSTick( 1 );
 
     // Tick the current mode every 100ms
-    if(NULL != swadgeModes[rtcMem.currentSwadgeMode].fnTimerCallback)
+    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnTimerCallback)
     {
-        swadgeModes[rtcMem.currentSwadgeMode].fnTimerCallback();
+        swadgeModes[rtcMem.currentSwadgeMode]->fnTimerCallback();
     }
 
     if( udp_pending )
@@ -496,7 +498,7 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg)
     }
     else if( hpa_is_paused_for_wifi && printed_ip )
     {
-        StartHPATimer(); // Init the high speed  ADC timer.
+        StartHPATimer(); // Init the high speed ADC timer.
         hpa_is_paused_for_wifi = 0; // only need to do once prevents unstable ADC
     }
 
@@ -520,7 +522,7 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg)
             wifi_station_connect();
             got_an_ip = 0;
         }
-        memset(  ledOut + wifi_fails * 3, 255, 3 );
+        memset( ledOut + wifi_fails * 3, 255, 3 );
         setLeds( ledOut, USE_NUM_LIN_LEDS * 3 );
     }
     else if( stat == STATION_GOT_IP && !got_an_ip )
@@ -529,9 +531,9 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg)
         wifi_get_ip_info(0, &ipi);
         printf( "STAT: %d\n", stat );
 #define chop_ip(x) (((x)>>0)&0xff), (((x)>>8)&0xff), (((x)>>16)&0xff), (((x)>>24)&0xff)
-        printf( "IP: %d.%d.%d.%d\n", chop_ip(ipi.ip.addr)      );
+        printf( "IP: %d.%d.%d.%d\n", chop_ip(ipi.ip.addr) );
         printf( "NM: %d.%d.%d.%d\n", chop_ip(ipi.netmask.addr) );
-        printf( "GW: %d.%d.%d.%d\n", chop_ip(ipi.gw.addr)      );
+        printf( "GW: %d.%d.%d.%d\n", chop_ip(ipi.gw.addr) );
         printf( "Connected to: /%s/\n", wcfg.ssid );
         got_an_ip = 1;
         wifi_fails = 0;
@@ -555,8 +557,8 @@ static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned
     remot_info* ri = 0;
     espconn_get_connection_info( pespconn, &ri, 0);
 
-    //  uint8_t buffer[MAX_FRAME];
-    //  uint8_t ledout[] = { 0x00, 0xff, 0xaa, 0x00, 0xff, 0xaa, };
+    // uint8_t buffer[MAX_FRAME];
+    // uint8_t ledout[] = { 0x00, 0xff, 0xaa, 0x00, 0xff, 0xaa, };
     // printf("X");
     // ws2812_push( pusrdata+3, len );
     // printf( "%02x\n", pusrdata[6] );
@@ -619,7 +621,7 @@ void charrx( uint8_t c )
  * button events
  *
  * @param stat A bitmask of all button statuses
- * @param btn  The button number which was pressed
+ * @param btn The button number which was pressed
  * @param down 1 if the button was pressed, 0 if it was released
  */
 void HandleButtonEventIRQ( uint8_t stat, int btn, int down )
@@ -647,9 +649,9 @@ void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void)
             }
         }
         // Pass the button to the mode
-        else if(NULL != swadgeModes[rtcMem.currentSwadgeMode].fnButtonCallback)
+        else if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
         {
-            swadgeModes[rtcMem.currentSwadgeMode].fnButtonCallback(
+            swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(
                 buttonQueue[buttonEvtHead].stat,
                 buttonQueue[buttonEvtHead].btn,
                 buttonQueue[buttonEvtHead].down);
@@ -688,9 +690,6 @@ void ICACHE_FLASH_ATTR user_init(void)
     uart_init(BIT_RATE_74880, BIT_RATE_74880);
     printf("\r\nSwadge 2019\r\n");
 
-    swadgeModes[0] = ledPatternsMode;
-    swadgeModes[1] = colorchordMode;
-
     struct rst_info* resetInfo = system_get_rst_info();
     if(REASON_DEEP_SLEEP_AWAKE == resetInfo->reason)
     {
@@ -710,12 +709,6 @@ void ICACHE_FLASH_ATTR user_init(void)
     }
     printf("swadge mode %d\r\n", rtcMem.currentSwadgeMode);
 
-    // Initialize the current mode
-    if(NULL != swadgeModes[rtcMem.currentSwadgeMode].fnEnterMode)
-    {
-        swadgeModes[rtcMem.currentSwadgeMode].fnEnterMode();
-    }
-
     // Uncomment this to force a system restore.
     // system_restore();
 
@@ -734,13 +727,13 @@ void ICACHE_FLASH_ATTR user_init(void)
     int firstbuttons = GetButtons();
     if( (firstbuttons & 0x08) )
     {
-        // Restore all settings to
-        printf( "Restore and save defaults (except # of leds).\n" );
-        RevertAndSaveAllSettingsExceptLEDs();
+    // Restore all settings to
+    printf( "Restore and save defaults (except # of leds).\n" );
+    RevertAndSaveAllSettingsExceptLEDs();
     }
     */
 
-    switch(swadgeModes[rtcMem.currentSwadgeMode].wifiMode)
+    switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
     {
         case SOFT_AP:
         {
@@ -799,7 +792,7 @@ void ICACHE_FLASH_ATTR user_init(void)
     }
     else
     {
-        // Init the high speed  ADC timer.
+        // Init the high speed ADC timer.
         StartHPATimer();
     }
 
@@ -814,6 +807,12 @@ void ICACHE_FLASH_ATTR user_init(void)
 
     // Kick off procTask()
     system_os_post(PROC_TASK_PRIO, 0, 0 );
+
+    // Initialize the current mode
+    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEnterMode)
+    {
+        swadgeModes[rtcMem.currentSwadgeMode]->fnEnterMode();
+    }
 }
 
 /**
@@ -840,9 +839,9 @@ void ICACHE_FLASH_ATTR ExitCritical(void)
  * Set the state of the six RGB LEDs, but don't overwrite if the LEDs were
  * set via UDP for at least TICKER_TIMEOUT increments of 100ms
  *
- * @param ledData    Array of LED color data. Every three bytes corresponds to
- *                   one LED in RGB order. So index 0 is LED1_R, index 1 is
- *                   LED1_G, index 2 is LED1_B, index 3 is LED2_R, etc.
+ * @param ledData Array of LED color data. Every three bytes corresponds to
+ * one LED in RGB order. So index 0 is LED1_R, index 1 is
+ * LED1_G, index 2 is LED1_B, index 3 is LED2_R, etc.
  * @param ledDataLen The length of buffer, most likely 6*3
  */
 void ICACHE_FLASH_ATTR setLeds(uint8_t* ledData, uint16_t ledDataLen)
@@ -863,7 +862,7 @@ void ICACHE_FLASH_ATTR setLeds(uint8_t* ledData, uint16_t ledDataLen)
 /**
  * Send a UDP packet to the swadge this swadge is connected to, if it's connected
  *
- * @param packet    The bytes to send to the other swadge
+ * @param packet The bytes to send to the other swadge
  * @param packetLen The length of the bytes to send to the other swadge
  */
 void ICACHE_FLASH_ATTR sendPacket(uint8_t* packet, uint16_t packetLen)
