@@ -14,6 +14,13 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+typedef enum
+{
+    NO_WIFI,
+    SOFT_AP,
+    ESP_NOW
+} wifiMode_t;
+
 typedef struct _swadgeMode swadgeMode;
 
 /**
@@ -73,7 +80,7 @@ struct _swadgeMode
      * STATIONAP_MODE - Attempt to connect to the physically closest swadge
      *                  in an ad-hoc manner
      */
-    uint8_t shouldConnect; // TODO implement this
+    wifiMode_t wifiMode; // TODO implement this
     /**
      * If shouldConnect is set to STATIONAP_MODE, the LED color to be used
      * during the connection process. Must be distinct for each mode.
@@ -96,11 +103,6 @@ struct _swadgeMode
      * @param packetLen The length of the data to send to the connected swadge
      */
     void (*fnPacketCallback)(uint8_t* packet, uint8_t packetLen); // TODO implement this
-    /**
-     * A pointer to another swadgeMode, used by the system to register a
-     * linked list of modes. This must be initialized to NULL.
-     */
-    swadgeMode* next;
 };
 
 /**
@@ -121,5 +123,12 @@ void ICACHE_FLASH_ATTR setLeds(uint8_t* ledData, uint16_t ledDataLen);
  * @param packetLen The length of the bytes to send to the other swadge
  */
 void ICACHE_FLASH_ATTR sendPacket(uint8_t* packet, uint16_t packetLen);
+
+/**
+ * TODO
+ * @param disableWifi
+ * @param sleepUs
+ */
+void enterDeepSleep(bool disableWifi, uint64_t sleepUs);
 
 #endif /* USER_USER_MAIN_H_ */

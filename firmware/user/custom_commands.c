@@ -18,6 +18,7 @@
 
 #define CONFIGURABLES sizeof(struct CCSettings) //(plus1)
 #define SAVE_LOAD_KEY 0xAA
+#define SETTINGS_ADDR 0x7F000
 
 /*============================================================================
  * Structs
@@ -153,9 +154,10 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
     settings_t settings = {0};
 
     int i;
-    spi_flash_read( 0x3D000, (uint32*)&settings, sizeof( settings ) );
+    spi_flash_read( SETTINGS_ADDR, (uint32*)&settings, sizeof( settings ) );
     if( settings.SaveLoadKey == SAVE_LOAD_KEY )
     {
+        printf("Settings found\r\n");
         for( i = 0; i < CONFIGURABLES; i++ )
         {
             if( gConfigs[i].val )
@@ -166,6 +168,7 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
     }
     else
     {
+        printf("Settings not found\r\n");
         for( i = 0; i < CONFIGURABLES; i++ )
         {
             if( gConfigs[i].val )
@@ -194,8 +197,8 @@ void ICACHE_FLASH_ATTR SaveSettings(void)
 
     EnterCritical();
     ets_intr_lock();
-    spi_flash_erase_sector( 0x3D000 / 4096 );
-    spi_flash_write( 0x3D000, (uint32*)&settings, ((sizeof( settings ) - 1) & (~0xf)) + 0x10 );
+    spi_flash_erase_sector( SETTINGS_ADDR / 4096 );
+    spi_flash_write( SETTINGS_ADDR, (uint32*)&settings, ((sizeof( settings ) - 1) & (~0xf)) + 0x10 );
     ets_intr_unlock();
     ExitCritical();
 }

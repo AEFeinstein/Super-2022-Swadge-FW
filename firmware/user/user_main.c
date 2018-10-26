@@ -28,6 +28,7 @@
 #include "user_main.h"
 #include "mode_colorchord.h"
 #include "mode_led_patterns.h"
+#include "espnow.h"
 
 /*============================================================================
  * Defines
@@ -98,6 +99,29 @@
 #define EAGLE_FLASH_BIN_ADDR                 SYSTEM_PARTITION_CUSTOMER_BEGIN + 1
 #define EAGLE_IROM0TEXT_BIN_ADDR             SYSTEM_PARTITION_CUSTOMER_BEGIN + 2
 
+#define NUM_MODES 2
+
+#define NUM_BUTTON_EVTS 10
+
+#define RTC_MEM_ADDR 64
+
+/*============================================================================
+ * Structs
+ *==========================================================================*/
+
+typedef struct
+{
+    uint8_t stat;
+    int btn;
+    int down;
+} buttonEvt;
+
+typedef struct __attribute__((aligned(4)))
+{
+    uint32_t currentSwadgeMode;
+}
+rtcMem_t;
+
 /*============================================================================
  * Variables
  *==========================================================================*/
@@ -120,11 +144,7 @@ int wifi_fails = 0;
 int ticks_since_override = 1000000;
 uint8_t mymac[6] = {0};
 
-uint8_t last_button_event_btn = 0;
-uint8_t last_button_event_dn = 0;
-
-swadgeMode* rootMode = NULL;
-swadgeMode* currentMode = NULL;
+swadgeMode swadgeModes[NUM_MODES] = {0};
 
 static const partition_item_t partition_table[] =
 {
@@ -135,12 +155,18 @@ static const partition_item_t partition_table[] =
     { SYSTEM_PARTITION_SYSTEM_PARAMETER, SYSTEM_PARTITION_SYSTEM_PARAMETER_ADDR, 0x3000},
 };
 
+buttonEvt buttonQueue[NUM_BUTTON_EVTS] = {0};
+uint8_t buttonEvtHead = 0;
+uint8_t buttonEvtTail = 0;
+
+rtcMem_t rtcMem = {0};
+
 /*============================================================================
  * Prototypes
  *==========================================================================*/
 
-void ICACHE_FLASH_ATTR HandleButtonEvent( uint8_t stat, int btn, int down );
-void ICACHE_FLASH_ATTR RegisterSwadgeMode(swadgeMode* mode);
+void ICACHE_FLASH_ATTR HandleButtonEventIRQ( uint8_t stat, int btn, int down );
+void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void);
 void ICACHE_FLASH_ATTR NextSwadgeMode(void);
 
 static int ICACHE_FLASH_ATTR SwitchToSoftAP(void);
@@ -158,65 +184,62 @@ static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned
  *==========================================================================*/
 
 /**
- * Register a swadge mode
- *
- * @param mode The mode to register in the linked list of modes
- */
-void ICACHE_FLASH_ATTR RegisterSwadgeMode(swadgeMode* mode)
-{
-    if(NULL == rootMode)
-    {
-        rootMode = mode;
-        currentMode = rootMode;
-    }
-    else
-    {
-        swadgeMode* modeList = rootMode;
-        while(modeList->next != NULL)
-        {
-            modeList = modeList->next;
-        }
-        modeList->next = mode;
-    }
-}
-
-/**
  * Switch to the next registered swadge mode. This will cleanly exit the
  * current mode and initialize the next one, and swap it in
  */
 void ICACHE_FLASH_ATTR NextSwadgeMode(void)
 {
-    if(NULL == currentMode)
+    // Call the exit callback for the current mode
+    if(NULL != swadgeModes[rtcMem.currentSwadgeMode].fnExitMode)
     {
-        // No modes at all!
-        return;
+        swadgeModes[rtcMem.currentSwadgeMode].fnExitMode();
+    }
+
+    // Switch to the next mode, or start from the beginning if we're at the end
+    printf("old mode %d\r\n", rtcMem.currentSwadgeMode);
+    rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % NUM_MODES;
+    printf("new mode %d\r\n", rtcMem.currentSwadgeMode);
+    printf("wifi mode %d\r\n", swadgeModes[rtcMem.currentSwadgeMode].wifiMode);
+
+    // Check if the next mode wants wifi or not
+    switch(swadgeModes[rtcMem.currentSwadgeMode].wifiMode)
+    {
+        case SOFT_AP:
+        case ESP_NOW:
+        {
+            // Sleeeeep. It calls user_init on wake, which will use the new mode
+            enterDeepSleep(false, 1000);
+            break;
+        }
+        case NO_WIFI:
+        {
+            // Sleeeeep. It calls user_init on wake, which will use the new mode
+            enterDeepSleep(true, 1000);
+            break;
+        }
+    }
+}
+
+void ICACHE_FLASH_ATTR enterDeepSleep(bool disableWifi, uint64_t sleepUs)
+{
+    if(disableWifi)
+    {
+        // Disable RF after deep-sleep wake up, just like modem sleep; this
+        // has the least current consumption; the device is not able to
+        // transmit or receive data after wake up.
+        system_deep_sleep_set_option(4);
     }
     else
     {
-        // Call the exit callback for the current mode
-        if(NULL != currentMode->fnExitMode)
-        {
-            currentMode->fnExitMode();
-        }
-
-        // Switch to the next mode, or start from the beginning if we're at the end
-        if(NULL == currentMode->next)
-        {
-            currentMode = rootMode;
-        }
-        else
-        {
-            currentMode = currentMode->next;
-        }
-
-        // Call the enter callback for the current mode
-        if(NULL != currentMode->fnEnterMode)
-        {
-            currentMode->fnEnterMode();
-        }
-
-        // TODO check wifi connection stuff here
+        // No radio calibration after deep-sleep wake up; this reduces the
+        // current consumption.
+        system_deep_sleep_set_option(2);
     }
+    printf("deep sleep option set\r\n");
+    system_rtc_mem_write(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem));
+    printf("rtc mem written\r\n");
+
+    system_deep_sleep(sleepUs);
 }
 
 /**
@@ -319,10 +342,8 @@ void ICACHE_FLASH_ATTR TransmitGenericEvent(void)
 
     // GPIO & button info
     sendpack[packetIdx++] = getLastGPIOState();
-    sendpack[packetIdx++] = last_button_event_btn;
-    sendpack[packetIdx++] = last_button_event_dn;
-    last_button_event_btn = 0;
-    last_button_event_dn = 0;
+    sendpack[packetIdx++] = buttonEvtHead;
+    sendpack[packetIdx++] = buttonEvtTail;
 
     // Two bytes voltage info, guess it can't be read
     sendpack[packetIdx++] = 0;
@@ -395,13 +416,6 @@ void ICACHE_FLASH_ATTR RETick(void)
 
     // Common services tick, fast mode
     CSTick( 0 );
-
-    // If a button was pressed and UDP_TIMEOUT has elapsed since boot, send a
-    // diagnostic packet
-    if( last_button_event_btn || udp_pending == 0 )
-    {
-        TransmitGenericEvent();
-    }
 }
 
 /**
@@ -418,6 +432,9 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
     WRITE_PERI_REG( PERIPHS_GPIO_BASEADDR + GPIO_ID_PIN(0), 1 );
 #endif
 
+    // Process queued button presses synchronously
+    HandleButtonEventSynchronous();
+
     // While there are samples available from the ADC
     while( sampleAvailable() )
     {
@@ -431,9 +448,9 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
         // Push the sample to colorchord
 
         // Pass the button to the mode
-        if(NULL != currentMode && NULL != currentMode->fnAudioCallback)
+        if(NULL != swadgeModes[rtcMem.currentSwadgeMode].fnAudioCallback)
         {
-            currentMode->fnAudioCallback(samp);
+            swadgeModes[rtcMem.currentSwadgeMode].fnAudioCallback(samp);
         }
     }
 
@@ -462,9 +479,9 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg)
     CSTick( 1 );
 
     // Tick the current mode every 100ms
-    if(NULL != currentMode && NULL != currentMode->fnTimerCallback)
+    if(NULL != swadgeModes[rtcMem.currentSwadgeMode].fnTimerCallback)
     {
-        currentMode->fnTimerCallback();
+        swadgeModes[rtcMem.currentSwadgeMode].fnTimerCallback();
     }
 
     if( udp_pending )
@@ -585,10 +602,11 @@ static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned
 
 /**
  * UART RX handler, called by uart0_rx_intr_handler(). Currently does nothing
+ * This is an interrupt, so it can't be ICACHE_FLASH_ATTR.
  *
  * @param c The char received on the UART
  */
-void ICACHE_FLASH_ATTR charrx( uint8_t c )
+void charrx( uint8_t c )
 {
     ;
 }
@@ -597,32 +615,49 @@ void ICACHE_FLASH_ATTR charrx( uint8_t c )
  * This function is passed into SetupGPIO() as the callback for button interrupts.
  * It is called every time a button is pressed or released
  *
+ * This is an interrupt, so it can't be ICACHE_FLASH_ATTR. It quickly queues
+ * button events
+ *
  * @param stat A bitmask of all button statuses
  * @param btn  The button number which was pressed
  * @param down 1 if the button was pressed, 0 if it was released
  */
-void ICACHE_FLASH_ATTR HandleButtonEvent( uint8_t stat, int btn, int down )
+void HandleButtonEventIRQ( uint8_t stat, int btn, int down )
 {
-    printf("button %d %s\r\n", btn, down ? "down" : "up");
+    // Queue up the button event
+    buttonQueue[buttonEvtTail].stat = stat;
+    buttonQueue[buttonEvtTail].btn = btn;
+    buttonQueue[buttonEvtTail].down = down;
+    buttonEvtTail = (buttonEvtTail + 1) % NUM_BUTTON_EVTS;
+}
 
-    // The 0th button is the mode switch button, don't pass that to the mode
-    if(0 == btn)
+/**
+ * Process queued button events synchronously
+ */
+void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void)
+{
+    if(buttonEvtHead != buttonEvtTail)
     {
-        if(down)
+        // The 0th button is the mode switch button, don't pass that to the mode
+        if(0 == buttonQueue[buttonEvtHead].btn)
         {
-            NextSwadgeMode();
+            if(buttonQueue[buttonEvtHead].down)
+            {
+                NextSwadgeMode();
+            }
         }
-    }
-    // Pass the button to the mode
-    else if(NULL != currentMode && NULL != currentMode->fnButtonCallback)
-    {
-        currentMode->fnButtonCallback(stat, btn, down);
-    }
+        // Pass the button to the mode
+        else if(NULL != swadgeModes[rtcMem.currentSwadgeMode].fnButtonCallback)
+        {
+            swadgeModes[rtcMem.currentSwadgeMode].fnButtonCallback(
+                buttonQueue[buttonEvtHead].stat,
+                buttonQueue[buttonEvtHead].btn,
+                buttonQueue[buttonEvtHead].down);
+        }
 
-    // XXX WOULD BE NICE: Implement some sort of event queue.
-    last_button_event_btn = btn + 1;
-    last_button_event_dn = down;
-    system_os_post(PROC_TASK_PRIO, 0, 0 );
+        // Increment the head
+        buttonEvtHead = (buttonEvtHead + 1) % NUM_BUTTON_EVTS;
+    }
 }
 
 /**
@@ -651,7 +686,35 @@ void ICACHE_FLASH_ATTR user_init(void)
 {
     // Initialize the UART
     uart_init(BIT_RATE_74880, BIT_RATE_74880);
-    printf("\r\nColorChord\r\n");
+    printf("\r\nSwadge 2019\r\n");
+
+    swadgeModes[0] = ledPatternsMode;
+    swadgeModes[1] = colorchordMode;
+
+    struct rst_info* resetInfo = system_get_rst_info();
+    if(REASON_DEEP_SLEEP_AWAKE == resetInfo->reason)
+    {
+        printf("read rtc mem\r\n");
+        // Try to read from rtc memory
+        if(!system_rtc_mem_read(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem)))
+        {
+            printf("rtc mem read fail\r\n");
+            // if it fails, zero it out instead
+            memset(&rtcMem, 0, sizeof(rtcMem));
+        }
+    }
+    else
+    {
+        // if it fails, zero it out instead
+        memset(&rtcMem, 0, sizeof(rtcMem));
+    }
+    printf("swadge mode %d\r\n", rtcMem.currentSwadgeMode);
+
+    // Initialize the current mode
+    if(NULL != swadgeModes[rtcMem.currentSwadgeMode].fnEnterMode)
+    {
+        swadgeModes[rtcMem.currentSwadgeMode].fnEnterMode();
+    }
 
     // Uncomment this to force a system restore.
     // system_restore();
@@ -664,56 +727,36 @@ void ICACHE_FLASH_ATTR user_init(void)
 #endif
 
     // Initialize GPIOs
-    SetupGPIO(HandleButtonEvent);
+    SetupGPIO(HandleButtonEventIRQ);
 
-    // Can't use buttons 0, 1, or 5 for startup options.
-    // 0x08 will be to restore default colorchord settings.
-    // 0x10 will be to start in softAP mode, otherwise it tries to connect to infrastructure
-    // 0x20 will disable deep sleep, but its commented out
-
+    // Held buttons aren't used on boot for anything, but they could be
+    /*
     int firstbuttons = GetButtons();
-    // if( firstbuttons & 0x20 )
-    // {
-    //     disable_deep_sleep = 1;
-    // }
     if( (firstbuttons & 0x08) )
     {
         // Restore all settings to
         printf( "Restore and save defaults (except # of leds).\n" );
         RevertAndSaveAllSettingsExceptLEDs();
     }
+    */
 
-    if( (firstbuttons & 0x10) )
+    switch(swadgeModes[rtcMem.currentSwadgeMode].wifiMode)
     {
-        SwitchToSoftAP( );
-        printf( "Booting in SoftAP\n" );
-    }
-    else
-    {
-        printf( "Connecting to infrastructure\n" );
-
-        // Build station mode configuration
-        struct station_config stationConf;
-        wifi_station_get_config(&stationConf);
-        wifi_get_macaddr(STATION_IF, mymac);
-        LoadSSIDAndPassword( stationConf.ssid, stationConf.password );
-        stationConf.bssid_set = 0;
-
-        // Set station mode
-        wifi_set_opmode_current( 1 ); // station mode, don't write to flash
-        wifi_set_opmode( 1 ); // station mode, do write to flash
-
-        // Set wifi configig, save to flash
-        wifi_station_set_config(&stationConf);
-
-        // Connect
-        wifi_station_connect();
-
-        // I don't know why, doing this twice seems to make it store more reliably.
-        wifi_station_set_config(&stationConf);
-        soft_ap_mode = 0;
+        case SOFT_AP:
+        {
+            SwitchToSoftAP( );
+            printf( "Booting in SoftAP\n" );
+            break;
+        }
+        case ESP_NOW:
+        {
+            esp_now_init();
+            printf( "Booting in ESP-NOW\n" );
+            break;
+        }
     }
 
+    // TODO how much of this has to be removed for esp-now?
     // Common services pre-init
     CSPreInit();
 
@@ -771,16 +814,6 @@ void ICACHE_FLASH_ATTR user_init(void)
 
     // Kick off procTask()
     system_os_post(PROC_TASK_PRIO, 0, 0 );
-
-    // Register all swadge modes
-    RegisterSwadgeMode(&ledPatternsMode);
-    RegisterSwadgeMode(&colorchordMode);
-
-    // Initialize the current mode
-    if(NULL != currentMode && NULL != currentMode->fnEnterMode)
-    {
-        currentMode->fnEnterMode();
-    }
 }
 
 /**

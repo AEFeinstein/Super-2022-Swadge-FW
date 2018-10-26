@@ -66,11 +66,10 @@ swadgeMode ledPatternsMode =
     .fnTimerCallback = ledPatternTimerCallback,
     .fnButtonCallback = ledPatternButtonCallback,
     .fnAudioCallback = NULL,
-    .shouldConnect = NULL_MODE,
+    .wifiMode = NO_WIFI,
     .connectionColor = 0x00000000,
     .fnConnectionCallback = NULL,
     .fnPacketCallback = NULL,
-    .next = NULL
 };
 
 static volatile color_t color = RED;
@@ -164,9 +163,7 @@ void ICACHE_FLASH_ATTR ledPatternTimerCallback(void)
     // If the LEDs have dimmed back to zero, sleep for a while
     if(0x00 == brightness)
     {
-        // Disable RF
-        system_deep_sleep_set_option(4);
         // Sleeeeep
-        system_deep_sleep(SLEEP_US);
+        enterDeepSleep(true, SLEEP_US);
     }
 }

@@ -33,11 +33,10 @@ swadgeMode colorchordMode =
     .fnTimerCallback = NULL,
     .fnButtonCallback = NULL,
     .fnAudioCallback = colorchordSampleHandler,
-    .shouldConnect = SOFTAP_MODE,
+    .wifiMode = SOFT_AP,
     .connectionColor = 0x00000000,
     .fnConnectionCallback = NULL,
     .fnPacketCallback = NULL,
-    .next = NULL
 };
 
 static int samplesProcessed = 0;
