@@ -30,6 +30,7 @@
 #include "mode_led_patterns.h"
 #include "espnow.h"
 #include "missingEspFnPrototypes.h"
+#include "mode_espnow_test.h"
 
 /*============================================================================
  * Defines
@@ -145,8 +146,9 @@ uint8_t mymac[6] = {0};
 
 swadgeMode* swadgeModes[] =
 {
+    &espNowTestMode,
     &ledPatternsMode,
-    &colorchordMode
+    &colorchordMode,
 };
 
 static const partition_item_t partition_table[] =
@@ -204,6 +206,7 @@ void ICACHE_FLASH_ATTR NextSwadgeMode(void)
     printf("new mode %d\r\n", rtcMem.currentSwadgeMode);
     printf("wifi mode %d\r\n", swadgeModes[rtcMem.currentSwadgeMode]->wifiMode);
 
+#ifdef DEEP_SLEEP_MODE_SWITCH
     // Check if the next mode wants wifi or not
     switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
     {
@@ -221,6 +224,12 @@ void ICACHE_FLASH_ATTR NextSwadgeMode(void)
             break;
         }
     }
+#else
+    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEnterMode)
+    {
+        swadgeModes[rtcMem.currentSwadgeMode]->fnEnterMode();
+    }
+#endif
 }
 
 void ICACHE_FLASH_ATTR enterDeepSleep(bool disableWifi, uint64_t sleepUs)
@@ -737,17 +746,17 @@ void ICACHE_FLASH_ATTR user_init(void)
     switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
     {
         case SOFT_AP:
+        case ESP_NOW:
         {
             SwitchToSoftAP( );
             printf( "Booting in SoftAP\n" );
             break;
         }
-        case ESP_NOW:
-        {
-            esp_now_init();
-            printf( "Booting in ESP-NOW\n" );
-            break;
-        }
+        //        {
+        //            //            esp_now_init();
+        //            printf( "Booting in ESP-NOW\n" );
+        //            break;
+        //        }
         case NO_WIFI:
         {
             printf( "Booting with no wifi\n" );
