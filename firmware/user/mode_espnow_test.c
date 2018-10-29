@@ -55,7 +55,7 @@ swadgeMode espNowTestMode =
 void ICACHE_FLASH_ATTR recvCbTest(uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi)
 {
     // Debug print the received payload
-    printf("message received\r\n");
+    os_printf("message received\r\n");
 }
 
 /**
@@ -67,7 +67,7 @@ void ICACHE_FLASH_ATTR recvCbTest(uint8_t* mac_addr, uint8_t* data, uint8_t len,
 void ICACHE_FLASH_ATTR sendCbTest(uint8_t* mac_addr, mt_tx_status status)
 {
     // Debug print the received payload
-    printf("message sent\r\n");
+    os_printf("message sent\r\n");
 }
 
 /**
@@ -81,7 +81,7 @@ void ICACHE_FLASH_ATTR espNowButton(uint8_t state, int button, int down)
 {
     if(2 == button && down)
     {
-        printf("Sending message\r\n");
+        os_printf("Sending message\r\n");
         // Send a test packet
         char* testmsg = "Test Message";
         espNowSend((uint8_t*)testmsg, ets_strlen(testmsg));

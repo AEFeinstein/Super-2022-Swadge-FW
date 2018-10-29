@@ -186,7 +186,7 @@ void ICACHE_FLASH_ATTR SetupGPIO(void (*handler)(uint8_t state, int button, int 
     WRITE_PERI_REG(RTC_GPIO_ENABLE,
                    READ_PERI_REG(RTC_GPIO_ENABLE) & (uint32)0xfffffffe);
 
-    printf( "Setup GPIO Complete\n" );
+    os_printf( "Setup GPIO Complete\n" );
 }
 
 /**

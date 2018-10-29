@@ -23,37 +23,37 @@ void ICACHE_FLASH_ATTR espNowInit(void)
 {
     if(0 == esp_now_init())
     {
-        printf("ESP NOW init!\r\n");
+        os_printf("ESP NOW init!\r\n");
         if(0 == esp_now_set_self_role(ESP_NOW_ROLE_COMBO))
         {
-            printf("set as combo\r\n");
+            os_printf("set as combo\r\n");
         }
         else
         {
-            printf("esp now mode set fail\r\n");
+            os_printf("esp now mode set fail\r\n");
         }
 
         if(0 == esp_now_register_recv_cb(espNowRecvCb))
         {
-            printf("recvCb registered\r\n");
+            os_printf("recvCb registered\r\n");
         }
         else
         {
-            printf("recvCb NOT registered\r\n");
+            os_printf("recvCb NOT registered\r\n");
         }
 
         if(0 == esp_now_register_send_cb(espNowSendCb))
         {
-            printf("sendCb registered\r\n");
+            os_printf("sendCb registered\r\n");
         }
         else
         {
-            printf("sendCb NOT registered\r\n");
+            os_printf("sendCb NOT registered\r\n");
         }
     }
     else
     {
-        printf("esp now fail\r\n");
+        os_printf("esp now fail\r\n");
     }
 }
 
@@ -76,18 +76,18 @@ void ICACHE_FLASH_ATTR espNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t le
         strcat(dbg, tmp);
     }
 
-    printf("RECV MAC %02X:%02X:%02X:%02X:%02X:%02X\r\nbytes: %s\r\n",
-           mac_addr[0],
-           mac_addr[1],
-           mac_addr[2],
-           mac_addr[3],
-           mac_addr[4],
-           mac_addr[5],
-           dbg);
+    os_printf("RECV MAC %02X:%02X:%02X:%02X:%02X:%02X\r\nbytes: %s\r\n",
+              mac_addr[0],
+              mac_addr[1],
+              mac_addr[2],
+              mac_addr[3],
+              mac_addr[4],
+              mac_addr[5],
+              dbg);
 
     // Buried in a header, goes from 1 (far away) to 91 (practically touching)
     uint8_t rssi = data[-51];
-    printf("nRSSI: %d \r\n", rssi);
+    os_printf("nRSSI: %d \r\n", rssi);
 
     if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowRecvCb)
     {
@@ -117,24 +117,24 @@ void ICACHE_FLASH_ATTR espNowSend(uint8_t* data, uint8_t len)
  */
 void ICACHE_FLASH_ATTR espNowSendCb(uint8_t* mac_addr, uint8_t status)
 {
-    printf("SEND MAC %02X:%02X:%02X:%02X:%02X:%02X\r\n",
-           mac_addr[0],
-           mac_addr[1],
-           mac_addr[2],
-           mac_addr[3],
-           mac_addr[4],
-           mac_addr[5]);
+    os_printf("SEND MAC %02X:%02X:%02X:%02X:%02X:%02X\r\n",
+              mac_addr[0],
+              mac_addr[1],
+              mac_addr[2],
+              mac_addr[3],
+              mac_addr[4],
+              mac_addr[5]);
 
     switch((mt_tx_status)status)
     {
         case MT_TX_STATUS_OK:
         {
-            printf("ESP NOW MT_TX_STATUS_OK\r\n");
+            os_printf("ESP NOW MT_TX_STATUS_OK\r\n");
             break;
         }
         case MT_TX_STATUS_FAILED:
         {
-            printf("ESP NOW MT_TX_STATUS_FAILED\r\n");
+            os_printf("ESP NOW MT_TX_STATUS_FAILED\r\n");
             break;
         }
     }

@@ -159,7 +159,7 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
     spi_flash_read( SETTINGS_ADDR, (uint32*)&settings, sizeof( settings ) );
     if( settings.SaveLoadKey == SAVE_LOAD_KEY )
     {
-        printf("Settings found\r\n");
+        os_printf("Settings found\r\n");
         for( i = 0; i < CONFIGURABLES; i++ )
         {
             if( gConfigs[i].val )
@@ -170,7 +170,7 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
     }
     else
     {
-        printf("Settings not found\r\n");
+        os_printf("Settings not found\r\n");
         for( i = 0; i < CONFIGURABLES; i++ )
         {
             if( gConfigs[i].val )
@@ -212,7 +212,7 @@ void ICACHE_FLASH_ATTR SaveSettings(void)
  */
 void ICACHE_FLASH_ATTR RevertAndSaveAllSettingsExceptLEDs()
 {
-    printf( "Restoring all values.\n" );
+    os_printf( "Restoring all values.\n" );
 
     // Save gUSE_NUM_LIN_LEDS
     int led = CCS.gUSE_NUM_LIN_LEDS;

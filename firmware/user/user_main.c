@@ -250,7 +250,7 @@ void ICACHE_FLASH_ATTR NextSwadgeMode(void)
 void ICACHE_FLASH_ATTR enterDeepSleep(bool disableWifi, uint64_t sleepUs)
 {
     system_rtc_mem_write(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem));
-    printf("rtc mem written\r\n");
+    os_printf("rtc mem written\r\n");
 
     if(disableWifi)
     {
@@ -258,14 +258,14 @@ void ICACHE_FLASH_ATTR enterDeepSleep(bool disableWifi, uint64_t sleepUs)
         // has the least current consumption; the device is not able to
         // transmit or receive data after wake up.
         system_deep_sleep_set_option(4);
-        printf("deep sleep option set 4\r\n");
+        os_printf("deep sleep option set 4\r\n");
     }
     else
     {
         // No radio calibration after deep-sleep wake up; this reduces the
         // current consumption.
         system_deep_sleep_set_option(2);
-        printf("deep sleep option set 2\r\n");
+        os_printf("deep sleep option set 2\r\n");
     }
     system_deep_sleep(sleepUs);
 }
@@ -326,7 +326,7 @@ static int ICACHE_FLASH_ATTR SwitchToSoftAP(void)
     }
 
     // Note the connection and return the channel
-    printf( "Making it a softap, channel %d\n", c.channel );
+    os_printf( "Making it a softap, channel %d\n", c.channel );
     got_an_ip = 1;
     soft_ap_mode = 1;
     return c.channel;
@@ -532,8 +532,8 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
     {
         wifi_station_disconnect();
         wifi_fails++;
-        printf( "Connection failed with code %d... Retrying, try: %d", stat, wifi_fails );
-        printf("\n");
+        os_printf( "Connection failed with code %d... Retrying, try: %d", stat, wifi_fails );
+        os_printf("\n");
         if( wifi_fails == 2 )
         {
             SwitchToSoftAP();
@@ -552,12 +552,12 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
     {
         wifi_station_get_config( &wcfg );
         wifi_get_ip_info(0, &ipi);
-        printf( "STAT: %d\n", stat );
+        os_printf( "STAT: %d\n", stat );
 #define chop_ip(x) (((x)>>0)&0xff), (((x)>>8)&0xff), (((x)>>16)&0xff), (((x)>>24)&0xff)
-        printf( "IP: %d.%d.%d.%d\n", chop_ip(ipi.ip.addr) );
-        printf( "NM: %d.%d.%d.%d\n", chop_ip(ipi.netmask.addr) );
-        printf( "GW: %d.%d.%d.%d\n", chop_ip(ipi.gw.addr) );
-        printf( "Connected to: /%s/\n", wcfg.ssid );
+        os_printf( "IP: %d.%d.%d.%d\n", chop_ip(ipi.ip.addr) );
+        os_printf( "NM: %d.%d.%d.%d\n", chop_ip(ipi.netmask.addr) );
+        os_printf( "GW: %d.%d.%d.%d\n", chop_ip(ipi.gw.addr) );
+        os_printf( "Connected to: /%s/\n", wcfg.ssid );
         got_an_ip = 1;
         wifi_fails = 0;
     }
@@ -580,9 +580,9 @@ static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned
 
     // uint8_t buffer[MAX_FRAME];
     // uint8_t ledout[] = { 0x00, 0xff, 0xaa, 0x00, 0xff, 0xaa, };
-    // printf("X");
+    //os_printf("X");
     // ws2812_push( pusrdata+3, len );
-    // printf( "%02x\n", pusrdata[6] );
+    //os_printf( "%02x\n", pusrdata[6] );
     if( pusrdata[6] == 0x11 )
     {
 
@@ -716,17 +716,17 @@ void ICACHE_FLASH_ATTR user_init(void)
 {
     // Initialize the UART
     uart_init(BIT_RATE_74880, BIT_RATE_74880);
-    printf("\r\nSwadge 2019\r\n");
+    os_printf("\r\nSwadge 2019\r\n");
 
     // Read data fom RTC memory if we're waking from deep sleep
     struct rst_info* resetInfo = system_get_rst_info();
     if(REASON_DEEP_SLEEP_AWAKE == resetInfo->reason)
     {
-        printf("read rtc mem\r\n");
+        os_printf("read rtc mem\r\n");
         // Try to read from rtc memory
         if(!system_rtc_mem_read(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem)))
         {
-            printf("rtc mem read fail\r\n");
+            os_printf("rtc mem read fail\r\n");
             // if it fails, zero it out instead
             memset(&rtcMem, 0, sizeof(rtcMem));
         }
@@ -746,7 +746,7 @@ void ICACHE_FLASH_ATTR user_init(void)
                 if(!(wifi_set_opmode_current( SOFTAP_MODE ) &&
                         wifi_set_opmode( SOFTAP_MODE )))
                 {
-                    printf("Set SOFTAP_MODE before boot failed\r\n");
+                    os_printf("Set SOFTAP_MODE before boot failed\r\n");
                 }
                 break;
             }
@@ -755,13 +755,13 @@ void ICACHE_FLASH_ATTR user_init(void)
                 if(!(wifi_set_opmode_current( NULL_MODE ) &&
                         wifi_set_opmode( NULL_MODE )))
                 {
-                    printf("Set NULL_MODE before boot failed\r\n");
+                    os_printf("Set NULL_MODE before boot failed\r\n");
                 }
                 break;
             }
         }
     }
-    printf("swadge mode %d\r\n", rtcMem.currentSwadgeMode);
+    os_printf("swadge mode %d\r\n", rtcMem.currentSwadgeMode);
 
     // Uncomment this to force a system restore.
     // system_restore();
@@ -782,7 +782,7 @@ void ICACHE_FLASH_ATTR user_init(void)
     if( (firstbuttons & 0x08) )
     {
     // Restore all settings to
-    printf( "Restore and save defaults (except # of leds).\n" );
+    os_printf( "Restore and save defaults (except # of leds).\n" );
     RevertAndSaveAllSettingsExceptLEDs();
     }
     */
@@ -792,18 +792,18 @@ void ICACHE_FLASH_ATTR user_init(void)
         case SOFT_AP:
         {
             SwitchToSoftAP( );
-            printf( "Booting in SoftAP\n" );
+            os_printf( "Booting in SoftAP\n" );
             break;
         }
         case ESP_NOW:
         {
             espNowInit();
-            printf( "Booting in ESP-NOW\n" );
+            os_printf( "Booting in ESP-NOW\n" );
             break;
         }
         case NO_WIFI:
         {
-            printf( "Booting with no wifi\n" );
+            os_printf( "Booting with no wifi\n" );
             break;
         }
     }
@@ -831,7 +831,7 @@ void ICACHE_FLASH_ATTR user_init(void)
             {
                 while(1)
                 {
-                    printf( "\r\nCould not create UDP server %d\r\n", error );
+                    os_printf( "\r\nCould not create UDP server %d\r\n", error );
                 }
             }
 
@@ -843,7 +843,7 @@ void ICACHE_FLASH_ATTR user_init(void)
         case ESP_NOW:
         case NO_WIFI:
         {
-            printf( "Don't start a server\n" );
+            os_printf( "Don't start a server\n" );
             // Common services (wifi) init. Sets up another UDP server to receive
             // commands (issue_command)and an HTTP server
             CSInit(false);
@@ -881,7 +881,7 @@ void ICACHE_FLASH_ATTR user_init(void)
     // wifi_fpm_set_sleep_type(NONE_SLEEP_T); // with this seemed no difference
 
     // Initialize the current mode
-    printf("mode: %s\r\n", swadgeModes[rtcMem.currentSwadgeMode]->modeName);
+    os_printf("mode: %s\r\n", swadgeModes[rtcMem.currentSwadgeMode]->modeName);
     if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEnterMode)
     {
         swadgeModes[rtcMem.currentSwadgeMode]->fnEnterMode();
@@ -934,6 +934,6 @@ void ICACHE_FLASH_ATTR setLeds(uint8_t* ledData, uint16_t ledDataLen)
     {
         // Otherwise send out the LED data
         ws2812_push( ledData, ledDataLen );
-        //printf("%s, %d LEDs\r\n", __func__, ledDataLen / 3);
+        //os_printf("%s, %d LEDs\r\n", __func__, ledDataLen / 3);
     }
 }

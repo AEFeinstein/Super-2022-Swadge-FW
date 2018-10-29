@@ -61,7 +61,7 @@ void ICACHE_FLASH_ATTR colorchordEnterMode(void)
  */
 void ICACHE_FLASH_ATTR colorchordSampleHandler(int32_t samp)
 {
-    //printf("%s :: %d\r\n", __func__, __LINE__);
+    //os_printf("%s :: %d\r\n", __func__, __LINE__);
     PushSample32( samp );
     samplesProcessed++;
 
