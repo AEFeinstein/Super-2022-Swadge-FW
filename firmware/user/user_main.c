@@ -31,6 +31,7 @@
 #include "espnow.h"
 #include "missingEspFnPrototypes.h"
 #include "mode_espnow_test.h"
+#include "espNowUtils.h"
 
 /*============================================================================
  * Defines
@@ -43,6 +44,7 @@
 #define MAX_CONNS 5
 #define MAX_FRAME 2000
 #define TICKER_TIMEOUT 100
+#define SOFTAP_CHANNEL 1
 
 #define PROC_TASK_PRIO 0
 #define PROC_TASK_QUEUE_LEN 1
@@ -116,12 +118,6 @@ typedef struct
     int down;
 } buttonEvt;
 
-typedef struct __attribute__((aligned(4)))
-{
-    uint32_t currentSwadgeMode;
-}
-rtcMem_t;
-
 /*============================================================================
  * Variables
  *==========================================================================*/
@@ -193,6 +189,8 @@ static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned
 /**
  * Switch to the next registered swadge mode. This will cleanly exit the
  * current mode and initialize the next one, and swap it in
+ *
+ * Calling wifi_set_opmode_current() and wifi_set_opmode() in here causes crashes
  */
 void ICACHE_FLASH_ATTR NextSwadgeMode(void)
 {
@@ -203,11 +201,23 @@ void ICACHE_FLASH_ATTR NextSwadgeMode(void)
     }
     swadgeModeInit = false;
 
+    // Clean up ESP NOW if that's where we were at
+    switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
+    {
+        case ESP_NOW:
+        {
+            espNowDeinit();
+            break;
+        }
+        case SOFT_AP:
+        case NO_WIFI:
+        {
+            break;
+        }
+    }
+
     // Switch to the next mode, or start from the beginning if we're at the end
-    printf("old mode %d\r\n", rtcMem.currentSwadgeMode);
     rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
-    printf("new mode %d\r\n", rtcMem.currentSwadgeMode);
-    printf("wifi mode %d\r\n", swadgeModes[rtcMem.currentSwadgeMode]->wifiMode);
 
     // Check if the next mode wants wifi or not
     switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
@@ -229,11 +239,13 @@ void ICACHE_FLASH_ATTR NextSwadgeMode(void)
 }
 
 /**
- *  TODO turn off GPIO 14 and maybe others
- *  TODO need to call wifi_set_opmode()?
+ * Enter deep sleep mode for some number of microseconds. This also
+ * controls whether or not WiFi will be enabled when the ESP wakes.
  *
- * @param disableWifi
- * @param sleepUs
+ * TODO turn off GPIO 14 and maybe others
+ *
+ * @param disableWifi true to disable wifi, false to enable wifi
+ * @param sleepUs     The duration of time (us) when the device is in Deep-sleep.
  */
 void ICACHE_FLASH_ATTR enterDeepSleep(bool disableWifi, uint64_t sleepUs)
 {
@@ -282,7 +294,7 @@ static int ICACHE_FLASH_ATTR SwitchToSoftAP(void)
     // Set the SSID parameters, no authentication
     c.password[0] = 0;
     c.ssid_len = ets_strlen( (char*)c.ssid );
-    c.channel = 1;
+    c.channel = SOFTAP_CHANNEL;
     c.authmode = NULL_MODE;
     c.ssid_hidden = 0;
     c.max_connection = 4;
@@ -292,7 +304,7 @@ static int ICACHE_FLASH_ATTR SwitchToSoftAP(void)
     // 0x01: Station mode
     // 0x02: SoftAP mode
     // 0x03: Station + SoftAP
-    if(false == wifi_set_opmode_current( 0x02 ))
+    if(false == wifi_set_opmode_current( SOFTAP_MODE ))
     {
         return -1;
     }
@@ -426,8 +438,13 @@ void ICACHE_FLASH_ATTR RETick(void)
 }
 
 /**
- * TODO doc
- * @param events
+ * This task is constantly called by posting itself instead of being in an
+ * infinite loop. ESP doesn't like infinite loops.
+ *
+ * It handles synchronous button events, audio samples which have been read
+ * and are queued for processing, and calling RETick()
+ *
+ * @param events Checked before posting this task again
  */
 static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
 {
@@ -474,10 +491,11 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
 /**
  * Timer handler for a software timer set to fire every 100ms, forever.
  * Calls CSTick() every 100ms.
+ *
  * If the hardware is in wifi station mode, this Enables the hardware timer
  * to sample the ADC once the IP address has been received and printed
  *
- * TODO doc
+ * Also handles logic for infrastrucure wifi mode, which isn't being used
  *
  * @param arg unused
  */
@@ -493,7 +511,7 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
 
     if( udp_pending )
     {
-        udp_pending --;
+        udp_pending--;
     }
 
     if( ticks_since_override < TICKER_TIMEOUT )
@@ -547,13 +565,11 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
 
 /**
  * UDP Packet handler, registered with espconn_regist_recvcb().
- * It takes the UDP data and jams it right into the LEDs
+ * It mostly replies with debug packets from TransmitGenericEvent()
  *
- * TODO doc
- *
- * @param arg The espconn struct for this packet
- * @param pusrdata
- * @param len
+ * @param arg      The espconn struct for this packet
+ * @param pusrdata The data which was received
+ * @param len      The length of the data received
  */
 static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned short len)
 {
@@ -675,7 +691,7 @@ void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void)
 }
 
 /**
- * TODO doc
+ * Required function, must call system_partition_table_regist()
  */
 void ICACHE_FLASH_ATTR user_pre_init(void)
 {
@@ -702,6 +718,7 @@ void ICACHE_FLASH_ATTR user_init(void)
     uart_init(BIT_RATE_74880, BIT_RATE_74880);
     printf("\r\nSwadge 2019\r\n");
 
+    // Read data fom RTC memory if we're waking from deep sleep
     struct rst_info* resetInfo = system_get_rst_info();
     if(REASON_DEEP_SLEEP_AWAKE == resetInfo->reason)
     {
@@ -718,6 +735,31 @@ void ICACHE_FLASH_ATTR user_init(void)
     {
         // if it fails, zero it out instead
         memset(&rtcMem, 0, sizeof(rtcMem));
+
+        // Booting from nowhere, so set the current wifi mode
+        // When coming out of sleep, this is set in NextSwadgeMode()
+        switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
+        {
+            case SOFT_AP:
+            case ESP_NOW:
+            {
+                if(!(wifi_set_opmode_current( SOFTAP_MODE ) &&
+                        wifi_set_opmode( SOFTAP_MODE )))
+                {
+                    printf("Set SOFTAP_MODE before boot failed\r\n");
+                }
+                break;
+            }
+            case NO_WIFI:
+            {
+                if(!(wifi_set_opmode_current( NULL_MODE ) &&
+                        wifi_set_opmode( NULL_MODE )))
+                {
+                    printf("Set NULL_MODE before boot failed\r\n");
+                }
+                break;
+            }
+        }
     }
     printf("swadge mode %d\r\n", rtcMem.currentSwadgeMode);
 
@@ -748,17 +790,17 @@ void ICACHE_FLASH_ATTR user_init(void)
     switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
     {
         case SOFT_AP:
-        case ESP_NOW:
         {
             SwitchToSoftAP( );
             printf( "Booting in SoftAP\n" );
             break;
         }
-        //        {
-        //            //            esp_now_init();
-        //            printf( "Booting in ESP-NOW\n" );
-        //            break;
-        //        }
+        case ESP_NOW:
+        {
+            espNowInit();
+            printf( "Booting in ESP-NOW\n" );
+            break;
+        }
         case NO_WIFI:
         {
             printf( "Booting with no wifi\n" );
@@ -766,51 +808,67 @@ void ICACHE_FLASH_ATTR user_init(void)
         }
     }
 
-    // TODO how much of this has to be removed for esp-now?
     // Common services pre-init
     CSPreInit();
 
-    // Set up UDP server to process received packets with udpserver_recv()
-    // The local port is 8001 and the remote port is 8000
-    pUdpServer = (struct espconn*)os_zalloc(sizeof(struct espconn));
-    ets_memset( pUdpServer, 0, sizeof( struct espconn ) );
-    espconn_create( pUdpServer );
-    pUdpServer->type = ESPCONN_UDP;
-    pUdpServer->proto.udp = (esp_udp*)os_zalloc(sizeof(esp_udp));
-    pUdpServer->proto.udp->local_port = 8001;
-    pUdpServer->proto.udp->remote_port = 8000;
-    uint32_to_IP4(REMOTE_IP_CODE, pUdpServer->proto.udp->remote_ip);
-    espconn_regist_recvcb(pUdpServer, udpserver_recv);
-    int error = 0;
-    if( (error = espconn_create( pUdpServer )) )
+    switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
     {
-        while(1)
+        case SOFT_AP:
         {
-            printf( "\r\nCould not create UDP server %d\r\n", error );
+            // Set up UDP server to process received packets with udpserver_recv()
+            // The local port is 8001 and the remote port is 8000
+            pUdpServer = (struct espconn*)os_zalloc(sizeof(struct espconn));
+            ets_memset( pUdpServer, 0, sizeof( struct espconn ) );
+            espconn_create( pUdpServer );
+            pUdpServer->type = ESPCONN_UDP;
+            pUdpServer->proto.udp = (esp_udp*)os_zalloc(sizeof(esp_udp));
+            pUdpServer->proto.udp->local_port = 8001;
+            pUdpServer->proto.udp->remote_port = 8000;
+            uint32_to_IP4(REMOTE_IP_CODE, pUdpServer->proto.udp->remote_ip);
+            espconn_regist_recvcb(pUdpServer, udpserver_recv);
+            int error = 0;
+            if( (error = espconn_create( pUdpServer )) )
+            {
+                while(1)
+                {
+                    printf( "\r\nCould not create UDP server %d\r\n", error );
+                }
+            }
+
+            // Common services (wifi) init. Sets up another UDP server to receive
+            // commands (issue_command)and an HTTP server
+            CSInit(true);
+            break;
+        }
+        case ESP_NOW:
+        case NO_WIFI:
+        {
+            printf( "Don't start a server\n" );
+            // Common services (wifi) init. Sets up another UDP server to receive
+            // commands (issue_command)and an HTTP server
+            CSInit(false);
+            break;
         }
     }
-
-    // Common services (wifi) init. Sets up another UDP server to receive
-    // commands (issue_command)and an HTTP server
-    CSInit();
-
-    // Add a process to filter queued ADC samples and output LED signals
-    system_os_task(procTask, PROC_TASK_PRIO, procTaskQueue, PROC_TASK_QUEUE_LEN);
 
     // Start a software timer to call CSTick() every 100ms and start the hw timer eventually
     os_timer_disarm(&some_timer);
     os_timer_setfn(&some_timer, (os_timer_func_t*)timerFunc100ms, NULL);
     os_timer_arm(&some_timer, 100, 1);
 
-    // Tricky: If we are in station mode, wait for that to get resolved before enabling the high speed timer.
-    if( wifi_get_opmode() == 1 )
+    // Only start the HPA timer if there's an audio callback
+    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
     {
-        hpa_is_paused_for_wifi = true;
-    }
-    else
-    {
-        // Init the high speed ADC timer.
-        StartHPATimer();
+        // Tricky: If we are in station mode, wait for that to get resolved before enabling the high speed timer.
+        if( wifi_get_opmode() == 1 )
+        {
+            hpa_is_paused_for_wifi = true;
+        }
+        else
+        {
+            // Init the high speed ADC timer.
+            StartHPATimer();
+        }
     }
 
     // Initialize LEDs
@@ -822,16 +880,18 @@ void ICACHE_FLASH_ATTR user_init(void)
     // wifi_set_sleep_type(NONE_SLEEP_T); // on its own stopped wifi working
     // wifi_fpm_set_sleep_type(NONE_SLEEP_T); // with this seemed no difference
 
-    // Kick off procTask()
-    system_os_post(PROC_TASK_PRIO, 0, 0 );
-
     // Initialize the current mode
     printf("mode: %s\r\n", swadgeModes[rtcMem.currentSwadgeMode]->modeName);
     if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEnterMode)
     {
         swadgeModes[rtcMem.currentSwadgeMode]->fnEnterMode();
-        swadgeModeInit = true;
     }
+    swadgeModeInit = true;
+
+    // Add a process to filter queued ADC samples and output LED signals
+    system_os_task(procTask, PROC_TASK_PRIO, procTaskQueue, PROC_TASK_QUEUE_LEN);
+    // Kick off procTask()
+    system_os_post(PROC_TASK_PRIO, 0, 0 );
 }
 
 /**
@@ -876,15 +936,4 @@ void ICACHE_FLASH_ATTR setLeds(uint8_t* ledData, uint16_t ledDataLen)
         ws2812_push( ledData, ledDataLen );
         //printf("%s, %d LEDs\r\n", __func__, ledDataLen / 3);
     }
-}
-
-/**
- * Send a UDP packet to the swadge this swadge is connected to, if it's connected
- *
- * @param packet The bytes to send to the other swadge
- * @param packetLen The length of the bytes to send to the other swadge
- */
-void ICACHE_FLASH_ATTR sendPacket(uint8_t* packet, uint16_t packetLen)
-{
-    ; // TODO Implement
 }

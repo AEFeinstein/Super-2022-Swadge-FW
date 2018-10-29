@@ -67,9 +67,8 @@ swadgeMode ledPatternsMode =
     .fnButtonCallback = ledPatternButtonCallback,
     .fnAudioCallback = NULL,
     .wifiMode = NO_WIFI,
-    .connectionColor = 0x00000000,
-    .fnConnectionCallback = NULL,
-    .fnPacketCallback = NULL,
+    .fnEspNowRecvCb = NULL,
+    .fnEspNowSendCb = NULL,
 };
 
 static volatile color_t color = RED;

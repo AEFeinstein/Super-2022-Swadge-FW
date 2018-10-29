@@ -8,11 +8,19 @@
 #ifndef USER_USER_MAIN_H_
 #define USER_USER_MAIN_H_
 
+/*============================================================================
+ * Includes
+ *==========================================================================*/
+
 #include "c_types.h"
 #include "esp82xxutil.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+
+/*============================================================================
+ * Enums
+ *==========================================================================*/
 
 typedef enum
 {
@@ -20,6 +28,22 @@ typedef enum
     SOFT_AP,
     ESP_NOW
 } wifiMode_t;
+
+typedef enum
+{
+    MT_TX_STATUS_OK = 0,
+    MT_TX_STATUS_FAILED,
+} mt_tx_status;
+
+/*============================================================================
+ * Structs
+ *==========================================================================*/
+
+typedef struct __attribute__((aligned(4)))
+{
+    uint32_t currentSwadgeMode;
+}
+rtcMem_t;
 
 typedef struct _swadgeMode swadgeMode;
 
@@ -31,10 +55,10 @@ typedef struct _swadgeMode swadgeMode;
 struct _swadgeMode
 {
     /**
-     * This swadge mode's name. Used if this mode connects to other swadges
-     * over WiFi to label packets. Must be distinct for each mode.
+     * This swadge mode's name, mostly for debugging.
+     * This is not a function pointer.
      */
-    char* modeName;  // TODO implement this
+    char* modeName;
     /**
      * This function is called when this mode is started. It should initialize
      * any necessary variables
@@ -73,37 +97,35 @@ struct _swadgeMode
     /**
      * This is a setting, not a function pointer. Set it to one of these
      * values to have the system configure the swadge's WiFi
-     * NULL_MODE - Turn off WiFi
-     * STATION_MODE - ???
-     * SOFTAP_MODE - Become a WiFi access point serving up the colorchord
-     *               configuration website
-     * STATIONAP_MODE - Attempt to connect to the physically closest swadge
-     *                  in an ad-hoc manner
+     * NO_WIFI - Don't use WiFi at all. This saves power.
+     * SOFT_AP - Become a WiFi access point serving up the colorchord
+     *           configuration website
+     * ESP_NOW - Send and receive packets to and from all swadges in range
      */
-    wifiMode_t wifiMode; // TODO implement this
+    wifiMode_t wifiMode;
     /**
-     * If shouldConnect is set to STATIONAP_MODE, the LED color to be used
-     * during the connection process. Must be distinct for each mode.
-     */
-    uint32_t connectionColor; // TODO implement this
-    /**
-     * If shouldConnect is set to STATIONAP_MODE, this function will be called
-     * when the swadge connects or disconnects to another swadge. While the
-     * swadge is connecting, the mode's functions will not be called. The
-     * system will take over the LEDs for status purposes
+     * This function is called whenever an ESP NOW packet is received.
      *
-     * @param isConnected true if the swadge connects, false if it disconnects
+     * @param mac_addr The MAC address which sent this data
+     * @param data     A pointer to the data received
+     * @param len      The length of the data received
+     * @param rssi     The RSSI for this packet, from 1 (weak) to ~90 (touching)
      */
-    void (*fnConnectionCallback)(bool isConnected); // TODO implement this
+    void (*fnEspNowRecvCb)(uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi);
     /**
-     * If shouldConnect is set to STATIONAP_MODE, this function will be called
-     * when a packet is received from the other swadge
+     * This function is called whenever an ESP NOW packet is sent.
+     * It is just a status callback whether or not the packet was actually sent.
+     * This will be called after calling espNowSend()
      *
-     * @param packet    The data to send to the connected swadge
-     * @param packetLen The length of the data to send to the connected swadge
+     * @param mac_addr The MAC address which the data was sent to
+     * @param status   The status of the transmission
      */
-    void (*fnPacketCallback)(uint8_t* packet, uint8_t packetLen); // TODO implement this
+    void (*fnEspNowSendCb)(uint8_t* mac_addr, mt_tx_status status);
 };
+
+/*============================================================================
+ * Functions
+ *==========================================================================*/
 
 /**
  * Set the state of the six RGB LEDs, but don't overwrite if the LEDs were
@@ -117,18 +139,38 @@ struct _swadgeMode
 void ICACHE_FLASH_ATTR setLeds(uint8_t* ledData, uint16_t ledDataLen);
 
 /**
- * Send a UDP packet to the swadge this swadge is connected to, if it's connected
+ * Wrapper for esp_now_send() which always broadcasts packets and sets wifi power
  *
- * @param packet    The bytes to send to the other swadge
- * @param packetLen The length of the bytes to send to the other swadge
+ * @param data The data to be broadcast
+ * @param len  The length of the data to broadcast
  */
-void ICACHE_FLASH_ATTR sendPacket(uint8_t* packet, uint16_t packetLen);
+void espNowSend(uint8_t* data, uint8_t len);
 
 /**
- * TODO
- * @param disableWifi
- * @param sleepUs
+ * Enter deep sleep mode for some number of microseconds. This also
+ * controls whether or not WiFi will be enabled when the ESP wakes.
+ *
+ * @param disableWifi true to disable wifi, false to enable wifi
+ * @param sleepUs     The duration of time (us) when the device is in Deep-sleep.
  */
 void enterDeepSleep(bool disableWifi, uint64_t sleepUs);
+
+/*============================================================================
+ * Variables
+ *==========================================================================*/
+
+/**
+ * An array of swadge modes. Only the current mode's functions are called
+ */
+extern swadgeMode* swadgeModes[];
+/**
+ * true if the current swadge mode was initialized, false otherwise
+ */
+extern bool swadgeModeInit;
+/**
+ * The memory which persists through deep sleep. All other RAM is cleared
+ * The current swadge mode is stored here
+ */
+extern rtcMem_t rtcMem;
 
 #endif /* USER_USER_MAIN_H_ */
