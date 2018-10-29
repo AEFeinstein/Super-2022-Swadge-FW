@@ -101,7 +101,7 @@ void ICACHE_FLASH_ATTR espNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t le
  * @param data
  * @param len
  */
-void espNowSend(uint8_t* data, uint8_t len)
+void ICACHE_FLASH_ATTR espNowSend(uint8_t* data, uint8_t len)
 {
     // Call this before each transmission to set the wifi speed
     wifi_set_user_fixed_rate(FIXED_RATE_MASK_ALL, PHY_RATE_54);

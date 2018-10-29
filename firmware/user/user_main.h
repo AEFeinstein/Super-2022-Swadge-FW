@@ -144,7 +144,7 @@ void ICACHE_FLASH_ATTR setLeds(uint8_t* ledData, uint16_t ledDataLen);
  * @param data The data to be broadcast
  * @param len  The length of the data to broadcast
  */
-void espNowSend(uint8_t* data, uint8_t len);
+void ICACHE_FLASH_ATTR espNowSend(uint8_t* data, uint8_t len);
 
 /**
  * Enter deep sleep mode for some number of microseconds. This also
@@ -153,7 +153,7 @@ void espNowSend(uint8_t* data, uint8_t len);
  * @param disableWifi true to disable wifi, false to enable wifi
  * @param sleepUs     The duration of time (us) when the device is in Deep-sleep.
  */
-void enterDeepSleep(bool disableWifi, uint64_t sleepUs);
+void ICACHE_FLASH_ATTR enterDeepSleep(bool disableWifi, uint64_t sleepUs);
 
 /*============================================================================
  * Variables
