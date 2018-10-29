@@ -147,9 +147,10 @@ uint8_t mymac[6] = {0};
 swadgeMode* swadgeModes[] =
 {
     &espNowTestMode,
-    &ledPatternsMode,
     &colorchordMode,
+    &ledPatternsMode,
 };
+bool swadgeModeInit = false;
 
 static const partition_item_t partition_table[] =
 {
@@ -163,6 +164,7 @@ static const partition_item_t partition_table[] =
 buttonEvt buttonQueue[NUM_BUTTON_EVTS] = {{0}};
 uint8_t buttonEvtHead = 0;
 uint8_t buttonEvtTail = 0;
+bool pendingNextSwadgeMode = false;
 
 rtcMem_t rtcMem = {0};
 
@@ -195,10 +197,11 @@ static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned
 void ICACHE_FLASH_ATTR NextSwadgeMode(void)
 {
     // Call the exit callback for the current mode
-    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode)
+    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode)
     {
         swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode();
     }
+    swadgeModeInit = false;
 
     // Switch to the next mode, or start from the beginning if we're at the end
     printf("old mode %d\r\n", rtcMem.currentSwadgeMode);
@@ -206,7 +209,6 @@ void ICACHE_FLASH_ATTR NextSwadgeMode(void)
     printf("new mode %d\r\n", rtcMem.currentSwadgeMode);
     printf("wifi mode %d\r\n", swadgeModes[rtcMem.currentSwadgeMode]->wifiMode);
 
-#ifdef DEEP_SLEEP_MODE_SWITCH
     // Check if the next mode wants wifi or not
     switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
     {
@@ -224,33 +226,35 @@ void ICACHE_FLASH_ATTR NextSwadgeMode(void)
             break;
         }
     }
-#else
-    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEnterMode)
-    {
-        swadgeModes[rtcMem.currentSwadgeMode]->fnEnterMode();
-    }
-#endif
 }
 
+/**
+ *  TODO turn off GPIO 14 and maybe others
+ *  TODO need to call wifi_set_opmode()?
+ *
+ * @param disableWifi
+ * @param sleepUs
+ */
 void ICACHE_FLASH_ATTR enterDeepSleep(bool disableWifi, uint64_t sleepUs)
 {
+    system_rtc_mem_write(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem));
+    printf("rtc mem written\r\n");
+
     if(disableWifi)
     {
         // Disable RF after deep-sleep wake up, just like modem sleep; this
         // has the least current consumption; the device is not able to
         // transmit or receive data after wake up.
         system_deep_sleep_set_option(4);
+        printf("deep sleep option set 4\r\n");
     }
     else
     {
         // No radio calibration after deep-sleep wake up; this reduces the
         // current consumption.
         system_deep_sleep_set_option(2);
+        printf("deep sleep option set 2\r\n");
     }
-    printf("deep sleep option set\r\n");
-    system_rtc_mem_write(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem));
-    printf("rtc mem written\r\n");
-
     system_deep_sleep(sleepUs);
 }
 
@@ -314,15 +318,6 @@ static int ICACHE_FLASH_ATTR SwitchToSoftAP(void)
     got_an_ip = 1;
     soft_ap_mode = 1;
     return c.channel;
-}
-
-/**
- * Required, but unused.
- * system_phy_set_rfoption() may be called from here
- */
-void ICACHE_FLASH_ATTR user_rf_pre_init(void)
-{
-    ;
 }
 
 /**
@@ -460,7 +455,7 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
         // Push the sample to colorchord
 
         // Pass the button to the mode
-        if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
+        if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
         {
             swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback(samp);
         }
@@ -491,7 +486,7 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
     CSTick( 1 );
 
     // Tick the current mode every 100ms
-    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnTimerCallback)
+    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnTimerCallback)
     {
         swadgeModes[rtcMem.currentSwadgeMode]->fnTimerCallback();
     }
@@ -653,13 +648,20 @@ void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void)
         // The 0th button is the mode switch button, don't pass that to the mode
         if(0 == buttonQueue[buttonEvtHead].btn)
         {
+            // Trigger the next mode on release after a press. This is because
+            // the mode switch button is also the programming mode button which
+            // cannot be held down when changing modes
             if(buttonQueue[buttonEvtHead].down)
+            {
+                pendingNextSwadgeMode = true;
+            }
+            else if(pendingNextSwadgeMode && !buttonQueue[buttonEvtHead].down)
             {
                 NextSwadgeMode();
             }
         }
         // Pass the button to the mode
-        else if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
+        else if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
         {
             swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(
                 buttonQueue[buttonEvtHead].stat,
@@ -682,7 +684,7 @@ void ICACHE_FLASH_ATTR user_pre_init(void)
                 sizeof(partition_table) / sizeof(partition_table[0]),
                 SPI_FLASH_SIZE_MAP))
     {
-        os_printf("system_partition_table_regist fail qq\r\n");
+        os_printf("system_partition_table_regist fail\r\n");
         while(1);
     }
     else
@@ -824,9 +826,11 @@ void ICACHE_FLASH_ATTR user_init(void)
     system_os_post(PROC_TASK_PRIO, 0, 0 );
 
     // Initialize the current mode
+    printf("mode: %s\r\n", swadgeModes[rtcMem.currentSwadgeMode]->modeName);
     if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEnterMode)
     {
         swadgeModes[rtcMem.currentSwadgeMode]->fnEnterMode();
+        swadgeModeInit = true;
     }
 }
 
