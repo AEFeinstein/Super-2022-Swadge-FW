@@ -121,3 +121,14 @@ void ICACHE_FLASH_ATTR espNowSend(uint8_t* data, uint8_t len);
  */
 void ICACHE_FLASH_ATTR enterDeepSleep(bool disableWifi, uint64_t sleepUs);
 ```
+# Examples
+
+For examples, see the LED Patterns mode, which uses timer and button callbacks:
+
+https://github.com/cnlohr/swadge2019/blob/master/firmware/user/mode_led_patterns.c
+https://github.com/cnlohr/swadge2019/blob/master/firmware/user/mode_led_patterns.h
+
+Also see the Colorchord mode, which uses the audio callback:
+
+https://github.com/cnlohr/swadge2019/blob/master/firmware/user/mode_colorchord.c
+https://github.com/cnlohr/swadge2019/blob/master/firmware/user/mode_colorchord.h
