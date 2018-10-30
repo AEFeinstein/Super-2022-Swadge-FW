@@ -144,7 +144,7 @@ void ICACHE_FLASH_ATTR setLeds(uint8_t* ledData, uint16_t ledDataLen);
  * @param data The data to be broadcast
  * @param len  The length of the data to broadcast
  */
-void ICACHE_FLASH_ATTR espNowSend(uint8_t* data, uint8_t len);
+void ICACHE_FLASH_ATTR espNowSend(const uint8_t* data, uint8_t len);
 
 /**
  * Enter deep sleep mode for some number of microseconds. This also
