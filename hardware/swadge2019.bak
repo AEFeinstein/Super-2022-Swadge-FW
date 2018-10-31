@@ -305,7 +305,7 @@ F 0 "SW2" H 7350 1950 60  0000 C CNN
 F 1 "A" H 7350 2250 60  0000 C CNN
 F 2 "TACTILE10" H 7350 2100 60  0000 C CNN
 F 3 "" H 7350 2100 60  0000 C CNN
-F 4 "Use standard SMT box tactile buttons.  Similar to PTS645SM43SMTR92" H 7350 2100 60  0001 C CNN "MFG"
+F 4 "Use standard SMT box tactile buttons.  Similar to PTS645SM43SMTR92. Use RoHS if possible." H 7350 2100 60  0001 C CNN "MFG"
 	1    7350 2100
 	1    0    0    -1  
 $EndComp
@@ -1456,7 +1456,7 @@ F 0 "SW3" H 7400 1250 50  0000 C CNN
 F 1 "MODE" H 7400 1050 50  0000 C CNN
 F 2 "TACT_3x6_SINGLE" H 7400 1150 50  0000 C CNN
 F 3 "" H 7400 1150 50  0000 C CNN
-F 4 "https://www.aliexpress.com/item/50pcs-lot-SMT-3x6x2-5MM-2PIN-Tactile-Tact-Push-Button-Micro-Switch-G73-Self-reset-Momentary/32804523270.html?spm=2114.search0104.3.65.6bbc193exM3dfC&ws_ab_test=searchweb0_0,searchweb201602_3_10065_10068_10130_318_10547_319_10546_317_10548_10545_10696_450_10084_10083_10618_452_535_534_533_10307_532_204_10059_10884_10887_100031_320_10103_448_449,searchweb201603_60,ppcSwitch_0&algo_expid=b407050b-5903-45ff-9783-15a47ce9142d-9&algo_pvid=b407050b-5903-45ff-9783-15a47ce9142d&priceBeautifyAB=0" H 7400 1150 60  0001 C CNN "Digikey"
+F 4 "https://www.aliexpress.com/item/50pcs-lot-SMT-3x6x2-5MM-2PIN-Tactile-Tact-Push-Button-Micro-Switch-G73-Self-reset-Momentary/32804523270.html?spm=2114.search0104.3.65.6bbc193exM3dfC&ws_ab_test=searchweb0_0,searchweb201602_3_10065_10068_10130_318_10547_319_10546_317_10548_10545_10696_450_10084_10083_10618_452_535_534_533_10307_532_204_10059_10884_10887_100031_320_10103_448_449,searchweb201603_60,ppcSwitch_0&algo_expid=b407050b-5903-45ff-9783-15a47ce9142d-9&algo_pvid=b407050b-5903-45ff-9783-15a47ce9142d&priceBeautifyAB=0" H 7400 1150 60  0001 C CNN "MFG"
 	1    7400 1150
 	1    0    0    -1  
 $EndComp
