@@ -658,7 +658,13 @@ void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
         if(refLeds[i][0] > 0)
         {
             refLeds[i][0] -= 2;
+        }
+        if(refLeds[i][1] > 0)
+        {
             refLeds[i][1] -= 2;
+        }
+        if(refLeds[i][2] > 0)
+        {
             refLeds[i][2] -= 2;
         }
     }
@@ -667,9 +673,18 @@ void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
     refDegree = (refDegree + 10) % 360;
     if (refDegree % DEG_PER_LED == 0)
     {
-        refLeds[refDegree / DEG_PER_LED][0] = 26;
-        refLeds[refDegree / DEG_PER_LED][1] = 26;
-        refLeds[refDegree / DEG_PER_LED][2] = 26;
+        if(CLIENT == csRole)
+        {
+            refLeds[refDegree / DEG_PER_LED][0] = 26;
+            refLeds[refDegree / DEG_PER_LED][1] = 0;
+            refLeds[refDegree / DEG_PER_LED][2] = 0;
+        }
+        else if(SERVER == csRole)
+        {
+            refLeds[refDegree / DEG_PER_LED][0] = 0;
+            refLeds[refDegree / DEG_PER_LED][1] = 26;
+            refLeds[refDegree / DEG_PER_LED][2] = 0;
+        }
     }
 
     // Physically set the LEDs
