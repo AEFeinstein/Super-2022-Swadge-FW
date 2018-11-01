@@ -48,6 +48,7 @@
  *==========================================================================*/
 
 #define REFLECTOR_ACK_RETRIES 3
+#define CONNECTION_RSSI 60
 
 /*============================================================================
  * Enums
@@ -226,6 +227,11 @@ void ICACHE_FLASH_ATTR refConnectionTimeout(void* arg __attribute__((unused)) )
  */
 void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi)
 {
+    char* dbgMsg = (char*)os_zalloc(sizeof(char) * (len + 1));
+    ets_memcpy(dbgMsg, data, len);
+    os_printf("%s: %s\r\n", __func__, dbgMsg);
+    os_free(dbgMsg);
+
     // ACKs can be received in any state
     if(isWaitingForAck)
     {
@@ -259,7 +265,7 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
         {
             // Received another broadcast, Check if this RSSI is strong enough
             if(!broadcastReceived &&
-                    rssi > 60 &&
+                    rssi > CONNECTION_RSSI &&
                     ets_strlen(connectionMsg) == len &&
                     0 == ets_memcmp(data, connectionMsg, len))
             {
@@ -287,7 +293,7 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
             else if (!rxGameStartMsg &&
                      ets_strlen(gameStartMsg) == len &&
                      0 == ets_memcmp(data, gameStartMsg, MAC_IDX) &&
-                     0 == ets_memcmp(&data[MAC_IDX], macStr, sizeof(macStr)))
+                     0 == ets_memcmp(&data[MAC_IDX], macStr, ets_strlen(macStr)))
             {
                 os_printf("Game start message received, ACKing\r\n");
 
@@ -400,7 +406,7 @@ void ICACHE_FLASH_ATTR refStartPlaying(void)
 }
 
 /**
- * TODO implement
+ * TODO a game
  */
 void ICACHE_FLASH_ATTR refStartRound(void)
 {
@@ -420,6 +426,11 @@ void ICACHE_FLASH_ATTR refStartRound(void)
 void ICACHE_FLASH_ATTR refSendMsg(const char* msg, uint16_t len, bool shouldAck, void (*success)(void),
                                   void (*failure)(void))
 {
+    char* dbgMsg = (char*)os_zalloc(sizeof(char) * (len + 1));
+    ets_memcpy(dbgMsg, msg, len);
+    os_printf("%s: %s\r\n", __func__, dbgMsg);
+    os_free(dbgMsg);
+
     if(shouldAck)
     {
         // Set the state to wait for an ack
@@ -449,7 +460,7 @@ void ICACHE_FLASH_ATTR refSendMsg(const char* msg, uint16_t len, bool shouldAck,
         os_printf("ack timer set for %d\r\n", retryTimeMs);
         os_timer_arm(&refTxRetryTimer, retryTimeMs, false);
     }
-    espNowSend((const uint8_t*)msg, sizeof(len));
+    espNowSend((const uint8_t*)msg, len);
 }
 
 /**
@@ -488,13 +499,13 @@ void ICACHE_FLASH_ATTR refSendCb(uint8_t* mac_addr __attribute__((unused)),
                                  mt_tx_status status  __attribute__((unused)) )
 {
     // Debug print the received payload for now
-    os_printf("message sent\r\n");
+    // os_printf("message sent\r\n");
 }
 
 /**
  * This is called whenever a button is pressed
  *
- * TODO implement
+ * TODO a game
  *
  * @param state
  * @param button

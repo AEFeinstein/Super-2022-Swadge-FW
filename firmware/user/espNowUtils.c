@@ -5,6 +5,10 @@
  *      Author: adam
  */
 
+/*============================================================================
+ * Includes
+ *==========================================================================*/
+
 #include <c_types.h>
 #include "user_interface.h"
 #include "espNowUtils.h"
@@ -14,7 +18,23 @@
 #include <osapi.h>
 #include "commonservices.h"
 
+/*============================================================================
+ * Variables
+ *==========================================================================*/
+
+/// This is the MAC address to transmit to for broadcasting
 const uint8_t espNowBroadcastMac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+/*============================================================================
+ * Prototypes
+ *==========================================================================*/
+
+void ICACHE_FLASH_ATTR espNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len);
+void ICACHE_FLASH_ATTR espNowSendCb(uint8_t* mac_addr, uint8_t status);
+
+/*============================================================================
+ * Functions
+ *==========================================================================*/
 
 /**
  * Initialize ESP-NOW and attach callback functions
@@ -58,14 +78,17 @@ void ICACHE_FLASH_ATTR espNowInit(void)
 }
 
 /**
- * This callback function is called whenever an ESP-NOW
+ * This callback function is called whenever an ESP-NOW packet is received
  *
- * @param mac_addr
- * @param data
- * @param len
+ * @param mac_addr The MAC address of the sender
+ * @param data     The data which was received
+ * @param len      The length of the data which was received
  */
 void ICACHE_FLASH_ATTR espNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len)
 {
+    // Buried in a header, goes from 1 (far away) to 91 (practically touching)
+    uint8_t rssi = data[-51];
+
     // Debug print the received payload
     char dbg[256] = {0};
     char tmp[8] = {0};
@@ -75,19 +98,16 @@ void ICACHE_FLASH_ATTR espNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t le
         ets_sprintf(tmp, "%02X ", data[i]);
         strcat(dbg, tmp);
     }
-
-    os_printf("RECV MAC %02X:%02X:%02X:%02X:%02X:%02X\r\nbytes: %s\r\n",
+    os_printf("%s, MAC [%02X:%02X:%02X:%02X:%02X:%02X], RSSI [%d], Bytes [%s]\r\n",
+              __func__,
               mac_addr[0],
               mac_addr[1],
               mac_addr[2],
               mac_addr[3],
               mac_addr[4],
               mac_addr[5],
+              rssi,
               dbg);
-
-    // Buried in a header, goes from 1 (far away) to 91 (practically touching)
-    uint8_t rssi = data[-51];
-    os_printf("nRSSI: %d \r\n", rssi);
 
     if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowRecvCb)
     {
@@ -96,40 +116,45 @@ void ICACHE_FLASH_ATTR espNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t le
 }
 
 /**
- * TODO doc
+ * This is a wrapper for esp_now_send. It also sets the wifi power with
+ * wifi_set_user_fixed_rate()
  *
- * @param data
- * @param len
+ * @param data The data to broadcast using ESP NOW
+ * @param len  The length of the data to broadcast
  */
 void ICACHE_FLASH_ATTR espNowSend(const uint8_t* data, uint8_t len)
 {
     // Call this before each transmission to set the wifi speed
     wifi_set_user_fixed_rate(FIXED_RATE_MASK_ALL, PHY_RATE_54);
-    // Send a test packet
-    esp_now_send(espNowBroadcastMac, data, len);
+
+    // Send a packet
+    esp_now_send((uint8_t*)espNowBroadcastMac, (uint8_t*)data, len);
 }
 
 /**
- * TODO doc
+ * This callback function is registered to be called after an ESP NOW
+ * transmission occurs. It notifies the program if the transmission
+ * was successful or not. It gives no information about if the transmission
+ * was received
  *
- * @param mac_addr
- * @param status
+ * @param mac_addr The MAC address which was transmitted to
+ * @param status   MT_TX_STATUS_OK or MT_TX_STATUS_FAILED
  */
 void ICACHE_FLASH_ATTR espNowSendCb(uint8_t* mac_addr, uint8_t status)
 {
-    os_printf("SEND MAC %02X:%02X:%02X:%02X:%02X:%02X\r\n",
-              mac_addr[0],
-              mac_addr[1],
-              mac_addr[2],
-              mac_addr[3],
-              mac_addr[4],
-              mac_addr[5]);
+    // os_printf("SEND MAC %02X:%02X:%02X:%02X:%02X:%02X\r\n",
+    //           mac_addr[0],
+    //           mac_addr[1],
+    //           mac_addr[2],
+    //           mac_addr[3],
+    //           mac_addr[4],
+    //           mac_addr[5]);
 
     switch((mt_tx_status)status)
     {
         case MT_TX_STATUS_OK:
         {
-            os_printf("ESP NOW MT_TX_STATUS_OK\r\n");
+            // os_printf("ESP NOW MT_TX_STATUS_OK\r\n");
             break;
         }
         case MT_TX_STATUS_FAILED:
@@ -146,7 +171,7 @@ void ICACHE_FLASH_ATTR espNowSendCb(uint8_t* mac_addr, uint8_t status)
 }
 
 /**
- * TODO doc
+ * This function is automatically called to de-initialize ESP-NOW
  */
 void ICACHE_FLASH_ATTR espNowDeinit(void)
 {
