@@ -6,7 +6,6 @@
  *
  * TODO add timers during the connection process! Think it all through
  * TODO add timers during the game too
- * TODO add LEDs
  */
 
 /* PlantUML for the connection process:
@@ -49,6 +48,8 @@
 
 #define REFLECTOR_ACK_RETRIES 3
 #define CONNECTION_RSSI 60
+#define LED_PERIOD_MS 100
+#define DEG_PER_LED 60
 
 /*============================================================================
  * Enums
@@ -71,6 +72,16 @@ typedef enum
     RX_GAME_START_ACK,
     RX_GAME_START_MSG
 } connectionEvt_t;
+
+typedef enum
+{
+    LED_OFF,
+    LED_ON_1,
+    LED_DIM_1,
+    LED_ON_2,
+    LED_DIM_2,
+    LED_OFF_WAIT
+} connLedState_t;
 
 /*============================================================================
  * Prototypes
@@ -97,6 +108,10 @@ void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event);
 // Game functions
 void ICACHE_FLASH_ATTR refStartPlaying(void);
 void ICACHE_FLASH_ATTR refStartRound(void);
+
+// LED Functions
+void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)));
+void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)));
 
 /*============================================================================
  * Variables
@@ -145,6 +160,12 @@ char gameStartMsg[]  = "ref_str_00:00:00:00:00:00";
 // Timers
 static os_timer_t initConnectionTimer = {0};
 static os_timer_t refTxRetryTimer = {0};
+static os_timer_t ledTimer = {0};
+
+// LED variables
+uint8_t refLeds[6][3] = {{0}};
+connLedState_t refConnLedState = LED_OFF;
+uint16_t refDegree = 0;
 
 /*============================================================================
  * Functions
@@ -165,10 +186,7 @@ void ICACHE_FLASH_ATTR refInit(void)
     rxGameStartMsg = false;
     csRole = CLIENT;
 
-    // Clear the LEDs
-    uint8_t blankLeds[18] = {0};
-    setLeds(blankLeds, sizeof(blankLeds));
-
+    // Get and save the string form of our MAC address
     uint8_t mymac[6];
     wifi_get_macaddr(SOFTAP_IF, mymac);
     ets_sprintf(macStr, "%02X:%02X:%02X:%02X:%02X:%02X",
@@ -183,10 +201,15 @@ void ICACHE_FLASH_ATTR refInit(void)
     os_timer_disarm(&refTxRetryTimer);
     os_timer_setfn(&refTxRetryTimer, refTxRetryTimeout, NULL);
 
-    // Start a timer to do an initial connection
+    // Start a timer to do an initial connection, start it
     os_timer_disarm(&initConnectionTimer);
     os_timer_setfn(&initConnectionTimer, refConnectionTimeout, NULL);
     os_timer_arm(&initConnectionTimer, 1, false);
+
+    // Start a timer to update LEDs, start it
+    os_timer_disarm(&ledTimer);
+    os_timer_setfn(&ledTimer, refConnLedTimeout, NULL);
+    os_timer_arm(&ledTimer, 1, true);
 }
 
 /**
@@ -312,7 +335,7 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
         }
         case R_PLAYING:
         {
-            // TODO a game
+            // TODO a game (receive messages)
             break;
         }
     }
@@ -397,6 +420,11 @@ void ICACHE_FLASH_ATTR refStartPlaying(void)
 {
     os_printf("%s\r\n", __func__);
 
+    // Stop the connection LEDs, start the game LEDs
+    os_timer_disarm(&ledTimer);
+    os_timer_setfn(&ledTimer, refGameLedTimeout, NULL);
+    os_timer_arm(&ledTimer, LED_PERIOD_MS, true);
+
     gameState = R_PLAYING;
 
     if(SERVER == csRole)
@@ -406,7 +434,7 @@ void ICACHE_FLASH_ATTR refStartPlaying(void)
 }
 
 /**
- * TODO a game
+ * TODO a game (start logic)
  */
 void ICACHE_FLASH_ATTR refStartRound(void)
 {
@@ -505,7 +533,7 @@ void ICACHE_FLASH_ATTR refSendCb(uint8_t* mac_addr __attribute__((unused)),
 /**
  * This is called whenever a button is pressed
  *
- * TODO a game
+ * TODO a game (handle buttons)
  *
  * @param state
  * @param button
@@ -514,4 +542,136 @@ void ICACHE_FLASH_ATTR refSendCb(uint8_t* mac_addr __attribute__((unused)),
 void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
 {
     os_printf("button pressed 0x%X, %d %d\r\n", state, button, down);
+}
+
+/**
+ * Called every 100ms, this updates the LEDs during connection
+ *
+ * TODO dim LEDs on a log scale rather than linear? Nice to have, not need
+ */
+void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
+{
+    switch(refConnLedState)
+    {
+        case LED_OFF:
+        {
+            // Reset this timer to LED_PERIOD_MS
+            os_timer_disarm(&ledTimer);
+            os_timer_setfn(&ledTimer, refConnLedTimeout, NULL);
+            os_timer_arm(&ledTimer, LED_PERIOD_MS, true);
+
+            ets_memset(&refLeds[0][0], 0, sizeof(refLeds));
+
+            refConnLedState = LED_ON_1;
+            break;
+        }
+        case LED_ON_1:
+        {
+            // Turn on blue
+            refLeds[0][2] = 250;
+            // Prepare the first dimming
+            refConnLedState = LED_DIM_1;
+            break;
+        }
+        case LED_DIM_1:
+        {
+            // Dim blue
+            refLeds[0][2] -= 25;
+            // If its kind of dim, turn it on again
+            if(refLeds[0][2] == 25)
+            {
+                refConnLedState = LED_ON_2;
+            }
+            break;
+        }
+        case LED_ON_2:
+        {
+            // Turn on blue
+            refLeds[0][2] = 250;
+            // Prepare the second dimming
+            refConnLedState = LED_DIM_2;
+            break;
+        }
+        case LED_DIM_2:
+        {
+            // Dim blue
+            refLeds[0][2] -= 25;
+            // If its off, start waiting
+            if(refLeds[0][2] == 0)
+            {
+                refConnLedState = LED_OFF_WAIT;
+            }
+            break;
+        }
+        case LED_OFF_WAIT:
+        {
+            // Start a timer to update LEDs
+            os_timer_disarm(&ledTimer);
+            os_timer_setfn(&ledTimer, refConnLedTimeout, NULL);
+            os_timer_arm(&ledTimer, 1000, true);
+
+            // When it fires, start all over again
+            refConnLedState = LED_OFF;
+
+            // And dont update the LED state this time
+            return;
+        }
+    }
+
+    // Copy the color value to all LEDs
+    uint8_t i;
+    for(i = 1; i < 6; i ++)
+    {
+        refLeds[i][0] = refLeds[0][0];
+        refLeds[i][1] = refLeds[0][1];
+        refLeds[i][2] = refLeds[0][2];
+    }
+
+    // Overwrite two LEDs based on the connection status
+    if(rxGameStartAck)
+    {
+        refLeds[2][0] = 0;
+        refLeds[2][1] = 25;
+        refLeds[2][2] = 0;
+    }
+    if(rxGameStartMsg)
+    {
+        refLeds[4][0] = 0;
+        refLeds[4][1] = 0;
+        refLeds[4][2] = 25;
+    }
+
+    // Physically set the LEDs
+    setLeds(&refLeds[0][0], sizeof(refLeds));
+}
+
+/**
+ * Called every 100ms, this updates the LEDs during the game
+ */
+void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
+{
+
+    // Decay all LEDs
+    uint8_t i;
+    for(i = 0; i < 6; i++)
+    {
+        if(refLeds[i][0] > 0)
+        {
+            refLeds[i][0] -= 2;
+            refLeds[i][1] -= 2;
+            refLeds[i][2] -= 2;
+        }
+    }
+
+    // Turn on each LED as the exciter passes it
+    refDegree = (refDegree + 10) % 360;
+    if (refDegree % DEG_PER_LED == 0)
+    {
+        refLeds[refDegree / DEG_PER_LED][0] = 26;
+        refLeds[refDegree / DEG_PER_LED][1] = 26;
+        refLeds[refDegree / DEG_PER_LED][2] = 26;
+    }
+
+    // Physically set the LEDs
+    setLeds(&refLeds[0][0], sizeof(refLeds));
 }
