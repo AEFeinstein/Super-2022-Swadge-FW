@@ -46,6 +46,8 @@
  * Defines
  *==========================================================================*/
 
+#define DEBUGGING_GAME
+
 #define REFLECTOR_ACK_RETRIES 3
 #define CONNECTION_RSSI 60
 #define LED_PERIOD_MS 100
@@ -59,6 +61,7 @@ typedef enum
 {
     R_CONNECTING,
     R_PLAYING,
+    R_WAITING
 } reflectorGameState_t;
 
 typedef enum
@@ -82,6 +85,13 @@ typedef enum
     LED_DIM_2,
     LED_OFF_WAIT
 } connLedState_t;
+
+typedef enum
+{
+    ACT_CLOCKWISE        = 0,
+    ACT_COUNTERCLOCKWISE = 1,
+    ACT_BOTH             = 2
+} gameAction_t;
 
 /*============================================================================
  * Prototypes
@@ -146,6 +156,10 @@ bool rxGameStartMsg = false;
 bool rxGameStartAck = false;
 csRole_t csRole = CLIENT;
 
+// Game state variables
+gameAction_t gameAction = ACT_CLOCKWISE;
+bool shouldTurnOnLeds = false;
+
 // This swadge's MAC, in string form
 char macStr[] = "00:00:00:00:00:00";
 uint8_t otherMac[6] = {0};
@@ -165,7 +179,7 @@ static os_timer_t ledTimer = {0};
 // LED variables
 uint8_t refLeds[6][3] = {{0}};
 connLedState_t refConnLedState = LED_OFF;
-uint16_t refDegree = 0;
+sint16_t refDegree = 0;
 
 /*============================================================================
  * Functions
@@ -197,6 +211,10 @@ void ICACHE_FLASH_ATTR refInit(void)
                 mymac[4],
                 mymac[5]);
 
+#ifdef DEBUGGING_GAME
+    csRole = SERVER;
+    refStartPlaying();
+#else
     // Set up a timer for acking messages, don't start it
     os_timer_disarm(&refTxRetryTimer);
     os_timer_setfn(&refTxRetryTimer, refTxRetryTimeout, NULL);
@@ -210,6 +228,7 @@ void ICACHE_FLASH_ATTR refInit(void)
     os_timer_disarm(&ledTimer);
     os_timer_setfn(&ledTimer, refConnLedTimeout, NULL);
     os_timer_arm(&ledTimer, 1, true);
+#endif
 }
 
 /**
@@ -333,6 +352,11 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
 
             break;
         }
+        case R_WAITING:
+        {
+            // TODO a game (receive messages)
+            break;
+        }
         case R_PLAYING:
         {
             // TODO a game (receive messages)
@@ -420,16 +444,20 @@ void ICACHE_FLASH_ATTR refStartPlaying(void)
 {
     os_printf("%s\r\n", __func__);
 
-    // Stop the connection LEDs, start the game LEDs
-    os_timer_disarm(&ledTimer);
-    os_timer_setfn(&ledTimer, refGameLedTimeout, NULL);
-    os_timer_arm(&ledTimer, LED_PERIOD_MS, true);
-
-    gameState = R_PLAYING;
-
     if(SERVER == csRole)
     {
+        gameState = R_PLAYING;
+
+        // Start playing
         refStartRound();
+    }
+    else if(CLIENT == csRole)
+    {
+        gameState = R_WAITING;
+
+        // Turn off the LEDs
+        ets_memset(&refLeds[0][0], 0, sizeof(refLeds));
+        setLeds(&refLeds[0][0], sizeof(refLeds));
     }
 }
 
@@ -438,7 +466,39 @@ void ICACHE_FLASH_ATTR refStartPlaying(void)
  */
 void ICACHE_FLASH_ATTR refStartRound(void)
 {
-    ;
+    // pick a random game action
+    gameAction = os_random() % 3;
+
+    // Set the LED's starting angle
+    switch(gameAction)
+    {
+        case ACT_CLOCKWISE:
+        {
+            os_printf("ACT_CLOCKWISE\r\n");
+            refDegree = 300;
+            break;
+        }
+        case ACT_COUNTERCLOCKWISE:
+        {
+            os_printf("ACT_COUNTERCLOCKWISE\r\n");
+            refDegree = 60;
+            break;
+        }
+        case ACT_BOTH:
+        {
+            os_printf("ACT_BOTH\r\n");
+            refDegree = 0;
+            break;
+        }
+    }
+    shouldTurnOnLeds = true;
+
+    // Set the LEDs spinning
+    // TODO modify LED_PERIOD_MS as the game goes on
+    os_timer_disarm(&ledTimer);
+    os_timer_setfn(&ledTimer, refGameLedTimeout, NULL);
+    // 5ms is doable, 1ms is impossible
+    os_timer_arm(&ledTimer, 20, true);
 }
 
 /**
@@ -528,20 +588,6 @@ void ICACHE_FLASH_ATTR refSendCb(uint8_t* mac_addr __attribute__((unused)),
 {
     // Debug print the received payload for now
     // os_printf("message sent\r\n");
-}
-
-/**
- * This is called whenever a button is pressed
- *
- * TODO a game (handle buttons)
- *
- * @param state
- * @param button
- * @param down
- */
-void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
-{
-    os_printf("button pressed 0x%X, %d %d\r\n", state, button, down);
 }
 
 /**
@@ -650,7 +696,6 @@ void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
  */
 void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
 {
-
     // Decay all LEDs
     uint8_t i;
     for(i = 0; i < 6; i++)
@@ -669,24 +714,133 @@ void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
         }
     }
 
-    // Turn on each LED as the exciter passes it
-    refDegree = (refDegree + 10) % 360;
-    if (refDegree % DEG_PER_LED == 0)
+    // Sed LEDs according to the mode
+    if (shouldTurnOnLeds && refDegree % DEG_PER_LED == 0)
     {
-        if(CLIENT == csRole)
+        switch(gameAction)
         {
-            refLeds[refDegree / DEG_PER_LED][0] = 26;
-            refLeds[refDegree / DEG_PER_LED][1] = 0;
-            refLeds[refDegree / DEG_PER_LED][2] = 0;
+            case ACT_BOTH:
+            {
+                // Make sure this value decays to exactly zero above
+                refLeds[refDegree / DEG_PER_LED][0] = 0;
+                refLeds[refDegree / DEG_PER_LED][1] = 254;
+                refLeds[refDegree / DEG_PER_LED][2] = 0;
+
+                refLeds[(360 - refDegree) / DEG_PER_LED][0] = 0;
+                refLeds[(360 - refDegree) / DEG_PER_LED][1] = 254;
+                refLeds[(360 - refDegree) / DEG_PER_LED][2] = 0;
+                break;
+            }
+            case ACT_COUNTERCLOCKWISE:
+            case ACT_CLOCKWISE:
+            {
+                refLeds[refDegree / DEG_PER_LED][0] = 0;
+                refLeds[refDegree / DEG_PER_LED][1] = 254;
+                refLeds[refDegree / DEG_PER_LED][2] = 0;
+                break;
+            }
         }
-        else if(SERVER == csRole)
+
+        // Don't turn on LEDs past 180 degrees
+        if(180 == refDegree)
         {
-            refLeds[refDegree / DEG_PER_LED][0] = 0;
-            refLeds[refDegree / DEG_PER_LED][1] = 26;
-            refLeds[refDegree / DEG_PER_LED][2] = 0;
+            os_printf("end of pattern\r\n");
+            shouldTurnOnLeds = false;
+        }
+    }
+
+    // Move the exciter according to the mode
+    switch(gameAction)
+    {
+        case ACT_BOTH:
+        case ACT_CLOCKWISE:
+        {
+            refDegree += 2;
+            if(refDegree > 359)
+            {
+                refDegree -= 360;
+            }
+
+            break;
+        }
+        case ACT_COUNTERCLOCKWISE:
+        {
+            refDegree -= 2;
+            if(refDegree < 0)
+            {
+                refDegree += 360;
+            }
+
+            break;
         }
     }
 
     // Physically set the LEDs
     setLeds(&refLeds[0][0], sizeof(refLeds));
+
+    uint8_t blankLeds[6][3] = {{0}};
+    if(false == shouldTurnOnLeds &&
+            0 == ets_memcmp(&refLeds[0][0], &blankLeds[0][0], sizeof(blankLeds)))
+    {
+#ifdef DEBUGGING_GAME
+        refStartRound();
+#else
+        // TODO debug printing for now, use this to send cmds to the other swadge
+        os_printf("Lost the round");
+#endif
+    }
+}
+
+/**
+ * This is called whenever a button is pressed
+ *
+ * TODO a game (handle buttons)
+ *
+ * @param state
+ * @param button
+ * @param down
+ */
+void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
+{
+    bool success = false;
+    bool failed = false;
+
+    // If this was a down button press (ignore ups)
+    if(down)
+    {
+        // And the final LED is lit
+        if(refLeds[3][1] > 0)
+        {
+            // If it's the right button for a single button mode
+            if ((ACT_COUNTERCLOCKWISE == gameAction && 2 == button) ||
+                    (ACT_CLOCKWISE == gameAction && 1 == button))
+            {
+                success = true;
+            }
+            // Or both buttons for both
+            else if(ACT_BOTH == gameAction && ((0b110 & state) == 0b110))
+            {
+                success = true;
+            }
+        }
+        else
+        {
+            // If the final LED isn't lit, it's always a failure
+            failed = true;
+        }
+
+        // TODO debug printing for now, use this to send cmds to the other swadge
+        if(success)
+        {
+            os_printf("Won the round\r\n");
+        }
+        else if(failed)
+        {
+            os_printf("Lost the round\r\n");
+        }
+        else
+        {
+            os_printf("Neither won nor lost the round\r\n");
+        }
+    }
 }
