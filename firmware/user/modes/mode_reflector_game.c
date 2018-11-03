@@ -382,6 +382,8 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
         return;
     }
 
+    // TODO do a better job of ACKing messages!!!
+
     switch(gameState)
     {
         case R_CONNECTING:
