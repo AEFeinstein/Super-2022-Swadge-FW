@@ -176,6 +176,7 @@ uint8_t refLosses = 0;
 // This swadge's MAC, in string form
 char macStr[] = "00:00:00:00:00:00";
 uint8_t otherMac[6] = {0};
+bool otherMacReceived = false;
 
 // Messages to send.
 #define CMD_IDX 4
@@ -234,6 +235,7 @@ void ICACHE_FLASH_ATTR refInit(void)
 
     // The other swadge's MAC
     ets_memset(otherMac, 0, sizeof(otherMac));
+    otherMacReceived = false;
 
     // Timers
     ets_memset(&refConnectionTimer, 0, sizeof(os_timer_t));
@@ -355,14 +357,48 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
     os_printf("%s: %s\r\n", __func__, dbgMsg);
     os_free(dbgMsg);
 
+    // Check if this is a "ref" message
+    if(len < CMD_IDX ||
+            (0 != ets_memcmp(data, connectionMsg, CMD_IDX)))
+    {
+        // This message is too short, or not a "ref" message
+        os_printf("Not a ref message\r\n");
+        return;
+    }
+
+    // If this message has a MAC, check it
+    if(len >= ets_strlen(ackMsg) &&
+            0 != ets_memcmp(&data[MAC_IDX], macStr, ets_strlen(macStr)))
+    {
+        // This MAC isn't for us
+        os_printf("Not for our MAC\r\n");
+        return;
+    }
+
+    // If this is anything besides a broadcast, check the other MAC
+    if(otherMacReceived &&
+            len > ets_strlen(connectionMsg) &&
+            0 != ets_memcmp(mac_addr, otherMac, sizeof(otherMac)))
+    {
+        // This isn't from the other known swadge
+        os_printf("Not from the other MAC\r\n");
+        return;
+    }
+
+    // By here, we know the received message was a "ref" message, either a
+    // broadcast or for us. If this isn't an ack message, ack it
+    if(len >= MAC_IDX &&
+            0 != ets_memcmp(data, ackMsg, MAC_IDX))
+    {
+        refSendAckToMac(mac_addr);
+    }
+
     // ACKs can be received in any state
     if(isWaitingForAck)
     {
-        // Check if this is an ACK from the other MAC addressed to us
+        // Check if this is an ACK
         if(ets_strlen(ackMsg) == len &&
-                0 == ets_memcmp(mac_addr, otherMac, sizeof(otherMac)) &&
-                0 == ets_memcmp(data, ackMsg, MAC_IDX) &&
-                0 == ets_memcmp(&data[MAC_IDX], macStr, ets_strlen(macStr)))
+                0 == ets_memcmp(data, ackMsg, MAC_IDX))
         {
             os_printf("ACK Received\r\n");
 
@@ -382,8 +418,6 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
         return;
     }
 
-    // TODO do a better job of ACKing messages!!!
-
     switch(gameState)
     {
         case R_CONNECTING:
@@ -401,6 +435,7 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
 
                 // Save the other ESP's MAC
                 ets_memcpy(otherMac, mac_addr, sizeof(otherMac));
+                otherMacReceived = true;
 
                 // Send a message to that ESP to start the game.
                 ets_sprintf(&gameStartMsg[MAC_IDX], "%02X:%02X:%02X:%02X:%02X:%02X",
@@ -417,17 +452,13 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
             // Received a response to our broadcast
             else if (!rxGameStartMsg &&
                      ets_strlen(gameStartMsg) == len &&
-                     0 == ets_memcmp(data, gameStartMsg, MAC_IDX) &&
-                     0 == ets_memcmp(&data[MAC_IDX], macStr, ets_strlen(macStr)))
+                     0 == ets_memcmp(data, gameStartMsg, MAC_IDX))
             {
                 os_printf("Game start message received, ACKing\r\n");
 
                 // This is another swadge trying to start a game, which means
                 // they received our connectionMsg. First disable our connectionMsg
                 os_timer_disarm(&refConnectionTimer);
-
-                // Then ACK their request to start a game
-                refSendAckToMac(mac_addr);
 
                 // And process this connection event
                 refProcConnectionEvt(RX_GAME_START_MSG);
@@ -439,12 +470,8 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
         {
             // Received a message that the other swadge lost
             if(ets_strlen(roundLossMsg) == len &&
-                    0 == ets_memcmp(data, roundLossMsg, MAC_IDX) &&
-                    0 == ets_memcmp(&data[MAC_IDX], macStr, ets_strlen(macStr)))
+                    0 == ets_memcmp(data, roundLossMsg, MAC_IDX))
             {
-                // ACK their message that they lost
-                refSendAckToMac(mac_addr);
-
                 // The other swadge lost, so chalk a win!
                 refWins++;
 
@@ -452,12 +479,8 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
                 refRoundResultLed(true);
             }
             else if(ets_strlen(roundContinueMsg) == len &&
-                    0 == ets_memcmp(data, roundContinueMsg, MAC_IDX) &&
-                    0 == ets_memcmp(&data[MAC_IDX], macStr, ets_strlen(macStr)))
+                    0 == ets_memcmp(data, roundContinueMsg, MAC_IDX))
             {
-                // ACK their message to continue the game
-                refSendAckToMac(mac_addr);
-
                 // TODO get faster??
                 refStartRound();
             }
