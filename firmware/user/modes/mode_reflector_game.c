@@ -6,6 +6,7 @@
  *
  * TODO add timers during the connection process! Think it all through
  * TODO add timers during the game too
+ * TODO add logic for both players have an opportunity to lose? last licks-ish. probably not...
  */
 
 /* PlantUML for the connection process:
@@ -46,12 +47,16 @@
  * Defines
  *==========================================================================*/
 
-#define DEBUGGING_GAME
+//#define DEBUGGING_GAME
 
 #define REFLECTOR_ACK_RETRIES 3
 #define CONNECTION_RSSI 60
 #define LED_PERIOD_MS 100
 #define DEG_PER_LED 60
+
+#define dbg_timer_disarm(x)    do{os_timer_disarm(x);   os_printf("os_timer_disarm in %s at %d\r\n", __func__, __LINE__);}while(0)
+#define dbg_timer_setfn(x,y,z) do{os_timer_setfn(x,y,z);os_printf("os_timer_setfn  in %s at %d\r\n", __func__, __LINE__);}while(0)
+#define dbg_timer_arm(x,y,z)   do{os_timer_arm(x,y,z);  os_printf("os_timer_arm    in %s at %d\r\n", __func__, __LINE__);}while(0)
 
 /*============================================================================
  * Enums
@@ -60,14 +65,16 @@
 typedef enum
 {
     R_CONNECTING,
+    R_SHOW_CONNECTION,
     R_PLAYING,
-    R_WAITING
+    R_WAITING,
+    R_SHOW_GAME_RESULT
 } reflectorGameState_t;
 
 typedef enum
 {
-    CLIENT,
-    SERVER
+    GOING_SECOND,
+    GOING_FIRST
 } csRole_t;
 
 typedef enum
@@ -83,7 +90,9 @@ typedef enum
     LED_DIM_1,
     LED_ON_2,
     LED_DIM_2,
-    LED_OFF_WAIT
+    LED_OFF_WAIT,
+    LED_CONNECTED_BRIGHT,
+    LED_CONNECTED_DIM,
 } connLedState_t;
 
 typedef enum
@@ -116,12 +125,15 @@ void ICACHE_FLASH_ATTR refGameStartAckRecv(void);
 void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event);
 
 // Game functions
-void ICACHE_FLASH_ATTR refStartPlaying(void);
+void ICACHE_FLASH_ATTR refStartPlaying(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refStartRound(void);
+void ICACHE_FLASH_ATTR refSendRoundLossMsg(void);
 
 // LED Functions
 void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)));
+void ICACHE_FLASH_ATTR refShowConnectionLedTimeout(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)));
+void ICACHE_FLASH_ATTR refRoundResultLed(bool);
 
 /*============================================================================
  * Variables
@@ -154,11 +166,13 @@ void (*ackFailure)(void) = NULL;
 bool broadcastReceived = false;
 bool rxGameStartMsg = false;
 bool rxGameStartAck = false;
-csRole_t csRole = CLIENT;
+csRole_t csRole = GOING_SECOND;
 
 // Game state variables
 gameAction_t gameAction = ACT_CLOCKWISE;
 bool shouldTurnOnLeds = false;
+uint8_t refWins = 0;
+uint8_t refLosses = 0;
 
 // This swadge's MAC, in string form
 char macStr[] = "00:00:00:00:00:00";
@@ -167,9 +181,11 @@ uint8_t otherMac[6] = {0};
 // Messages to send.
 #define CMD_IDX 4
 #define MAC_IDX 8
-char connectionMsg[] = "ref_con";
-char ackMsg[]        = "ref_ack_00:00:00:00:00:00";
-char gameStartMsg[]  = "ref_str_00:00:00:00:00:00";
+char connectionMsg[]     = "ref_con";
+char ackMsg[]            = "ref_ack_00:00:00:00:00:00";
+char gameStartMsg[]      = "ref_str_00:00:00:00:00:00";
+char roundLossMsg[]      = "ref_los_00:00:00:00:00:00";
+char roundContinueMsg[]  = "ref_cnt_00:00:00:00:00:00";
 
 // Timers
 static os_timer_t initConnectionTimer = {0};
@@ -192,13 +208,48 @@ void ICACHE_FLASH_ATTR refInit(void)
 {
     os_printf("%s\r\n", __func__);
 
-    // Set the state
     gameState = R_CONNECTING;
 
+    // Variables to track acking messages
+    isWaitingForAck = false;
+    ets_memset(msgToAck, 0, sizeof(msgToAck));
+    msgToAckLen = 0;
+    refTxRetries = 0;
+    ackSuccess = NULL;
+    ackFailure = NULL;
+
+    // Connection state variables
     broadcastReceived = false;
-    rxGameStartAck = false;
     rxGameStartMsg = false;
-    csRole = CLIENT;
+    rxGameStartAck = false;
+    csRole = GOING_SECOND;
+
+    // Game state variables
+    gameAction = ACT_CLOCKWISE;
+    shouldTurnOnLeds = false;
+    refWins = 0;
+    refLosses = 0;
+
+    // This swadge's MAC, in string form
+    ets_memset(otherMac, 0, sizeof(otherMac));
+
+    // Timers
+    ets_memset(&initConnectionTimer, 0, sizeof(os_timer_t));
+    ets_memset(&refTxRetryTimer, 0, sizeof(os_timer_t));
+    ets_memset(&ledTimer, 0, sizeof(os_timer_t));
+
+    // LED variables
+    ets_memset(&refLeds[0][0], 0, sizeof(refLeds));
+    refConnLedState = LED_OFF;
+    refDegree = 0;
+
+    //    // Set the state
+    //    gameState = R_CONNECTING;
+    //
+    //    broadcastReceived = false;
+    //    rxGameStartAck = false;
+    //    rxGameStartMsg = false;
+    //    csRole = GOING_SECOND;
 
     // Get and save the string form of our MAC address
     uint8_t mymac[6];
@@ -212,22 +263,22 @@ void ICACHE_FLASH_ATTR refInit(void)
                 mymac[5]);
 
 #ifdef DEBUGGING_GAME
-    csRole = SERVER;
+    csRole = GOING_FIRST;
     refStartPlaying();
 #else
     // Set up a timer for acking messages, don't start it
-    os_timer_disarm(&refTxRetryTimer);
-    os_timer_setfn(&refTxRetryTimer, refTxRetryTimeout, NULL);
+    dbg_timer_disarm(&refTxRetryTimer);
+    dbg_timer_setfn(&refTxRetryTimer, refTxRetryTimeout, NULL);
 
     // Start a timer to do an initial connection, start it
-    os_timer_disarm(&initConnectionTimer);
-    os_timer_setfn(&initConnectionTimer, refConnectionTimeout, NULL);
-    os_timer_arm(&initConnectionTimer, 1, false);
+    dbg_timer_disarm(&initConnectionTimer);
+    dbg_timer_setfn(&initConnectionTimer, refConnectionTimeout, NULL);
+    dbg_timer_arm(&initConnectionTimer, 1, false);
 
     // Start a timer to update LEDs, start it
-    os_timer_disarm(&ledTimer);
-    os_timer_setfn(&ledTimer, refConnLedTimeout, NULL);
-    os_timer_arm(&ledTimer, 1, true);
+    dbg_timer_disarm(&ledTimer);
+    dbg_timer_setfn(&ledTimer, refConnLedTimeout, NULL);
+    dbg_timer_arm(&ledTimer, 1, true);
 #endif
 }
 
@@ -238,8 +289,9 @@ void ICACHE_FLASH_ATTR refDeinit(void)
 {
     os_printf("%s\r\n", __func__);
 
-    os_timer_disarm(&initConnectionTimer);
-    os_timer_disarm(&refTxRetryTimer);
+    dbg_timer_disarm(&initConnectionTimer);
+    dbg_timer_disarm(&refTxRetryTimer);
+    dbg_timer_disarm(&ledTimer);
 }
 
 /**
@@ -257,7 +309,7 @@ void ICACHE_FLASH_ATTR refConnectionTimeout(void* arg __attribute__((unused)) )
 
     // Start the timer again
     os_printf("retry broadcast in %dms\r\n", timeoutMs);
-    os_timer_arm(&initConnectionTimer, timeoutMs, false);
+    dbg_timer_arm(&initConnectionTimer, timeoutMs, false);
 }
 
 /**
@@ -292,7 +344,7 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
             }
 
             // Clear ack timeout variables
-            os_timer_disarm(&refTxRetryTimer);
+            dbg_timer_disarm(&refTxRetryTimer);
             refTxRetries = 0;
 
             isWaitingForAck = false;
@@ -341,7 +393,7 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
 
                 // This is another swadge trying to start a game, which means
                 // they received our connectionMsg. First disable our connectionMsg
-                os_timer_disarm(&initConnectionTimer);
+                dbg_timer_disarm(&initConnectionTimer);
 
                 // Then ACK their request to start a game
                 refSendAckToMac(mac_addr);
@@ -354,12 +406,41 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
         }
         case R_WAITING:
         {
-            // TODO a game (receive messages)
+            // Received a message that the other swadge lost
+            if(ets_strlen(roundLossMsg) == len &&
+                    0 == ets_memcmp(data, roundLossMsg, MAC_IDX) &&
+                    0 == ets_memcmp(&data[MAC_IDX], macStr, ets_strlen(macStr)))
+            {
+                // ACK their message that they lost
+                refSendAckToMac(mac_addr);
+
+                // The other swadge lost, so chalk a win!
+                refWins++;
+
+                // Display the win
+                refRoundResultLed(true);
+            }
+            else if(ets_strlen(roundContinueMsg) == len &&
+                    0 == ets_memcmp(data, roundContinueMsg, MAC_IDX) &&
+                    0 == ets_memcmp(&data[MAC_IDX], macStr, ets_strlen(macStr)))
+            {
+                // ACK their message to continue the game
+                refSendAckToMac(mac_addr);
+
+                // TODO get faster??
+                refStartRound();
+            }
             break;
         }
         case R_PLAYING:
         {
-            // TODO a game (receive messages)
+            // Currently playing a game, shouldn't do anything with messages
+            break;
+        }
+        case R_SHOW_CONNECTION:
+        case R_SHOW_GAME_RESULT:
+        {
+            // Just LED animations, don't do anything with messages
             break;
         }
     }
@@ -411,7 +492,7 @@ void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event)
             // Already received the ack, become the client
             if(!rxGameStartMsg && rxGameStartAck)
             {
-                csRole = CLIENT;
+                csRole = GOING_SECOND;
             }
             // Mark this event
             rxGameStartMsg = true;
@@ -422,7 +503,7 @@ void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event)
             // Already received the msg, become the server
             if(!rxGameStartAck && rxGameStartMsg)
             {
-                csRole = SERVER;
+                csRole = GOING_FIRST;
             }
             // Mark this event
             rxGameStartAck = true;
@@ -433,39 +514,100 @@ void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event)
     // If both the game start messages are good, start the game
     if(rxGameStartMsg && rxGameStartAck)
     {
-        refStartPlaying();
+        gameState = R_SHOW_CONNECTION;
+
+        ets_memset(&refLeds[0][0], 0, sizeof(refLeds));
+        refConnLedState = LED_CONNECTED_BRIGHT;
+
+        dbg_timer_disarm(&ledTimer);
+        dbg_timer_setfn(&ledTimer, refShowConnectionLedTimeout, NULL);
+        dbg_timer_arm(&ledTimer, 3, true);
     }
 }
 
 /**
- * This is called after connection is all done. Start the game!
+ * This LED handling timer fades in and fades out white LEDs to indicate
+ * a successful connection. After the animation, the game will start
+ *
+ * @param arg unused
  */
-void ICACHE_FLASH_ATTR refStartPlaying(void)
+void ICACHE_FLASH_ATTR refShowConnectionLedTimeout(void* arg __attribute__((unused)) )
+{
+    uint8_t currBrightness = refLeds[0][0];
+    switch(refConnLedState)
+    {
+        case LED_CONNECTED_BRIGHT:
+        {
+            currBrightness++;
+            if(currBrightness == 0xFF)
+            {
+                refConnLedState = LED_CONNECTED_DIM;
+            }
+            break;
+        }
+        case LED_CONNECTED_DIM:
+        {
+            currBrightness--;
+            if(currBrightness == 0x00)
+            {
+                refStartPlaying(NULL);
+            }
+            break;
+        }
+        default:
+        {
+            // No other cases handled
+            break;
+        }
+    }
+    ets_memset(&refLeds[0][0], currBrightness, sizeof(refLeds));
+    setLeds(&refLeds[0][0], sizeof(refLeds));
+}
+
+/**
+ * This is called after connection is all done. Start the game!
+ *
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR refStartPlaying(void* arg __attribute__((unused)))
 {
     os_printf("%s\r\n", __func__);
 
-    if(SERVER == csRole)
+    // Turn off the LEDs
+    dbg_timer_disarm(&ledTimer);
+    ets_memset(&refLeds[0][0], 0, sizeof(refLeds));
+    setLeds(&refLeds[0][0], sizeof(refLeds));
+
+    // Check for match end
+    os_printf("wins: %d, losses %d\r\n", refWins, refLosses);
+    if(refWins == 3 || refLosses == 3)
+    {
+        // TODO tally match wins in SPI flash?
+
+        // Match over, reset everything
+        refInit();
+    }
+    else if(GOING_FIRST == csRole)
     {
         gameState = R_PLAYING;
 
         // Start playing
         refStartRound();
     }
-    else if(CLIENT == csRole)
+    else if(GOING_SECOND == csRole)
     {
         gameState = R_WAITING;
-
-        // Turn off the LEDs
-        ets_memset(&refLeds[0][0], 0, sizeof(refLeds));
-        setLeds(&refLeds[0][0], sizeof(refLeds));
     }
 }
 
 /**
- * TODO a game (start logic)
+ * Start a round of the game by picking a random action and starting
+ * refGameLedTimeout()
  */
 void ICACHE_FLASH_ATTR refStartRound(void)
 {
+    gameState = R_PLAYING;
+
     // pick a random game action
     gameAction = os_random() % 3;
 
@@ -495,10 +637,10 @@ void ICACHE_FLASH_ATTR refStartRound(void)
 
     // Set the LEDs spinning
     // TODO modify LED_PERIOD_MS as the game goes on
-    os_timer_disarm(&ledTimer);
-    os_timer_setfn(&ledTimer, refGameLedTimeout, NULL);
+    dbg_timer_disarm(&ledTimer);
+    dbg_timer_setfn(&ledTimer, refGameLedTimeout, NULL);
     // 5ms is doable, 1ms is impossible
-    os_timer_arm(&ledTimer, 20, true);
+    dbg_timer_arm(&ledTimer, 20, true);
 }
 
 /**
@@ -546,7 +688,7 @@ void ICACHE_FLASH_ATTR refSendMsg(const char* msg, uint16_t len, bool shouldAck,
         // Start the timer
         uint32_t retryTimeMs = 500 * (REFLECTOR_ACK_RETRIES - refTxRetries + 1);
         os_printf("ack timer set for %d\r\n", retryTimeMs);
-        os_timer_arm(&refTxRetryTimer, retryTimeMs, false);
+        dbg_timer_arm(&refTxRetryTimer, retryTimeMs, false);
     }
     espNowSend((const uint8_t*)msg, len);
 }
@@ -602,9 +744,9 @@ void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
         case LED_OFF:
         {
             // Reset this timer to LED_PERIOD_MS
-            os_timer_disarm(&ledTimer);
-            os_timer_setfn(&ledTimer, refConnLedTimeout, NULL);
-            os_timer_arm(&ledTimer, LED_PERIOD_MS, true);
+            dbg_timer_disarm(&ledTimer);
+            dbg_timer_setfn(&ledTimer, refConnLedTimeout, NULL);
+            dbg_timer_arm(&ledTimer, LED_PERIOD_MS, true);
 
             ets_memset(&refLeds[0][0], 0, sizeof(refLeds));
 
@@ -652,15 +794,21 @@ void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
         case LED_OFF_WAIT:
         {
             // Start a timer to update LEDs
-            os_timer_disarm(&ledTimer);
-            os_timer_setfn(&ledTimer, refConnLedTimeout, NULL);
-            os_timer_arm(&ledTimer, 1000, true);
+            dbg_timer_disarm(&ledTimer);
+            dbg_timer_setfn(&ledTimer, refConnLedTimeout, NULL);
+            dbg_timer_arm(&ledTimer, 1000, true);
 
             // When it fires, start all over again
             refConnLedState = LED_OFF;
 
             // And dont update the LED state this time
             return;
+        }
+        case LED_CONNECTED_BRIGHT:
+        case LED_CONNECTED_DIM:
+        {
+            // Handled in refShowConnectionLedTimeout()
+            break;
         }
     }
 
@@ -676,15 +824,15 @@ void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
     // Overwrite two LEDs based on the connection status
     if(rxGameStartAck)
     {
-        refLeds[2][0] = 0;
-        refLeds[2][1] = 25;
+        refLeds[2][0] = 25;
+        refLeds[2][1] = 0;
         refLeds[2][2] = 0;
     }
     if(rxGameStartMsg)
     {
-        refLeds[4][0] = 0;
+        refLeds[4][0] = 25;
         refLeds[4][1] = 0;
-        refLeds[4][2] = 25;
+        refLeds[4][2] = 0;
     }
 
     // Physically set the LEDs
@@ -785,8 +933,8 @@ void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
 #ifdef DEBUGGING_GAME
         refStartRound();
 #else
-        // TODO debug printing for now, use this to send cmds to the other swadge
-        os_printf("Lost the round");
+        // If the last LED is off, the user missed the window of opportunity
+        refSendRoundLossMsg();
 #endif
     }
 }
@@ -794,20 +942,21 @@ void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
 /**
  * This is called whenever a button is pressed
  *
- * TODO a game (handle buttons)
+ * If a game is being played, check for button down events and either succeed
+ * or fail the round and pass the result to the other swadge
  *
- * @param state
- * @param button
- * @param down
+ * @param state  A bitmask of all button states
+ * @param button The button which triggered this action
+ * @param down   true if the button was pressed, false if it was released
  */
 void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
 {
-    bool success = false;
-    bool failed = false;
-
-    // If this was a down button press (ignore ups)
-    if(down)
+    // If this was a down button press (ignore other states and ups)
+    if(R_PLAYING == gameState && true == down)
     {
+        bool success = false;
+        bool failed = false;
+
         // And the final LED is lit
         if(refLeds[3][1] > 0)
         {
@@ -829,18 +978,120 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
             failed = true;
         }
 
-        // TODO debug printing for now, use this to send cmds to the other swadge
         if(success)
         {
-            os_printf("Won the round\r\n");
+            os_printf("Won the round, continue the game\r\n");
+
+            // Now waiting for a result from the other swadge
+            gameState = R_WAITING;
+
+            // Clear the LEDs and stop the timer
+            ets_memset(&refLeds[0][0], 0, sizeof(refLeds));
+            setLeds(&refLeds[0][0], sizeof(refLeds));
+            dbg_timer_disarm(&ledTimer);
+
+            // Send a message to that ESP that we lost the round
+            ets_sprintf(&roundContinueMsg[MAC_IDX], "%02X:%02X:%02X:%02X:%02X:%02X",
+                        otherMac[0],
+                        otherMac[1],
+                        otherMac[2],
+                        otherMac[3],
+                        otherMac[4],
+                        otherMac[5]);
+            // If it's acked, call todo, if not reinit with refInit()
+            // TODO add timing result to this message
+            refSendMsg(roundContinueMsg, ets_strlen(roundContinueMsg), true, NULL, refInit);
         }
         else if(failed)
         {
-            os_printf("Lost the round\r\n");
+            // Tell the other swadge
+            refSendRoundLossMsg();
         }
         else
         {
             os_printf("Neither won nor lost the round\r\n");
         }
     }
+}
+
+/**
+ * This is called when a round is lost. It tallies the loss, calls
+ * refRoundResultLed() to display the wins/losses and set up the
+ * potential next round, and sends a message to the other swadge
+ * that the round was lost and
+ *
+ * Send a round loss message to the other swadge
+ */
+void ICACHE_FLASH_ATTR refSendRoundLossMsg(void)
+{
+    os_printf("Lost the round\r\n");
+
+    // Tally the loss
+    refLosses++;
+
+    // Show the current wins & losses
+    refRoundResultLed(false);
+
+    // Send a message to that ESP that we lost the round
+    ets_sprintf(&roundLossMsg[MAC_IDX], "%02X:%02X:%02X:%02X:%02X:%02X",
+                otherMac[0],
+                otherMac[1],
+                otherMac[2],
+                otherMac[3],
+                otherMac[4],
+                otherMac[5]);
+    // If it's acked, call todo, if not reinit with refInit()
+    refSendMsg(roundLossMsg, ets_strlen(roundLossMsg), true, NULL, refInit);
+}
+
+/**
+ * Show the wins and losses
+ *
+ * @param roundWinner true if this swadge was a winner, false if the other
+ *                    swadge won
+ */
+void ICACHE_FLASH_ATTR refRoundResultLed(bool roundWinner)
+{
+    uint8_t i;
+
+    // Kill the LED timer so this doesn't get overwritten
+    dbg_timer_disarm(&ledTimer);
+
+    // Light green for wins
+    for(i = 4; i < 4 + refWins; i++)
+    {
+        // Green
+        refLeds[i % 6][0] = 255;
+        refLeds[i % 6][1] = 0;
+        refLeds[i % 6][2] = 0;
+    }
+
+    // Light reds for losses
+    for(i = 2; i >= (3 - refLosses); i--)
+    {
+        // Red
+        refLeds[i][0] = 0;
+        refLeds[i][1] = 255;
+        refLeds[i][2] = 0;
+    }
+
+    // Push out LED data
+    setLeds(&refLeds[0][0], sizeof(refLeds));
+
+    // Set up the next round based on the winner
+    if(roundWinner)
+    {
+        gameState = R_SHOW_GAME_RESULT;
+        csRole = GOING_FIRST;
+    }
+    else
+    {
+        // Set gameState here to R_WAITING to make sure a message isn't missed
+        gameState = R_WAITING;
+        csRole = GOING_SECOND;
+    }
+
+    // Call refStartPlaying in 3 seconds
+    dbg_timer_setfn(&ledTimer, refStartPlaying, NULL);
+    dbg_timer_arm(&ledTimer, 3000, false);
 }
