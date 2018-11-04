@@ -1059,11 +1059,6 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
             // Now waiting for a result from the other swadge
             gameState = R_WAITING;
 
-            // Clear the LEDs and stop the timer
-            refDisarmAllLedTimers();
-            ets_memset(&refLeds[0][0], 0, sizeof(refLeds));
-            setLeds(&refLeds[0][0], sizeof(refLeds));
-
             char* spdPtr;
             // Add information about the timing
             if(refLeds[3][1] >= 192)
@@ -1081,6 +1076,11 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
                 // Slow down if button is pressed when the LED is dimmest
                 spdPtr = spdDn;
             }
+
+            // Clear the LEDs and stop the timer
+            refDisarmAllLedTimers();
+            ets_memset(&refLeds[0][0], 0, sizeof(refLeds));
+            setLeds(&refLeds[0][0], sizeof(refLeds));
 
             // Send a message to the other swadge that this round was a success
             ets_sprintf(&roundContinueMsg[MAC_IDX], "%02X:%02X:%02X:%02X:%02X:%02X_%s",
