@@ -172,6 +172,7 @@ gameAction_t gameAction = ACT_CLOCKWISE;
 bool shouldTurnOnLeds = false;
 uint8_t refWins = 0;
 uint8_t refLosses = 0;
+uint8_t ledTimerMs = 12; // This can't be less than 3ms, it's impossible
 
 // This swadge's MAC, in string form
 char macStr[] = "00:00:00:00:00:00";
@@ -179,13 +180,18 @@ uint8_t otherMac[6] = {0};
 bool otherMacReceived = false;
 
 // Messages to send.
+#define HDR_IDX 0
 #define CMD_IDX 4
 #define MAC_IDX 8
+#define EXT_IDX 26
 char connectionMsg[]     = "ref_con";
 char ackMsg[]            = "ref_ack_00:00:00:00:00:00";
 char gameStartMsg[]      = "ref_str_00:00:00:00:00:00";
 char roundLossMsg[]      = "ref_los_00:00:00:00:00:00";
-char roundContinueMsg[]  = "ref_cnt_00:00:00:00:00:00";
+char roundContinueMsg[]  = "ref_cnt_00:00:00:00:00:00_xx";
+char spdUp[] = "up";
+char spdDn[] = "dn";
+char spdNc[] = "nc";
 
 // Timers
 static os_timer_t refTxRetryTimer = {0};
@@ -232,6 +238,7 @@ void ICACHE_FLASH_ATTR refInit(void)
     shouldTurnOnLeds = false;
     refWins = 0;
     refLosses = 0;
+    ledTimerMs = 12;
 
     // The other swadge's MAC
     ets_memset(otherMac, 0, sizeof(otherMac));
@@ -261,10 +268,6 @@ void ICACHE_FLASH_ATTR refInit(void)
                 mymac[4],
                 mymac[5]);
 
-#ifdef DEBUGGING_GAME
-    playOrder = GOING_FIRST;
-    refStartPlaying();
-#else
     // Set up a timer for acking messages, don't start it
     os_timer_disarm(&refTxRetryTimer);
     os_timer_setfn(&refTxRetryTimer, refTxRetryTimeout, NULL);
@@ -284,11 +287,16 @@ void ICACHE_FLASH_ATTR refInit(void)
     // Start a timer to do an initial connection, start it
     os_timer_disarm(&refConnectionTimer);
     os_timer_setfn(&refConnectionTimer, refConnectionTimeout, NULL);
-    os_timer_arm(&refConnectionTimer, 1, false);
 
     // Start a timer to update LEDs, start it
     os_timer_disarm(&refConnLedTimer);
     os_timer_setfn(&refConnLedTimer, refConnLedTimeout, NULL);
+
+#ifdef DEBUGGING_GAME
+    playOrder = GOING_FIRST;
+    refStartPlaying(NULL);
+#else
+    os_timer_arm(&refConnectionTimer, 1, false);
     os_timer_arm(&refConnLedTimer, 1, true);
 #endif
 }
@@ -481,7 +489,21 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
             else if(ets_strlen(roundContinueMsg) == len &&
                     0 == ets_memcmp(data, roundContinueMsg, MAC_IDX))
             {
-                // TODO get faster??
+                // Get faster or slower based on the other swadge's timing
+                if(0 == ets_memcmp(&data[EXT_IDX], spdUp, ets_strlen(spdUp)))
+                {
+                    ledTimerMs--;
+                    // Anything less than a 3ms period is impossible...
+                    if(ledTimerMs < 3)
+                    {
+                        ledTimerMs = 3;
+                    }
+                }
+                else if(0 == ets_memcmp(&data[EXT_IDX], spdDn, ets_strlen(spdDn)))
+                {
+                    ledTimerMs++;
+                }
+
                 refStartRound();
             }
             break;
@@ -574,7 +596,8 @@ void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event)
         refConnLedState = LED_CONNECTED_BRIGHT;
 
         refDisarmAllLedTimers();
-        os_timer_arm(&refShowConnectionLedTimer, 3, true);
+        // 6ms * ~500 steps == 3s animation
+        os_timer_arm(&refShowConnectionLedTimer, 6, true);
     }
 }
 
@@ -689,10 +712,15 @@ void ICACHE_FLASH_ATTR refStartRound(void)
     shouldTurnOnLeds = true;
 
     // Set the LEDs spinning
-    // TODO modify LED_PERIOD_MS as the game goes on
     refDisarmAllLedTimers();
-    // 5ms is doable, 1ms is impossible
-    os_timer_arm(&refGameLedTimer, 20, true);
+#ifdef DEBUGGING_GAME
+    static uint8_t ledPeriodMs = 100;
+    os_printf("led period %d\r\n", ledPeriodMs / 10);
+    ledPeriodMs--;
+    os_timer_arm(&refGameLedTimer, ledPeriodMs / 10, true);
+#else
+    os_timer_arm(&refGameLedTimer, ledTimerMs, true);
+#endif
 }
 
 /**
@@ -786,8 +814,6 @@ void ICACHE_FLASH_ATTR refSendCb(uint8_t* mac_addr __attribute__((unused)),
 
 /**
  * Called every 100ms, this updates the LEDs during connection
- *
- * TODO dim LEDs on a log scale rather than linear? Nice to have, not need
  */
 void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
 {
@@ -900,15 +926,15 @@ void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
     {
         if(refLeds[i][0] > 0)
         {
-            refLeds[i][0] -= 2;
+            refLeds[i][0] -= 4;
         }
         if(refLeds[i][1] > 0)
         {
-            refLeds[i][1] -= 2;
+            refLeds[i][1] -= 4;
         }
         if(refLeds[i][2] > 0)
         {
-            refLeds[i][2] -= 2;
+            refLeds[i][2] -= 4;
         }
     }
 
@@ -921,11 +947,11 @@ void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
             {
                 // Make sure this value decays to exactly zero above
                 refLeds[refDegree / DEG_PER_LED][0] = 0;
-                refLeds[refDegree / DEG_PER_LED][1] = 254;
+                refLeds[refDegree / DEG_PER_LED][1] = 252;
                 refLeds[refDegree / DEG_PER_LED][2] = 0;
 
                 refLeds[(360 - refDegree) / DEG_PER_LED][0] = 0;
-                refLeds[(360 - refDegree) / DEG_PER_LED][1] = 254;
+                refLeds[(360 - refDegree) / DEG_PER_LED][1] = 252;
                 refLeds[(360 - refDegree) / DEG_PER_LED][2] = 0;
                 break;
             }
@@ -933,7 +959,7 @@ void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
             case ACT_CLOCKWISE:
             {
                 refLeds[refDegree / DEG_PER_LED][0] = 0;
-                refLeds[refDegree / DEG_PER_LED][1] = 254;
+                refLeds[refDegree / DEG_PER_LED][1] = 252;
                 refLeds[refDegree / DEG_PER_LED][2] = 0;
                 break;
             }
@@ -980,12 +1006,8 @@ void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
     if(false == shouldTurnOnLeds &&
             0 == ets_memcmp(&refLeds[0][0], &blankLeds[0][0], sizeof(blankLeds)))
     {
-#ifdef DEBUGGING_GAME
-        refStartRound();
-#else
         // If the last LED is off, the user missed the window of opportunity
         refSendRoundLossMsg();
-#endif
     }
 }
 
@@ -1031,7 +1053,9 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
         if(success)
         {
             os_printf("Won the round, continue the game\r\n");
-
+#ifdef DEBUGGING_GAME
+            refStartRound();
+#else
             // Now waiting for a result from the other swadge
             gameState = R_WAITING;
 
@@ -1040,17 +1064,37 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
             ets_memset(&refLeds[0][0], 0, sizeof(refLeds));
             setLeds(&refLeds[0][0], sizeof(refLeds));
 
-            // Send a message to that ESP that we lost the round
-            ets_sprintf(&roundContinueMsg[MAC_IDX], "%02X:%02X:%02X:%02X:%02X:%02X",
+            char* spdPtr;
+            // Add information about the timing
+            if(refLeds[3][1] >= 192)
+            {
+                // Speed up if the button is pressed when the LED is brightest
+                spdPtr = spdUp;
+            }
+            else if(refLeds[3][1] >= 64)
+            {
+                // No change for the middle range
+                spdPtr = spdNc;
+            }
+            else
+            {
+                // Slow down if button is pressed when the LED is dimmest
+                spdPtr = spdDn;
+            }
+
+            // Send a message to the other swadge that this round was a success
+            ets_sprintf(&roundContinueMsg[MAC_IDX], "%02X:%02X:%02X:%02X:%02X:%02X_%s",
                         otherMac[0],
                         otherMac[1],
                         otherMac[2],
                         otherMac[3],
                         otherMac[4],
-                        otherMac[5]);
-            // If it's acked, call todo, if not reinit with refInit()
-            // TODO add timing result to this message
+                        otherMac[5],
+                        spdPtr);
+
+            // If it's not acked, reinit with refRestart()
             refSendMsg(roundContinueMsg, ets_strlen(roundContinueMsg), true, NULL, refRestart);
+#endif
         }
         else if(failed)
         {
@@ -1075,6 +1119,9 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
 void ICACHE_FLASH_ATTR refSendRoundLossMsg(void)
 {
     os_printf("Lost the round\r\n");
+#ifdef DEBUGGING_GAME
+    refStartRound();
+#else
 
     // Tally the loss
     refLosses++;
@@ -1090,8 +1137,9 @@ void ICACHE_FLASH_ATTR refSendRoundLossMsg(void)
                 otherMac[3],
                 otherMac[4],
                 otherMac[5]);
-    // If it's acked, call todo, if not reinit with refInit()
+    // If it's not acked, reinit with refRestart()
     refSendMsg(roundLossMsg, ets_strlen(roundLossMsg), true, NULL, refRestart);
+#endif
 }
 
 /**
