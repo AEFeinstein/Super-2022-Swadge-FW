@@ -31,7 +31,6 @@
 #include "espNowUtils.h"
 #include "mode_colorchord.h"
 #include "mode_led_patterns.h"
-#include "mode_espnow_test.h"
 #include "mode_reflector_game.h"
 
 /*============================================================================
@@ -144,7 +143,6 @@ uint8_t mymac[6] = {0};
 swadgeMode* swadgeModes[] =
 {
     &reflectorGameMode,
-    &espNowTestMode,
     &colorchordMode,
     &ledPatternsMode,
 };
