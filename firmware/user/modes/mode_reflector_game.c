@@ -68,6 +68,7 @@ digraph G {
 	refShowConnectionLedTimeout[label="refShowConnectionLedTimeout()" color=cornflowerblue];
 	refGameLedTimeout[label="refGameLedTimeout()" color=cornflowerblue];
 	refRoundResultLed[label="refRoundResultLed()"];
+	refFailureRestart[label="refFailureRestart()" color=cornflowerblue];
 
 	refInit -> refConnectionTimeout[label="timer"]
 	refInit -> refConnLedTimeout[label="timer"]
@@ -79,6 +80,8 @@ digraph G {
 
 	refConnectionTimeout -> refSendMsg
 	refConnectionTimeout -> refConnectionTimeout[label="timer"]
+
+	refFailureRestart -> refRestart
 
 	refRecvCb -> refRestart
 	refRecvCb -> refSendAckToMac
@@ -94,12 +97,14 @@ digraph G {
 
 	refProcConnectionEvt -> refDisarmAllLedTimers
 	refProcConnectionEvt -> refShowConnectionLedTimeout[label="timer"];
+	refProcConnectionEvt -> refFailureRestart[label="timer"]
 
 	refShowConnectionLedTimeout -> refStartPlaying
 
 	refStartPlaying -> refRestart
 	refStartPlaying -> refDisarmAllLedTimers
 	refStartPlaying -> refStartRound
+	refStartPlaying -> refFailureRestart[label="timer"]
 
 	refStartRound -> refDisarmAllLedTimers
 	refStartRound -> refGameLedTimeout[label="timer"]
@@ -117,6 +122,7 @@ digraph G {
 	refButton -> refDisarmAllLedTimers
 	refButton -> refSendMsg
 	refButton -> refSendRoundLossMsg
+	refButton -> refFailureRestart[label="timer"]
 
 	refSendRoundLossMsg -> refRestart
 	refSendRoundLossMsg -> refSendMsg
@@ -144,7 +150,12 @@ digraph G {
 #define REFLECTOR_ACK_RETRIES 3
 #define CONNECTION_RSSI 60
 #define LED_PERIOD_MS 100
+
+// Degrees between each LED
 #define DEG_PER_LED 60
+
+// Time to wait between connection events and game rounds
+#define FAILURE_RESTART_MS 5000
 
 /*============================================================================
  * Enums
@@ -212,6 +223,7 @@ void ICACHE_FLASH_ATTR refTxRetryTimeout(void* arg);
 void ICACHE_FLASH_ATTR refConnectionTimeout(void* arg);
 void ICACHE_FLASH_ATTR refGameStartAckRecv(void);
 void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event);
+void ICACHE_FLASH_ATTR refFailureRestart(void* arg __attribute__((unused)));
 
 // Game functions
 void ICACHE_FLASH_ATTR refStartPlaying(void* arg __attribute__((unused)));
@@ -291,6 +303,7 @@ static os_timer_t refStartPlayingTimer = {0};
 static os_timer_t refConnLedTimer = {0};
 static os_timer_t refShowConnectionLedTimer = {0};
 static os_timer_t refGameLedTimer = {0};
+static os_timer_t refTimerRestart = {0};
 
 // LED variables
 uint8_t refLeds[6][3] = {{0}};
@@ -342,6 +355,7 @@ void ICACHE_FLASH_ATTR refInit(void)
     ets_memset(&refStartPlayingTimer, 0, sizeof(os_timer_t));
     ets_memset(&refShowConnectionLedTimer, 0, sizeof(os_timer_t));
     ets_memset(&refGameLedTimer, 0, sizeof(os_timer_t));
+    ets_memset(&refTimerRestart, 0, sizeof(os_timer_t));
 
     // LED variables
     ets_memset(&refLeds[0][0], 0, sizeof(refLeds));
@@ -383,6 +397,10 @@ void ICACHE_FLASH_ATTR refInit(void)
     os_timer_disarm(&refConnLedTimer);
     os_timer_setfn(&refConnLedTimer, refConnLedTimeout, NULL);
 
+    // Set up a timer to restart after failure. don't start it
+    os_timer_disarm(&refTimerRestart);
+    os_timer_setfn(&refTimerRestart, refFailureRestart, NULL);
+
 #ifdef DEBUGGING_GAME
     playOrder = GOING_FIRST;
     refStartPlaying(NULL);
@@ -402,6 +420,7 @@ void ICACHE_FLASH_ATTR refDeinit(void)
     os_timer_disarm(&refConnectionTimer);
     os_timer_disarm(&refTxRetryTimer);
     os_timer_disarm(&refStartPlayingTimer);
+    os_timer_disarm(&refTimerRestart);
     refDisarmAllLedTimers();
 }
 
@@ -440,6 +459,16 @@ void ICACHE_FLASH_ATTR refConnectionTimeout(void* arg __attribute__((unused)) )
     // Start the timer again
     os_printf("retry broadcast in %dms\r\n", timeoutMs);
     os_timer_arm(&refConnectionTimer, timeoutMs, false);
+}
+
+/**
+ * Called on a timer should there be a failure
+ *
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR refFailureRestart(void* arg __attribute__((unused)))
+{
+	refRestart();
 }
 
 /**
@@ -571,6 +600,9 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
             if(ets_strlen(roundLossMsg) == len &&
                     0 == ets_memcmp(data, roundLossMsg, MAC_IDX))
             {
+            	// Received a message, so stop the failure timer
+            	os_timer_disarm(&refTimerRestart);
+
                 // The other swadge lost, so chalk a win!
                 refWins++;
 
@@ -580,7 +612,10 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
             else if(ets_strlen(roundContinueMsg) == len &&
                     0 == ets_memcmp(data, roundContinueMsg, MAC_IDX))
             {
-                // Get faster or slower based on the other swadge's timing
+            	// Received a message, so stop the failure timer
+            	os_timer_disarm(&refTimerRestart);
+
+            	// Get faster or slower based on the other swadge's timing
                 if(0 == ets_memcmp(&data[EXT_IDX], spdUp, ets_strlen(spdUp)))
                 {
                     ledTimerMs--;
@@ -681,6 +716,9 @@ void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event)
     // If both the game start messages are good, start the game
     if(rxGameStartMsg && rxGameStartAck)
     {
+    	// Connection was successful, so disarm the failure timer
+    	os_timer_disarm(&refTimerRestart);
+
         gameState = R_SHOW_CONNECTION;
 
         ets_memset(&refLeds[0][0], 0, sizeof(refLeds));
@@ -689,6 +727,11 @@ void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event)
         refDisarmAllLedTimers();
         // 6ms * ~500 steps == 3s animation
         os_timer_arm(&refShowConnectionLedTimer, 6, true);
+    }
+    else
+    {
+    	// Give 5 seconds to finish the connection process, or else restart
+    	os_timer_arm(&refTimerRestart, FAILURE_RESTART_MS, false);
     }
 }
 
@@ -764,6 +807,9 @@ void ICACHE_FLASH_ATTR refStartPlaying(void* arg __attribute__((unused)))
     else if(GOING_SECOND == playOrder)
     {
         gameState = R_WAITING;
+
+        // Give 5 seconds to get a result, or else restart
+        os_timer_arm(&refTimerRestart, FAILURE_RESTART_MS, false);
     }
 }
 
@@ -1135,6 +1181,9 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
 #else
             // Now waiting for a result from the other swadge
             gameState = R_WAITING;
+
+            // Give 5 seconds to get a result, or else restart
+            os_timer_arm(&refTimerRestart, FAILURE_RESTART_MS, false);
 
             char* spdPtr;
             // Add information about the timing
