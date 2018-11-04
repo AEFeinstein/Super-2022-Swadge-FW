@@ -35,6 +35,98 @@
     end
 */
 
+/* Graphviz for function calls, as of 4a8e11ab2844f225385a44129743152e5b723532
+
+digraph G {
+
+	node [style=filled];
+
+	subgraph cluster_legend {
+		label="Legend"
+		graph[style=dotted];
+		pos = "0,0!"
+		legend1[label="Callback Funcs" color=aquamarine]
+		legend2[label="Timer Funcs" color=cornflowerblue]
+	}
+
+	refInit[label="refInit()" color=aquamarine];
+	refDeinit[label="refDeinit()" color=aquamarine];
+	refButton[label="refButton()" color=aquamarine];
+	refRecvCb[label="refRecvCb()" color=aquamarine];
+	refRestart[label="refRestart()"];
+	refSendMsg[label="refSendMsg()"];
+	refSendAckToMac[label="refSendAckToMac()"];
+	refTxRetryTimeout[label="refTxRetryTimeout()" color=cornflowerblue];
+	refConnectionTimeout[label="refConnectionTimeout()" color=cornflowerblue];
+	refGameStartAckRecv[label="refGameStartAckRecv()"];
+	refProcConnectionEvt[label="refProcConnectionEvt()"];
+	refStartPlaying[label="refStartPlaying()" color=cornflowerblue];
+	refStartRound[label="refStartRound()"];
+	refSendRoundLossMsg[label="refSendRoundLossMsg()"];
+	refDisarmAllLedTimers[label="refDisarmAllLedTimers()"];
+	refConnLedTimeout[label="refConnLedTimeout()" color=cornflowerblue];
+	refShowConnectionLedTimeout[label="refShowConnectionLedTimeout()" color=cornflowerblue];
+	refGameLedTimeout[label="refGameLedTimeout()" color=cornflowerblue];
+	refRoundResultLed[label="refRoundResultLed()"];
+
+	refInit -> refConnectionTimeout[label="timer"]
+	refInit -> refConnLedTimeout[label="timer"]
+
+	refDeinit -> refDisarmAllLedTimers
+
+	refRestart -> refInit
+	refRestart -> refDeinit
+
+	refConnectionTimeout -> refSendMsg
+	refConnectionTimeout -> refConnectionTimeout[label="timer"]
+
+	refRecvCb -> refRestart
+	refRecvCb -> refSendAckToMac
+	refRecvCb -> refGameStartAckRecv
+	refRecvCb -> refProcConnectionEvt
+	refRecvCb -> refStartRound
+	refRecvCb -> refSendMsg
+	refRecvCb -> refRoundResultLed
+
+	refSendAckToMac -> refSendMsg
+
+	refGameStartAckRecv -> refProcConnectionEvt
+
+	refProcConnectionEvt -> refDisarmAllLedTimers
+	refProcConnectionEvt -> refShowConnectionLedTimeout[label="timer"];
+
+	refShowConnectionLedTimeout -> refStartPlaying
+
+	refStartPlaying -> refRestart
+	refStartPlaying -> refDisarmAllLedTimers
+	refStartPlaying -> refStartRound
+
+	refStartRound -> refDisarmAllLedTimers
+	refStartRound -> refGameLedTimeout[label="timer"]
+
+	refSendMsg -> refTxRetryTimeout[label="timer"]
+
+	refTxRetryTimeout -> refSendMsg
+
+	refConnLedTimeout -> refDisarmAllLedTimers
+	refConnLedTimeout -> refConnLedTimeout[label="timer"]
+
+	refGameLedTimeout -> refSendRoundLossMsg
+
+	refButton -> refRestart
+	refButton -> refDisarmAllLedTimers
+	refButton -> refSendMsg
+	refButton -> refSendRoundLossMsg
+
+	refSendRoundLossMsg -> refRestart
+	refSendRoundLossMsg -> refSendMsg
+	refSendRoundLossMsg -> refRoundResultLed
+
+	refRoundResultLed -> refDisarmAllLedTimers
+	refRoundResultLed -> refStartPlaying[label="timer"]
+}
+*/
+
 /*============================================================================
  * Includes
  *==========================================================================*/
