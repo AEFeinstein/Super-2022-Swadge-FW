@@ -150,6 +150,11 @@ digraph G {
  * Defines
  *==========================================================================*/
 
+#ifdef REF_DEBUG_PRINT
+    #define ref_printf(...) os_printf(__VA_ARGS__)
+#else
+    #define ref_printf(...)
+#endif
 //#define DEBUGGING_GAME
 
 #define REFLECTOR_ACK_RETRIES 3
@@ -221,17 +226,17 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
 
 // Helper function
 void ICACHE_FLASH_ATTR refRestart(void* arg __attribute__((unused)));
-void ICACHE_FLASH_ATTR refStartRestartTimer(void);
+void ICACHE_FLASH_ATTR refStartRestartTimer(void* arg __attribute__((unused)));
 
 // Transmission Functions
-void ICACHE_FLASH_ATTR refSendMsg(const char* msg, uint16_t len, bool shouldAck, void (*success)(void),
-                                  void (*failure)(void));
+void ICACHE_FLASH_ATTR refSendMsg(const char* msg, uint16_t len, bool shouldAck, void (*success)(void*),
+                                  void (*failure)(void*));
 void ICACHE_FLASH_ATTR refSendAckToMac(uint8_t* mac_addr);
 void ICACHE_FLASH_ATTR refTxRetryTimeout(void* arg);
 
 // Connection functions
-void ICACHE_FLASH_ATTR refConnectionTimeout(void* arg);
-void ICACHE_FLASH_ATTR refGameStartAckRecv(void);
+void ICACHE_FLASH_ATTR refConnectionTimeout(void* arg __attribute__((unused)));
+void ICACHE_FLASH_ATTR refGameStartAckRecv(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event);
 void ICACHE_FLASH_ATTR refFailureRestart(void* arg __attribute__((unused)));
 
@@ -271,8 +276,8 @@ bool isWaitingForAck = false;
 char msgToAck[32] = {0};
 uint16_t msgToAckLen = 0;
 uint8_t refTxRetries = 0;
-void (*ackSuccess)(void) = NULL;
-void (*ackFailure)(void) = NULL;
+void (*ackSuccess)(void*) = NULL;
+void (*ackFailure)(void*) = NULL;
 
 // Connection state variables
 bool broadcastReceived = false;
@@ -329,7 +334,7 @@ sint16_t refDegree = 0;
  */
 void ICACHE_FLASH_ATTR refInit(void)
 {
-    os_printf("%s\r\n", __func__);
+    ref_printf("%s\r\n", __func__);
 
     gameState = R_CONNECTING;
 
@@ -425,7 +430,7 @@ void ICACHE_FLASH_ATTR refInit(void)
  */
 void ICACHE_FLASH_ATTR refDeinit(void)
 {
-    os_printf("%s\r\n", __func__);
+    ref_printf("%s\r\n", __func__);
 
     os_timer_disarm(&refConnectionTimer);
     os_timer_disarm(&refTxRetryTimer);
@@ -469,7 +474,7 @@ void ICACHE_FLASH_ATTR refConnectionTimeout(void* arg __attribute__((unused)) )
     uint32_t timeoutMs = 100 * (5 + (os_random() % 11));
 
     // Start the timer again
-    os_printf("retry broadcast in %dms\r\n", timeoutMs);
+    ref_printf("retry broadcast in %dms\r\n", timeoutMs);
     os_timer_arm(&refConnectionTimer, timeoutMs, false);
 }
 
@@ -494,7 +499,7 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
 {
     char* dbgMsg = (char*)os_zalloc(sizeof(char) * (len + 1));
     ets_memcpy(dbgMsg, data, len);
-    os_printf("%s: %s\r\n", __func__, dbgMsg);
+    ref_printf("%s: %s\r\n", __func__, dbgMsg);
     os_free(dbgMsg);
 
     // Check if this is a "ref" message
@@ -502,7 +507,7 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
             (0 != ets_memcmp(data, connectionMsg, CMD_IDX)))
     {
         // This message is too short, or not a "ref" message
-        os_printf("Not a ref message\r\n");
+        ref_printf("Not a ref message\r\n");
         return;
     }
 
@@ -511,7 +516,7 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
             0 != ets_memcmp(&data[MAC_IDX], macStr, ets_strlen(macStr)))
     {
         // This MAC isn't for us
-        os_printf("Not for our MAC\r\n");
+        ref_printf("Not for our MAC\r\n");
         return;
     }
 
@@ -521,7 +526,7 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
             0 != ets_memcmp(mac_addr, otherMac, sizeof(otherMac)))
     {
         // This isn't from the other known swadge
-        os_printf("Not from the other MAC\r\n");
+        ref_printf("Not from the other MAC\r\n");
         return;
     }
 
@@ -540,12 +545,12 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
         if(ets_strlen(ackMsg) == len &&
                 0 == ets_memcmp(data, ackMsg, MAC_IDX))
         {
-            os_printf("ACK Received\r\n");
+            ref_printf("ACK Received\r\n");
 
             // Call the function after receiving the ack
             if(NULL != ackSuccess)
             {
-                ackSuccess();
+                ackSuccess(NULL);
             }
 
             // Clear ack timeout variables
@@ -568,7 +573,7 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
                     ets_strlen(connectionMsg) == len &&
                     0 == ets_memcmp(data, connectionMsg, len))
             {
-                os_printf("Broadcast Received, sending game start message\r\n");
+                ref_printf("Broadcast Received, sending game start message\r\n");
 
                 // We received a broadcast, don't allow another
                 broadcastReceived = true;
@@ -594,7 +599,7 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
                      ets_strlen(gameStartMsg) == len &&
                      0 == ets_memcmp(data, gameStartMsg, MAC_IDX))
             {
-                os_printf("Game start message received, ACKing\r\n");
+                ref_printf("Game start message received, ACKing\r\n");
 
                 // This is another swadge trying to start a game, which means
                 // they received our connectionMsg. First disable our connectionMsg
@@ -667,7 +672,7 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
  */
 void ICACHE_FLASH_ATTR refSendAckToMac(uint8_t* mac_addr)
 {
-    os_printf("%s\r\n", __func__);
+    ref_printf("%s\r\n", __func__);
 
     ets_sprintf(&ackMsg[MAC_IDX], "%02X:%02X:%02X:%02X:%02X:%02X",
                 mac_addr[0],
@@ -681,8 +686,10 @@ void ICACHE_FLASH_ATTR refSendAckToMac(uint8_t* mac_addr)
 
 /**
  * This is called when gameStartMsg is acked and processes the connection event
+ *
+ * @param arg unused
  */
-void ICACHE_FLASH_ATTR refGameStartAckRecv(void)
+void ICACHE_FLASH_ATTR refGameStartAckRecv(void* arg __attribute__((unused)))
 {
     refProcConnectionEvt(RX_GAME_START_ACK);
 }
@@ -697,7 +704,7 @@ void ICACHE_FLASH_ATTR refGameStartAckRecv(void)
  */
 void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event)
 {
-    os_printf("%s evt: %d, rxGameStartMsg %d, rxGameStartAck %d\r\n", __func__, event, rxGameStartMsg, rxGameStartAck);
+    ref_printf("%s evt: %d, rxGameStartMsg %d, rxGameStartAck %d\r\n", __func__, event, rxGameStartMsg, rxGameStartAck);
 
     switch(event)
     {
@@ -745,7 +752,7 @@ void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event)
     else
     {
         // Start a timer to reinit if we never finish connection
-        refStartRestartTimer();
+        refStartRestartTimer(NULL);
     }
 }
 
@@ -795,7 +802,7 @@ void ICACHE_FLASH_ATTR refShowConnectionLedTimeout(void* arg __attribute__((unus
  */
 void ICACHE_FLASH_ATTR refStartPlaying(void* arg __attribute__((unused)))
 {
-    os_printf("%s\r\n", __func__);
+    ref_printf("%s\r\n", __func__);
 
     // Turn off the LEDs
     refDisarmAllLedTimers();
@@ -806,7 +813,7 @@ void ICACHE_FLASH_ATTR refStartPlaying(void* arg __attribute__((unused)))
     ledTimerMs = LED_TIMER_MS_STARTING;
 
     // Check for match end
-    os_printf("wins: %d, losses %d\r\n", refWins, refLosses);
+    ref_printf("wins: %d, losses %d\r\n", refWins, refLosses);
     if(refWins == 3 || refLosses == 3)
     {
         // TODO tally match wins in SPI flash?
@@ -829,7 +836,7 @@ void ICACHE_FLASH_ATTR refStartPlaying(void* arg __attribute__((unused)))
         ledTimerMs++;
 
         // Start a timer to reinit if we never receive a result (disconnect)
-        refStartRestartTimer();
+        refStartRestartTimer(NULL);
     }
 }
 
@@ -849,19 +856,19 @@ void ICACHE_FLASH_ATTR refStartRound(void)
     {
         case ACT_CLOCKWISE:
         {
-            os_printf("ACT_CLOCKWISE\r\n");
+            ref_printf("ACT_CLOCKWISE\r\n");
             refDegree = 300;
             break;
         }
         case ACT_COUNTERCLOCKWISE:
         {
-            os_printf("ACT_COUNTERCLOCKWISE\r\n");
+            ref_printf("ACT_COUNTERCLOCKWISE\r\n");
             refDegree = 60;
             break;
         }
         case ACT_BOTH:
         {
-            os_printf("ACT_BOTH\r\n");
+            ref_printf("ACT_BOTH\r\n");
             refDegree = 0;
             break;
         }
@@ -872,7 +879,7 @@ void ICACHE_FLASH_ATTR refStartRound(void)
     refDisarmAllLedTimers();
 #ifdef DEBUGGING_GAME
     static uint8_t ledPeriodMs = 100;
-    os_printf("led period %d\r\n", ledPeriodMs / 10);
+    ref_printf("led period %d\r\n", ledPeriodMs / 10);
     ledPeriodMs--;
     os_timer_arm(&refGameLedTimer, ledPeriodMs / 10, true);
 #else
@@ -890,12 +897,12 @@ void ICACHE_FLASH_ATTR refStartRound(void)
  * @param success   A callback function if the message is acked. May be NULL
  * @param failure   A callback function if the message isn't acked. May be NULL
  */
-void ICACHE_FLASH_ATTR refSendMsg(const char* msg, uint16_t len, bool shouldAck, void (*success)(void),
-                                  void (*failure)(void))
+void ICACHE_FLASH_ATTR refSendMsg(const char* msg, uint16_t len, bool shouldAck, void (*success)(void*),
+                                  void (*failure)(void*))
 {
     char* dbgMsg = (char*)os_zalloc(sizeof(char) * (len + 1));
     ets_memcpy(dbgMsg, msg, len);
-    os_printf("%s: %s\r\n", __func__, dbgMsg);
+    ref_printf("%s: %s\r\n", __func__, dbgMsg);
     os_free(dbgMsg);
 
     if(shouldAck)
@@ -906,7 +913,7 @@ void ICACHE_FLASH_ATTR refSendMsg(const char* msg, uint16_t len, bool shouldAck,
         // If this is not a retry
         if(msgToAck != msg)
         {
-            os_printf("sending for the first time\r\n");
+            ref_printf("sending for the first time\r\n");
 
             // Store the message for potential retries
             ets_memcpy(msgToAck, msg, len);
@@ -919,12 +926,12 @@ void ICACHE_FLASH_ATTR refSendMsg(const char* msg, uint16_t len, bool shouldAck,
         }
         else
         {
-            os_printf("this is a retry\r\n");
+            ref_printf("this is a retry\r\n");
         }
 
         // Start the timer
         uint32_t retryTimeMs = 500 * (REFLECTOR_ACK_RETRIES - refTxRetries + 1);
-        os_printf("ack timer set for %d\r\n", retryTimeMs);
+        ref_printf("ack timer set for %d\r\n", retryTimeMs);
         os_timer_arm(&refTxRetryTimer, retryTimeMs, false);
     }
     espNowSend((const uint8_t*)msg, len);
@@ -941,16 +948,16 @@ void ICACHE_FLASH_ATTR refTxRetryTimeout(void* arg __attribute__((unused)) )
 {
     if(0 != refTxRetries)
     {
-        os_printf("Retrying message \"%s\"\r\n", msgToAck);
+        ref_printf("Retrying message \"%s\"\r\n", msgToAck);
         refTxRetries--;
         refSendMsg(msgToAck, msgToAckLen, true, ackSuccess, ackFailure);
     }
     else
     {
-        os_printf("Message totally failed \"%s\"\r\n", msgToAck);
+        ref_printf("Message totally failed \"%s\"\r\n", msgToAck);
         if(NULL != ackFailure)
         {
-            ackFailure();
+            ackFailure(NULL);
         }
     }
 }
@@ -1111,7 +1118,7 @@ void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
         // Don't turn on LEDs past 180 degrees
         if(180 == refDegree)
         {
-            os_printf("end of pattern\r\n");
+            ref_printf("end of pattern\r\n");
             shouldTurnOnLeds = false;
         }
     }
@@ -1195,7 +1202,7 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
 
         if(success)
         {
-            os_printf("Won the round, continue the game\r\n");
+            ref_printf("Won the round, continue the game\r\n");
 #ifdef DEBUGGING_GAME
             refStartRound();
 #else
@@ -1247,15 +1254,17 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
         }
         else
         {
-            os_printf("Neither won nor lost the round\r\n");
+            ref_printf("Neither won nor lost the round\r\n");
         }
     }
 }
 
 /**
  * This starts a timer to reinit everything, used in case of a failure
+ *
+ * @param arg unused
  */
-void ICACHE_FLASH_ATTR refStartRestartTimer(void)
+void ICACHE_FLASH_ATTR refStartRestartTimer(void* arg __attribute__((unused)))
 {
     // Give 5 seconds to get a result, or else restart
     os_timer_arm(&refReinitTimer, FAILURE_RESTART_MS, false);
@@ -1271,7 +1280,7 @@ void ICACHE_FLASH_ATTR refStartRestartTimer(void)
  */
 void ICACHE_FLASH_ATTR refSendRoundLossMsg(void)
 {
-    os_printf("Lost the round\r\n");
+    ref_printf("Lost the round\r\n");
 #ifdef DEBUGGING_GAME
     refStartRound();
 #else
