@@ -106,7 +106,6 @@ typedef enum
 void ICACHE_FLASH_ATTR refInit(void);
 void ICACHE_FLASH_ATTR refDeinit(void);
 void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down);
-void ICACHE_FLASH_ATTR refSendCb(uint8_t* mac_addr, mt_tx_status status);
 void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi);
 
 void ICACHE_FLASH_ATTR refRestart(void);
@@ -148,7 +147,7 @@ swadgeMode reflectorGameMode =
     .fnAudioCallback = NULL,
     .wifiMode = ESP_NOW,
     .fnEspNowRecvCb = refRecvCb,
-    .fnEspNowSendCb = refSendCb,
+    .fnEspNowSendCb = NULL,
 };
 
 reflectorGameState_t gameState = R_CONNECTING;
@@ -796,20 +795,6 @@ void ICACHE_FLASH_ATTR refTxRetryTimeout(void* arg __attribute__((unused)) )
             ackFailure();
         }
     }
-}
-
-/**
- * This callback is called after a transmission. It only cares if the
- * message was transmitted, not if it was received or ACKed or anything
- *
- * @param mac_addr The MAC this message was sent to
- * @param status   The status of this transmission
- */
-void ICACHE_FLASH_ATTR refSendCb(uint8_t* mac_addr __attribute__((unused)),
-                                 mt_tx_status status  __attribute__((unused)) )
-{
-    // Debug print the received payload for now
-    // os_printf("message sent\r\n");
 }
 
 /**
