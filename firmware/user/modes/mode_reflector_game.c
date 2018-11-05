@@ -290,56 +290,62 @@ char spdDn[] =                                       "dn";
 char spdNc[] =                                       "nc";
 char macFmtStr[] = "%02X:%02X:%02X:%02X:%02X:%02X";
 
-struct {
-	reflectorGameState_t gameState;
+struct
+{
+    reflectorGameState_t gameState;
 
-	// Variables to track acking messages
-	struct {
-		bool isWaitingForAck;
-		char msgToAck[32];
-		uint16_t msgToAckLen;
-		uint8_t TxRetries;
-		void (*SuccessFn)(void*);
-		void (*FailureFn)(void*);
-	} ack;
+    // Variables to track acking messages
+    struct
+    {
+        bool isWaitingForAck;
+        char msgToAck[32];
+        uint16_t msgToAckLen;
+        uint8_t TxRetries;
+        void (*SuccessFn)(void*);
+        void (*FailureFn)(void*);
+    } ack;
 
-	// Connection state variables
-	struct {
-		bool broadcastReceived;
-		bool rxGameStartMsg;
-		bool rxGameStartAck;
-		playOrder_t playOrder;
-		char macStr[18];
-		uint8_t otherMac[6];
-		bool otherMacReceived;
-	} cnc;
+    // Connection state variables
+    struct
+    {
+        bool broadcastReceived;
+        bool rxGameStartMsg;
+        bool rxGameStartAck;
+        playOrder_t playOrder;
+        char macStr[18];
+        uint8_t otherMac[6];
+        bool otherMacReceived;
+    } cnc;
 
-	// Game state variables
-	struct {
-		gameAction_t Action;
-		bool shouldTurnOnLeds;
-		uint8_t Wins;
-		uint8_t Losses;
-		uint8_t ledPeriodMs;
-	} gam;
+    // Game state variables
+    struct
+    {
+        gameAction_t Action;
+        bool shouldTurnOnLeds;
+        uint8_t Wins;
+        uint8_t Losses;
+        uint8_t ledPeriodMs;
+    } gam;
 
-	// Timers
-	struct {
-		os_timer_t TxRetry;
-		os_timer_t Connection;
-		os_timer_t StartPlaying;
-		os_timer_t ConnLed;
-		os_timer_t ShowConnectionLed;
-		os_timer_t GameLed;
-		os_timer_t Reinit;
-	} tmr;
+    // Timers
+    struct
+    {
+        os_timer_t TxRetry;
+        os_timer_t Connection;
+        os_timer_t StartPlaying;
+        os_timer_t ConnLed;
+        os_timer_t ShowConnectionLed;
+        os_timer_t GameLed;
+        os_timer_t Reinit;
+    } tmr;
 
-	// LED variables
-	struct {
-		uint8_t Leds[6][3];
-		connLedState_t ConnLedState;
-		sint16_t Degree;
-	} led;
+    // LED variables
+    struct
+    {
+        uint8_t Leds[6][3];
+        connLedState_t ConnLedState;
+        sint16_t Degree;
+    } led;
 } ref;
 
 /*============================================================================
@@ -683,7 +689,8 @@ void ICACHE_FLASH_ATTR refGameStartAckRecv(void* arg __attribute__((unused)))
  */
 void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event)
 {
-    ref_printf("%s evt: %d, ref.cnc.rxGameStartMsg %d, ref.cnc.rxGameStartAck %d\r\n", __func__, event, ref.cnc.rxGameStartMsg, ref.cnc.rxGameStartAck);
+    ref_printf("%s evt: %d, ref.cnc.rxGameStartMsg %d, ref.cnc.rxGameStartAck %d\r\n", __func__, event,
+               ref.cnc.rxGameStartMsg, ref.cnc.rxGameStartAck);
 
     switch(event)
     {

@@ -242,8 +242,6 @@ void ICACHE_FLASH_ATTR NextSwadgeMode(void)
  * Enter deep sleep mode for some number of microseconds. This also
  * controls whether or not WiFi will be enabled when the ESP wakes.
  *
- * TODO turn off GPIO 14 and maybe others
- *
  * @param disableWifi true to disable wifi, false to enable wifi
  * @param sleepUs     The duration of time (us) when the device is in Deep-sleep.
  */
@@ -262,10 +260,10 @@ void ICACHE_FLASH_ATTR enterDeepSleep(bool disableWifi, uint64_t sleepUs)
     }
     else
     {
-        // No radio calibration after deep-sleep wake up; this reduces the
-        // current consumption.
-        system_deep_sleep_set_option(2);
-        os_printf("deep sleep option set 2\r\n");
+        // Radio calibration is done after deep-sleep wake up; this increases
+        // the current consumption.
+        system_deep_sleep_set_option(1);
+        os_printf("deep sleep option set 1\r\n");
     }
     system_deep_sleep(sleepUs);
 }
@@ -774,7 +772,8 @@ void ICACHE_FLASH_ATTR user_init(void)
 #endif
 
     // Initialize GPIOs
-    SetupGPIO(HandleButtonEventIRQ);
+    SetupGPIO(HandleButtonEventIRQ,
+              NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback);
 
     // Held buttons aren't used on boot for anything, but they could be
     /*
