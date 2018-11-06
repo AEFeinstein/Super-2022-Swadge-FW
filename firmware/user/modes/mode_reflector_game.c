@@ -898,8 +898,11 @@ void ICACHE_FLASH_ATTR refStartRound(void)
     }
     ref.gam.shouldTurnOnLeds = true;
 
-    // Set the LEDs spinning
+    // Clear the LEDs first
     refDisarmAllLedTimers();
+    ets_memset(&ref.led.Leds[0][0], 0, sizeof(ref.led.Leds));
+    setLeds(&ref.led.Leds[0][0], sizeof(ref.led.Leds));
+    // Then set the game in motion
 #ifdef DEBUGGING_GAME
     static uint8_t ledPeriodMs = 100;
     ref_printf("led period %d\r\n", ledPeriodMs / 10);
@@ -1355,6 +1358,9 @@ void ICACHE_FLASH_ATTR refSendRoundLossMsg(void)
 void ICACHE_FLASH_ATTR refRoundResultLed(bool roundWinner)
 {
     sint8_t i;
+
+    // Clear the LEDs
+    ets_memset(&ref.led.Leds[0][0], 0, sizeof(ref.led.Leds));
 
     // Light green for wins
     for(i = 4; i < 4 + ref.gam.Wins; i++)
