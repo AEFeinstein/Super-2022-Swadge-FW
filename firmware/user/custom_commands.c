@@ -178,6 +178,7 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
                 *gConfigs[i].val = gConfigs[i].defaultVal;
             }
         }
+        SaveSettings();
     }
 }
 

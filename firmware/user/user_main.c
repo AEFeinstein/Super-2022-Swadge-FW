@@ -733,32 +733,32 @@ void ICACHE_FLASH_ATTR user_init(void)
     {
         // if it fails, zero it out instead
         memset(&rtcMem, 0, sizeof(rtcMem));
+    }
 
-        // Booting from nowhere, so set the current wifi mode
-        // When coming out of sleep, this is set in NextSwadgeMode()
-        switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
+    // Set the current WiFi mode based on what the swadge mode wants
+    switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
+    {
+        case SOFT_AP:
+        case ESP_NOW:
         {
-            case SOFT_AP:
-            case ESP_NOW:
+            if(!(wifi_set_opmode_current( SOFTAP_MODE ) &&
+                    wifi_set_opmode( SOFTAP_MODE )))
             {
-                if(!(wifi_set_opmode_current( SOFTAP_MODE ) &&
-                        wifi_set_opmode( SOFTAP_MODE )))
-                {
-                    os_printf("Set SOFTAP_MODE before boot failed\r\n");
-                }
-                break;
+                os_printf("Set SOFTAP_MODE before boot failed\r\n");
             }
-            case NO_WIFI:
+            break;
+        }
+        case NO_WIFI:
+        {
+            if(!(wifi_set_opmode_current( NULL_MODE ) &&
+                    wifi_set_opmode( NULL_MODE )))
             {
-                if(!(wifi_set_opmode_current( NULL_MODE ) &&
-                        wifi_set_opmode( NULL_MODE )))
-                {
-                    os_printf("Set NULL_MODE before boot failed\r\n");
-                }
-                break;
+                os_printf("Set NULL_MODE before boot failed\r\n");
             }
+            break;
         }
     }
+
     os_printf("swadge mode %d\r\n", rtcMem.currentSwadgeMode);
 
     // Uncomment this to force a system restore.
