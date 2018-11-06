@@ -150,6 +150,7 @@ digraph G {
  * Defines
  *==========================================================================*/
 
+//#define REF_DEBUG_PRINT
 #ifdef REF_DEBUG_PRINT
     #define ref_printf(...) os_printf(__VA_ARGS__)
 #else
@@ -160,7 +161,10 @@ digraph G {
 //#define DEBUGGING_GAME
 
 // Number of message retries
-#define REFLECTOR_ACK_RETRIES 3
+#define REFLECTOR_ACK_RETRIES 5
+// Amount of time to wait before retrying
+#define REFLECTOR_ACK_TIMEOUT_MS 500
+// With 1 msg + 5 retries @ 500ms, the longest transmission could be 3s
 
 // Minimum RSSI to accept a connection broadcast
 #define CONNECTION_RSSI 55
@@ -168,8 +172,10 @@ digraph G {
 // Degrees between each LED
 #define DEG_PER_LED 60
 
-// Time to wait between connection events and game rounds
-#define FAILURE_RESTART_MS 5000
+// Time to wait between connection events and game rounds.
+// Transmission can be 3s (see above), the round @ 12ms period is 3.636s
+// (240 steps of rotation + (252/4) steps of decay) * 12ms
+#define FAILURE_RESTART_MS 8000
 
 // This can't be less than 3ms, it's impossible
 #define LED_TIMER_MS_STARTING 12
@@ -233,7 +239,7 @@ void ICACHE_FLASH_ATTR refRestart(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refStartRestartTimer(void* arg __attribute__((unused)));
 
 // Transmission Functions
-void ICACHE_FLASH_ATTR refSendMsg(const char* msg, uint16_t len, bool shouldAck, void (*success)(void*),
+void ICACHE_FLASH_ATTR refSendMsg(char* msg, uint16_t len, bool shouldAck, void (*success)(void*),
                                   void (*failure)(void*));
 void ICACHE_FLASH_ATTR refSendAckToMac(uint8_t* mac_addr);
 void ICACHE_FLASH_ATTR refTxRetryTimeout(void* arg);
@@ -276,18 +282,19 @@ swadgeMode reflectorGameMode =
 // Indices into messages to send
 #define HDR_IDX 0
 #define CMD_IDX 4
-#define MAC_IDX 8
-#define EXT_IDX 26
+#define SEQ_IDX 8
+#define MAC_IDX 11
+#define EXT_IDX 29
 
 // Messages to send.
 char connectionMsg[]     = "ref_con";
-char ackMsg[]            = "ref_ack_00:00:00:00:00:00";
-char gameStartMsg[]      = "ref_str_00:00:00:00:00:00";
-char roundLossMsg[]      = "ref_los_00:00:00:00:00:00";
-char roundContinueMsg[]  = "ref_cnt_00:00:00:00:00:00_xx";
-char spdUp[] =                                       "up";
-char spdDn[] =                                       "dn";
-char spdNc[] =                                       "nc";
+char ackMsg[]            = "ref_ack_sn_00:00:00:00:00:00";
+char gameStartMsg[]      = "ref_str_sn_00:00:00:00:00:00";
+char roundLossMsg[]      = "ref_los_sn_00:00:00:00:00:00";
+char roundContinueMsg[]  = "ref_cnt_sn_00:00:00:00:00:00_xx";
+char spdUp[] =                                          "up";
+char spdDn[] =                                          "dn";
+char spdNc[] =                                          "nc";
 char macFmtStr[] = "%02X:%02X:%02X:%02X:%02X:%02X";
 
 struct
@@ -315,6 +322,8 @@ struct
         char macStr[18];
         uint8_t otherMac[6];
         bool otherMacReceived;
+        uint8_t mySeqNum;
+        uint8_t lastSeqNum;
     } cnc;
 
     // Game state variables
@@ -361,6 +370,10 @@ void ICACHE_FLASH_ATTR refInit(void)
 
     // Make sure everything is zero!
     ets_memset(&ref, 0, sizeof(ref));
+
+    // Except the tracked sequence number, which starts at 255 so that a 0
+    // received is valid.
+    ref.cnc.lastSeqNum = 255;
 
     // Get and save the string form of our MAC address
     uint8_t mymac[6];
@@ -482,17 +495,19 @@ void ICACHE_FLASH_ATTR refFailureRestart(void* arg __attribute__((unused)))
  */
 void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi)
 {
+#ifdef REF_DEBUG_PRINT
     char* dbgMsg = (char*)os_zalloc(sizeof(char) * (len + 1));
     ets_memcpy(dbgMsg, data, len);
     ref_printf("%s: %s\r\n", __func__, dbgMsg);
     os_free(dbgMsg);
+#endif
 
     // Check if this is a "ref" message
     if(len < CMD_IDX ||
             (0 != ets_memcmp(data, connectionMsg, CMD_IDX)))
     {
         // This message is too short, or not a "ref" message
-        ref_printf("Not a ref message\r\n");
+        ref_printf("DISCARD: Not a ref message\r\n");
         return;
     }
 
@@ -501,7 +516,7 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
             0 != ets_memcmp(&data[MAC_IDX], ref.cnc.macStr, ets_strlen(ref.cnc.macStr)))
     {
         // This MAC isn't for us
-        ref_printf("Not for our MAC\r\n");
+        ref_printf("DISCARD: Not for our MAC\r\n");
         return;
     }
 
@@ -511,16 +526,38 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
             0 != ets_memcmp(mac_addr, ref.cnc.otherMac, sizeof(ref.cnc.otherMac)))
     {
         // This isn't from the other known swadge
-        ref_printf("Not from the other MAC\r\n");
+        ref_printf("DISCARD: Not from the other MAC\r\n");
         return;
     }
 
     // By here, we know the received message was a "ref" message, either a
     // broadcast or for us. If this isn't an ack message, ack it
-    if(len >= MAC_IDX &&
-            0 != ets_memcmp(data, ackMsg, MAC_IDX))
+    if(len >= SEQ_IDX &&
+            0 != ets_memcmp(data, ackMsg, SEQ_IDX))
     {
         refSendAckToMac(mac_addr);
+    }
+
+    // After ACKing the message, check the sequence number to see if we should
+    // process it or ignore it (we already did!)
+    if(len >= ets_strlen(ackMsg))
+    {
+        // Extract the sequence number
+        uint8_t theirSeq = 0;
+        theirSeq += (data[SEQ_IDX + 0] - '0') * 10;
+        theirSeq += (data[SEQ_IDX + 1] - '0');
+
+        // Check it against the last known sequence number
+        if(theirSeq == ref.cnc.lastSeqNum)
+        {
+            ref_printf("DISCARD: Duplicate sequence number\r\n");
+            return;
+        }
+        else
+        {
+            ref.cnc.lastSeqNum = theirSeq;
+            ref_printf("Store lastSeqNum %d\r\n", ref.cnc.lastSeqNum);
+        }
     }
 
     // ACKs can be received in any state
@@ -528,7 +565,7 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
     {
         // Check if this is an ACK
         if(ets_strlen(ackMsg) == len &&
-                0 == ets_memcmp(data, ackMsg, MAC_IDX))
+                0 == ets_memcmp(data, ackMsg, SEQ_IDX))
         {
             ref_printf("ACK Received\r\n");
 
@@ -582,7 +619,7 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
             // Received a response to our broadcast
             else if (!ref.cnc.rxGameStartMsg &&
                      ets_strlen(gameStartMsg) == len &&
-                     0 == ets_memcmp(data, gameStartMsg, MAC_IDX))
+                     0 == ets_memcmp(data, gameStartMsg, SEQ_IDX))
             {
                 ref_printf("Game start message received, ACKing\r\n");
 
@@ -600,7 +637,7 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
         {
             // Received a message that the other swadge lost
             if(ets_strlen(roundLossMsg) == len &&
-                    0 == ets_memcmp(data, roundLossMsg, MAC_IDX))
+                    0 == ets_memcmp(data, roundLossMsg, SEQ_IDX))
             {
                 // Received a message, so stop the failure timer
                 os_timer_disarm(&ref.tmr.Reinit);
@@ -612,7 +649,7 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
                 refRoundResultLed(true);
             }
             else if(ets_strlen(roundContinueMsg) == len &&
-                    0 == ets_memcmp(data, roundContinueMsg, MAC_IDX))
+                    0 == ets_memcmp(data, roundContinueMsg, SEQ_IDX))
             {
                 // Received a message, so stop the failure timer
                 os_timer_disarm(&ref.tmr.Reinit);
@@ -883,13 +920,30 @@ void ICACHE_FLASH_ATTR refStartRound(void)
  * @param success   A callback function if the message is acked. May be NULL
  * @param failure   A callback function if the message isn't acked. May be NULL
  */
-void ICACHE_FLASH_ATTR refSendMsg(const char* msg, uint16_t len, bool shouldAck, void (*success)(void*),
+void ICACHE_FLASH_ATTR refSendMsg(char* msg, uint16_t len, bool shouldAck, void (*success)(void*),
                                   void (*failure)(void*))
 {
+    // If this is a first time message and longer than a connection message
+    if( (ref.ack.msgToAck != msg) && ets_strlen(connectionMsg) < len)
+    {
+        // Insert a sequence number
+        msg[SEQ_IDX + 0] = '0' + (ref.cnc.mySeqNum / 10);
+        msg[SEQ_IDX + 1] = '0' + (ref.cnc.mySeqNum % 10);
+
+        // Increment the sequence number, 0-99
+        ref.cnc.mySeqNum++;
+        if(100 == ref.cnc.mySeqNum++)
+        {
+            ref.cnc.mySeqNum = 0;
+        }
+    }
+
+#ifdef REF_DEBUG_PRINT
     char* dbgMsg = (char*)os_zalloc(sizeof(char) * (len + 1));
     ets_memcpy(dbgMsg, msg, len);
     ref_printf("%s: %s\r\n", __func__, dbgMsg);
     os_free(dbgMsg);
+#endif
 
     if(shouldAck)
     {
@@ -916,9 +970,8 @@ void ICACHE_FLASH_ATTR refSendMsg(const char* msg, uint16_t len, bool shouldAck,
         }
 
         // Start the timer
-        uint32_t retryTimeMs = 500 * (REFLECTOR_ACK_RETRIES - ref.ack.TxRetries + 1);
-        ref_printf("ack timer set for %d\r\n", retryTimeMs);
-        os_timer_arm(&ref.tmr.TxRetry, retryTimeMs, false);
+        ref_printf("ack timer set for %dms\r\n", REFLECTOR_ACK_TIMEOUT_MS);
+        os_timer_arm(&ref.tmr.TxRetry, REFLECTOR_ACK_TIMEOUT_MS, false);
     }
     espNowSend((const uint8_t*)msg, len);
 }
