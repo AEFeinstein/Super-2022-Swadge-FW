@@ -136,7 +136,7 @@ void gpioInterrupt( void* v __attribute__((unused)))
  * Initialize the GPIOs as button inputs with internal pullups and interrupts
  * Also set 14 high for the microphone
  */
-void ICACHE_FLASH_ATTR SetupGPIO(void (*handler)(uint8_t state, int button, int down))
+void ICACHE_FLASH_ATTR SetupGPIO(void (*handler)(uint8_t state, int button, int down), bool enableMic)
 {
     // Save the handler
     mButtonHandler = handler;
@@ -171,7 +171,7 @@ void ICACHE_FLASH_ATTR SetupGPIO(void (*handler)(uint8_t state, int button, int 
 
     // Pull GPIO 14 high, this is for the microphone
     PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTMS_U, FUNC_GPIO14);
-    GPIO_OUTPUT_SET(GPIO_ID_PIN(14), 1 );
+    GPIO_OUTPUT_SET(GPIO_ID_PIN(14), enableMic );
 
     // Set GPIO16 for Input,  mux configuration for XPD_DCDC and rtc_gpio0 connection
     WRITE_PERI_REG(PAD_XPD_DCDC_CONF,

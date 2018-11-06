@@ -31,7 +31,6 @@
 #include "espNowUtils.h"
 #include "mode_colorchord.h"
 #include "mode_led_patterns.h"
-#include "mode_espnow_test.h"
 #include "mode_reflector_game.h"
 
 /*============================================================================
@@ -144,7 +143,6 @@ uint8_t mymac[6] = {0};
 swadgeMode* swadgeModes[] =
 {
     &reflectorGameMode,
-    &espNowTestMode,
     &colorchordMode,
     &ledPatternsMode,
 };
@@ -244,8 +242,6 @@ void ICACHE_FLASH_ATTR NextSwadgeMode(void)
  * Enter deep sleep mode for some number of microseconds. This also
  * controls whether or not WiFi will be enabled when the ESP wakes.
  *
- * TODO turn off GPIO 14 and maybe others
- *
  * @param disableWifi true to disable wifi, false to enable wifi
  * @param sleepUs     The duration of time (us) when the device is in Deep-sleep.
  */
@@ -264,10 +260,10 @@ void ICACHE_FLASH_ATTR enterDeepSleep(bool disableWifi, uint64_t sleepUs)
     }
     else
     {
-        // No radio calibration after deep-sleep wake up; this reduces the
-        // current consumption.
-        system_deep_sleep_set_option(2);
-        os_printf("deep sleep option set 2\r\n");
+        // Radio calibration is done after deep-sleep wake up; this increases
+        // the current consumption.
+        system_deep_sleep_set_option(1);
+        os_printf("deep sleep option set 1\r\n");
     }
     system_deep_sleep(sleepUs);
 }
@@ -737,32 +733,32 @@ void ICACHE_FLASH_ATTR user_init(void)
     {
         // if it fails, zero it out instead
         memset(&rtcMem, 0, sizeof(rtcMem));
+    }
 
-        // Booting from nowhere, so set the current wifi mode
-        // When coming out of sleep, this is set in NextSwadgeMode()
-        switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
+    // Set the current WiFi mode based on what the swadge mode wants
+    switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
+    {
+        case SOFT_AP:
+        case ESP_NOW:
         {
-            case SOFT_AP:
-            case ESP_NOW:
+            if(!(wifi_set_opmode_current( SOFTAP_MODE ) &&
+                    wifi_set_opmode( SOFTAP_MODE )))
             {
-                if(!(wifi_set_opmode_current( SOFTAP_MODE ) &&
-                        wifi_set_opmode( SOFTAP_MODE )))
-                {
-                    os_printf("Set SOFTAP_MODE before boot failed\r\n");
-                }
-                break;
+                os_printf("Set SOFTAP_MODE before boot failed\r\n");
             }
-            case NO_WIFI:
+            break;
+        }
+        case NO_WIFI:
+        {
+            if(!(wifi_set_opmode_current( NULL_MODE ) &&
+                    wifi_set_opmode( NULL_MODE )))
             {
-                if(!(wifi_set_opmode_current( NULL_MODE ) &&
-                        wifi_set_opmode( NULL_MODE )))
-                {
-                    os_printf("Set NULL_MODE before boot failed\r\n");
-                }
-                break;
+                os_printf("Set NULL_MODE before boot failed\r\n");
             }
+            break;
         }
     }
+
     os_printf("swadge mode %d\r\n", rtcMem.currentSwadgeMode);
 
     // Uncomment this to force a system restore.
@@ -776,7 +772,8 @@ void ICACHE_FLASH_ATTR user_init(void)
 #endif
 
     // Initialize GPIOs
-    SetupGPIO(HandleButtonEventIRQ);
+    SetupGPIO(HandleButtonEventIRQ,
+              NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback);
 
     // Held buttons aren't used on boot for anything, but they could be
     /*
