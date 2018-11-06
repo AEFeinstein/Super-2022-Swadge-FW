@@ -6,30 +6,56 @@
  *
  */
 
-/* PlantUML for the connection process:
+/* PlantUML for communication:
 
-    group connection part 1
-    "Swadge_AB:AB:AB:AB:AB:AB"->"Swadge_12:12:12:12:12:12" : "ref_con" (broadcast)
-    "Swadge_12:12:12:12:12:12"->"Swadge_AB:AB:AB:AB:AB:AB" : "ref_str_AB:AB:AB:AB:AB:AB"
+    == Connection ==
+
+    group Part 1
+    "Swadge_AB:AB:AB:AB:AB:AB" ->  "Swadge_12:12:12:12:12:12" : "ref_con" (broadcast)
+    "Swadge_12:12:12:12:12:12" ->  "Swadge_AB:AB:AB:AB:AB:AB" : "ref_str_00_AB:AB:AB:AB:AB:AB"
     note left: Stop Broadcasting, set ref.cnc.rxGameStartMsg
-    "Swadge_AB:AB:AB:AB:AB:AB"->"Swadge_12:12:12:12:12:12" : "ref_ack_12:12:12:12:12:12"
+    "Swadge_AB:AB:AB:AB:AB:AB" ->  "Swadge_12:12:12:12:12:12" : "ref_ack_00_12:12:12:12:12:12"
     note right: set ref.cnc.rxGameStartAck
     end
 
-    group connection part 2
-    "Swadge_12:12:12:12:12:12"->"Swadge_AB:AB:AB:AB:AB:AB" : "ref_con" (broadcast)
-    "Swadge_AB:AB:AB:AB:AB:AB"->"Swadge_12:12:12:12:12:12" : "ref_str_12:12:12:12:12:12"
+    group Part 2
+    "Swadge_12:12:12:12:12:12" ->  "Swadge_AB:AB:AB:AB:AB:AB" : "ref_con" (broadcast)
+    "Swadge_AB:AB:AB:AB:AB:AB" ->  "Swadge_12:12:12:12:12:12" : "ref_str_01_12:12:12:12:12:12"
     note right: Stop Broadcasting, set ref.cnc.rxGameStartMsg, become CLIENT
-    "Swadge_12:12:12:12:12:12"->"Swadge_AB:AB:AB:AB:AB:AB" : "ref_ack_AB:AB:AB:AB:AB:AB"
+    "Swadge_12:12:12:12:12:12" ->  "Swadge_AB:AB:AB:AB:AB:AB" : "ref_ack_01_AB:AB:AB:AB:AB:AB"
     note left: set ref.cnc.rxGameStartAck, become SERVER
     end
 
-    loop until someone loses
-    "Swadge_AB:AB:AB:AB:AB:AB"->"Swadge_AB:AB:AB:AB:AB:AB" : Play game
-    "Swadge_AB:AB:AB:AB:AB:AB"->"Swadge_12:12:12:12:12:12" : Send game state message ((success or fail) and speed)
-    "Swadge_12:12:12:12:12:12"->"Swadge_12:12:12:12:12:12" : Play game
-    "Swadge_12:12:12:12:12:12"->"Swadge_AB:AB:AB:AB:AB:AB" : Send game state message ((success or fail) and speed)
+    == Gameplay ==
+
+    loop until someone loses (ref_los message sent)
+    "Swadge_AB:AB:AB:AB:AB:AB" ->  "Swadge_AB:AB:AB:AB:AB:AB"
+    note left: Play game
+    "Swadge_AB:AB:AB:AB:AB:AB" ->  "Swadge_12:12:12:12:12:12" : "ref_los_02_12:12:12:12:12:12" or\n"ref_cnt_02_12:12:12:12:12:12_up" or\n"ref_cnt_02_12:12:12:12:12:12_dn" or\n"ref_cnt_02_12:12:12:12:12:12_nc"
+    "Swadge_12:12:12:12:12:12" ->  "Swadge_AB:AB:AB:AB:AB:AB" : "ref_ack_02_AB:AB:AB:AB:AB:AB"
+    "Swadge_12:12:12:12:12:12" ->  "Swadge_12:12:12:12:12:12"
+    note right: Play game
+    "Swadge_12:12:12:12:12:12" ->  "Swadge_AB:AB:AB:AB:AB:AB" : "ref_los_03_AB:AB:AB:AB:AB:AB" or\n"ref_cnt_03_AB:AB:AB:AB:AB:AB_up" or\n"ref_cnt_03_AB:AB:AB:AB:AB:AB_dn" or\n"ref_cnt_03_AB:AB:AB:AB:AB:AB_nc"
+    "Swadge_AB:AB:AB:AB:AB:AB" ->  "Swadge_12:12:12:12:12:12" : "ref_ack_03_12:12:12:12:12:12"
+
+    note over "Swadge_AB:AB:AB:AB:AB:AB", "Swadge_12:12:12:12:12:12" : Each match is a best of three rounds\nSwadges go back to "connection" after the match is done
     end
+
+    == Unreliable Communication Example ==
+
+    group Retries & Sequence Numbers
+    "Swadge_AB:AB:AB:AB:AB:AB" ->x "Swadge_12:12:12:12:12:12" : "ref_cnt_04_12:12:12:12:12:12_up"
+    note right: msg not received
+    "Swadge_AB:AB:AB:AB:AB:AB" ->  "Swadge_12:12:12:12:12:12" : "ref_cnt_04_12:12:12:12:12:12_up"
+    note left: first retry, up to five retries
+    "Swadge_12:12:12:12:12:12" ->x "Swadge_AB:AB:AB:AB:AB:AB" : "ref_ack_04_AB:AB:AB:AB:AB:AB"
+    note left: ack not received
+    "Swadge_AB:AB:AB:AB:AB:AB" ->  "Swadge_12:12:12:12:12:12" : "ref_cnt_04_12:12:12:12:12:12_up"
+    note left: second retry
+    note right: duplicate seq num, ignore message
+    "Swadge_12:12:12:12:12:12" ->  "Swadge_AB:AB:AB:AB:AB:AB" : "ref_ack_05_AB:AB:AB:AB:AB:AB"
+    end
+
 */
 
 /* Graphviz for function calls, as of 4a8e11ab2844f225385a44129743152e5b723532
