@@ -12,7 +12,7 @@ uint8_t ledFreqOutOld[NUM_LIN_LEDS];
 
 uint8_t RootNoteOffset;
 
-void UpdateLinearLEDs()
+void ICACHE_FLASH_ATTR UpdateLinearLEDs()
 {
 	//Source material:
 	/*
@@ -237,7 +237,7 @@ void UpdateLinearLEDs()
 
 
 
-void UpdateAllSameLEDs()
+void ICACHE_FLASH_ATTR UpdateAllSameLEDs()
 {
 	int i;
 	uint8_t freq = 0;
@@ -272,7 +272,7 @@ void UpdateAllSameLEDs()
 
 
 
-uint32_t ECCtoHEX( uint8_t note, uint8_t sat, uint8_t val )
+uint32_t ICACHE_FLASH_ATTR ECCtoHEX( uint8_t note, uint8_t sat, uint8_t val )
 {
 	uint16_t hue = 0;
 	uint16_t third = 65535/3;
@@ -303,7 +303,7 @@ uint32_t ECCtoHEX( uint8_t note, uint8_t sat, uint8_t val )
 	return EHSVtoHEX( hue, sat, val );
 }
 
-uint32_t EHSVtoHEX( uint8_t hue, uint8_t sat, uint8_t val )
+uint32_t ICACHE_FLASH_ATTR EHSVtoHEX( uint8_t hue, uint8_t sat, uint8_t val )
 {
 	#define SIXTH1 43
 	#define SIXTH2 85
