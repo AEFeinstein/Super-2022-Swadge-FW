@@ -440,7 +440,7 @@ int ICACHE_FLASH_ATTR CustomCommand(char* buffer, int retsize, char* pusrdata, u
                 {
                     while( gConfigs[i].name )
                     {
-                        if( strcmp( name, gConfigs[i].name ) == 0 )
+                        if( ets_strcmp( name, gConfigs[i].name ) == 0 )
                         {
                             *gConfigs[i].val = val;
                             buffend += ets_sprintf( buffend, "CVW" );

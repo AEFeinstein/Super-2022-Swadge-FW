@@ -638,7 +638,7 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
             wifi_station_connect();
             got_an_ip = 0;
         }
-        memset( ledOut + wifi_fails * 3, 255, 3 );
+        ets_memset( ledOut + wifi_fails * 3, 255, 3 );
         setLeds( ledOut, USE_NUM_LIN_LEDS * 3 );
     }
     else if( stat == STATION_GOT_IP && !got_an_ip )
@@ -826,13 +826,13 @@ void ICACHE_FLASH_ATTR user_init(void)
         {
             os_printf("rtc mem read fail\r\n");
             // if it fails, zero it out instead
-            memset(&rtcMem, 0, sizeof(rtcMem));
+            ets_memset(&rtcMem, 0, sizeof(rtcMem));
         }
     }
     else
     {
         // if it fails, zero it out instead
-        memset(&rtcMem, 0, sizeof(rtcMem));
+        ets_memset(&rtcMem, 0, sizeof(rtcMem));
     }
 
     // Set the current WiFi mode based on what the swadge mode wants

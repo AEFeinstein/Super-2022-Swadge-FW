@@ -1,8 +1,7 @@
 //Copyright 2015 <>< Charles Lohr under the ColorChord License.
 
 #include "embeddednf.h"
-#include <stdio.h>
-#include <string.h>
+#include "osapi.h"
 
 uint16_t folded_bins[FIXBPERO];
 uint16_t fuzzed_bins[FIXBINS];
@@ -93,8 +92,8 @@ void InitColorChord()
 		note_peak_amps2[i] = 0;
 	}
 
-	memset( folded_bins, 0, sizeof( folded_bins ) );
-	memset( fuzzed_bins, 0, sizeof( fuzzed_bins ) );
+	ets_memset( folded_bins, 0, sizeof( folded_bins ) );
+	ets_memset( fuzzed_bins, 0, sizeof( fuzzed_bins ) );
 
 	//Step 1: Initialize the Integer DFT.
 #ifdef USE_32DFT
@@ -112,7 +111,7 @@ void HandleFrameInfo()
 {
 	int i, j, k;
 	uint8_t hitnotes[MAXNOTES];
-	memset( hitnotes, 0, sizeof( hitnotes ) );
+	ets_memset( hitnotes, 0, sizeof( hitnotes ) );
 
 #ifdef USE_32DFT
 	uint16_t * strens;

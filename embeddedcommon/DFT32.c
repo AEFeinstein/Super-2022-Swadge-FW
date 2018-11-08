@@ -1,9 +1,9 @@
 //Copyright 2015 <>< Charles Lohr under the ColorChord License.
 
 #include "DFT32.h"
-#include <string.h>
 
 #ifndef CCEMBEDDED
+#include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>

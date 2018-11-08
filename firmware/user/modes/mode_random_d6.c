@@ -102,7 +102,7 @@ struct
 void ICACHE_FLASH_ATTR randInit(void)
 {
     // Clear everything
-    memset(&ranD6, 0, sizeof(ranD6));
+    ets_memset(&ranD6, 0, sizeof(ranD6));
 
     // Create and arm the timer
     os_timer_disarm(&ranD6.LedAnimTimer);
