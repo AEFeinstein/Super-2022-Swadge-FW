@@ -117,6 +117,7 @@ typedef struct
     uint8_t stat;
     int btn;
     int down;
+    uint32_t time;
 } buttonEvt;
 
 /*============================================================================
@@ -165,6 +166,8 @@ uint8_t buttonEvtTail = 0;
 bool pendingNextSwadgeMode = false;
 
 rtcMem_t rtcMem = {0};
+os_timer_t modeSwitchTimer = {0};
+uint32_t lastModeSwitchTime = 0;
 
 /*============================================================================
  * Prototypes
@@ -172,7 +175,6 @@ rtcMem_t rtcMem = {0};
 
 void ICACHE_FLASH_ATTR HandleButtonEventIRQ( uint8_t stat, int btn, int down );
 void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void);
-void ICACHE_FLASH_ATTR NextSwadgeMode(void);
 
 static int ICACHE_FLASH_ATTR SwitchToSoftAP(void);
 void ICACHE_FLASH_ATTR TransmitGenericEvent(void);
@@ -184,42 +186,133 @@ void ICACHE_FLASH_ATTR user_init(void);
 static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg);
 static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned short len);
 
+void ICACHE_FLASH_ATTR incrementSwadgeModeNoSleep(void);
+void ICACHE_FLASH_ATTR DeepSleepChangeSwadgeMode(void* arg __attribute__((unused)));
+
 /*============================================================================
  * Functions
  *==========================================================================*/
 
 /**
- * Switch to the next registered swadge mode. This will cleanly exit the
- * current mode and initialize the next one, and swap it in
- *
- * Calling wifi_set_opmode_current() and wifi_set_opmode() in here causes crashes
+ * This deinitializes the current mode if it is initialized, displays the next
+ * mode's LED pattern, and starts a timer to reboot into the next mode.
+ * If the reboot timer is running, it will be reset
  */
-void ICACHE_FLASH_ATTR NextSwadgeMode(void)
+void ICACHE_FLASH_ATTR incrementSwadgeModeNoSleep(void)
 {
     // Call the exit callback for the current mode
     if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode)
     {
         swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode();
-    }
-    swadgeModeInit = false;
 
-    // Clean up ESP NOW if that's where we were at
-    switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
-    {
-        case ESP_NOW:
+        // Clean up ESP NOW if that's where we were at
+        switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
         {
-            espNowDeinit();
-            break;
+            case ESP_NOW:
+            {
+                espNowDeinit();
+                break;
+            }
+            case SOFT_AP:
+            case NO_WIFI:
+            {
+                break;
+            }
         }
-        case SOFT_AP:
-        case NO_WIFI:
-        {
-            break;
-        }
+        swadgeModeInit = false;
     }
 
     // Switch to the next mode, or start from the beginning if we're at the end
     rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
+
+    // Show the LEDs for this mode before rebooting into it
+    showLedCount(rtcMem.currentSwadgeMode,
+                 EHSVtoHEX((rtcMem.currentSwadgeMode * 0xFF * sizeof(swadgeModes[0])) / sizeof(swadgeModes), 0xFF, 0xFF)); //0xGGRRBB
+
+    // Start a timer to reboot into this mode
+    os_timer_disarm(&modeSwitchTimer);
+    os_timer_arm(&modeSwitchTimer, 2000, false);
+}
+
+/**
+ * This displays the num of LEDs, all lit in the same color. The pattern is
+ * nice for counting
+ *
+ * @param num   The number of LEDs to light
+ * @param color The color to light the LEDs
+ */
+void ICACHE_FLASH_ATTR showLedCount(uint8_t num, uint32_t color)
+{
+    uint8_t leds[6][3] = {{0}};
+
+    uint8_t rgb[3];
+    rgb[0] = (color >> 16) & 0xFF;
+    rgb[1] = (color >>  8) & 0xFF;
+    rgb[2] = (color >>  0) & 0xFF;
+
+    // Set the LEDs
+    switch(num)
+    {
+        case 5:
+        {
+            ets_memcpy(leds[3], rgb, sizeof(rgb));
+        }
+        // no break
+        case 4:
+        {
+            ets_memcpy(leds[0], rgb, sizeof(rgb));
+        }
+        // no break
+        case 3:
+        {
+            ets_memcpy(leds[1], rgb, sizeof(rgb));
+            ets_memcpy(leds[2], rgb, sizeof(rgb));
+            ets_memcpy(leds[4], rgb, sizeof(rgb));
+            ets_memcpy(leds[5], rgb, sizeof(rgb));
+            break;
+        }
+
+        case 2:
+        {
+            ets_memcpy(leds[0], rgb, sizeof(rgb));
+            ets_memcpy(leds[2], rgb, sizeof(rgb));
+            ets_memcpy(leds[4], rgb, sizeof(rgb));
+            break;
+        }
+
+        case 1:
+        {
+            ets_memcpy(leds[3], rgb, sizeof(rgb));
+        }
+        // no break
+        case 0:
+        {
+            ets_memcpy(leds[0], rgb, sizeof(rgb));
+            break;
+        }
+    }
+
+    // Draw the LEDs
+    setLeds((uint8_t*)leds, sizeof(leds));
+}
+
+/**
+ * Switch to the next registered swadge mode. This will wait until the mode
+ * switch / programming mode button isn't pressed, then deep sleep into the next
+ * swadge mode.
+ *
+ * Calling wifi_set_opmode_current() and wifi_set_opmode() in here causes crashes
+ */
+void ICACHE_FLASH_ATTR DeepSleepChangeSwadgeMode(void* arg __attribute__((unused)))
+{
+    // If the mode switch button is held down
+    if(GetButtons() & 0x01)
+    {
+        // Try rebooting again in 1ms
+        os_timer_disarm(&modeSwitchTimer);
+        os_timer_arm(&modeSwitchTimer, 1, false);
+        return;
+    }
 
     // Check if the next mode wants wifi or not
     switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
@@ -651,6 +744,7 @@ void HandleButtonEventIRQ( uint8_t stat, int btn, int down )
     buttonQueue[buttonEvtTail].stat = stat;
     buttonQueue[buttonEvtTail].btn = btn;
     buttonQueue[buttonEvtTail].down = down;
+    buttonQueue[buttonEvtTail].time = system_get_time();
     buttonEvtTail = (buttonEvtTail + 1) % NUM_BUTTON_EVTS;
 }
 
@@ -664,16 +758,16 @@ void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void)
         // The 0th button is the mode switch button, don't pass that to the mode
         if(0 == buttonQueue[buttonEvtHead].btn)
         {
-            // Trigger the next mode on release after a press. This is because
-            // the mode switch button is also the programming mode button which
-            // cannot be held down when changing modes
-            if(buttonQueue[buttonEvtHead].down)
+            // Make sure no two presses happen within 100ms of each other
+            if(buttonQueue[buttonEvtHead].time - lastModeSwitchTime < 100000)
             {
-                pendingNextSwadgeMode = true;
+                ; // Consume this event below, don't count it as a press
             }
-            else if(pendingNextSwadgeMode && !buttonQueue[buttonEvtHead].down)
+            else if(buttonQueue[buttonEvtHead].down)
             {
-                NextSwadgeMode();
+                // Note the time of this button press
+                lastModeSwitchTime = buttonQueue[buttonEvtHead].time;
+                incrementSwadgeModeNoSleep();
             }
         }
         // Pass the button to the mode
@@ -717,6 +811,10 @@ void ICACHE_FLASH_ATTR user_init(void)
     // Initialize the UART
     uart_init(BIT_RATE_74880, BIT_RATE_74880);
     os_printf("\r\nSwadge 2019\r\n");
+
+    // Set up a timer to switch the swadge mode
+    os_timer_disarm(&modeSwitchTimer);
+    os_timer_setfn(&modeSwitchTimer, DeepSleepChangeSwadgeMode, NULL);
 
     // Read data fom RTC memory if we're waking from deep sleep
     struct rst_info* resetInfo = system_get_rst_info();

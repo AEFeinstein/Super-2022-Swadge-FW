@@ -155,6 +155,8 @@ void ICACHE_FLASH_ATTR espNowSend(const uint8_t* data, uint8_t len);
  */
 void ICACHE_FLASH_ATTR enterDeepSleep(bool disableWifi, uint64_t sleepUs);
 
+void ICACHE_FLASH_ATTR showLedCount(uint8_t num, uint32_t color);
+
 /*============================================================================
  * Variables
  *==========================================================================*/

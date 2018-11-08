@@ -24,7 +24,6 @@
  *==========================================================================*/
 
 void gpio_pin_intr_state_set(uint32 i, GPIO_INT_TYPE intr_state);
-unsigned char ICACHE_FLASH_ATTR GetButtons();
 
 /*============================================================================
  * Structs

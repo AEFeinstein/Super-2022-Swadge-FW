@@ -221,8 +221,8 @@ void ICACHE_FLASH_ATTR randLedResult(void* arg __attribute__((unused)))
 
     // Get a random number between 0 and 4294967291. Using just a uint32_t, the
     // random result is slightly weighted towards 0,1, and 2
-    uint8_t randomResult = os_random();
-    while(randomResult >= 4294967292)
+    uint32_t randomResult = os_random();
+    while(randomResult >= 4294967292u)
     {
         randomResult = os_random();
     }
@@ -232,50 +232,8 @@ void ICACHE_FLASH_ATTR randLedResult(void* arg __attribute__((unused)))
     // Get a random color
     uint32_t randColor = EHSVtoHEX(os_random() & 0xFF, 0xFF, 0xFF);
 
-    // Set the LEDs
-    switch(randomResult)
-    {
-        case 5:
-        {
-            ets_memcpy(&ranD6.Leds[3], &randColor, sizeof(led_t));
-        }
-        // no break
-        case 4:
-        {
-            ets_memcpy(&ranD6.Leds[0], &randColor, sizeof(led_t));
-        }
-        // no break
-        case 3:
-        {
-            ets_memcpy(&ranD6.Leds[1], &randColor, sizeof(led_t));
-            ets_memcpy(&ranD6.Leds[2], &randColor, sizeof(led_t));
-            ets_memcpy(&ranD6.Leds[4], &randColor, sizeof(led_t));
-            ets_memcpy(&ranD6.Leds[5], &randColor, sizeof(led_t));
-            break;
-        }
-
-        case 2:
-        {
-            ets_memcpy(&ranD6.Leds[0], &randColor, sizeof(led_t));
-            ets_memcpy(&ranD6.Leds[2], &randColor, sizeof(led_t));
-            ets_memcpy(&ranD6.Leds[4], &randColor, sizeof(led_t));
-            break;
-        }
-
-        case 1:
-        {
-            ets_memcpy(&ranD6.Leds[3], &randColor, sizeof(led_t));
-        }
-        // no break
-        case 0:
-        {
-            ets_memcpy(&ranD6.Leds[0], &randColor, sizeof(led_t));
-            break;
-        }
-    }
-
-    // Draw the LEDs
-    setLeds((uint8_t*)&ranD6.Leds, sizeof(ranD6.Leds));
+    // Draw the result
+    showLedCount(randomResult, randColor);
 
     // Not running anymore
     ranD6.Running = false;

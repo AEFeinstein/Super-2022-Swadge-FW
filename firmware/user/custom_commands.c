@@ -143,6 +143,13 @@ configurable_t gConfigs[CONFIGURABLES] =
 };
 
 /*============================================================================
+ * Prototypes
+ *==========================================================================*/
+
+void ICACHE_FLASH_ATTR SaveSettings(void);
+void ICACHE_FLASH_ATTR RevertAndSaveAllSettingsExceptLEDs(void);
+
+/*============================================================================
  * Functions
  *==========================================================================*/
 
@@ -211,7 +218,7 @@ void ICACHE_FLASH_ATTR SaveSettings(void)
  * Once the settings are reverted, except for gUSE_NUM_LIN_LEDS, write
  * the settings to SPI flash
  */
-void ICACHE_FLASH_ATTR RevertAndSaveAllSettingsExceptLEDs()
+void ICACHE_FLASH_ATTR RevertAndSaveAllSettingsExceptLEDs(void)
 {
     os_printf( "Restoring all values.\n" );
 
