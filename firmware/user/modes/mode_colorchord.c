@@ -20,6 +20,8 @@
 
 void ICACHE_FLASH_ATTR colorchordEnterMode(void);
 void ICACHE_FLASH_ATTR colorchordSampleHandler(int32_t samp);
+void ICACHE_FLASH_ATTR colorchordButtonCallback(uint8_t state __attribute__((unused)),
+        int button, int down);
 
 /*============================================================================
  * Variables
@@ -31,7 +33,7 @@ swadgeMode colorchordMode =
     .fnEnterMode = colorchordEnterMode,
     .fnExitMode = NULL,
     .fnTimerCallback = NULL,
-    .fnButtonCallback = NULL,
+    .fnButtonCallback = colorchordButtonCallback,
     .fnAudioCallback = colorchordSampleHandler,
     .wifiMode = SOFT_AP,
     .fnEspNowRecvCb = NULL,
@@ -97,5 +99,39 @@ void ICACHE_FLASH_ATTR colorchordSampleHandler(int32_t samp)
 
         // Reset the sample count
         samplesProcessed = 0;
+    }
+}
+
+/**
+ * Button callback for colorchord. Button 1 adjusts the output LED mode and
+ * button 2 adjusts the sensitivity
+ *
+ * @param state  A bitmask of all button states, unused
+ * @param button The button which triggered this event
+ * @param down   true if the button was pressed, false if it was released
+ */
+void ICACHE_FLASH_ATTR colorchordButtonCallback(
+    uint8_t state __attribute__((unused)), int button, int down)
+{
+    if(down)
+    {
+        switch(button)
+        {
+            case 1:
+            {
+                // gCOLORCHORD_OUTPUT_DRIVER can be either 0 for multiple LED
+                // colors or 1 for all the same LED color
+                CCS.gCOLORCHORD_OUTPUT_DRIVER =
+                    (CCS.gCOLORCHORD_OUTPUT_DRIVER + 1) % 2;
+                break;
+            }
+            case 2:
+            {
+                // The initial value is 16, so this math gets the amps
+                // [0, 8, 16, 24, 32]
+                CCS.gINITIAL_AMP = (CCS.gINITIAL_AMP + 8) % 40;
+                break;
+            }
+        }
     }
 }
