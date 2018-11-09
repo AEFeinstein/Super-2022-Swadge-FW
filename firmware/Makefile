@@ -14,9 +14,9 @@ SRCS += user/ws2812_i2s.c \
 	user/adc.c \
 	user/ssid.c \
 	user/gpio_buttons.c \
-	../embeddedcommon/DFT32.c \
-	../embeddedcommon/embeddednf.c \
-	../embeddedcommon/embeddedout.c
+	embeddedcommon/DFT32.c \
+	embeddedcommon/embeddednf.c \
+	embeddedcommon/embeddedout.c
 
 LDFLAGS_CORE += -Wl,-Map,output.map
 
