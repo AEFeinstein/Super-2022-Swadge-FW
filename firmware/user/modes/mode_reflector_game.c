@@ -187,10 +187,10 @@ digraph G {
 //#define DEBUGGING_GAME
 
 // Number of message retries
-#define REFLECTOR_ACK_RETRIES 5
+#define REFLECTOR_ACK_RETRIES 11
 // Amount of time to wait before retrying
-#define REFLECTOR_ACK_TIMEOUT_MS 500
-// With 1 msg + 5 retries @ 500ms, the longest transmission could be 3s
+#define REFLECTOR_ACK_TIMEOUT_MS 250
+// With 1 msg + 11 retries @ 250ms, the longest transmission could be 3s
 
 // Minimum RSSI to accept a connection broadcast
 #define CONNECTION_RSSI 55
