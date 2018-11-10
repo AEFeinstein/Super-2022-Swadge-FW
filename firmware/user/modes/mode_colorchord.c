@@ -140,6 +140,11 @@ void ICACHE_FLASH_ATTR colorchordButtonCallback(
 {
     if(down)
     {
+        // Start a timer to restore LED functionality to colorchord
+        ccOverrideLeds = true;
+        os_timer_disarm(&ccLedOverrideTimer);
+        os_timer_arm(&ccLedOverrideTimer, 1000, false);
+
         switch(button)
         {
             case 1:
@@ -148,6 +153,33 @@ void ICACHE_FLASH_ATTR colorchordButtonCallback(
                 // colors or 1 for all the same LED color
                 CCS.gCOLORCHORD_OUTPUT_DRIVER =
                     (CCS.gCOLORCHORD_OUTPUT_DRIVER + 1) % 2;
+
+                led_t leds[6] = {{0}};
+                if(CCS.gCOLORCHORD_OUTPUT_DRIVER)
+                {
+                    // Linear LEDs
+                    // All same LEDs
+                    uint8_t i;
+                    for(i = 0; i < 6; i++)
+                    {
+                        uint32_t color = getLedColorPerNumber(i);
+                        leds[i].r = (color >>  0) & 0xFF;
+                        leds[i].g = (color >>  8) & 0xFF;
+                        leds[i].b = (color >> 16) & 0xFF;
+                    }
+                }
+                else
+                {
+                    // All same LEDs
+                    uint8_t i;
+                    for(i = 0; i < 6; i++)
+                    {
+                        leds[i].r = 0;
+                        leds[i].g = 0;
+                        leds[i].b = 255;
+                    }
+                }
+                setLeds((uint8_t*)&leds[0], sizeof(leds));
                 break;
             }
             case 2:
@@ -156,13 +188,8 @@ void ICACHE_FLASH_ATTR colorchordButtonCallback(
                 // [0, 8, 16, 24, 32]
                 CCS.gINITIAL_AMP = (CCS.gINITIAL_AMP + 8) % 40;
 
-                // Start a timer to restore LED functionality to colorchord
-                ccOverrideLeds = true;
-                os_timer_disarm(&ccLedOverrideTimer);
-                os_timer_arm(&ccLedOverrideTimer, 1000, false);
-
                 // Override the LEDs to show the sensitivity, 1-5
-                showLedCount(1 + (CCS.gINITIAL_AMP / 8), 0x70E41E);
+                showLedCount(1 + (CCS.gINITIAL_AMP / 8), getLedColorPerNumber((CCS.gINITIAL_AMP / 8)));
                 break;
             }
         }

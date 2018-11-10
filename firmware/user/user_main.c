@@ -227,11 +227,23 @@ void ICACHE_FLASH_ATTR incrementSwadgeModeNoSleep(void)
 
     // Show the LEDs for this mode before rebooting into it
     showLedCount(1 + rtcMem.currentSwadgeMode,
-                 EHSVtoHEX((rtcMem.currentSwadgeMode * 0xFF * sizeof(swadgeModes[0])) / sizeof(swadgeModes), 0xFF, 0xFF)); //0xGGRRBB
+                 getLedColorPerNumber(rtcMem.currentSwadgeMode));
 
     // Start a timer to reboot into this mode
     os_timer_disarm(&modeSwitchTimer);
     os_timer_arm(&modeSwitchTimer, 2000, false);
+}
+
+/**
+ * Get a color that corresponds to a number, 0-5
+ *
+ * @param num A number, 0-5
+ * @return A color 0xBBGGRR
+ */
+uint32_t ICACHE_FLASH_ATTR getLedColorPerNumber(uint8_t num)
+{
+    num = (num + 3) % 6;
+    return EHSVtoHEX((num * 255) / 6, 0xFF, 0xFF);
 }
 
 /**

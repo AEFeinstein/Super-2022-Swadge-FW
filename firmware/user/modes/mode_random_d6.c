@@ -23,30 +23,6 @@
 #define NUM_LEDS 6
 
 /*============================================================================
- * Enums
- *==========================================================================*/
-
-typedef enum
-{
-    RED,
-    GREEN,
-    BLUE,
-    MAX_COLORS
-} color_t;
-
-/*============================================================================
- * Structs
- *==========================================================================*/
-
-typedef struct __attribute__ ((__packed__))
-{
-    uint8_t g;
-    uint8_t r;
-    uint8_t b;
-}
-led_t;
-
-/*============================================================================
  * Function prototypes
  *==========================================================================*/
 
@@ -229,11 +205,8 @@ void ICACHE_FLASH_ATTR randLedResult(void* arg __attribute__((unused)))
     // Mod the number to get a random number between 1 and 6
     randomResult = 1 + (randomResult % 6);
 
-    // Get a random color
-    uint32_t randColor = EHSVtoHEX(os_random() & 0xFF, 0xFF, 0xFF);
-
     // Draw the result
-    showLedCount(randomResult, randColor);
+    showLedCount(randomResult, getLedColorPerNumber(randomResult - 1));
 
     // Not running anymore
     ranD6.Running = false;

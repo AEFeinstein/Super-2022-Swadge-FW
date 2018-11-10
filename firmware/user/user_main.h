@@ -35,6 +35,14 @@ typedef enum
     MT_TX_STATUS_FAILED,
 } mt_tx_status;
 
+typedef struct __attribute__ ((__packed__))
+{
+    uint8_t g;
+    uint8_t r;
+    uint8_t b;
+}
+led_t;
+
 /*============================================================================
  * Structs
  *==========================================================================*/
@@ -156,6 +164,7 @@ void ICACHE_FLASH_ATTR espNowSend(const uint8_t* data, uint8_t len);
 void ICACHE_FLASH_ATTR enterDeepSleep(bool disableWifi, uint64_t sleepUs);
 
 void ICACHE_FLASH_ATTR showLedCount(uint8_t num, uint32_t color);
+uint32_t ICACHE_FLASH_ATTR getLedColorPerNumber(uint8_t num);
 
 /*============================================================================
  * Variables

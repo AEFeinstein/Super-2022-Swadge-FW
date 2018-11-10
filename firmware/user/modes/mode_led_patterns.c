@@ -14,6 +14,7 @@
 #include "mode_led_patterns.h"
 #include <stdint.h>
 #include "user_interface.h"
+#include "user_main.h"
 
 /*============================================================================
  * Defines
@@ -33,18 +34,6 @@ typedef enum
     BLUE,
     MAX_COLORS
 } color_t;
-
-/*============================================================================
- * Structs
- *==========================================================================*/
-
-typedef struct __attribute__ ((__packed__))
-{
-    uint8_t g;
-    uint8_t r;
-    uint8_t b;
-}
-led_t;
 
 /*============================================================================
  * Function prototypes
