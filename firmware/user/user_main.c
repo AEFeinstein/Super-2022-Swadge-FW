@@ -759,7 +759,7 @@ void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void)
         if(0 == buttonQueue[buttonEvtHead].btn)
         {
             // Make sure no two presses happen within 100ms of each other
-            if(buttonQueue[buttonEvtHead].time - lastModeSwitchTime < 100000)
+            if(buttonQueue[buttonEvtHead].time - lastModeSwitchTime < 200000)
             {
                 ; // Consume this event below, don't count it as a press
             }
