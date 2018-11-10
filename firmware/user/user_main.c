@@ -144,9 +144,9 @@ uint8_t mymac[6] = {0};
 
 swadgeMode* swadgeModes[] =
 {
+    &colorchordMode,
     &randomD6Mode,
     &reflectorGameMode,
-    &colorchordMode,
     &ledPatternsMode,
 };
 bool swadgeModeInit = false;
@@ -226,7 +226,7 @@ void ICACHE_FLASH_ATTR incrementSwadgeModeNoSleep(void)
     rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
 
     // Show the LEDs for this mode before rebooting into it
-    showLedCount(rtcMem.currentSwadgeMode,
+    showLedCount(1 + rtcMem.currentSwadgeMode,
                  EHSVtoHEX((rtcMem.currentSwadgeMode * 0xFF * sizeof(swadgeModes[0])) / sizeof(swadgeModes), 0xFF, 0xFF)); //0xGGRRBB
 
     // Start a timer to reboot into this mode
@@ -253,17 +253,17 @@ void ICACHE_FLASH_ATTR showLedCount(uint8_t num, uint32_t color)
     // Set the LEDs
     switch(num)
     {
-        case 5:
+        case 6:
         {
             ets_memcpy(leds[3], rgb, sizeof(rgb));
         }
         // no break
-        case 4:
+        case 5:
         {
             ets_memcpy(leds[0], rgb, sizeof(rgb));
         }
         // no break
-        case 3:
+        case 4:
         {
             ets_memcpy(leds[1], rgb, sizeof(rgb));
             ets_memcpy(leds[2], rgb, sizeof(rgb));
@@ -272,7 +272,7 @@ void ICACHE_FLASH_ATTR showLedCount(uint8_t num, uint32_t color)
             break;
         }
 
-        case 2:
+        case 3:
         {
             ets_memcpy(leds[0], rgb, sizeof(rgb));
             ets_memcpy(leds[2], rgb, sizeof(rgb));
@@ -280,12 +280,12 @@ void ICACHE_FLASH_ATTR showLedCount(uint8_t num, uint32_t color)
             break;
         }
 
-        case 1:
+        case 2:
         {
             ets_memcpy(leds[3], rgb, sizeof(rgb));
         }
         // no break
-        case 0:
+        case 1:
         {
             ets_memcpy(leds[0], rgb, sizeof(rgb));
             break;

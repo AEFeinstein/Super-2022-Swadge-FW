@@ -226,8 +226,8 @@ void ICACHE_FLASH_ATTR randLedResult(void* arg __attribute__((unused)))
     {
         randomResult = os_random();
     }
-    // Mod the number to get a random number between 0 and 5
-    randomResult = randomResult % 6;
+    // Mod the number to get a random number between 1 and 6
+    randomResult = 1 + (randomResult % 6);
 
     // Get a random color
     uint32_t randColor = EHSVtoHEX(os_random() & 0xFF, 0xFF, 0xFF);

@@ -13,15 +13,18 @@
 #include "mode_colorchord.h"
 #include "DFT32.h"
 #include "embeddedout.h"
+#include "osapi.h"
 
 /*============================================================================
  * Prototypes
  *==========================================================================*/
 
 void ICACHE_FLASH_ATTR colorchordEnterMode(void);
+void ICACHE_FLASH_ATTR colorchordExitMode(void);
 void ICACHE_FLASH_ATTR colorchordSampleHandler(int32_t samp);
 void ICACHE_FLASH_ATTR colorchordButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down);
+void ICACHE_FLASH_ATTR ccLedOverrideReset(void* timer_arg __attribute__((unused)));
 
 /*============================================================================
  * Variables
@@ -31,7 +34,7 @@ swadgeMode colorchordMode =
 {
     .modeName = "colorchord",
     .fnEnterMode = colorchordEnterMode,
-    .fnExitMode = NULL,
+    .fnExitMode = colorchordExitMode,
     .fnTimerCallback = NULL,
     .fnButtonCallback = colorchordButtonCallback,
     .fnAudioCallback = colorchordSampleHandler,
@@ -41,6 +44,9 @@ swadgeMode colorchordMode =
 };
 
 static int samplesProcessed = 0;
+
+os_timer_t ccLedOverrideTimer = {0};
+bool ccOverrideLeds = false;
 
 /*============================================================================
  * Functions
@@ -52,6 +58,22 @@ static int samplesProcessed = 0;
 void ICACHE_FLASH_ATTR colorchordEnterMode(void)
 {
     InitColorChord();
+
+    ccOverrideLeds = false;
+
+    // Setup the LED override timer, but don't arm it
+    ets_memset(&ccLedOverrideTimer, 0, sizeof(os_timer_t));
+    os_timer_disarm(&ccLedOverrideTimer);
+    os_timer_setfn(&ccLedOverrideTimer, ccLedOverrideReset, NULL);
+}
+
+/**
+ * Called when colorchord is exited, it disarms the timer
+ */
+void ICACHE_FLASH_ATTR colorchordExitMode(void)
+{
+    // Disarm the timer
+    os_timer_disarm(&ccLedOverrideTimer);
 }
 
 /**
@@ -95,7 +117,10 @@ void ICACHE_FLASH_ATTR colorchordSampleHandler(int32_t samp)
         };
 
         // Push out the LED data
-        setLeds( ledOut, USE_NUM_LIN_LEDS * 3 );
+        if(!ccOverrideLeds)
+        {
+            setLeds( ledOut, USE_NUM_LIN_LEDS * 3 );
+        }
 
         // Reset the sample count
         samplesProcessed = 0;
@@ -130,8 +155,28 @@ void ICACHE_FLASH_ATTR colorchordButtonCallback(
                 // The initial value is 16, so this math gets the amps
                 // [0, 8, 16, 24, 32]
                 CCS.gINITIAL_AMP = (CCS.gINITIAL_AMP + 8) % 40;
+
+                // Start a timer to restore LED functionality to colorchord
+                ccOverrideLeds = true;
+                os_timer_disarm(&ccLedOverrideTimer);
+                os_timer_arm(&ccLedOverrideTimer, 1000, false);
+
+                // Override the LEDs to show the sensitivity, 1-5
+                showLedCount(1 + (CCS.gINITIAL_AMP / 8), 0x70E41E);
                 break;
             }
         }
     }
+}
+
+/**
+ * This timer function is called 1s after a button press to restore LED
+ * functionality to colorchord. If a button is pressed multiple times, the timer
+ * will only call after it's idle
+ *
+ * @param timer_arg unused
+ */
+void ICACHE_FLASH_ATTR ccLedOverrideReset(void* timer_arg __attribute__((unused)))
+{
+    ccOverrideLeds = false;
 }
