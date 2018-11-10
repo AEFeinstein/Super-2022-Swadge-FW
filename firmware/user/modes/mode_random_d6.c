@@ -206,7 +206,7 @@ void ICACHE_FLASH_ATTR randLedResult(void* arg __attribute__((unused)))
     randomResult = 1 + (randomResult % 6);
 
     // Draw the result
-    showLedCount(randomResult, getLedColorPerNumber(randomResult - 1));
+    showLedCount(randomResult, getLedColorPerNumber(randomResult - 1, 0xFF));
 
     // Not running anymore
     ranD6.Running = false;

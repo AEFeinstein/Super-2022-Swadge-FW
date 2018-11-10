@@ -157,26 +157,25 @@ void ICACHE_FLASH_ATTR colorchordButtonCallback(
                 led_t leds[6] = {{0}};
                 if(CCS.gCOLORCHORD_OUTPUT_DRIVER)
                 {
-                    // Linear LEDs
-                    // All same LEDs
-                    uint8_t i;
-                    for(i = 0; i < 6; i++)
-                    {
-                        uint32_t color = getLedColorPerNumber(i);
-                        leds[i].r = (color >>  0) & 0xFF;
-                        leds[i].g = (color >>  8) & 0xFF;
-                        leds[i].b = (color >> 16) & 0xFF;
-                    }
-                }
-                else
-                {
-                    // All same LEDs
+                    // All the same LED
                     uint8_t i;
                     for(i = 0; i < 6; i++)
                     {
                         leds[i].r = 0;
                         leds[i].g = 0;
                         leds[i].b = 255;
+                    }
+                }
+                else
+                {
+                    // Multiple output colors
+                    uint8_t i;
+                    for(i = 0; i < 6; i++)
+                    {
+                        uint32_t color = getLedColorPerNumber(i, 0xFF);
+                        leds[i].r = (color >>  0) & 0xFF;
+                        leds[i].g = (color >>  8) & 0xFF;
+                        leds[i].b = (color >> 16) & 0xFF;
                     }
                 }
                 setLeds((uint8_t*)&leds[0], sizeof(leds));
@@ -189,7 +188,7 @@ void ICACHE_FLASH_ATTR colorchordButtonCallback(
                 CCS.gINITIAL_AMP = (CCS.gINITIAL_AMP + 8) % 40;
 
                 // Override the LEDs to show the sensitivity, 1-5
-                showLedCount(1 + (CCS.gINITIAL_AMP / 8), getLedColorPerNumber((CCS.gINITIAL_AMP / 8)));
+                showLedCount(1 + (CCS.gINITIAL_AMP / 8), getLedColorPerNumber((CCS.gINITIAL_AMP / 8), 0xFF));
                 break;
             }
         }

@@ -169,6 +169,8 @@ rtcMem_t rtcMem = {0};
 os_timer_t modeSwitchTimer = {0};
 uint32_t lastModeSwitchTime = 0;
 
+uint8_t modeLedBrightness = 0;
+
 /*============================================================================
  * Prototypes
  *==========================================================================*/
@@ -187,7 +189,8 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg);
 static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned short len);
 
 void ICACHE_FLASH_ATTR incrementSwadgeModeNoSleep(void);
-void ICACHE_FLASH_ATTR DeepSleepChangeSwadgeMode(void* arg __attribute__((unused)));
+void ICACHE_FLASH_ATTR modeSwitchTimerFn(void* arg);
+void ICACHE_FLASH_ATTR DeepSleepChangeSwadgeMode(void);
 
 /*============================================================================
  * Functions
@@ -225,87 +228,32 @@ void ICACHE_FLASH_ATTR incrementSwadgeModeNoSleep(void)
     // Switch to the next mode, or start from the beginning if we're at the end
     rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
 
-    // Show the LEDs for this mode before rebooting into it
-    showLedCount(1 + rtcMem.currentSwadgeMode,
-                 getLedColorPerNumber(rtcMem.currentSwadgeMode));
-
     // Start a timer to reboot into this mode
+    modeLedBrightness = 0xFF;
     os_timer_disarm(&modeSwitchTimer);
-    os_timer_arm(&modeSwitchTimer, 2000, false);
+    os_timer_arm(&modeSwitchTimer, 3, true);
 }
 
 /**
- * Get a color that corresponds to a number, 0-5
+ * TODO
  *
- * @param num A number, 0-5
- * @return A color 0xBBGGRR
+ * @param arg
  */
-uint32_t ICACHE_FLASH_ATTR getLedColorPerNumber(uint8_t num)
+void ICACHE_FLASH_ATTR modeSwitchTimerFn(void* arg __attribute__((unused)))
 {
-    num = (num + 3) % 6;
-    return EHSVtoHEX((num * 255) / 6, 0xFF, 0xFF);
-}
-
-/**
- * This displays the num of LEDs, all lit in the same color. The pattern is
- * nice for counting
- *
- * @param num   The number of LEDs to light
- * @param color The color to light the LEDs
- */
-void ICACHE_FLASH_ATTR showLedCount(uint8_t num, uint32_t color)
-{
-    uint8_t leds[6][3] = {{0}};
-
-    uint8_t rgb[3];
-    rgb[0] = (color >> 16) & 0xFF;
-    rgb[1] = (color >>  8) & 0xFF;
-    rgb[2] = (color >>  0) & 0xFF;
-
-    // Set the LEDs
-    switch(num)
+    if(0 == modeLedBrightness)
     {
-        case 6:
-        {
-            ets_memcpy(leds[3], rgb, sizeof(rgb));
-        }
-        // no break
-        case 5:
-        {
-            ets_memcpy(leds[0], rgb, sizeof(rgb));
-        }
-        // no break
-        case 4:
-        {
-            ets_memcpy(leds[1], rgb, sizeof(rgb));
-            ets_memcpy(leds[2], rgb, sizeof(rgb));
-            ets_memcpy(leds[4], rgb, sizeof(rgb));
-            ets_memcpy(leds[5], rgb, sizeof(rgb));
-            break;
-        }
-
-        case 3:
-        {
-            ets_memcpy(leds[0], rgb, sizeof(rgb));
-            ets_memcpy(leds[2], rgb, sizeof(rgb));
-            ets_memcpy(leds[4], rgb, sizeof(rgb));
-            break;
-        }
-
-        case 2:
-        {
-            ets_memcpy(leds[3], rgb, sizeof(rgb));
-        }
-        // no break
-        case 1:
-        {
-            ets_memcpy(leds[0], rgb, sizeof(rgb));
-            break;
-        }
+        os_timer_disarm(&modeSwitchTimer);
+        DeepSleepChangeSwadgeMode();
     }
+    else
+    {
+        // Show the LEDs for this mode before rebooting into it
+        showLedCount(1 + rtcMem.currentSwadgeMode,
+                     getLedColorPerNumber(rtcMem.currentSwadgeMode, modeLedBrightness));
 
-    // Draw the LEDs
-    setLeds((uint8_t*)leds, sizeof(leds));
+        modeLedBrightness--;
+    }
 }
 
 /**
@@ -315,7 +263,7 @@ void ICACHE_FLASH_ATTR showLedCount(uint8_t num, uint32_t color)
  *
  * Calling wifi_set_opmode_current() and wifi_set_opmode() in here causes crashes
  */
-void ICACHE_FLASH_ATTR DeepSleepChangeSwadgeMode(void* arg __attribute__((unused)))
+void ICACHE_FLASH_ATTR DeepSleepChangeSwadgeMode(void)
 {
     // If the mode switch button is held down
     if(GetButtons() & 0x01)
@@ -826,7 +774,7 @@ void ICACHE_FLASH_ATTR user_init(void)
 
     // Set up a timer to switch the swadge mode
     os_timer_disarm(&modeSwitchTimer);
-    os_timer_setfn(&modeSwitchTimer, DeepSleepChangeSwadgeMode, NULL);
+    os_timer_setfn(&modeSwitchTimer, modeSwitchTimerFn, NULL);
 
     // Read data fom RTC memory if we're waking from deep sleep
     struct rst_info* resetInfo = system_get_rst_info();
@@ -1047,4 +995,78 @@ void ICACHE_FLASH_ATTR setLeds(uint8_t* ledData, uint16_t ledDataLen)
         ws2812_push( ledData, ledDataLen );
         //os_printf("%s, %d LEDs\r\n", __func__, ledDataLen / 3);
     }
+}
+
+/**
+ * Get a color that corresponds to a number, 0-5
+ *
+ * @param num A number, 0-5
+ * @return A color 0xBBGGRR
+ */
+uint32_t ICACHE_FLASH_ATTR getLedColorPerNumber(uint8_t num, uint8_t lightness)
+{
+    num = (num + 4) % 6;
+    return EHSVtoHEX((num * 255) / 6, 0xFF, lightness);
+}
+
+/**
+ * This displays the num of LEDs, all lit in the same color. The pattern is
+ * nice for counting
+ *
+ * @param num   The number of LEDs to light
+ * @param color The color to light the LEDs
+ */
+void ICACHE_FLASH_ATTR showLedCount(uint8_t num, uint32_t color)
+{
+    uint8_t leds[6][3] = {{0}};
+
+    uint8_t rgb[3];
+    rgb[0] = (color >> 16) & 0xFF;
+    rgb[1] = (color >>  8) & 0xFF;
+    rgb[2] = (color >>  0) & 0xFF;
+
+    // Set the LEDs
+    switch(num)
+    {
+        case 6:
+        {
+            ets_memcpy(leds[3], rgb, sizeof(rgb));
+        }
+        // no break
+        case 5:
+        {
+            ets_memcpy(leds[0], rgb, sizeof(rgb));
+        }
+        // no break
+        case 4:
+        {
+            ets_memcpy(leds[1], rgb, sizeof(rgb));
+            ets_memcpy(leds[2], rgb, sizeof(rgb));
+            ets_memcpy(leds[4], rgb, sizeof(rgb));
+            ets_memcpy(leds[5], rgb, sizeof(rgb));
+            break;
+        }
+
+        case 3:
+        {
+            ets_memcpy(leds[0], rgb, sizeof(rgb));
+            ets_memcpy(leds[2], rgb, sizeof(rgb));
+            ets_memcpy(leds[4], rgb, sizeof(rgb));
+            break;
+        }
+
+        case 2:
+        {
+            ets_memcpy(leds[3], rgb, sizeof(rgb));
+        }
+        // no break
+        case 1:
+        {
+            ets_memcpy(leds[0], rgb, sizeof(rgb));
+            break;
+        }
+    }
+
+    // Draw the LEDs
+    setLeds((uint8_t*)leds, sizeof(leds));
 }
