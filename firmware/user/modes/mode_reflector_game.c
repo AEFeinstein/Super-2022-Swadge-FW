@@ -201,7 +201,9 @@ digraph G {
 #define FAILURE_RESTART_MS 8000
 
 // This can't be less than 3ms, it's impossible
-#define LED_TIMER_MS_STARTING 12
+#define LED_TIMER_MS_STARTING_EASY   13
+#define LED_TIMER_MS_STARTING_MEDIUM 11
+#define LED_TIMER_MS_STARTING_HARD    9
 
 /*============================================================================
  * Enums
@@ -247,6 +249,13 @@ typedef enum
     ACT_BOTH             = 2
 } gameAction_t;
 
+typedef enum
+{
+    EASY   = 0,
+    MEDIUM = 1,
+    HARD   = 2
+} difficulty_t;
+
 /*============================================================================
  * Prototypes
  *==========================================================================*/
@@ -278,6 +287,7 @@ void ICACHE_FLASH_ATTR refFailureRestart(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refStartPlaying(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refStartRound(void);
 void ICACHE_FLASH_ATTR refSendRoundLossMsg(void);
+void ICACHE_FLASH_ATTR refAdjustledSpeed(bool reset, bool up);
 
 // LED Functions
 void ICACHE_FLASH_ATTR refDisarmAllLedTimers(void);
@@ -359,6 +369,7 @@ struct
         uint8_t Losses;
         uint8_t ledPeriodMs;
         bool singlePlayer;
+        difficulty_t difficulty;
     } gam;
 
     // Timers
@@ -380,6 +391,7 @@ struct
         uint8_t Leds[6][3];
         connLedState_t ConnLedState;
         sint16_t Degree;
+        uint8_t connectionDim;
     } led;
 } ref;
 
@@ -683,16 +695,11 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
                 // Get faster or slower based on the other swadge's timing
                 if(0 == ets_memcmp(&data[EXT_IDX], spdUp, ets_strlen(spdUp)))
                 {
-                    ref.gam.ledPeriodMs--;
-                    // Anything less than a 3ms period is impossible...
-                    if(ref.gam.ledPeriodMs < 3)
-                    {
-                        ref.gam.ledPeriodMs = 3;
-                    }
+                    refAdjustledSpeed(false, true);
                 }
                 else if(0 == ets_memcmp(&data[EXT_IDX], spdDn, ets_strlen(spdDn)))
                 {
-                    ref.gam.ledPeriodMs++;
+                    refAdjustledSpeed(false, false);
                 }
 
                 refStartRound();
@@ -859,7 +866,7 @@ void ICACHE_FLASH_ATTR refStartPlaying(void* arg __attribute__((unused)))
     setLeds(&ref.led.Leds[0][0], sizeof(ref.led.Leds));
 
     // Reset the LED timer to the default speed
-    ref.gam.ledPeriodMs = LED_TIMER_MS_STARTING;
+    refAdjustledSpeed(true, false);
 
     // Check for match end
     ref_printf("wins: %d, losses %d\r\n", ref.gam.Wins, ref.gam.Losses);
@@ -1036,6 +1043,7 @@ void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
             refDisarmAllLedTimers();
             os_timer_arm(&ref.tmr.ConnLed, 4, true);
 
+            ref.led.connectionDim = 0;
             ets_memset(&ref.led.Leds[0][0], 0, sizeof(ref.led.Leds));
 
             ref.led.ConnLedState = LED_ON_1;
@@ -1043,18 +1051,19 @@ void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
         }
         case LED_ON_1:
         {
-            // Turn on blue
-            ref.led.Leds[0][2] = 255;
+            // Turn LEDs on
+            ref.led.connectionDim = 255;
+
             // Prepare the first dimming
             ref.led.ConnLedState = LED_DIM_1;
             break;
         }
         case LED_DIM_1:
         {
-            // Dim blue
-            ref.led.Leds[0][2] -= 1;
+            // Dim leds
+            ref.led.connectionDim--;
             // If its kind of dim, turn it on again
-            if(ref.led.Leds[0][2] == 1)
+            if(ref.led.connectionDim == 1)
             {
                 ref.led.ConnLedState = LED_ON_2;
             }
@@ -1062,18 +1071,18 @@ void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
         }
         case LED_ON_2:
         {
-            // Turn on blue
-            ref.led.Leds[0][2] = 255;
+            // Turn LEDs on
+            ref.led.connectionDim = 255;
             // Prepare the second dimming
             ref.led.ConnLedState = LED_DIM_2;
             break;
         }
         case LED_DIM_2:
         {
-            // Dim blue
-            ref.led.Leds[0][2] -= 1;
+            // Dim leds
+            ref.led.connectionDim -= 1;
             // If its off, start waiting
-            if(ref.led.Leds[0][2] == 0)
+            if(ref.led.connectionDim == 0)
             {
                 ref.led.ConnLedState = LED_OFF_WAIT;
             }
@@ -1100,26 +1109,79 @@ void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
     }
 
     // Copy the color value to all LEDs
+    ets_memset(&ref.led.Leds[0][0], 0, sizeof(ref.led.Leds));
     uint8_t i;
-    for(i = 1; i < 6; i ++)
+    for(i = 0; i < 6; i ++)
     {
-        ref.led.Leds[i][0] = ref.led.Leds[0][0];
-        ref.led.Leds[i][1] = ref.led.Leds[0][1];
-        ref.led.Leds[i][2] = ref.led.Leds[0][2];
+        switch(ref.gam.difficulty)
+        {
+            case EASY:
+            {
+                // Turn on blue
+                ref.led.Leds[i][2] = ref.led.connectionDim;
+                break;
+            }
+            case MEDIUM:
+            {
+                // Turn on green
+                ref.led.Leds[i][0] = ref.led.connectionDim;
+                break;
+            }
+            case HARD:
+            {
+                // Turn on red
+                ref.led.Leds[i][1] = ref.led.connectionDim;
+                break;
+            }
+        }
     }
 
     // Overwrite two LEDs based on the connection status
     if(ref.cnc.rxGameStartAck)
     {
-        ref.led.Leds[2][0] = 25;
-        ref.led.Leds[2][1] = 0;
-        ref.led.Leds[2][2] = 0;
+        switch(ref.gam.difficulty)
+        {
+            case EASY:
+            {
+                // Green on blue
+                ref.led.Leds[2][0] = 25;
+                ref.led.Leds[2][1] = 0;
+                ref.led.Leds[2][2] = 0;
+                break;
+            }
+            case MEDIUM:
+            case HARD:
+            {
+                // Blue on green and red
+                ref.led.Leds[2][0] = 0;
+                ref.led.Leds[2][1] = 0;
+                ref.led.Leds[2][2] = 25;
+                break;
+            }
+        }
     }
     if(ref.cnc.rxGameStartMsg)
     {
-        ref.led.Leds[4][0] = 25;
-        ref.led.Leds[4][1] = 0;
-        ref.led.Leds[4][2] = 0;
+        switch(ref.gam.difficulty)
+        {
+            case EASY:
+            {
+                // Green on blue
+                ref.led.Leds[4][0] = 25;
+                ref.led.Leds[4][1] = 0;
+                ref.led.Leds[4][2] = 0;
+                break;
+            }
+            case MEDIUM:
+            case HARD:
+            {
+                // Blue on green and red
+                ref.led.Leds[4][0] = 0;
+                ref.led.Leds[4][1] = 0;
+                ref.led.Leds[4][2] = 25;
+                break;
+            }
+        }
     }
 
     // Physically set the LEDs
@@ -1253,6 +1315,7 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
         else if(2 == button)
         {
             // Adjust difficulty
+            ref.gam.difficulty = (ref.gam.difficulty + 1) % 3;
         }
     }
     // If we're playing the game
@@ -1308,16 +1371,11 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
             {
                 if(spdPtr == spdUp)
                 {
-                    ref.gam.ledPeriodMs--;
-                    // Anything less than a 3ms period is impossible...
-                    if(ref.gam.ledPeriodMs < 3)
-                    {
-                        ref.gam.ledPeriodMs = 3;
-                    }
+                    refAdjustledSpeed(false, true);
                 }
                 if(spdPtr == spdDn)
                 {
-                    ref.gam.ledPeriodMs++;
+                    refAdjustledSpeed(false, false);
                 }
                 refStartRound();
             }
@@ -1443,7 +1501,7 @@ void ICACHE_FLASH_ATTR refSinglePlayerRestart(void* arg __attribute__((unused)))
 
     if(7 == ref.led.Degree)
     {
-        ref.gam.ledPeriodMs = LED_TIMER_MS_STARTING;
+        refAdjustledSpeed(true, false);
         refStartRound();
     }
 }
@@ -1498,4 +1556,75 @@ void ICACHE_FLASH_ATTR refRoundResultLed(bool roundWinner)
 
     // Call refStartPlaying in 3 seconds
     os_timer_arm(&ref.tmr.StartPlaying, 3000, false);
+}
+
+/**
+ * Adjust the speed of the game, or reset it to the default value for this
+ * difficulty
+ *
+ * @param reset true to reset to the starting value, up will be ignored
+ * @param up    if reset is false, if this is true, speed up, otherwise slow down
+ */
+void ICACHE_FLASH_ATTR refAdjustledSpeed(bool reset, bool up)
+{
+    if(reset)
+    {
+        switch(ref.gam.difficulty)
+        {
+            case EASY:
+            {
+                ref.gam.ledPeriodMs = LED_TIMER_MS_STARTING_EASY;
+                break;
+            }
+            case MEDIUM:
+            {
+                ref.gam.ledPeriodMs = LED_TIMER_MS_STARTING_MEDIUM;
+                break;
+            }
+            case HARD:
+            {
+                ref.gam.ledPeriodMs = LED_TIMER_MS_STARTING_HARD;
+                break;
+            }
+        }
+    }
+    else if(up)
+    {
+        switch(ref.gam.difficulty)
+        {
+            case EASY:
+            case MEDIUM:
+            {
+                ref.gam.ledPeriodMs--;
+                break;
+            }
+            case HARD:
+            {
+                ref.gam.ledPeriodMs -= 2;
+                break;
+            }
+        }
+        // Anything less than a 3ms period is impossible...
+        if(ref.gam.ledPeriodMs < 3)
+        {
+            ref.gam.ledPeriodMs = 3;
+        }
+    }
+    else
+    {
+        switch(ref.gam.difficulty)
+        {
+            case EASY:
+            case MEDIUM:
+            {
+                ref.gam.ledPeriodMs++;
+                break;
+            }
+            case HARD:
+            {
+                ref.gam.ledPeriodMs += 2;
+                break;
+            }
+        }
+    }
 }
