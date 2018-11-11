@@ -26,7 +26,8 @@ void ICACHE_FLASH_ATTR danceEnterMode(void);
 void ICACHE_FLASH_ATTR danceExitMode(void);
 void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state, int button, int down);
 
-void ICACHE_FLASH_ATTR danceTimerCallback(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode1(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode2(void* arg);
 
 /*============================================================================
  * Variables
@@ -45,7 +46,30 @@ swadgeMode dancesMode =
     .fnEspNowSendCb = NULL,
 };
 
-os_timer_t danceTimer = {0};
+typedef struct
+{
+    os_timer_t timer;
+    void (*timerFn)(void*);
+    uint32_t period;
+} timerWithPeriod;
+
+timerWithPeriod danceTimers[] =
+{
+    {
+        .timer = {0},
+        .timerFn = danceTimerMode1,
+        .period = 1
+    },
+    {
+        .timer = {0},
+        .timerFn = danceTimerMode2,
+        .period = 100
+    }
+};
+
+uint8_t currentDance = 0;
+
+int ledCount = 0;
 
 /*============================================================================
  * Functions
@@ -54,15 +78,23 @@ os_timer_t danceTimer = {0};
 void ICACHE_FLASH_ATTR danceEnterMode(void)
 {
     // Set up and arm a timer to be called every 1 ms
-    os_timer_disarm(&danceTimer);
-    os_timer_setfn(&danceTimer, danceTimerCallback, NULL);
-    os_timer_arm(&danceTimer, 1, true); // Timer 1ms set here
+    uint8_t i;
+    for (i = 0; i < sizeof(danceTimers) / sizeof(danceTimers[0]); i++)
+    {
+        os_timer_disarm(&danceTimers[i].timer);
+        os_timer_setfn(&danceTimers[i].timer, danceTimers[i].timerFn, NULL);
+    }
+
+    os_timer_arm(&danceTimers[0].timer, danceTimers[0].period, true);
 }
 
 void ICACHE_FLASH_ATTR danceExitMode(void)
 {
     // Disarm the timer
-    os_timer_disarm(&danceTimer);
+    for (i = 0; i < sizeof(danceTimers) / sizeof(danceTimers[0]); i++)
+    {
+        os_timer_disarm(&danceTimer[i].timer);
+    }
 }
 
 void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state __attribute__((unused)),
@@ -73,6 +105,14 @@ void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state __attribute__((unused))
         if(1 == button)
         {
             // Button 1 pressed
+            os_timer_disarm(&danceTimers[currentDance].timer);
+
+            currentDance++;
+            if(currentDance >= sizeof(danceTimers) / sizeof(danceTimers[0]))
+            {
+                currentDance = 0;
+            }
+            os_timer_arm(&danceTimers[currentDance].timer, danceTimers[currentDance].period, true);
         }
         else if(2 == button)
         {
@@ -81,9 +121,38 @@ void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state __attribute__((unused))
     }
 }
 
-void ICACHE_FLASH_ATTR danceTimerCallback(void* arg __attribute__((unused)))
+void ICACHE_FLASH_ATTR danceTimerMode1(void* arg __attribute__((unused)))
 {
     led_t leds[6] = {{0}};
+
+    ledCount = ledCount + 1;
+    if(ledCount > 5)
+    {
+        ledCount = 0;
+    }
+
+    leds[ledCount].r = 255;
+    leds[ledCount].g = 255;
+    leds[ledCount].b = 255;
+
+    // Draw LEDs here!!
+
+    setLeds((uint8_t*)&leds[0], sizeof(leds));
+}
+
+void ICACHE_FLASH_ATTR danceTimerMode2(void* arg __attribute__((unused)))
+{
+    led_t leds[6] = {{0}};
+
+    ledCount = ledCount + 1;
+    if(ledCount > 5)
+    {
+        ledCount = 0;
+    }
+
+    leds[ledCount].r = 255;
+    leds[ledCount].g = 0;
+    leds[ledCount].b = 0;
 
     // Draw LEDs here!!
 
