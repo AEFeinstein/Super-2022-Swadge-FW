@@ -183,9 +183,6 @@ digraph G {
     #define ref_printf(...)
 #endif
 
-// Enable this to skip connection and just debug the game
-//#define DEBUGGING_GAME
-
 // Number of message retries
 #define REFLECTOR_ACK_RETRIES 11
 // Amount of time to wait before retrying
@@ -263,6 +260,7 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
 // Helper function
 void ICACHE_FLASH_ATTR refRestart(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refStartRestartTimer(void* arg __attribute__((unused)));
+void ICACHE_FLASH_ATTR refSinglePlayerRestart(void* arg __attribute__((unused)));
 
 // Transmission Functions
 void ICACHE_FLASH_ATTR refSendMsg(char* msg, uint16_t len, bool shouldAck, void (*success)(void*),
@@ -360,6 +358,7 @@ struct
         uint8_t Wins;
         uint8_t Losses;
         uint8_t ledPeriodMs;
+        bool singlePlayer;
     } gam;
 
     // Timers
@@ -372,6 +371,7 @@ struct
         os_timer_t ShowConnectionLed;
         os_timer_t GameLed;
         os_timer_t Reinit;
+        os_timer_t SinglePlayerRestart;
     } tmr;
 
     // LED variables
@@ -440,13 +440,12 @@ void ICACHE_FLASH_ATTR refInit(void)
     os_timer_disarm(&ref.tmr.Reinit);
     os_timer_setfn(&ref.tmr.Reinit, refRestart, NULL);
 
-#ifdef DEBUGGING_GAME
-    ref.cnc.playOrder = GOING_FIRST;
-    refStartPlaying(NULL);
-#else
+    // Set up a timer to restart after failure. don't start it
+    os_timer_disarm(&ref.tmr.SinglePlayerRestart);
+    os_timer_setfn(&ref.tmr.SinglePlayerRestart, refSinglePlayerRestart, NULL);
+
     os_timer_arm(&ref.tmr.Connection, 1, false);
     os_timer_arm(&ref.tmr.ConnLed, 1, true);
-#endif
 }
 
 /**
@@ -482,6 +481,7 @@ void ICACHE_FLASH_ATTR refDisarmAllLedTimers(void)
     os_timer_disarm(&ref.tmr.ConnLed);
     os_timer_disarm(&ref.tmr.ShowConnectionLed);
     os_timer_disarm(&ref.tmr.GameLed);
+    os_timer_disarm(&ref.tmr.SinglePlayerRestart);
 }
 
 /**
@@ -929,14 +929,7 @@ void ICACHE_FLASH_ATTR refStartRound(void)
     ets_memset(&ref.led.Leds[0][0], 0, sizeof(ref.led.Leds));
     setLeds(&ref.led.Leds[0][0], sizeof(ref.led.Leds));
     // Then set the game in motion
-#ifdef DEBUGGING_GAME
-    static uint8_t ledPeriodMs = 100;
-    ref_printf("led period %d\r\n", ledPeriodMs / 10);
-    ledPeriodMs--;
-    os_timer_arm(&ref.tmr.GameLed, ledPeriodMs / 10, true);
-#else
     os_timer_arm(&ref.tmr.GameLed, ref.gam.ledPeriodMs, true);
-#endif
 }
 
 /**
@@ -1241,8 +1234,29 @@ void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
  */
 void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
 {
-    // If this was a down button press (ignore other states and ups)
-    if(R_PLAYING == ref.gameState && true == down)
+    if(!down)
+    {
+        // Ignore all button releases
+        return;
+    }
+
+    // If we're still connecting and no connection has started yet
+    if(R_CONNECTING == ref.gameState && !ref.cnc.rxGameStartAck && !ref.cnc.rxGameStartMsg)
+    {
+        if(1 == button)
+        {
+            // Start single player mode
+            ref.gam.singlePlayer = true;
+            ref.cnc.playOrder = GOING_FIRST;
+            refStartPlaying(NULL);
+        }
+        else if(2 == button)
+        {
+            // Adjust difficulty
+        }
+    }
+    // If we're playing the game
+    else if(R_PLAYING == ref.gameState && true == down)
     {
         bool success = false;
         bool failed = false;
@@ -1271,11 +1285,6 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
         if(success)
         {
             ref_printf("Won the round, continue the game\r\n");
-#ifdef DEBUGGING_GAME
-            refStartRound();
-#else
-            // Now waiting for a result from the other swadge
-            ref.gameState = R_WAITING;
 
             char* spdPtr;
             // Add information about the timing
@@ -1295,27 +1304,49 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
                 spdPtr = spdDn;
             }
 
-            // Clear the LEDs and stop the timer
-            refDisarmAllLedTimers();
-            ets_memset(&ref.led.Leds[0][0], 0, sizeof(ref.led.Leds));
-            setLeds(&ref.led.Leds[0][0], sizeof(ref.led.Leds));
+            if(ref.gam.singlePlayer)
+            {
+                if(spdPtr == spdUp)
+                {
+                    ref.gam.ledPeriodMs--;
+                    // Anything less than a 3ms period is impossible...
+                    if(ref.gam.ledPeriodMs < 3)
+                    {
+                        ref.gam.ledPeriodMs = 3;
+                    }
+                }
+                if(spdPtr == spdDn)
+                {
+                    ref.gam.ledPeriodMs++;
+                }
+                refStartRound();
+            }
+            else
+            {
+                // Now waiting for a result from the other swadge
+                ref.gameState = R_WAITING;
 
-            // Send a message to the other swadge that this round was a success
-            ets_sprintf(&roundContinueMsg[MAC_IDX], macFmtStr,
-                        ref.cnc.otherMac[0],
-                        ref.cnc.otherMac[1],
-                        ref.cnc.otherMac[2],
-                        ref.cnc.otherMac[3],
-                        ref.cnc.otherMac[4],
-                        ref.cnc.otherMac[5],
-                        spdPtr);
-            roundContinueMsg[EXT_IDX - 1] = '_';
-            ets_sprintf(&roundContinueMsg[EXT_IDX], "%s", spdPtr);
+                // Clear the LEDs and stop the timer
+                refDisarmAllLedTimers();
+                ets_memset(&ref.led.Leds[0][0], 0, sizeof(ref.led.Leds));
+                setLeds(&ref.led.Leds[0][0], sizeof(ref.led.Leds));
 
-            // If it's acked, start a timer to reinit if a result is never received
-            // If it's not acked, reinit with refRestart()
-            refSendMsg(roundContinueMsg, ets_strlen(roundContinueMsg), true, refStartRestartTimer, refRestart);
-#endif
+                // Send a message to the other swadge that this round was a success
+                ets_sprintf(&roundContinueMsg[MAC_IDX], macFmtStr,
+                            ref.cnc.otherMac[0],
+                            ref.cnc.otherMac[1],
+                            ref.cnc.otherMac[2],
+                            ref.cnc.otherMac[3],
+                            ref.cnc.otherMac[4],
+                            ref.cnc.otherMac[5],
+                            spdPtr);
+                roundContinueMsg[EXT_IDX - 1] = '_';
+                ets_sprintf(&roundContinueMsg[EXT_IDX], "%s", spdPtr);
+
+                // If it's acked, start a timer to reinit if a result is never received
+                // If it's not acked, reinit with refRestart()
+                refSendMsg(roundContinueMsg, ets_strlen(roundContinueMsg), true, refStartRestartTimer, refRestart);
+            }
         }
         else if(failed)
         {
@@ -1351,28 +1382,70 @@ void ICACHE_FLASH_ATTR refStartRestartTimer(void* arg __attribute__((unused)))
 void ICACHE_FLASH_ATTR refSendRoundLossMsg(void)
 {
     ref_printf("Lost the round\r\n");
-#ifdef DEBUGGING_GAME
-    refStartRound();
-#else
+    if(ref.gam.singlePlayer)
+    {
+        refDisarmAllLedTimers();
+        ref.led.Degree = 0;
+        os_timer_arm(&ref.tmr.SinglePlayerRestart, 250, true);
+    }
+    else
+    {
+        // Tally the loss
+        ref.gam.Losses++;
 
-    // Tally the loss
-    ref.gam.Losses++;
+        // Show the current wins & losses
+        refRoundResultLed(false);
 
-    // Show the current wins & losses
-    refRoundResultLed(false);
+        // Send a message to that ESP that we lost the round
+        ets_sprintf(&roundLossMsg[MAC_IDX], macFmtStr,
+                    ref.cnc.otherMac[0],
+                    ref.cnc.otherMac[1],
+                    ref.cnc.otherMac[2],
+                    ref.cnc.otherMac[3],
+                    ref.cnc.otherMac[4],
+                    ref.cnc.otherMac[5]);
+        // If it's acked, start a timer to reinit if another message is never received
+        // If it's not acked, reinit with refRestart()
+        refSendMsg(roundLossMsg, ets_strlen(roundLossMsg), true, refStartRestartTimer, refRestart);
+    }
+}
 
-    // Send a message to that ESP that we lost the round
-    ets_sprintf(&roundLossMsg[MAC_IDX], macFmtStr,
-                ref.cnc.otherMac[0],
-                ref.cnc.otherMac[1],
-                ref.cnc.otherMac[2],
-                ref.cnc.otherMac[3],
-                ref.cnc.otherMac[4],
-                ref.cnc.otherMac[5]);
-    // If it's acked, start a timer to reinit if another message is never received
-    // If it's not acked, reinit with refRestart()
-    refSendMsg(roundLossMsg, ets_strlen(roundLossMsg), true, refStartRestartTimer, refRestart);
-#endif
+/**
+ * Called every 250ms
+ *
+ * This timer is used to indicate when a single player round is failed
+ * It flashes the LEDs a few times, then restarts a new round
+ *
+ * Since ref.led.Degree isn't being used by the game, it's used to track blink
+ * state.
+ *
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR refSinglePlayerRestart(void* arg __attribute__((unused)))
+{
+    if(ref.led.Degree % 2 == 0)
+    {
+        uint8_t i;
+        for(i = 0; i < 6; i++)
+        {
+            ref.led.Leds[i][0] = 0x40;
+            ref.led.Leds[i][1] = 0xC0;
+            ref.led.Leds[i][2] = 0x00;
+        }
+    }
+    else
+    {
+        ets_memset(&ref.led.Leds[0][0], 0, sizeof(ref.led.Leds));
+    }
+    setLeds((uint8_t*)&ref.led.Leds[0][0], sizeof(ref.led.Leds));
+
+    ref.led.Degree++;
+
+    if(7 == ref.led.Degree)
+    {
+        ref.gam.ledPeriodMs = LED_TIMER_MS_STARTING;
+        refStartRound();
+    }
 }
 
 /**
