@@ -33,6 +33,7 @@
 #include "mode_led_patterns.h"
 #include "mode_reflector_game.h"
 #include "mode_random_d6.h"
+#include "mode_dance.h"
 
 /*============================================================================
  * Defines
@@ -144,6 +145,7 @@ uint8_t mymac[6] = {0};
 
 swadgeMode* swadgeModes[] =
 {
+    &dancesMode,
     &colorchordMode,
     &randomD6Mode,
     &reflectorGameMode,
