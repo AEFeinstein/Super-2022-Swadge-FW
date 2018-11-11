@@ -184,11 +184,17 @@ void ICACHE_FLASH_ATTR colorchordButtonCallback(
             case 2:
             {
                 // The initial value is 16, so this math gets the amps
-                // [0, 8, 16, 24, 32]
-                CCS.gINITIAL_AMP = (CCS.gINITIAL_AMP + 8) % 40;
+                // [0, 8, 16, 24, 32, 40]
+                CCS.gINITIAL_AMP = (CCS.gINITIAL_AMP + 8) % 48;
 
-                // Override the LEDs to show the sensitivity, 1-5
-                showLedCount(1 + (CCS.gINITIAL_AMP / 8), getLedColorPerNumber((CCS.gINITIAL_AMP / 8), 0xFF));
+                // Override the LEDs to show the sensitivity, 1-6
+                led_t leds[6] = {{0}};
+                int i;
+                for(i = 0; i < (CCS.gINITIAL_AMP / 8) + 1; i++)
+                {
+                    leds[(6 - i) % 6].b = 0xFF;
+                }
+                setLeds((uint8_t*) &leds[0], sizeof(leds));
                 break;
             }
         }

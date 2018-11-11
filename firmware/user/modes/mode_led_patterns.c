@@ -15,6 +15,8 @@
 #include <stdint.h>
 #include "user_interface.h"
 #include "user_main.h"
+#include "osapi.h"
+#include "embeddedout.h"
 
 /*============================================================================
  * Defines
@@ -40,8 +42,10 @@ typedef enum
  *==========================================================================*/
 
 void ICACHE_FLASH_ATTR ledPatternEnterMode(void);
+void ICACHE_FLASH_ATTR ledPatternExitMode(void);
 void ICACHE_FLASH_ATTR ledPatternButtonCallback(uint8_t state, int button, int down);
-void ICACHE_FLASH_ATTR ledPatternTimerCallback(void);
+//void ICACHE_FLASH_ATTR ledPatternTimerCallback(void);
+void ICACHE_FLASH_ATTR rainbowPatternTimerCallback(void* arg);
 
 /*============================================================================
  * Variables
@@ -51,8 +55,8 @@ swadgeMode ledPatternsMode =
 {
     .modeName = "ledPatterns",
     .fnEnterMode = ledPatternEnterMode,
-    .fnExitMode = NULL,
-    .fnTimerCallback = ledPatternTimerCallback,
+    .fnExitMode = ledPatternExitMode,
+    .fnTimerCallback = NULL,
     .fnButtonCallback = ledPatternButtonCallback,
     .fnAudioCallback = NULL,
     .wifiMode = NO_WIFI,
@@ -64,6 +68,9 @@ static volatile color_t color = RED;
 
 static uint8_t brightness = 0x00;
 static bool gettingBrighter = true;
+uint16_t rainbowDegree = 0;
+
+os_timer_t ledPatternTimer = {0};
 
 /*============================================================================
  * Functions
@@ -82,6 +89,18 @@ void ICACHE_FLASH_ATTR ledPatternEnterMode(void)
 
     led_t ledData[NUM_LIN_LEDS] = {{0}};
     setLeds((uint8_t*)ledData, sizeof(ledData));
+
+    os_timer_disarm(&ledPatternTimer);
+    os_timer_setfn(&ledPatternTimer, rainbowPatternTimerCallback, NULL);
+    os_timer_arm(&ledPatternTimer, 7, true);
+}
+
+/**
+ *
+ */
+void ICACHE_FLASH_ATTR ledPatternExitMode(void)
+{
+    os_timer_disarm(&ledPatternTimer);
 }
 
 /**
@@ -97,6 +116,46 @@ void ICACHE_FLASH_ATTR ledPatternButtonCallback(uint8_t state __attribute__((unu
     {
         color = (color + 1) % MAX_COLORS;
     }
+}
+
+/**
+ * TODO
+ */
+void ICACHE_FLASH_ATTR rainbowPatternTimerCallback(void* arg __attribute__((unused)))
+{
+    led_t leds[6] = {{0}};
+    rainbowDegree = (rainbowDegree + 1) % 256;
+
+    if(gettingBrighter)
+    {
+        brightness++;
+        if(0xFF == brightness)
+        {
+            gettingBrighter = false;
+        }
+    }
+    else
+    {
+        brightness--;
+        if(0x00 == brightness)
+        {
+            os_timer_disarm(&ledPatternTimer);
+            enterDeepSleep(true, SLEEP_US);
+        }
+    }
+
+    uint8_t i;
+    for(i = 0; i < 6; i++)
+    {
+        int16_t angle = (((i * 256) / 6) + rainbowDegree) % 256;
+        uint32_t color = EHSVtoHEX(angle, 0xFF, brightness);
+
+        leds[i].r = (color >>  0) & 0xFF;
+        leds[i].g = (color >>  8) & 0xFF;
+        leds[i].b = (color >> 16) & 0xFF;
+    }
+
+    setLeds((uint8_t*)&leds[0], sizeof(leds));
 }
 
 /**
