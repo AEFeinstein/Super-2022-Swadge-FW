@@ -91,9 +91,10 @@ void ICACHE_FLASH_ATTR danceEnterMode(void)
 void ICACHE_FLASH_ATTR danceExitMode(void)
 {
     // Disarm the timer
+    uint8_t i;
     for (i = 0; i < sizeof(danceTimers) / sizeof(danceTimers[0]); i++)
     {
-        os_timer_disarm(&danceTimer[i].timer);
+        os_timer_disarm(&danceTimers[i].timer);
     }
 }
 
