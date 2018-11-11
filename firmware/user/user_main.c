@@ -145,10 +145,10 @@ uint8_t mymac[6] = {0};
 
 swadgeMode* swadgeModes[] =
 {
-    &dancesMode,
     &colorchordMode,
-    &randomD6Mode,
     &reflectorGameMode,
+    &randomD6Mode,
+    &dancesMode,
     &ledPatternsMode,
 };
 bool swadgeModeInit = false;
@@ -601,7 +601,7 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
             got_an_ip = 0;
         }
         ets_memset( ledOut + wifi_fails * 3, 255, 3 );
-        setLeds( ledOut, USE_NUM_LIN_LEDS * 3 );
+        setLeds( (led_t*)ledOut, USE_NUM_LIN_LEDS * 3 );
     }
     else if( stat == STATION_GOT_IP && !got_an_ip )
     {
@@ -672,7 +672,7 @@ static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned
         {
             ets_memcpy( ledOut, pusrdata + 10, len - 10 );
             ticks_since_override = TICKER_TIMEOUT + 1;
-            setLeds( ledOut, 255 * 3 );
+            setLeds( (led_t*)ledOut, 255 * 3 );
             ticks_since_override = 0;
         }
     }
@@ -984,7 +984,7 @@ void ICACHE_FLASH_ATTR ExitCritical(void)
  * LED1_G, index 2 is LED1_B, index 3 is LED2_R, etc.
  * @param ledDataLen The length of buffer, most likely 6*3
  */
-void ICACHE_FLASH_ATTR setLeds(uint8_t* ledData, uint16_t ledDataLen)
+void ICACHE_FLASH_ATTR setLeds(led_t* ledData, uint16_t ledDataLen)
 {
     // If the LEDs were overwritten with a UDP command, keep them that way for a while
     if( ticks_since_override < TICKER_TIMEOUT )
@@ -994,7 +994,7 @@ void ICACHE_FLASH_ATTR setLeds(uint8_t* ledData, uint16_t ledDataLen)
     else
     {
         // Otherwise send out the LED data
-        ws2812_push( ledData, ledDataLen );
+        ws2812_push( (uint8_t*) ledData, ledDataLen );
         //os_printf("%s, %d LEDs\r\n", __func__, ledDataLen / 3);
     }
 }
@@ -1020,55 +1020,55 @@ uint32_t ICACHE_FLASH_ATTR getLedColorPerNumber(uint8_t num, uint8_t lightness)
  */
 void ICACHE_FLASH_ATTR showLedCount(uint8_t num, uint32_t color)
 {
-    uint8_t leds[6][3] = {{0}};
+    led_t leds[6] = {{0}};
 
-    uint8_t rgb[3];
-    rgb[0] = (color >> 16) & 0xFF;
-    rgb[1] = (color >>  8) & 0xFF;
-    rgb[2] = (color >>  0) & 0xFF;
+    led_t rgb;
+    rgb.r = (color >> 16) & 0xFF;
+    rgb.g = (color >>  8) & 0xFF;
+    rgb.b = (color >>  0) & 0xFF;
 
     // Set the LEDs
     switch(num)
     {
         case 6:
         {
-            ets_memcpy(leds[3], rgb, sizeof(rgb));
+            ets_memcpy(&leds[3], &rgb, sizeof(rgb));
         }
         // no break
         case 5:
         {
-            ets_memcpy(leds[0], rgb, sizeof(rgb));
+            ets_memcpy(&leds[0], &rgb, sizeof(rgb));
         }
         // no break
         case 4:
         {
-            ets_memcpy(leds[1], rgb, sizeof(rgb));
-            ets_memcpy(leds[2], rgb, sizeof(rgb));
-            ets_memcpy(leds[4], rgb, sizeof(rgb));
-            ets_memcpy(leds[5], rgb, sizeof(rgb));
+            ets_memcpy(&leds[1], &rgb, sizeof(rgb));
+            ets_memcpy(&leds[2], &rgb, sizeof(rgb));
+            ets_memcpy(&leds[4], &rgb, sizeof(rgb));
+            ets_memcpy(&leds[5], &rgb, sizeof(rgb));
             break;
         }
 
         case 3:
         {
-            ets_memcpy(leds[0], rgb, sizeof(rgb));
-            ets_memcpy(leds[2], rgb, sizeof(rgb));
-            ets_memcpy(leds[4], rgb, sizeof(rgb));
+            ets_memcpy(&leds[0], &rgb, sizeof(rgb));
+            ets_memcpy(&leds[2], &rgb, sizeof(rgb));
+            ets_memcpy(&leds[4], &rgb, sizeof(rgb));
             break;
         }
 
         case 2:
         {
-            ets_memcpy(leds[3], rgb, sizeof(rgb));
+            ets_memcpy(&leds[3], &rgb, sizeof(rgb));
         }
         // no break
         case 1:
         {
-            ets_memcpy(leds[0], rgb, sizeof(rgb));
+            ets_memcpy(&leds[0], &rgb, sizeof(rgb));
             break;
         }
     }
 
     // Draw the LEDs
-    setLeds((uint8_t*)leds, sizeof(leds));
+    setLeds(leds, sizeof(leds));
 }

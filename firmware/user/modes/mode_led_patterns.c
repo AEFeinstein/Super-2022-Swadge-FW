@@ -88,7 +88,7 @@ void ICACHE_FLASH_ATTR ledPatternEnterMode(void)
     gettingBrighter = true;
 
     led_t ledData[NUM_LIN_LEDS] = {{0}};
-    setLeds((uint8_t*)ledData, sizeof(ledData));
+    setLeds(ledData, sizeof(ledData));
 
     os_timer_disarm(&ledPatternTimer);
     os_timer_setfn(&ledPatternTimer, rainbowPatternTimerCallback, NULL);
@@ -155,7 +155,7 @@ void ICACHE_FLASH_ATTR rainbowPatternTimerCallback(void* arg __attribute__((unus
         leds[i].b = (color >> 16) & 0xFF;
     }
 
-    setLeds((uint8_t*)&leds[0], sizeof(leds));
+    setLeds(leds, sizeof(leds));
 }
 
 /**
@@ -209,7 +209,7 @@ void ICACHE_FLASH_ATTR ledPatternTimerCallback(void)
             }
         }
     }
-    setLeds((uint8_t*)ledData, sizeof(ledData));
+    setLeds(ledData, sizeof(ledData));
 
     // If the LEDs have dimmed back to zero, sleep for a while
     if(0x00 == brightness)

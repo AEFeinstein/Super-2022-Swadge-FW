@@ -388,7 +388,7 @@ struct
     // LED variables
     struct
     {
-        uint8_t Leds[6][3];
+        led_t Leds[6];
         connLedState_t ConnLedState;
         sint16_t Degree;
         uint8_t connectionDim;
@@ -798,7 +798,7 @@ void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event)
 
         ref.gameState = R_SHOW_CONNECTION;
 
-        ets_memset(&ref.led.Leds[0][0], 0, sizeof(ref.led.Leds));
+        ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
         ref.led.ConnLedState = LED_CONNECTED_BRIGHT;
 
         refDisarmAllLedTimers();
@@ -820,7 +820,7 @@ void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event)
  */
 void ICACHE_FLASH_ATTR refShowConnectionLedTimeout(void* arg __attribute__((unused)) )
 {
-    uint8_t currBrightness = ref.led.Leds[0][0];
+    uint8_t currBrightness = ref.led.Leds[0].r;
     switch(ref.led.ConnLedState)
     {
         case LED_CONNECTED_BRIGHT:
@@ -847,8 +847,8 @@ void ICACHE_FLASH_ATTR refShowConnectionLedTimeout(void* arg __attribute__((unus
             break;
         }
     }
-    ets_memset(&ref.led.Leds[0][0], currBrightness, sizeof(ref.led.Leds));
-    setLeds(&ref.led.Leds[0][0], sizeof(ref.led.Leds));
+    ets_memset(ref.led.Leds, currBrightness, sizeof(ref.led.Leds));
+    setLeds(ref.led.Leds, sizeof(ref.led.Leds));
 }
 
 /**
@@ -862,8 +862,8 @@ void ICACHE_FLASH_ATTR refStartPlaying(void* arg __attribute__((unused)))
 
     // Turn off the LEDs
     refDisarmAllLedTimers();
-    ets_memset(&ref.led.Leds[0][0], 0, sizeof(ref.led.Leds));
-    setLeds(&ref.led.Leds[0][0], sizeof(ref.led.Leds));
+    ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+    setLeds(ref.led.Leds, sizeof(ref.led.Leds));
 
     // Reset the LED timer to the default speed
     refAdjustledSpeed(true, false);
@@ -933,8 +933,8 @@ void ICACHE_FLASH_ATTR refStartRound(void)
 
     // Clear the LEDs first
     refDisarmAllLedTimers();
-    ets_memset(&ref.led.Leds[0][0], 0, sizeof(ref.led.Leds));
-    setLeds(&ref.led.Leds[0][0], sizeof(ref.led.Leds));
+    ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+    setLeds(ref.led.Leds, sizeof(ref.led.Leds));
     // Then set the game in motion
     os_timer_arm(&ref.tmr.GameLed, ref.gam.ledPeriodMs, true);
 }
@@ -1044,7 +1044,7 @@ void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
             os_timer_arm(&ref.tmr.ConnLed, 4, true);
 
             ref.led.connectionDim = 0;
-            ets_memset(&ref.led.Leds[0][0], 0, sizeof(ref.led.Leds));
+            ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
 
             ref.led.ConnLedState = LED_ON_1;
             break;
@@ -1109,7 +1109,7 @@ void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
     }
 
     // Copy the color value to all LEDs
-    ets_memset(&ref.led.Leds[0][0], 0, sizeof(ref.led.Leds));
+    ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
     uint8_t i;
     for(i = 0; i < 6; i ++)
     {
@@ -1118,19 +1118,19 @@ void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
             case EASY:
             {
                 // Turn on blue
-                ref.led.Leds[i][2] = ref.led.connectionDim;
+                ref.led.Leds[i].b = ref.led.connectionDim;
                 break;
             }
             case MEDIUM:
             {
                 // Turn on green
-                ref.led.Leds[i][0] = ref.led.connectionDim;
+                ref.led.Leds[i].g = ref.led.connectionDim;
                 break;
             }
             case HARD:
             {
                 // Turn on red
-                ref.led.Leds[i][1] = ref.led.connectionDim;
+                ref.led.Leds[i].r = ref.led.connectionDim;
                 break;
             }
         }
@@ -1144,18 +1144,18 @@ void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
             case EASY:
             {
                 // Green on blue
-                ref.led.Leds[2][0] = 25;
-                ref.led.Leds[2][1] = 0;
-                ref.led.Leds[2][2] = 0;
+                ref.led.Leds[2].g = 25;
+                ref.led.Leds[2].r = 0;
+                ref.led.Leds[2].b = 0;
                 break;
             }
             case MEDIUM:
             case HARD:
             {
                 // Blue on green and red
-                ref.led.Leds[2][0] = 0;
-                ref.led.Leds[2][1] = 0;
-                ref.led.Leds[2][2] = 25;
+                ref.led.Leds[2].g = 0;
+                ref.led.Leds[2].r = 0;
+                ref.led.Leds[2].b = 25;
                 break;
             }
         }
@@ -1167,25 +1167,25 @@ void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
             case EASY:
             {
                 // Green on blue
-                ref.led.Leds[4][0] = 25;
-                ref.led.Leds[4][1] = 0;
-                ref.led.Leds[4][2] = 0;
+                ref.led.Leds[4].g = 25;
+                ref.led.Leds[4].r = 0;
+                ref.led.Leds[4].b = 0;
                 break;
             }
             case MEDIUM:
             case HARD:
             {
                 // Blue on green and red
-                ref.led.Leds[4][0] = 0;
-                ref.led.Leds[4][1] = 0;
-                ref.led.Leds[4][2] = 25;
+                ref.led.Leds[4].g = 0;
+                ref.led.Leds[4].r = 0;
+                ref.led.Leds[4].b = 25;
                 break;
             }
         }
     }
 
     // Physically set the LEDs
-    setLeds(&ref.led.Leds[0][0], sizeof(ref.led.Leds));
+    setLeds(ref.led.Leds, sizeof(ref.led.Leds));
 }
 
 /**
@@ -1197,17 +1197,17 @@ void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
     uint8_t i;
     for(i = 0; i < 6; i++)
     {
-        if(ref.led.Leds[i][0] > 0)
+        if(ref.led.Leds[i].g > 0)
         {
-            ref.led.Leds[i][0] -= 4;
+            ref.led.Leds[i].g -= 4;
         }
-        if(ref.led.Leds[i][1] > 0)
+        if(ref.led.Leds[i].r > 0)
         {
-            ref.led.Leds[i][1] -= 4;
+            ref.led.Leds[i].r -= 4;
         }
-        if(ref.led.Leds[i][2] > 0)
+        if(ref.led.Leds[i].b > 0)
         {
-            ref.led.Leds[i][2] -= 4;
+            ref.led.Leds[i].b -= 4;
         }
     }
 
@@ -1219,21 +1219,21 @@ void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
             case ACT_BOTH:
             {
                 // Make sure this value decays to exactly zero above
-                ref.led.Leds[ref.led.Degree / DEG_PER_LED][0] = 0;
-                ref.led.Leds[ref.led.Degree / DEG_PER_LED][1] = 252;
-                ref.led.Leds[ref.led.Degree / DEG_PER_LED][2] = 0;
+                ref.led.Leds[ref.led.Degree / DEG_PER_LED].g = 0;
+                ref.led.Leds[ref.led.Degree / DEG_PER_LED].r = 252;
+                ref.led.Leds[ref.led.Degree / DEG_PER_LED].b = 0;
 
-                ref.led.Leds[(360 - ref.led.Degree) / DEG_PER_LED][0] = 0;
-                ref.led.Leds[(360 - ref.led.Degree) / DEG_PER_LED][1] = 252;
-                ref.led.Leds[(360 - ref.led.Degree) / DEG_PER_LED][2] = 0;
+                ref.led.Leds[(360 - ref.led.Degree) / DEG_PER_LED].g = 0;
+                ref.led.Leds[(360 - ref.led.Degree) / DEG_PER_LED].r = 252;
+                ref.led.Leds[(360 - ref.led.Degree) / DEG_PER_LED].b = 0;
                 break;
             }
             case ACT_COUNTERCLOCKWISE:
             case ACT_CLOCKWISE:
             {
-                ref.led.Leds[ref.led.Degree / DEG_PER_LED][0] = 0;
-                ref.led.Leds[ref.led.Degree / DEG_PER_LED][1] = 252;
-                ref.led.Leds[ref.led.Degree / DEG_PER_LED][2] = 0;
+                ref.led.Leds[ref.led.Degree / DEG_PER_LED].g = 0;
+                ref.led.Leds[ref.led.Degree / DEG_PER_LED].r = 252;
+                ref.led.Leds[ref.led.Degree / DEG_PER_LED].b = 0;
                 break;
             }
         }
@@ -1273,11 +1273,11 @@ void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
     }
 
     // Physically set the LEDs
-    setLeds(&ref.led.Leds[0][0], sizeof(ref.led.Leds));
+    setLeds(ref.led.Leds, sizeof(ref.led.Leds));
 
-    uint8_t blankLeds[6][3] = {{0}};
+    led_t blankLeds[6] = {{0}};
     if(false == ref.gam.shouldTurnOnLeds &&
-            0 == ets_memcmp(&ref.led.Leds[0][0], &blankLeds[0][0], sizeof(blankLeds)))
+            0 == ets_memcmp(ref.led.Leds, &blankLeds[0], sizeof(blankLeds)))
     {
         // If the last LED is off, the user missed the window of opportunity
         refSendRoundLossMsg();
@@ -1325,7 +1325,7 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
         bool failed = false;
 
         // And the final LED is lit
-        if(ref.led.Leds[3][1] > 0)
+        if(ref.led.Leds[3].r > 0)
         {
             // If it's the right button for a single button mode
             if ((ACT_COUNTERCLOCKWISE == ref.gam.Action && 2 == button) ||
@@ -1351,12 +1351,12 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
 
             char* spdPtr;
             // Add information about the timing
-            if(ref.led.Leds[3][1] >= 192)
+            if(ref.led.Leds[3].r >= 192)
             {
                 // Speed up if the button is pressed when the LED is brightest
                 spdPtr = spdUp;
             }
-            else if(ref.led.Leds[3][1] >= 64)
+            else if(ref.led.Leds[3].r >= 64)
             {
                 // No change for the middle range
                 spdPtr = spdNc;
@@ -1386,8 +1386,8 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
 
                 // Clear the LEDs and stop the timer
                 refDisarmAllLedTimers();
-                ets_memset(&ref.led.Leds[0][0], 0, sizeof(ref.led.Leds));
-                setLeds(&ref.led.Leds[0][0], sizeof(ref.led.Leds));
+                ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+                setLeds(ref.led.Leds, sizeof(ref.led.Leds));
 
                 // Send a message to the other swadge that this round was a success
                 ets_sprintf(&roundContinueMsg[MAC_IDX], macFmtStr,
@@ -1486,16 +1486,16 @@ void ICACHE_FLASH_ATTR refSinglePlayerRestart(void* arg __attribute__((unused)))
         uint8_t i;
         for(i = 0; i < 6; i++)
         {
-            ref.led.Leds[i][0] = 0x40;
-            ref.led.Leds[i][1] = 0xC0;
-            ref.led.Leds[i][2] = 0x00;
+            ref.led.Leds[i].g = 0x40;
+            ref.led.Leds[i].r = 0xC0;
+            ref.led.Leds[i].b = 0x00;
         }
     }
     else
     {
-        ets_memset(&ref.led.Leds[0][0], 0, sizeof(ref.led.Leds));
+        ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
     }
-    setLeds((uint8_t*)&ref.led.Leds[0][0], sizeof(ref.led.Leds));
+    setLeds(ref.led.Leds, sizeof(ref.led.Leds));
 
     ref.led.Degree++;
 
@@ -1517,29 +1517,29 @@ void ICACHE_FLASH_ATTR refRoundResultLed(bool roundWinner)
     sint8_t i;
 
     // Clear the LEDs
-    ets_memset(&ref.led.Leds[0][0], 0, sizeof(ref.led.Leds));
+    ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
 
     // Light green for wins
     for(i = 4; i < 4 + ref.gam.Wins; i++)
     {
         // Green
-        ref.led.Leds[i % 6][0] = 255;
-        ref.led.Leds[i % 6][1] = 0;
-        ref.led.Leds[i % 6][2] = 0;
+        ref.led.Leds[i % 6].g = 255;
+        ref.led.Leds[i % 6].r = 0;
+        ref.led.Leds[i % 6].b = 0;
     }
 
     // Light reds for losses
     for(i = 2; i >= (3 - ref.gam.Losses); i--)
     {
         // Red
-        ref.led.Leds[i][0] = 0;
-        ref.led.Leds[i][1] = 255;
-        ref.led.Leds[i][2] = 0;
+        ref.led.Leds[i].g = 0;
+        ref.led.Leds[i].r = 255;
+        ref.led.Leds[i].b = 0;
     }
 
     // Push out LED data
     refDisarmAllLedTimers();
-    setLeds(&ref.led.Leds[0][0], sizeof(ref.led.Leds));
+    setLeds(ref.led.Leds, sizeof(ref.led.Leds));
 
     // Set up the next round based on the winner
     if(roundWinner)

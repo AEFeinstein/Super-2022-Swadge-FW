@@ -117,7 +117,7 @@ void ICACHE_FLASH_ATTR randRollD6(void)
 
         // Turn off LEDs
         ets_memset(&ranD6.Leds, 0, sizeof(ranD6.Leds));
-        setLeds((uint8_t*)&ranD6.Leds, sizeof(ranD6.Leds));
+        setLeds(ranD6.Leds, sizeof(ranD6.Leds));
 
         // Run the animation every 100ms
         os_timer_arm(&ranD6.LedAnimTimer, 100, true);
@@ -180,7 +180,7 @@ void ICACHE_FLASH_ATTR randLedAnimation(void* arg __attribute__((unused)))
     }
 
     // Draw the LEDs
-    setLeds((uint8_t*)&ranD6.Leds, sizeof(ranD6.Leds));
+    setLeds(ranD6.Leds, sizeof(ranD6.Leds));
 }
 
 /**

@@ -119,7 +119,7 @@ void ICACHE_FLASH_ATTR colorchordSampleHandler(int32_t samp)
         // Push out the LED data
         if(!ccOverrideLeds)
         {
-            setLeds( ledOut, USE_NUM_LIN_LEDS * 3 );
+            setLeds( (led_t*)ledOut, USE_NUM_LIN_LEDS * 3 );
         }
 
         // Reset the sample count
@@ -178,7 +178,7 @@ void ICACHE_FLASH_ATTR colorchordButtonCallback(
                         leds[i].b = (color >> 16) & 0xFF;
                     }
                 }
-                setLeds((uint8_t*)&leds[0], sizeof(leds));
+                setLeds(leds, sizeof(leds));
                 break;
             }
             case 2:
@@ -194,7 +194,7 @@ void ICACHE_FLASH_ATTR colorchordButtonCallback(
                 {
                     leds[(6 - i) % 6].b = 0xFF;
                 }
-                setLeds((uint8_t*) &leds[0], sizeof(leds));
+                setLeds(leds, sizeof(leds));
                 break;
             }
         }

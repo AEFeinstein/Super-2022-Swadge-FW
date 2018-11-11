@@ -144,7 +144,7 @@ struct _swadgeMode
  *                   LED1_G, index 2 is LED1_B, index 3 is LED2_R, etc.
  * @param ledDataLen The length of buffer, most likely 6*3
  */
-void ICACHE_FLASH_ATTR setLeds(uint8_t* ledData, uint16_t ledDataLen);
+void ICACHE_FLASH_ATTR setLeds(led_t* ledData, uint16_t ledDataLen);
 
 /**
  * Wrapper for esp_now_send() which always broadcasts packets and sets wifi power

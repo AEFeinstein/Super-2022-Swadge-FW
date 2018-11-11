@@ -138,7 +138,7 @@ void ICACHE_FLASH_ATTR danceTimerMode1(void* arg __attribute__((unused)))
 
     // Draw LEDs here!!
 
-    setLeds((uint8_t*)&leds[0], sizeof(leds));
+    setLeds(leds, sizeof(leds));
 }
 
 void ICACHE_FLASH_ATTR danceTimerMode2(void* arg __attribute__((unused)))
@@ -157,5 +157,5 @@ void ICACHE_FLASH_ATTR danceTimerMode2(void* arg __attribute__((unused)))
 
     // Draw LEDs here!!
 
-    setLeds((uint8_t*)&leds[0], sizeof(leds));
+    setLeds(leds, sizeof(leds));
 }
