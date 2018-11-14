@@ -574,9 +574,9 @@ void ICACHE_FLASH_ATTR refSendCb(uint8_t* mac_addr __attribute__((unused)),
                     transmissionTimeUs = 1000;
                 }
 
-                // Round it to the nearest Ms, then add some randomness
-                // Wait at least 3x the time it took to transmit, up to 6x the time to transmit
-                uint32_t waitTimeMs = ((transmissionTimeUs + 500) / 1000) * (3 + (os_random() & 0b11));
+                // Round it to the nearest Ms, add 69ms (the measured worst case)
+                // then add some randomness [0ms to 15ms random]
+                uint32_t waitTimeMs = ((transmissionTimeUs + 500) / 1000) + 69 + (os_random() & 0b1111);
 
                 // Start the timer
                 ref_printf("ack timer set for %dms\r\n", waitTimeMs);
