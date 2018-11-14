@@ -109,6 +109,8 @@
 
 #define RTC_MEM_ADDR 64
 
+#define DEBOUNCE_US 200000
+
 /*============================================================================
  * Structs
  *==========================================================================*/
@@ -166,10 +168,11 @@ buttonEvt buttonQueue[NUM_BUTTON_EVTS] = {{0}};
 uint8_t buttonEvtHead = 0;
 uint8_t buttonEvtTail = 0;
 bool pendingNextSwadgeMode = false;
+uint32_t lastButtonPress[3] = {0};
+bool debounceEnabled = true;
 
 rtcMem_t rtcMem = {0};
 os_timer_t modeSwitchTimer = {0};
-uint32_t lastModeSwitchTime = 0;
 
 uint8_t modeLedBrightness = 0;
 
@@ -721,29 +724,51 @@ void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void)
         if(0 == buttonQueue[buttonEvtHead].btn)
         {
             // Make sure no two presses happen within 100ms of each other
-            if(buttonQueue[buttonEvtHead].time - lastModeSwitchTime < 200000)
+            if(buttonQueue[buttonEvtHead].time - lastButtonPress[buttonQueue[buttonEvtHead].btn] < DEBOUNCE_US)
             {
                 ; // Consume this event below, don't count it as a press
             }
             else if(buttonQueue[buttonEvtHead].down)
             {
                 // Note the time of this button press
-                lastModeSwitchTime = buttonQueue[buttonEvtHead].time;
+                lastButtonPress[buttonQueue[buttonEvtHead].btn] = buttonQueue[buttonEvtHead].time;
                 incrementSwadgeModeNoSleep();
             }
         }
         // Pass the button to the mode
         else if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
         {
-            swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(
-                buttonQueue[buttonEvtHead].stat,
-                buttonQueue[buttonEvtHead].btn,
-                buttonQueue[buttonEvtHead].down);
+            if(debounceEnabled &&
+                    buttonQueue[buttonEvtHead].time - lastButtonPress[buttonQueue[buttonEvtHead].btn] < DEBOUNCE_US)
+            {
+                ; // Consume this event below, don't count it as a press
+            }
+            else
+            {
+                // Pass the button event to the mode
+                swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(
+                    buttonQueue[buttonEvtHead].stat,
+                    buttonQueue[buttonEvtHead].btn,
+                    buttonQueue[buttonEvtHead].down);
+
+                // Note the time of this button press
+                lastButtonPress[buttonQueue[buttonEvtHead].btn] = buttonQueue[buttonEvtHead].time;
+            }
         }
 
         // Increment the head
         buttonEvtHead = (buttonEvtHead + 1) % NUM_BUTTON_EVTS;
     }
+}
+
+/**
+ * Enable or disable button debounce for non-mode switch buttons
+ *
+ * @param enable true to enable, false to disable
+ */
+void ICACHE_FLASH_ATTR enableDebounce(bool enable)
+{
+    debounceEnabled = enable;
 }
 
 /**

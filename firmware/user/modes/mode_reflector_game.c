@@ -406,6 +406,9 @@ void ICACHE_FLASH_ATTR refInit(void)
 {
     ref_printf("%s\r\n", __func__);
 
+    // Enable button debounce for consistent 1p/2p and difficulty config
+    enableDebounce(true);
+
     // Make sure everything is zero!
     ets_memset(&ref, 0, sizeof(ref));
 
@@ -859,6 +862,9 @@ void ICACHE_FLASH_ATTR refShowConnectionLedTimeout(void* arg __attribute__((unus
 void ICACHE_FLASH_ATTR refStartPlaying(void* arg __attribute__((unused)))
 {
     ref_printf("%s\r\n", __func__);
+
+    // Disable button debounce for minimum latency
+    enableDebounce(false);
 
     // Turn off the LEDs
     refDisarmAllLedTimers();
