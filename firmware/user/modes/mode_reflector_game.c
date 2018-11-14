@@ -183,18 +183,8 @@ digraph G {
     #define ref_printf(...)
 #endif
 
-#define FAST_RETRIES
-
-#ifdef FAST_RETRIES
-    // The time we'll spend retrying messages
-    #define RETRY_TIME_MS 3000
-#else
-    // Number of message retries
-    #define REFLECTOR_ACK_RETRIES 11
-    // Amount of time to wait before retrying
-    #define REFLECTOR_ACK_TIMEOUT_MS 250
-    // With 1 msg + 11 retries @ 250ms, the longest transmission could be 3s
-#endif
+// The time we'll spend retrying messages
+#define RETRY_TIME_MS 3000
 
 // Minimum RSSI to accept a connection broadcast
 #define CONNECTION_RSSI 55
@@ -283,9 +273,7 @@ void ICACHE_FLASH_ATTR refSinglePlayerRestart(void* arg __attribute__((unused)))
 void ICACHE_FLASH_ATTR refSendMsg(char* msg, uint16_t len, bool shouldAck, void (*success)(void*),
                                   void (*failure)(void*));
 void ICACHE_FLASH_ATTR refSendAckToMac(uint8_t* mac_addr);
-#ifdef FAST_RETRIES
-    void ICACHE_FLASH_ATTR refTxAllRetriesTimeout(void* arg __attribute__((unused)) );
-#endif
+void ICACHE_FLASH_ATTR refTxAllRetriesTimeout(void* arg __attribute__((unused)) );
 void ICACHE_FLASH_ATTR refTxRetryTimeout(void* arg);
 
 // Connection functions
@@ -352,11 +340,7 @@ struct
         bool isWaitingForAck;
         char msgToAck[32];
         uint16_t msgToAckLen;
-#ifdef FAST_RETRIES
         uint32_t timeSentUs;
-#else
-        uint8_t TxRetries;
-#endif
         void (*SuccessFn)(void*);
         void (*FailureFn)(void*);
     } ack;
@@ -391,9 +375,7 @@ struct
     struct
     {
         os_timer_t TxRetry;
-#ifdef FAST_RETRIES
         os_timer_t TxAllRetries;
-#endif
         os_timer_t Connection;
         os_timer_t StartPlaying;
         os_timer_t ConnLed;
@@ -446,10 +428,8 @@ void ICACHE_FLASH_ATTR refInit(void)
     os_timer_disarm(&ref.tmr.TxRetry);
     os_timer_setfn(&ref.tmr.TxRetry, refTxRetryTimeout, NULL);
 
-#ifdef FAST_RETRIES
     os_timer_disarm(&ref.tmr.TxAllRetries);
     os_timer_setfn(&ref.tmr.TxAllRetries, refTxAllRetriesTimeout, NULL);
-#endif
 
     // Set up a timer for showing a successful connection, don't start it
     os_timer_disarm(&ref.tmr.ShowConnectionLed);
@@ -562,7 +542,6 @@ void ICACHE_FLASH_ATTR refSendCb(uint8_t* mac_addr __attribute__((unused)),
     {
         case MT_TX_STATUS_OK:
         {
-#ifdef FAST_RETRIES
             if(0 != ref.ack.timeSentUs)
             {
                 uint32_t transmissionTimeUs = system_get_time() - ref.ack.timeSentUs;
@@ -582,19 +561,16 @@ void ICACHE_FLASH_ATTR refSendCb(uint8_t* mac_addr __attribute__((unused)),
                 ref_printf("ack timer set for %dms\r\n", waitTimeMs);
                 os_timer_arm(&ref.tmr.TxRetry, waitTimeMs, false);
             }
-#endif
             break;
         }
         case MT_TX_STATUS_FAILED:
         {
-#ifdef FAST_RETRIES
             // If a message is stored
             if(ref.ack.msgToAckLen > 0)
             {
                 // try again in 1ms
                 os_timer_arm(&ref.tmr.TxRetry, 1, false);
             }
-#endif
             break;
         }
     }
@@ -691,14 +667,10 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
 
             // Clear ack timeout variables
             os_timer_disarm(&ref.tmr.TxRetry);
-#ifdef FAST_RETRIES
             // Disarm the whole transmission ack timer
             os_timer_disarm(&ref.tmr.TxAllRetries);
             // Clear out ACK variables
             ets_memset(&ref.ack, 0, sizeof(ref.ack));
-#else
-            ref.ack.TxRetries = 0;
-#endif
 
             ref.ack.isWaitingForAck = false;
         }
@@ -1073,34 +1045,22 @@ void ICACHE_FLASH_ATTR refSendMsg(char* msg, uint16_t len, bool shouldAck, void 
             ref.ack.SuccessFn = success;
             ref.ack.FailureFn = failure;
 
-#ifndef FAST_RETRIES
-            // Set the number of retries
-            ref.ack.TxRetries = REFLECTOR_ACK_RETRIES;
-#else
             // Start a timer to retry for 3s total
             os_timer_disarm(&ref.tmr.TxAllRetries);
             os_timer_arm(&ref.tmr.TxAllRetries, RETRY_TIME_MS, false);
-#endif
         }
         else
         {
             ref_printf("this is a retry\r\n");
         }
 
-#ifndef FAST_RETRIES
-        // Start the timer
-        ref_printf("ack timer set for %dms\r\n", REFLECTOR_ACK_TIMEOUT_MS);
-        os_timer_arm(&ref.tmr.TxRetry, REFLECTOR_ACK_TIMEOUT_MS, false);
-#else
         // Mark the time this transmission started, the retry timer gets
         // started in refSendCb()
         ref.ack.timeSentUs = system_get_time();
-#endif
     }
     espNowSend((const uint8_t*)msg, len);
 }
 
-#ifdef FAST_RETRIES
 /**
  * This is called 3s after a transmission if an ACK is never received. It stops
  * the retries and calls the failure function, if provided
@@ -1123,39 +1083,21 @@ void ICACHE_FLASH_ATTR refTxAllRetriesTimeout(void* arg __attribute__((unused)) 
     // Clear out the ack variables
     ets_memset(&ref.ack, 0, sizeof(ref.ack));
 }
-#endif
 
 /**
  * This is called on a timer after refSendMsg(). The timer is disarmed if
  * the message is ACKed. If the message isn't ACKed, this will retry
- * transmission, up to REFLECTOR_ACK_RETRIES times
+ * transmission, for up to 3 seconds
  *
  * @param arg unused
  */
 void ICACHE_FLASH_ATTR refTxRetryTimeout(void* arg __attribute__((unused)) )
 {
-#ifdef FAST_RETRIES
     if(ref.ack.msgToAckLen > 0)
     {
         ref_printf("Retrying message \"%s\"\r\n", ref.ack.msgToAck);
         refSendMsg(ref.ack.msgToAck, ref.ack.msgToAckLen, true, ref.ack.SuccessFn, ref.ack.FailureFn);
     }
-#else
-    if(0 != ref.ack.TxRetries)
-    {
-        ref_printf("Retrying message \"%s\"\r\n", ref.ack.msgToAck);
-        ref.ack.TxRetries--;
-        refSendMsg(ref.ack.msgToAck, ref.ack.msgToAckLen, true, ref.ack.SuccessFn, ref.ack.FailureFn);
-    }
-    else
-    {
-        ref_printf("Message totally failed \"%s\"\r\n", ref.ack.msgToAck);
-        if(NULL != ref.ack.FailureFn)
-        {
-            ref.ack.FailureFn(NULL);
-        }
-    }
-#endif
 }
 
 /**
