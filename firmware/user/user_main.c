@@ -727,7 +727,7 @@ static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned
  *
  * @param c The char received on the UART
  */
-void charrx( uint8_t c __attribute__((unused)))
+void ICACHE_FLASH_ATTR charrx( uint8_t c __attribute__((unused)))
 {
     ;
 }
