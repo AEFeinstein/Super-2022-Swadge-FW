@@ -39,6 +39,7 @@ void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state, int button, int down);
 
 void ICACHE_FLASH_ATTR danceTimerMode1(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode2(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode3(void* arg);
 
 /*============================================================================
  * Variables
@@ -75,6 +76,11 @@ timerWithPeriod danceTimers[] =
     {
         .timer = {0},
         .timerFn = danceTimerMode2,
+        .period = 100
+    },
+    {
+        .timer = {0},
+        .timerFn = danceTimerMode3,
         .period = 100
     }
 };
@@ -205,6 +211,38 @@ void ICACHE_FLASH_ATTR danceTimerMode2(void* arg __attribute__((unused)))
     leds[ledCount].r = 255;
     leds[ledCount].g = 0;
     leds[ledCount].b = 0;
+
+    // Output the LED data, actually turning them on
+    setLeds(leds, sizeof(leds));
+}
+
+
+
+/**
+ * This animation is set to be called every 100ms
+ *
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR danceTimerMode3(void* arg __attribute__((unused)))
+{
+    // Declare some LEDs, all off
+    led_t leds[6] = {{0}};
+
+    // Skip to the next LED around the hexagon
+    ledCount = ledCount - 1;
+    if(ledCount < 0)
+    {
+        ledCount = 5;
+    }
+
+    // Turn the current LED on, full bright red
+    leds[ledCount].r = 0;
+    leds[ledCount].g = 0;
+    leds[ledCount].b = 255;
+
+    leds[(6-ledCount )%6].r = 0;
+    leds[(6-ledCount )%6].g = 0;
+    leds[(6-ledCount )%6].b = 255;
 
     // Output the LED data, actually turning them on
     setLeds(leds, sizeof(leds));
