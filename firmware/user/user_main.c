@@ -1038,7 +1038,7 @@ void ICACHE_FLASH_ATTR user_init(void)
  * If the firmware enters a critical section, disable the hardware timer
  * used to sample the ADC and the corresponding interrupt
  */
-void ICACHE_FLASH_ATTR EnterCritical(void)
+void EnterCritical(void)
 {
     PauseHPATimer();
     // ets_intr_lock();
@@ -1048,7 +1048,7 @@ void ICACHE_FLASH_ATTR EnterCritical(void)
  * If the firmware leaves a critical section, enable the hardware timer
  * used to sample the ADC. This allows the interrupt to fire.
  */
-void ICACHE_FLASH_ATTR ExitCritical(void)
+void ExitCritical(void)
 {
     // ets_intr_unlock();
     ContinueHPATimer();
