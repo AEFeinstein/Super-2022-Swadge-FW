@@ -13,6 +13,7 @@
 #include "custom_commands.h"
 #include <osapi.h>
 #include <uart.h>
+#include "spi_memory_addrs.h"
 
 /*============================================================================
  * Defines
@@ -20,17 +21,19 @@
 
 #define CONFIGURABLES sizeof(struct CCSettings) //(plus1)
 #define SAVE_LOAD_KEY 0xAA
-#define SETTINGS_ADDR 0x7F000
 
 /*============================================================================
  * Structs
  *==========================================================================*/
 
-typedef struct SaveLoad
+// Should be no larger than USER_SETTINGS_SIZE
+typedef struct __attribute__((aligned(4)))
 {
-    uint8_t configs[CONFIGURABLES];
     uint8_t SaveLoadKey; //Must be SAVE_LOAD_KEY to be valid.
-} settings_t;
+    uint8_t configs[CONFIGURABLES];
+    uint8_t refGameWins;
+}
+settings_t;
 
 typedef struct
 {
@@ -142,6 +145,8 @@ configurable_t gConfigs[CONFIGURABLES] =
     }
 };
 
+uint8_t refGameWins = 0;
+
 /*============================================================================
  * Prototypes
  *==========================================================================*/
@@ -160,10 +165,15 @@ void ICACHE_FLASH_ATTR RevertAndSaveAllSettingsExceptLEDs(void);
  */
 void ICACHE_FLASH_ATTR LoadSettings(void)
 {
-    settings_t settings = {{0}, 0};
+    settings_t settings =
+    {
+        .SaveLoadKey = 0,
+        .configs = {0},
+        .refGameWins = 0
+    };
 
     uint8_t i;
-    spi_flash_read( SETTINGS_ADDR, (uint32*)&settings, sizeof( settings ) );
+    spi_flash_read( USER_SETTINGS_ADDR, (uint32*)&settings, sizeof( settings ) );
     if( settings.SaveLoadKey == SAVE_LOAD_KEY )
     {
         os_printf("Settings found\r\n");
@@ -174,6 +184,8 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
                 *gConfigs[i].val = settings.configs[i];
             }
         }
+
+        refGameWins = settings.refGameWins;
     }
     else
     {
@@ -185,6 +197,7 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
                 *gConfigs[i].val = gConfigs[i].defaultVal;
             }
         }
+        refGameWins = 0;
         SaveSettings();
     }
 }
@@ -194,7 +207,13 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
  */
 void ICACHE_FLASH_ATTR SaveSettings(void)
 {
-    settings_t settings = {{0}, 0};
+    settings_t settings =
+    {
+        .SaveLoadKey = SAVE_LOAD_KEY,
+        .configs = {0},
+        .refGameWins = refGameWins
+    };
+
     uint8_t i;
     for( i = 0; i < CONFIGURABLES - 1; i++ )
     {
@@ -203,14 +222,31 @@ void ICACHE_FLASH_ATTR SaveSettings(void)
             settings.configs[i] = *(gConfigs[i].val);
         }
     }
-    settings.SaveLoadKey = SAVE_LOAD_KEY;
 
     EnterCritical();
-    ets_intr_lock();
-    spi_flash_erase_sector( SETTINGS_ADDR / 4096 );
-    spi_flash_write( SETTINGS_ADDR, (uint32*)&settings, ((sizeof( settings ) - 1) & (~0xf)) + 0x10 );
-    ets_intr_unlock();
+    spi_flash_erase_sector( USER_SETTINGS_ADDR / SPI_FLASH_SEC_SIZE );
+    spi_flash_write( USER_SETTINGS_ADDR, (uint32*)&settings, ((sizeof( settings ) - 1) & (~0xf)) + 0x10 );
     ExitCritical();
+}
+
+/**
+ * Increment the game win count and save it to SPI flash
+ */
+void ICACHE_FLASH_ATTR incrementRefGameWins(void)
+{
+    if(refGameWins != 0xFF)
+    {
+        refGameWins++;
+        SaveSettings();
+    }
+}
+
+/**
+ * @return The number of reflector games this swadge has won
+ */
+uint8_t ICACHE_FLASH_ATTR getRefGameWins(void)
+{
+    return refGameWins;
 }
 
 /**

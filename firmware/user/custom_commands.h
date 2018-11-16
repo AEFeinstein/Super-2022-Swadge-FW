@@ -9,5 +9,7 @@
 #define USER_CUSTOM_COMMANDS_H_
 
 void ICACHE_FLASH_ATTR LoadSettings( void );
+uint8_t ICACHE_FLASH_ATTR getRefGameWins(void);
+void ICACHE_FLASH_ATTR incrementRefGameWins(void);
 
 #endif /* USER_CUSTOM_COMMANDS_H_ */

@@ -908,6 +908,8 @@ void ICACHE_FLASH_ATTR user_init(void)
     // Load configurable parameters from SPI memory
     LoadSettings();
 
+    os_printf("Wins: %d\r\n", getRefGameWins());
+
 #ifdef PROFILE
     GPIO_OUTPUT_SET(GPIO_ID_PIN(0), 0);
 #endif
@@ -1041,7 +1043,7 @@ void ICACHE_FLASH_ATTR user_init(void)
 void EnterCritical(void)
 {
     PauseHPATimer();
-    // ets_intr_lock();
+    ets_intr_lock();
 }
 
 /**
@@ -1050,7 +1052,7 @@ void EnterCritical(void)
  */
 void ExitCritical(void)
 {
-    // ets_intr_unlock();
+    ets_intr_unlock();
     ContinueHPATimer();
 }
 
