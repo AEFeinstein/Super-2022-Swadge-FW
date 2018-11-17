@@ -17,6 +17,13 @@
 #include "user_main.h"
 #include "osapi.h"
 #include "embeddedout.h"
+#include "custom_commands.h"
+
+/*============================================================================
+ * Defines
+ *==========================================================================*/
+
+#define SECRET_UNLOCK_CODE 0b101001000011010
 
 /*============================================================================
  * Structs
@@ -37,6 +44,7 @@ void ICACHE_FLASH_ATTR danceEnterMode(void);
 void ICACHE_FLASH_ATTR danceExitMode(void);
 void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state, int button, int down);
 
+void ICACHE_FLASH_ATTR unlockAnimation(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode1(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode2(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode3(void* arg);
@@ -71,7 +79,7 @@ timerWithPeriod danceTimers[] =
     {
         .timer = {0},
         .timerFn = danceTimerMode1,
-        .period = 1
+        .period = 100
     },
     {
         .timer = {0},
@@ -84,6 +92,11 @@ timerWithPeriod danceTimers[] =
         .period = 100
     }
 };
+
+/// Stuff for the secret unlock code
+os_timer_t unlockAnimationTimer = {0};
+uint8_t unlockBlinks = 0;
+uint16_t buttonHistory = 0;
 
 /// This is the current dance being animated
 uint8_t currentDance = 0;
@@ -107,6 +120,9 @@ void ICACHE_FLASH_ATTR danceEnterMode(void)
         os_timer_disarm(&danceTimers[i].timer);
         os_timer_setfn(&danceTimers[i].timer, danceTimers[i].timerFn, NULL);
     }
+
+    os_timer_disarm(&unlockAnimationTimer);
+    os_timer_setfn(&unlockAnimationTimer, unlockAnimation, NULL);
 
     // Start the first timer in danceTimers[]
     os_timer_arm(&danceTimers[0].timer, danceTimers[0].period, true);
@@ -140,6 +156,21 @@ void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state __attribute__((unused))
     // If a button was pressed, not released
     if(down)
     {
+        // Check if the secret code was entered
+        buttonHistory <<= 1;
+        buttonHistory  |= (button == 1 ? 1 : 0);
+        if(SECRET_UNLOCK_CODE == buttonHistory)
+        {
+            // If it was, unlock all the patterns
+            setGameWinsToMax();
+            // Disarm the current animation, it will get rearmed after the pattern
+            os_timer_disarm(&danceTimers[currentDance].timer);
+            // Show a little thing
+            unlockBlinks = 0;
+            os_timer_arm(&unlockAnimationTimer, 200, true);
+            return;
+        }
+
         // Button 1 pressed
         if(1 == button)
         {
@@ -161,6 +192,30 @@ void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state __attribute__((unused))
             // Button 2 pressed
             // TODO do something here??
         }
+    }
+}
+
+/**
+ * This animation is shown when the unlock code is entered
+ * @param arg
+ */
+void ICACHE_FLASH_ATTR unlockAnimation(void* arg __attribute__((unused)))
+{
+    // Set the LEDs to either on (white) or off
+    led_t leds[6] = {{0}};
+    if(unlockBlinks % 2 == 0)
+    {
+        ets_memset(leds, 0x80, sizeof(leds));
+    }
+    setLeds(leds, sizeof(leds));
+    unlockBlinks++;
+
+    // All done
+    if(unlockBlinks == 8)
+    {
+        // Resume normal animation
+        os_timer_disarm(&unlockAnimationTimer);
+        os_timer_arm(&danceTimers[currentDance].timer, danceTimers[currentDance].period, true);
     }
 }
 

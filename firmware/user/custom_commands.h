@@ -11,5 +11,6 @@
 void ICACHE_FLASH_ATTR LoadSettings( void );
 uint8_t ICACHE_FLASH_ATTR getRefGameWins(void);
 void ICACHE_FLASH_ATTR incrementRefGameWins(void);
+void ICACHE_FLASH_ATTR setGameWinsToMax(void);
 
 #endif /* USER_CUSTOM_COMMANDS_H_ */

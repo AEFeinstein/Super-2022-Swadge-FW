@@ -242,6 +242,18 @@ void ICACHE_FLASH_ATTR incrementRefGameWins(void)
 }
 
 /**
+ * Set the game wins to max, unlocking all patterns
+ */
+void ICACHE_FLASH_ATTR setGameWinsToMax(void)
+{
+    if(refGameWins != 0xFF)
+    {
+        refGameWins = 0xFF;
+        SaveSettings();
+    }
+}
+
+/**
  * @return The number of reflector games this swadge has won
  */
 uint8_t ICACHE_FLASH_ATTR getRefGameWins(void)
