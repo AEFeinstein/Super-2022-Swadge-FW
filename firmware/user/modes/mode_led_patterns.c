@@ -90,6 +90,8 @@ void ICACHE_FLASH_ATTR ledPatternEnterMode(void)
     led_t ledData[NUM_LIN_LEDS] = {{0}};
     setLeds(ledData, sizeof(ledData));
 
+    os_printf("%s\r\n", __func__);
+
     os_timer_disarm(&ledPatternTimer);
     os_timer_setfn(&ledPatternTimer, rainbowPatternTimerCallback, NULL);
     os_timer_arm(&ledPatternTimer, 7, true);
@@ -131,6 +133,7 @@ void ICACHE_FLASH_ATTR rainbowPatternTimerCallback(void* arg __attribute__((unus
         brightness++;
         if(0xFF == brightness)
         {
+            os_printf("%s max\r\n", __func__);
             gettingBrighter = false;
         }
     }
@@ -139,6 +142,7 @@ void ICACHE_FLASH_ATTR rainbowPatternTimerCallback(void* arg __attribute__((unus
         brightness--;
         if(0x00 == brightness)
         {
+            os_printf("%s min\r\n", __func__);
             os_timer_disarm(&ledPatternTimer);
             enterDeepSleep(true, SLEEP_US);
         }

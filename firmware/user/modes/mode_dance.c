@@ -240,9 +240,9 @@ void ICACHE_FLASH_ATTR danceTimerMode3(void* arg __attribute__((unused)))
     leds[ledCount].g = 0;
     leds[ledCount].b = 255;
 
-    leds[(6-ledCount )%6].r = 0;
-    leds[(6-ledCount )%6].g = 0;
-    leds[(6-ledCount )%6].b = 255;
+    leds[(6 - ledCount ) % 6].r = 0;
+    leds[(6 - ledCount ) % 6].g = 0;
+    leds[(6 - ledCount ) % 6].b = 255;
 
     // Output the LED data, actually turning them on
     setLeds(leds, sizeof(leds));
