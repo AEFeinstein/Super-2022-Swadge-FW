@@ -131,7 +131,8 @@
 
 #define RTC_MEM_ADDR 64
 
-#define DEBOUNCE_US 200000
+#define DEBOUNCE_US      200000
+#define DEBOUNCE_US_FAST  10000
 
 /*============================================================================
  * Structs
@@ -778,8 +779,9 @@ void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void)
         // Pass the button to the mode
         else if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
         {
-            if(debounceEnabled &&
-                    buttonQueue[buttonEvtHead].time - lastButtonPress[buttonQueue[buttonEvtHead].btn] < DEBOUNCE_US)
+            if((debounceEnabled && buttonQueue[buttonEvtHead].time - lastButtonPress[buttonQueue[buttonEvtHead].btn] < DEBOUNCE_US)
+                    ||
+                    (buttonQueue[buttonEvtHead].time - lastButtonPress[buttonQueue[buttonEvtHead].btn] < DEBOUNCE_US_FAST))
             {
                 ; // Consume this event below, don't count it as a press
             }

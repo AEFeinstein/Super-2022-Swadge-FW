@@ -171,6 +171,7 @@ digraph G {
 #include "user_main.h"
 #include "mode_reflector_game.h"
 #include "osapi.h"
+#include "custom_commands.h"
 
 /*============================================================================
  * Defines
@@ -201,6 +202,9 @@ digraph G {
 #define LED_TIMER_MS_STARTING_EASY   13
 #define LED_TIMER_MS_STARTING_MEDIUM 11
 #define LED_TIMER_MS_STARTING_HARD    9
+
+#define RESTART_COUNT_PERIOD_MS       250
+#define RESTART_COUNT_BLINK_PERIOD_MS 750
 
 /*============================================================================
  * Enums
@@ -253,6 +257,20 @@ typedef enum
     HARD   = 2
 } difficulty_t;
 
+typedef enum
+{
+    SCORE_DISPLAY_INIT,
+    FIRST_DIGIT_INC,
+    FIRST_DIGIT_OFF,
+    FIRST_DIGIT_ON,
+    FIRST_DIGIT_OFF_2,
+    SECOND_DIGIT_INC,
+    SECOND_DIGIT_OFF,
+    SECOND_DIGIT_ON,
+    SECOND_DIGIT_OFF_2,
+    SCORE_DISPLAY_FINISH
+} singlePlayerScoreDisplayState_t;
+
 /*============================================================================
  * Prototypes
  *==========================================================================*/
@@ -268,6 +286,7 @@ void ICACHE_FLASH_ATTR refSendCb(uint8_t* mac_addr, mt_tx_status status);
 void ICACHE_FLASH_ATTR refRestart(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refStartRestartTimer(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refSinglePlayerRestart(void* arg __attribute__((unused)));
+void ICACHE_FLASH_ATTR refSinglePlayerScoreLed(uint8_t ledToLight, led_t* colorPrimary, led_t* colorSecondary);
 
 // Transmission Functions
 void ICACHE_FLASH_ATTR refSendMsg(char* msg, uint16_t len, bool shouldAck, void (*success)(void*),
@@ -368,6 +387,7 @@ struct
         uint8_t Losses;
         uint8_t ledPeriodMs;
         bool singlePlayer;
+        uint16_t singlePlayerRounds;
         difficulty_t difficulty;
     } gam;
 
@@ -392,8 +412,37 @@ struct
         connLedState_t ConnLedState;
         sint16_t Degree;
         uint8_t connectionDim;
+        singlePlayerScoreDisplayState_t singlePlayerDisplayState;
+        uint8_t digitToDisplay;
+        uint8_t ledsLit;
     } led;
 } ref;
+
+// Colors
+static led_t digitCountFirstPrimary =
+{
+    .r = 0xFE,
+    .g = 0x87,
+    .b = 0x1D,
+};
+static led_t digitCountFirstSecondary =
+{
+    .r = 0x11,
+    .g = 0x39,
+    .b = 0xFE,
+};
+static led_t digitCountSecondPrimary =
+{
+    .r = 0xCB,
+    .g = 0x1F,
+    .b = 0xFF,
+};
+static led_t digitCountSecondSecondary =
+{
+    .r = 0x00,
+    .g = 0xFC,
+    .b = 0x0F,
+};
 
 /*============================================================================
  * Functions
@@ -462,8 +511,13 @@ void ICACHE_FLASH_ATTR refInit(void)
     os_timer_disarm(&ref.tmr.SinglePlayerRestart);
     os_timer_setfn(&ref.tmr.SinglePlayerRestart, refSinglePlayerRestart, NULL);
 
+#if TEST_SCORE_DISPLAY
+    ref.gam.singlePlayerRounds = 97;
+    os_timer_arm(&ref.tmr.SinglePlayerRestart, RESTART_COUNT_PERIOD_MS, true);
+#else
     os_timer_arm(&ref.tmr.Connection, 1, false);
     os_timer_arm(&ref.tmr.ConnLed, 1, true);
+#endif
 }
 
 /**
@@ -1449,6 +1503,7 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
 
             if(ref.gam.singlePlayer)
             {
+                ref.gam.singlePlayerRounds++;
                 if(spdPtr == spdUp)
                 {
                     refAdjustledSpeed(false, true);
@@ -1523,8 +1578,9 @@ void ICACHE_FLASH_ATTR refSendRoundLossMsg(void)
     if(ref.gam.singlePlayer)
     {
         refDisarmAllLedTimers();
-        ref.led.Degree = 0;
-        os_timer_arm(&ref.tmr.SinglePlayerRestart, 250, true);
+
+        ref.led.singlePlayerDisplayState = SCORE_DISPLAY_INIT;
+        os_timer_arm(&ref.tmr.SinglePlayerRestart, RESTART_COUNT_PERIOD_MS, true);
     }
     else
     {
@@ -1549,40 +1605,208 @@ void ICACHE_FLASH_ATTR refSendRoundLossMsg(void)
 }
 
 /**
- * Called every 250ms
+ * This animation displays the single player score by first drawing the tens
+ * digit around the hexagon, blinking it, then drawing the ones digit around
+ * the hexagon
  *
- * This timer is used to indicate when a single player round is failed
- * It flashes the LEDs a few times, then restarts a new round
- *
- * Since ref.led.Degree isn't being used by the game, it's used to track blink
- * state.
+ * Once the animation is finished, the next game is started
  *
  * @param arg unused
  */
 void ICACHE_FLASH_ATTR refSinglePlayerRestart(void* arg __attribute__((unused)))
 {
-    if(ref.led.Degree % 2 == 0)
+    switch(ref.led.singlePlayerDisplayState)
     {
-        uint8_t i;
-        for(i = 0; i < 6; i++)
+        case SCORE_DISPLAY_INIT:
         {
-            ref.led.Leds[i].g = 0x40;
-            ref.led.Leds[i].r = 0xC0;
-            ref.led.Leds[i].b = 0x00;
+            // Clear the LEDs
+            ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+            ref.led.ledsLit = 0;
+
+            if(ref.gam.singlePlayerRounds > 9)
+            {
+                // For two digit numbers, start with the tens digit
+                ref.led.singlePlayerDisplayState = FIRST_DIGIT_INC;
+                ref.led.digitToDisplay = ref.gam.singlePlayerRounds / 10;
+            }
+            else
+            {
+                // Otherwise just go to the ones digit
+                ref.led.singlePlayerDisplayState = SECOND_DIGIT_INC;
+                ref.led.digitToDisplay = ref.gam.singlePlayerRounds % 10;
+            }
+            break;
+        }
+        case FIRST_DIGIT_INC:
+        {
+            // Light each LED one at a time
+            if(ref.led.ledsLit < ref.led.digitToDisplay)
+            {
+                // Light the LED
+                refSinglePlayerScoreLed(ref.led.ledsLit, &digitCountFirstPrimary, &digitCountFirstSecondary);
+
+                // keep track of how many LEDs are lit
+                ref.led.ledsLit++;
+            }
+            else
+            {
+                // All LEDs are lit, blink this number
+                ref.led.singlePlayerDisplayState = FIRST_DIGIT_OFF;
+            }
+            break;
+        }
+        case FIRST_DIGIT_OFF:
+        {
+            // Turn everything off
+            ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+            ref.led.ledsLit = 0;
+
+            // Then set it up to turn on
+            ref.led.singlePlayerDisplayState = FIRST_DIGIT_ON;
+            break;
+        }
+        case FIRST_DIGIT_ON:
+        {
+            // Reset the timer to show the final number a little longer
+            os_timer_disarm(&ref.tmr.SinglePlayerRestart);
+            os_timer_arm(&ref.tmr.SinglePlayerRestart, RESTART_COUNT_BLINK_PERIOD_MS, false);
+
+            // Light the full number all at once
+            while(ref.led.ledsLit < ref.led.digitToDisplay)
+            {
+                refSinglePlayerScoreLed(ref.led.ledsLit, &digitCountFirstPrimary, &digitCountFirstSecondary);
+                // keep track of how many LEDs are lit
+                ref.led.ledsLit++;
+            }
+            // Then turn everything off again
+            ref.led.singlePlayerDisplayState = FIRST_DIGIT_OFF_2;
+            break;
+        }
+        case FIRST_DIGIT_OFF_2:
+        {
+            // Reset the timer to normal speed
+            os_timer_disarm(&ref.tmr.SinglePlayerRestart);
+            os_timer_arm(&ref.tmr.SinglePlayerRestart, RESTART_COUNT_PERIOD_MS, true);
+
+            // turn all LEDs off
+            ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+            ref.led.ledsLit = 0;
+
+            ref.led.digitToDisplay = ref.gam.singlePlayerRounds % 10;
+            ref.led.singlePlayerDisplayState = SECOND_DIGIT_INC;
+
+            break;
+        }
+        case SECOND_DIGIT_INC:
+        {
+            // Light each LED one at a time
+            if(ref.led.ledsLit < ref.led.digitToDisplay)
+            {
+                // Light the LED
+                refSinglePlayerScoreLed(ref.led.ledsLit, &digitCountSecondPrimary, &digitCountSecondSecondary);
+
+                // keep track of how many LEDs are lit
+                ref.led.ledsLit++;
+            }
+            else
+            {
+                // All LEDs are lit, blink this number
+                ref.led.singlePlayerDisplayState = SECOND_DIGIT_OFF;
+            }
+            break;
+        }
+        case SECOND_DIGIT_OFF:
+        {
+            // Turn everything off
+            ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+            ref.led.ledsLit = 0;
+
+            // Then set it up to turn on
+            ref.led.singlePlayerDisplayState = SECOND_DIGIT_ON;
+            break;
+        }
+        case SECOND_DIGIT_ON:
+        {
+            // Reset the timer to show the final number a little longer
+            os_timer_disarm(&ref.tmr.SinglePlayerRestart);
+            os_timer_arm(&ref.tmr.SinglePlayerRestart, RESTART_COUNT_BLINK_PERIOD_MS, false);
+
+            // Light the full number all at once
+            while(ref.led.ledsLit < ref.led.digitToDisplay)
+            {
+                refSinglePlayerScoreLed(ref.led.ledsLit, &digitCountSecondPrimary, &digitCountSecondSecondary);
+                // keep track of how many LEDs are lit
+                ref.led.ledsLit++;
+            }
+            // Then turn everything off again
+            ref.led.singlePlayerDisplayState = SECOND_DIGIT_OFF_2;
+            break;
+        }
+        case SECOND_DIGIT_OFF_2:
+        {
+            // Reset the timer to normal speed
+            os_timer_disarm(&ref.tmr.SinglePlayerRestart);
+            os_timer_arm(&ref.tmr.SinglePlayerRestart, RESTART_COUNT_PERIOD_MS, true);
+
+            // turn all LEDs off
+            ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+            ref.led.ledsLit = 0;
+
+            ref.led.singlePlayerDisplayState = SCORE_DISPLAY_FINISH;
+
+            break;
+        }
+        case SCORE_DISPLAY_FINISH:
+        {
+            // Disarm the timer
+            os_timer_disarm(&ref.tmr.SinglePlayerRestart);
+
+            // For next time
+            ref.led.singlePlayerDisplayState = SCORE_DISPLAY_INIT;
+
+            // Reset and start another round
+            ref.gam.singlePlayerRounds = 0;
+            refAdjustledSpeed(true, false);
+            refStartRound();
+            break;
+        }
+    }
+
+    setLeds(ref.led.Leds, sizeof(ref.led.Leds));
+}
+
+/**
+ * Helper function to set LEDs around the ring when displaying the single player
+ * score. Given a number 0-9, light that many LEDs around the hexagon, and
+ * overdraw with the secondary color when it wraps around
+ *
+ * @param ledToLight     The number LED to light, maybe > 5, which wrap around with colorSecondary
+ * @param colorPrimary   The color to draw [1-6]
+ * @param colorSecondary The color to overdraw [7-9]
+ */
+void ICACHE_FLASH_ATTR refSinglePlayerScoreLed(uint8_t ledToLight, led_t* colorPrimary, led_t* colorSecondary)
+{
+    if(ledToLight < 6)
+    {
+        if(ledToLight == 0)
+        {
+            ets_memcpy(&ref.led.Leds[0], colorPrimary, sizeof(led_t));
+        }
+        else
+        {
+            ets_memcpy(&ref.led.Leds[6 - ledToLight], colorPrimary, sizeof(led_t));
         }
     }
     else
     {
-        ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
-    }
-    setLeds(ref.led.Leds, sizeof(ref.led.Leds));
-
-    ref.led.Degree++;
-
-    if(7 == ref.led.Degree)
-    {
-        refAdjustledSpeed(true, false);
-        refStartRound();
+        if(ledToLight % 6 == 0)
+        {
+            ets_memcpy(&ref.led.Leds[0], colorSecondary, sizeof(led_t));
+        }
+        else
+        {
+            ets_memcpy(&ref.led.Leds[12 - ledToLight], colorSecondary, sizeof(led_t));
+        }
     }
 }
 
