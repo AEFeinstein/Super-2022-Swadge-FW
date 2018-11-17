@@ -30,7 +30,7 @@ void ICACHE_FLASH_ATTR randInit(void);
 void ICACHE_FLASH_ATTR randDeinit(void);
 void ICACHE_FLASH_ATTR randButtonCallback(uint8_t state, int button, int down);
 
-void ICACHE_FLASH_ATTR randRollD6(void);
+void ICACHE_FLASH_ATTR randRollD6(uint16_t);
 void ICACHE_FLASH_ATTR randLedAnimation(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR randLedResult(void* arg __attribute__((unused)));
 
@@ -89,7 +89,7 @@ void ICACHE_FLASH_ATTR randInit(void)
     os_timer_setfn(&ranD6.LedResTimer, randLedResult, NULL);
 
     // Start the first random roll
-    randRollD6();
+    randRollD6(3000);
 }
 
 /**
@@ -105,8 +105,10 @@ void ICACHE_FLASH_ATTR randDeinit(void)
 /**
  * Start the animation to get a random D6 result
  * This only works if an animation isn't already in progress
+ *
+ * @param timeout how long the animation should last
  */
-void ICACHE_FLASH_ATTR randRollD6(void)
+void ICACHE_FLASH_ATTR randRollD6(uint16_t timeout)
 {
     if(false == ranD6.Running)
     {
@@ -122,7 +124,7 @@ void ICACHE_FLASH_ATTR randRollD6(void)
         // Run the animation every 100ms
         os_timer_arm(&ranD6.LedAnimTimer, 100, true);
         // Show a result in 3s, just once
-        os_timer_arm(&ranD6.LedResTimer, 3000, false);
+        os_timer_arm(&ranD6.LedResTimer, timeout, false);
     }
 }
 
@@ -137,10 +139,16 @@ void ICACHE_FLASH_ATTR randRollD6(void)
 void ICACHE_FLASH_ATTR randButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down)
 {
-    if(((1 == button) || (2 == button)) && down &&
-            false == ranD6.Running)
+    if(down && false == ranD6.Running)
     {
-        randRollD6();
+        if(1 == button)
+        {
+            randRollD6(700);
+        }
+        else if(2 == button)
+        {
+            randRollD6(3000);
+        }
     }
 }
 
