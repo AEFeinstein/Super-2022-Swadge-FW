@@ -34,6 +34,7 @@
 #include "mode_reflector_game.h"
 #include "mode_random_d6.h"
 #include "mode_dance.h"
+#include "mode_flashlight.h"
 
 /*============================================================================
  * Defines
@@ -175,6 +176,7 @@ swadgeMode* swadgeModes[] =
     &randomD6Mode,
     &dancesMode,
     &ledPatternsMode,
+    &flashlightMode,
 };
 bool swadgeModeInit = false;
 
