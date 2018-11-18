@@ -1,3 +1,6 @@
 [submodule "piflash/esptool"]
 	path = piflash/esptool
 	url = https://github.com/espressif/esptool
+[submodule "firmware/esp82xx"]
+	path = firmware/esp82xx
+	url = https://github.com/cnlohr/esp82xx
