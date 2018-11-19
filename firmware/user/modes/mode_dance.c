@@ -133,6 +133,7 @@ uint8_t currentDance = 0;
 /// This is a state variable used in animations
 int ledCount = 0;
 int ledCount2 = 0;
+bool led_bool = true;
 /*============================================================================
  * Functions
  *==========================================================================*/
@@ -461,6 +462,11 @@ void ICACHE_FLASH_ATTR danceTimerMode8(void* arg __attribute__((unused)))
   led_t leds[6] = {{0}};
 
   ledCount = ledCount + 1;
+  ledCount2 = ledCount2 +1;
+  if(ledCount2 > 75){
+    led_bool = !led_bool;
+    ledCount2 = 0;
+  }
   if(ledCount > 255)
   {
       ledCount = 0;
@@ -472,12 +478,18 @@ void ICACHE_FLASH_ATTR danceTimerMode8(void* arg __attribute__((unused)))
   uint8_t j;
   for(i = 0; i < 6; i++)
   {
-      if(ledCount>64 && ledCount<=128 || ledCount>192){
+    if(ledCount2 >= 64){
+      leds[i].r = (color >>  0) & 0xFF;
+      leds[i].g = (color >>  8) & 0xFF;
+      leds[i].b = (color >> 16) & 0xFF;
+    }else{
+
+      if(led_bool){
         j = 6-i;
       }else{
         j = i;
       }
-      if((ledCount >> i) & 1){
+      if((ledCount2 >> i) & 1){
       leds[(j)%6].r = (color >>  0) & 0xFF;
       leds[(j)%6].g = (color >>  8) & 0xFF;
       leds[(j)%6].b = (color >> 16) & 0xFF;}
@@ -486,7 +498,7 @@ void ICACHE_FLASH_ATTR danceTimerMode8(void* arg __attribute__((unused)))
         leds[(j)%6].g = 0;
         leds[(j)%6].b = 200;
       }
-
+    }
   }
     // Output the LED data, actually turning them on
     setLeds(leds, sizeof(leds));
