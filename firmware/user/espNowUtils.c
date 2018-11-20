@@ -41,6 +41,55 @@ void ICACHE_FLASH_ATTR espNowSendCb(uint8_t* mac_addr, uint8_t status);
  */
 void ICACHE_FLASH_ATTR espNowInit(void)
 {
+    // Set up all the wifi softAP mode configs
+    if(false == wifi_set_opmode_current(SOFTAP_MODE))
+    {
+        os_printf("Could not set as station mode\r\n");
+        return;
+    }
+
+    struct softap_config config =
+    {
+        .ssid = {0},
+        .password = {0},
+        .ssid_len = 0,
+        .channel = SOFTAP_CHANNEL,
+        .authmode = AUTH_OPEN,
+        .ssid_hidden = true,
+        .max_connection = 0,
+        .beacon_interval = 60000,
+    };
+    if(false == wifi_softap_set_config_current(&config))
+    {
+        os_printf("Couldn't set softap config\r\n");
+        return;
+    }
+
+    if(false == wifi_softap_dhcps_stop())
+    {
+        os_printf("Couldn't stop dhcp\r\n");
+        return;
+    }
+
+    if(false == wifi_set_phy_mode(PHY_MODE_11G))
+    {
+        os_printf("Couldn't set phy mode\r\n");
+        return;
+    }
+
+    wifi_country_t wc =
+    {
+        .cc = "USA",
+        .schan = 1,
+        .nchan = 11,
+        .policy = WIFI_COUNTRY_POLICY_AUTO
+    };
+    if(false == wifi_set_country(&wc))
+    {
+        os_printf("Couldn't set country info\r\n");
+        return;
+    }
+
     if(0 == esp_now_init())
     {
         os_printf("ESP NOW init!\r\n");

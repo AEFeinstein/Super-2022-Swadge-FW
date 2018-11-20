@@ -47,7 +47,6 @@
 #define MAX_CONNS 5
 #define MAX_FRAME 2000
 #define TICKER_TIMEOUT 100
-#define SOFTAP_CHANNEL 1
 
 #define PROC_TASK_PRIO 0
 #define PROC_TASK_QUEUE_LEN 1
