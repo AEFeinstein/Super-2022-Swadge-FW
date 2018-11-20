@@ -90,6 +90,13 @@ void ICACHE_FLASH_ATTR espNowInit(void)
         return;
     }
 
+    // Set the channel
+    if(false == wifi_set_channel( SOFTAP_CHANNEL ))
+    {
+        os_printf("Couldn't set channel\r\n");
+        return;
+    }
+
     if(0 == esp_now_init())
     {
         os_printf("ESP NOW init!\r\n");
