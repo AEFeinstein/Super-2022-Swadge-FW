@@ -167,6 +167,7 @@ void ICACHE_FLASH_ATTR guitarTunerSampleHandler(int32_t samp)
 			intensities_filt[i] = (intensities_in[i] + intensities_filt[i]) - (intensities_filt[i]>>5);
 			diffs_filt[i] =       (diffs_in[i] + diffs_filt[i]) - (diffs_filt[i]>>5);
 
+			//Change sensitivity here, Adam.
 			intensities[i] = intensities_filt[i] >> 5;
 			diffs[i] = diffs_filt[i] >> 5;
 		}
