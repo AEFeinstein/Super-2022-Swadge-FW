@@ -555,11 +555,17 @@ void ICACHE_FLASH_ATTR danceTimerMode9(void* arg __attribute__((unused)))
     }
 
     leds[3].r = rand(120)+135;
+    leds[3].g = leds[3].r/5;
     leds[4].r = rand(80)+80;
+    leds[4].g = leds[4].r/5;
     leds[5].r = rand(50)+40;
+    leds[5].g = leds[5].r/5;
     leds[0].r = rand(10)+10;
+    leds[0].g = leds[0].r/5;
     leds[2].r = rand(80)+80;
+    leds[2].g = leds[2].r/5;
     leds[1].r = rand(50)+40;
+    leds[1].g = leds[1].r/5;
     setLeds(leds, sizeof(leds));
 }
 
@@ -580,11 +586,17 @@ void ICACHE_FLASH_ATTR danceTimerMode10(void* arg __attribute__((unused)))
     }
 
     leds[3].g = rand(120)+135;
+    leds[3].b = leds[3].g/5;
     leds[4].g = rand(80)+80;
+    leds[4].b = leds[4].g/5;
     leds[5].g = rand(50)+40;
+    leds[5].b = leds[5].g/5;
     leds[0].g = rand(10)+10;
+    leds[0].b = leds[0].g/5;
     leds[2].g = rand(80)+80;
+    leds[2].b = leds[2].g/5;
     leds[1].g = rand(50)+40;
+    leds[1].b = leds[1].g/5;
     setLeds(leds, sizeof(leds));
 }
 
@@ -606,10 +618,16 @@ void ICACHE_FLASH_ATTR danceTimerMode11(void* arg __attribute__((unused)))
     }
 
     leds[3].b = rand(120)+135;
+    leds[3].g = leds[3].b/5;
     leds[4].b = rand(80)+80;
+    leds[4].g = leds[4].b/5;
     leds[5].b = rand(50)+40;
+    leds[5].g = leds[5].b/5;
     leds[0].b = rand(10)+10;
+    leds[0].g = leds[0].b/5;
     leds[2].b = rand(80)+80;
+    leds[2].g = leds[2].b/5;
     leds[1].b = rand(50)+40;
+    leds[1].g = leds[1].b/5;
     setLeds(leds, sizeof(leds));
 }
