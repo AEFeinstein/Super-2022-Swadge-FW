@@ -53,6 +53,9 @@ void ICACHE_FLASH_ATTR danceTimerMode5(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode6(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode7(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode8(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode9(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode10(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode11(void* arg);
 /*============================================================================
  * Variables
  *==========================================================================*/
@@ -119,6 +122,21 @@ timerWithPeriod danceTimers[] =
         .timer = {0},
         .timerFn = danceTimerMode8,
         .period = 300
+    },
+    {
+        .timer = {0},
+        .timerFn = danceTimerMode9,
+        .period = 100
+    },
+    {
+        .timer = {0},
+        .timerFn = danceTimerMode10,
+        .period = 100
+    },
+    {
+        .timer = {0},
+        .timerFn = danceTimerMode11,
+        .period = 100
     }
 };
 
@@ -137,6 +155,13 @@ bool led_bool = true;
 /*============================================================================
  * Functions
  *==========================================================================*/
+
+//min function
+ int min(int num1, int num2)
+ {
+     return (num1 > num2 ) ? num2 : num1;
+ }
+
 
 /**
  * This initializer is called whenever dance mode is entered
@@ -511,5 +536,80 @@ void ICACHE_FLASH_ATTR danceTimerMode8(void* arg __attribute__((unused)))
         }
     }
     // Output the LED data, actually turning them on
+    setLeds(leds, sizeof(leds));
+}
+
+/**
+ * fire pattern
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR danceTimerMode9(void* arg __attribute__((unused)))
+{
+    led_t leds[6] = {{0}};
+
+    ledCount = ledCount + 1;
+
+    if(ledCount > 255)
+    {
+        ledCount = 0;
+    }
+
+    leds[3].r = rand(120)+135;
+    leds[4].r = rand(80)+80;
+    leds[5].r = rand(50)+40;
+    leds[0].r = rand(10)+10;
+    leds[2].r = rand(80)+80;
+    leds[1].r = rand(50)+40;
+    setLeds(leds, sizeof(leds));
+}
+
+
+/**
+ * fire pattern
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR danceTimerMode10(void* arg __attribute__((unused)))
+{
+    led_t leds[6] = {{0}};
+
+    ledCount = ledCount + 1;
+
+    if(ledCount > 255)
+    {
+        ledCount = 0;
+    }
+
+    leds[3].g = rand(120)+135;
+    leds[4].g = rand(80)+80;
+    leds[5].g = rand(50)+40;
+    leds[0].g = rand(10)+10;
+    leds[2].g = rand(80)+80;
+    leds[1].g = rand(50)+40;
+    setLeds(leds, sizeof(leds));
+}
+
+
+
+/**
+ * fire pattern
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR danceTimerMode11(void* arg __attribute__((unused)))
+{
+    led_t leds[6] = {{0}};
+
+    ledCount = ledCount + 1;
+
+    if(ledCount > 255)
+    {
+        ledCount = 0;
+    }
+
+    leds[3].b = rand(120)+135;
+    leds[4].b = rand(80)+80;
+    leds[5].b = rand(50)+40;
+    leds[0].b = rand(10)+10;
+    leds[2].b = rand(80)+80;
+    leds[1].b = rand(50)+40;
     setLeds(leds, sizeof(leds));
 }
