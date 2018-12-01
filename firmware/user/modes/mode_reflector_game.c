@@ -389,6 +389,7 @@ struct
         bool singlePlayer;
         uint16_t singlePlayerRounds;
         difficulty_t difficulty;
+        bool receiveFirstMsg;
     } gam;
 
     // Timers
@@ -882,8 +883,7 @@ void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event)
             if(!ref.cnc.rxGameStartMsg && ref.cnc.rxGameStartAck)
             {
                 ref.cnc.playOrder = GOING_SECOND;
-                // Second player starts a little slower to balance things out
-                ref.gam.ledPeriodMs++;
+                ref.gam.receiveFirstMsg = false;
             }
             // Mark this event
             ref.cnc.rxGameStartMsg = true;
@@ -1007,8 +1007,7 @@ void ICACHE_FLASH_ATTR refStartPlaying(void* arg __attribute__((unused)))
     {
         ref.gameState = R_WAITING;
 
-        // Second player starts a little slower to balance things out
-        ref.gam.ledPeriodMs++;
+        ref.gam.receiveFirstMsg = false;
 
         // Start a timer to reinit if we never receive a result (disconnect)
         refStartRestartTimer(NULL);
@@ -1851,6 +1850,7 @@ void ICACHE_FLASH_ATTR refRoundResultLed(bool roundWinner)
         // Set ref.gameState here to R_WAITING to make sure a message isn't missed
         ref.gameState = R_WAITING;
         ref.cnc.playOrder = GOING_SECOND;
+        ref.gam.receiveFirstMsg = false;
     }
 
     // Call refStartPlaying in 3 seconds
@@ -1886,6 +1886,11 @@ void ICACHE_FLASH_ATTR refAdjustledSpeed(bool reset, bool up)
                 break;
             }
         }
+    }
+    else if (GOING_SECOND == ref.cnc.playOrder && false == ref.gam.receiveFirstMsg)
+    {
+        // If going second, ignore the first up/dn from the first player
+        ref.gam.receiveFirstMsg = true;
     }
     else if(up)
     {
