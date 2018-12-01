@@ -170,10 +170,10 @@ bool led_bool = true;
  *==========================================================================*/
 
 //min function
- int min(int num1, int num2)
- {
-     return (num1 > num2 ) ? num2 : num1;
- }
+int min(int num1, int num2)
+{
+    return (num1 > num2 ) ? num2 : num1;
+}
 
 
 /**
@@ -245,12 +245,20 @@ void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state __attribute__((unused))
             // Stop the current animation
             os_timer_disarm(&danceTimers[currentDance].timer);
 
-            // Iterate to the next animation
-            currentDance++;
-            if(currentDance >= sizeof(danceTimers) / sizeof(danceTimers[0]))
+            // Iterate to the next animation. Winning a reflector game unlocks
+            // another dance
+            uint8_t numUnlockedDances = getRefGameWins();
+            uint8_t numDances = sizeof(danceTimers) / sizeof(danceTimers[0]);
+            if(numUnlockedDances > numDances)
             {
-                currentDance = 0;
+                numUnlockedDances = numDances;
             }
+            else if(0 == numUnlockedDances)
+            {
+                numUnlockedDances++;
+            }
+
+            currentDance = (currentDance + 1) % numUnlockedDances;
 
             // Start the next animation
             os_timer_arm(&danceTimers[currentDance].timer, danceTimers[currentDance].period, true);
@@ -567,18 +575,18 @@ void ICACHE_FLASH_ATTR danceTimerMode9(void* arg __attribute__((unused)))
         ledCount = 0;
     }
 
-    leds[3].r = rand(120)+135;
-    leds[3].g = leds[3].r/5;
-    leds[4].r = rand(80)+80;
-    leds[4].g = leds[4].r/5;
-    leds[5].r = rand(50)+40;
-    leds[5].g = leds[5].r/5;
-    leds[0].r = rand(10)+10;
-    leds[0].g = leds[0].r/5;
-    leds[2].r = rand(80)+80;
-    leds[2].g = leds[2].r/5;
-    leds[1].r = rand(50)+40;
-    leds[1].g = leds[1].r/5;
+    leds[3].r = rand(120) + 135;
+    leds[3].g = leds[3].r / 5;
+    leds[4].r = rand(80) + 80;
+    leds[4].g = leds[4].r / 5;
+    leds[5].r = rand(50) + 40;
+    leds[5].g = leds[5].r / 5;
+    leds[0].r = rand(10) + 10;
+    leds[0].g = leds[0].r / 5;
+    leds[2].r = rand(80) + 80;
+    leds[2].g = leds[2].r / 5;
+    leds[1].r = rand(50) + 40;
+    leds[1].g = leds[1].r / 5;
     setLeds(leds, sizeof(leds));
 }
 
@@ -598,18 +606,18 @@ void ICACHE_FLASH_ATTR danceTimerMode10(void* arg __attribute__((unused)))
         ledCount = 0;
     }
 
-    leds[3].g = rand(120)+135;
-    leds[3].b = leds[3].g/5;
-    leds[4].g = rand(80)+80;
-    leds[4].b = leds[4].g/5;
-    leds[5].g = rand(50)+40;
-    leds[5].b = leds[5].g/5;
-    leds[0].g = rand(10)+10;
-    leds[0].b = leds[0].g/5;
-    leds[2].g = rand(80)+80;
-    leds[2].b = leds[2].g/5;
-    leds[1].g = rand(50)+40;
-    leds[1].b = leds[1].g/5;
+    leds[3].g = rand(120) + 135;
+    leds[3].b = leds[3].g / 5;
+    leds[4].g = rand(80) + 80;
+    leds[4].b = leds[4].g / 5;
+    leds[5].g = rand(50) + 40;
+    leds[5].b = leds[5].g / 5;
+    leds[0].g = rand(10) + 10;
+    leds[0].b = leds[0].g / 5;
+    leds[2].g = rand(80) + 80;
+    leds[2].b = leds[2].g / 5;
+    leds[1].g = rand(50) + 40;
+    leds[1].b = leds[1].g / 5;
     setLeds(leds, sizeof(leds));
 }
 
@@ -630,18 +638,18 @@ void ICACHE_FLASH_ATTR danceTimerMode11(void* arg __attribute__((unused)))
         ledCount = 0;
     }
 
-    leds[3].b = rand(120)+135;
-    leds[3].g = leds[3].b/5;
-    leds[4].b = rand(80)+80;
-    leds[4].g = leds[4].b/5;
-    leds[5].b = rand(50)+40;
-    leds[5].g = leds[5].b/5;
-    leds[0].b = rand(10)+10;
-    leds[0].g = leds[0].b/5;
-    leds[2].b = rand(80)+80;
-    leds[2].g = leds[2].b/5;
-    leds[1].b = rand(50)+40;
-    leds[1].g = leds[1].b/5;
+    leds[3].b = rand(120) + 135;
+    leds[3].g = leds[3].b / 5;
+    leds[4].b = rand(80) + 80;
+    leds[4].g = leds[4].b / 5;
+    leds[5].b = rand(50) + 40;
+    leds[5].g = leds[5].b / 5;
+    leds[0].b = rand(10) + 10;
+    leds[0].g = leds[0].b / 5;
+    leds[2].b = rand(80) + 80;
+    leds[2].g = leds[2].b / 5;
+    leds[1].b = rand(50) + 40;
+    leds[1].g = leds[1].b / 5;
     setLeds(leds, sizeof(leds));
 }
 
@@ -691,8 +699,9 @@ void ICACHE_FLASH_ATTR danceTimerMode13(void* arg __attribute__((unused)))
         ledCount2 = rand(256);
     }
     int intensity = ledCount;
-    if(ledCount>255){
-      intensity = 510-ledCount;
+    if(ledCount > 255)
+    {
+        intensity = 510 - ledCount;
     }
     color_save = EHSVtoHEX(ledCount2, 0xFF, intensity);
     uint8_t i;
