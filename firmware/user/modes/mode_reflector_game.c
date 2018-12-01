@@ -303,7 +303,6 @@ void ICACHE_FLASH_ATTR refTxRetryTimeout(void* arg);
 void ICACHE_FLASH_ATTR refConnectionTimeout(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refGameStartAckRecv(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event);
-void ICACHE_FLASH_ATTR refFailureRestart(void* arg __attribute__((unused)));
 
 // Game functions
 void ICACHE_FLASH_ATTR refStartPlaying(void* arg __attribute__((unused)));
@@ -577,16 +576,6 @@ void ICACHE_FLASH_ATTR refConnectionTimeout(void* arg __attribute__((unused)) )
     // Start the timer again
     ref_printf("retry broadcast in %dms\r\n", timeoutMs);
     os_timer_arm(&ref.tmr.Connection, timeoutMs, false);
-}
-
-/**
- * Called on a timer should there be a failure
- *
- * @param arg unused
- */
-void ICACHE_FLASH_ATTR refFailureRestart(void* arg __attribute__((unused)))
-{
-    refRestart(NULL);
 }
 
 /**
