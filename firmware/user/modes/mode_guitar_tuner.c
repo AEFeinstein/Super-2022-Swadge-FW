@@ -126,125 +126,158 @@ void ICACHE_FLASH_ATTR guitarTunerSampleHandler(int32_t samp)
 
 #define OFS 0
 
-		//fuzzed_bins[0] = A ... 1/2 steps are every 2.
-		#define ES0 fb[37+OFS]
-		#define ES1 fb[39+OFS]
-		#define ESI fb[38+OFS]	//E string needs to skip an octave... Can't read sounds this low.
+        //fuzzed_bins[0] = A ... 1/2 steps are every 2.
+#define ES0 fb[37+OFS]
+#define ES1 fb[39+OFS]
+#define ESI fb[38+OFS]  //E string needs to skip an octave... Can't read sounds this low.
 
-		#define AS0 fb[23+OFS]
-		#define AS1 fb[25+OFS]
-		#define ASI fb[24+OFS]	//A string is exactly at note #24
+#define AS0 fb[23+OFS]
+#define AS1 fb[25+OFS]
+#define ASI fb[24+OFS]  //A string is exactly at note #24
 
-		#define DS0 fb[33+OFS]
-		#define DS1 fb[35+OFS] 
-		#define DSI fb[34+OFS]	//D = A + 5 half steps = 35
+#define DS0 fb[33+OFS]
+#define DS1 fb[35+OFS]
+#define DSI fb[34+OFS]  //D = A + 5 half steps = 35
 
-		#define GS0 fb[43+OFS]
-		#define GS1 fb[45+OFS]
-		#define GSI fb[44+OFS]
+#define GS0 fb[43+OFS]
+#define GS1 fb[45+OFS]
+#define GSI fb[44+OFS]
 
-		#define BS0 fb[51+OFS]
-		#define BS1 fb[53+OFS]
-		#define BSI fb[52+OFS]
+#define BS0 fb[51+OFS]
+#define BS1 fb[53+OFS]
+#define BSI fb[52+OFS]
 
-		#define eS0 fb[61+OFS]
-		#define eS1 fb[63+OFS]
-		#define eSI fb[62+OFS]
+#define eS0 fb[61+OFS]
+#define eS1 fb[63+OFS]
+#define eSI fb[62+OFS]
 
-		int16_t * fb = (int16_t*)fuzzed_bins; //Forced typecasting to allow negative results.
+        int16_t* fb = (int16_t*)fuzzed_bins;  //Forced typecasting to allow negative results.
 
-		uint16_t intensities_in[6] = {  eSI, BSI, GSI, DSI, ASI, ESI };
-		int16_t  diffs_in[6] =       {  eS1 - eS0, BS1 - BS0, GS1 - GS0, DS1 - DS0, AS1 - AS0, ES1 - ES0 };
+        uint16_t intensities_in[6] = {  eSI, BSI, GSI, DSI, ASI, ESI };
+        int16_t  diffs_in[6] =       {  eS1 - eS0, BS1 - BS0, GS1 - GS0, DS1 - DS0, AS1 - AS0, ES1 - ES0 };
 
-		static uint32_t intensities_filt[6];
-		static int32_t diffs_filt[6];
+        static uint32_t intensities_filt[6];
+        static int32_t diffs_filt[6];
 
-		uint16_t intensities[6];
-		int i;
-		int16_t diffs[6];
-		for( i = 0; i < 6; i++ )
-		{
-			intensities_filt[i] = (intensities_in[i] + intensities_filt[i]) - (intensities_filt[i]>>5);
-			diffs_filt[i] =       (diffs_in[i] + diffs_filt[i]) - (diffs_filt[i]>>5);
+        uint16_t intensities[6];
+        int i;
+        int16_t diffs[6];
+        for( i = 0; i < 6; i++ )
+        {
+            intensities_filt[i] = (intensities_in[i] + intensities_filt[i]) - (intensities_filt[i] >> 5);
+            diffs_filt[i] =       (diffs_in[i] + diffs_filt[i]) - (diffs_filt[i] >> 5);
 
-			//Change sensitivity here, Adam.
-			intensities[i] = intensities_filt[i] >> 5;
-			diffs[i] = diffs_filt[i] >> 5;
-		}
+            //Change sensitivity here, Adam.
+            intensities[i] = intensities_filt[i] >> 5;
+            diffs[i] = diffs_filt[i] >> 5;
+        }
 
 
-		uint8_t colors[18];
-		uint8_t * colorptr = colors;
-		for( i = 0; i < 6; i++ )
-		{
-			int16_t intensity = intensities[i]-40; // drop a baseline.
-			int16_t  diff = diffs[i];
+        uint8_t colors[18];
+        uint8_t* colorptr = colors;
+        for( i = 0; i < 6; i++ )
+        {
+            int16_t intensity = intensities[i] - 40; // drop a baseline.
+            int16_t  diff = diffs[i];
 
-			int16_t id = intensity;
-			if( intensity < 0 ) intensity = 0;
-			if( intensity > 255 ) intensity = 255;
+            int16_t id = intensity;
+            if( intensity < 0 )
+            {
+                intensity = 0;
+            }
+            if( intensity > 255 )
+            {
+                intensity = 255;
+            }
 
-			//This is the tonal difference.  You "calibrate" out the intensity.
-			int16_t cdiff = diff * 200 / (intensity + 1);
-			int16_t abscdiff = (cdiff>0)?cdiff:-cdiff;
+            //This is the tonal difference.  You "calibrate" out the intensity.
+            int16_t cdiff = diff * 200 / (intensity + 1);
+            int16_t abscdiff = (cdiff > 0) ? cdiff : -cdiff;
 
-			int intune = (abscdiff<10)?1:0;
-			int red, grn, blu;
+            int intune = (abscdiff < 10) ? 1 : 0;
+            int red, grn, blu;
 
-			if( intune )
-			{
-				red = 255;
-				grn = 255;
-				blu = 255;
-			}
-			else
-			{
-				if( cdiff > 0 )
-				{
-					red = 255;
-					grn = blu = 255-(cdiff)*15;
-				}
-				else
-				{
-					blu = 255;
-					grn = red = 255-(-cdiff)*15;
-				}
-				if( red > 255 ) red = 255;
-				if( blu > 255 ) blu = 255;
-				if( grn > 255 ) grn = 255;
-				red >> 3;
-				grn >> 3;
-				blu >> 3;
-			}
+            if( intune )
+            {
+                red = 255;
+                grn = 255;
+                blu = 255;
+            }
+            else
+            {
+                if( cdiff > 0 )
+                {
+                    red = 255;
+                    grn = blu = 255 - (cdiff) * 15;
+                }
+                else
+                {
+                    blu = 255;
+                    grn = red = 255 - (-cdiff) * 15;
+                }
+                if( red > 255 )
+                {
+                    red = 255;
+                }
+                if( blu > 255 )
+                {
+                    blu = 255;
+                }
+                if( grn > 255 )
+                {
+                    grn = 255;
+                }
+                red >> 3;
+                grn >> 3;
+                blu >> 3;
+            }
 
-			red = (red >> 3 ) * ( intensity >> 3);
-			grn = (grn >> 3 ) * ( intensity >> 3);
-			blu = (blu >> 3 ) * ( intensity >> 3);
-			
-			if( red > 255 ) red = 255;
-			if( blu > 255 ) blu = 255;
-			if( grn > 255 ) grn = 255;
-		
-			if( red < 0 ) red = 0;
-			if( blu < 0 ) blu = 0;
-			if( grn < 0 ) grn = 0;
-		
-			(*(colorptr++)) = grn;
-			(*(colorptr++)) = red;  //red
-			(*(colorptr++)) = blu; //blu
-			
+            red = (red >> 3 ) * ( intensity >> 3);
+            grn = (grn >> 3 ) * ( intensity >> 3);
+            blu = (blu >> 3 ) * ( intensity >> 3);
 
-			//For hue, 0 is red.
-//			uint32_t rgb = EHSVtoHEX( , 255, intensity );
-//			(*(colorptr++)) = rgb;
-//			(*(colorptr++)) = rgb>>8;
-//			(*(colorptr++)) = rgb>>16;
-		}
+            if( red > 255 )
+            {
+                red = 255;
+            }
+            if( blu > 255 )
+            {
+                blu = 255;
+            }
+            if( grn > 255 )
+            {
+                grn = 255;
+            }
 
-		if( !guitarTunerOverrideLeds )
-		{
-	        setLeds( (led_t*)colors, 18 );
-		}
+            if( red < 0 )
+            {
+                red = 0;
+            }
+            if( blu < 0 )
+            {
+                blu = 0;
+            }
+            if( grn < 0 )
+            {
+                grn = 0;
+            }
+
+            (*(colorptr++)) = grn;
+            (*(colorptr++)) = red;  //red
+            (*(colorptr++)) = blu; //blu
+
+
+            //For hue, 0 is red.
+            //          uint32_t rgb = EHSVtoHEX( , 255, intensity );
+            //          (*(colorptr++)) = rgb;
+            //          (*(colorptr++)) = rgb>>8;
+            //          (*(colorptr++)) = rgb>>16;
+        }
+
+        if( !guitarTunerOverrideLeds )
+        {
+            setLeds( (led_t*)colors, 18 );
+        }
 
         // Reset the sample count
         samplesProcessed = 0;
