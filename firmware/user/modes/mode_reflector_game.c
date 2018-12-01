@@ -1331,18 +1331,13 @@ void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
     uint8_t i;
     for(i = 0; i < 6; i++)
     {
-        if(ref.led.Leds[i].g > 0)
-        {
-            ref.led.Leds[i].g -= 4;
-        }
         if(ref.led.Leds[i].r > 0)
         {
             ref.led.Leds[i].r -= 4;
         }
-        if(ref.led.Leds[i].b > 0)
-        {
-            ref.led.Leds[i].b -= 4;
-        }
+        ref.led.Leds[i].g = 0;
+        ref.led.Leds[i].b = ref.led.Leds[i].r / 4;
+
     }
 
     // Sed LEDs according to the mode
@@ -1353,21 +1348,21 @@ void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
             case ACT_BOTH:
             {
                 // Make sure this value decays to exactly zero above
-                ref.led.Leds[ref.led.Degree / DEG_PER_LED].g = 0;
                 ref.led.Leds[ref.led.Degree / DEG_PER_LED].r = 252;
-                ref.led.Leds[ref.led.Degree / DEG_PER_LED].b = 0;
+                ref.led.Leds[ref.led.Degree / DEG_PER_LED].g = 0;
+                ref.led.Leds[ref.led.Degree / DEG_PER_LED].b = 252 / 4;
 
-                ref.led.Leds[(360 - ref.led.Degree) / DEG_PER_LED].g = 0;
                 ref.led.Leds[(360 - ref.led.Degree) / DEG_PER_LED].r = 252;
-                ref.led.Leds[(360 - ref.led.Degree) / DEG_PER_LED].b = 0;
+                ref.led.Leds[(360 - ref.led.Degree) / DEG_PER_LED].g = 0;
+                ref.led.Leds[(360 - ref.led.Degree) / DEG_PER_LED].b = 252 / 4;
                 break;
             }
             case ACT_COUNTERCLOCKWISE:
             case ACT_CLOCKWISE:
             {
-                ref.led.Leds[ref.led.Degree / DEG_PER_LED].g = 0;
                 ref.led.Leds[ref.led.Degree / DEG_PER_LED].r = 252;
-                ref.led.Leds[ref.led.Degree / DEG_PER_LED].b = 0;
+                ref.led.Leds[ref.led.Degree / DEG_PER_LED].g = 0;
+                ref.led.Leds[ref.led.Degree / DEG_PER_LED].b = 252 / 4;
                 break;
             }
         }
