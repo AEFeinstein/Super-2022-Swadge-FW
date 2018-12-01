@@ -259,6 +259,10 @@ typedef enum
 
 typedef enum
 {
+    FAIL_DISPLAY_ON_1,
+    FAIL_DISPLAY_OFF_2,
+    FAIL_DISPLAY_ON_3,
+    FAIL_DISPLAY_OFF_4,
     SCORE_DISPLAY_INIT,
     FIRST_DIGIT_INC,
     FIRST_DIGIT_OFF,
@@ -1573,7 +1577,7 @@ void ICACHE_FLASH_ATTR refSendRoundLossMsg(void)
     {
         refDisarmAllLedTimers();
 
-        ref.led.singlePlayerDisplayState = SCORE_DISPLAY_INIT;
+        ref.led.singlePlayerDisplayState = FAIL_DISPLAY_ON_1;
         os_timer_arm(&ref.tmr.SinglePlayerRestart, RESTART_COUNT_PERIOD_MS, true);
     }
     else
@@ -1611,6 +1615,40 @@ void ICACHE_FLASH_ATTR refSinglePlayerRestart(void* arg __attribute__((unused)))
 {
     switch(ref.led.singlePlayerDisplayState)
     {
+        case FAIL_DISPLAY_ON_1:
+        {
+            ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+            uint8_t i;
+            for(i = 0; i < 6; i++)
+            {
+                ref.led.Leds[i].r = 0xFF;
+            }
+
+            ref.led.singlePlayerDisplayState = FAIL_DISPLAY_OFF_2;
+            break;
+        }
+        case FAIL_DISPLAY_OFF_2:
+        {
+            ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+            ref.led.singlePlayerDisplayState = FAIL_DISPLAY_ON_3;
+            break;
+        }
+        case FAIL_DISPLAY_ON_3:
+        {
+            uint8_t i;
+            for(i = 0; i < 6; i++)
+            {
+                ref.led.Leds[i].r = 0xFF;
+            }
+            ref.led.singlePlayerDisplayState = FAIL_DISPLAY_OFF_4;
+            break;
+        }
+        case FAIL_DISPLAY_OFF_4:
+        {
+            ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+            ref.led.singlePlayerDisplayState = SCORE_DISPLAY_INIT;
+            break;
+        }
         case SCORE_DISPLAY_INIT:
         {
             // Clear the LEDs
