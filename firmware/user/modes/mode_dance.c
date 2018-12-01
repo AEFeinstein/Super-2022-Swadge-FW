@@ -44,6 +44,7 @@ typedef struct
 void ICACHE_FLASH_ATTR danceEnterMode(void);
 void ICACHE_FLASH_ATTR danceExitMode(void);
 void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state, int button, int down);
+void ICACHE_FLASH_ATTR setDanceLeds(led_t* ledData, uint8_t ledDataLen);
 
 void ICACHE_FLASH_ATTR unlockAnimation(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode1(void* arg);
@@ -79,6 +80,14 @@ swadgeMode dancesMode =
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
 };
+
+static const uint8_t danceBrightnesses[] =
+{
+    0x01,
+    0x08,
+    0x40,
+};
+uint8_t danceBrightnessIdx = 0;
 
 /**
  * This is an array of timerWithPeriod structs. Each is a separate animation
@@ -266,8 +275,9 @@ void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state __attribute__((unused))
         }
         else if(2 == button)
         {
-            // Button 2 pressed
-            // TODO do something here??
+            // Cycle brightnesses
+            danceBrightnessIdx = (danceBrightnessIdx + 1) %
+                                 (sizeof(danceBrightnesses) / sizeof(danceBrightnesses[0]));
         }
     }
 }
@@ -284,7 +294,7 @@ void ICACHE_FLASH_ATTR unlockAnimation(void* arg __attribute__((unused)))
     {
         ets_memset(leds, 0x80, sizeof(leds));
     }
-    setLeds(leds, sizeof(leds));
+    setDanceLeds(leds, sizeof(leds));
     unlockBlinks++;
 
     // All done
@@ -294,6 +304,24 @@ void ICACHE_FLASH_ATTR unlockAnimation(void* arg __attribute__((unused)))
         os_timer_disarm(&unlockAnimationTimer);
         os_timer_arm(&danceTimers[currentDance].timer, danceTimers[currentDance].period, true);
     }
+}
+
+/**
+ * Intermediate function which adjusts brightness and sets the LEDs
+ *
+ * @param ledData    The LEDs to be scaled, then set
+ * @param ledDataLen The length of the LEDs to set
+ */
+void ICACHE_FLASH_ATTR setDanceLeds(led_t* ledData, uint8_t ledDataLen)
+{
+    uint8_t i;
+    for(i = 0; i < ledDataLen / sizeof(led_t); i++)
+    {
+        ledData[i].r = ledData[i].r / danceBrightnesses[danceBrightnessIdx];
+        ledData[i].g = ledData[i].g / danceBrightnesses[danceBrightnessIdx];
+        ledData[i].b = ledData[i].b / danceBrightnesses[danceBrightnessIdx];
+    }
+    setLeds(ledData, ledDataLen);
 }
 
 /**
@@ -319,7 +347,7 @@ void ICACHE_FLASH_ATTR danceTimerMode1(void* arg __attribute__((unused)))
     leds[ledCount].b = 255;
 
     // Output the LED data, actually turning them on
-    setLeds(leds, sizeof(leds));
+    setDanceLeds(leds, sizeof(leds));
 }
 
 /**
@@ -345,7 +373,7 @@ void ICACHE_FLASH_ATTR danceTimerMode2(void* arg __attribute__((unused)))
     leds[ledCount].b = 0;
 
     // Output the LED data, actually turning them on
-    setLeds(leds, sizeof(leds));
+    setDanceLeds(leds, sizeof(leds));
 }
 
 
@@ -377,7 +405,7 @@ void ICACHE_FLASH_ATTR danceTimerMode3(void* arg __attribute__((unused)))
     leds[(6 - ledCount ) % 6].b = 255;
 
     // Output the LED data, actually turning them on
-    setLeds(leds, sizeof(leds));
+    setDanceLeds(leds, sizeof(leds));
 }
 
 
@@ -407,7 +435,7 @@ void ICACHE_FLASH_ATTR danceTimerMode4(void* arg __attribute__((unused)))
     }
 
     // Output the LED data, actually turning them on
-    setLeds(leds, sizeof(leds));
+    setDanceLeds(leds, sizeof(leds));
 }
 
 
@@ -438,7 +466,7 @@ void ICACHE_FLASH_ATTR danceTimerMode5(void* arg __attribute__((unused)))
     }
 
     // Output the LED data, actually turning them on
-    setLeds(leds, sizeof(leds));
+    setDanceLeds(leds, sizeof(leds));
 }
 
 
@@ -465,7 +493,7 @@ void ICACHE_FLASH_ATTR danceTimerMode6(void* arg __attribute__((unused)))
 
 
     // Output the LED data, actually turning them on
-    setLeds(leds, sizeof(leds));
+    setDanceLeds(leds, sizeof(leds));
 }
 
 
@@ -495,7 +523,7 @@ void ICACHE_FLASH_ATTR danceTimerMode7(void* arg __attribute__((unused)))
     }
 
     // Output the LED data, actually turning them on
-    setLeds(leds, sizeof(leds));
+    setDanceLeds(leds, sizeof(leds));
 }
 
 
@@ -558,7 +586,7 @@ void ICACHE_FLASH_ATTR danceTimerMode8(void* arg __attribute__((unused)))
         }
     }
     // Output the LED data, actually turning them on
-    setLeds(leds, sizeof(leds));
+    setDanceLeds(leds, sizeof(leds));
 }
 
 /**
@@ -588,7 +616,7 @@ void ICACHE_FLASH_ATTR danceTimerMode9(void* arg __attribute__((unused)))
     leds[2].g = leds[2].r / 5;
     leds[1].r = rand(50) + 40;
     leds[1].g = leds[1].r / 5;
-    setLeds(leds, sizeof(leds));
+    setDanceLeds(leds, sizeof(leds));
 }
 
 
@@ -619,7 +647,7 @@ void ICACHE_FLASH_ATTR danceTimerMode10(void* arg __attribute__((unused)))
     leds[2].b = leds[2].g / 5;
     leds[1].g = rand(50) + 40;
     leds[1].b = leds[1].g / 5;
-    setLeds(leds, sizeof(leds));
+    setDanceLeds(leds, sizeof(leds));
 }
 
 
@@ -651,7 +679,7 @@ void ICACHE_FLASH_ATTR danceTimerMode11(void* arg __attribute__((unused)))
     leds[2].g = leds[2].b / 5;
     leds[1].b = rand(50) + 40;
     leds[1].g = leds[1].b / 5;
-    setLeds(leds, sizeof(leds));
+    setDanceLeds(leds, sizeof(leds));
 }
 
 /**
@@ -678,7 +706,7 @@ void ICACHE_FLASH_ATTR danceTimerMode12(void* arg __attribute__((unused)))
     leds[ledCount].b = (color_save >> 16) & 0xFF;
 
     // Output the LED data, actually turning them on
-    setLeds(leds, sizeof(leds));
+    setDanceLeds(leds, sizeof(leds));
 }
 
 /**
@@ -715,5 +743,5 @@ void ICACHE_FLASH_ATTR danceTimerMode13(void* arg __attribute__((unused)))
     }
 
     // Output the LED data, actually turning them on
-    setLeds(leds, sizeof(leds));
+    setDanceLeds(leds, sizeof(leds));
 }
