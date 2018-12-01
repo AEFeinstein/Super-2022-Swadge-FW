@@ -23,7 +23,8 @@
  * Defines
  *==========================================================================*/
 
-#define SECRET_UNLOCK_CODE 0b101001000011010
+#define SECRET_UNLOCK_MASK 0b11111111
+#define SECRET_UNLOCK_CODE 0b10011001
 
 /*============================================================================
  * Structs
@@ -227,7 +228,7 @@ void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state __attribute__((unused))
         // Check if the secret code was entered
         buttonHistory <<= 1;
         buttonHistory  |= (button == 1 ? 1 : 0);
-        if(SECRET_UNLOCK_CODE == buttonHistory)
+        if(SECRET_UNLOCK_CODE == (SECRET_UNLOCK_MASK & buttonHistory))
         {
             // If it was, unlock all the patterns
             setGameWinsToMax();
