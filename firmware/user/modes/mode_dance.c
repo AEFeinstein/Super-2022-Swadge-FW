@@ -164,7 +164,7 @@ timerWithPeriod danceTimers[] =
     {
         .timer = {0},
         .timerFn = danceTimerMode14,
-        .period = 10
+        .period = 35
     }
 };
 
@@ -757,7 +757,7 @@ void ICACHE_FLASH_ATTR danceTimerMode14(void* arg __attribute__((unused)))
     led_t leds[6] = {{0}};
 
     // Skip to the next LED around the hexagon
-    ledCount = ledCount + 1;
+    ledCount = ledCount + 2;
     if(ledCount > 5)
     {
         ledCount = 0;
