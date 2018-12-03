@@ -164,7 +164,7 @@ timerWithPeriod danceTimers[] =
     {
         .timer = {0},
         .timerFn = danceTimerMode14,
-        .period = 50
+        .period = 1
     }
 };
 
@@ -764,9 +764,9 @@ void ICACHE_FLASH_ATTR danceTimerMode14(void* arg __attribute__((unused)))
     }
 
     // Turn the current LED on, full bright red
-    leds[ledCount].r = 250;
-    leds[ledCount].g = 190;
-    leds[ledCount].b = 0;
+    leds[ledCount].r = 255;
+    leds[ledCount].g = 140;
+    leds[ledCount].b = 10;
 
     // Output the LED data, actually turning them on
     setDanceLeds(leds, sizeof(leds));
