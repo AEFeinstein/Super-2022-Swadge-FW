@@ -164,7 +164,7 @@ timerWithPeriod danceTimers[] =
     {
         .timer = {0},
         .timerFn = danceTimerMode14,
-        .period = 1
+        .period = 150
     }
 };
 
