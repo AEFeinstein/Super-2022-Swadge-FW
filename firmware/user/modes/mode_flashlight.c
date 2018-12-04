@@ -120,6 +120,13 @@ void ICACHE_FLASH_ATTR flashlightButtonCallback(
                 {
                     os_timer_arm(&strobeTimer, strobePeriodsMs[strobeIdx], true);
                 }
+                else
+                {
+                    // If there is no strobe, turn the LEDs on
+                    led_t leds[6] = {{0}};
+                    ets_memset(leds, brightnesses[brightnessIdx], sizeof(leds));
+                    setLeds(leds, sizeof(leds));
+                }
                 break;
             }
             case 2:
