@@ -250,7 +250,7 @@ void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state __attribute__((unused))
         }
 
         // Button 1 pressed
-        if(1 == button)
+        if(2 == button)
         {
             // Stop the current animation
             os_timer_disarm(&danceTimers[currentDance].timer);
@@ -273,7 +273,7 @@ void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state __attribute__((unused))
             // Start the next animation
             os_timer_arm(&danceTimers[currentDance].timer, danceTimers[currentDance].period, true);
         }
-        else if(2 == button)
+        else if(1 == button)
         {
             // Cycle brightnesses
             danceBrightnessIdx = (danceBrightnessIdx + 1) %
