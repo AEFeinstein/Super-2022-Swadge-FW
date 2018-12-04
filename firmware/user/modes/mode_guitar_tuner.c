@@ -15,6 +15,7 @@
 #include "DFT32.h"
 #include "embeddedout.h"
 #include "osapi.h"
+#include "mode_colorchord.h"
 
 /*============================================================================
  * Defines
@@ -239,14 +240,13 @@ void ICACHE_FLASH_ATTR guitarTunerSampleHandler(int32_t samp)
 void ICACHE_FLASH_ATTR guitarTunerButtonCallback(
     uint8_t state __attribute__((unused)), int button __attribute__((unused)), int down)
 {
-
     if(down)
     {
         // Start a timer to restore LED functionality to colorchord
         guitarTunerOverrideLeds = true;
         os_timer_disarm(&guitarLedOverrideTimer);
         os_timer_arm(&guitarLedOverrideTimer, 1000, false);
-#if 0
+
         switch(button)
         {
             case 1:
@@ -256,22 +256,10 @@ void ICACHE_FLASH_ATTR guitarTunerButtonCallback(
             }
             case 2:
             {
-                // The initial value is 16, so this math gets the amps
-                // [0, 8, 16, 24, 32, 40]
-                CCS.gINITIAL_AMP = (CCS.gINITIAL_AMP + 8) % 48;
-
-                // Override the LEDs to show the sensitivity, 1-6
-                led_t leds[6] = {{0}};
-                int i;
-                for(i = 0; i < (CCS.gINITIAL_AMP / 8) + 1; i++)
-                {
-                    leds[(6 - i) % 6].b = 0xFF;
-                }
-                setLeds(leds, sizeof(leds));
+                cycleColorchordSensitivity();
                 break;
             }
         }
-#endif
     }
 }
 

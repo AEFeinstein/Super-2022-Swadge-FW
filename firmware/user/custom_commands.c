@@ -134,7 +134,7 @@ configurable_t gConfigs[CONFIGURABLES] =
         .val = &CCS.gCOLORCHORD_OUTPUT_DRIVER
     },
     {
-        .defaultVal = 16,
+        .defaultVal = 14,
         .name = "gINITIAL_AMP",
         .val = &CCS.gINITIAL_AMP
     },

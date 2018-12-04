@@ -10,4 +10,6 @@
 
 extern swadgeMode colorchordMode;
 
+void ICACHE_FLASH_ATTR cycleColorchordSensitivity(void);
+
 #endif /* USER_MODE_COLORCHORD_H_ */

@@ -16,6 +16,14 @@
 #include "osapi.h"
 
 /*============================================================================
+ * Defines
+ *==========================================================================*/
+
+#define AMP_OFFSET    8
+#define AMP_STEPS     6
+#define AMP_STEP_SIZE 6
+
+/*============================================================================
  * Prototypes
  *==========================================================================*/
 
@@ -183,22 +191,32 @@ void ICACHE_FLASH_ATTR colorchordButtonCallback(
             }
             case 2:
             {
-                // The initial value is 16, so this math gets the amps
-                // [0, 8, 16, 24, 32, 40]
-                CCS.gINITIAL_AMP = (CCS.gINITIAL_AMP + 8) % 48;
-
-                // Override the LEDs to show the sensitivity, 1-6
-                led_t leds[6] = {{0}};
-                int i;
-                for(i = 0; i < (CCS.gINITIAL_AMP / 8) + 1; i++)
-                {
-                    leds[(6 - i) % 6].b = 0xFF;
-                }
-                setLeds(leds, sizeof(leds));
+                cycleColorchordSensitivity();
                 break;
             }
         }
     }
+}
+
+/**
+ * Cycles the colorchord sensitivity
+ */
+void ICACHE_FLASH_ATTR cycleColorchordSensitivity(void)
+{
+    // The initial value is 16, so this math gets the amps
+    // [8, 14, 20, 26, 32, 38]
+    CCS.gINITIAL_AMP -= AMP_OFFSET;
+    CCS.gINITIAL_AMP = (CCS.gINITIAL_AMP + AMP_STEP_SIZE) % (AMP_STEPS * AMP_STEP_SIZE);
+    CCS.gINITIAL_AMP += AMP_OFFSET;
+
+    // Override the LEDs to show the sensitivity, 1-6
+    led_t leds[6] = {{0}};
+    int i;
+    for(i = 0; i < ((CCS.gINITIAL_AMP - AMP_OFFSET) / AMP_STEP_SIZE) + 1; i++)
+    {
+        leds[(6 - i) % 6].b = 0xFF;
+    }
+    setLeds(leds, sizeof(leds));
 }
 
 /**
