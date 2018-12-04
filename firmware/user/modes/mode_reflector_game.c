@@ -974,7 +974,7 @@ void ICACHE_FLASH_ATTR refStartPlaying(void* arg __attribute__((unused)))
     setLeds(ref.led.Leds, sizeof(ref.led.Leds));
 
     // Reset the LED timer to the default speed
-    refAdjustledSpeed(true, false);
+    refAdjustledSpeed(true, true);
 
     // Check for match end
     ref_printf("wins: %d, losses %d\r\n", ref.gam.Wins, ref.gam.Losses);
@@ -1787,7 +1787,7 @@ void ICACHE_FLASH_ATTR refSinglePlayerRestart(void* arg __attribute__((unused)))
 
             // Reset and start another round
             ref.gam.singlePlayerRounds = 0;
-            refAdjustledSpeed(true, false);
+            refAdjustledSpeed(true, true);
             refStartRound();
             break;
         }
