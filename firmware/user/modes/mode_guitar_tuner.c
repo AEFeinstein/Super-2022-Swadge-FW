@@ -73,11 +73,11 @@ bool guitarTunerOverrideLeds = false;
 const uint16_t freqBinIdxs[NUM_STRINGS] =
 {
     38, // E string needs to skip an octave... Can't read sounds this low.
-    24, // A string is exactly at note #24
-    34, // D = A + 5 half steps = 34
-    44, // G
+    62, // e
     52, // B
-    62  // e
+    44, // G
+    34, // D = A + 5 half steps = 34
+    24  // A string is exactly at note #24
 };
 
 /*============================================================================
