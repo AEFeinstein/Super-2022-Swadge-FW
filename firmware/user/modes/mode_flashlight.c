@@ -52,7 +52,7 @@ uint8_t brightnessIdx = 0;
 os_timer_t strobeTimerOn = {0};
 os_timer_t strobeTimerOff = {0};
 
-#define NUM_STROBES 5
+#define NUM_STROBES 8
 static const uint32_t strobePeriodsMs[NUM_STROBES][2] =
 {
     {0, 0}, // 0 means on forever
