@@ -56,10 +56,11 @@ os_timer_t strobeTimerOff = {0};
 static const uint32_t strobePeriodsMs[NUM_STROBES][2] =
 {
     {0, 0}, // 0 means on forever
-    {500, 500}, //off ms, on ms
-    {900, 100},
-    {250, 250},
-    {450,  50}
+    {900, 100}, //off ms, on ms
+    {450,  50},
+    {300,  50},
+    {200,  50},
+    {100,  50},    
 };
 uint8_t strobeIdx = 0;
 
