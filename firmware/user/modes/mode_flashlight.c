@@ -60,7 +60,9 @@ static const uint32_t strobePeriodsMs[NUM_STROBES][2] =
     {450,  50},
     {300,  50},
     {200,  50},
-    {100,  50},    
+    {100,  50},
+    {50,   50},
+    {25,   25}
 };
 uint8_t strobeIdx = 0;
 
