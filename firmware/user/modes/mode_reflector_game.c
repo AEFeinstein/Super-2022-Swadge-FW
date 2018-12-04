@@ -1893,6 +1893,12 @@ void ICACHE_FLASH_ATTR refRoundResultLed(bool roundWinner)
  */
 void ICACHE_FLASH_ATTR refAdjustledSpeed(bool reset, bool up)
 {
+    // If you're in single player, ignore any speed downs
+    if(ref.gam.singlePlayer && up == false)
+    {
+        return;
+    }
+
     if(reset)
     {
         switch(ref.gam.difficulty)
