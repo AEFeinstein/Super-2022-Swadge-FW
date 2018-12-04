@@ -257,15 +257,11 @@ void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state __attribute__((unused))
 
             // Iterate to the next animation. Winning a reflector game unlocks
             // another dance
-            uint8_t numUnlockedDances = getRefGameWins();
+            uint8_t numUnlockedDances = getRefGameWins() + 3;
             uint8_t numDances = sizeof(danceTimers) / sizeof(danceTimers[0]);
             if(numUnlockedDances > numDances)
             {
                 numUnlockedDances = numDances;
-            }
-            else if(0 == numUnlockedDances)
-            {
-                numUnlockedDances++;
             }
 
             currentDance = (currentDance + 1) % numUnlockedDances;
