@@ -42,9 +42,9 @@ swadgeMode flashlightMode =
 
 static const uint8_t brightnesses[] =
 {
-    0x01,
-    0x40,
     0xFF,
+    0x40,
+    0x01,
 };
 uint8_t brightnessIdx = 0;
 
