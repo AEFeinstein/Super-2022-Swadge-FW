@@ -119,7 +119,7 @@ void ICACHE_FLASH_ATTR flashlightButtonCallback(
     {
         switch(button)
         {
-            case 1:
+            case 2:
             {
                 strobeIdx = (strobeIdx + 1) % NUM_STROBES;
 
@@ -139,7 +139,7 @@ void ICACHE_FLASH_ATTR flashlightButtonCallback(
                 }
                 break;
             }
-            case 2:
+            case 1:
             {
                 brightnessIdx = (brightnessIdx + 1) %
                                 (sizeof(brightnesses) / sizeof(brightnesses[0]));
