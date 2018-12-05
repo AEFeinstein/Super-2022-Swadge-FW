@@ -170,7 +170,7 @@ timerWithPeriod danceTimers[] =
     {
         .timer = {0},
         .timerFn = danceTimerMode15,
-        .period = 20
+        .period = 100
     }
 };
 
@@ -185,7 +185,8 @@ uint8_t currentDance = 0;
 /// This is a state variable used in animations
 int ledCount = 0;
 int ledCount2 = 0;
-int ledCount3 = 0;
+int ledSwitch = 0;
+int timerCount = 0;
 uint32_t color_save = 256;
 bool led_bool = true;
 /*============================================================================
@@ -828,23 +829,23 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
     // Declare some LEDs, all off
     led_t leds[6] = {{0}};
 
-    ledCount = ledCount + 1;
-    if (ledCount > 40)
+    timerCount = timerCount + 1;
+    if (timerCount > 40)
     {
-      ledCount = 0;
-    }
-    
-    if (ledCount < 20)
-    {
-      ledCount3 = 0;
+      timerCount = 0;
     }
 
-    if (ledCount > 20)
+    if (timerCount < 20)
     {
-      ledCount3 = 1;
+      ledSwitch = 0;
     }
 
-    if(ledCount3 = 0)
+    if (timerCount > 20)
+    {
+      ledSwitch = 1;
+    }
+
+    if(ledSwitch = 0)
     {
         // Turn the current LED on
         leds[0].r = 13;
@@ -872,7 +873,7 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
         leds[5].b = 50;
     }
 
-    if(ledCount3 = 1)
+    if(ledSwitch = 1)
     {
         // Turn the current LED on
         leds[0].r = 255;
