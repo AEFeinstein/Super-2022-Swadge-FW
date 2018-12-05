@@ -166,7 +166,7 @@ timerWithPeriod danceTimers[] =
         .timer = {0},
         .timerFn = danceTimerMode14,
         .period = 2
-    }
+    },
     {
         .timer = {0},
         .timerFn = danceTimerMode15,
@@ -824,42 +824,8 @@ void ICACHE_FLASH_ATTR danceTimerMode14(void* arg __attribute__((unused)))
 
 void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
 {
-  // Declare some LEDs, all off
-  led_t leds[6] = {{0}};
-
-  // Skip to the next LED around the hexagon
-  ledCount = ledCount + 2;
-  if(ledCount > 5)
-  {
-      ledCount = 0;
-  }
-
-  // Turn the current LED on, full bright red
-  leds[2].r = 255;
-  leds[2].g = 140;
-  leds[2].b = 10;
-
-  leds[4].r = 255;
-  leds[4].g = 140;
-  leds[4].b = 10;
-
-  leds[0].r = 255;
-  leds[0].g = 140;
-  leds[0].b = 10;
-
-  // Output the LED data, actually turning them on
-  setDanceLeds(leds, sizeof(leds));
-
-/*
     // Declare some LEDs, all off
     led_t leds[6] = {{0}};
-
-    // Skip to the next LED around the hexagon
-    ledCount = ledCount + 2;
-    if(ledCount > 5)
-    {
-        ledCount = 0;
-    }
 
     // Turn the current LED on
     leds[0].r = 43;
@@ -889,5 +855,4 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
     // Output the LED data, actually turning them on
     setDanceLeds(leds, sizeof(leds));
 
-*/
 }
