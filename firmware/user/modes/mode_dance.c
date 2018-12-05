@@ -839,12 +839,12 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
     {
       ledSwitch = 0;
     }
-
+/*
     if (timerCount > 20)
     {
       ledSwitch = 1;
     }
-
+*/
     if(ledSwitch = 0)
     {
         // Turn the current LED on GREEN
