@@ -170,7 +170,7 @@ timerWithPeriod danceTimers[] =
     {
         .timer = {0},
         .timerFn = danceTimerMode15,
-        .period = 2
+        .period = 2000
     }
 };
 
@@ -827,30 +827,63 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
     // Declare some LEDs, all off
     led_t leds[6] = {{0}};
 
-    // Turn the current LED on
-    leds[0].r = 13;
-    leds[0].g = 255;
-    leds[0].b = 32;
+    ledCount = ledCount + 1;
+    if(ledCount < 2)
+    {
+        // Turn the current LED on
+        leds[0].r = 13;
+        leds[0].g = 255;
+        leds[0].b = 32;
 
-    leds[1].r = 40;
-    leds[1].g = 80;
-    leds[1].b = 50;
+        leds[1].r = 40;
+        leds[1].g = 80;
+        leds[1].b = 50;
 
-    leds[2].r = 13;
-    leds[2].g = 255;
-    leds[2].b = 32;
+        leds[2].r = 13;
+        leds[2].g = 255;
+        leds[2].b = 32;
 
-    leds[3].r = 152;
-    leds[3].g = 113;
-    leds[3].b = 20;
+        leds[3].r = 152;
+        leds[3].g = 113;
+        leds[3].b = 20;
 
-    leds[4].r = 13;
-    leds[4].g = 255;
-    leds[4].b = 32;
+        leds[4].r = 13;
+        leds[4].g = 255;
+        leds[4].b = 32;
 
-    leds[5].r = 40;
-    leds[5].g = 80;
-    leds[5].b = 50;
+        leds[5].r = 40;
+        leds[5].g = 80;
+        leds[5].b = 50;
+    }
+    else
+    {
+        // Turn the current LED on
+        leds[0].r = 255;
+        leds[0].g = 32;
+        leds[0].b = 32;
+
+        leds[1].r = 80;
+        leds[1].g = 50;
+        leds[1].b = 50;
+
+        leds[2].r = 255;
+        leds[2].g = 32;
+        leds[2].b = 32;
+
+        leds[3].r = 152;
+        leds[3].g = 113;
+        leds[3].b = 20;
+
+        leds[4].r = 255;
+        leds[4].g = 32;
+        leds[4].b = 32;
+
+        leds[5].r = 80;
+        leds[5].g = 50;
+        leds[5].b = 50;
+
+        ledCount = 0;
+    }
 
     // Output the LED data, actually turning them on
     setDanceLeds(leds, sizeof(leds));
