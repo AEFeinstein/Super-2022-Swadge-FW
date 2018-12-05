@@ -391,6 +391,7 @@ struct
         uint8_t ledPeriodMs;
         bool singlePlayer;
         uint16_t singlePlayerRounds;
+        uint8_t singlePlayerTopHits;
         difficulty_t difficulty;
         bool receiveFirstMsg;
     } gam;
@@ -1488,16 +1489,27 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
                 spdPtr = spdDn;
             }
 
+            // Single player follows different speed up/down logic
             if(ref.gam.singlePlayer)
             {
                 ref.gam.singlePlayerRounds++;
                 if(spdPtr == spdUp)
                 {
-                    refAdjustledSpeed(false, true);
+                    // If the hit is in the first 25%, increment the speed every third hit
+                    // adjust speed up after three consecutive hits
+                    ref.gam.singlePlayerTopHits++;
+                    if(3 == ref.gam.singlePlayerTopHits)
+                    {
+                        refAdjustledSpeed(false, true);
+                        ref.gam.singlePlayerTopHits = 0;
+                    }
                 }
-                if(spdPtr == spdDn)
+                if(spdPtr == spdNc || spdPtr == spdDn)
                 {
-                    refAdjustledSpeed(false, false);
+                    // If the hit is in the second 75%, increment the speed immediately
+                    refAdjustledSpeed(false, true);
+                    // Reset the top hit count too because it just sped up
+                    ref.gam.singlePlayerTopHits = 0;
                 }
                 refStartRound();
             }
@@ -1787,6 +1799,7 @@ void ICACHE_FLASH_ATTR refSinglePlayerRestart(void* arg __attribute__((unused)))
 
             // Reset and start another round
             ref.gam.singlePlayerRounds = 0;
+            ref.gam.singlePlayerTopHits = 0;
             refAdjustledSpeed(true, true);
             refStartRound();
             break;
