@@ -833,11 +833,12 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
     {
       ledCount3 = 0;
     }
-    else if (ledCount > 200 && < 400)
+    else if (ledCount > 200)
     {
       ledCount3 = 1;
     }
-    else if (ledCount > 400)
+
+    if (ledCount > 400)
     {
       ledCount = 0;
     }
