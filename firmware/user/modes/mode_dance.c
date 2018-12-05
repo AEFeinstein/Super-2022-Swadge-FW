@@ -61,7 +61,7 @@ void ICACHE_FLASH_ATTR danceTimerMode11(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode12(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode13(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode14(void* arg);
-void ICACHE_FLASH_ATTR danceTimerMode15(void* arg);
+//void ICACHE_FLASH_ATTR danceTimerMode15(void* arg);
 /*============================================================================
  * Variables
  *==========================================================================*/
@@ -167,11 +167,13 @@ timerWithPeriod danceTimers[] =
         .timerFn = danceTimerMode14,
         .period = 2
     }
+/*
     {
         .timer = {0},
         .timerFn = danceTimerMode15,
         .period = 2
     }
+*/    
 };
 
 /// Stuff for the secret unlock code
@@ -822,6 +824,7 @@ void ICACHE_FLASH_ATTR danceTimerMode14(void* arg __attribute__((unused)))
     setDanceLeds(leds, sizeof(leds));
 }
 
+/*
 void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
 {
     // Declare some LEDs, all off
@@ -862,3 +865,4 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
     // Output the LED data, actually turning them on
     setDanceLeds(leds, sizeof(leds));
 }
+*/
