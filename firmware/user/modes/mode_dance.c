@@ -827,6 +827,13 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
     // Declare some LEDs, all off
     led_t leds[6] = {{0}};
 
+    // Skip to the next LED around the hexagon
+    ledCount = ledCount + 2;
+    if(ledCount > 5)
+    {
+        ledCount = 0;
+    }
+
     // Turn the current LED on
     leds[0].r = 43;
     leds[0].g = 229;
