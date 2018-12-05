@@ -44,6 +44,7 @@ void ICACHE_FLASH_ATTR danceEnterMode(void);
 void ICACHE_FLASH_ATTR danceExitMode(void);
 void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state, int button, int down);
 void ICACHE_FLASH_ATTR setDanceLeds(led_t* ledData, uint8_t ledDataLen);
+uint32_t dance_rand(uint32_t upperBound);
 
 void ICACHE_FLASH_ATTR unlockAnimation(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode1(void* arg);
@@ -333,6 +334,24 @@ void ICACHE_FLASH_ATTR setDanceLeds(led_t* ledData, uint8_t ledDataLen)
 }
 
 /**
+ * Get a random number from a range.
+ *
+ * TODO
+ * This isn't true-random, unless bound is a power of 2. But it's close enough?
+ * The problem is that os_random() returns a number between [0, 2^64), and the
+ * size of the range may not be even divisible by bound
+ *
+ * For what it's worth, this is what Arduino's random() does. It lies!
+ *
+ * @param bound An upper bound of the random range to return
+ * @return A number in the range [0,bound), which does not include bound
+ */
+uint32_t dance_rand(uint32_t bound)
+{
+    return os_random() % bound;
+}
+
+/**
  * This animation is set to be called every 1 ms
  *
  * @param arg unused
@@ -373,26 +392,26 @@ void ICACHE_FLASH_ATTR danceTimerMode2(void* arg __attribute__((unused)))
     if(ledCount < 2)
     {
 
-    // Turn the current LED on, full bright red
-    leds[0].r = 255;
-    leds[1].r = 255;
-    leds[2].r = 255;
-    leds[3].r = 255;
-    leds[4].r = 255;
-    leds[5].r = 255;
-    // Output the LED data, actually turning them on
+        // Turn the current LED on, full bright red
+        leds[0].r = 255;
+        leds[1].r = 255;
+        leds[2].r = 255;
+        leds[3].r = 255;
+        leds[4].r = 255;
+        leds[5].r = 255;
+        // Output the LED data, actually turning them on
     }
     else
     {
-    // Turn the current LED on, full bright red
-    leds[0].r = 0;
-    leds[1].r = 0;
-    leds[2].r = 0;
-    leds[3].r = 0;
-    leds[4].r = 0;
-    leds[5].r = 0;
-    // Output the LED data, actually turning them on
-	ledCount = 0;
+        // Turn the current LED on, full bright red
+        leds[0].r = 0;
+        leds[1].r = 0;
+        leds[2].r = 0;
+        leds[3].r = 0;
+        leds[4].r = 0;
+        leds[5].r = 0;
+        // Output the LED data, actually turning them on
+        ledCount = 0;
     }
 
 
@@ -627,17 +646,17 @@ void ICACHE_FLASH_ATTR danceTimerMode9(void* arg __attribute__((unused)))
         ledCount = 0;
     }
 
-    leds[3].r = rand(120) + 135;
+    leds[3].r = dance_rand(120) + 135;
     leds[3].g = leds[3].r / 5;
-    leds[4].r = rand(80) + 80;
+    leds[4].r = dance_rand(80) + 80;
     leds[4].g = leds[4].r / 5;
-    leds[5].r = rand(50) + 40;
+    leds[5].r = dance_rand(50) + 40;
     leds[5].g = leds[5].r / 5;
-    leds[0].r = rand(10) + 10;
+    leds[0].r = dance_rand(10) + 10;
     leds[0].g = leds[0].r / 5;
-    leds[2].r = rand(80) + 80;
+    leds[2].r = dance_rand(80) + 80;
     leds[2].g = leds[2].r / 5;
-    leds[1].r = rand(50) + 40;
+    leds[1].r = dance_rand(50) + 40;
     leds[1].g = leds[1].r / 5;
     setDanceLeds(leds, sizeof(leds));
 }
@@ -658,17 +677,17 @@ void ICACHE_FLASH_ATTR danceTimerMode10(void* arg __attribute__((unused)))
         ledCount = 0;
     }
 
-    leds[3].g = rand(120) + 135;
+    leds[3].g = dance_rand(120) + 135;
     leds[3].b = leds[3].g / 5;
-    leds[4].g = rand(80) + 80;
+    leds[4].g = dance_rand(80) + 80;
     leds[4].b = leds[4].g / 5;
-    leds[5].g = rand(50) + 40;
+    leds[5].g = dance_rand(50) + 40;
     leds[5].b = leds[5].g / 5;
-    leds[0].g = rand(10) + 10;
+    leds[0].g = dance_rand(10) + 10;
     leds[0].b = leds[0].g / 5;
-    leds[2].g = rand(80) + 80;
+    leds[2].g = dance_rand(80) + 80;
     leds[2].b = leds[2].g / 5;
-    leds[1].g = rand(50) + 40;
+    leds[1].g = dance_rand(50) + 40;
     leds[1].b = leds[1].g / 5;
     setDanceLeds(leds, sizeof(leds));
 }
@@ -690,17 +709,17 @@ void ICACHE_FLASH_ATTR danceTimerMode11(void* arg __attribute__((unused)))
         ledCount = 0;
     }
 
-    leds[3].b = rand(120) + 135;
+    leds[3].b = dance_rand(120) + 135;
     leds[3].g = leds[3].b / 5;
-    leds[4].b = rand(80) + 80;
+    leds[4].b = dance_rand(80) + 80;
     leds[4].g = leds[4].b / 5;
-    leds[5].b = rand(50) + 40;
+    leds[5].b = dance_rand(50) + 40;
     leds[5].g = leds[5].b / 5;
-    leds[0].b = rand(10) + 10;
+    leds[0].b = dance_rand(10) + 10;
     leds[0].g = leds[0].b / 5;
-    leds[2].b = rand(80) + 80;
+    leds[2].b = dance_rand(80) + 80;
     leds[2].g = leds[2].b / 5;
-    leds[1].b = rand(50) + 40;
+    leds[1].b = dance_rand(50) + 40;
     leds[1].g = leds[1].b / 5;
     setDanceLeds(leds, sizeof(leds));
 }
@@ -720,7 +739,7 @@ void ICACHE_FLASH_ATTR danceTimerMode12(void* arg __attribute__((unused)))
     if(ledCount > 5)
     {
         ledCount = 0;
-        color_save = EHSVtoHEX(rand(256), 0xFF, 0xFF);
+        color_save = EHSVtoHEX(dance_rand(256), 0xFF, 0xFF);
     }
 
     // Turn the current LED on, full bright white
@@ -748,7 +767,7 @@ void ICACHE_FLASH_ATTR danceTimerMode13(void* arg __attribute__((unused)))
     if(ledCount > 510)
     {
         ledCount = 0;
-        ledCount2 = rand(256);
+        ledCount2 = dance_rand(256);
     }
     int intensity = ledCount;
     if(ledCount > 255)
