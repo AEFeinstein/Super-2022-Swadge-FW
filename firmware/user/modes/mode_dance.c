@@ -61,6 +61,7 @@ void ICACHE_FLASH_ATTR danceTimerMode11(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode12(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode13(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode14(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode15(void* arg);
 /*============================================================================
  * Variables
  *==========================================================================*/
@@ -164,6 +165,11 @@ timerWithPeriod danceTimers[] =
     {
         .timer = {0},
         .timerFn = danceTimerMode14,
+        .period = 2
+    }
+    {
+        .timer = {0},
+        .timerFn = danceTimerMode15,
         .period = 2
     }
 };
@@ -811,6 +817,40 @@ void ICACHE_FLASH_ATTR danceTimerMode14(void* arg __attribute__((unused)))
     leds[0].r = 255;
     leds[0].g = 140;
     leds[0].b = 10;
+
+    // Output the LED data, actually turning them on
+    setDanceLeds(leds, sizeof(leds));
+}
+
+void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
+{
+    // Declare some LEDs, all off
+    led_t leds[6] = {{0}};
+
+    // Turn the current LED on
+    leds[0].r = 43;
+    leds[0].g = 229;
+    leds[0].b = 62;
+
+    leds[1].r = 200;
+    leds[1].g = 200;
+    leds[1].b = 200;
+
+    leds[2].r = 43;
+    leds[2].g = 229;
+    leds[2].b = 62;
+
+    leds[3].r = 240;
+    leds[3].g = 220;
+    leds[3].b = 120;
+
+    leds[4].r = 43;
+    leds[4].g = 229;
+    leds[4].b = 62;
+
+    leds[5].r = 200;
+    leds[5].g = 200;
+    leds[5].b = 200;
 
     // Output the LED data, actually turning them on
     setDanceLeds(leds, sizeof(leds));
