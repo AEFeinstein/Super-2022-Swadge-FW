@@ -828,29 +828,29 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
     led_t leds[6] = {{0}};
 
     // Turn the current LED on
-    leds[0].r = 43;
-    leds[0].g = 229;
+    leds[0].r = 33;
+    leds[0].g = 255;
     leds[0].b = 62;
 
-    leds[1].r = 200;
-    leds[1].g = 200;
-    leds[1].b = 200;
+    leds[1].r = 43;
+    leds[1].g = 229;
+    leds[1].b = 62;
 
-    leds[2].r = 43;
-    leds[2].g = 229;
+    leds[2].r = 33;
+    leds[2].g = 255;
     leds[2].b = 62;
 
-    leds[3].r = 240;
-    leds[3].g = 220;
-    leds[3].b = 120;
+    leds[3].r = 189;
+    leds[3].g = 169;
+    leds[3].b = 90;
 
-    leds[4].r = 43;
-    leds[4].g = 229;
+    leds[4].r = 33;
+    leds[4].g = 255;
     leds[4].b = 62;
 
-    leds[5].r = 200;
-    leds[5].g = 200;
-    leds[5].b = 200;
+    leds[5].r = 43;
+    leds[5].g = 229;
+    leds[5].b = 62;
 
     // Output the LED data, actually turning them on
     setDanceLeds(leds, sizeof(leds));
