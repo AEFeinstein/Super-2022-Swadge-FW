@@ -845,7 +845,7 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
       ledSwitch = 1;
     }
 */
-    if(ledSwitch = 0)
+    if(ledSwitch = 1)
     {
         // Turn the current LED on
         leds[0].r = 13;
@@ -873,7 +873,7 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
         leds[5].b = 50;
     }
 
-    if(ledSwitch = 1)
+    if(ledSwitch = 0)
     {
         // Turn the current LED on
         leds[0].r = 255;
