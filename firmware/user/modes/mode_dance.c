@@ -104,7 +104,7 @@ timerWithPeriod danceTimers[] =
     {
         .timer = {0},
         .timerFn = danceTimerMode2,
-        .period = 100
+        .period = 350
     },
     {
         .timer = {0},
@@ -371,17 +371,32 @@ void ICACHE_FLASH_ATTR danceTimerMode2(void* arg __attribute__((unused)))
 
     // Skip to the next LED around the hexagon
     ledCount = ledCount + 1;
-    if(ledCount > 5)
+    if(ledCount < 2)
     {
-        ledCount = 0;
-    }
 
     // Turn the current LED on, full bright red
-    leds[ledCount].r = 255;
-    leds[ledCount].g = 0;
-    leds[ledCount].b = 0;
-
+    leds[0].r = 255;
+    leds[1].r = 255;
+    leds[2].r = 255;
+    leds[3].r = 255;
+    leds[4].r = 255;
+    leds[5].r = 255;
     // Output the LED data, actually turning them on
+    }
+    else
+    {
+    // Turn the current LED on, full bright red
+    leds[0].r = 0;
+    leds[1].r = 0;
+    leds[2].r = 0;
+    leds[3].r = 0;
+    leds[4].r = 0;
+    leds[5].r = 0;
+    // Output the LED data, actually turning them on
+	ledCount = 0;
+    }
+
+
     setDanceLeds(leds, sizeof(leds));
 }
 
