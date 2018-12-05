@@ -839,13 +839,13 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
     {
       ledSwitch = 0;
     }
-/*
+
     if (timerCount > 20)
     {
       ledSwitch = 1;
     }
-*/
-    if(ledSwitch = 0)
+
+    if(ledSwitch == 0)
     {
         // Turn the current LED on GREEN
         leds[0].r = 13;
@@ -873,7 +873,7 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
         leds[5].b = 50;
     }
 
-    if(ledSwitch = 1)
+    if(ledSwitch == 1)
     {
         // Turn the current LED on RED
         leds[0].r = 255;
@@ -887,7 +887,7 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
         leds[2].r = 255;
         leds[2].g = 32;
         leds[2].b = 32;
-/*
+
         leds[3].r = 152;
         leds[3].g = 113;
         leds[3].b = 20;
@@ -900,7 +900,7 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
         leds[5].g = 50;
         leds[5].b = 50;
 
-        */
+      
     }
 
     // Output the LED data, actually turning them on
