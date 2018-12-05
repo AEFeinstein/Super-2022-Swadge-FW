@@ -830,17 +830,17 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
     led_t leds[6] = {{0}};
 
     timerCount++;
-    if (timerCount > 40)
+    if (timerCount > 400)
     {
       timerCount = 0;
     }
 
-    if (timerCount < 20)
+    if (timerCount < 200)
     {
       ledSwitch = 0;
     }
 
-    if (timerCount > 20)
+    if (timerCount > 200)
     {
       ledSwitch = 1;
     }
@@ -900,7 +900,7 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
         leds[5].g = 50;
         leds[5].b = 50;
 
-      
+
     }
 
     // Output the LED data, actually turning them on
