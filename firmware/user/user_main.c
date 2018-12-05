@@ -31,7 +31,6 @@
 #include "espNowUtils.h"
 #include "mode_guitar_tuner.h"
 #include "mode_colorchord.h"
-#include "mode_led_patterns.h"
 #include "mode_reflector_game.h"
 #include "mode_random_d6.h"
 #include "mode_dance.h"
@@ -103,7 +102,6 @@ swadgeMode* swadgeModes[] =
     &reflectorGameMode,
     &randomD6Mode,
     &dancesMode,
-    // &ledPatternsMode,
     &flashlightMode,
     &guitarTunerMode,
 };

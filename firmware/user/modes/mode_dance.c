@@ -11,7 +11,6 @@
 
 #include "ccconfig.h"
 #include "user_main.h"
-#include "mode_led_patterns.h"
 #include <stdint.h>
 #include "user_interface.h"
 #include "user_main.h"
