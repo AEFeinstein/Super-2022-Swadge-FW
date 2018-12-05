@@ -830,17 +830,17 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
     led_t leds[6] = {{0}};
 
     timerCount++;
-    if (timerCount > 400)
+    if (timerCount > 600)
     {
       timerCount = 0;
     }
 
-    if (timerCount < 200)
+    if (timerCount < 300)
     {
       ledSwitch = 0;
     }
 
-    if (timerCount > 200)
+    if (timerCount > 300)
     {
       ledSwitch = 1;
     }
