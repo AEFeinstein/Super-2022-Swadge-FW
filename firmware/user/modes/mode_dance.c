@@ -844,17 +844,17 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
     timerCount++;
     if (timerCount > 600)
     {
-      timerCount = 0;
+        timerCount = 0;
     }
 
     if (timerCount < 300)
     {
-      ledSwitch = 0;
+        ledSwitch = 0;
     }
 
     if (timerCount > 300)
     {
-      ledSwitch = 1;
+        ledSwitch = 1;
     }
 
     if(ledSwitch == 0)
@@ -948,19 +948,22 @@ void ICACHE_FLASH_ATTR danceTimerMode16(void* arg __attribute__((unused)))
     uint32_t blue = EHSVtoHEX(170, 0xFF, 0xFF);
     uint8_t i;
     // Turn the current LED on, full bright white
-    if(ledCount < 3){
-    for(i = 0; i < 3; i++)
-      {
-      leds[i].r = (red >>  0) & 0xFF;
-      leds[i].g = (red >>  8) & 0xFF;
-      leds[i].b = (red >> 16) & 0xFF;
-      }
-    }else{
-      for(i = 3; i < 6; i++)
+    if(ledCount < 3)
+    {
+        for(i = 0; i < 3; i++)
         {
-        leds[i].r = (blue >>  0) & 0xFF;
-        leds[i].g = (blue >>  8) & 0xFF;
-        leds[i].b = (blue >> 16) & 0xFF;
+            leds[i].r = (red >>  0) & 0xFF;
+            leds[i].g = (red >>  8) & 0xFF;
+            leds[i].b = (red >> 16) & 0xFF;
+        }
+    }
+    else
+    {
+        for(i = 3; i < 6; i++)
+        {
+            leds[i].r = (blue >>  0) & 0xFF;
+            leds[i].g = (blue >>  8) & 0xFF;
+            leds[i].b = (blue >> 16) & 0xFF;
         }
     }
 
