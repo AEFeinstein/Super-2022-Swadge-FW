@@ -1016,46 +1016,58 @@ void ICACHE_FLASH_ATTR danceTimerMode18(void* arg __attribute__((unused)))
     // Declare some LEDs, all off
     led_t leds[6] = {{0}};
     ledCount += 1;
-    if(ledCount > ledCount2){
-      ledCount = 0;
-      ledCount2 = dance_rand(500)+50;
-      int color_picker = dance_rand(5);
-      int node_select = dance_rand(6);
+    if(ledCount > ledCount2)
+    {
+        ledCount = 0;
+        ledCount2 = dance_rand(500) + 50;
+        int color_picker = dance_rand(5);
+        int node_select = dance_rand(6);
 
-      if(color_picker < 2){
-      color_save_array[node_select]=0;
-      color_saturation_save[node_select]=dance_rand(15)+240;
-    }else if (color_picker < 4){
-      color_save_array[node_select]=86;
-      color_saturation_save[node_select]=dance_rand(15)+240;
-    }else{
-      color_saturation_save[node_select]=dance_rand(25);
-    }
+        if(color_picker < 2)
+        {
+            color_save_array[node_select] = 0;
+            color_saturation_save[node_select] = dance_rand(15) + 240;
+        }
+        else if (color_picker < 4)
+        {
+            color_save_array[node_select] = 86;
+            color_saturation_save[node_select] = dance_rand(15) + 240;
+        }
+        else
+        {
+            color_saturation_save[node_select] = dance_rand(25);
+        }
     }
 
 
     uint8_t i;
     for(i = 0; i < 6; i++)
-      {
-        if(current_color_array[i]>color_save_array[i]){
-          current_color_array[i]-=1;
-        }else if (current_color_array[i]<color_save_array[i]){
-          current_color_array[i]+=1;
+    {
+        if(current_color_array[i] > color_save_array[i])
+        {
+            current_color_array[i] -= 1;
+        }
+        else if (current_color_array[i] < color_save_array[i])
+        {
+            current_color_array[i] += 1;
         }
 
-        if(current_color_saturation[i]>color_saturation_save[i]){
-          current_color_saturation[i]-=1;
-        }else if (current_color_saturation[i]<color_saturation_save[i]){
-          current_color_saturation[i]+=1;
+        if(current_color_saturation[i] > color_saturation_save[i])
+        {
+            current_color_saturation[i] -= 1;
         }
-      }
+        else if (current_color_saturation[i] < color_saturation_save[i])
+        {
+            current_color_saturation[i] += 1;
+        }
+    }
 
     for(i = 0; i < 6; i++)
-      {
-        leds[i].r = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i],0xFF) >>  0) & 0xFF;
+    {
+        leds[i].r = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i], 0xFF) >>  0) & 0xFF;
         leds[i].g = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i], 0xFF) >>  8) & 0xFF;
         leds[i].b = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i], 0xFF) >> 16) & 0xFF;
-      }
+    }
 
 
     // uint32_t blue = EHSVtoHEX(170, 0xFF, 0xFF);
