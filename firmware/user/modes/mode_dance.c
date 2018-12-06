@@ -62,6 +62,8 @@ void ICACHE_FLASH_ATTR danceTimerMode12(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode13(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode14(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode15(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode16(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode17(void* arg);
 /*============================================================================
  * Variables
  *==========================================================================*/
@@ -170,6 +172,16 @@ timerWithPeriod danceTimers[] =
     {
         .timer = {0},
         .timerFn = danceTimerMode15,
+        .period = 100
+    },
+    {
+        .timer = {0},
+        .timerFn = danceTimerMode16,
+        .period = 120
+    },
+    {
+        .timer = {0},
+        .timerFn = danceTimerMode17,
         .period = 100
     }
 };
@@ -903,7 +915,77 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
 
     }
 
+
+
     // Output the LED data, actually turning them on
     setDanceLeds(leds, sizeof(leds));
 
+}
+
+
+
+/**
+ * police sirens
+ *
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR danceTimerMode16(void* arg __attribute__((unused)))
+{
+    // Declare some LEDs, all off
+    led_t leds[6] = {{0}};
+
+    // Skip to the next LED around the hexagon
+    ledCount = ledCount + 1;
+    if(ledCount > 5)
+    {
+        ledCount = 0;
+
+    }
+    //green is 0
+    //100 is fusia
+    //70 is orange ish
+    uint32_t red = EHSVtoHEX(85, 0xFF, 0xFF);
+    uint32_t blue = EHSVtoHEX(170, 0xFF, 0xFF);
+    uint8_t i;
+    // Turn the current LED on, full bright white
+    if(ledCount < 3){
+    for(i = 0; i < 3; i++)
+      {
+      leds[i].r = (red >>  0) & 0xFF;
+      leds[i].g = (red >>  8) & 0xFF;
+      leds[i].b = (red >> 16) & 0xFF;
+      }
+    }else{
+      for(i = 3; i < 6; i++)
+        {
+        leds[i].r = (blue >>  0) & 0xFF;
+        leds[i].g = (blue >>  8) & 0xFF;
+        leds[i].b = (blue >> 16) & 0xFF;
+        }
+    }
+
+
+    // Output the LED data, actually turning them on
+    setDanceLeds(leds, sizeof(leds));
+}
+
+
+
+
+/**
+ * random blink
+ *
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR danceTimerMode17(void* arg __attribute__((unused)))
+{
+    // Declare some LEDs, all off
+    led_t leds[6] = {{0}};
+    uint32_t rand_color = EHSVtoHEX(dance_rand(255), 0xFF, 0xFF);
+    int rand_light = dance_rand(6);
+    leds[rand_light].r = (rand_color >>  0) & 0xFF;
+    leds[rand_light].g = (rand_color >>  8) & 0xFF;
+    leds[rand_light].b = (rand_color >> 16) & 0xFF;
+    // Output the LED data, actually turning them on
+    setDanceLeds(leds, sizeof(leds));
 }
