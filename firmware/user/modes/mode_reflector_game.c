@@ -259,6 +259,7 @@ typedef enum
 
 typedef enum
 {
+    NOT_DISPLAYING,
     FAIL_DISPLAY_ON_1,
     FAIL_DISPLAY_OFF_2,
     FAIL_DISPLAY_ON_3,
@@ -1424,6 +1425,13 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
         return;
     }
 
+    if(true == ref.gam.singlePlayer &&
+            NOT_DISPLAYING != ref.led.singlePlayerDisplayState)
+    {
+        // Single player score display, ignore button input
+        return;
+    }
+
     // If we're still connecting and no connection has started yet
     if(R_CONNECTING == ref.gameState && !ref.cnc.rxGameStartAck && !ref.cnc.rxGameStartMsg)
     {
@@ -1576,10 +1584,13 @@ void ICACHE_FLASH_ATTR refSendRoundLossMsg(void)
     ref_printf("Lost the round\r\n");
     if(ref.gam.singlePlayer)
     {
-        refDisarmAllLedTimers();
+        if(ref.led.singlePlayerDisplayState == NOT_DISPLAYING)
+        {
+            refDisarmAllLedTimers();
 
-        ref.led.singlePlayerDisplayState = FAIL_DISPLAY_ON_1;
-        os_timer_arm(&ref.tmr.SinglePlayerRestart, RESTART_COUNT_PERIOD_MS, true);
+            ref.led.singlePlayerDisplayState = FAIL_DISPLAY_ON_1;
+            os_timer_arm(&ref.tmr.SinglePlayerRestart, RESTART_COUNT_PERIOD_MS, true);
+        }
     }
     else
     {
@@ -1616,6 +1627,11 @@ void ICACHE_FLASH_ATTR refSinglePlayerRestart(void* arg __attribute__((unused)))
 {
     switch(ref.led.singlePlayerDisplayState)
     {
+        case NOT_DISPLAYING:
+        {
+            // Not supposed to be here
+            break;
+        }
         case FAIL_DISPLAY_ON_1:
         {
             ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
@@ -1795,7 +1811,7 @@ void ICACHE_FLASH_ATTR refSinglePlayerRestart(void* arg __attribute__((unused)))
             os_timer_disarm(&ref.tmr.SinglePlayerRestart);
 
             // For next time
-            ref.led.singlePlayerDisplayState = SCORE_DISPLAY_INIT;
+            ref.led.singlePlayerDisplayState = NOT_DISPLAYING;
 
             // Reset and start another round
             ref.gam.singlePlayerRounds = 0;
