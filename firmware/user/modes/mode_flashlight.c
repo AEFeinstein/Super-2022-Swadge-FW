@@ -12,6 +12,7 @@
 #include "osapi.h"
 #include "user_main.h"
 #include "mode_flashlight.h"
+#include "morse_code.h"
 
 /*============================================================================
  * Prototypes
@@ -23,6 +24,7 @@ void ICACHE_FLASH_ATTR flashlightButtonCallback(uint8_t state, int button,
         int down);
 void ICACHE_FLASH_ATTR strobeTimerOnCallback(void* timer_arg);
 void ICACHE_FLASH_ATTR strobeTimerOffCallback(void* timer_arg);
+void ICACHE_FLASH_ATTR startFlashlightStrobe(void);
 
 /*============================================================================
  * Variables
@@ -126,20 +128,7 @@ void ICACHE_FLASH_ATTR flashlightButtonCallback(
             {
                 strobeIdx = (strobeIdx + 1) % NUM_STROBES;
 
-                os_timer_disarm(&strobeTimerOn);
-                os_timer_disarm(&strobeTimerOff);
-
-                if(0 != strobePeriodsMs[strobeIdx][0])
-                {
-                    os_timer_arm(&strobeTimerOn, strobePeriodsMs[strobeIdx][0], false);
-                }
-                else
-                {
-                    // If there is no strobe, turn the LEDs on
-                    led_t leds[6] = {{0}};
-                    ets_memset(leds, brightnesses[brightnessIdx], sizeof(leds));
-                    setLeds(leds, sizeof(leds));
-                }
+                startFlashlightStrobe();
                 break;
             }
             case 1:
@@ -153,6 +142,35 @@ void ICACHE_FLASH_ATTR flashlightButtonCallback(
                 break;
             }
         }
+    }
+    else
+    {
+        if(1 == button)
+        {
+            startMorseSequence(startFlashlightStrobe);
+        }
+    }
+}
+
+/**
+ * Start the flashlight strobe (or solid). Can be called when cycling through
+ * strobes or at the end of the morse code sequence
+ */
+void ICACHE_FLASH_ATTR startFlashlightStrobe(void)
+{
+    os_timer_disarm(&strobeTimerOn);
+    os_timer_disarm(&strobeTimerOff);
+
+    if(0 != strobePeriodsMs[strobeIdx][0])
+    {
+        os_timer_arm(&strobeTimerOn, strobePeriodsMs[strobeIdx][0], false);
+    }
+    else
+    {
+        // If there is no strobe, turn the LEDs on
+        led_t leds[6] = {{0}};
+        ets_memset(leds, brightnesses[brightnessIdx], sizeof(leds));
+        setLeds(leds, sizeof(leds));
     }
 }
 
