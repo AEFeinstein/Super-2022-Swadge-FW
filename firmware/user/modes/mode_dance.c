@@ -64,6 +64,7 @@ void ICACHE_FLASH_ATTR danceTimerMode14(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode15(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode16(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode17(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode18(void* arg);
 /*============================================================================
  * Variables
  *==========================================================================*/
@@ -183,6 +184,11 @@ timerWithPeriod danceTimers[] =
         .timer = {0},
         .timerFn = danceTimerMode17,
         .period = 100
+    },
+    {
+        .timer = {0},
+        .timerFn = danceTimerMode18,
+        .period = 15
     }
 };
 
@@ -200,6 +206,12 @@ int ledCount2 = 0;
 int ledSwitch = 0;
 int timerCount = 0;
 uint32_t color_save = 256;
+uint32_t color_save_array[6] = {{0}};
+uint32_t color_saturation_save[6] = {{0xFF}};
+uint32_t current_color_array[6] = {{0}};
+
+uint32_t current_color_saturation[6] = {{0xFF}};
+
 bool led_bool = true;
 /*============================================================================
  * Functions
@@ -989,6 +1001,68 @@ void ICACHE_FLASH_ATTR danceTimerMode17(void* arg __attribute__((unused)))
     leds[rand_light].r = (rand_color >>  0) & 0xFF;
     leds[rand_light].g = (rand_color >>  8) & 0xFF;
     leds[rand_light].b = (rand_color >> 16) & 0xFF;
+    // Output the LED data, actually turning them on
+    setDanceLeds(leds, sizeof(leds));
+}
+
+
+/**
+ * christmas lights
+ *
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR danceTimerMode18(void* arg __attribute__((unused)))
+{
+    // Declare some LEDs, all off
+    led_t leds[6] = {{0}};
+    ledCount += 1;
+    if(ledCount > ledCount2){
+      ledCount = 0;
+      ledCount2 = dance_rand(500)+50;
+      int color_picker = dance_rand(5);
+      int node_select = dance_rand(6);
+
+      if(color_picker < 2){
+      color_save_array[node_select]=0;
+      color_saturation_save[node_select]=dance_rand(15)+240;
+    }else if (color_picker < 4){
+      color_save_array[node_select]=86;
+      color_saturation_save[node_select]=dance_rand(15)+240;
+    }else{
+      color_saturation_save[node_select]=dance_rand(25);
+    }
+    }
+
+
+    uint8_t i;
+    for(i = 0; i < 6; i++)
+      {
+        if(current_color_array[i]>color_save_array[i]){
+          current_color_array[i]-=1;
+        }else if (current_color_array[i]<color_save_array[i]){
+          current_color_array[i]+=1;
+        }
+
+        if(current_color_saturation[i]>color_saturation_save[i]){
+          current_color_saturation[i]-=1;
+        }else if (current_color_saturation[i]<color_saturation_save[i]){
+          current_color_saturation[i]+=1;
+        }
+      }
+
+    for(i = 0; i < 6; i++)
+      {
+        leds[i].r = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i],0xFF) >>  0) & 0xFF;
+        leds[i].g = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i], 0xFF) >>  8) & 0xFF;
+        leds[i].b = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i], 0xFF) >> 16) & 0xFF;
+      }
+
+
+    // uint32_t blue = EHSVtoHEX(170, 0xFF, 0xFF);
+    // int rand_light = dance_rand(6);
+    // leds[rand_light].r = (rand_color >>  0) & 0xFF;
+    // leds[rand_light].g = (rand_color >>  8) & 0xFF;
+    // leds[rand_light].b = (rand_color >> 16) & 0xFF;
     // Output the LED data, actually turning them on
     setDanceLeds(leds, sizeof(leds));
 }
