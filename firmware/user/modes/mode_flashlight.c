@@ -68,6 +68,8 @@ static const uint32_t strobePeriodsMs[NUM_STROBES][2] =
 };
 uint8_t strobeIdx = 0;
 
+bool morseInProgress = false;
+
 /*============================================================================
  * Functions
  *==========================================================================*/
@@ -95,6 +97,8 @@ void ICACHE_FLASH_ATTR flashlightEnterMode(void)
     {
         os_timer_arm(&strobeTimerOn, strobePeriodsMs[strobeIdx][0], false);
     }
+
+    morseInProgress = false;
 }
 
 /**
@@ -108,6 +112,9 @@ void ICACHE_FLASH_ATTR flashlightExitMode(void)
 
     os_timer_disarm(&strobeTimerOn);
     os_timer_disarm(&strobeTimerOff);
+
+    // Just in case
+    endMorseSequence();
 }
 
 /**
@@ -120,6 +127,14 @@ void ICACHE_FLASH_ATTR flashlightExitMode(void)
 void ICACHE_FLASH_ATTR flashlightButtonCallback(
     uint8_t state __attribute__((unused)), int button, int down)
 {
+    if(morseInProgress)
+    {
+        /* Ignore button presses while morse code is displaying. This will be
+         * reset in flashlightEnterMode(), called when morse finishes
+         */
+        return;
+    }
+
     if(down)
     {
         switch(button)
@@ -145,9 +160,11 @@ void ICACHE_FLASH_ATTR flashlightButtonCallback(
     }
     else
     {
+        // TODO A button release, move somewhere more hidden
         if(1 == button)
         {
             startMorseSequence(startFlashlightStrobe);
+            morseInProgress = true;
         }
     }
 }
@@ -158,6 +175,8 @@ void ICACHE_FLASH_ATTR flashlightButtonCallback(
  */
 void ICACHE_FLASH_ATTR startFlashlightStrobe(void)
 {
+    morseInProgress = false;
+
     os_timer_disarm(&strobeTimerOn);
     os_timer_disarm(&strobeTimerOff);
 

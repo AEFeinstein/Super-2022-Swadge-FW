@@ -17,7 +17,7 @@
  * Defines
  *==========================================================================*/
 
-#define MORSE_TIME_MS 500
+#define MORSE_TIME_MS 333
 
 /*============================================================================
  * Variables
@@ -35,6 +35,7 @@ void (*mFnWhenDone)(void) = NULL;
  * Static Const Variables
  *==========================================================================*/
 
+// TODO Replace this with whatever secret string you want
 // MUST ONLY CONTAIN ['a'-'z'], ['A'-'Z'], ['0'-'9'] or [' ']
 static const char morseString[] = "HELLO WORLD";
 
@@ -88,7 +89,6 @@ static const char* num[] =
  * Prototypes
  *==========================================================================*/
 
-void ICACHE_FLASH_ATTR endMorseSequence(void);
 void ICACHE_FLASH_ATTR morseTimerOnCallback(void* timer_arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR morseTimerOffCallback(void* timer_arg __attribute__((unused)));
 
@@ -111,15 +111,19 @@ void ICACHE_FLASH_ATTR startMorseSequence(void (*fnWhenDone)(void))
     // Timer setup
     ets_memset(&morseTimerOff, 0, sizeof(os_timer_t));
     os_timer_disarm(&morseTimerOff);
-    os_timer_setfn(&morseTimerOff, morseTimerOnCallback, NULL);
+    os_timer_setfn(&morseTimerOff, morseTimerOffCallback, NULL);
 
     // Variable setup
     mFnWhenDone = fnWhenDone;
     morseStringIdx = 0;
     morseDotDashIdx = 0;
 
-    // Start blinking
-    morseTimerOnCallback(NULL);
+    // Turn LEDs off
+    led_t leds[6] = {{0}};
+    setLeds(leds, sizeof(leds));
+
+    // Start blinking in 2 * MORSE_TIME_MS
+    os_timer_arm(&morseTimerOn, 2 * MORSE_TIME_MS, false);
 }
 
 /**
@@ -185,7 +189,13 @@ void ICACHE_FLASH_ATTR morseTimerOnCallback(void* timer_arg __attribute__((unuse
         {
             // Turn on the LEDs for a dot
             led_t leds[6] = {{0}};
-            ets_memset(leds, 0xFF, sizeof(leds));
+            uint8_t i;
+            for(i = 0; i < 6; i++)
+            {
+                leds[i].r = 0xFF;
+                leds[i].g = 0xFF;
+                leds[i].b = 0x00;
+            }
             setLeds(leds, sizeof(leds));
 
             // 1. The length of a dot is one unit.
@@ -197,7 +207,13 @@ void ICACHE_FLASH_ATTR morseTimerOnCallback(void* timer_arg __attribute__((unuse
         {
             // Turn on the LEDs for a dash
             led_t leds[6] = {{0}};
-            ets_memset(leds, 0xFF, sizeof(leds));
+            uint8_t i;
+            for(i = 0; i < 6; i++)
+            {
+                leds[i].r = 0xFF;
+                leds[i].g = 0x00;
+                leds[i].b = 0xFF;
+            }
             setLeds(leds, sizeof(leds));
 
             // 2. A dash is three units.
