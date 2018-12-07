@@ -1101,15 +1101,6 @@ void ICACHE_FLASH_ATTR freeze_color(void* arg __attribute__((unused)))
 
 
   led_t leds[6] = {{0}};
-
-  // // ledCount = ledCount + 1;
-  // if(ledCount > 255)
-  // {
-  //     ledCount = 0;
-  // }
-  // int16_t angle = ledCount % 256;
-  // color_save = EHSVtoHEX(angle, 0xFF, 0xFF);
-
   uint8_t i;
   for(i = 0; i < 6; i++)
     {
