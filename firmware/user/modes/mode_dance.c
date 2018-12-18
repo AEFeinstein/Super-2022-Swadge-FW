@@ -165,11 +165,11 @@ timerWithPeriod danceTimers[] =
         .timerFn = danceTimerMode13,
         .period = 2
     },
-    {
-        .timer = {0},
-        .timerFn = danceTimerMode14,
-        .period = 2
-    },
+    // {
+    //     .timer = {0},
+    //     .timerFn = danceTimerMode14,
+    //     .period = 2
+    // },
     {
         .timer = {0},
         .timerFn = danceTimerMode15,
@@ -331,6 +331,8 @@ void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state __attribute__((unused))
 
             currentDance = (currentDance + 1) % numUnlockedDances;
 
+            //reset the ledCount for the animztion. (test to see if this works)
+            ledCount = 0;
             // Start the next animation
             os_timer_arm(&danceTimers[currentDance].timer, danceTimers[currentDance].period, true);
         }
@@ -1046,7 +1048,7 @@ void ICACHE_FLASH_ATTR danceTimerMode18(void* arg __attribute__((unused)))
       printf("greater\n" );
       ledCount = 0;
       ledCount2 = dance_rand(500)+50;
-      int color_picker = dance_rand(4);
+      int color_picker = dance_rand(5);
       int node_select = dance_rand(6);
 
       if(color_picker < 2){
@@ -1081,9 +1083,9 @@ void ICACHE_FLASH_ATTR danceTimerMode18(void* arg __attribute__((unused)))
 
     for(i = 0; i < 6; i++)
       {
-        leds[i].r = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i],dance_rand(55)+200) >>  0) & 0xFF;
-        leds[i].g = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i], dance_rand(55)+200) >>  8) & 0xFF;
-        leds[i].b = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i],dance_rand(55)+200) >> 16) & 0xFF;
+        leds[i].r = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i],dance_rand(15)+240) >>  0) & 0xFF;
+        leds[i].g = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i], dance_rand(15)+240) >>  8) & 0xFF;
+        leds[i].b = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i],dance_rand(15)+240) >> 16) & 0xFF;
       }
     // Output the LED data, actually turning them on
     setDanceLeds(leds, sizeof(leds));
@@ -1120,7 +1122,7 @@ void ICACHE_FLASH_ATTR random_dance_mode(void* arg __attribute__((unused)))
 {
   // printf("repeating\n" );
   random_dance_timer += 1;
-  if(random_dance_timer > 20){
+  if(random_dance_timer > 45){
      random_dance_timer=0;
      uint8_t numDances = sizeof(danceTimers) / sizeof(danceTimers[0]);
      random_choice = dance_rand(numDances-1);
