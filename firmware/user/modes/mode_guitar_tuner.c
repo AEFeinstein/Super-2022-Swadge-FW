@@ -21,9 +21,10 @@
  * Defines
  *==========================================================================*/
 
-#define NUM_STRINGS 6
-#define OFS         0
-#define SENSITIVITY 5 // TODO Change sensitivity here, Adam.
+#define NUM_STRINGS            6
+#define GUITAR_OFFSET          0
+#define CHROMATIC_OFFSET       6 // adjust start point by quartertones   
+#define SENSITIVITY            5 // TODO Change sensitivity here, Adam.
 
 /// Helper macro to return an integer clamped within a range (MIN to MAX)
 #define CLAMP(X, MIN, MAX) ( ((X) > (MAX)) ? (MAX) : ( ((X) < (MIN)) ? (MIN) : (X)) )
@@ -230,10 +231,10 @@ void ICACHE_FLASH_ATTR guitarTunerSampleHandler(int32_t samp)
                 for( i = 0; i < NUM_STRINGS; i++ )
                 {
                     // Pick out the current magnitude and filter it
-                    intensities_filt[i] = (getMagnitude(freqBinIdxs[i] + OFS)  + intensities_filt[i]) - (intensities_filt[i] >> 5);
+                    intensities_filt[i] = (getMagnitude(freqBinIdxs[i] + GUITAR_OFFSET)  + intensities_filt[i]) - (intensities_filt[i] >> 5);
 
                     // Pick out the difference around current magnitude and filter it too
-                    diffs_filt[i] =       (getDiffAround(freqBinIdxs[i] + OFS) + diffs_filt[i])       - (diffs_filt[i] >> 5);
+                    diffs_filt[i] =       (getDiffAround(freqBinIdxs[i] + GUITAR_OFFSET) + diffs_filt[i])       - (diffs_filt[i] >> 5);
 
                     // This is the magnitude of the target frequency bin, cleaned up
                     int16_t intensity = (intensities_filt[i] >> SENSITIVITY) - 40; // drop a baseline.
@@ -289,11 +290,11 @@ void ICACHE_FLASH_ATTR guitarTunerSampleHandler(int32_t samp)
             {
                 uint8_t semitoneIdx = (currentMode - SEMITONE_0) * 2;
                 // Pick out the current magnitude and filter it
-                semitone_intensitiy_filt = (getSemiMagnitude(semitoneIdx + OFS)  + semitone_intensitiy_filt) -
+                semitone_intensitiy_filt = (getSemiMagnitude(semitoneIdx + CHROMATIC_OFFSET)  + semitone_intensitiy_filt) -
                                            (semitone_intensitiy_filt >> 5);
 
                 // Pick out the difference around current magnitude and filter it too
-                semitone_diff_filt =       (getSemiDiffAround(semitoneIdx + OFS) + semitone_diff_filt)       -
+                semitone_diff_filt =       (getSemiDiffAround(semitoneIdx + CHROMATIC_OFFSET) + semitone_diff_filt)       -
                                            (semitone_diff_filt >> 5);
 
                 // This is the magnitude of the target frequency bin, cleaned up
@@ -386,7 +387,13 @@ void ICACHE_FLASH_ATTR guitarTunerButtonCallback(
             case 1:
             {
                 currentMode = (currentMode + 1) % MAX_GUITAR_MODES;
-                // Do nothing
+                // TODO: flash lights according to which chromatic mode we are in
+                //switch(currentMode):
+                //    case 0:
+                //        //do nothing
+                //        break;
+                //    case 1:
+
                 break;
             }
             case 2:
