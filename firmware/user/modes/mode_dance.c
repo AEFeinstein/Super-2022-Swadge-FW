@@ -207,10 +207,10 @@ int ledSwitch = 0;
 int timerCount = 0;
 uint32_t color_save = 256;
 uint32_t color_save_array[6] = {0};
-uint32_t color_saturation_save[6] = {0xFF};
+uint32_t color_saturation_save[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 uint32_t current_color_array[6] = {0};
 
-uint32_t current_color_saturation[6] = {0xFF};
+uint32_t current_color_saturation[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 bool led_bool = true;
 /*============================================================================
