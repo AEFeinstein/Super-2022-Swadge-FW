@@ -603,7 +603,6 @@ void ICACHE_FLASH_ATTR danceTimerMode6(void* arg __attribute__((unused)))
  */
 void ICACHE_FLASH_ATTR danceTimerMode7(void* arg __attribute__((unused)))
 {
-    printf("777\n" );
     led_t leds[6] = {{0}};
 
     ledCount = ledCount + 1;
@@ -1045,7 +1044,6 @@ void ICACHE_FLASH_ATTR danceTimerMode18(void* arg __attribute__((unused)))
     led_t leds[6] = {{0}};
     ledCount += 1;
     if(ledCount > ledCount2){
-      printf("greater\n" );
       ledCount = 0;
       ledCount2 = dance_rand(1000)+50;
       int color_picker = dance_rand(5);
@@ -1120,7 +1118,6 @@ void ICACHE_FLASH_ATTR freeze_color(void* arg __attribute__((unused)))
  */
 void ICACHE_FLASH_ATTR random_dance_mode(void* arg __attribute__((unused)))
 {
-  // printf("repeating\n" );
   random_dance_timer += 1;
   if(random_dance_timer > 45){
      random_dance_timer=0;
