@@ -7,7 +7,7 @@ include user.cfg
 	$(warning This is the empty rule. Something went wrong.)
 	@true
 
-OPTS += -Wall -Wextra
+#OPTS += -Wall -Wextra
 
 SRCS += user/ws2812_i2s.c \
 	user/hpatimer.c \
