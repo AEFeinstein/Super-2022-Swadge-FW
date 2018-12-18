@@ -56,7 +56,7 @@ os_timer_t strobeTimerOn = {0};
 os_timer_t strobeTimerOff = {0};
 os_timer_t flashlightButtonHoldTimer = {0};
 
-#define NUM_STROBES 8
+#define NUM_STROBES 5
 static const uint32_t strobePeriodsMs[NUM_STROBES][2] =
 {
     {0, 0}, // 0 means on forever
@@ -64,9 +64,9 @@ static const uint32_t strobePeriodsMs[NUM_STROBES][2] =
     {450,  50},
     {300,  50},
     {200,  50},
-    {100,  50},
-    {60,   30},
-    {25,   20}
+    // {100,  50},
+    // {60,   30},
+    // {25,   20}
 };
 uint8_t strobeIdx = 0;
 
