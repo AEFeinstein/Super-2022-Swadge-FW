@@ -64,7 +64,7 @@ static const uint32_t strobePeriodsMs[NUM_STROBES][2] =
     {450,  50},
     {300,  50},
     {200,  50},
-    // {100,  50},
+    {100,  40},
     // {60,   30},
     // {25,   20}
 };
@@ -95,6 +95,11 @@ const char mysteryStrings[16][64] =
     "OHKHO MGPEX YLW UMTZJVQ VMSK",
     "GREETINGS FROM ADAM CHARLES DAC AND GILLIAN"
 };
+
+/*
+* Oh, what, you think you're clever because you checked the source code for
+* our hidden messages? Why do you think we made this open source?
+*/
 
 /*============================================================================
  * Functions
