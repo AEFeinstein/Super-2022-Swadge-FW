@@ -8,7 +8,7 @@
 #ifndef MORSE_CODE_H_
 #define MORSE_CODE_H_
 
-void ICACHE_FLASH_ATTR startMorseSequence(void (*fnWhenDone)(void));
+void ICACHE_FLASH_ATTR startMorseSequence(const char* stringToShow, void (*fnWhenDone)(void));
 void ICACHE_FLASH_ATTR endMorseSequence(void);
 
 #endif /* MORSE_CODE_H_ */

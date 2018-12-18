@@ -24,6 +24,7 @@ void ICACHE_FLASH_ATTR flashlightButtonCallback(uint8_t state, int button,
         int down);
 void ICACHE_FLASH_ATTR strobeTimerOnCallback(void* timer_arg);
 void ICACHE_FLASH_ATTR strobeTimerOffCallback(void* timer_arg);
+void ICACHE_FLASH_ATTR holdButtonCallback(void* timer_arg);
 void ICACHE_FLASH_ATTR startFlashlightStrobe(void);
 
 /*============================================================================
@@ -53,6 +54,7 @@ uint8_t brightnessIdx = 0;
 
 os_timer_t strobeTimerOn = {0};
 os_timer_t strobeTimerOff = {0};
+os_timer_t flashlightButtonHoldTimer = {0};
 
 #define NUM_STROBES 8
 static const uint32_t strobePeriodsMs[NUM_STROBES][2] =
@@ -68,7 +70,31 @@ static const uint32_t strobePeriodsMs[NUM_STROBES][2] =
 };
 uint8_t strobeIdx = 0;
 
+bool holdTimerRunning = false;
 bool morseInProgress = false;
+
+const char mysteryStrings[16][64] =
+{
+    "YOU SPOONY BARD",
+    "WAKE UP MR FREEMAN",
+    "WHAT A HORRIBLE NIGHT TO HAVE A CURSE",
+    "THE GALAXY IS AT PEACE",
+
+    "WAR WAR NEVER CHANGES",
+    "ITS DANGEROUS TO GO ALONE",
+    "THE YEAR IS 20XX",
+    "I NEED SCISSORS 61",
+
+    "YOU HAVE DIED OF DYSENTERY",
+    "THE CAKE IS A LIE",
+    "WOULD YOU KINDLY",
+    "BAD TIMES ARE JUST TIMES THAT ARE BAD",
+
+    "THANK YOU SO MUCH A FOR TO PLAYING MY GAME",
+    "NO ITEMS FOX ONLY FINAL DESTINATION",
+    "OHKHO MGPEX YLW UMTZJVQ VMSK",
+    "GREETINGS FROM ADAM CHARLES DAC AND GILLIAN"
+};
 
 /*============================================================================
  * Functions
@@ -93,12 +119,19 @@ void ICACHE_FLASH_ATTR flashlightEnterMode(void)
     os_timer_disarm(&strobeTimerOff);
     os_timer_setfn(&strobeTimerOff, strobeTimerOffCallback, NULL);
 
+    os_timer_disarm(&flashlightButtonHoldTimer);
+    os_timer_setfn(&flashlightButtonHoldTimer, holdButtonCallback, NULL);
+
     if(0 != strobePeriodsMs[strobeIdx][0])
     {
         os_timer_arm(&strobeTimerOn, strobePeriodsMs[strobeIdx][0], false);
     }
 
+    holdTimerRunning = false;
     morseInProgress = false;
+
+    // Disable debounce because the hold button logic cares about quick releases
+    enableDebounce(false);
 }
 
 /**
@@ -115,6 +148,9 @@ void ICACHE_FLASH_ATTR flashlightExitMode(void)
 
     // Just in case
     endMorseSequence();
+
+    // And enable debounce again
+    enableDebounce(true);
 }
 
 /**
@@ -141,31 +177,34 @@ void ICACHE_FLASH_ATTR flashlightButtonCallback(
         {
             case 2:
             {
+                // Right button cycles strobes
                 strobeIdx = (strobeIdx + 1) % NUM_STROBES;
-
                 startFlashlightStrobe();
                 break;
             }
             case 1:
             {
-                brightnessIdx = (brightnessIdx + 1) %
-                                (sizeof(brightnesses) / sizeof(brightnesses[0]));
-                led_t leds[6] = {{0}};
-                ets_memset(leds, brightnesses[brightnessIdx], sizeof(leds));
-                setLeds(leds, sizeof(leds));
-
+                // Left button start a one time timer 1.5s from now
+                os_timer_disarm(&flashlightButtonHoldTimer);
+                os_timer_arm(&flashlightButtonHoldTimer, 1500, false);
+                holdTimerRunning = true;
                 break;
             }
         }
     }
-    else
+    else if(1 == button && holdTimerRunning)
     {
-        // TODO A button release, move somewhere more hidden
-        if(1 == button)
-        {
-            startMorseSequence(startFlashlightStrobe);
-            morseInProgress = true;
-        }
+        // If the left button is released while the timer hasn't expired yet
+
+        // Disarm the timer
+        os_timer_disarm(&flashlightButtonHoldTimer);
+
+        // cycle the brightness
+        brightnessIdx = (brightnessIdx + 1) %
+                        (sizeof(brightnesses) / sizeof(brightnesses[0]));
+        led_t leds[6] = {{0}};
+        ets_memset(leds, brightnesses[brightnessIdx], sizeof(leds));
+        setLeds(leds, sizeof(leds));
     }
 }
 
@@ -226,4 +265,25 @@ void ICACHE_FLASH_ATTR strobeTimerOffCallback(
     // Flip
     os_timer_disarm(&strobeTimerOff);
     os_timer_arm(&strobeTimerOn, strobePeriodsMs[strobeIdx][0], false);
+}
+
+/**
+ * Called if the left button is held down for 1.5s. Disarmed when the button
+ * is released
+ *
+ * @param timer_arg unused
+ */
+void ICACHE_FLASH_ATTR holdButtonCallback(
+    void* timer_arg __attribute__((unused)))
+{
+    holdTimerRunning = false;
+
+    // Stop strobing
+    os_timer_disarm(&strobeTimerOn);
+    os_timer_disarm(&strobeTimerOff);
+
+    // Show some random morse code
+    uint8_t randIdx = os_random() & 0x0F; // 0-15
+    startMorseSequence(mysteryStrings[randIdx], startFlashlightStrobe);
+    morseInProgress = true;
 }

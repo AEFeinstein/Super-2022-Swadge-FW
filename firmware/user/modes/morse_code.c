@@ -35,9 +35,8 @@ void (*mFnWhenDone)(void) = NULL;
  * Static Const Variables
  *==========================================================================*/
 
-// TODO Replace this with whatever secret string you want
-// MUST ONLY CONTAIN ['a'-'z'], ['A'-'Z'], ['0'-'9'] or [' ']
-static const char morseString[] = "HELLO WORLD";
+// Temporary memory
+char morseString[64] = {0};
 
 // Letter to dot-dash mapping
 static const char* alpha[] =
@@ -99,9 +98,10 @@ void ICACHE_FLASH_ATTR morseTimerOffCallback(void* timer_arg __attribute__((unus
 /**
  * Set up the morse code timers and start blinking
  *
- * @param fnWhenDone A funciton to call once the morse code sequence is finished
+ * @param stringToShow A string to display, MUST ONLY CONTAIN ['a'-'z'], ['A'-'Z'], ['0'-'9'] or [' ']
+ * @param fnWhenDone A function to call once the morse code sequence is finished
  */
-void ICACHE_FLASH_ATTR startMorseSequence(void (*fnWhenDone)(void))
+void ICACHE_FLASH_ATTR startMorseSequence(const char* stringToShow, void (*fnWhenDone)(void))
 {
     // Timer setup
     ets_memset(&morseTimerOn, 0, sizeof(os_timer_t));
@@ -117,6 +117,9 @@ void ICACHE_FLASH_ATTR startMorseSequence(void (*fnWhenDone)(void))
     mFnWhenDone = fnWhenDone;
     morseStringIdx = 0;
     morseDotDashIdx = 0;
+
+    // Copy in the string to show
+    ets_strcpy(morseString, stringToShow);
 
     // Turn LEDs off
     led_t leds[6] = {{0}};
