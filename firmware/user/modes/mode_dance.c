@@ -850,24 +850,40 @@ void ICACHE_FLASH_ATTR danceTimerMode14(void* arg __attribute__((unused)))
     led_t leds[6] = {{0}};
 
     // Skip to the next LED around the hexagon
-    ledCount = ledCount + 2;
-    if(ledCount > 5)
+    ledCount = ledCount + 1;
+    if(ledCount > 9)
     {
+        // Turn the current LED on, full bright red
+        leds[2].r = 255;
+        leds[2].g = 140;
+        leds[2].b = 10;
+
+        leds[4].r = 255;
+        leds[4].g = 140;
+        leds[4].b = 10;
+
+        leds[0].r = 255;
+        leds[0].g = 140;
+        leds[0].b = 10;
+
         ledCount = 0;
     }
+    if(ledCount < 10)
+    {
+        // Turn the current LED on, full bright red
+        leds[2].r = 0;
+        leds[2].g = 0;
+        leds[2].b = 0;
 
-    // Turn the current LED on, full bright red
-    leds[2].r = 255;
-    leds[2].g = 140;
-    leds[2].b = 10;
+        leds[4].r = 0;
+        leds[4].g = 0;
+        leds[4].b = 0;
 
-    leds[4].r = 255;
-    leds[4].g = 140;
-    leds[4].b = 10;
+        leds[0].r = 0;
+        leds[0].g = 0;
+        leds[0].b = 0;
 
-    leds[0].r = 255;
-    leds[0].g = 140;
-    leds[0].b = 10;
+    }
 
     // Output the LED data, actually turning them on
     setDanceLeds(leds, sizeof(leds));
