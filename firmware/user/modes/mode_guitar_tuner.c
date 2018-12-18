@@ -347,7 +347,7 @@ void ICACHE_FLASH_ATTR guitarTunerSampleHandler(int32_t samp)
                     colors[0].r = CLAMP(red, 0, 255);
                     colors[0].g = CLAMP(grn, 0, 255);
                     colors[0].b = CLAMP(blu, 0, 255);
-                }
+                
                 break;
             }
         }
