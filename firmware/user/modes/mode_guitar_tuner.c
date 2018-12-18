@@ -345,9 +345,12 @@ void ICACHE_FLASH_ATTR guitarTunerSampleHandler(int32_t samp)
                     blu = (blu >> 3 ) * ( intensity >> 3);
 
                     // Set the LED, ensure each channel is between 0 and 255
-                    colors[0].r = CLAMP(red, 0, 255);
-                    colors[0].g = CLAMP(grn, 0, 255);
-                    colors[0].b = CLAMP(blu, 0, 255);
+                    uint32_t i;
+                    for (i=0; i < 6; i++){
+                        colors[i].r = CLAMP(red, 0, 255);
+                        colors[i].g = CLAMP(grn, 0, 255);
+                        colors[i].b = CLAMP(blu, 0, 255);
+                    }
                 
                 break;
             }
