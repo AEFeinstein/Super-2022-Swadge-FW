@@ -188,7 +188,7 @@ timerWithPeriod danceTimers[] =
     {
         .timer = {0},
         .timerFn = danceTimerMode18,
-        .period = 15
+        .period = 7
     },
     {
             .timer = {0},
@@ -1047,7 +1047,7 @@ void ICACHE_FLASH_ATTR danceTimerMode18(void* arg __attribute__((unused)))
     if(ledCount > ledCount2){
       printf("greater\n" );
       ledCount = 0;
-      ledCount2 = dance_rand(500)+50;
+      ledCount2 = dance_rand(1000)+50;
       int color_picker = dance_rand(5);
       int node_select = dance_rand(6);
 
