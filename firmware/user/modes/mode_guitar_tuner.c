@@ -307,6 +307,47 @@ void ICACHE_FLASH_ATTR guitarTunerSampleHandler(int32_t samp)
                 // tonal diff is -32768 to 32767. if its within -10 to 10, it's in tune. positive means too sharp, negative means too flat
                 // intensity is how 'loud' that frequency is, 0 to 255. you'll have to play around with values
                 os_printf("thaeli, semitone %2d, tonal diff %6d, intensity %3d\r\n", currentMode, tonalDiff, intensity);
+                int32_t red, grn, blu;
+                    // Is the note in tune, i.e. is the magnitude difference in surrounding bins small?
+                    if( (ABS(tonalDiff) < 10) )
+                    {
+                        // Note is in tune, make it white
+                        red = 255;
+                        grn = 255;
+                        blu = 255;
+                    }
+                    else
+                    {
+                        // Check if the note is sharp or flat
+                        if( tonalDiff > 0 )
+                        {
+                            // Note too sharp, make it red
+                            red = 255;
+                            grn = blu = 255 - (tonalDiff) * 15;
+                        }
+                        else
+                        {
+                            // Note too flat, make it blue
+                            blu = 255;
+                            grn = red = 255 - (-tonalDiff) * 15;
+                        }
+
+                        // Make sure LED output isn't more than 255
+                        red = CLAMP(red, INT_MIN, 255);
+                        grn = CLAMP(grn, INT_MIN, 255);
+                        blu = CLAMP(blu, INT_MIN, 255);
+                    }
+
+                    // Scale each LED's brightness by the filtered intensity for that bin
+                    red = (red >> 3 ) * ( intensity >> 3);
+                    grn = (grn >> 3 ) * ( intensity >> 3);
+                    blu = (blu >> 3 ) * ( intensity >> 3);
+
+                    // Set the LED, ensure each channel is between 0 and 255
+                    colors[0].r = CLAMP(red, 0, 255);
+                    colors[0].g = CLAMP(grn, 0, 255);
+                    colors[0].b = CLAMP(blu, 0, 255);
+                }
                 break;
             }
         }
