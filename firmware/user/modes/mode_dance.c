@@ -225,11 +225,11 @@ int random_dance_timer = 0;
 int random_choice = 8;
 
 uint32_t color_save = 256;
-uint32_t color_save_array[6] = {{0}};
-uint32_t color_saturation_save[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-uint32_t current_color_array[6] = {{0}};
+uint32_t color_save_array[6] = {0};
+uint32_t color_saturation_save[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+uint32_t current_color_array[6] = {0};
 
-uint32_t current_color_saturation[6] = {0xFF};
+uint32_t current_color_saturation[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 int current_sparkle_save[6] =  { 0 };
 
 bool led_bool = true;
@@ -1065,19 +1065,25 @@ void ICACHE_FLASH_ATTR danceTimerMode18(void* arg __attribute__((unused)))
 
     uint8_t i;
     for(i = 0; i < 6; i++)
-      {
-        if(current_color_array[i]>color_save_array[i]){
-          current_color_array[i]-=1;
-        }else if (current_color_array[i]<color_save_array[i]){
-          current_color_array[i]+=1;
+    {
+        if(current_color_array[i] > color_save_array[i])
+        {
+            current_color_array[i] -= 1;
+        }
+        else if (current_color_array[i] < color_save_array[i])
+        {
+            current_color_array[i] += 1;
         }
 
-        if(current_color_saturation[i]>color_saturation_save[i]){
-          current_color_saturation[i]-=1;
-        }else if (current_color_saturation[i]<color_saturation_save[i]){
-          current_color_saturation[i]+=1;
+        if(current_color_saturation[i] > color_saturation_save[i])
+        {
+            current_color_saturation[i] -= 1;
         }
-      }
+        else if (current_color_saturation[i] < color_saturation_save[i])
+        {
+            current_color_saturation[i] += 1;
+        }
+    }
 
     for(i = 0; i < 6; i++)
       {
