@@ -307,7 +307,7 @@ void ICACHE_FLASH_ATTR guitarTunerSampleHandler(int32_t samp)
                 // TODO thaeli, this is where you come in.
                 // tonal diff is -32768 to 32767. if its within -10 to 10, it's in tune. positive means too sharp, negative means too flat
                 // intensity is how 'loud' that frequency is, 0 to 255. you'll have to play around with values
-                os_printf("thaeli, semitone %2d, tonal diff %6d, intensity %3d\r\n", currentMode, tonalDiff, intensity);
+                //os_printf("thaeli, semitone %2d, tonal diff %6d, intensity %3d\r\n", currentMode, tonalDiff, intensity);
                 int32_t red, grn, blu;
                     // Is the note in tune, i.e. is the magnitude difference in surrounding bins small?
                     if( (ABS(tonalDiff) < 10) )
@@ -390,13 +390,43 @@ void ICACHE_FLASH_ATTR guitarTunerButtonCallback(
             case 1:
             {
                 currentMode = (currentMode + 1) % MAX_GUITAR_MODES;
-                // TODO: flash lights according to which chromatic mode we are in
-                //switch(currentMode):
-                //    case 0:
-                //        //do nothing
-                //        break;
-                //    case 1:
-
+                os_printf("enter mode %2d", currentMode);
+                led_t leds[6] = {{0}};
+                // Start a timer to restore LED functionality to colorchord
+                guitarTunerOverrideLeds = true;
+                os_timer_disarm(&guitarLedOverrideTimer);
+                os_timer_arm(&guitarLedOverrideTimer, 1000, false);
+                
+                if (currentMode == 0) {
+                    // for guitar mode we flash all LEDs
+                    uint8_t i;
+                    for(i = 0; i < 6; i++)
+                    {
+                        // yellow
+                        leds[i].r = 255;
+                        leds[i].g = 255;
+                        leds[i].b = 0;
+                    }
+                } else {
+                    int32_t red, grn, blu, loc;
+                    if (currentMode < 7) {
+                        // cyan
+                        red = 0;
+                        grn = 255;
+                        blu = 255;
+                    } else {
+                        // magenta
+                        red = 255;
+                        grn = 0;
+                        blu = 255;
+                    }
+                    loc = (currentMode % 6);
+                    os_printf("mode %2d, loc %1d\r\n", currentMode, loc);
+                    leds[loc].r = red;
+                    leds[loc].g = grn;
+                    leds[loc].b = blu;
+                }
+                setLeds(leds, sizeof(leds));
                 break;
             }
             case 2:
