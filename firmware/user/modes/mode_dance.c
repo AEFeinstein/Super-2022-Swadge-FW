@@ -191,9 +191,9 @@ timerWithPeriod danceTimers[] =
         .period = 7
     },
     {
-            .timer = {0},
-            .timerFn = danceTimerMode7,
-            .period = 70
+        .timer = {0},
+        .timerFn = danceTimerMode7,
+        .period = 70
     },
     {
         .timer = {0},
@@ -468,8 +468,9 @@ void ICACHE_FLASH_ATTR danceTimerMode2(void* arg __attribute__((unused)))
 
     }
 
-    if(ledCount > 10){
-      ledCount = 0;
+    if(ledCount > 10)
+    {
+        ledCount = 0;
     }
 
 
@@ -490,7 +491,7 @@ void ICACHE_FLASH_ATTR danceTimerMode3(void* arg __attribute__((unused)))
 
     // Skip to the next LED around the hexagon
     ledCount = ledCount - 1;
-    if(ledCount < 0 || ledCount >5)
+    if(ledCount < 0 || ledCount > 5)
     {
         ledCount = 5;
     }
@@ -1043,23 +1044,29 @@ void ICACHE_FLASH_ATTR danceTimerMode18(void* arg __attribute__((unused)))
     // Declare some LEDs, all off
     led_t leds[6] = {{0}};
     ledCount += 1;
-    if(ledCount > ledCount2){
-      ledCount = 0;
-      ledCount2 = dance_rand(1000)+50;
-      int color_picker = dance_rand(5);
-      int node_select = dance_rand(6);
+    if(ledCount > ledCount2)
+    {
+        ledCount = 0;
+        ledCount2 = dance_rand(1000) + 50;
+        int color_picker = dance_rand(5);
+        int node_select = dance_rand(6);
 
-      if(color_picker < 2){
-      color_save_array[node_select]=0;
-      color_saturation_save[node_select]=dance_rand(15)+240;
-      current_sparkle_save[node_select] = dance_rand(20);
-    }else if (color_picker < 4){
-      color_save_array[node_select]=86;
-      color_saturation_save[node_select]=dance_rand(15)+240;
-      current_sparkle_save[node_select] = dance_rand(20);
-    }else{
-      color_saturation_save[node_select]=dance_rand(25);
-    }
+        if(color_picker < 2)
+        {
+            color_save_array[node_select] = 0;
+            color_saturation_save[node_select] = dance_rand(15) + 240;
+            current_sparkle_save[node_select] = dance_rand(20);
+        }
+        else if (color_picker < 4)
+        {
+            color_save_array[node_select] = 86;
+            color_saturation_save[node_select] = dance_rand(15) + 240;
+            current_sparkle_save[node_select] = dance_rand(20);
+        }
+        else
+        {
+            color_saturation_save[node_select] = dance_rand(25);
+        }
     }
 
 
@@ -1086,11 +1093,11 @@ void ICACHE_FLASH_ATTR danceTimerMode18(void* arg __attribute__((unused)))
     }
 
     for(i = 0; i < 6; i++)
-      {
-        leds[i].r = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i],dance_rand(15)+240) >>  0) & 0xFF;
-        leds[i].g = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i], dance_rand(15)+240) >>  8) & 0xFF;
-        leds[i].b = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i],dance_rand(15)+240) >> 16) & 0xFF;
-      }
+    {
+        leds[i].r = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i], dance_rand(15) + 240) >>  0) & 0xFF;
+        leds[i].g = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i], dance_rand(15) + 240) >>  8) & 0xFF;
+        leds[i].b = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i], dance_rand(15) + 240) >> 16) & 0xFF;
+    }
     // Output the LED data, actually turning them on
     setDanceLeds(leds, sizeof(leds));
 }
@@ -1106,13 +1113,13 @@ void ICACHE_FLASH_ATTR freeze_color(void* arg __attribute__((unused)))
 {
 
 
-  led_t leds[6] = {{0}};
-  uint8_t i;
-  for(i = 0; i < 6; i++)
+    led_t leds[6] = {{0}};
+    uint8_t i;
+    for(i = 0; i < 6; i++)
     {
-      leds[i].r = (color_save >>  0) & 0xFF;
-      leds[i].g = (color_save >>  8) & 0xFF;
-      leds[i].b = (color_save >> 16) & 0xFF;
+        leds[i].r = (color_save >>  0) & 0xFF;
+        leds[i].g = (color_save >>  8) & 0xFF;
+        leds[i].b = (color_save >> 16) & 0xFF;
     }
     setDanceLeds(leds, sizeof(leds));
 
@@ -1124,12 +1131,13 @@ void ICACHE_FLASH_ATTR freeze_color(void* arg __attribute__((unused)))
  */
 void ICACHE_FLASH_ATTR random_dance_mode(void* arg __attribute__((unused)))
 {
-  random_dance_timer += 1;
-  if(random_dance_timer > 45){
-     random_dance_timer=0;
-     uint8_t numDances = sizeof(danceTimers) / sizeof(danceTimers[0]);
-     random_choice = dance_rand(numDances-1);
-  }
-danceTimers[random_choice].timerFn(arg);
+    random_dance_timer += 1;
+    if(random_dance_timer > 45)
+    {
+        random_dance_timer = 0;
+        uint8_t numDances = sizeof(danceTimers) / sizeof(danceTimers[0]);
+        random_choice = dance_rand(numDances - 1);
+    }
+    danceTimers[random_choice].timerFn(arg);
 
 }
