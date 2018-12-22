@@ -17,6 +17,17 @@ input[type="range"]:before {left:0em; content: attr(min);}input[type="range"]:af
 </style>
 </head>
 <body>
+
+         <div id="bonus" style="display:none;">
+            <h2>Bonus Content Unlocked!</h2>
+            <img src="cast1.jpg">
+            <img src="cast2.jpg">
+            <img src="cast3.jpg">
+            <img src="emwing1.jpg">
+            <img src="emwing2.jpg">
+            <img src="lipsyd.jpg">
+         </div>
+
 <h2>{{PAGE_HEADING}}</h2>
 <hr>
 
@@ -85,6 +96,19 @@ input[type="range"]:before {left:0em; content: attr(min);}input[type="range"]:af
 <p><a href={{PROJECT_URL}}><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAQAAAC1+jfqAAAAAmJLR0QA/4ePzL8AAAAJcEhZcwAACxMAAAsTAQCanBgAAAEBSURBVCgVBcHdSpMBAAbgZ4M+rXuQIkRlMJnHHS22LJh4F57uRpShorsAb8DORkaLEDzVgUoQHrh+xBMhEH8+5uvzAFDX99OjW6f66gDAlF0TQ10dHV1DEzumAApDvzUBQNMfXxVA39iMVwBg2mtjfSrqjrVcGdlz6K2KCw1r3ntpoMGm71gSERER0cQPvapln9EGANDGvhYPVjASERERcYlV/6siKAAAFIinqgtzGAEAOMGcMRuO0HArIiLiwTscWaem9BHztpyL+GXXIj4pLcC2a7PgUMQpeOOvLaBw4MoH3IgIWv4ZKACmbSt9cy8ivij1vAAAajacuXPnzLoawDOHTGouVu63twAAAABJRU5ErkJggg==" style="height: 1em;" alt="github-logo">{{PROJECT_NAME}}</a></p>
 </font>
 <div id=SystemMessage>...</div>
+
+<script type="text/javascript" src="jquery.konami.min.js"></script>
+<script>
+$(function() {
+    $( window ).konami({
+        cheat: function() {
+            $("#bonus").css( "display", "block" );
+            window.scrollTo(0,0);
+        } // end cheat
+    });
+});
+</script>
+
 </body>
 </html>
 
