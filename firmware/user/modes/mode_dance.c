@@ -168,7 +168,7 @@ timerWithPeriod danceTimers[] =
     {
         .timer = {0},
         .timerFn = danceTimerMode14,
-        .period = 15
+        .period = 10
     },
     {
         .timer = {0},
@@ -857,7 +857,7 @@ void ICACHE_FLASH_ATTR danceTimerMode14(void* arg __attribute__((unused)))
 
     switch(strobeCount)
     {
-      case 10:
+      case 13:
       {
 
         leds[0].r = 255;
@@ -888,7 +888,7 @@ void ICACHE_FLASH_ATTR danceTimerMode14(void* arg __attribute__((unused)))
 
       }
 
-      case 21:
+      case 27:
       {
 
         leds[0].r = 0;
@@ -919,7 +919,7 @@ void ICACHE_FLASH_ATTR danceTimerMode14(void* arg __attribute__((unused)))
 
       }
 
-      case 32:
+      case 41:
       {
 
         leds[0].r = 0;
@@ -1062,10 +1062,7 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
         leds[5].g = 50;
         leds[5].b = 50;
 
-
     }
-
-
 
     // Output the LED data, actually turning them on
     setDanceLeds(leds, sizeof(leds));
