@@ -187,7 +187,7 @@ inline int16_t getDiffAround(uint16_t idx)
  * @param idx
  * @return
  */
-inline int16_t getSemiMagnitude(uint16_t idx)
+inline int16_t getSemiMagnitude(int16_t idx)
 {
     if(idx < 0)
     {
@@ -233,7 +233,6 @@ void ICACHE_FLASH_ATTR guitarTunerSampleHandler(int32_t samp)
             return;
         }
 
-
         // Colorchord magic
         HandleFrameInfo();
 
@@ -248,7 +247,8 @@ void ICACHE_FLASH_ATTR guitarTunerSampleHandler(int32_t samp)
                 for( i = 0; i < NUM_STRINGS; i++ )
                 {
                     // Pick out the current magnitude and filter it
-                    intensities_filt[i] = (getMagnitude(freqBinIdxs[i] + GUITAR_OFFSET)  + intensities_filt[i]) - (intensities_filt[i] >> 5);
+                    intensities_filt[i] = (getMagnitude(freqBinIdxs[i] + GUITAR_OFFSET)  + intensities_filt[i]) -
+                                          (intensities_filt[i] >> 5);
 
                     // Pick out the difference around current magnitude and filter it too
                     diffs_filt[i] =       (getDiffAround(freqBinIdxs[i] + GUITAR_OFFSET) + diffs_filt[i])       - (diffs_filt[i] >> 5);
@@ -326,49 +326,50 @@ void ICACHE_FLASH_ATTR guitarTunerSampleHandler(int32_t samp)
                 // intensity is how 'loud' that frequency is, 0 to 255. you'll have to play around with values
                 //os_printf("thaeli, semitone %2d, tonal diff %6d, intensity %3d\r\n", currentMode, tonalDiff, intensity);
                 int32_t red, grn, blu;
-                    // Is the note in tune, i.e. is the magnitude difference in surrounding bins small?
-                    if( (ABS(tonalDiff) < 10) )
+                // Is the note in tune, i.e. is the magnitude difference in surrounding bins small?
+                if( (ABS(tonalDiff) < 10) )
+                {
+                    // Note is in tune, make it white
+                    red = 255;
+                    grn = 255;
+                    blu = 255;
+                }
+                else
+                {
+                    // Check if the note is sharp or flat
+                    if( tonalDiff > 0 )
                     {
-                        // Note is in tune, make it white
+                        // Note too sharp, make it red
                         red = 255;
-                        grn = 255;
-                        blu = 255;
+                        grn = blu = 255 - (tonalDiff) * 15;
                     }
                     else
                     {
-                        // Check if the note is sharp or flat
-                        if( tonalDiff > 0 )
-                        {
-                            // Note too sharp, make it red
-                            red = 255;
-                            grn = blu = 255 - (tonalDiff) * 15;
-                        }
-                        else
-                        {
-                            // Note too flat, make it blue
-                            blu = 255;
-                            grn = red = 255 - (-tonalDiff) * 15;
-                        }
-
-                        // Make sure LED output isn't more than 255
-                        red = CLAMP(red, INT_MIN, 255);
-                        grn = CLAMP(grn, INT_MIN, 255);
-                        blu = CLAMP(blu, INT_MIN, 255);
+                        // Note too flat, make it blue
+                        blu = 255;
+                        grn = red = 255 - (-tonalDiff) * 15;
                     }
 
-                    // Scale each LED's brightness by the filtered intensity for that bin
-                    red = (red >> 3 ) * ( intensity >> 3);
-                    grn = (grn >> 3 ) * ( intensity >> 3);
-                    blu = (blu >> 3 ) * ( intensity >> 3);
+                    // Make sure LED output isn't more than 255
+                    red = CLAMP(red, INT_MIN, 255);
+                    grn = CLAMP(grn, INT_MIN, 255);
+                    blu = CLAMP(blu, INT_MIN, 255);
+                }
 
-                    // Set the LED, ensure each channel is between 0 and 255
-                    uint32_t i;
-                    for (i=0; i < 6; i++){
-                        colors[i].r = CLAMP(red, 0, 255);
-                        colors[i].g = CLAMP(grn, 0, 255);
-                        colors[i].b = CLAMP(blu, 0, 255);
-                    }
-                
+                // Scale each LED's brightness by the filtered intensity for that bin
+                red = (red >> 3 ) * ( intensity >> 3);
+                grn = (grn >> 3 ) * ( intensity >> 3);
+                blu = (blu >> 3 ) * ( intensity >> 3);
+
+                // Set the LED, ensure each channel is between 0 and 255
+                uint32_t i;
+                for (i = 0; i < 6; i++)
+                {
+                    colors[i].r = CLAMP(red, 0, 255);
+                    colors[i].g = CLAMP(grn, 0, 255);
+                    colors[i].b = CLAMP(blu, 0, 255);
+                }
+
                 break;
             }
         }
@@ -409,12 +410,9 @@ void ICACHE_FLASH_ATTR guitarTunerButtonCallback(
                 currentMode = (currentMode + 1) % MAX_GUITAR_MODES;
                 os_printf("enter mode %2d\r\n", currentMode);
                 led_t leds[NUM_STRINGS] = {{0}};
-                // Start a timer to restore LED functionality to colorchord
-                guitarTunerOverrideLeds = true;
-                os_timer_disarm(&guitarLedOverrideTimer);
-                os_timer_arm(&guitarLedOverrideTimer, 1000, false);
-                
-                if (currentMode == 0) {
+
+                if (currentMode == 0)
+                {
                     // for guitar mode we flash all LEDs
                     uint8_t i;
                     for(i = 0; i < NUM_STRINGS; i++)
@@ -424,14 +422,19 @@ void ICACHE_FLASH_ATTR guitarTunerButtonCallback(
                         leds[i].g = 255;
                         leds[i].b = 0;
                     }
-                } else {
+                }
+                else
+                {
                     int32_t red, grn, blu, loc;
-                    if (currentMode < 7) {
+                    if (currentMode < 7)
+                    {
                         // cyan
                         red = 0;
                         grn = 255;
                         blu = 255;
-                    } else {
+                    }
+                    else
+                    {
                         // magenta
                         red = 255;
                         grn = 0;
