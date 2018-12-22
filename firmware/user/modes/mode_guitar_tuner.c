@@ -390,8 +390,8 @@ void ICACHE_FLASH_ATTR guitarTunerButtonCallback(
             case 1:
             {
                 currentMode = (currentMode + 1) % MAX_GUITAR_MODES;
-                os_printf("enter mode %2d", currentMode);
-                led_t leds[6] = {{0}};
+                os_printf("enter mode %2d\r\n", currentMode);
+                led_t leds[NUM_STRINGS] = {{0}};
                 // Start a timer to restore LED functionality to colorchord
                 guitarTunerOverrideLeds = true;
                 os_timer_disarm(&guitarLedOverrideTimer);
@@ -400,7 +400,7 @@ void ICACHE_FLASH_ATTR guitarTunerButtonCallback(
                 if (currentMode == 0) {
                     // for guitar mode we flash all LEDs
                     uint8_t i;
-                    for(i = 0; i < 6; i++)
+                    for(i = 0; i < NUM_STRINGS; i++)
                     {
                         // yellow
                         leds[i].r = 255;
@@ -420,7 +420,7 @@ void ICACHE_FLASH_ATTR guitarTunerButtonCallback(
                         grn = 0;
                         blu = 255;
                     }
-                    loc = (currentMode % 6);
+                    loc = (NUM_STRINGS + 1 - (currentMode % 6)) % 6;
                     os_printf("mode %2d, loc %1d\r\n", currentMode, loc);
                     leds[loc].r = red;
                     leds[loc].g = grn;
