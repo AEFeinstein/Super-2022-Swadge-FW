@@ -130,6 +130,23 @@ void ICACHE_FLASH_ATTR guitarTunerEnterMode(void)
     ets_memset(&guitarLedOverrideTimer, 0, sizeof(os_timer_t));
     os_timer_disarm(&guitarLedOverrideTimer);
     os_timer_setfn(&guitarLedOverrideTimer, guitarLedOverrideReset, NULL);
+
+    // flash all LEDs for consistency with mode change UI
+    led_t leds[NUM_STRINGS] = {{0}};
+    uint8_t i;
+    for(i = 0; i < NUM_STRINGS; i++)
+    {
+        // yellow
+        leds[i].r = 255;
+        leds[i].g = 255;
+        leds[i].b = 0;
+    }
+    // Start a timer to restore LED functionality to colorchord
+    guitarTunerOverrideLeds = true;
+    os_timer_disarm(&guitarLedOverrideTimer);
+    os_timer_arm(&guitarLedOverrideTimer, 1000, false);
+    // Set the LEDs
+    setLeds(leds, sizeof(leds));
 }
 
 /**
