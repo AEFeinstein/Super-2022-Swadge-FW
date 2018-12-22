@@ -847,143 +847,72 @@ void ICACHE_FLASH_ATTR danceTimerMode13(void* arg __attribute__((unused)))
     // Output the LED data, actually turning them on
     setDanceLeds(leds, sizeof(leds));
 }
+
+/**
+ * Dac's multi-color strobe
+ *
+ * @param arg unused
+ */
 void ICACHE_FLASH_ATTR danceTimerMode14(void* arg __attribute__((unused)))
 {
+    bool resetStrobeCount = false;
+
     // Declare some LEDs, all off
     led_t leds[6] = {{0}};
 
-    // Skip to the next LED around the hexagon
+    // Keep a count of time in 10ms increments
     strobeCount++;
 
-    switch(strobeCount)
+    // Adjust the LEDs
+    uint8_t i;
+    for(i = 0; i < 6; i++)
     {
-      case 13:
-      {
+        switch(strobeCount)
+        {
+            case 13:
+            {
+                // From 130 to 140ms, be red
+                leds[i].r = 255;
+                leds[i].g = 0;
+                leds[i].b = 0;
+                break;
+            }
+            case 27:
+            {
+                // From 270 to 280ms, be green
+                leds[i].r = 0;
+                leds[i].g = 255;
+                leds[i].b = 0;
+                break;
+            }
+            case 41:
+            {
+                // From 410 to 420ms, be blue
+                leds[i].r = 0;
+                leds[i].g = 0;
+                leds[i].b = 255;
 
-        leds[0].r = 255;
-        leds[0].g = 0;
-        leds[0].b = 0;
-
-        leds[1].r = 255;
-        leds[1].g = 0;
-        leds[1].b = 0;
-
-        leds[2].r = 255;
-        leds[2].g = 0;
-        leds[2].b = 0;
-
-        leds[3].r = 255;
-        leds[3].g = 0;
-        leds[3].b = 0;
-
-        leds[4].r = 255;
-        leds[4].g = 0;
-        leds[4].b = 0;
-
-        leds[5].r = 255;
-        leds[5].g = 0;
-        leds[5].b = 0;
-
-        break;
-
-      }
-
-      case 27:
-      {
-
-        leds[0].r = 0;
-        leds[0].g = 255;
-        leds[0].b = 0;
-
-        leds[1].r = 0;
-        leds[1].g = 255;
-        leds[1].b = 0;
-
-        leds[2].r = 0;
-        leds[2].g = 255;
-        leds[2].b = 0;
-
-        leds[3].r = 0;
-        leds[3].g = 255;
-        leds[3].b = 0;
-
-        leds[4].r = 0;
-        leds[4].g = 255;
-        leds[4].b = 0;
-
-        leds[5].r = 0;
-        leds[5].g = 255;
-        leds[5].b = 0;
-
-        break;
-
-      }
-
-      case 41:
-      {
-
-        leds[0].r = 0;
-        leds[0].g = 0;
-        leds[0].b = 255;
-
-        leds[1].r = 0;
-        leds[1].g = 0;
-        leds[1].b = 255;
-
-        leds[2].r = 0;
-        leds[2].g = 0;
-        leds[2].b = 255;
-
-        leds[3].r = 0;
-        leds[3].g = 0;
-        leds[3].b = 255;
-
-        leds[4].r = 0;
-        leds[4].g = 0;
-        leds[4].b = 255;
-
-        leds[5].r = 0;
-        leds[5].g = 0;
-        leds[5].b = 255;
-
-        strobeCount = 0;
-
-        break;
-
-      }
-
-      default:
-      {
-        leds[0].r = 0;
-        leds[0].g = 0;
-        leds[0].b = 0;
-
-        leds[1].r = 0;
-        leds[1].g = 0;
-        leds[1].b = 0;
-
-        leds[2].r = 0;
-        leds[2].g = 0;
-        leds[2].b = 0;
-
-        leds[3].r = 0;
-        leds[3].g = 0;
-        leds[3].b = 0;
-
-        leds[4].r = 0;
-        leds[4].g = 0;
-        leds[4].b = 0;
-
-        leds[5].r = 0;
-        leds[5].g = 0;
-        leds[5].b = 0;
-
-        break;
-      }
+                resetStrobeCount = true;
+                break;
+            }
+            default:
+            {
+                // Otherwise be off
+                leds[i].r = 0;
+                leds[i].g = 0;
+                leds[i].b = 0;
+                break;
+            }
+        }
     }
 
     // Output the LED data, actually turning them on
     setDanceLeds(leds, sizeof(leds));
+
+    if(resetStrobeCount)
+    {
+        strobeCount = 0;
+    }
 }
 
 void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
