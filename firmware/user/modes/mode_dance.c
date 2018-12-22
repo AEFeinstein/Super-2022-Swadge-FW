@@ -165,11 +165,11 @@ timerWithPeriod danceTimers[] =
         .timerFn = danceTimerMode13,
         .period = 2
     },
-    // {
-    //     .timer = {0},
-    //     .timerFn = danceTimerMode14,
-    //     .period = 2
-    // },
+    {
+        .timer = {0},
+        .timerFn = danceTimerMode14,
+        .period = 10
+    },
     {
         .timer = {0},
         .timerFn = danceTimerMode15,
@@ -220,6 +220,7 @@ int ledCount = 0;
 int ledCount2 = 0;
 int ledSwitch = 0;
 int timerCount = 0;
+int strobeCount = 0;
 
 int random_dance_timer = 0;
 int random_choice = 8;
@@ -852,24 +853,134 @@ void ICACHE_FLASH_ATTR danceTimerMode14(void* arg __attribute__((unused)))
     led_t leds[6] = {{0}};
 
     // Skip to the next LED around the hexagon
-    ledCount = ledCount + 2;
-    if(ledCount > 5)
+    strobeCount++;
+
+    switch(strobeCount)
     {
-        ledCount = 0;
+      case 10:
+      {
+
+        leds[0].r = 255;
+        leds[0].g = 0;
+        leds[0].b = 0;
+
+        leds[1].r = 255;
+        leds[1].g = 0;
+        leds[1].b = 0;
+
+        leds[2].r = 255;
+        leds[2].g = 0;
+        leds[2].b = 0;
+
+        leds[3].r = 255;
+        leds[3].g = 0;
+        leds[3].b = 0;
+
+        leds[4].r = 255;
+        leds[4].g = 0;
+        leds[4].b = 0;
+
+        leds[5].r = 255;
+        leds[5].g = 0;
+        leds[5].b = 0;
+
+        break;
+
+      }
+
+      case 21:
+      {
+
+        leds[0].r = 0;
+        leds[0].g = 255;
+        leds[0].b = 0;
+
+        leds[1].r = 0;
+        leds[1].g = 255;
+        leds[1].b = 0;
+
+        leds[2].r = 0;
+        leds[2].g = 255;
+        leds[2].b = 0;
+
+        leds[3].r = 0;
+        leds[3].g = 255;
+        leds[3].b = 0;
+
+        leds[4].r = 0;
+        leds[4].g = 255;
+        leds[4].b = 0;
+
+        leds[5].r = 0;
+        leds[5].g = 255;
+        leds[5].b = 0;
+
+        break;
+
+      }
+
+      case 32:
+      {
+
+        leds[0].r = 0;
+        leds[0].g = 0;
+        leds[0].b = 255;
+
+        leds[1].r = 0;
+        leds[1].g = 0;
+        leds[1].b = 255;
+
+        leds[2].r = 0;
+        leds[2].g = 0;
+        leds[2].b = 255;
+
+        leds[3].r = 0;
+        leds[3].g = 0;
+        leds[3].b = 255;
+
+        leds[4].r = 0;
+        leds[4].g = 0;
+        leds[4].b = 255;
+
+        leds[5].r = 0;
+        leds[5].g = 0;
+        leds[5].b = 255;
+
+        strobeCount = 0;
+
+        break;
+
+      }
+
+      default:
+      {
+        leds[0].r = 0;
+        leds[0].g = 0;
+        leds[0].b = 0;
+
+        leds[1].r = 0;
+        leds[1].g = 0;
+        leds[1].b = 0;
+
+        leds[2].r = 0;
+        leds[2].g = 0;
+        leds[2].b = 0;
+
+        leds[3].r = 0;
+        leds[3].g = 0;
+        leds[3].b = 0;
+
+        leds[4].r = 0;
+        leds[4].g = 0;
+        leds[4].b = 0;
+
+        leds[5].r = 0;
+        leds[5].g = 0;
+        leds[5].b = 0;
+
+        break;
+      }
     }
-
-    // Turn the current LED on, full bright red
-    leds[2].r = 255;
-    leds[2].g = 140;
-    leds[2].b = 10;
-
-    leds[4].r = 255;
-    leds[4].g = 140;
-    leds[4].b = 10;
-
-    leds[0].r = 255;
-    leds[0].g = 140;
-    leds[0].b = 10;
 
     // Output the LED data, actually turning them on
     setDanceLeds(leds, sizeof(leds));
