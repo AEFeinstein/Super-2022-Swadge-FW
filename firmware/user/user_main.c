@@ -732,21 +732,6 @@ void ICACHE_FLASH_ATTR user_init(void)
     uart_init(BIT_RATE_74880, BIT_RATE_74880);
     os_printf("\r\nSwadge 2019\r\n");
 
-    // Initialize GPIOs
-    SetupGPIO(HandleButtonEventIRQ,
-              NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback);
-
-    // If SOFT_AP is requested, but the left button isnt held, override it with NO_WIFI
-    if(SOFT_AP == swadgeModes[rtcMem.currentSwadgeMode]->wifiMode &&
-            (GetButtons() & 0b10) != 0b10)
-    {
-        swadgeModes[rtcMem.currentSwadgeMode]->wifiMode = NO_WIFI;
-    }
-
-    // Set up a timer to switch the swadge mode
-    os_timer_disarm(&modeSwitchTimer);
-    os_timer_setfn(&modeSwitchTimer, modeSwitchTimerFn, NULL);
-
     // Read data fom RTC memory if we're waking from deep sleep
     struct rst_info* resetInfo = system_get_rst_info();
     if(REASON_DEEP_SLEEP_AWAKE == resetInfo->reason)
@@ -765,6 +750,21 @@ void ICACHE_FLASH_ATTR user_init(void)
         // if it fails, zero it out instead
         ets_memset(&rtcMem, 0, sizeof(rtcMem));
     }
+
+    // Initialize GPIOs
+    SetupGPIO(HandleButtonEventIRQ,
+              NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback);
+
+    // If SOFT_AP is requested, but the left button isnt held, override it with NO_WIFI
+    if(SOFT_AP == swadgeModes[rtcMem.currentSwadgeMode]->wifiMode &&
+            (GetButtons() & 0b10) != 0b10)
+    {
+        swadgeModes[rtcMem.currentSwadgeMode]->wifiMode = NO_WIFI;
+    }
+
+    // Set up a timer to switch the swadge mode
+    os_timer_disarm(&modeSwitchTimer);
+    os_timer_setfn(&modeSwitchTimer, modeSwitchTimerFn, NULL);
 
     // Set the current WiFi mode based on what the swadge mode wants
     switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
