@@ -100,8 +100,8 @@ swadgeMode* swadgeModes[] =
 {
     &colorchordMode,
     &reflectorGameMode,
-    &randomD6Mode,
     &dancesMode,
+    &randomD6Mode,
     &flashlightMode,
     &guitarTunerMode,
 };
