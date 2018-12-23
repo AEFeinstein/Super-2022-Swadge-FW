@@ -625,17 +625,6 @@ static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned
 }
 
 /**
- * UART RX handler, called by uart0_rx_intr_handler(). Currently does nothing
- * This is an interrupt, so it can't be ICACHE_FLASH_ATTR.
- *
- * @param c The char received on the UART
- */
-void ICACHE_FLASH_ATTR charrx( uint8_t c __attribute__((unused)))
-{
-    ;
-}
-
-/**
  * This function is passed into SetupGPIO() as the callback for button interrupts.
  * It is called every time a button is pressed or released
  *

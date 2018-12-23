@@ -238,13 +238,6 @@ bool led_bool = true;
  * Functions
  *==========================================================================*/
 
-//min function
-int min(int num1, int num2)
-{
-    return (num1 > num2 ) ? num2 : num1;
-}
-
-
 /**
  * This initializer is called whenever dance mode is entered
  */
