@@ -132,14 +132,11 @@ timerWithPeriod danceTimers[] =
         .timerFn = danceTimerMode6,
         .period = 80
     },
-
-
     {
         .timer = {0},
         .timerFn = danceTimerMode8,
         .period = 300
     },
-
     {
         .timer = {0},
         .timerFn = danceTimerMode9,
@@ -200,10 +197,11 @@ timerWithPeriod danceTimers[] =
         .timerFn = freeze_color,
         .period = 40
     },
+    // Note this MUST be last so that random mode never calls random mode
     {
         .timer = {0},
         .timerFn = random_dance_mode,
-        .period = 100
+        .period = 1
     }
 };
 
@@ -396,6 +394,10 @@ void ICACHE_FLASH_ATTR setDanceLeds(led_t* ledData, uint8_t ledDataLen)
  */
 uint32_t dance_rand(uint32_t bound)
 {
+    if(bound == 0)
+    {
+        return 0;
+    }
     return os_random() % bound;
 }
 
@@ -1161,13 +1163,23 @@ void ICACHE_FLASH_ATTR freeze_color(void* arg __attribute__((unused)))
  */
 void ICACHE_FLASH_ATTR random_dance_mode(void* arg __attribute__((unused)))
 {
-    random_dance_timer += 1;
-    if(random_dance_timer > 45)
+    if(random_dance_timer == 0 || random_dance_timer > 4500)
     {
+        /* If this is just starting, or it's time to restart, pick a random
+         * dance, excluding the random dance for recursive reasons
+         */
         random_dance_timer = 0;
         uint8_t numDances = sizeof(danceTimers) / sizeof(danceTimers[0]);
         random_choice = dance_rand(numDances - 1);
     }
-    danceTimers[random_choice].timerFn(arg);
 
+    // This timer runs at 1ms, so only call the chosen dance's function
+    // at that dance's period
+    if(0 == random_dance_timer % danceTimers[random_choice].period)
+    {
+        danceTimers[random_choice].timerFn(arg);
+    }
+
+    // Increment the timer
+    random_dance_timer += 1;
 }
