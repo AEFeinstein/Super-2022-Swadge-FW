@@ -42,6 +42,7 @@ typedef struct
 
 void ICACHE_FLASH_ATTR danceEnterMode(void);
 void ICACHE_FLASH_ATTR danceExitMode(void);
+void ICACHE_FLASH_ATTR danceClearVars(void);
 void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state, int button, int down);
 void ICACHE_FLASH_ATTR setDanceLeds(led_t* ledData, uint8_t ledDataLen);
 uint32_t dance_rand(uint32_t upperBound);
@@ -67,6 +68,7 @@ void ICACHE_FLASH_ATTR danceTimerMode17(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode18(void* arg);
 void ICACHE_FLASH_ATTR freeze_color(void* arg);
 void ICACHE_FLASH_ATTR random_dance_mode(void* arg);
+
 /*============================================================================
  * Variables
  *==========================================================================*/
@@ -224,14 +226,14 @@ int random_dance_timer = 0;
 int random_choice = 8;
 
 uint32_t color_save = 256;
-uint32_t color_save_array[6] = {0};
-uint32_t color_saturation_save[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-uint32_t current_color_array[6] = {0};
 
+uint32_t color_hue_save[6] = {0};
+uint32_t color_saturation_save[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+uint32_t current_color_hue[6] = {0};
 uint32_t current_color_saturation[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-int current_sparkle_save[6] =  { 0 };
 
 bool led_bool = true;
+
 /*============================================================================
  * Functions
  *==========================================================================*/
@@ -241,6 +243,10 @@ bool led_bool = true;
  */
 void ICACHE_FLASH_ATTR danceEnterMode(void)
 {
+    currentDance = 0;
+    buttonHistory = 0;
+    danceClearVars();
+
     // Loop through danceTimers[] and attach each function to each timer
     uint8_t i;
     for (i = 0; i < sizeof(danceTimers) / sizeof(danceTimers[0]); i++)
@@ -257,6 +263,33 @@ void ICACHE_FLASH_ATTR danceEnterMode(void)
 }
 
 /**
+ * This is called to clear all dance variables
+ */
+void ICACHE_FLASH_ATTR danceClearVars(void)
+{
+    unlockBlinks = 0;
+
+    // This is a state variable used in animations
+    ledCount = 0;
+    ledCount2 = 0;
+    ledSwitch = 0;
+    timerCount = 0;
+    strobeCount = 0;
+
+    random_dance_timer = 0;
+    random_choice = 8;
+
+    color_save = 256;
+
+    ets_memset(color_hue_save, 0x00, sizeof(color_hue_save));
+    ets_memset(color_saturation_save, 0xFF, sizeof(color_saturation_save));
+    ets_memset(current_color_hue, 0x00, sizeof(current_color_hue));
+    ets_memset(current_color_saturation, 0xFF, sizeof(current_color_saturation));
+
+    led_bool = true;
+}
+
+/**
  * This is called whenever dance mode is exited
  */
 void ICACHE_FLASH_ATTR danceExitMode(void)
@@ -267,6 +300,7 @@ void ICACHE_FLASH_ATTR danceExitMode(void)
     {
         os_timer_disarm(&danceTimers[i].timer);
     }
+    os_timer_disarm(&unlockAnimationTimer);
 }
 
 /**
@@ -323,8 +357,15 @@ void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state __attribute__((unused))
 
             currentDance = (currentDance + 1) % numUnlockedDances;
 
-            //reset the ledCount for the animztion. (test to see if this works)
-            ledCount = 0;
+            // Clear variables
+            uint32_t colorSaveOld = color_save;
+            danceClearVars();
+            if(danceTimers[currentDance].timerFn == &freeze_color)
+            {
+                // Restore color_save, but only for freeze_color
+                color_save = colorSaveOld;
+            }
+
             // Start the next animation
             os_timer_arm(&danceTimers[currentDance].timer, danceTimers[currentDance].period, true);
         }
@@ -339,7 +380,8 @@ void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state __attribute__((unused))
 
 /**
  * This animation is shown when the unlock code is entered
- * @param arg
+ *
+ * @param arg unused
  */
 void ICACHE_FLASH_ATTR unlockAnimation(void* arg __attribute__((unused)))
 {
@@ -382,7 +424,6 @@ void ICACHE_FLASH_ATTR setDanceLeds(led_t* ledData, uint8_t ledDataLen)
 /**
  * Get a random number from a range.
  *
- * TODO
  * This isn't true-random, unless bound is a power of 2. But it's close enough?
  * The problem is that os_random() returns a number between [0, 2^64), and the
  * size of the range may not be even divisible by bound
@@ -402,7 +443,8 @@ uint32_t dance_rand(uint32_t bound)
 }
 
 /**
- * This animation is set to be called every 1 ms
+ * This animation is set to be called every 100 ms
+ * Rotate a single white LED around the hexagon
  *
  * @param arg unused
  */
@@ -429,6 +471,7 @@ void ICACHE_FLASH_ATTR danceTimerMode1(void* arg __attribute__((unused)))
 
 /**
  * This animation is set to be called every 100ms
+ * Blink all LEDs red for on for 500ms, then off for 500ms
  *
  * @param arg unused
  */
@@ -469,14 +512,12 @@ void ICACHE_FLASH_ATTR danceTimerMode2(void* arg __attribute__((unused)))
         ledCount = 0;
     }
 
-
     setDanceLeds(leds, sizeof(leds));
 }
 
-
-
 /**
  * This animation is set to be called every 100ms
+ * Rotates two blue LEDs, one clockwise and one counterclockwise
  *
  * @param arg unused
  */
@@ -505,8 +546,9 @@ void ICACHE_FLASH_ATTR danceTimerMode3(void* arg __attribute__((unused)))
     setDanceLeds(leds, sizeof(leds));
 }
 
-
 /**
+ * Called every 5ms
+ * Smoothly rotate a color wheel around the hexagon
  *
  * @param arg unused
  */
@@ -523,7 +565,7 @@ void ICACHE_FLASH_ATTR danceTimerMode4(void* arg __attribute__((unused)))
     uint8_t i;
     for(i = 0; i < 6; i++)
     {
-        int16_t angle = (((i * 256)  / 6)) + ledCount % 256;
+        int16_t angle = (((i * 256) / 6)) + ledCount % 256;
         uint32_t color = EHSVtoHEX(angle, 0xFF, 0xFF);
 
         leds[i].r = (color >>  0) & 0xFF;
@@ -535,9 +577,9 @@ void ICACHE_FLASH_ATTR danceTimerMode4(void* arg __attribute__((unused)))
     setDanceLeds(leds, sizeof(leds));
 }
 
-
-
 /**
+ * Called every 100ms
+ * Sharply rotate a color wheel around the hexagon
  *
  * @param arg unused
  */
@@ -566,8 +608,10 @@ void ICACHE_FLASH_ATTR danceTimerMode5(void* arg __attribute__((unused)))
     setDanceLeds(leds, sizeof(leds));
 }
 
-
 /**
+ * Called every 80ms
+ * Rotate a single LED around the hexagon while smoothy iterating its color
+ * around the color wheel
  *
  * @param arg unused
  */
@@ -587,46 +631,15 @@ void ICACHE_FLASH_ATTR danceTimerMode6(void* arg __attribute__((unused)))
     leds[(ledCount) % 6].g = (color >>  8) & 0xFF;
     leds[(ledCount) % 6].b = (color >> 16) & 0xFF;
 
-
-
     // Output the LED data, actually turning them on
     setDanceLeds(leds, sizeof(leds));
 }
 
-
 /**
- * slowly changes colors
- * @param arg unused
- */
-void ICACHE_FLASH_ATTR danceTimerMode7(void* arg __attribute__((unused)))
-{
-    led_t leds[6] = {{0}};
-
-    ledCount = ledCount + 1;
-    if(ledCount > 255)
-    {
-        ledCount = 0;
-    }
-    int16_t angle = ledCount % 256;
-    color_save = EHSVtoHEX(angle, 0xFF, 0xFF);
-
-    uint8_t i;
-    for(i = 0; i < 6; i++)
-    {
-
-        leds[i].r = (color_save >>  0) & 0xFF;
-        leds[i].g = (color_save >>  8) & 0xFF;
-        leds[i].b = (color_save >> 16) & 0xFF;
-    }
-
-    // Output the LED data, actually turning them on
-    setDanceLeds(leds, sizeof(leds));
-}
-
-
-
-/**
- * counts up in bianry
+ * Called every 300ms
+ * Counts up to 64 in binary. At 64, the color is held for ~3s
+ * The 'on' color is smoothly iterated over the color wheel. The 'off'
+ * color is also iterated over the color wheel, 180 degrees offset from 'on'
  * @param arg unused
  */
 void ICACHE_FLASH_ATTR danceTimerMode8(void* arg __attribute__((unused)))
@@ -645,7 +658,8 @@ void ICACHE_FLASH_ATTR danceTimerMode8(void* arg __attribute__((unused)))
         ledCount = 0;
     }
     int16_t angle = ledCount % 256;
-    uint32_t color = EHSVtoHEX(angle, 0xFF, 0xFF);
+    uint32_t colorOn = EHSVtoHEX(angle, 0xFF, 0xFF);
+    uint32_t colorOff = EHSVtoHEX((angle + 128) % 256, 0xFF, 0xFF);
 
     uint8_t i;
     uint8_t j;
@@ -653,13 +667,12 @@ void ICACHE_FLASH_ATTR danceTimerMode8(void* arg __attribute__((unused)))
     {
         if(ledCount2 >= 64)
         {
-            leds[i].r = (color >>  0) & 0xFF;
-            leds[i].g = (color >>  8) & 0xFF;
-            leds[i].b = (color >> 16) & 0xFF;
+            leds[i].r = (colorOn >>  0) & 0xFF;
+            leds[i].g = (colorOn >>  8) & 0xFF;
+            leds[i].b = (colorOn >> 16) & 0xFF;
         }
         else
         {
-
             if(led_bool)
             {
                 j = 6 - i;
@@ -668,17 +681,18 @@ void ICACHE_FLASH_ATTR danceTimerMode8(void* arg __attribute__((unused)))
             {
                 j = i;
             }
+
             if((ledCount2 >> i) & 1)
             {
-                leds[(j) % 6].r = (color >>  0) & 0xFF;
-                leds[(j) % 6].g = (color >>  8) & 0xFF;
-                leds[(j) % 6].b = (color >> 16) & 0xFF;
+                leds[(j) % 6].r = (colorOn >>  0) & 0xFF;
+                leds[(j) % 6].g = (colorOn >>  8) & 0xFF;
+                leds[(j) % 6].b = (colorOn >> 16) & 0xFF;
             }
             else
             {
-                leds[(j) % 6].r = 70;
-                leds[(j) % 6].g = 0;
-                leds[(j) % 6].b = 200;
+                leds[(j) % 6].r = (colorOff >>  0) & 0xFF;
+                leds[(j) % 6].g = (colorOff >>  8) & 0xFF;
+                leds[(j) % 6].b = (colorOff >> 16) & 0xFF;
             }
         }
     }
@@ -687,100 +701,105 @@ void ICACHE_FLASH_ATTR danceTimerMode8(void* arg __attribute__((unused)))
 }
 
 /**
- * fire pattern
+ * Called every 100ms
+ *
+ * Fire pattern. All LEDs are random amount of red, and half that of green.
+ * The LEDs towards the bottom have a brighter base and more randomness. The
+ * LEDs towards the top are dimmer and have less randomness.
+ *
  * @param arg unused
  */
 void ICACHE_FLASH_ATTR danceTimerMode9(void* arg __attribute__((unused)))
 {
     led_t leds[6] = {{0}};
 
-    ledCount = ledCount + 1;
-
-    if(ledCount > 255)
-    {
-        ledCount = 0;
-    }
-
     leds[3].r = dance_rand(120) + 135;
     leds[3].g = leds[3].r / 5;
+
     leds[4].r = dance_rand(80) + 80;
     leds[4].g = leds[4].r / 5;
-    leds[5].r = dance_rand(50) + 40;
-    leds[5].g = leds[5].r / 5;
-    leds[0].r = dance_rand(10) + 10;
-    leds[0].g = leds[0].r / 5;
     leds[2].r = dance_rand(80) + 80;
     leds[2].g = leds[2].r / 5;
+
+    leds[5].r = dance_rand(50) + 40;
+    leds[5].g = leds[5].r / 5;
     leds[1].r = dance_rand(50) + 40;
     leds[1].g = leds[1].r / 5;
+
+    leds[0].r = dance_rand(10) + 10;
+    leds[0].g = leds[0].r / 5;
+
     setDanceLeds(leds, sizeof(leds));
 }
 
-
 /**
- * fire pattern
+ * Called every 100ms
+ *
+ * Fire pattern. All LEDs are random amount of green, and half that of blue.
+ * The LEDs towards the bottom have a brighter base and more randomness. The
+ * LEDs towards the top are dimmer and have less randomness.
+ *
  * @param arg unused
  */
 void ICACHE_FLASH_ATTR danceTimerMode10(void* arg __attribute__((unused)))
 {
     led_t leds[6] = {{0}};
 
-    ledCount = ledCount + 1;
-
-    if(ledCount > 255)
-    {
-        ledCount = 0;
-    }
-
     leds[3].g = dance_rand(120) + 135;
     leds[3].b = leds[3].g / 5;
+
     leds[4].g = dance_rand(80) + 80;
     leds[4].b = leds[4].g / 5;
-    leds[5].g = dance_rand(50) + 40;
-    leds[5].b = leds[5].g / 5;
-    leds[0].g = dance_rand(10) + 10;
-    leds[0].b = leds[0].g / 5;
     leds[2].g = dance_rand(80) + 80;
     leds[2].b = leds[2].g / 5;
+
+    leds[5].g = dance_rand(50) + 40;
+    leds[5].b = leds[5].g / 5;
     leds[1].g = dance_rand(50) + 40;
     leds[1].b = leds[1].g / 5;
+
+    leds[0].g = dance_rand(10) + 10;
+    leds[0].b = leds[0].g / 5;
+
     setDanceLeds(leds, sizeof(leds));
 }
 
-
-
 /**
- * fire pattern
+ * Called every 100ms
+ *
+ * Fire pattern. All LEDs are random amount of blue, and half that of green.
+ * The LEDs towards the bottom have a brighter base and more randomness. The
+ * LEDs towards the top are dimmer and have less randomness.
+ *
  * @param arg unused
  */
 void ICACHE_FLASH_ATTR danceTimerMode11(void* arg __attribute__((unused)))
 {
     led_t leds[6] = {{0}};
 
-    ledCount = ledCount + 1;
-
-    if(ledCount > 255)
-    {
-        ledCount = 0;
-    }
-
     leds[3].b = dance_rand(120) + 135;
     leds[3].g = leds[3].b / 5;
+
     leds[4].b = dance_rand(80) + 80;
     leds[4].g = leds[4].b / 5;
-    leds[5].b = dance_rand(50) + 40;
-    leds[5].g = leds[5].b / 5;
-    leds[0].b = dance_rand(10) + 10;
-    leds[0].g = leds[0].b / 5;
     leds[2].b = dance_rand(80) + 80;
     leds[2].g = leds[2].b / 5;
+
+    leds[5].b = dance_rand(50) + 40;
+    leds[5].g = leds[5].b / 5;
     leds[1].b = dance_rand(50) + 40;
     leds[1].g = leds[1].b / 5;
+
+    leds[0].b = dance_rand(10) + 10;
+    leds[0].g = leds[0].b / 5;
+
     setDanceLeds(leds, sizeof(leds));
 }
 
 /**
- * This animation is set to be called every 1 ms
+ * This animation is set to be called every 100 ms
+ * Rotate a single LED around the hexagon, giving it a new random color for each
+ * rotation
  *
  * @param arg unused
  */
@@ -807,6 +826,8 @@ void ICACHE_FLASH_ATTR danceTimerMode12(void* arg __attribute__((unused)))
 }
 
 /**
+ * Called every 2 ms
+ * Pulse all LEDs smoothly on and off. For each pulse, pick a random color
  *
  * @param arg unused
  */
@@ -817,7 +838,6 @@ void ICACHE_FLASH_ATTR danceTimerMode13(void* arg __attribute__((unused)))
 
     // Skip to the next LED around the hexagon
     ledCount = ledCount + 1;
-
 
     if(ledCount > 510)
     {
@@ -844,7 +864,8 @@ void ICACHE_FLASH_ATTR danceTimerMode13(void* arg __attribute__((unused)))
 }
 
 /**
- * Dac's multi-color strobe
+ * Called every 10ms
+ * Dac's multi-color strobe, strobe R then G then B, 120ms off, 10ms on
  *
  * @param arg unused
  */
@@ -910,6 +931,12 @@ void ICACHE_FLASH_ATTR danceTimerMode14(void* arg __attribute__((unused)))
     }
 }
 
+/**
+ * Called every 100ms
+ * Show a static pattern for 30s, then show another static pattern for 30s
+ *
+ * @param arg unused
+ */
 void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
 {
     // Declare some LEDs, all off
@@ -993,10 +1020,9 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
 
 }
 
-
-
 /**
- * police sirens
+ * Called every 120ms
+ * police sirens, flash half red then half blue
  *
  * @param arg unused
  */
@@ -1013,14 +1039,13 @@ void ICACHE_FLASH_ATTR danceTimerMode16(void* arg __attribute__((unused)))
 
     }
     //green is 0
-    //100 is fusia
-    //70 is orange ish
-    uint32_t red = EHSVtoHEX(85, 0xFF, 0xFF);
-    uint32_t blue = EHSVtoHEX(170, 0xFF, 0xFF);
+    //100 is fuchsia
+    //70 is orange-ish
     uint8_t i;
     // Turn the current LED on, full bright white
     if(ledCount < 3)
     {
+        uint32_t red = EHSVtoHEX(85, 0xFF, 0xFF);
         for(i = 0; i < 3; i++)
         {
             leds[i].r = (red >>  0) & 0xFF;
@@ -1030,6 +1055,7 @@ void ICACHE_FLASH_ATTR danceTimerMode16(void* arg __attribute__((unused)))
     }
     else
     {
+        uint32_t blue = EHSVtoHEX(170, 0xFF, 0xFF);
         for(i = 3; i < 6; i++)
         {
             leds[i].r = (blue >>  0) & 0xFF;
@@ -1038,16 +1064,13 @@ void ICACHE_FLASH_ATTR danceTimerMode16(void* arg __attribute__((unused)))
         }
     }
 
-
     // Output the LED data, actually turning them on
     setDanceLeds(leds, sizeof(leds));
 }
 
-
-
-
 /**
- * random blink
+ * Called every 100ms
+ * Turn a random LED on to a random color, one at a time
  *
  * @param arg unused
  */
@@ -1064,36 +1087,36 @@ void ICACHE_FLASH_ATTR danceTimerMode17(void* arg __attribute__((unused)))
     setDanceLeds(leds, sizeof(leds));
 }
 
-
 /**
- * christmas lights
+ * Called every 7ms
+ * Christmas lights. Picks random target hues (red or green) and saturations for
+ * random LEDs at random intervals, then smoothly iterates towards those targets.
+ * All LEDs are shown with a randomness added to their brightness for a little
+ * sparkle
  *
  * @param arg unused
  */
 void ICACHE_FLASH_ATTR danceTimerMode18(void* arg __attribute__((unused)))
 {
-
     // Declare some LEDs, all off
     led_t leds[6] = {{0}};
     ledCount += 1;
     if(ledCount > ledCount2)
     {
         ledCount = 0;
-        ledCount2 = dance_rand(1000) + 50;
+        ledCount2 = dance_rand(1000) + 50; // 350ms to 7350ms
         int color_picker = dance_rand(5);
         int node_select = dance_rand(6);
 
         if(color_picker < 2)
         {
-            color_save_array[node_select] = 0;
+            color_hue_save[node_select] = 0;
             color_saturation_save[node_select] = dance_rand(15) + 240;
-            current_sparkle_save[node_select] = dance_rand(20);
         }
         else if (color_picker < 4)
         {
-            color_save_array[node_select] = 86;
+            color_hue_save[node_select] = 86;
             color_saturation_save[node_select] = dance_rand(15) + 240;
-            current_sparkle_save[node_select] = dance_rand(20);
         }
         else
         {
@@ -1101,17 +1124,16 @@ void ICACHE_FLASH_ATTR danceTimerMode18(void* arg __attribute__((unused)))
         }
     }
 
-
     uint8_t i;
     for(i = 0; i < 6; i++)
     {
-        if(current_color_array[i] > color_save_array[i])
+        if(current_color_hue[i] > color_hue_save[i])
         {
-            current_color_array[i] -= 1;
+            current_color_hue[i] -= 1;
         }
-        else if (current_color_array[i] < color_save_array[i])
+        else if (current_color_hue[i] < color_hue_save[i])
         {
-            current_color_array[i] += 1;
+            current_color_hue[i] += 1;
         }
 
         if(current_color_saturation[i] > color_saturation_save[i])
@@ -1126,24 +1148,56 @@ void ICACHE_FLASH_ATTR danceTimerMode18(void* arg __attribute__((unused)))
 
     for(i = 0; i < 6; i++)
     {
-        leds[i].r = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i], dance_rand(15) + 240) >>  0) & 0xFF;
-        leds[i].g = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i], dance_rand(15) + 240) >>  8) & 0xFF;
-        leds[i].b = (EHSVtoHEX(current_color_array[i],  current_color_saturation[i], dance_rand(15) + 240) >> 16) & 0xFF;
+        leds[i].r = (EHSVtoHEX(current_color_hue[i],  current_color_saturation[i], dance_rand(15) + 240) >>  0) & 0xFF;
+        leds[i].g = (EHSVtoHEX(current_color_hue[i],  current_color_saturation[i], dance_rand(15) + 240) >>  8) & 0xFF;
+        leds[i].b = (EHSVtoHEX(current_color_hue[i],  current_color_saturation[i], dance_rand(15) + 240) >> 16) & 0xFF;
     }
     // Output the LED data, actually turning them on
     setDanceLeds(leds, sizeof(leds));
 }
 
+/**
+ * Called every 70ms
+ * Turn on all LEDs and smooth iterate their singular color around the color wheel
+ * Note, called the 7th but comes after danceTimerMode18(). Must come before
+ * freeze_color()
+ *
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR danceTimerMode7(void* arg __attribute__((unused)))
+{
+    led_t leds[6] = {{0}};
 
+    ledCount = ledCount + 1;
+    if(ledCount > 255)
+    {
+        ledCount = 0;
+    }
+    int16_t angle = ledCount % 256;
+    color_save = EHSVtoHEX(angle, 0xFF, 0xFF);
 
+    uint8_t i;
+    for(i = 0; i < 6; i++)
+    {
+
+        leds[i].r = (color_save >>  0) & 0xFF;
+        leds[i].g = (color_save >>  8) & 0xFF;
+        leds[i].b = (color_save >> 16) & 0xFF;
+    }
+
+    // Output the LED data, actually turning them on
+    setDanceLeds(leds, sizeof(leds));
+}
 
 /**
+ * Called every 40ms
+ * Comes after danceTimerMode7(). Holds the color for all LEDs constant as
+ * whatever the last shown color was from danceTimerMode7()
  *
  * @param arg unused
  */
 void ICACHE_FLASH_ATTR freeze_color(void* arg __attribute__((unused)))
 {
-
 
     led_t leds[6] = {{0}};
     uint8_t i;
@@ -1154,10 +1208,12 @@ void ICACHE_FLASH_ATTR freeze_color(void* arg __attribute__((unused)))
         leds[i].b = (color_save >> 16) & 0xFF;
     }
     setDanceLeds(leds, sizeof(leds));
-
 }
 
 /**
+ * Called ever 1ms
+ * Pick a random dance mode and call it at its period for 4.5s. Then pick
+ * another random dance and repeat
  *
  * @param arg unused
  */
@@ -1165,12 +1221,20 @@ void ICACHE_FLASH_ATTR random_dance_mode(void* arg __attribute__((unused)))
 {
     if(random_dance_timer == 0 || random_dance_timer > 4500)
     {
+        danceClearVars();
+
         /* If this is just starting, or it's time to restart, pick a random
          * dance, excluding the random dance for recursive reasons
          */
         random_dance_timer = 0;
         uint8_t numDances = sizeof(danceTimers) / sizeof(danceTimers[0]);
         random_choice = dance_rand(numDances - 1);
+
+        // If the random dance is freeze, pick a random color to freeze
+        if(danceTimers[random_choice].timerFn == &freeze_color)
+        {
+            color_save = EHSVtoHEX(dance_rand(256), 0xFF, 0xFF);
+        }
     }
 
     // This timer runs at 1ms, so only call the chosen dance's function
