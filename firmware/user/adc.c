@@ -48,7 +48,7 @@
 /**
  * Start an ADC measurement, but don't take it yet
  */
-void ICACHE_FLASH_ATTR hs_adc_start(void)
+void hs_adc_start(void)
 {
     // select test mux
     i2c_writeReg_Mask_def(i2c_saradc, i2c_saradc_en_test, 1);

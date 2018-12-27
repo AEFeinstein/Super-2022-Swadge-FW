@@ -44,7 +44,7 @@ int main()
 #define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
 
 
-void UpdateFreqs()
+void ICACHE_FLASH_ATTR UpdateFreqs()
 {
 
 #ifndef PRECOMPUTE_FREQUENCY_TABLE
@@ -81,7 +81,7 @@ void UpdateFreqs()
 #endif
 }
 
-void InitColorChord()
+void ICACHE_FLASH_ATTR InitColorChord()
 {
 	int i;
 	//Set up and initialize arrays.
@@ -107,7 +107,7 @@ void InitColorChord()
 	UpdateFreqs();
 }
 
-void HandleFrameInfo()
+void ICACHE_FLASH_ATTR HandleFrameInfo()
 {
 	int i, j, k;
 	uint8_t hitnotes[MAXNOTES];

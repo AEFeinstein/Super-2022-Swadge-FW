@@ -61,6 +61,8 @@ void ICACHE_FLASH_ATTR guitarTunerButtonCallback(uint8_t state __attribute__((un
 void ICACHE_FLASH_ATTR guitarLedOverrideReset(void* timer_arg __attribute__((unused)));
 inline int16_t getMagnitude(uint16_t idx);
 inline int16_t getDiffAround(uint16_t idx);
+inline int16_t getSemiMagnitude(int16_t idx);
+inline int16_t getSemiDiffAround(uint16_t idx);
 
 /*============================================================================
  * Variables

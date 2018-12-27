@@ -194,7 +194,7 @@ void ICACHE_FLASH_ATTR SetupGPIO(void (*handler)(uint8_t state, int button, int 
  * @return An 8 bit bitmask corresponding to the button states in gpioInfo[]
  *         Bit 0 is the first button, bit 1 is the second button, etc
  */
-uint8_t ICACHE_FLASH_ATTR GetButtons()
+uint8_t GetButtons()
 {
     uint8_t ret = 0;
 

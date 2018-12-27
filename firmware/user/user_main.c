@@ -123,7 +123,7 @@ uint8_t modeLedBrightness = 0;
  * Prototypes
  *==========================================================================*/
 
-void ICACHE_FLASH_ATTR HandleButtonEventIRQ( uint8_t stat, int btn, int down );
+void HandleButtonEventIRQ( uint8_t stat, int btn, int down );
 void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void);
 
 static int ICACHE_FLASH_ATTR SwitchToSoftAP(void);

@@ -124,7 +124,7 @@ void ICACHE_FLASH_ATTR StartHPATimer(void)
 /**
  * Pause the hardware timer used to sample the ADC
  */
-void ICACHE_FLASH_ATTR PauseHPATimer(void)
+void PauseHPATimer(void)
 {
     TM1_EDGE_INT_DISABLE();
     ETS_FRC1_INTR_DISABLE();
@@ -135,7 +135,7 @@ void ICACHE_FLASH_ATTR PauseHPATimer(void)
 /**
  * Start the hardware timer used to sample the ADC
  */
-void ICACHE_FLASH_ATTR ContinueHPATimer(void)
+void ContinueHPATimer(void)
 {
     TM1_EDGE_INT_ENABLE();
     ETS_FRC1_INTR_ENABLE();

@@ -19,8 +19,8 @@ uint8_t ICACHE_FLASH_ATTR getSample(void);
 bool ICACHE_FLASH_ATTR sampleAvailable(void);
 
 void ICACHE_FLASH_ATTR StartHPATimer(void);
-void ICACHE_FLASH_ATTR ContinueHPATimer(void);
-void ICACHE_FLASH_ATTR PauseHPATimer(void);
+void ContinueHPATimer(void);
+void PauseHPATimer(void);
 bool ICACHE_FLASH_ATTR isHpaRunning(void);
 
 #endif
