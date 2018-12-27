@@ -134,7 +134,7 @@ configurable_t gConfigs[CONFIGURABLES] =
         .val = &CCS.gCOLORCHORD_OUTPUT_DRIVER
     },
     {
-        .defaultVal = 14,
+        .defaultVal = 20,
         .name = "gINITIAL_AMP",
         .val = &CCS.gINITIAL_AMP
     },
@@ -152,7 +152,7 @@ uint8_t refGameWins = 0;
  *==========================================================================*/
 
 void ICACHE_FLASH_ATTR SaveSettings(void);
-void ICACHE_FLASH_ATTR RevertAndSaveAllSettingsExceptLEDs(void);
+//void ICACHE_FLASH_ATTR RevertAndSaveAllSettingsExceptLEDs(void);
 
 /*============================================================================
  * Functions
@@ -215,7 +215,7 @@ void ICACHE_FLASH_ATTR SaveSettings(void)
     };
 
     uint8_t i;
-    for( i = 0; i < CONFIGURABLES - 1; i++ )
+    for( i = 0; i < CONFIGURABLES; i++ )
     {
         if( gConfigs[i].val )
         {
@@ -266,33 +266,33 @@ uint8_t ICACHE_FLASH_ATTR getRefGameWins(void)
  * Once the settings are reverted, except for gUSE_NUM_LIN_LEDS, write
  * the settings to SPI flash
  */
-void ICACHE_FLASH_ATTR RevertAndSaveAllSettingsExceptLEDs(void)
-{
-    os_printf( "Restoring all values.\n" );
-
-    // Save gUSE_NUM_LIN_LEDS
-    int led = CCS.gUSE_NUM_LIN_LEDS;
-    if( led == 0 )
-    {
-        led = 5;
-    }
-
-    // Restore to defaults
-    uint8_t i;
-    for( i = 0; i < CONFIGURABLES; i++ )
-    {
-        if( gConfigs[i].val )
-        {
-            *(gConfigs[i].val) = gConfigs[i].defaultVal;
-        }
-    }
-
-    // Restore saved gUSE_NUM_LIN_LEDS
-    CCS.gUSE_NUM_LIN_LEDS = led;
-
-    // Write to SPI flash
-    SaveSettings();
-}
+//void ICACHE_FLASH_ATTR RevertAndSaveAllSettingsExceptLEDs(void)
+//{
+//    os_printf( "Restoring all values.\n" );
+//
+//    // Save gUSE_NUM_LIN_LEDS
+//    int led = CCS.gUSE_NUM_LIN_LEDS;
+//    if( led == 0 )
+//    {
+//        led = 5;
+//    }
+//
+//    // Restore to defaults
+//    uint8_t i;
+//    for( i = 0; i < CONFIGURABLES; i++ )
+//    {
+//        if( gConfigs[i].val )
+//        {
+//            *(gConfigs[i].val) = gConfigs[i].defaultVal;
+//        }
+//    }
+//
+//    // Restore saved gUSE_NUM_LIN_LEDS
+//    CCS.gUSE_NUM_LIN_LEDS = led;
+//
+//    // Write to SPI flash
+//    SaveSettings();
+//}
 
 /**
  * Receives custom UDP commands on BACKEND_PORT. The UDP server is set up by CSInit() via user_init()

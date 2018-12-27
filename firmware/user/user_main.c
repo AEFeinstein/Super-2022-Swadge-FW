@@ -151,10 +151,14 @@ void ICACHE_FLASH_ATTR DeepSleepChangeSwadgeMode(void);
  */
 void ICACHE_FLASH_ATTR incrementSwadgeModeNoSleep(void)
 {
-    // Call the exit callback for the current mode
-    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode)
+    // If the mode is initialized, tear it down
+    if(swadgeModeInit)
     {
-        swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode();
+        // Call the exit callback for the current mode
+        if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode)
+        {
+            swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode();
+        }
 
         // Clean up ESP NOW if that's where we were at
         switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
@@ -183,7 +187,9 @@ void ICACHE_FLASH_ATTR incrementSwadgeModeNoSleep(void)
 }
 
 /**
- * TODO
+ * Callback called when the swadge mode is changing. It displays and fades the
+ * current mode number. When the mode fades all the way out, the swadge goes
+ * into deep sleep and when it wakes it boots into the next mode
  *
  * @param arg
  */
@@ -273,7 +279,7 @@ void ICACHE_FLASH_ATTR enterDeepSleep(bool disableWifi, uint64_t sleepUs)
 
 /**
  * Configure and enable SoftAP mode. This will have the ESP broadcast a SSID
- * of the form MAGBADGE_XXXXXX, where XXXXXX is the tail of the MAC address
+ * of the form SWADGE_XXXXXX, where XXXXXX is the tail of the MAC address
  *
  * @return The Wifi channel, 1-13, or -1 for a failure
  */
@@ -284,7 +290,7 @@ static int ICACHE_FLASH_ATTR SwitchToSoftAP(void)
     wifi_softap_get_config_default(&c);
 
     // Build the SSID name
-    char ssidPrefix[] = "MAGBADGE_";
+    char ssidPrefix[] = "SWADGE_";
     ets_memcpy( c.ssid, ssidPrefix, ets_strlen(ssidPrefix) );
     if(false == wifi_get_macaddr(SOFTAP_IF, mymac))
     {
@@ -470,7 +476,6 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
         samp = (samp - (samp_iir >> 10)) * 16;
         // Amplify the sample
         samp = (samp * CCS.gINITIAL_AMP) >> 4;
-        // Push the sample to colorchord
 
         // Pass the button to the mode
         if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
@@ -670,9 +675,17 @@ void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void)
         // Pass the button to the mode
         else if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
         {
-            if((debounceEnabled && buttonQueue[buttonEvtHead].time - lastButtonPress[buttonQueue[buttonEvtHead].btn] < DEBOUNCE_US)
-                    ||
-                    (buttonQueue[buttonEvtHead].time - lastButtonPress[buttonQueue[buttonEvtHead].btn] < DEBOUNCE_US_FAST))
+            uint32_t debounceUs;
+            if(debounceEnabled)
+            {
+                debounceUs = DEBOUNCE_US;
+            }
+            else
+            {
+                debounceUs = DEBOUNCE_US_FAST;
+            }
+
+            if(buttonQueue[buttonEvtHead].time - lastButtonPress[buttonQueue[buttonEvtHead].btn] < debounceUs)
             {
                 ; // Consume this event below, don't count it as a press
             }
@@ -779,8 +792,6 @@ void ICACHE_FLASH_ATTR user_init(void)
         }
     }
 
-    os_printf("swadge mode %d\r\n", rtcMem.currentSwadgeMode);
-
     // Uncomment this to force a system restore.
     // system_restore();
 
@@ -808,7 +819,7 @@ void ICACHE_FLASH_ATTR user_init(void)
     {
         case SOFT_AP:
         {
-            SwitchToSoftAP( );
+            SwitchToSoftAP();
             os_printf( "Booting in SoftAP\n" );
             break;
         }
@@ -877,7 +888,7 @@ void ICACHE_FLASH_ATTR user_init(void)
     if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
     {
         // Tricky: If we are in station mode, wait for that to get resolved before enabling the high speed timer.
-        if( wifi_get_opmode() == 1 )
+        if( wifi_get_opmode() == STATION_MODE )
         {
             hpa_is_paused_for_wifi = true;
         }
@@ -898,7 +909,15 @@ void ICACHE_FLASH_ATTR user_init(void)
     // wifi_fpm_set_sleep_type(NONE_SLEEP_T); // with this seemed no difference
 
     // Initialize the current mode
-    os_printf("mode: %s\r\n", swadgeModes[rtcMem.currentSwadgeMode]->modeName);
+    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->modeName)
+    {
+        os_printf("mode: %d: %s\r\n", rtcMem.currentSwadgeMode, swadgeModes[rtcMem.currentSwadgeMode]->modeName);
+    }
+    else
+    {
+        os_printf("mode: %d: no name\r\n", rtcMem.currentSwadgeMode);
+    }
+
     if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEnterMode)
     {
         swadgeModes[rtcMem.currentSwadgeMode]->fnEnterMode();

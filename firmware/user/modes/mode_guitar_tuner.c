@@ -408,7 +408,6 @@ void ICACHE_FLASH_ATTR guitarTunerButtonCallback(
             case 1:
             {
                 currentMode = (currentMode + 1) % MAX_GUITAR_MODES;
-                os_printf("enter mode %2d\r\n", currentMode);
                 led_t leds[NUM_STRINGS] = {{0}};
 
                 if (currentMode == 0)
@@ -441,7 +440,6 @@ void ICACHE_FLASH_ATTR guitarTunerButtonCallback(
                         blu = 255;
                     }
                     loc = (NUM_STRINGS + 1 - (currentMode % 6)) % 6;
-                    os_printf("mode %2d, loc %1d\r\n", currentMode, loc);
                     leds[loc].r = red;
                     leds[loc].g = grn;
                     leds[loc].b = blu;

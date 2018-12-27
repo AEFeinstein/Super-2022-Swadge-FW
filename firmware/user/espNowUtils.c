@@ -145,6 +145,7 @@ void ICACHE_FLASH_ATTR espNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t le
     // Buried in a header, goes from 1 (far away) to 91 (practically touching)
     uint8_t rssi = data[-51];
 
+#ifdef EXTRA_DEBUG
     // Debug print the received payload
     char dbg[256] = {0};
     char tmp[8] = {0};
@@ -164,6 +165,7 @@ void ICACHE_FLASH_ATTR espNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t le
               mac_addr[5],
               rssi,
               dbg);
+#endif
 
     if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowRecvCb)
     {
@@ -198,13 +200,15 @@ void ICACHE_FLASH_ATTR espNowSend(const uint8_t* data, uint8_t len)
  */
 void ICACHE_FLASH_ATTR espNowSendCb(uint8_t* mac_addr, uint8_t status)
 {
-    // os_printf("SEND MAC %02X:%02X:%02X:%02X:%02X:%02X\r\n",
-    //           mac_addr[0],
-    //           mac_addr[1],
-    //           mac_addr[2],
-    //           mac_addr[3],
-    //           mac_addr[4],
-    //           mac_addr[5]);
+#ifdef EXTRA_DEBUG
+    os_printf("SEND MAC %02X:%02X:%02X:%02X:%02X:%02X\r\n",
+              mac_addr[0],
+              mac_addr[1],
+              mac_addr[2],
+              mac_addr[3],
+              mac_addr[4],
+              mac_addr[5]);
+#endif
 
     switch((mt_tx_status)status)
     {
