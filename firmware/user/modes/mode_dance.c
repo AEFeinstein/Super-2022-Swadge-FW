@@ -227,10 +227,10 @@ int random_choice = 8;
 
 uint32_t color_save = 256;
 
-uint32_t color_hue_save[6] = {0};
-uint32_t color_saturation_save[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-uint32_t current_color_hue[6] = {0};
-uint32_t current_color_saturation[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+uint8_t color_hue_save[6] = {0};
+uint8_t color_saturation_save[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+uint8_t current_color_hue[6] = {0};
+uint8_t current_color_saturation[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 bool led_bool = true;
 
@@ -281,10 +281,14 @@ void ICACHE_FLASH_ATTR danceClearVars(void)
 
     color_save = 256;
 
-    ets_memset(color_hue_save, 0x00, sizeof(color_hue_save));
-    ets_memset(color_saturation_save, 0xFF, sizeof(color_saturation_save));
-    ets_memset(current_color_hue, 0x00, sizeof(current_color_hue));
-    ets_memset(current_color_saturation, 0xFF, sizeof(current_color_saturation));
+    uint8_t i = 0;
+    for(i = 0; i < 6; i++)
+    {
+        color_hue_save[i] = 0;
+        color_saturation_save[i] = 0xFF;
+        current_color_hue[i] = 0;
+        current_color_saturation[i] = 0xFF;
+    }
 
     led_bool = true;
 }
