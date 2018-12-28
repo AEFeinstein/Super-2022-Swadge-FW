@@ -26,7 +26,6 @@ void ICACHE_FLASH_ATTR UpdateLinearLEDs()
 	//Color them according to value in note_peak_amps2.
 
 	uint8_t i;
-	int8_t k;
 	uint16_t j, l;
 	uint32_t total_size_all_notes = 0;
 	int32_t porpamps[MAXNOTES]; //LEDs for each corresponding note.
@@ -100,7 +99,6 @@ void ICACHE_FLASH_ATTR UpdateLinearLEDs()
 
 	for( i = 0; i < sorted_map_count; i++ )
 	{
-		uint16_t ist = local_peak_amps[i];
 		porpamps[i] = 0;
 		total_size_all_notes += local_peak_amps[i];
 	}
@@ -276,7 +274,6 @@ uint32_t ICACHE_FLASH_ATTR ECCtoHEX( uint8_t note, uint8_t sat, uint8_t val )
 {
 	uint16_t hue = 0;
 	uint16_t third = 65535/3;
-	uint16_t scalednote = note;
 	uint32_t renote = ((uint32_t)note * 65536) / NOTERANGE;
 
 	//Note is expected to be a vale from 0..(NOTERANGE-1)
@@ -288,7 +285,7 @@ uint32_t ICACHE_FLASH_ATTR ECCtoHEX( uint8_t note, uint8_t sat, uint8_t val )
 		//Yellow to Red.
 		hue = (third - renote) >> 1;
 	}
-	else if( renote < (third<<1) )
+	else if( renote < (uint16_t)(third<<1) )
 	{
 		//Red to Blue
 		hue = (third-renote);

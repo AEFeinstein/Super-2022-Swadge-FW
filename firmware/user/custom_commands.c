@@ -305,7 +305,8 @@ uint8_t ICACHE_FLASH_ATTR getRefGameWins(void)
  * @param len      The length of the received data
  * @return The length of the return buffer filled with data
  */
-int ICACHE_FLASH_ATTR CustomCommand(char* buffer, int retsize, char* pusrdata, unsigned short len)
+int ICACHE_FLASH_ATTR CustomCommand(char* buffer, int retsize  __attribute__((unused)),
+                                    char* pusrdata, unsigned short len __attribute__((unused)))
 {
     char* buffend = buffer;
 
