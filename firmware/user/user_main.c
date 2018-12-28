@@ -107,9 +107,9 @@ swadgeMode* swadgeModes[] =
 };
 bool swadgeModeInit = false;
 
-buttonEvt buttonQueue[NUM_BUTTON_EVTS] = {{0}};
-uint8_t buttonEvtHead = 0;
-uint8_t buttonEvtTail = 0;
+volatile buttonEvt buttonQueue[NUM_BUTTON_EVTS] = {{0}};
+volatile uint8_t buttonEvtHead = 0;
+volatile uint8_t buttonEvtTail = 0;
 bool pendingNextSwadgeMode = false;
 uint32_t lastButtonPress[3] = {0};
 bool debounceEnabled = true;

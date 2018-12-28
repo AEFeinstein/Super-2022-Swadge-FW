@@ -40,7 +40,7 @@ typedef struct
  * Variables
  *==========================================================================*/
 
-void (*mButtonHandler)(uint8_t state, int button, int down) = NULL;
+void (* volatile mButtonHandler)(uint8_t state, int button, int down) = NULL;
 volatile uint8_t LastGPIOState;
 
 #if defined(REV_A)

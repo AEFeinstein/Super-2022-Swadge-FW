@@ -47,7 +47,7 @@ volatile uint8_t sounddata[HPABUFFSIZE] = {0};
 volatile uint16_t soundhead = 0;
 volatile uint16_t soundtail = 0;
 
-bool hpaRunning = false;
+volatile bool hpaRunning = false;
 
 /*============================================================================
  * Prototypes

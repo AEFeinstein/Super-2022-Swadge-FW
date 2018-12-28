@@ -69,7 +69,7 @@ void hs_adc_start(void)
  *
  * @return A 16 bit ADC measurement
  */
-uint16 ICACHE_FLASH_ATTR hs_adc_read(void)
+uint16 hs_adc_read(void)
 {
     uint8 i;
     uint16 sardata[8];
