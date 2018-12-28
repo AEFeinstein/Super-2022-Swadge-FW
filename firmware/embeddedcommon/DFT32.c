@@ -192,8 +192,6 @@ void UpdateOutputBins32()
 static void HandleInt( int16_t sample )
 {
 	int i;
-	uint16_t adv;
-	uint8_t localipl;
 
 	uint8_t oct = Sdo_this_octave[Swhichoctaveplace];
 	Swhichoctaveplace ++;
@@ -220,29 +218,30 @@ static void HandleInt( int16_t sample )
 		}
 		return;
 	}
-
-
-	for( i = 0; i < OCTAVES;i++ )
+	else if(oct < OCTAVES)
 	{
-		Saccum_octavebins[i] += sample;
-	}
+		for( i = 0; i < OCTAVES;i++ )
+		{
+			Saccum_octavebins[i] += sample;
+		}
 
-	uint16_t * dsA = &Sdatspace32A[oct*FIXBPERO*2];
-	int32_t * dsB = &Sdatspace32B[oct*FIXBPERO*2];
+		uint16_t * dsA = &Sdatspace32A[oct*FIXBPERO*2];
+		int32_t * dsB = &Sdatspace32B[oct*FIXBPERO*2];
 
-	sample = Saccum_octavebins[oct]>>(OCTAVES-oct);
-	Saccum_octavebins[oct] = 0;
+		sample = Saccum_octavebins[oct]>>(OCTAVES-oct);
+		Saccum_octavebins[oct] = 0;
 
-	for( i = 0; i < FIXBPERO; i++ )
-	{
-		adv = *(dsA++);
-		localipl = *(dsA) >> 8;
-		*(dsA++) += adv;
+		for( i = 0; i < FIXBPERO; i++ )
+		{
+			uint16_t adv = *(dsA++);
+			uint8_t localipl = *(dsA) >> 8;
+			*(dsA++) += adv;
 
-		*(dsB++) += (Ssinonlytable[localipl] * sample);
-		//Get the cosine (1/4 wavelength out-of-phase with sin)
-		localipl += 64;
-		*(dsB++) += (Ssinonlytable[localipl] * sample);
+			*(dsB++) += (Ssinonlytable[localipl] * sample);
+			//Get the cosine (1/4 wavelength out-of-phase with sin)
+			localipl += 64;
+			*(dsB++) += (Ssinonlytable[localipl] * sample);
+		}
 	}
 }
 
@@ -297,59 +296,59 @@ void PushSample32( int16_t dat )
 
 #ifndef CCEMBEDDED
 
-void UpdateBinsForDFT32( const float * frequencies )
-{
-	int i;	
-	for( i = 0; i < FIXBINS; i++ )
-	{
-		float freq = frequencies[(i%FIXBPERO) + (FIXBPERO*(OCTAVES-1))];
-		Sdatspace32A[i*2] = (65536.0/freq);// / oneoveroctave;
-	}
-}
+//void UpdateBinsForDFT32( const float * frequencies )
+//{
+//	int i;
+//	for( i = 0; i < FIXBINS; i++ )
+//	{
+//		float freq = frequencies[(i%FIXBPERO) + (FIXBPERO*(OCTAVES-1))];
+//		Sdatspace32A[i*2] = (65536.0/freq);// / oneoveroctave;
+//	}
+//}
 
 #endif
 
 
 #ifndef CCEMBEDDED
 
-void DoDFTProgressive32( float * outbins, float * frequencies, int bins, const float * databuffer, int place_in_data_buffer, int size_of_data_buffer, float q, float speedup )
-{
-	static float backupbins[FIXBINS];
-	int i;
-	static int last_place;
-
-	memset( outbins, 0, bins * sizeof( float ) );
-	goutbins = outbins;
-
-	memcpy( outbins, backupbins, FIXBINS*4 );
-
-	if( FIXBINS != bins )
-	{
-		fprintf( stderr, "Error: Bins was reconfigured.  skippy requires a constant number of bins (%d != %d).\n", FIXBINS, bins );
-		return;
-	}
-
-	if( !Sdonefirstrun )
-	{
-		SetupDFTProgressive32();
-		Sdonefirstrun = 1;
-	}
-
-	UpdateBinsForDFT32( frequencies );
-
-	for( i = last_place; i != place_in_data_buffer; i = (i+1)%size_of_data_buffer )
-	{
-		int16_t ifr1 = (int16_t)( ((databuffer[i]) ) * 4095 );
-		HandleInt( ifr1 );
-		HandleInt( ifr1 );
-	}
-
-	UpdateOutputBins32();
-
-	last_place = place_in_data_buffer;
-
-	memcpy( backupbins, outbins, FIXBINS*4 );
-}
+//void DoDFTProgressive32( float * outbins, float * frequencies, int bins, const float * databuffer, int place_in_data_buffer, int size_of_data_buffer, float q, float speedup )
+//{
+//	static float backupbins[FIXBINS];
+//	int i;
+//	static int last_place;
+//
+//	memset( outbins, 0, bins * sizeof( float ) );
+//	goutbins = outbins;
+//
+//	memcpy( outbins, backupbins, FIXBINS*4 );
+//
+//	if( FIXBINS != bins )
+//	{
+//		fprintf( stderr, "Error: Bins was reconfigured.  skippy requires a constant number of bins (%d != %d).\n", FIXBINS, bins );
+//		return;
+//	}
+//
+//	if( !Sdonefirstrun )
+//	{
+//		SetupDFTProgressive32();
+//		Sdonefirstrun = 1;
+//	}
+//
+//	UpdateBinsForDFT32( frequencies );
+//
+//	for( i = last_place; i != place_in_data_buffer; i = (i+1)%size_of_data_buffer )
+//	{
+//		int16_t ifr1 = (int16_t)( ((databuffer[i]) ) * 4095 );
+//		HandleInt( ifr1 );
+//		HandleInt( ifr1 );
+//	}
+//
+//	UpdateOutputBins32();
+//
+//	last_place = place_in_data_buffer;
+//
+//	memcpy( backupbins, outbins, FIXBINS*4 );
+//}
 
 #endif
 

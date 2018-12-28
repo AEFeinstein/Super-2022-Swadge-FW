@@ -346,8 +346,6 @@ uint32_t ICACHE_FLASH_ATTR EHSVtoHEX( uint8_t hue, uint8_t sat, uint8_t val )
 		or = (hue - SIXTH5) * 255 / SIXTH1;
 	}
 
-	uint16_t rv = val;
-	if( rv > 128 ) rv++;
 	uint16_t rs = sat;
 	if( rs > 128 ) rs++;
 

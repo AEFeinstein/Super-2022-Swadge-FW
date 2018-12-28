@@ -578,18 +578,18 @@ void ws2812_push( uint8_t* buffer, uint16_t buffersize )
 
 }
 
-void ICACHE_FLASH_ATTR stop_i2s()
-{
-
-    //Disable DMA
-    SET_PERI_REG_MASK(SLC_CONF0, SLC_RXLINK_RST);//|SLC_TXLINK_RST);
-    CLEAR_PERI_REG_MASK(SLC_CONF0, SLC_RXLINK_RST);//|SLC_TXLINK_RST);
-
-    //Clear DMA int flags
-    SET_PERI_REG_MASK(SLC_INT_CLR,  0xffffffff);
-    CLEAR_PERI_REG_MASK(SLC_INT_CLR,  0xffffffff);
-
-    i2c_writeReg_Mask_def(i2c_bbpll, i2c_bbpll_en_audio_clock_out, 0);
-}
+//void ICACHE_FLASH_ATTR stop_i2s()
+//{
+//
+//    //Disable DMA
+//    SET_PERI_REG_MASK(SLC_CONF0, SLC_RXLINK_RST);//|SLC_TXLINK_RST);
+//    CLEAR_PERI_REG_MASK(SLC_CONF0, SLC_RXLINK_RST);//|SLC_TXLINK_RST);
+//
+//    //Clear DMA int flags
+//    SET_PERI_REG_MASK(SLC_INT_CLR,  0xffffffff);
+//    CLEAR_PERI_REG_MASK(SLC_INT_CLR,  0xffffffff);
+//
+//    i2c_writeReg_Mask_def(i2c_bbpll, i2c_bbpll_en_audio_clock_out, 0);
+//}
 
 
