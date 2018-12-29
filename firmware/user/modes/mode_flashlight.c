@@ -15,6 +15,12 @@
 #include "morse_code.h"
 
 /*============================================================================
+ * Defines
+ *==========================================================================*/
+
+#define NUM_STROBES 6
+
+/*============================================================================
  * Prototypes
  *==========================================================================*/
 
@@ -28,21 +34,8 @@ void ICACHE_FLASH_ATTR holdButtonCallback(void* timer_arg);
 void ICACHE_FLASH_ATTR startFlashlightStrobe(void);
 
 /*============================================================================
- * Variables
+ * Static Const Variables
  *==========================================================================*/
-
-swadgeMode flashlightMode =
-{
-    .modeName = "flashlight",
-    .fnEnterMode = flashlightEnterMode,
-    .fnExitMode = flashlightExitMode,
-    .fnTimerCallback = NULL,
-    .fnButtonCallback = flashlightButtonCallback,
-    .fnAudioCallback = NULL,
-    .wifiMode = NO_WIFI,
-    .fnEspNowRecvCb = NULL,
-    .fnEspNowSendCb = NULL,
-};
 
 static const uint8_t brightnesses[] =
 {
@@ -50,13 +43,7 @@ static const uint8_t brightnesses[] =
     0x40,
     0x01,
 };
-uint8_t brightnessIdx = 0;
 
-os_timer_t strobeTimerOn = {0};
-os_timer_t strobeTimerOff = {0};
-os_timer_t flashlightButtonHoldTimer = {0};
-
-#define NUM_STROBES 6
 static const uint32_t strobePeriodsMs[NUM_STROBES][2] =
 {
     {0, 0}, // 0 means on forever
@@ -65,14 +52,11 @@ static const uint32_t strobePeriodsMs[NUM_STROBES][2] =
     {300,  20},
     {200,  10},
     {100,  10},
-    //{60,   10},
-    // {25,   20}
 };
-uint8_t strobeIdx = 0;
 
-bool holdTimerRunning = false;
-bool morseInProgress = false;
-
+/* Oh, what, you think you're clever because you checked the source code for
+ * our hidden messages? Why do you think we made this open source?
+ */
 const char mysteryStrings[16][64] =
 {
     "YOU SPOONY BARD",
@@ -96,10 +80,33 @@ const char mysteryStrings[16][64] =
     "GREETINGS FROM ADAM CHARLES DAC AND GILLIAN"
 };
 
-/*
-* Oh, what, you think you're clever because you checked the source code for
-* our hidden messages? Why do you think we made this open source?
-*/
+/*============================================================================
+ * Variables
+ *==========================================================================*/
+
+swadgeMode flashlightMode =
+{
+    .modeName = "flashlight",
+    .fnEnterMode = flashlightEnterMode,
+    .fnExitMode = flashlightExitMode,
+    .fnTimerCallback = NULL,
+    .fnButtonCallback = flashlightButtonCallback,
+    .fnAudioCallback = NULL,
+    .wifiMode = NO_WIFI,
+    .fnEspNowRecvCb = NULL,
+    .fnEspNowSendCb = NULL,
+};
+
+uint8_t brightnessIdx = 0;
+
+os_timer_t strobeTimerOn = {0};
+os_timer_t strobeTimerOff = {0};
+os_timer_t flashlightButtonHoldTimer = {0};
+
+uint8_t strobeIdx = 0;
+
+bool holdTimerRunning = false;
+bool morseInProgress = false;
 
 /*============================================================================
  * Functions
@@ -110,13 +117,8 @@ const char mysteryStrings[16][64] =
  */
 void ICACHE_FLASH_ATTR flashlightEnterMode(void)
 {
-    // Turn LEDs on
     brightnessIdx = 0;
     strobeIdx = 0;
-
-    led_t leds[6] = {{0}};
-    ets_memset(leds, brightnesses[brightnessIdx], sizeof(leds));
-    setLeds(leds, sizeof(leds));
 
     os_timer_disarm(&strobeTimerOn);
     os_timer_setfn(&strobeTimerOn, strobeTimerOnCallback, NULL);
@@ -137,6 +139,11 @@ void ICACHE_FLASH_ATTR flashlightEnterMode(void)
 
     // Disable debounce because the hold button logic cares about quick releases
     enableDebounce(false);
+
+    // Turn LEDs on
+    led_t leds[6] = {{0}};
+    ets_memset(leds, brightnesses[brightnessIdx], sizeof(leds));
+    setLeds(leds, sizeof(leds));
 }
 
 /**
@@ -144,15 +151,18 @@ void ICACHE_FLASH_ATTR flashlightEnterMode(void)
  */
 void ICACHE_FLASH_ATTR flashlightExitMode(void)
 {
+    // Just in case, do this before disarming strobe timers, as it may start
+    // strobing via startFlashlightStrobe()
+    endMorseSequence();
+
+    // Disarm all timers
+    os_timer_disarm(&strobeTimerOn);
+    os_timer_disarm(&strobeTimerOff);
+    os_timer_disarm(&flashlightButtonHoldTimer);
+
     // Turn LEDs off
     led_t leds[6] = {{0x00}};
     setLeds(leds, sizeof(leds));
-
-    os_timer_disarm(&strobeTimerOn);
-    os_timer_disarm(&strobeTimerOff);
-
-    // Just in case
-    endMorseSequence();
 
     // And enable debounce again
     enableDebounce(true);
@@ -207,9 +217,14 @@ void ICACHE_FLASH_ATTR flashlightButtonCallback(
         // cycle the brightness
         brightnessIdx = (brightnessIdx + 1) %
                         (sizeof(brightnesses) / sizeof(brightnesses[0]));
-        led_t leds[6] = {{0}};
-        ets_memset(leds, brightnesses[brightnessIdx], sizeof(leds));
-        setLeds(leds, sizeof(leds));
+        // Immediately adjust the LEDs if the flashlight isn't strobing,
+        // otherwise the strobe will reset the brightness
+        if(0 == strobePeriodsMs[strobeIdx][0])
+        {
+            led_t leds[6] = {{0}};
+            ets_memset(leds, brightnesses[brightnessIdx], sizeof(leds));
+            setLeds(leds, sizeof(leds));
+        }
     }
 }
 

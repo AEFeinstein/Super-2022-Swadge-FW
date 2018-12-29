@@ -31,12 +31,12 @@ os_timer_t morseTimerOff = {0};
 
 void (*mFnWhenDone)(void) = NULL;
 
+// Temporary memory
+char morseString[64] = {0};
+
 /*============================================================================
  * Static Const Variables
  *==========================================================================*/
-
-// Temporary memory
-char morseString[64] = {0};
 
 // Letter to dot-dash mapping
 static const char* alpha[] =
