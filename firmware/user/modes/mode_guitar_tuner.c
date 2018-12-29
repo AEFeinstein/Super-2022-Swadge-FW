@@ -24,12 +24,16 @@
 #define NUM_STRINGS            6
 #define GUITAR_OFFSET          0
 #define CHROMATIC_OFFSET       6 // adjust start point by quartertones   
-#define SENSITIVITY            5 // TODO Change sensitivity here, Adam.
+#define SENSITIVITY            5
 
 /// Helper macro to return an integer clamped within a range (MIN to MAX)
 #define CLAMP(X, MIN, MAX) ( ((X) > (MAX)) ? (MAX) : ( ((X) < (MIN)) ? (MIN) : (X)) )
 /// Helper macro to return the absolute value of an integer
 #define ABS(X) (((X) < 0) ? -(X) : (X))
+
+/*============================================================================
+ * Enums
+ *==========================================================================*/
 
 typedef enum
 {
@@ -91,6 +95,12 @@ int32_t semitone_diff_filt = 0;
 os_timer_t guitarLedOverrideTimer = {0};
 bool guitarTunerOverrideLeds = false;
 
+tuner_mode_t currentMode = GUITAR_TUNER;
+
+/*============================================================================
+ * Const Variables
+ *==========================================================================*/
+
 /**
  * Indicies into fuzzed_bins[], a realtime DFT of sorts
  * fuzzed_bins[0] = A ... 1/2 steps are every 2.
@@ -104,8 +114,6 @@ const uint16_t freqBinIdxs[NUM_STRINGS] =
     34, // D = A + 5 half steps = 34
     24  // A string is exactly at note #24
 };
-
-tuner_mode_t currentMode = GUITAR_TUNER;
 
 /*============================================================================
  * Functions
@@ -145,7 +153,6 @@ void ICACHE_FLASH_ATTR guitarTunerEnterMode(void)
     }
     // Start a timer to restore LED functionality to colorchord
     guitarTunerOverrideLeds = true;
-    os_timer_disarm(&guitarLedOverrideTimer);
     os_timer_arm(&guitarLedOverrideTimer, 1000, false);
     // Set the LEDs
     setLeds(leds, sizeof(leds));
@@ -184,10 +191,10 @@ inline int16_t getDiffAround(uint16_t idx)
 }
 
 /**
- * TODO
+ * Inline helper function to get the magnitude of a frequency bin from folded_bins[]
  *
- * @param idx
- * @return
+ * @param idx The index to get a magnitude from
+ * @return A signed magnitude, even though folded_bins[] is unsigned
  */
 inline int16_t getSemiMagnitude(int16_t idx)
 {
@@ -203,10 +210,11 @@ inline int16_t getSemiMagnitude(int16_t idx)
 }
 
 /**
- * TODO
+ * Inline helper function to get the difference in magnitudes around a given
+ * frequency bin from folded_bins[]
  *
- * @param idx
- * @return
+ * @param idx The index to get a difference in magnitudes around
+ * @return The difference in magnitudes of the bins before and after the given index
  */
 inline int16_t getSemiDiffAround(uint16_t idx)
 {
@@ -226,8 +234,8 @@ void ICACHE_FLASH_ATTR guitarTunerSampleHandler(int32_t samp)
     PushSample32( samp );
     guitarSamplesProcessed++;
 
-    // If 128 samples have been processed
-    if( guitarSamplesProcessed == 128 )
+    // If at least 128 samples have been processed
+    if( guitarSamplesProcessed >= 128 )
     {
         // Don't bother if colorchord is inactive
         if( !COLORCHORD_ACTIVE )
@@ -253,7 +261,8 @@ void ICACHE_FLASH_ATTR guitarTunerSampleHandler(int32_t samp)
                                           (intensities_filt[i] >> 5);
 
                     // Pick out the difference around current magnitude and filter it too
-                    diffs_filt[i] =       (getDiffAround(freqBinIdxs[i] + GUITAR_OFFSET) + diffs_filt[i])       - (diffs_filt[i] >> 5);
+                    diffs_filt[i] =       (getDiffAround(freqBinIdxs[i] + GUITAR_OFFSET) + diffs_filt[i]) -
+                                          (diffs_filt[i] >> 5);
 
                     // This is the magnitude of the target frequency bin, cleaned up
                     int16_t intensity = (intensities_filt[i] >> SENSITIVITY) - 40; // drop a baseline.
@@ -323,7 +332,6 @@ void ICACHE_FLASH_ATTR guitarTunerSampleHandler(int32_t samp)
                 //This is the tonal difference.  You "calibrate" out the intensity.
                 int16_t tonalDiff = (semitone_diff_filt >> SENSITIVITY) * 200 / (intensity + 1);
 
-                // TODO thaeli, this is where you come in.
                 // tonal diff is -32768 to 32767. if its within -10 to 10, it's in tune. positive means too sharp, negative means too flat
                 // intensity is how 'loud' that frequency is, 0 to 255. you'll have to play around with values
                 //os_printf("thaeli, semitone %2d, tonal diff %6d, intensity %3d\r\n", currentMode, tonalDiff, intensity);
@@ -365,7 +373,7 @@ void ICACHE_FLASH_ATTR guitarTunerSampleHandler(int32_t samp)
 
                 // Set the LED, ensure each channel is between 0 and 255
                 uint32_t i;
-                for (i = 0; i < 6; i++)
+                for (i = 0; i < NUM_STRINGS; i++)
                 {
                     colors[i].r = CLAMP(red, 0, 255);
                     colors[i].g = CLAMP(grn, 0, 255);
