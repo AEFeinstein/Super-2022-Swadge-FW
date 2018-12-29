@@ -354,8 +354,8 @@ int ICACHE_FLASH_ATTR CustomCommand(char* buffer, int retsize  __attribute__((un
         case 'L': //LEDs
         {
             int i, it = 0;
-            buffend += ets_sprintf( buffend, "CL\t%d\t", USE_NUM_LIN_LEDS );
-            uint16_t toledsvals = USE_NUM_LIN_LEDS * 3;
+            buffend += ets_sprintf( buffend, "CL\t%d\t", NUM_LIN_LEDS );
+            uint16_t toledsvals = NUM_LIN_LEDS * 3;
             if( toledsvals > 600 )
             {
                 toledsvals = 600;

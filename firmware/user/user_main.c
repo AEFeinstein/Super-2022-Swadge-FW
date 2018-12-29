@@ -376,7 +376,7 @@ void ICACHE_FLASH_ATTR TransmitGenericEvent(void)
     sendpack[packetIdx++] = 0;
 
     // Colorchord LED count
-    sendpack[packetIdx++] = USE_NUM_LIN_LEDS;
+    sendpack[packetIdx++] = NUM_LIN_LEDS;
 
     // Number of times this status packet has been sent
     sendpack[packetIdx++] = status_update_count >> 8;
@@ -552,7 +552,7 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
             got_an_ip = 0;
         }
         ets_memset( ledOut + wifi_fails * 3, 255, 3 );
-        setLeds( (led_t*)ledOut, USE_NUM_LIN_LEDS * 3 );
+        setLeds( (led_t*)ledOut, NUM_LIN_LEDS * 3 );
     }
     else if( stat == STATION_GOT_IP && !got_an_ip )
     {
@@ -599,11 +599,11 @@ static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned
     }
     if( pusrdata[6] == 0x13 )
     {
-        uint8_t ledret[USE_NUM_LIN_LEDS * 3 + 6 + 2];
+        uint8_t ledret[NUM_LIN_LEDS * 3 + 6 + 2];
         ets_memcpy( ledret, mymac, 6 );
         ledret[6] = 0x14;
-        ledret[7] = USE_NUM_LIN_LEDS;
-        ets_memcpy( ledret, ledOut, USE_NUM_LIN_LEDS * 3 );
+        ledret[7] = NUM_LIN_LEDS;
+        ets_memcpy( ledret, ledOut, NUM_LIN_LEDS * 3 );
 
         // Request LEDs
         send_back_on_ip = IP4_to_uint32(ri->remote_ip);

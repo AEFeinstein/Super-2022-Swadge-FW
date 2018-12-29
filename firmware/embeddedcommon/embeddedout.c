@@ -105,14 +105,14 @@ void ICACHE_FLASH_ATTR UpdateLinearLEDs()
 
 	if( total_size_all_notes == 0 )
 	{
-		for( j = 0; j < USE_NUM_LIN_LEDS * 3; j++ )
+		for( j = 0; j < NUM_LIN_LEDS * 3; j++ )
 		{
 			ledOut[j] = 0;
 		}
 		return;
 	}
 
-	uint32_t porportional = (uint32_t)(USE_NUM_LIN_LEDS<<16)/((uint32_t)total_size_all_notes);
+	uint32_t porportional = (uint32_t)(NUM_LIN_LEDS<<16)/((uint32_t)total_size_all_notes);
 
 	uint16_t total_accounted_leds = 0;
 
@@ -122,7 +122,7 @@ void ICACHE_FLASH_ATTR UpdateLinearLEDs()
 		total_accounted_leds += porpamps[i];
 	}
 
-	int16_t total_unaccounted_leds = USE_NUM_LIN_LEDS - total_accounted_leds;
+	int16_t total_unaccounted_leds = NUM_LIN_LEDS - total_accounted_leds;
 
 	int addedlast = 1;
 	do
@@ -183,9 +183,9 @@ void ICACHE_FLASH_ATTR UpdateLinearLEDs()
 #endif
 
 	j = ledSpin;
-	for( l = 0; l < USE_NUM_LIN_LEDS; l++, j++ )
+	for( l = 0; l < NUM_LIN_LEDS; l++, j++ )
 	{
-		if( j >= USE_NUM_LIN_LEDS ) j = 0;
+		if( j >= NUM_LIN_LEDS ) j = 0;
 		ledFreqOutOld[l] = ledFreqOut[j];
 
 		uint16_t amp = ledAmpOut[j];
@@ -257,7 +257,7 @@ void ICACHE_FLASH_ATTR UpdateAllSameLEDs()
 	if( amp > 255 ) amp = 255;
 	uint32_t color = ECCtoHEX( (freq+RootNoteOffset)%NOTERANGE, 255, amp );
 
-	for( i = 0; i < USE_NUM_LIN_LEDS; i++ )
+	for( i = 0; i < NUM_LIN_LEDS; i++ )
 	{
 		ledOut[i*3+0] = ( color >> 0 ) & 0xff;
 		ledOut[i*3+1] = ( color >> 8 ) & 0xff;

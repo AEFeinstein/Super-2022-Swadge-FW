@@ -67,6 +67,8 @@ void ICACHE_FLASH_ATTR colorchordEnterMode(void)
 {
     InitColorChord();
 
+    samplesProcessed = 0;
+
     ccOverrideLeds = false;
 
     // Setup the LED override timer, but don't arm it
@@ -97,8 +99,8 @@ void ICACHE_FLASH_ATTR colorchordSampleHandler(int32_t samp)
     PushSample32( samp );
     samplesProcessed++;
 
-    // If 128 samples have been processed
-    if( samplesProcessed == 128 )
+    // If at least 128 samples have been processed
+    if( samplesProcessed >= 128 )
     {
         // Don't bother if colorchord is inactive
         if( !COLORCHORD_ACTIVE )
@@ -127,7 +129,7 @@ void ICACHE_FLASH_ATTR colorchordSampleHandler(int32_t samp)
         // Push out the LED data
         if(!ccOverrideLeds)
         {
-            setLeds( (led_t*)ledOut, USE_NUM_LIN_LEDS * 3 );
+            setLeds( (led_t*)ledOut, NUM_LIN_LEDS * 3 );
         }
 
         // Reset the sample count
