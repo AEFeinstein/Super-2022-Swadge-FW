@@ -45,7 +45,7 @@ void ICACHE_FLASH_ATTR danceExitMode(void);
 void ICACHE_FLASH_ATTR danceClearVars(void);
 void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state, int button, int down);
 void ICACHE_FLASH_ATTR setDanceLeds(led_t* ledData, uint8_t ledDataLen);
-uint32_t dance_rand(uint32_t upperBound);
+uint32_t ICACHE_FLASH_ATTR dance_rand(uint32_t upperBound);
 
 void ICACHE_FLASH_ATTR unlockAnimation(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode1(void* arg);
@@ -70,6 +70,17 @@ void ICACHE_FLASH_ATTR freeze_color(void* arg);
 void ICACHE_FLASH_ATTR random_dance_mode(void* arg);
 
 /*============================================================================
+ * Static Const Variables
+ *==========================================================================*/
+
+static const uint8_t danceBrightnesses[] =
+{
+    0x01,
+    0x08,
+    0x40,
+};
+
+/*============================================================================
  * Variables
  *==========================================================================*/
 
@@ -90,12 +101,6 @@ swadgeMode dancesMode =
     .fnEspNowSendCb = NULL,
 };
 
-static const uint8_t danceBrightnesses[] =
-{
-    0x01,
-    0x08,
-    0x40,
-};
 uint8_t danceBrightnessIdx = 0;
 
 /**
@@ -218,7 +223,6 @@ uint8_t currentDance = 0;
 /// This is a state variable used in animations
 int ledCount = 0;
 int ledCount2 = 0;
-int ledSwitch = 0;
 int timerCount = 0;
 int strobeCount = 0;
 
@@ -272,7 +276,6 @@ void ICACHE_FLASH_ATTR danceClearVars(void)
     // This is a state variable used in animations
     ledCount = 0;
     ledCount2 = 0;
-    ledSwitch = 0;
     timerCount = 0;
     strobeCount = 0;
 
@@ -337,7 +340,7 @@ void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state __attribute__((unused))
             return;
         }
 
-        // Button 1 pressed
+        // Button 2 pressed
         if(2 == button)
         {
             // Stop the current animation
@@ -437,7 +440,7 @@ void ICACHE_FLASH_ATTR setDanceLeds(led_t* ledData, uint8_t ledDataLen)
  * @param bound An upper bound of the random range to return
  * @return A number in the range [0,bound), which does not include bound
  */
-uint32_t dance_rand(uint32_t bound)
+uint32_t ICACHE_FLASH_ATTR dance_rand(uint32_t bound)
 {
     if(bound == 0)
     {
@@ -488,7 +491,6 @@ void ICACHE_FLASH_ATTR danceTimerMode2(void* arg __attribute__((unused)))
     ledCount = ledCount + 1;
     if(ledCount < 5)
     {
-
         // Turn the current LED on, full bright red
         leds[0].r = 200;
         leds[1].r = 200;
@@ -508,7 +510,6 @@ void ICACHE_FLASH_ATTR danceTimerMode2(void* arg __attribute__((unused)))
         leds[4].r = 0;
         leds[5].r = 0;
         // Output the LED data, actually turning them on
-
     }
 
     if(ledCount > 10)
@@ -537,7 +538,7 @@ void ICACHE_FLASH_ATTR danceTimerMode3(void* arg __attribute__((unused)))
         ledCount = 5;
     }
 
-    // Turn the current LED on, full bright red
+    // Turn the current LED on, full bright blue
     leds[ledCount].r = 0;
     leds[ledCount].g = 0;
     leds[ledCount].b = 255;
@@ -707,7 +708,7 @@ void ICACHE_FLASH_ATTR danceTimerMode8(void* arg __attribute__((unused)))
 /**
  * Called every 100ms
  *
- * Fire pattern. All LEDs are random amount of red, and half that of green.
+ * Fire pattern. All LEDs are random amount of red, and fifth that of green.
  * The LEDs towards the bottom have a brighter base and more randomness. The
  * LEDs towards the top are dimmer and have less randomness.
  *
@@ -739,7 +740,7 @@ void ICACHE_FLASH_ATTR danceTimerMode9(void* arg __attribute__((unused)))
 /**
  * Called every 100ms
  *
- * Fire pattern. All LEDs are random amount of green, and half that of blue.
+ * Fire pattern. All LEDs are random amount of green, and fifth that of blue.
  * The LEDs towards the bottom have a brighter base and more randomness. The
  * LEDs towards the top are dimmer and have less randomness.
  *
@@ -771,7 +772,7 @@ void ICACHE_FLASH_ATTR danceTimerMode10(void* arg __attribute__((unused)))
 /**
  * Called every 100ms
  *
- * Fire pattern. All LEDs are random amount of blue, and half that of green.
+ * Fire pattern. All LEDs are random amount of blue, and fifth that of green.
  * The LEDs towards the bottom have a brighter base and more randomness. The
  * LEDs towards the top are dimmer and have less randomness.
  *
@@ -954,16 +955,6 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
 
     if (timerCount < 300)
     {
-        ledSwitch = 0;
-    }
-
-    if (timerCount > 300)
-    {
-        ledSwitch = 1;
-    }
-
-    if(ledSwitch == 0)
-    {
         // Turn the current LED on GREEN
         leds[0].r = 13;
         leds[0].g = 255;
@@ -989,8 +980,7 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
         leds[5].g = 80;
         leds[5].b = 50;
     }
-
-    if(ledSwitch == 1)
+    else
     {
         // Turn the current LED on RED
         leds[0].r = 255;
@@ -1016,7 +1006,6 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg __attribute__((unused)))
         leds[5].r = 80;
         leds[5].g = 50;
         leds[5].b = 50;
-
     }
 
     // Output the LED data, actually turning them on
@@ -1232,7 +1221,7 @@ void ICACHE_FLASH_ATTR random_dance_mode(void* arg __attribute__((unused)))
          */
         random_dance_timer = 0;
         uint8_t numDances = sizeof(danceTimers) / sizeof(danceTimers[0]);
-        random_choice = dance_rand(numDances - 1);
+        random_choice = dance_rand(numDances - 1); // exclude the random mode
 
         // If the random dance is freeze, pick a random color to freeze
         if(danceTimers[random_choice].timerFn == &freeze_color)
