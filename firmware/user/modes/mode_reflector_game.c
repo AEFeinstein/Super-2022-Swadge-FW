@@ -58,7 +58,7 @@
 
 */
 
-/* Graphviz for function calls, as of 4a8e11ab2844f225385a44129743152e5b723532
+/* Graphviz for function calls, as of c5356eafd33750d373e2c1b0723947e560e2c2bf (I think...)
 
 digraph G {
 
@@ -76,6 +76,7 @@ digraph G {
     refDeinit[label="refDeinit()" color=aquamarine];
     refButton[label="refButton()" color=aquamarine];
     refRecvCb[label="refRecvCb()" color=aquamarine];
+    refSendCb[label="refSendCb()" color=aquamarine];
     refRestart[label="refRestart()"];
     refSendMsg[label="refSendMsg()"];
     refSendAckToMac[label="refSendAckToMac()"];
@@ -93,6 +94,9 @@ digraph G {
     refRoundResultLed[label="refRoundResultLed()"];
     refFailureRestart[label="refFailureRestart()" color=cornflowerblue];
     refStartRestartTimer[label="refStartRestartTimer()" color=cornflowerblue];
+    refSinglePlayerRestart[label="refSinglePlayerRestart()" color=cornflowerblue];
+    refAdjustledSpeed[label="refAdjustledSpeed()"];
+    refTxAllRetriesTimeout[label="refTxAllRetriesTimeout()" color=cornflowerblue];
 
     refInit -> refConnectionTimeout[label="timer"]
     refInit -> refConnLedTimeout[label="timer"]
@@ -107,6 +111,8 @@ digraph G {
 
     refFailureRestart -> refRestart
 
+    refSendCb-> refTxRetryTimeout[label="timer"]
+
     refRecvCb -> refRestart
     refRecvCb -> refSendAckToMac
     refRecvCb -> refGameStartAckRecv
@@ -114,6 +120,7 @@ digraph G {
     refRecvCb -> refStartRound
     refRecvCb -> refSendMsg
     refRecvCb -> refRoundResultLed
+    refRecvCb -> refAdjustledSpeed
 
     refSendAckToMac -> refSendMsg
 
@@ -131,11 +138,13 @@ digraph G {
     refStartPlaying -> refStartRound
     refStartPlaying -> refFailureRestart[label="timer"]
     refStartPlaying -> refStartRestartTimer[label="timer"]
+    refAdjustledSpeed -> refAdjustledSpeed
 
     refStartRound -> refDisarmAllLedTimers
     refStartRound -> refGameLedTimeout[label="timer"]
 
     refSendMsg -> refTxRetryTimeout[label="timer"]
+    refSendMsg -> refTxAllRetriesTimeout[label="timer"]
 
     refTxRetryTimeout -> refSendMsg
 
@@ -150,16 +159,24 @@ digraph G {
     refButton -> refSendRoundLossMsg
     refButton -> refFailureRestart[label="timer"]
     refButton -> refStartRestartTimer[label="timer"]
+    refButton -> refStartPlaying
+    refButton -> refAdjustledSpeed
+    refButton -> refStartRound
 
     refSendRoundLossMsg -> refRestart
     refSendRoundLossMsg -> refSendMsg
     refSendRoundLossMsg -> refRoundResultLed
     refSendRoundLossMsg -> refStartRestartTimer[label="timer"]
+    refSendRoundLossMsg -> refSinglePlayerRestart[label="timer"]
 
     refRoundResultLed -> refDisarmAllLedTimers
     refRoundResultLed -> refStartPlaying[label="timer"]
 
     refStartRestartTimer -> refRestart
+
+    refSinglePlayerRestart -> refSinglePlayerScoreLed
+    refSinglePlayerRestart -> refAdjustledSpeed
+    refSinglePlayerRestart -> refStartRound
 }
 
 */
@@ -537,6 +554,7 @@ void ICACHE_FLASH_ATTR refDeinit(void)
     os_timer_disarm(&ref.tmr.TxRetry);
     os_timer_disarm(&ref.tmr.StartPlaying);
     os_timer_disarm(&ref.tmr.Reinit);
+    os_timer_disarm(&ref.tmr.TxAllRetries);
     refDisarmAllLedTimers();
 }
 
@@ -1462,6 +1480,12 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
                     (ACT_CLOCKWISE == ref.gam.Action && 1 == button))
             {
                 success = true;
+            }
+            // If it's the wrong button for a single button mode
+            else if ((ACT_COUNTERCLOCKWISE == ref.gam.Action && 1 == button) ||
+                     (ACT_CLOCKWISE == ref.gam.Action && 2 == button))
+            {
+                failed = true;
             }
             // Or both buttons for both
             else if(ACT_BOTH == ref.gam.Action && ((0b110 & state) == 0b110))
