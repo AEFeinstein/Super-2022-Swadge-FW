@@ -553,7 +553,7 @@
                             							
                             <targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.targetPlatform.gnu.cross.1455572924" isAbstract="false" osList="all" superClass="cdt.managedbuild.targetPlatform.gnu.cross"/>
                             							
-                            <builder arguments="" buildPath="${workspace_loc:/swadge2019}/web" command="make" id="cdt.managedbuild.builder.gnu.cross.166299015" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross"/>
+                            <builder arguments="" buildPath="${workspace_loc:/swadge-devkit}/web" command="make" id="cdt.managedbuild.builder.gnu.cross.166299015" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross"/>
                             							
                             <tool id="cdt.managedbuild.tool.gnu.cross.c.compiler.390012579" name="Cross GCC Compiler" superClass="cdt.managedbuild.tool.gnu.cross.c.compiler">
                                 								
@@ -647,7 +647,7 @@
                             							
                             <targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.targetPlatform.gnu.cross.1031961551" isAbstract="false" osList="all" superClass="cdt.managedbuild.targetPlatform.gnu.cross"/>
                             							
-                            <builder arguments="push" buildPath="${workspace_loc:/swadge2019}/web" command="make" id="cdt.managedbuild.builder.gnu.cross.48698725" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross"/>
+                            <builder arguments="push" buildPath="${workspace_loc:/swadge-devkit}/web" command="make" id="cdt.managedbuild.builder.gnu.cross.48698725" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross"/>
                             							
                             <tool id="cdt.managedbuild.tool.gnu.cross.c.compiler.946605080" name="Cross GCC Compiler" superClass="cdt.managedbuild.tool.gnu.cross.c.compiler">
                                 								
@@ -741,7 +741,7 @@
                             							
                             <targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.targetPlatform.gnu.cross.758156086" isAbstract="false" osList="all" superClass="cdt.managedbuild.targetPlatform.gnu.cross"/>
                             							
-                            <builder arguments="usbpush" buildPath="${workspace_loc:/swadge2019}/web" command="make" id="cdt.managedbuild.builder.gnu.cross.2001317152" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross"/>
+                            <builder arguments="usbpush" buildPath="${workspace_loc:/swadge-devkit}/web" command="make" id="cdt.managedbuild.builder.gnu.cross.2001317152" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross"/>
                             							
                             <tool id="cdt.managedbuild.tool.gnu.cross.c.compiler.2055986145" name="Cross GCC Compiler" superClass="cdt.managedbuild.tool.gnu.cross.c.compiler">
                                 								
@@ -895,7 +895,7 @@
     	
     <storageModule moduleId="cdtBuildSystem" version="4.0.0">
         		
-        <project id="swadge2019.null.1329738160" name="swadge2019"/>
+        <project id="swadge-devkit.null.1329738160" name="swadge-devkit"/>
         	
     </storageModule>
     	
@@ -913,7 +913,7 @@
         		
         <configuration configurationName="web">
             			
-            <resource resourceType="PROJECT" workspacePath="/swadge2019"/>
+            <resource resourceType="PROJECT" workspacePath="/swadge-devkit"/>
             		
         </configuration>
         		
@@ -925,13 +925,13 @@
         		
         <configuration configurationName="Default">
             			
-            <resource resourceType="PROJECT" workspacePath="/swadge2019"/>
+            <resource resourceType="PROJECT" workspacePath="/swadge-devkit"/>
             		
         </configuration>
         		
         <configuration configurationName="build_burn">
             			
-            <resource resourceType="PROJECT" workspacePath="/swadge2019"/>
+            <resource resourceType="PROJECT" workspacePath="/swadge-devkit"/>
             		
         </configuration>
         	
