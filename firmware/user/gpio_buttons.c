@@ -43,55 +43,33 @@ typedef struct
 void (* volatile mButtonHandler)(uint8_t state, int button, int down) = NULL;
 volatile uint8_t LastGPIOState;
 
-#if defined(REV_A)
 static const gpioInfo_t gpioInfo[] =
 {
-    {
-        .GPID = 0,
-        .func = FUNC_GPIO0,
-        .periph = PERIPHS_IO_MUX_GPIO0_U
-    },
-    {
-        .GPID = 4,
-        .func = FUNC_GPIO4,
-        .periph = PERIPHS_IO_MUX_GPIO4_U
-    },
-    {
-        .GPID = 2,
-        .func = FUNC_GPIO2,
-        .periph = PERIPHS_IO_MUX_GPIO2_U
-    },
-    {
-        .GPID = 5,
-        .func = FUNC_GPIO5,
-        .periph = PERIPHS_IO_MUX_GPIO5_U
-    }
-};
-#elif defined(REV_B)
-static const gpioInfo_t gpioInfo[] =
-{
-    // Mode select
-    {
-        .GPID = 0,
-        .func = FUNC_GPIO0,
-        .periph = PERIPHS_IO_MUX_GPIO0_U
-    },
-    // Left button
+	// Down
+	{
+		.GPID = 9,
+		.func = FUNC_GPIO9,
+		.periph = PERIPHS_IO_MUX_SD_DATA2_U
+	},
+	// Up
+	{
+		.GPID = 10,
+		.func = FUNC_GPIO10,
+		.periph = PERIPHS_IO_MUX_SD_DATA3_U
+	},
+	// Left
+	{
+		.GPID = 12,
+		.func = FUNC_GPIO12,
+		.periph = PERIPHS_IO_MUX_MTDI_U
+	},
+    // Right
     {
         .GPID = 13,
         .func = FUNC_GPIO13,
         .periph = PERIPHS_IO_MUX_MTCK_U
     },
-    // Right button
-    {
-        .GPID = 2,
-        .func = FUNC_GPIO2,
-        .periph = PERIPHS_IO_MUX_GPIO2_U
-    }
 };
-#else
-#error "Please define a board revision"
-#endif
 
 /*============================================================================
  * Functions

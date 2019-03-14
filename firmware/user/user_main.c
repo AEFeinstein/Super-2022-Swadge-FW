@@ -657,50 +657,55 @@ void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void)
 {
     if(buttonEvtHead != buttonEvtTail)
     {
-        // The 0th button is the mode switch button, don't pass that to the mode
-        if(0 == buttonQueue[buttonEvtHead].btn)
-        {
-            // Make sure no two presses happen within 100ms of each other
-            if(buttonQueue[buttonEvtHead].time - lastButtonPress[buttonQueue[buttonEvtHead].btn] < DEBOUNCE_US)
-            {
-                ; // Consume this event below, don't count it as a press
-            }
-            else if(buttonQueue[buttonEvtHead].down)
-            {
-                // Note the time of this button press
-                lastButtonPress[buttonQueue[buttonEvtHead].btn] = buttonQueue[buttonEvtHead].time;
-                incrementSwadgeModeNoSleep();
-            }
-        }
-        // Pass the button to the mode
-        else if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
-        {
-            uint32_t debounceUs;
-            if(debounceEnabled)
-            {
-                debounceUs = DEBOUNCE_US;
-            }
-            else
-            {
-                debounceUs = DEBOUNCE_US_FAST;
-            }
-
-            if(buttonQueue[buttonEvtHead].time - lastButtonPress[buttonQueue[buttonEvtHead].btn] < debounceUs)
-            {
-                ; // Consume this event below, don't count it as a press
-            }
-            else
-            {
-                // Pass the button event to the mode
-                swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(
-                    buttonQueue[buttonEvtHead].stat,
-                    buttonQueue[buttonEvtHead].btn,
-                    buttonQueue[buttonEvtHead].down);
-
-                // Note the time of this button press
-                lastButtonPress[buttonQueue[buttonEvtHead].btn] = buttonQueue[buttonEvtHead].time;
-            }
-        }
+    	os_printf("btn  %d\ndown\n%d\nstat\n%d time %d\n",
+    			buttonQueue[buttonEvtHead].btn,
+    			buttonQueue[buttonEvtHead].down,
+    			buttonQueue[buttonEvtHead].stat,
+    			buttonQueue[buttonEvtHead].time);
+//        // The 0th button is the mode switch button, don't pass that to the mode
+//        if(0 == buttonQueue[buttonEvtHead].btn)
+//        {
+//            // Make sure no two presses happen within 100ms of each other
+//            if(buttonQueue[buttonEvtHead].time - lastButtonPress[buttonQueue[buttonEvtHead].btn] < DEBOUNCE_US)
+//            {
+//                ; // Consume this event below, don't count it as a press
+//            }
+//            else if(buttonQueue[buttonEvtHead].down)
+//            {
+//                // Note the time of this button press
+//                lastButtonPress[buttonQueue[buttonEvtHead].btn] = buttonQueue[buttonEvtHead].time;
+//                incrementSwadgeModeNoSleep();
+//            }
+//        }
+//        // Pass the button to the mode
+//        else if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
+//        {
+//            uint32_t debounceUs;
+//            if(debounceEnabled)
+//            {
+//                debounceUs = DEBOUNCE_US;
+//            }
+//            else
+//            {
+//                debounceUs = DEBOUNCE_US_FAST;
+//            }
+//
+//            if(buttonQueue[buttonEvtHead].time - lastButtonPress[buttonQueue[buttonEvtHead].btn] < debounceUs)
+//            {
+//                ; // Consume this event below, don't count it as a press
+//            }
+//            else
+//            {
+//                // Pass the button event to the mode
+//                swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(
+//                    buttonQueue[buttonEvtHead].stat,
+//                    buttonQueue[buttonEvtHead].btn,
+//                    buttonQueue[buttonEvtHead].down);
+//
+//                // Note the time of this button press
+//                lastButtonPress[buttonQueue[buttonEvtHead].btn] = buttonQueue[buttonEvtHead].time;
+//            }
+//        }
 
         // Increment the head
         buttonEvtHead = (buttonEvtHead + 1) % NUM_BUTTON_EVTS;
