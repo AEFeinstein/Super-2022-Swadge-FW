@@ -35,6 +35,9 @@
 #include "mode_random_d6.h"
 #include "mode_dance.h"
 #include "mode_flashlight.h"
+#include "brzo_i2c.h"
+#include "MMA8452Q.h"
+#include "oled.h"
 
 /*============================================================================
  * Defines
@@ -509,6 +512,19 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
 {
     CSTick( 1 );
 
+    static uint8_t accelCnt = 0;
+
+    accelCnt++;
+    if(accelCnt == 5)
+    {
+//    	display();
+    }
+    else if(accelCnt == 10)
+    {
+    	MMA8452Q_test();
+    	accelCnt = 0;
+    }
+
     // Tick the current mode every 100ms
     if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnTimerCallback)
     {
@@ -901,6 +917,14 @@ void ICACHE_FLASH_ATTR user_init(void)
 
     // Initialize LEDs
     ws2812_init();
+
+    // Initialize i2c
+    brzo_i2c_setup(100);
+
+    // Initialize accel
+    MMA8452Q_setup();
+
+    begin(SSD1306_EXTERNALVCC, 0x78, false, false);
 
     // Attempt to make ADC more stable
     // https:// github.com/esp8266/Arduino/issues/2070
