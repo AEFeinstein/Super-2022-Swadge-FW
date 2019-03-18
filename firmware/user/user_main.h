@@ -16,7 +16,6 @@
 #include "esp82xxutil.h"
 #include <stdint.h>
 #include <stddef.h>
-#include <stdbool.h>
 
 /*============================================================================
  * Enums
