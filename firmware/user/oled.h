@@ -10,9 +10,11 @@
 
 #include "c_types.h"
 
-#define BLACK                          0 ///< Draw 'off' pixels
-#define WHITE                          1 ///< Draw 'on' pixels
-#define INVERSE                        2 ///< Invert pixels
+typedef enum {
+	BLACK = 0,
+	WHITE = 1,
+	INVERSE = 2
+} color;
 
 #define SSD1306_MEMORYMODE          0x20 ///< See datasheet
 #define SSD1306_COLUMNADDR          0x21 ///< See datasheet
@@ -50,8 +52,8 @@
 #define SSD1306_ACTIVATE_SCROLL                      0x2F ///< Start scroll
 #define SSD1306_SET_VERTICAL_SCROLL_AREA             0xA3 ///< Set scroll range
 
+bool begin(uint8_t vcs, bool reset);
 void display(void);
-bool begin(uint8_t vcs, uint8_t addr, bool reset, bool periphBegin);
 void dim(bool dim);
 
 #endif /* OLED_H_ */

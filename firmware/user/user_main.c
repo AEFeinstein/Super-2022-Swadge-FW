@@ -517,11 +517,11 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
     accelCnt++;
     if(accelCnt == 5)
     {
-//    	display();
+    	display();
     }
     else if(accelCnt == 10)
     {
-    	MMA8452Q_test();
+//    	MMA8452Q_test();
     	accelCnt = 0;
     }
 
@@ -927,9 +927,13 @@ void ICACHE_FLASH_ATTR user_init(void)
     brzo_i2c_setup(100);
 
     // Initialize accel
-    MMA8452Q_setup();
+//    MMA8452Q_setup();
+//    os_printf("MMA8452Q initialized\n");
 
-    begin(SSD1306_EXTERNALVCC, 0x78, false, false);
+//    begin(SSD1306_EXTERNALVCC, true);
+    begin(SSD1306_SWITCHCAPVCC, true);
+    dim(false);
+    os_printf("OLED initialized\n");
 
     // Attempt to make ADC more stable
     // https:// github.com/esp8266/Arduino/issues/2070
