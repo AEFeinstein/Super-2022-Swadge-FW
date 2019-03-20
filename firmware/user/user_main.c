@@ -513,17 +513,36 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
     CSTick( 1 );
 
     static uint8_t accelCnt = 0;
-
     accelCnt++;
-    if(accelCnt == 5)
+    if(accelCnt == 10)
     {
-    	display();
-    }
-    else if(accelCnt == 10)
-    {
-//    	MMA8452Q_test();
+    	MMA8452Q_test();
     	accelCnt = 0;
     }
+
+	static uint8_t xPx = 0;
+	static uint8_t yPx = 0;
+	static color cPx = WHITE;
+	drawPixel(xPx, yPx, cPx);
+	xPx++;
+	if(xPx == OLED_WIDTH)
+	{
+		xPx = 0;
+		yPx++;
+		if(yPx == OLED_HEIGHT)
+		{
+			yPx = 0;
+			if(cPx == WHITE)
+			{
+				cPx = BLACK;
+			}
+			else
+			{
+				cPx = WHITE;
+			}
+		}
+	}
+	display();
 
     // Tick the current mode every 100ms
     if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnTimerCallback)
@@ -927,11 +946,11 @@ void ICACHE_FLASH_ATTR user_init(void)
     brzo_i2c_setup(100);
 
     // Initialize accel
-//    MMA8452Q_setup();
-//    os_printf("MMA8452Q initialized\n");
+    MMA8452Q_setup();
+    os_printf("MMA8452Q initialized\n");
 
-//    begin(SSD1306_EXTERNALVCC, true);
-    begin(SSD1306_SWITCHCAPVCC, true);
+    // Initialize display
+    begin(true);
     os_printf("OLED initialized\n");
 
     // Attempt to make ADC more stable
