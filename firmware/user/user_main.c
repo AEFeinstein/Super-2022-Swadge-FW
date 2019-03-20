@@ -932,7 +932,6 @@ void ICACHE_FLASH_ATTR user_init(void)
 
 //    begin(SSD1306_EXTERNALVCC, true);
     begin(SSD1306_SWITCHCAPVCC, true);
-    dim(false);
     os_printf("OLED initialized\n");
 
     // Attempt to make ADC more stable
