@@ -16,16 +16,20 @@
 #define OLED_ADDRESS (0x78 >> 1)
 #define OLED_FREQ    400
 
-typedef enum {
-	HORIZONTAL_ADDRESSING = 0x00,
-	VERTICAL_ADDRESSING   = 0x01,
-	PAGE_ADDRESSING       = 0x02
+#define PREFIX 0x00
+
+typedef enum
+{
+    HORIZONTAL_ADDRESSING = 0x00,
+    VERTICAL_ADDRESSING   = 0x01,
+    PAGE_ADDRESSING       = 0x02
 } memoryAddressingMode;
 
-typedef enum {
-	Vcc_X_0_65 = 0x00,
-	Vcc_X_0_77 = 0x20,
-	Vcc_X_0_83 = 0x30,
+typedef enum
+{
+    Vcc_X_0_65 = 0x00,
+    Vcc_X_0_77 = 0x20,
+    Vcc_X_0_83 = 0x30,
 } VcomhDeselectLevel;
 
 void ICACHE_FLASH_ATTR setContrastControl(uint8_t contrast);
@@ -71,17 +75,26 @@ uint8_t vccstate = 0;
             Follow up with a call to display(), or with other graphics
             commands as needed by one's own application.
 */
-void ICACHE_FLASH_ATTR drawPixel(uint8_t x, uint8_t y, color c) {
-	if((x < WIDTH) && (y < HEIGHT)) {
-		// Pixel is in-bounds. Rotate coordinates if needed.
-		x = WIDTH  - x - 1;
-		y = HEIGHT - y - 1;
-		switch(c) {
-			case WHITE:   buffer[x + (y/8)*WIDTH] |=  (1 << (y&7)); break;
-			case BLACK:   buffer[x + (y/8)*WIDTH] &= ~(1 << (y&7)); break;
-			case INVERSE: buffer[x + (y/8)*WIDTH] ^=  (1 << (y&7)); break;
-		}
-	}
+void ICACHE_FLASH_ATTR drawPixel(uint8_t x, uint8_t y, color c)
+{
+    if((x < WIDTH) && (y < HEIGHT))
+    {
+        // Pixel is in-bounds. Rotate coordinates if needed.
+        x = WIDTH  - x - 1;
+        y = HEIGHT - y - 1;
+        switch(c)
+        {
+            case WHITE:
+                buffer[x + (y / 8)*WIDTH] |=  (1 << (y & 7));
+                break;
+            case BLACK:
+                buffer[x + (y / 8)*WIDTH] &= ~(1 << (y & 7));
+                break;
+            case INVERSE:
+                buffer[x + (y / 8)*WIDTH] ^=  (1 << (y & 7));
+                break;
+        }
+    }
 }
 
 /**
@@ -90,84 +103,111 @@ void ICACHE_FLASH_ATTR drawPixel(uint8_t x, uint8_t y, color c) {
  * @param reset
  * @return
  */
-bool ICACHE_FLASH_ATTR begin(uint8_t vcs, bool reset) {
+bool ICACHE_FLASH_ATTR begin(uint8_t vcs, bool reset)
+{
 
-	ets_memset(buffer, 0, sizeof(buffer));
+    ets_memset(buffer, 0, sizeof(buffer));
 
-	uint8_t w, h;
-	for (w = 0; w < WIDTH; w++) {
-		for (h = 0; h < HEIGHT; h++) {
-			if (w % 2 == h % 2) {
-				drawPixel(w, h, BLACK);
-			}
-			else {
-				drawPixel(w, h, WHITE);
-			}
-		}
-	}
+    uint8_t w, h;
+    for (w = 0; w < WIDTH; w++)
+    {
+        for (h = 0; h < HEIGHT; h++)
+        {
+            if (w % 2 == h % 2)
+            {
+                drawPixel(w, h, BLACK);
+            }
+            else
+            {
+                drawPixel(w, h, WHITE);
+            }
+        }
+    }
 
-	vccstate = vcs;
+    vccstate = vcs;
 
-	// Reset SSD1306 if requested and reset pin specified in constructor
-	if(reset) {
-		gpio16_output_set(1);  // VDD goes high at start
-		ets_delay_us(1000);    // pause for 1 ms
-		gpio16_output_set(0);  // Bring reset low
-		ets_delay_us(10000);   // Wait 10 ms
-		gpio16_output_set(1);  // Bring out of reset
-	}
+    // Reset SSD1306 if requested and reset pin specified in constructor
+    if(reset)
+    {
+        gpio16_output_set(1);  // VDD goes high at start
+        ets_delay_us(1000);    // pause for 1 ms
+        gpio16_output_set(0);  // Bring reset low
+        ets_delay_us(10000);   // Wait 10 ms
+        gpio16_output_set(1);  // Bring out of reset
+    }
 
-	brzo_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
-	// Init sequence
+    brzo_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
+    // Init sequence
 
-	setDisplayOn(false);
-	setDisplayClockDivideRatio(0, 8);
-	setMultiplexRatio(HEIGHT - 1);
+#if 0
+    setDisplayOn(false);
+    setDisplayClockDivideRatio(0, 8);
+    setMultiplexRatio(HEIGHT - 1);
 
-	setDisplayOffset(0);
-	setDisplayStartLine(0);
-	if(vccstate == SSD1306_EXTERNALVCC)
-	{
-		setChargePumpSetting(false);
-	}
-	else
-	{
-		setChargePumpSetting(true);
-	}
+    setDisplayOffset(0);
+    setDisplayStartLine(0);
+    if(vccstate == SSD1306_EXTERNALVCC)
+    {
+        setChargePumpSetting(false);
+    }
+    else
+    {
+        setChargePumpSetting(true);
+    }
 
-	setMemoryAddressingMode(HORIZONTAL_ADDRESSING);
-	setSegmentRemap(true);
-	setComOutputScanDirection(false);
+    setMemoryAddressingMode(HORIZONTAL_ADDRESSING);
+    setSegmentRemap(true);
+    setComOutputScanDirection(false);
 
-	setComPinsHardwareConfig(true, false);
-	if(vccstate == SSD1306_EXTERNALVCC)
-	{
-		setContrastControl(0x9F);
-	}
-	else
-	{
-		setContrastControl(0xCF);
-	}
+    setComPinsHardwareConfig(true, false);
+    if(vccstate == SSD1306_EXTERNALVCC)
+    {
+        setContrastControl(0x9F);
+        setPrechargePeriod(2, 2);
+    }
+    else
+    {
+        setContrastControl(0xCF);
+        setPrechargePeriod(1, 15);
+    }
 
-	if (vccstate == SSD1306_EXTERNALVCC)
-	{
-		setPrechargePeriod(2, 2);
-	}
-	else
-	{
-		setPrechargePeriod(1, 15);
-	}
+    setVcomhDeselectLevel(Vcc_X_0_77);
+    entireDisplayOn(false);
+    setInverseDisplay(false);
+    activateScroll(false);
+    setDisplayOn(true);
+#else
+    setMultiplexRatio(HEIGHT - 1);
 
-	setVcomhDeselectLevel(Vcc_X_0_77);
-	entireDisplayOn(false);
-	setInverseDisplay(false);
-	activateScroll(false);
-	setDisplayOn(true);
+    setDisplayOffset(0);
 
-	uint8_t err = brzo_i2c_end_transaction();
-	os_printf("%s:%d: %02X\n", __func__, __LINE__, err);
+    setDisplayStartLine(0);
 
-	return true; // Success
+    setSegmentRemap(true);
+
+    setComOutputScanDirection(false);
+
+    setComPinsHardwareConfig(true, false);
+
+    //=====================
+
+    setContrastControl(0x7F);
+
+    entireDisplayOn(false);
+
+    setInverseDisplay(false);
+
+    setDisplayClockDivideRatio(0, 8);
+
+    setChargePumpSetting(true);
+
+    setDisplayOn(true);
+#endif
+
+    uint8_t err = brzo_i2c_end_transaction();
+    os_printf("%s:%d: %02X\n", __func__, __LINE__, err);
+
+    return true; // Success
 }
 
 /*!
@@ -177,17 +217,18 @@ bool ICACHE_FLASH_ATTR begin(uint8_t vcs, bool reset) {
  called. Call after each graphics command, or after a whole set
  of graphics commands, as best needed by one's own application.
  */
-void ICACHE_FLASH_ATTR display(void) {
-	brzo_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
+void ICACHE_FLASH_ATTR display(void)
+{
+    brzo_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
 
-	setPageAddress(0, 7);
-	setColumnAddress(0, WIDTH-1);
-	setDisplayStartLine(0);
+    setPageAddress(0, 7);
+    setColumnAddress(0, WIDTH - 1);
+    setDisplayStartLine(0);
 
-	brzo_i2c_write(buffer, sizeof(buffer), false);
+    brzo_i2c_write(buffer, sizeof(buffer), false);
 
-	uint8_t err = brzo_i2c_end_transaction();
-	os_printf("%s:%d: %02X\n", __func__, __LINE__, err);
+    uint8_t err = brzo_i2c_end_transaction();
+    os_printf("%s:%d: %02X\n", __func__, __LINE__, err);
 }
 
 //==============================================================================
@@ -203,9 +244,16 @@ void ICACHE_FLASH_ATTR display(void) {
  * @param contrast the value to set as contrast. Adafruit uses 0 for dim, 0x9F
  *                 for external VCC contrast and 0xCF for 3.3V voltage
  */
-void ICACHE_FLASH_ATTR setContrastControl(uint8_t contrast) {
-	uint8_t data[] = { SSD1306_SETCONTRAST, contrast };
-	brzo_i2c_write(data, sizeof(data), false);
+void ICACHE_FLASH_ATTR setContrastControl(uint8_t contrast)
+{
+    uint8_t data[] =
+    {
+#ifdef PREFIX
+        PREFIX,
+#endif
+        SSD1306_SETCONTRAST, contrast
+    };
+    brzo_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -214,10 +262,16 @@ void ICACHE_FLASH_ATTR setContrastControl(uint8_t contrast) {
  * @param ignoreRAM true  - Entire display ON, Output ignores RAM content
  *                  false - Resume to RAM content display (RESET) Output follows RAM content
  */
-void ICACHE_FLASH_ATTR entireDisplayOn(bool ignoreRAM) {
-	uint8_t data[] = {
-			ignoreRAM ? SSD1306_DISPLAYALLON : SSD1306_DISPLAYALLON_RESUME };
-	brzo_i2c_write(data, sizeof(data), false);
+void ICACHE_FLASH_ATTR entireDisplayOn(bool ignoreRAM)
+{
+    uint8_t data[] =
+    {
+#ifdef PREFIX
+        PREFIX,
+#endif
+        ignoreRAM ? SSD1306_DISPLAYALLON : SSD1306_DISPLAYALLON_RESUME
+    };
+    brzo_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -230,9 +284,16 @@ void ICACHE_FLASH_ATTR entireDisplayOn(bool ignoreRAM) {
  *                        0 in RAM: ON in display panel
  *                        1 in RAM: OFF in display panel
  */
-void ICACHE_FLASH_ATTR setInverseDisplay(bool inverse) {
-	uint8_t data[] = { inverse ? SSD1306_INVERTDISPLAY : SSD1306_NORMALDISPLAY };
-	brzo_i2c_write(data, sizeof(data), false);
+void ICACHE_FLASH_ATTR setInverseDisplay(bool inverse)
+{
+    uint8_t data[] =
+    {
+#ifdef PREFIX
+        PREFIX,
+#endif
+        inverse ? SSD1306_INVERTDISPLAY : SSD1306_NORMALDISPLAY
+    };
+    brzo_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -241,9 +302,16 @@ void ICACHE_FLASH_ATTR setInverseDisplay(bool inverse) {
  * @param on true  - Display ON in normal mode
  *           false - Display OFF (sleep mode)
  */
-void ICACHE_FLASH_ATTR setDisplayOn(bool on) {
-	uint8_t data[] = { on ? SSD1306_DISPLAYON : SSD1306_DISPLAYOFF };
-	brzo_i2c_write(data, sizeof(data), false);
+void ICACHE_FLASH_ATTR setDisplayOn(bool on)
+{
+    uint8_t data[] =
+    {
+#ifdef PREFIX
+        PREFIX,
+#endif
+        on ? SSD1306_DISPLAYON : SSD1306_DISPLAYOFF
+    };
+    brzo_i2c_write(data, sizeof(data), false);
 }
 
 
@@ -264,9 +332,16 @@ void ICACHE_FLASH_ATTR setDisplayOn(bool on) {
  *                     Valid command sequence 4: 2Ah ;2Fh.
  *           false - Stop scrolling that is configured by command 26h/27h/29h/2Ah.
  */
-void ICACHE_FLASH_ATTR activateScroll(bool on) {
-	uint8_t data[] = { on ? SSD1306_ACTIVATE_SCROLL : SSD1306_DEACTIVATE_SCROLL };
-	brzo_i2c_write(data, sizeof(data), false);
+void ICACHE_FLASH_ATTR activateScroll(bool on)
+{
+    uint8_t data[] =
+    {
+#ifdef PREFIX
+        PREFIX,
+#endif
+        on ? SSD1306_ACTIVATE_SCROLL : SSD1306_DEACTIVATE_SCROLL
+    };
+    brzo_i2c_write(data, sizeof(data), false);
 }
 
 //==============================================================================
@@ -280,9 +355,16 @@ void ICACHE_FLASH_ATTR activateScroll(bool on) {
  *
  * @param mode The mode: horizontal, vertical or page
  */
-void ICACHE_FLASH_ATTR setMemoryAddressingMode(memoryAddressingMode mode) {
-	uint8_t data[] = { SSD1306_MEMORYMODE, mode };
-	brzo_i2c_write(data, sizeof(data), false);
+void ICACHE_FLASH_ATTR setMemoryAddressingMode(memoryAddressingMode mode)
+{
+    uint8_t data[] =
+    {
+#ifdef PREFIX
+        PREFIX,
+#endif
+        SSD1306_MEMORYMODE, mode
+    };
+    brzo_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -295,12 +377,18 @@ void ICACHE_FLASH_ATTR setMemoryAddressingMode(memoryAddressingMode mode) {
  */
 void ICACHE_FLASH_ATTR setColumnAddress(uint8_t startAddr, uint8_t endAddr)
 {
-	if(startAddr > 127 || endAddr > 127)
-	{
-		return;
-	}
-	uint8_t data[] = { SSD1306_COLUMNADDR, startAddr, endAddr };
-	brzo_i2c_write(data, sizeof(data), false);
+    if(startAddr > 127 || endAddr > 127)
+    {
+        return;
+    }
+    uint8_t data[] =
+    {
+#ifdef PREFIX
+        PREFIX,
+#endif
+        SSD1306_COLUMNADDR, startAddr, endAddr
+    };
+    brzo_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -313,12 +401,18 @@ void ICACHE_FLASH_ATTR setColumnAddress(uint8_t startAddr, uint8_t endAddr)
  */
 void ICACHE_FLASH_ATTR setPageAddress(uint8_t startAddr, uint8_t endAddr)
 {
-	if(startAddr > 7 || endAddr > 7)
-	{
-		return;
-	}
-	uint8_t data[] = { SSD1306_PAGEADDR, startAddr, endAddr };
-	brzo_i2c_write(data, sizeof(data), false);
+    if(startAddr > 7 || endAddr > 7)
+    {
+        return;
+    }
+    uint8_t data[] =
+    {
+#ifdef PREFIX
+        PREFIX,
+#endif
+        SSD1306_PAGEADDR, startAddr, endAddr
+    };
+    brzo_i2c_write(data, sizeof(data), false);
 }
 
 //==============================================================================
@@ -333,12 +427,18 @@ void ICACHE_FLASH_ATTR setPageAddress(uint8_t startAddr, uint8_t endAddr)
  */
 void ICACHE_FLASH_ATTR setDisplayStartLine(uint8_t startLineRegister)
 {
-	if(startLineRegister > 63)
-	{
-		return;
-	}
-	uint8_t data[] = { SSD1306_SETSTARTLINE | (startLineRegister & 0x3F) };
-	brzo_i2c_write(data, sizeof(data), false);
+    if(startLineRegister > 63)
+    {
+        return;
+    }
+    uint8_t data[] =
+    {
+#ifdef PREFIX
+        PREFIX,
+#endif
+        SSD1306_SETSTARTLINE | (startLineRegister & 0x3F)
+    };
+    brzo_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -349,8 +449,14 @@ void ICACHE_FLASH_ATTR setDisplayStartLine(uint8_t startLineRegister)
  */
 void ICACHE_FLASH_ATTR setSegmentRemap(bool colAddr)
 {
-	uint8_t data[] = { SSD1306_SEGREMAP | (colAddr ? 0x01 : 0x00) };
-	brzo_i2c_write(data, sizeof(data), false);
+    uint8_t data[] =
+    {
+#ifdef PREFIX
+        PREFIX,
+#endif
+        SSD1306_SEGREMAP | (colAddr ? 0x01 : 0x00)
+    };
+    brzo_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -360,12 +466,19 @@ void ICACHE_FLASH_ATTR setSegmentRemap(bool colAddr)
  */
 void ICACHE_FLASH_ATTR setMultiplexRatio(uint8_t ratio)
 {
-	if(ratio < 15 || ratio > 63) {
-		// Invalid
-		return;
-	}
-	uint8_t data[] = { SSD1306_SETMULTIPLEX, ratio};
-	brzo_i2c_write(data, sizeof(data), false);
+    if(ratio < 15 || ratio > 63)
+    {
+        // Invalid
+        return;
+    }
+    uint8_t data[] =
+    {
+#ifdef PREFIX
+        PREFIX,
+#endif
+        SSD1306_SETMULTIPLEX, ratio
+    };
+    brzo_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -376,8 +489,14 @@ void ICACHE_FLASH_ATTR setMultiplexRatio(uint8_t ratio)
  */
 void ICACHE_FLASH_ATTR setComOutputScanDirection(bool increment)
 {
-	uint8_t data[] = { increment ? SSD1306_COMSCANINC : SSD1306_COMSCANDEC};
-	brzo_i2c_write(data, sizeof(data), false);
+    uint8_t data[] =
+    {
+#ifdef PREFIX
+        PREFIX,
+#endif
+        increment ? SSD1306_COMSCANINC : SSD1306_COMSCANDEC
+    };
+    brzo_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -387,12 +506,18 @@ void ICACHE_FLASH_ATTR setComOutputScanDirection(bool increment)
  */
 void ICACHE_FLASH_ATTR setDisplayOffset(uint8_t offset)
 {
-	if(offset > 63)
-	{
-		return;
-	}
-	uint8_t data[] = { SSD1306_SETDISPLAYOFFSET, offset};
-	brzo_i2c_write(data, sizeof(data), false);
+    if(offset > 63)
+    {
+        return;
+    }
+    uint8_t data[] =
+    {
+#ifdef PREFIX
+        PREFIX,
+#endif
+        SSD1306_SETDISPLAYOFFSET, offset
+    };
+    brzo_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -404,9 +529,15 @@ void ICACHE_FLASH_ATTR setDisplayOffset(uint8_t offset)
  */
 void ICACHE_FLASH_ATTR setComPinsHardwareConfig(bool sequential, bool remap)
 {
-	uint8_t data[] = { SSD1306_SETCOMPINS,
-	(sequential ? 0x00 : 0x10) | (remap ? 0x20 : 0x00) | 0x02};
-	brzo_i2c_write(data, sizeof(data), false);
+    uint8_t data[] =
+    {
+#ifdef PREFIX
+        PREFIX,
+#endif
+        SSD1306_SETCOMPINS,
+        (sequential ? 0x00 : 0x10) | (remap ? 0x20 : 0x00) | 0x02
+    };
+    brzo_i2c_write(data, sizeof(data), false);
 }
 
 //==============================================================================
@@ -423,13 +554,20 @@ void ICACHE_FLASH_ATTR setComPinsHardwareConfig(bool sequential, bool remap)
  *                with the value and vice versa. RESET is 1000b
  *                Range:0000b~1111b
  */
-void ICACHE_FLASH_ATTR setDisplayClockDivideRatio(uint8_t divideRatio, uint8_t oscFreq) {
-	if(divideRatio > 15 || oscFreq > 15)
-	{
-		return;
-	}
-	uint8_t data[] = { SSD1306_SETDISPLAYCLOCKDIV, (divideRatio & 0x0F) | ((oscFreq << 4) & 0xF0) };
-	brzo_i2c_write(data, sizeof(data), false);
+void ICACHE_FLASH_ATTR setDisplayClockDivideRatio(uint8_t divideRatio, uint8_t oscFreq)
+{
+    if(divideRatio > 15 || oscFreq > 15)
+    {
+        return;
+    }
+    uint8_t data[] =
+    {
+#ifdef PREFIX
+        PREFIX,
+#endif
+        SSD1306_SETDISPLAYCLOCKDIV, (divideRatio & 0x0F) | ((oscFreq << 4) & 0xF0)
+    };
+    brzo_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -440,13 +578,20 @@ void ICACHE_FLASH_ATTR setDisplayClockDivideRatio(uint8_t divideRatio, uint8_t o
  * @param phase2period Phase 2 period of up to 15 DCLK clocks 0 is invalid entry (RESET=2h )
  *                     Range:0000b~1111b
  */
-void ICACHE_FLASH_ATTR setPrechargePeriod(uint8_t phase1period, uint8_t phase2period) {
-	if(phase1period > 15 || phase2period > 15)
-	{
-		return;
-	}
-	uint8_t data[] = { SSD1306_SETPRECHARGE, (phase1period & 0x0F) | ((phase2period << 4) & 0xF0) };
-	brzo_i2c_write(data, sizeof(data), false);
+void ICACHE_FLASH_ATTR setPrechargePeriod(uint8_t phase1period, uint8_t phase2period)
+{
+    if(phase1period > 15 || phase2period > 15)
+    {
+        return;
+    }
+    uint8_t data[] =
+    {
+#ifdef PREFIX
+        PREFIX,
+#endif
+        SSD1306_SETPRECHARGE, (phase1period & 0x0F) | ((phase2period << 4) & 0xF0)
+    };
+    brzo_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -454,9 +599,16 @@ void ICACHE_FLASH_ATTR setPrechargePeriod(uint8_t phase1period, uint8_t phase2pe
  *
  * @param ratio ~0.65 x VCC, ~0.77 x VCC (RESET), or ~0.83 x VCC
  */
-void ICACHE_FLASH_ATTR setVcomhDeselectLevel(VcomhDeselectLevel level) {
-	uint8_t data[] = { SSD1306_SETVCOMDETECT, level };
-	brzo_i2c_write(data, sizeof(data), false);
+void ICACHE_FLASH_ATTR setVcomhDeselectLevel(VcomhDeselectLevel level)
+{
+    uint8_t data[] =
+    {
+#ifdef PREFIX
+        PREFIX,
+#endif
+        SSD1306_SETVCOMDETECT, level
+    };
+    brzo_i2c_write(data, sizeof(data), false);
 }
 
 //==============================================================================
@@ -474,7 +626,14 @@ void ICACHE_FLASH_ATTR setVcomhDeselectLevel(VcomhDeselectLevel level) {
  * @param enable true  - Enable charge pump during display on
  *               false - Disable charge pump(RESET)
  */
-void ICACHE_FLASH_ATTR setChargePumpSetting(bool enable) {
-	uint8_t data[] = { SSD1306_CHARGEPUMP, 0x10 | (enable ? 0x04 : 0x00)};
-	brzo_i2c_write(data, sizeof(data), false);
+void ICACHE_FLASH_ATTR setChargePumpSetting(bool enable)
+{
+    uint8_t data[] =
+    {
+#ifdef PREFIX
+        PREFIX,
+#endif
+        SSD1306_CHARGEPUMP, 0x10 | (enable ? 0x04 : 0x00)
+    };
+    brzo_i2c_write(data, sizeof(data), false);
 }
