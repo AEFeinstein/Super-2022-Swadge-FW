@@ -19,7 +19,7 @@
 //==============================================================================
 
 #define OLED_ADDRESS (0x78 >> 1)
-#define OLED_FREQ    400
+#define OLED_FREQ    1000
 
 typedef enum
 {
@@ -234,7 +234,7 @@ bool ICACHE_FLASH_ATTR begin(bool reset)
 
 /**
  * Push data currently in RAM to SSD1306 display.
- * This takes ~25ms @ 400KHz
+ * This takes ~12ms @ 800KHz
  *
  * @return true if the data was sent, false if it failed
  */

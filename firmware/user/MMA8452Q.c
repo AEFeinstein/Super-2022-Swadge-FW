@@ -9,7 +9,7 @@
 #include "MMA8452Q.h"
 
 #define MMA8452Q_ADDRESS 0x1C
-#define MMA8452Q_FREQ    400
+#define MMA8452Q_FREQ    1000
 
 accel currentAccel;
 
