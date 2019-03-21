@@ -515,12 +515,27 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
 
     // Poll the accelerometer
 	MMA8452Q_poll();
+	accel * acc = getAccel();
+
+	// Clear the display area with the accelerometer data
+	fillDisplayArea(
+			0,
+			OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)),
+			OLED_WIDTH - 1,
+			OLED_HEIGHT - 1,
+			BLACK);
 
 	// Display the acceleration on the display
 	char accelStr[32] = {0};
-	accel * acc = getAccel();
-	ets_snprintf(accelStr, sizeof(accelStr), "X:%d Y:%d Z:%d", acc->x, acc->y, acc->z);
-	plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 2, accelStr, TOM_THUMB);
+
+	ets_snprintf(accelStr, sizeof(accelStr), "X:%d", acc->x);
+	plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
+
+	ets_snprintf(accelStr, sizeof(accelStr), "Y:%d", acc->y);
+	plotText(OLED_WIDTH / 2, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
+
+	ets_snprintf(accelStr, sizeof(accelStr), "Z:%d", acc->z);
+	plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
 
 	// Update the display
 	display();

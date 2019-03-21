@@ -128,6 +128,28 @@ void ICACHE_FLASH_ATTR clearDisplay(void)
 }
 
 /**
+ * TODO
+ *
+ * @param x1
+ * @param y1
+ * @param x2
+ * @param y2
+ * @param c
+ */
+void ICACHE_FLASH_ATTR fillDisplayArea(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, color c)
+{
+	uint8_t x, y;
+	for(x = x1; x <= x2; x++)
+	{
+		for(y = y1; y <= y2; y++)
+		{
+			drawPixel(x, y, c);
+		}
+	}
+    buffer[0] = SSD1306_DATA;
+}
+
+/**
  * Set/clear/invert a single pixel.
  *
  * @param x Column of display, 0 is at the left
