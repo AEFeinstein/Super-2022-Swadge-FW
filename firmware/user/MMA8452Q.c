@@ -11,6 +11,8 @@
 #define MMA8452Q_ADDRESS 0x1C
 #define MMA8452Q_FREQ    400
 
+accel currentAccel;
+
 void ICACHE_FLASH_ATTR MMA8452Q_setup(void)
 {
 	brzo_i2c_start_transaction(MMA8452Q_ADDRESS, MMA8452Q_FREQ);
@@ -37,7 +39,7 @@ void ICACHE_FLASH_ATTR MMA8452Q_setup(void)
 	brzo_i2c_end_transaction();
 }
 
-void ICACHE_FLASH_ATTR MMA8452Q_test(void)
+void ICACHE_FLASH_ATTR MMA8452Q_poll(void)
 {
 	// Read 7 bytes of data(0x00)
 	brzo_i2c_start_transaction(MMA8452Q_ADDRESS, MMA8452Q_FREQ);
@@ -57,27 +59,27 @@ void ICACHE_FLASH_ATTR MMA8452Q_test(void)
 	else
 	{
 		// Convert the data to 12-bits
-		int xAccl = ((data[1] * 256) + data[2]) / 16;
-		if(xAccl > 2047)
+		currentAccel.x = ((data[1] * 256) + data[2]) / 16;
+		if(currentAccel.x > 2047)
 		{
-			xAccl -= 4096;
+			currentAccel.x -= 4096;
 		}
 
-		int yAccl = ((data[3] * 256) + data[4]) / 16;
-		if(yAccl > 2047)
+		currentAccel.y = ((data[3] * 256) + data[4]) / 16;
+		if(currentAccel.y > 2047)
 		{
-			yAccl -= 4096;
+			currentAccel.y -= 4096;
 		}
 
-		int zAccl = ((data[5] * 256) + data[6]) / 16;
-		if(zAccl > 2047)
+		currentAccel.z = ((data[5] * 256) + data[6]) / 16;
+		if(currentAccel.z > 2047)
 		{
-			zAccl -= 4096;
+			currentAccel.z -= 4096;
 		}
-
-		// Output data to screen
-		os_printf("X : %-4d \n", xAccl);
-		os_printf("Y : %-4d \n", yAccl);
-		os_printf("Z : %-4d \n\n", zAccl);
 	}
+}
+
+accel * ICACHE_FLASH_ATTR getAccel(void)
+{
+	return &currentAccel;
 }

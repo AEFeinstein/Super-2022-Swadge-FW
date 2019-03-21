@@ -89,6 +89,8 @@
                             							
                             <option id="cdt.managedbuild.option.gnu.cross.path.1167419457.1243163989" name="Path" superClass="cdt.managedbuild.option.gnu.cross.path.1167419457"/>
                             							
+                            <targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.targetPlatform.gnu.cross" isAbstract="false" osList="all" superClass="cdt.managedbuild.targetPlatform.gnu.cross"/>
+                            							
                             <tool id="cdt.managedbuild.tool.gnu.cross.c.compiler.286901448" name="Cross GCC Compiler" superClass="cdt.managedbuild.tool.gnu.cross.c.compiler.398605786">
                                 								
                                 <inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1963261281" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
@@ -119,15 +121,11 @@
                     					
                     <sourceEntries>
                         						
-                        <entry excluding="esp82xx/fwsrc|user|embeddedcommon|user/modes|modes" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
-                        						
                         <entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="embeddedcommon"/>
                         						
                         <entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="esp82xx/fwsrc"/>
                         						
-                        <entry excluding="modes" flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="user"/>
-                        						
-                        <entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="user/modes"/>
+                        <entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="user"/>
                         					
                     </sourceEntries>
                     				
@@ -943,13 +941,13 @@
         		
         <autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
         		
-        <scannerConfigBuildInfo instanceId="cdt.managedbuild.toolchain.gnu.cross.base.569727718;cdt.managedbuild.toolchain.gnu.cross.base.569727718.1033549063;cdt.managedbuild.tool.gnu.cross.cpp.compiler.1732999731;cdt.managedbuild.tool.gnu.cpp.compiler.input.146414947">
+        <scannerConfigBuildInfo instanceId="cdt.managedbuild.toolchain.gnu.cross.base.569727718;cdt.managedbuild.toolchain.gnu.cross.base.569727718.1033549063;cdt.managedbuild.tool.gnu.cross.c.compiler.398605786;cdt.managedbuild.tool.gnu.c.compiler.input.728743289">
             			
             <autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
             		
         </scannerConfigBuildInfo>
         		
-        <scannerConfigBuildInfo instanceId="cdt.managedbuild.toolchain.gnu.cross.base.569727718;cdt.managedbuild.toolchain.gnu.cross.base.569727718.1033549063;cdt.managedbuild.tool.gnu.cross.c.compiler.398605786;cdt.managedbuild.tool.gnu.c.compiler.input.728743289">
+        <scannerConfigBuildInfo instanceId="cdt.managedbuild.toolchain.gnu.cross.base.569727718;cdt.managedbuild.toolchain.gnu.cross.base.569727718.1033549063;cdt.managedbuild.tool.gnu.cross.cpp.compiler.1732999731;cdt.managedbuild.tool.gnu.cpp.compiler.input.146414947">
             			
             <autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
             		

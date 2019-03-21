@@ -38,6 +38,7 @@
 #include "brzo_i2c.h"
 #include "MMA8452Q.h"
 #include "oled.h"
+#include "font.h"
 
 /*============================================================================
  * Defines
@@ -504,7 +505,7 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
  * If the hardware is in wifi station mode, this Enables the hardware timer
  * to sample the ADC once the IP address has been received and printed
  *
- * Also handles logic for infrastrucure wifi mode, which isn't being used
+ * Also handles logic for infrastructure wifi mode, which isn't being used
  *
  * @param arg unused
  */
@@ -512,36 +513,16 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
 {
     CSTick( 1 );
 
-    static uint8_t accelCnt = 0;
-    accelCnt++;
-    if(accelCnt == 10)
-    {
-    	MMA8452Q_test();
-    	accelCnt = 0;
-    }
+    // Poll the accelerometer
+	MMA8452Q_poll();
 
-	static uint8_t xPx = 0;
-	static uint8_t yPx = 0;
-	static color cPx = WHITE;
-	drawPixel(xPx, yPx, cPx);
-	xPx++;
-	if(xPx == OLED_WIDTH)
-	{
-		xPx = 0;
-		yPx++;
-		if(yPx == OLED_HEIGHT)
-		{
-			yPx = 0;
-			if(cPx == WHITE)
-			{
-				cPx = BLACK;
-			}
-			else
-			{
-				cPx = WHITE;
-			}
-		}
-	}
+	// Display the acceleration on the display
+	char accelStr[32] = {0};
+	accel * acc = getAccel();
+	ets_snprintf(accelStr, sizeof(accelStr), "X:%d Y:%d Z:%d", acc->x, acc->y, acc->z);
+	plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 2, accelStr, TOM_THUMB);
+
+	// Update the display
 	display();
 
     // Tick the current mode every 100ms
@@ -952,6 +933,10 @@ void ICACHE_FLASH_ATTR user_init(void)
     // Initialize display
     begin(true);
     os_printf("OLED initialized\n");
+
+	plotText(2, 4 + (0 * FONT_HEIGHT_RADIOSTARS) + (0 * 3), "colorchord", RADIOSTARS);
+	plotText(2, 4 + (1 * FONT_HEIGHT_RADIOSTARS) + (1 * 3), "colorchord", IBM_VGA_8);
+	plotText(2, 4 + (2 * FONT_HEIGHT_IBMVGA8) + (2 * 3), "colorchord", TOM_THUMB);
 
     // Attempt to make ADC more stable
     // https:// github.com/esp8266/Arduino/issues/2070
