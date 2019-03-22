@@ -33,13 +33,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #else
 #include <c_types.h>
 
-// SDA on GPIO4, SCL on GPIO5
-#define BRZO_I2C_SDA_MUX PERIPHS_IO_MUX_GPIO4_U
-#define BRZO_I2C_SCL_MUX PERIPHS_IO_MUX_GPIO5_U
-#define BRZO_I2C_SDA_GPIO 4
-#define BRZO_I2C_SCL_GPIO 5
-#define BRZO_I2C_SDA_FUNC FUNC_GPIO4
-#define BRZO_I2C_SCL_FUNC FUNC_GPIO5
+// SDA on GPIO2, SCL on GPIO0
+#define BRZO_I2C_SDA_MUX PERIPHS_IO_MUX_GPIO2_U
+#define BRZO_I2C_SCL_MUX PERIPHS_IO_MUX_GPIO0_U
+#define BRZO_I2C_SDA_GPIO 2
+#define BRZO_I2C_SCL_GPIO 0
+#define BRZO_I2C_SDA_FUNC FUNC_GPIO2
+#define BRZO_I2C_SCL_FUNC FUNC_GPIO0
 
 #endif
 

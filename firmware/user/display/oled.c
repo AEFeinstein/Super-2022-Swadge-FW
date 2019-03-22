@@ -199,11 +199,11 @@ bool ICACHE_FLASH_ATTR begin(bool reset)
     // Reset SSD1306 if requested and reset pin specified in constructor
     if(reset)
     {
-        gpio16_output_set(1);  // VDD goes high at start
+    	setOledResetOn(true);  // VDD goes high at start
         ets_delay_us(1000);    // pause for 1 ms
-        gpio16_output_set(0);  // Bring reset low
+        setOledResetOn(false);  // Bring reset low
         ets_delay_us(10000);   // Wait 10 ms
-        gpio16_output_set(1);  // Bring out of reset
+        setOledResetOn(true);  // Bring out of reset
     }
 
     // Start i2c
