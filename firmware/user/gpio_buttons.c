@@ -34,6 +34,7 @@ typedef struct
     uint8_t GPID;
     uint8_t func;
     int periph;
+    bool initialState;
 } gpioInfo_t;
 
 /*============================================================================
@@ -43,33 +44,55 @@ typedef struct
 void (* volatile mButtonHandler)(uint8_t state, int button, int down) = NULL;
 volatile uint8_t LastGPIOState;
 
-static const gpioInfo_t gpioInfo[] =
+static const gpioInfo_t gpioInfoInput[] =
 {
 /// GPIO 9 and 10 are unusable, so they are disconnected
 	// Down
 	{
 		.GPID = 4,
 		.func = FUNC_GPIO4,
-		.periph = PERIPHS_IO_MUX_GPIO4_U
+		.periph = PERIPHS_IO_MUX_GPIO4_U,
+		.initialState = 1
 	},
 	// Up
 	{
 		.GPID = 5,
 		.func = FUNC_GPIO5,
-		.periph = PERIPHS_IO_MUX_GPIO5_U
+		.periph = PERIPHS_IO_MUX_GPIO5_U,
+		.initialState = 1
 	},
 	// Left
 	{
 		.GPID = 12,
 		.func = FUNC_GPIO12,
-		.periph = PERIPHS_IO_MUX_MTDI_U
+		.periph = PERIPHS_IO_MUX_MTDI_U,
+		.initialState = 1
 	},
-    // Right
-    {
-        .GPID = 13,
-        .func = FUNC_GPIO13,
-        .periph = PERIPHS_IO_MUX_MTCK_U
-    },
+	// Right
+	{
+		.GPID = 13,
+		.func = FUNC_GPIO13,
+		.periph = PERIPHS_IO_MUX_MTCK_U,
+		.initialState = 1
+	},
+};
+
+static const gpioInfo_t gpioInfoOutput[] =
+{
+	// GPIO15 used as RST for the OLED
+	{
+		.GPID = 15,
+		.func = FUNC_GPIO15,
+		.periph = PERIPHS_IO_MUX_MTDO_U,
+		.initialState = 0
+	},
+	// Pull GPIO 14 high, this is for the microphone
+	{
+		.GPID = 14,
+		.func = FUNC_GPIO14,
+		.periph = PERIPHS_IO_MUX_MTMS_U,
+		.initialState = 1
+	},
 };
 
 /*============================================================================
@@ -89,7 +112,7 @@ void gpioInterrupt( void* v __attribute__((unused)))
 
     // For all the buttons
     uint8_t i;
-    for( i = 0; i < lengthof(gpioInfo); i++ )
+    for( i = 0; i < lengthof(gpioInfoInput); i++ )
     {
         int mask = 1 << i;
         // If the current button state doesn't match the previous button state
@@ -126,19 +149,19 @@ void ICACHE_FLASH_ATTR SetupGPIO(void (*handler)(uint8_t state, int button, int 
 
     // For each button
     uint8_t i;
-    for(i = 0; i < lengthof(gpioInfo); i++ )
+    for(i = 0; i < lengthof(gpioInfoInput); i++ )
     {
         // Set the function
-        PIN_FUNC_SELECT(gpioInfo[i].periph, gpioInfo[i].func);
+        PIN_FUNC_SELECT(gpioInfoInput[i].periph, gpioInfoInput[i].func);
         // Set it as an input
-        PIN_DIR_INPUT = 1 << gpioInfo[i].GPID;
+        PIN_DIR_INPUT = 1 << gpioInfoInput[i].GPID;
         // And enable a pullup
-        GPIO_OUTPUT_SET(GPIO_ID_PIN(gpioInfo[i].GPID), 1 );
+        GPIO_OUTPUT_SET(GPIO_ID_PIN(gpioInfoInput[i].GPID), gpioInfoInput[i].initialState );
 
         // Enable interrupt on any edge
-        gpio_pin_intr_state_set(GPIO_ID_PIN(gpioInfo[i].GPID), GPIO_PIN_INTR_ANYEDGE);
+        gpio_pin_intr_state_set(GPIO_ID_PIN(gpioInfoInput[i].GPID), GPIO_PIN_INTR_ANYEDGE);
         // Clear interrupt status
-        GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, BIT(gpioInfo[i].GPID));
+        GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, BIT(gpioInfoInput[i].GPID));
     }
 
     // Enable GPIO interrupts
@@ -147,28 +170,31 @@ void ICACHE_FLASH_ATTR SetupGPIO(void (*handler)(uint8_t state, int button, int 
     // Get the initial button state
     LastGPIOState = GetButtons();
 
-    // GPIO15 used as RST for the OLED
-    PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDO_U, FUNC_GPIO15);
-    PIN_DIR_OUTPUT = 1 << GPIO_ID_PIN(15);
-    GPIO_OUTPUT_SET(GPIO_ID_PIN(15), 0 );
+    for(i = 0; i < lengthof(gpioInfoOutput); i++ )
+    {
+        // Set the function
+        PIN_FUNC_SELECT(gpioInfoOutput[i].periph, gpioInfoOutput[i].func);
+        // Set it as an input
+        PIN_DIR_OUTPUT = 1 << gpioInfoOutput[i].GPID;
+        // And enable a pullup
+        GPIO_OUTPUT_SET(GPIO_ID_PIN(gpioInfoOutput[i].GPID), gpioInfoOutput[i].initialState );
+    }
 
     // Pull GPIO 14 high, this is for the microphone
-    PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTMS_U, FUNC_GPIO14);
-    PIN_DIR_OUTPUT = 1 << GPIO_ID_PIN(14);
     GPIO_OUTPUT_SET(GPIO_ID_PIN(14), enableMic );
 
-//    // Set GPIO16 for Input,  mux configuration for XPD_DCDC and rtc_gpio0 connection
-//    WRITE_PERI_REG(PAD_XPD_DCDC_CONF,
-//                   (READ_PERI_REG(PAD_XPD_DCDC_CONF) & 0xffffffbc) | (uint32)
-//                   0x1);
-//
-//    // mux configuration for out enable
-//    WRITE_PERI_REG(RTC_GPIO_CONF,
-//                   (READ_PERI_REG(RTC_GPIO_CONF) & (uint32)0xfffffffe) | (uint32)0x0);
-//
-//    // out disable
-//    WRITE_PERI_REG(RTC_GPIO_ENABLE,
-//                   READ_PERI_REG(RTC_GPIO_ENABLE) & (uint32)0xfffffffe);
+    // Set GPIO16 for Input,  mux configuration for XPD_DCDC and rtc_gpio0 connection
+    WRITE_PERI_REG(PAD_XPD_DCDC_CONF,
+                   (READ_PERI_REG(PAD_XPD_DCDC_CONF) & 0xffffffbc) | (uint32)
+                   0x1);
+
+    // mux configuration for out enable
+    WRITE_PERI_REG(RTC_GPIO_CONF,
+                   (READ_PERI_REG(RTC_GPIO_CONF) & (uint32)0xfffffffe) | (uint32)0x0);
+
+    // out disable
+    WRITE_PERI_REG(RTC_GPIO_ENABLE,
+                   READ_PERI_REG(RTC_GPIO_ENABLE) & (uint32)0xfffffffe);
 
     os_printf( "Setup GPIO Complete\n" );
 }
@@ -185,9 +211,9 @@ uint8_t GetButtons()
 
     // For each button, read it and set it in ret
     uint8_t i;
-    for( i = 0; i < lengthof(gpioInfo); i++ )
+    for( i = 0; i < lengthof(gpioInfoInput); i++ )
     {
-        ret |= (PIN_IN & (1 << gpioInfo[i].GPID)) ? (1 << i) : 0;
+        ret |= (PIN_IN & (1 << gpioInfoInput[i].GPID)) ? (1 << i) : 0;
     }
 
     // GPIO15's logic is inverted.  Don't flip it but flip everything else.

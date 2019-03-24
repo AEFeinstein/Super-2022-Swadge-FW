@@ -19,7 +19,7 @@
 //==============================================================================
 
 #define OLED_ADDRESS (0x78 >> 1)
-#define OLED_FREQ    1000
+#define OLED_FREQ    800
 
 typedef enum
 {
