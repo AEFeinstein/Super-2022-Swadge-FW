@@ -1,8 +1,36 @@
 # Makefile by Adam, 2019
 
+################################################################################
 # This tells the makefile to use the xtensa binaries to build
-CC=$(ESP_ROOT)/xtensa-lx106-elf/bin/xtensa-lx106-elf-gcc
-LD=$(ESP_ROOT)/xtensa-lx106-elf/bin/xtensa-lx106-elf-ld
+################################################################################
+
+GCC_FOLDER = $(ESP_ROOT)/xtensa-lx106-elf
+ESPTOOL_PY = $(ESP_ROOT)/esptool/esptool.py
+SDK        = ./esp82xx/toolchain/esp_nonos_sdk
+
+XTLIB        = $(SDK)/lib
+ESP_GCC_VERS = 4.8.5
+XTGCCLIB     = $(GCC_FOLDER)/lib/gcc/xtensa-lx106-elf/$(ESP_GCC_VERS)/libgcc.a
+FOLDERPREFIX = $(GCC_FOLDER)/bin
+PREFIX       = $(FOLDERPREFIX)/xtensa-lx106-elf-
+CC           = $(PREFIX)gcc
+OBJCOPY      = $(PREFIX)objcopy
+LD           = $(PREFIX)ld
+AR           = $(PREFIX)ar
+CP           = cp
+
+################################################################################
+# Options for burning
+################################################################################
+
+FWBURNFLAGS  = -b 2000000
+PORT  = /dev/ttyUSB0
+FLASH_WRITE_FLAGS = # --verify
+MFS_PAGE_OFFSET=532480
+
+################################################################################
+# Compilation options
+################################################################################
 
 # This is a list of directories to scan for c files recursively
 SRC_DIRS_RECURSIVE = \
@@ -17,7 +45,7 @@ SRC_DIRS_FLAT = \
 SRC_DIRS = $(shell find $(SRC_DIRS_RECURSIVE) -type d) $(SRC_DIRS_FLAT)
 
 # This is a list of all source c files 
-SOURCES := $(shell find $(SRC_DIRS) -maxdepth 1 -name "*.c")
+SOURCES  = $(shell find $(SRC_DIRS) -maxdepth 1 -name "*.c")
 
 # These are flags for the compiler
 EXTRA_CFLAGS = \
@@ -31,7 +59,8 @@ EXTRA_CFLAGS = \
 	-Wl,--gc-sections \
 	-nostdlib \
 	-Wl,-Map,output.map \
-	-Besp82xx/toolchain/esp_nonos_sdk/lib
+	-B$(SDK)/lib \
+	-g
 
 # These are a list of #define symbols in the makefile
 DEFINES = \
@@ -40,7 +69,7 @@ DEFINES = \
 	QUIET_REFLASH \
 	WS2812_FOUR_SAMPLE \
 	USE_OPTIMIZE_PRINTF \
-	MFS_PAGE_OFFSET=532480 \
+	MFS_PAGE_OFFSET=$(MFS_PAGE_OFFSET) \
 	DISABLE_MDNS \
 	DISABLE_AUTO_SWITCH_TO_AP \
 	DISABLE_NET_REFLASH \
@@ -59,13 +88,17 @@ INC = $(patsubst %, -I%, \
 	$(SRC_DIRS) \
 	. \
 	esp82xx/include \
-	esp82xx/toolchain/esp_nonos_sdk/include)
+	$(SDK)/include)
 
-# This is the directory in which object filese will be stored
+# This is the directory in which object files will be stored
 OBJ_DIR = obj
 
 # This is a list of objects to build
 OBJECTS=$(patsubst %.c, $(OBJ_DIR)/%.o, $(SOURCES))
+
+################################################################################
+# Linker options
+################################################################################
 
 # This is a list of libraries to include. Order doesn't matter
 LIBS = \
@@ -84,14 +117,14 @@ LIBS = \
 # These are directories to look for library files in
 LIB_DIRS = \
 	esp82xx \
-	esp82xx/toolchain/esp_nonos_sdk/lib \
+	$(SDK)/lib \
 	$(ESP_ROOT)/xtensa-lx106-elf/xtensa-lx106-elf/sysroot/lib/
 
 # This combines the flags for the linker to find and use libraries
 LIBRARY_FLAGS = $(patsubst %, -L%, $(LIB_DIRS)) --start-group $(patsubst %, -l%, $(LIBS)) --end-group
 
 # These are flags for the linker
-EXTRA_LDFLAGS = -Os -flto -nostdlib -u call_user_start
+EXTRA_LDFLAGS = -Os -flto -nostdlib -u call_user_start -g
 
 # These are the linker scripts to build with
 LINKER_SCRIPTS = \
@@ -99,28 +132,127 @@ LINKER_SCRIPTS = \
 	eagle.rom.addr.v6.ld
 
 # This adds the flags and directories to the linker scripts
-LINKER_SCRIPT_FLAGS = $(patsubst %, -T esp82xx/toolchain/esp_nonos_sdk/ld/%, $(LINKER_SCRIPTS))
+LINKER_SCRIPT_FLAGS = $(patsubst %, -T $(SDK)/ld/%, $(LINKER_SCRIPTS))
 
-# This is the binary to build
-EXECUTABLE = image.elf
+################################################################################
+# Build Filenames
+################################################################################
 
-# This creates a directory before building an object in it.
-DIR_GUARD=@mkdir -p $(@D)
+# These are the files to build
+FW_FILE0 = image.elf
+FW_FILE1 = image.elf-0x00000.bin
+FW_FILE2 = image.elf-0x10000.bin
+LIBGCC_STRIPPED = esp82xx/libgcc_stripped.a
+WEBPAGE_MFS = web/page.mpfs
 
-.PHONY: all clean
+################################################################################
+# Targets for Building
+################################################################################
 
-all: $(SOURCES) $(EXECUTABLE)
+# This list of targets do not build files which match their name
+.PHONY: all clean debug bump_submodule erase dumprom wipechip burnitall burn burn_cutecom print-%
 
-$(EXECUTABLE): $(OBJECTS) 
+# Build everything!
+all: $(FW_FILE1) $(FW_FILE2) $(WEBPAGE_MFS)
+
+# To build the two firmware files for flashing, you have to build the main file
+$(FW_FILE1) $(FW_FILE2) : $(FW_FILE0)
+	PATH=$(PATH):$(ESP_ROOT)/xtensa-lx106-elf/bin $(ESP_ROOT)/esptool/esptool.py elf2image $(FW_FILE0)
+
+# To build the main file, you have to compile the objects and create the stripped libgcc
+$(FW_FILE0): $(OBJECTS) $(LIBGCC_STRIPPED)
 	$(LD) $(OBJECTS) $(EXTRA_LDFLAGS) $(LIBRARY_FLAGS) $(LINKER_SCRIPT_FLAGS) -o $@ 
-	$(ESP_ROOT)/esptool/esptool.py elf2image $@
 
+# This compiles each c file into an o file
 ./$(OBJ_DIR)/%.o: ./%.c
-	$(DIR_GUARD)
+	@mkdir -p $(@D) # This creates a directory before building an object in it.
 	$(CC) $(EXTRA_CFLAGS) $(INC) $< -o $@
 
-clean:
-	-@find ./ -type f -name '$(EXECUTABLE)*' -delete
-	-@find ./$(OBJ_DIR)/ -type f -name '*.o' -delete
+# This copies and stripps the libgcc.a file from the toolchain
+$(LIBGCC_STRIPPED) :
+	cp $(GCC_FOLDER)/lib/gcc/xtensa-lx106-elf/$(ESP_GCC_VERS)/libgcc.a esp82xx/libgcc_stripped.a
+	$(AR) dv esp82xx/libgcc_stripped.a _muldi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _mulsf3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _divsi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _udivsi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _umodsi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _addsubsf3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _fixdfsi.o
+#	$(AR) dv esp82xx/libgcc_stripped.a _divsf3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _muldf3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _divdf3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _fixunssfsi.o
+	$(AR) dv esp82xx/libgcc_stripped.a _umoddi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _divdi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _udivdi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _truncdfsf2.o
+#	$(AR) dv esp82xx/libgcc_stripped.a _fixsfsi.o
+	$(AR) dv esp82xx/libgcc_stripped.a _floatunsidf.o
+	$(AR) dv esp82xx/libgcc_stripped.a _floatunsisf.o
+	$(AR) dv esp82xx/libgcc_stripped.a _floatsisf.o
+	$(AR) dv esp82xx/libgcc_stripped.a _floatsidf.o
 
+# To build the webpage file, call its makefile
+$(WEBPAGE_MFS) :
+	make -C ./web
+
+# This clean everything
+clean:
+	-@find ./ -type f -name '$(FW_FILE0)*' -delete
+	-@find ./ -type f -name '$(notdir $(LIBGCC_STRIPPED))' -delete
+	-@find ./$(OBJ_DIR)/ -type f -name '*.o' -delete
+	make -C ./web clean
+
+################################################################################
+# Targets for Flashing
+################################################################################
+
+# Build and burn the two firmware files
+burn : $(FW_FILE1) $(FW_FILE2)
+	$(ESPTOOL_PY) $(FWBURNFLAGS) --port $(PORT) write_flash -fm dio $(FLASH_WRITE_FLAGS) 0x00000 $(FW_FILE1) 0x10000 $(FW_FILE2)
+
+# Build everything and burn the two firmware files, init data, and the webpage
+burnitall : all
+	$(ESPTOOL_PY) $(FWBURNFLAGS) --port $(PORT) write_flash -fm dio $(FLASH_WRITE_FLAGS) 0x00000 $(FW_FILE1) 0x10000 $(FW_FILE2) 0x3FC000 $(SDK)/bin/esp_init_data_default_v08.bin $(MFS_PAGE_OFFSET) $(WEBPAGE_MFS)
+
+# Erase the ESP8266
+erase :
+	$(ESPTOOL_PY) $(FWBURNFLAGS) --port $(PORT) erase_flash
+	
+# Write zeros to the ESP8266, more aggressive than erase
+wipechip :
+	dd if=/dev/zero of=/tmp/zeroes bs=1M count=1
+	$(ESPTOOL_PY) $(FWBURNFLAGS)  --port $(PORT) write_flash 0x0 /tmp/zeroes
+
+################################################################################
+# Targets for Debugging
+################################################################################
+
+# Generate map and list files from the build elf. Also print some information
+debug : $(FW_FILE0)
+	nm -S -n $(FW_FILE0) > image.map
+	$(PREFIX)objdump -S $(FW_FILE0) > image.lst
+	$(PREFIX)size -A $(FW_FILE0) | grep -v debug
+
+# Dump the ROM from address 0x100000 into dump.bin
+dumprom :
+	$(ESPTOOL_PY) $(FWBURNFLAGS) --port $(PORT) read_flash 0 1048576 dump.bin
+
+# Kill all cutecom serial terminals, burn the firmware, and open cutecom again
+# Note, this target won't technically finish until cutecom is closed
+burn_cutecom :
+	-killall cutecom
+	make burn
+	-cutecom &
+
+################################################################################
+# General Utility Targets
+################################################################################
+
+# Update the submodules
+bump_submodule :
+	cd esp82xx; git pull origin master; git submodule update --init --recursive; cd ..
+	cd esp82xx/toolchain/esp_nonos_sdk; git pull origin master; git submodule update --init --recursive; cd ../../..
+
+# Print any value from this makefile
 print-%  : ; @echo $* = $($*)
