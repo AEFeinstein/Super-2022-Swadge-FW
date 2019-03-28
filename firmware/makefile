@@ -199,26 +199,78 @@ $(FW_FILE0): $(OBJECTS) $(LIBGCC_STRIPPED)
 # This copies and stripps the libgcc.a file from the toolchain
 $(LIBGCC_STRIPPED) :
 	cp $(GCC_FOLDER)/lib/gcc/xtensa-lx106-elf/$(ESP_GCC_VERS)/libgcc.a esp82xx/libgcc_stripped.a
-	$(AR) dv esp82xx/libgcc_stripped.a _muldi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _mulsf3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _divsi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _udivsi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _umodsi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a __gcc_bcmp.o
+	$(AR) dv esp82xx/libgcc_stripped.a _absvdi2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _absvsi2.o
 	$(AR) dv esp82xx/libgcc_stripped.a _addsubsf3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _fixdfsi.o
-#	$(AR) dv esp82xx/libgcc_stripped.a _divsf3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _muldf3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _addvdi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _addvsi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _ashldi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _bswapdi2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _bswapsi2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _clear_cache.o
+	$(AR) dv esp82xx/libgcc_stripped.a _clrsbdi2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _clrsbsi2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _clzdi2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _clzsi2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _cmpdi2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _ctzdi2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _ctzsi2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _divdc3.o
 	$(AR) dv esp82xx/libgcc_stripped.a _divdf3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _fixunssfsi.o
-	$(AR) dv esp82xx/libgcc_stripped.a _umoddi3.o
 	$(AR) dv esp82xx/libgcc_stripped.a _divdi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _udivdi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _truncdfsf2.o
-#	$(AR) dv esp82xx/libgcc_stripped.a _fixsfsi.o
+	$(AR) dv esp82xx/libgcc_stripped.a _divsc3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _divsi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _extendsfdf2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _ffsdi2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _ffssi2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _fixdfdi.o
+	$(AR) dv esp82xx/libgcc_stripped.a _fixdfsi.o
+	$(AR) dv esp82xx/libgcc_stripped.a _fixsfdi.o
+	$(AR) dv esp82xx/libgcc_stripped.a _fixunsdfdi.o
+	$(AR) dv esp82xx/libgcc_stripped.a _fixunsdfsi.o
+	$(AR) dv esp82xx/libgcc_stripped.a _fixunssfdi.o
+	$(AR) dv esp82xx/libgcc_stripped.a _fixunssfsi.o
+	$(AR) dv esp82xx/libgcc_stripped.a _floatdidf.o
+	$(AR) dv esp82xx/libgcc_stripped.a _floatdisf.o
+	$(AR) dv esp82xx/libgcc_stripped.a _floatsidf.o
+	$(AR) dv esp82xx/libgcc_stripped.a _floatsisf.o
+	$(AR) dv esp82xx/libgcc_stripped.a _floatundidf.o
+	$(AR) dv esp82xx/libgcc_stripped.a _floatundisf.o
 	$(AR) dv esp82xx/libgcc_stripped.a _floatunsidf.o
 	$(AR) dv esp82xx/libgcc_stripped.a _floatunsisf.o
-	$(AR) dv esp82xx/libgcc_stripped.a _floatsisf.o
-	$(AR) dv esp82xx/libgcc_stripped.a _floatsidf.o
+	$(AR) dv esp82xx/libgcc_stripped.a _lshrdi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _moddi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _muldc3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _muldf3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _muldi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _mulsc3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _mulsf3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _mulsi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _mulvdi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _mulvsi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _negdf2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _negdi2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _negsf2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _negvdi2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _negvsi2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _paritydi2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _paritysi2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _popcountdi2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _popcountsi2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _powidf2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _powisf2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _subvdi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _subvsi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _truncdfsf2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _ucmpdi2.o
+	$(AR) dv esp82xx/libgcc_stripped.a _udiv_w_sdiv.o
+	$(AR) dv esp82xx/libgcc_stripped.a _udivdi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _udivmoddi4.o
+	$(AR) dv esp82xx/libgcc_stripped.a _udivsi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _umoddi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _umodsi3.o
+	$(AR) dv esp82xx/libgcc_stripped.a _umulsidi3.o
 
 # To build the webpage file, call its makefile
 $(WEBPAGE_MFS) :
