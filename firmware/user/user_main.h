@@ -16,6 +16,7 @@
 #include "esp82xxutil.h"
 #include <stdint.h>
 #include <stddef.h>
+#include "MMA8452Q.h"
 
 /*============================================================================
  * Enums
@@ -128,6 +129,12 @@ struct _swadgeMode
      * @param status   The status of the transmission
      */
     void (*fnEspNowSendCb)(uint8_t* mac_addr, mt_tx_status status);
+    /**
+     * TODO
+     *
+     * @param accel
+     */
+    void (*fnAccelerometerCallback)(accel_t * accel);
 };
 
 /*============================================================================

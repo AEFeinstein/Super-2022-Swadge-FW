@@ -46,7 +46,6 @@ volatile uint8_t LastGPIOState;
 
 static const gpioInfo_t gpioInfoInput[] =
 {
-/// GPIO 9 and 10 are unusable, so they are disconnected
 	// Down
 	{
 		.GPID = 4,
@@ -216,8 +215,8 @@ uint8_t GetButtons()
         ret |= (PIN_IN & (1 << gpioInfoInput[i].GPID)) ? (1 << i) : 0;
     }
 
-    // GPIO15's logic is inverted.  Don't flip it but flip everything else.
-    ret ^= ~0x20;
+    // Invert all the logic
+    ret ^= ~0x00;
 
     return ret;
 }

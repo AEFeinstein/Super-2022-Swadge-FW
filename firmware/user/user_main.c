@@ -35,6 +35,7 @@
 #include "mode_random_d6.h"
 #include "mode_dance.h"
 #include "mode_flashlight.h"
+#include "mode_demo.h"
 #include "brzo_i2c.h"
 #include "MMA8452Q.h"
 #include "oled.h"
@@ -64,7 +65,7 @@
 #define RTC_MEM_ADDR 64
 
 #define DEBOUNCE_US      200000
-#define DEBOUNCE_US_FAST  10000
+#define DEBOUNCE_US_FAST   7000
 
 /*============================================================================
  * Structs
@@ -102,6 +103,7 @@ uint8_t mymac[6] = {0};
 
 swadgeMode* swadgeModes[] =
 {
+	&demoMode,
     &colorchordMode,
     &reflectorGameMode,
     &dancesMode,
@@ -111,11 +113,11 @@ swadgeMode* swadgeModes[] =
 };
 bool swadgeModeInit = false;
 
+// TODO move to button GPIO file
 volatile buttonEvt buttonQueue[NUM_BUTTON_EVTS] = {{0}};
 volatile uint8_t buttonEvtHead = 0;
 volatile uint8_t buttonEvtTail = 0;
-bool pendingNextSwadgeMode = false;
-uint32_t lastButtonPress[3] = {0};
+uint32_t lastButtonPress[4] = {0};
 bool debounceEnabled = true;
 
 rtcMem_t rtcMem = {0};
@@ -507,38 +509,20 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
  *
  * Also handles logic for infrastructure wifi mode, which isn't being used
  *
+ * TODO call this faster, but have each action still happen at 100ms (round robin)
+ *
  * @param arg unused
  */
 static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
 {
     CSTick( 1 );
 
-    // Poll the accelerometer
-	MMA8452Q_poll();
-	accel * acc = getAccel();
-
-	// Clear the display area with the accelerometer data
-	fillDisplayArea(
-			0,
-			OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)),
-			OLED_WIDTH - 1,
-			OLED_HEIGHT - 1,
-			BLACK);
-
-	// Display the acceleration on the display
-	char accelStr[32] = {0};
-
-	ets_snprintf(accelStr, sizeof(accelStr), "X:%d", acc->x);
-	plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
-
-	ets_snprintf(accelStr, sizeof(accelStr), "Y:%d", acc->y);
-	plotText(OLED_WIDTH / 2, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
-
-	ets_snprintf(accelStr, sizeof(accelStr), "Z:%d", acc->z);
-	plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
-
-	// Update the display
-	display();
+    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
+    {
+    	accel_t accel = {0};
+    	MMA8452Q_poll(&accel);
+        swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback(&accel);
+    }
 
     // Tick the current mode every 100ms
     if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnTimerCallback)
@@ -667,6 +651,8 @@ static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned
  * This is an interrupt, so it can't be ICACHE_FLASH_ATTR. It quickly queues
  * button events
  *
+ * TODO move to button GPIO file
+ *
  * @param stat A bitmask of all button statuses
  * @param btn The button number which was pressed
  * @param down 1 if the button was pressed, 0 if it was released
@@ -683,6 +669,8 @@ void HandleButtonEventIRQ( uint8_t stat, int btn, int down )
 
 /**
  * Process queued button events synchronously
+ *
+ * TODO move to button GPIO file
  */
 void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void)
 {
@@ -709,34 +697,35 @@ void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void)
 //            }
 //        }
 //        // Pass the button to the mode
-//        else if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
-//        {
-//            uint32_t debounceUs;
-//            if(debounceEnabled)
-//            {
-//                debounceUs = DEBOUNCE_US;
-//            }
-//            else
-//            {
-//                debounceUs = DEBOUNCE_US_FAST;
-//            }
-//
-//            if(buttonQueue[buttonEvtHead].time - lastButtonPress[buttonQueue[buttonEvtHead].btn] < debounceUs)
-//            {
-//                ; // Consume this event below, don't count it as a press
-//            }
-//            else
-//            {
-//                // Pass the button event to the mode
-//                swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(
-//                    buttonQueue[buttonEvtHead].stat,
-//                    buttonQueue[buttonEvtHead].btn,
-//                    buttonQueue[buttonEvtHead].down);
-//
-//                // Note the time of this button press
-//                lastButtonPress[buttonQueue[buttonEvtHead].btn] = buttonQueue[buttonEvtHead].time;
-//            }
-//        }
+//        else
+    	if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
+        {
+            uint32_t debounceUs;
+            if(debounceEnabled)
+            {
+                debounceUs = DEBOUNCE_US;
+            }
+            else
+            {
+                debounceUs = DEBOUNCE_US_FAST;
+            }
+
+            if(buttonQueue[buttonEvtHead].time - lastButtonPress[buttonQueue[buttonEvtHead].btn] < debounceUs)
+            {
+                ; // Consume this event below, don't count it as a press
+            }
+            else
+            {
+                // Pass the button event to the mode
+                swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(
+                    buttonQueue[buttonEvtHead].stat,
+                    buttonQueue[buttonEvtHead].btn,
+                    buttonQueue[buttonEvtHead].down);
+
+                // Note the time of this button press
+                lastButtonPress[buttonQueue[buttonEvtHead].btn] = buttonQueue[buttonEvtHead].time;
+            }
+        }
 
         // Increment the head
         buttonEvtHead = (buttonEvtHead + 1) % NUM_BUTTON_EVTS;
@@ -942,16 +931,15 @@ void ICACHE_FLASH_ATTR user_init(void)
     brzo_i2c_setup(100);
 
     // Initialize accel
-    MMA8452Q_setup();
-    os_printf("MMA8452Q initialized\n");
+    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
+    {
+		MMA8452Q_setup();
+		os_printf("MMA8452Q initialized\n");
+    }
 
     // Initialize display
     begin(true);
     os_printf("OLED initialized\n");
-
-	plotText(2, 4 + (0 * FONT_HEIGHT_RADIOSTARS) + (0 * 3), "colorchord", RADIOSTARS);
-	plotText(2, 4 + (1 * FONT_HEIGHT_RADIOSTARS) + (1 * 3), "colorchord", IBM_VGA_8);
-	plotText(2, 4 + (2 * FONT_HEIGHT_IBMVGA8) + (2 * 3), "colorchord", TOM_THUMB);
 
     // Attempt to make ADC more stable
     // https:// github.com/esp8266/Arduino/issues/2070

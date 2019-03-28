@@ -12,10 +12,9 @@ typedef struct {
 	int x;
 	int y;
 	int z;
-} accel;
+} accel_t;
 
 void MMA8452Q_setup(void);
-void MMA8452Q_poll(void);
-accel * getAccel(void);
+void MMA8452Q_poll(accel_t * currentAccel);
 
 #endif /* MMA8452Q_H_ */
