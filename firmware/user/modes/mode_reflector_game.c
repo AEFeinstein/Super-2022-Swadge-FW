@@ -368,7 +368,7 @@ char roundContinueMsg[]  = "ref_cnt_sn_00:00:00:00:00:00_xx";
 char spdUp[] =                                          "up";
 char spdDn[] =                                          "dn";
 char spdNc[] =                                          "nc";
-char macFmtStr[] = "%02X:%02X:%02X:%02X:%02X:%02X";
+const char macFmtStr[] = "%02X:%02X:%02X:%02X:%02X:%02X";
 
 struct
 {
@@ -534,7 +534,7 @@ void ICACHE_FLASH_ATTR refInit(void)
     os_timer_disarm(&ref.tmr.SinglePlayerRestart);
     os_timer_setfn(&ref.tmr.SinglePlayerRestart, refSinglePlayerRestart, NULL);
 
-#if TEST_SCORE_DISPLAY
+#ifdef TEST_SCORE_DISPLAY
     ref.gam.singlePlayerRounds = 97;
     os_timer_arm(&ref.tmr.SinglePlayerRestart, RESTART_COUNT_PERIOD_MS, true);
 #else
@@ -1562,8 +1562,7 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
                             ref.cnc.otherMac[2],
                             ref.cnc.otherMac[3],
                             ref.cnc.otherMac[4],
-                            ref.cnc.otherMac[5],
-                            spdPtr);
+                            ref.cnc.otherMac[5]);
                 roundContinueMsg[EXT_IDX - 1] = '_';
                 ets_sprintf(&roundContinueMsg[EXT_IDX], "%s", spdPtr);
 

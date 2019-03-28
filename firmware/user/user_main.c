@@ -138,6 +138,7 @@ void ICACHE_FLASH_ATTR TransmitGenericEvent(void);
 void ICACHE_FLASH_ATTR RETick(void);
 static void ICACHE_FLASH_ATTR procTask(os_event_t* events);
 
+void ICACHE_FLASH_ATTR user_pre_init(void);
 void ICACHE_FLASH_ATTR user_init(void);
 static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg);
 static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned short len);

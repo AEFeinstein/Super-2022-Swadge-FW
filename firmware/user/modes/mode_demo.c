@@ -172,8 +172,8 @@ void ICACHE_FLASH_ATTR demoSampleHandler(int32_t samp)
  * @param button The button which triggered this event
  * @param down   true if the button was pressed, false if it was released
  */
-void ICACHE_FLASH_ATTR demoButtonCallback(
-    uint8_t state, int button, int down)
+void ICACHE_FLASH_ATTR demoButtonCallback( uint8_t state,
+		int button __attribute__((unused)), int down __attribute__((unused)))
 {
 	mButtonState = state;
 }

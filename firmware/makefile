@@ -52,15 +52,42 @@ EXTRA_CFLAGS = \
 	-c \
 	-mlongcalls \
 	-Os \
-	-Wall \
-	-Wextra \
 	-flto \
 	-Wl,--relax \
 	-Wl,--gc-sections \
 	-nostdlib \
 	-Wl,-Map,output.map \
 	-B$(SDK)/lib \
-	-g
+	-g \
+	-std=gnu99 \
+	-Wall \
+	-Wextra \
+	-Wundef \
+	-Wunused \
+	-Wformat=2 \
+	-Winvalid-pch \
+	-Wlogical-op \
+	-Wmissing-declarations \
+	-Wmissing-format-attribute \
+	-Wmissing-include-dirs \
+	-Wpointer-arith
+
+# And these are warnings, lots of warnings
+#EXTRA_CFLAGS := $(EXTRA_CFLAGS) \
+#	-Wcast-align \
+#	-Wcast-qual \
+#	-Wconversion \
+#	-Wdouble-promotion \
+#	-Wformat-nonliteral \
+#	-Wjump-misses-init \
+#	-Wmissing-prototypes \
+#	-Wpedantic \
+#	-Wredundant-decls \
+#	-Wshadow \
+#	-Wsign-conversion \
+#	-Wstrict-prototypes \
+#	-Wswitch-default \
+#	-Wswitch-enum
 
 # These are a list of #define symbols in the makefile
 DEFINES = \
@@ -144,6 +171,8 @@ FW_FILE1 = image.elf-0x00000.bin
 FW_FILE2 = image.elf-0x10000.bin
 LIBGCC_STRIPPED = esp82xx/libgcc_stripped.a
 WEBPAGE_MFS = web/page.mpfs
+DBG_MAP=image.map
+DBG_LST=image.lst
 
 ################################################################################
 # Targets for Building
@@ -198,7 +227,11 @@ $(WEBPAGE_MFS) :
 
 # This clean everything
 clean:
-	-@find ./ -type f -name '$(FW_FILE0)*' -delete
+	-@find ./ -type f -name '$(FW_FILE0)' -delete
+	-@find ./ -type f -name '$(FW_FILE1)' -delete
+	-@find ./ -type f -name '$(FW_FILE2)' -delete
+	-@find ./ -type f -name '$(DBG_MAP)' -delete
+	-@find ./ -type f -name '$(DBG_LST)' -delete
 	-@find ./ -type f -name '$(notdir $(LIBGCC_STRIPPED))' -delete
 	-@find ./$(OBJ_DIR)/ -type f -name '*.o' -delete
 	make -C ./web clean
@@ -230,8 +263,8 @@ wipechip :
 
 # Generate map and list files from the build elf. Also print some information
 debug : $(FW_FILE0)
-	nm -S -n $(FW_FILE0) > image.map
-	$(PREFIX)objdump -S $(FW_FILE0) > image.lst
+	nm -S -n $(FW_FILE0) > $(DBG_MAP)
+	$(PREFIX)objdump -S $(FW_FILE0) > $(DBG_LST)
 	$(PREFIX)size -A $(FW_FILE0) | grep -v debug
 
 # Dump the ROM from address 0x100000 into dump.bin

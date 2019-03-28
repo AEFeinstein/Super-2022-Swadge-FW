@@ -1102,11 +1102,6 @@ void ICACHE_FLASH_ATTR brzo_i2c_setup(uint32_t clock_stretch_time_out_usec)
 	);
 }
 
-void ICACHE_FLASH_ATTR brzo_i2c_reset_bus()
-{
-	// Not yet implemented
-}
-
 uint8_t ICACHE_FLASH_ATTR brzo_i2c_get_error()
 {
 	return i2c_error;
