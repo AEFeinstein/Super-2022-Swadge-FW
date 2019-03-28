@@ -113,7 +113,6 @@ EXTRA_CFLAGS := $(EXTRA_CFLAGS) $(patsubst %, -D%, $(DEFINES))
 # Treat every source directory as one to search for headers in, also add a few more
 INC = $(patsubst %, -I%, \
 	$(SRC_DIRS) \
-	. \
 	esp82xx/include \
 	$(SDK)/include)
 
@@ -179,7 +178,7 @@ DBG_LST=image.lst
 ################################################################################
 
 # This list of targets do not build files which match their name
-.PHONY: all clean debug bump_submodule erase dumprom wipechip burnitall burn burn_cutecom print-%
+.PHONY: all clean debug bump_submodule erase dumprom wipechip burnitall burn burn_cutecom docs print-%
 
 # Build everything!
 all: $(FW_FILE1) $(FW_FILE2) $(WEBPAGE_MFS)
@@ -234,7 +233,8 @@ clean:
 	-@find ./ -type f -name '$(DBG_LST)' -delete
 	-@find ./ -type f -name '$(notdir $(LIBGCC_STRIPPED))' -delete
 	-@find ./$(OBJ_DIR)/ -type f -name '*.o' -delete
-	make -C ./web clean
+	-@rm -rf docs
+	-@make -C ./web clean
 
 ################################################################################
 # Targets for Flashing
@@ -277,6 +277,9 @@ burn_cutecom :
 	-killall cutecom
 	make burn
 	-cutecom &
+	
+docs :
+	doxygen swadge2019.doxyfile
 
 ################################################################################
 # General Utility Targets
