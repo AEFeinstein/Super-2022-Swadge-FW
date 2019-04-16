@@ -15,11 +15,11 @@
 2. [Fork this repository](https://help.github.com/en/articles/fork-a-repo) to create your own personal copy of the project. Working in your own forked repository guarantees no one else will mess with the project in unexpected ways during your development (and you won't mess with anyone else either!).
 3. [Optional] If you're going to develop multiple features in your fork, you should [create a branch](https://help.github.com/en/articles/creating-and-deleting-branches-within-your-repository) for each feature. Keeping a single feature per-branch leads to cleaner and easier to understand pull requests.
 4. This is the fun part, write your feature!
-⋅⋅1. Please comment your code. This makes it easier for everyone to understand. 
-⋅⋅2. [Doxygen comments](http://www.doxygen.nl/manual/docblocks.html) will be especially appreciated. You can [set up Eclipse](https://stackoverflow.com/a/7590019) to automatically add empty Doxygen templates to functions
-⋅⋅3. You should [run astyle](http://astyle.sourceforge.net/) with this projects astylerc file to beautify the code. Everyone loves pretty code.
-⋅⋅4. The code should compile without any warnings.
-⋅⋅5. Try to write small, useful messages in each commit.
+   1. Please comment your code. This makes it easier for everyone to understand. 
+   2. [Doxygen comments](http://www.doxygen.nl/manual/docblocks.html) will be especially appreciated. You can [set up Eclipse](https://stackoverflow.com/a/7590019) to automatically add empty Doxygen templates to functions
+   3. You should [run astyle](http://astyle.sourceforge.net/) with this projects astylerc file to beautify the code. Everyone loves pretty code.
+   4. The code should compile without any warnings.
+   5. Try to write small, useful messages in each commit.
 5. Test your feature. Try everything, mash buttons, whatever. Get creative. Users certainly will.
 6. Once your feature is written and tested, [create a pull request](https://help.github.com/en/articles/creating-a-pull-request) to merge the feature back to the master project. Please reference the ticket from step 1 in the pull request.
 7. I'll review the new code and either merge it or request changes. The better the spec and conversation in step 1, the better the chances it gets merged quickly.
