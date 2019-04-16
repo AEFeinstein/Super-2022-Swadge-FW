@@ -70,7 +70,10 @@ EXTRA_CFLAGS = \
 	-Wmissing-declarations \
 	-Wmissing-format-attribute \
 	-Wmissing-include-dirs \
-	-Wpointer-arith
+	-Wpointer-arith \
+	-Wunused-but-set-variable \
+	-Wunused-local-typedefs \
+	-Wuninitialized
 
 # And these are warnings, lots of warnings
 #EXTRA_CFLAGS := $(EXTRA_CFLAGS) \
@@ -87,7 +90,8 @@ EXTRA_CFLAGS = \
 #	-Wsign-conversion \
 #	-Wstrict-prototypes \
 #	-Wswitch-default \
-#	-Wswitch-enum
+#	-Wswitch-enum \
+#	-Wunused-macros
 
 # These are a list of #define symbols in the makefile
 DEFINES = \
