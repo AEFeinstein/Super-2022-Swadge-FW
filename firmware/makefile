@@ -20,6 +20,16 @@ AR           = $(PREFIX)ar
 CP           = cp
 
 ################################################################################
+# Version related stuff
+################################################################################
+
+VCMD = git describe --abbrev=5 --dirty=-dev --always --tags 2>/dev/null
+VERSION := $(shell $(VCMD) || { cd esp82xx 2>/dev/null; $(VCMD) ; } ||  echo "unknown")
+VERSSTR := Version: $(VERSION) - Build $(shell LANG=en_us_8859_1 date '+%a, %b %e %Y, %R:%S %z') with
+PROJECT_NAME := $(notdir $(shell git rev-parse --show-toplevel 2>/dev/null || echo "exp82xx-project"))
+PROJECT_URL := $(subst .com:,.com/,$(subst .git,,$(subst git@,https://,$(shell git config --get remote.origin.url 2>/dev/null || echo "https://github.com/con-f-use/esp82xx-basic.git"))))
+
+################################################################################
 # Options for burning
 ################################################################################
 
@@ -108,11 +118,13 @@ DEFINES = \
 	WEB_PORT=80 \
 	COM_PORT=7777 \
 	BACKEND_PORT=7878 \
-	SLOWTICK_MS=50 \
-	VERSSTR='"tmpstr"' # TODO get the actual version string
+	SLOWTICK_MS=50 
+
+# Append the liset of Defines to the version string
+VERSSTR += $(DEFINES)
 
 # This appends the defines to the EXTRA_CFLAGS
-EXTRA_CFLAGS := $(EXTRA_CFLAGS) $(patsubst %, -D%, $(DEFINES))
+EXTRA_CFLAGS := $(EXTRA_CFLAGS) $(patsubst %, -D%, $(DEFINES)) -DVERSTR='"$(VERSSTR)"'
 
 # Treat every source directory as one to search for headers in, also add a few more
 INC = $(patsubst %, -I%, \
