@@ -17,7 +17,7 @@
 4. This is the fun part, write your feature!
    1. Please comment your code. This makes it easier for everyone to understand. 
    2. [Doxygen comments](http://www.doxygen.nl/manual/docblocks.html) will be especially appreciated. You can [set up Eclipse](https://stackoverflow.com/a/7590019) to automatically add empty Doxygen templates to functions
-   3. You should [run astyle](http://astyle.sourceforge.net/) with this projects astylerc file to beautify the code. Everyone loves pretty code.
+   3. You should [run astyle](http://astyle.sourceforge.net/) with [this projects astylerc file](https://github.com/AEFeinstein/Swadge-Devkit-Fw/blob/master/firmware/astylerc) to beautify the code. Everyone loves pretty code.
    4. The code should compile without any warnings.
    5. Try to write small, useful messages in each commit.
 5. Test your feature. Try everything, mash buttons, whatever. Get creative. Users certainly will.
