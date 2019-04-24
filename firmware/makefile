@@ -34,7 +34,7 @@ PROJECT_URL := $(subst .com:,.com/,$(subst .git,,$(subst git@,https://,$(shell g
 ################################################################################
 
 FWBURNFLAGS  = -b 2000000
-PORT  = /dev/ttyUSB0
+PORT  = /dev/ttyUSB1
 FLASH_WRITE_FLAGS = # --verify
 MFS_PAGE_OFFSET=532480
 
@@ -314,7 +314,7 @@ burn : $(FW_FILE1) $(FW_FILE2)
 
 # Build everything and burn the two firmware files, init data, and the webpage
 burnitall : all
-	$(ESPTOOL_PY) $(FWBURNFLAGS) --port $(PORT) write_flash -fm dio $(FLASH_WRITE_FLAGS) 0x00000 $(FW_FILE1) 0x10000 $(FW_FILE2) 0x3FC000 $(SDK)/bin/esp_init_data_default_v08.bin $(MFS_PAGE_OFFSET) $(WEBPAGE_MFS)
+	$(ESPTOOL_PY) $(FWBURNFLAGS) --port $(PORT) write_flash -fm dio $(FLASH_WRITE_FLAGS) 0x00000 $(FW_FILE1) 0x10000 $(FW_FILE2) 0x1FB000 $(SDK)/bin/blank.bin 0x1FC000 $(SDK)/bin/esp_init_data_default_v08.bin 0x1FE000 $(SDK)/bin/blank.bin $(MFS_PAGE_OFFSET) $(WEBPAGE_MFS)
 
 # Erase the ESP8266
 erase :
