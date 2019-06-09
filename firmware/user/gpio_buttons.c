@@ -45,16 +45,17 @@ typedef struct
 void (* volatile mButtonHandler)(uint8_t state, int button, int down) = NULL;
 volatile uint8_t LastGPIOState;
 
+// Matches order in button_mask
 static const gpioInfo_t gpioInfoInput[] =
 {
-	// Down
+	// Up
 	{
-		.GPID = 4,
-		.func = FUNC_GPIO4,
-		.periph = PERIPHS_IO_MUX_GPIO4_U,
+		.GPID = 13,
+		.func = FUNC_GPIO13,
+		.periph = PERIPHS_IO_MUX_MTCK_U,
 		.initialState = 1
 	},
-	// Up
+	// Down
 	{
 		.GPID = 5,
 		.func = FUNC_GPIO5,
@@ -63,16 +64,16 @@ static const gpioInfo_t gpioInfoInput[] =
 	},
 	// Left
 	{
-		.GPID = 12,
-		.func = FUNC_GPIO12,
-		.periph = PERIPHS_IO_MUX_MTDI_U,
+		.GPID = 4,
+		.func = FUNC_GPIO4,
+		.periph = PERIPHS_IO_MUX_GPIO4_U,
 		.initialState = 1
 	},
 	// Right
 	{
-		.GPID = 13,
-		.func = FUNC_GPIO13,
-		.periph = PERIPHS_IO_MUX_MTCK_U,
+		.GPID = 12,
+		.func = FUNC_GPIO12,
+		.periph = PERIPHS_IO_MUX_MTDI_U,
 		.initialState = 1
 	},
 };
@@ -179,9 +180,6 @@ void ICACHE_FLASH_ATTR SetupGPIO(void (*handler)(uint8_t state, int button, int 
         // And enable a pullup
         GPIO_OUTPUT_SET(GPIO_ID_PIN(gpioInfoOutput[i].GPID), gpioInfoOutput[i].initialState );
     }
-
-    // Pull GPIO 14 high, this is for the microphone
-    GPIO_OUTPUT_SET(GPIO_ID_PIN(14), enableMic );
 
     // Set GPIO16 for Input,  mux configuration for XPD_DCDC and rtc_gpio0 connection
     WRITE_PERI_REG(PAD_XPD_DCDC_CONF,

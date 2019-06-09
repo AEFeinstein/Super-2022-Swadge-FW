@@ -26,6 +26,7 @@
 #include "font.h"
 #include "MMA8452Q.h"
 #include "bresenham.h"
+#include "gpio_buttons.h"
 
 /*============================================================================
  * Defines
@@ -115,22 +116,22 @@ void ICACHE_FLASH_ATTR demoTimerCallback(void)
 	ets_snprintf(accelStr, sizeof(accelStr), "Z:%d", demoAccel.z);
 	plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
 
-	if(mButtonState & 0x01)
+	if(mButtonState & DOWN)
 	{
 		// Down
 		plotCircle(BTN_CTR_X, BTN_CTR_Y + BTN_OFF, BTN_RAD);
 	}
-	if(mButtonState & 0x02)
+	if(mButtonState & UP)
 	{
 		// Up
 		plotCircle(BTN_CTR_X, BTN_CTR_Y - BTN_OFF, BTN_RAD);
 	}
-	if(mButtonState & 0x04)
+	if(mButtonState & LEFT)
 	{
 		// Left
 		plotCircle(BTN_CTR_X - BTN_OFF, BTN_CTR_Y, BTN_RAD);
 	}
-	if(mButtonState & 0x08)
+	if(mButtonState & RIGHT)
 	{
 		// Right
 		plotCircle(BTN_CTR_X + BTN_OFF, BTN_CTR_Y, BTN_RAD);
