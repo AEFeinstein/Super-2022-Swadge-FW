@@ -7,6 +7,9 @@
             "label": "make all",
             "type": "shell",
             "command": "make all",
+            "problemMatcher": [
+                "$gcc"
+            ],
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -15,12 +18,24 @@
         {
             "label": "clean",
             "type": "shell",
-            "command": "make clean"
+            "command": "make clean",
+            "group": "build",
+            "problemMatcher": [
+                "$gcc"
+            ]
         },
         {
             "label": "burn",
             "type": "shell",
-            "command": "make burn"
+            "isBackground": true,
+            "command": "./burn-dbg.sh",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
         }
     ]
 }
