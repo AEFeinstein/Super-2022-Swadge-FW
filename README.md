@@ -6,15 +6,15 @@ Hardware repo is over here: https://github.com/AEFeinstein/Swadge-Devkit
 
 ## Getting Started Guide
 
-### Getting a Linux Environment
+### 1. Getting a Linux Environment
 
 The Swadge is compiled from a Linux environment. If you have one of those already, great, skip to part two. If you don't, here's how to set up Window Subsystem for Linux.
 
-1. Install Windows Subsystem for Linux (WSL) by folloing this guide: https://docs.microsoft.com/en-us/windows/wsl/install-win10
+1. Install Windows Subsystem for Linux (WSL) by following this guide: https://docs.microsoft.com/en-us/windows/wsl/install-win10
 1. Install Ubuntu 18.04 LTS from the Microsoft Store: https://www.microsoft.com/store/apps/9N9TNGVNDL3Q
-1. Initialize Ubuntu 18.04 LTS by folling the guide here: https://docs.microsoft.com/en-us/windows/wsl/initialize-distro
+1. Initialize Ubuntu 18.04 LTS by following the guide here: https://docs.microsoft.com/en-us/windows/wsl/initialize-distro
 
-### Compiling and Flashing a Swadge
+### 2. Compiling and Flashing a Swadge
 
 1. Update your packages and install all dependencies
     ```
