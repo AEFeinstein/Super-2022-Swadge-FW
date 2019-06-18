@@ -45,25 +45,12 @@
  * Defines
  *==========================================================================*/
 
-// #define PROFILE
-
-#define PORT 7777
-#define SERVER_TIMEOUT 1500
-#define MAX_CONNS 5
-#define MAX_FRAME 2000
-#define TICKER_TIMEOUT 100
-
 #define PROC_TASK_PRIO 0
 #define PROC_TASK_QUEUE_LEN 1
 
-#define REMOTE_IP_CODE 0x0a00c90a // = 10.201.0.10
-
-#define UDP_TIMEOUT 50
-
-#define NUM_BUTTON_EVTS 10
-
 #define RTC_MEM_ADDR 64
 
+#define NUM_BUTTON_EVTS 10
 #define DEBOUNCE_US      200000
 #define DEBOUNCE_US_FAST   7000
 
@@ -83,23 +70,10 @@ typedef struct
  * Variables
  *==========================================================================*/
 
-static os_timer_t some_timer = {0};
-static struct espconn* pUdpServer = NULL;
-
-static bool hpa_is_paused_for_wifi = false;
+static os_timer_t timerHandle100ms = {0};
 
 os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 uint32_t samp_iir = 0;
-
-int send_back_on_ip = 0;
-int send_back_on_port = 0;
-int udp_pending = 0;
-int status_update_count = 0;
-int got_an_ip = 0;
-int soft_ap_mode = 0;
-int wifi_fails = 0;
-int ticks_since_override = 1000000;
-uint8_t mymac[6] = {0};
 
 swadgeMode* swadgeModes[] =
 {
@@ -132,16 +106,12 @@ uint8_t modeLedBrightness = 0;
 void HandleButtonEventIRQ( uint8_t stat, int btn, int down );
 void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void);
 
-static int ICACHE_FLASH_ATTR SwitchToSoftAP(void);
-void ICACHE_FLASH_ATTR TransmitGenericEvent(void);
-
 void ICACHE_FLASH_ATTR RETick(void);
 static void ICACHE_FLASH_ATTR procTask(os_event_t* events);
 
 void ICACHE_FLASH_ATTR user_pre_init(void);
 void ICACHE_FLASH_ATTR user_init(void);
 static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg);
-static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned short len);
 
 void ICACHE_FLASH_ATTR incrementSwadgeModeNoSleep(void);
 void ICACHE_FLASH_ATTR modeSwitchTimerFn(void* arg);
@@ -285,151 +255,6 @@ void ICACHE_FLASH_ATTR enterDeepSleep(bool disableWifi, uint64_t sleepUs)
 }
 
 /**
- * Configure and enable SoftAP mode. This will have the ESP broadcast a SSID
- * of the form SWADGE_XXXXXX, where XXXXXX is the tail of the MAC address
- *
- * @return The Wifi channel, 1-13, or -1 for a failure
- */
-static int ICACHE_FLASH_ATTR SwitchToSoftAP(void)
-{
-    // Get default SSID parameters
-    struct softap_config c;
-    wifi_softap_get_config_default(&c);
-
-    // Build the SSID name
-    char ssidPrefix[] = "SWADGE_";
-    ets_memcpy( c.ssid, ssidPrefix, ets_strlen(ssidPrefix) );
-    if(false == wifi_get_macaddr(SOFTAP_IF, mymac))
-    {
-        return -1;
-    }
-    ets_sprintf( (char*)(&c.ssid[9]), "%02x%02x%02x", mymac[3], mymac[4], mymac[5] );
-
-    // Set the SSID parameters, no authentication
-    c.password[0] = 0;
-    c.ssid_len = ets_strlen( (char*)c.ssid );
-    c.channel = SOFTAP_CHANNEL;
-    c.authmode = NULL_MODE;
-    c.ssid_hidden = 0;
-    c.max_connection = 4;
-    c.beacon_interval = 1000;
-
-    // Apply SSID parameters
-    // 0x01: Station mode
-    // 0x02: SoftAP mode
-    // 0x03: Station + SoftAP
-    if(false == wifi_set_opmode_current( SOFTAP_MODE ))
-    {
-        return -1;
-    }
-
-    // Save current configs
-    if(false == wifi_softap_set_config(&c))
-    {
-        return -1;
-    }
-    if(false == wifi_softap_set_config_current(&c))
-    {
-        return -1;
-    }
-
-    // Set the channel
-    if(false == wifi_set_channel( c.channel ))
-    {
-        return -1;
-    }
-
-    // Note the connection and return the channel
-    os_printf( "Making it a softap, channel %d\n", c.channel );
-    got_an_ip = 1;
-    soft_ap_mode = 1;
-    return c.channel;
-}
-
-/**
- * Build a generic packet with diagnostic information and send it to
- * send_back_on_ip, send_back_on_port if those values are set, or
- * REMOTE_IP_CODE:8000 if they are not
- */
-void ICACHE_FLASH_ATTR TransmitGenericEvent(void)
-{
-    uint8_t packetIdx = 0;
-    uint8_t sendpack[32];
-
-    // Copy the tail of the MAC address
-    ets_memcpy( sendpack, mymac, sizeof(mymac) );
-    packetIdx += sizeof(mymac);
-
-    // Magic bytes
-    sendpack[packetIdx++] = 0x01;
-    sendpack[packetIdx++] = 0x03;
-
-    // RSSI (signal strength)
-    sendpack[packetIdx++] = wifi_station_get_rssi();
-
-    // Copy the bssid
-    struct station_config stationConf;
-    wifi_station_get_config(&stationConf);
-    ets_memcpy( &sendpack[packetIdx], stationConf.bssid, sizeof(stationConf.bssid) );
-    packetIdx += sizeof(stationConf.bssid);
-
-    // GPIO & button info
-    sendpack[packetIdx++] = getLastGPIOState();
-    sendpack[packetIdx++] = buttonEvtHead;
-    sendpack[packetIdx++] = buttonEvtTail;
-
-    // Two bytes voltage info, guess it can't be read
-    sendpack[packetIdx++] = 0;
-    sendpack[packetIdx++] = 0;
-
-    // Colorchord LED count
-    sendpack[packetIdx++] = NUM_LIN_LEDS;
-
-    // Number of times this status packet has been sent
-    sendpack[packetIdx++] = status_update_count >> 8;
-    sendpack[packetIdx++] = status_update_count & 0xff;
-    status_update_count++;
-
-    // Free heap space
-    uint16_t heapfree = system_get_free_heap_size();
-    sendpack[packetIdx++] = heapfree >> 8;
-    sendpack[packetIdx++] = heapfree & 0xff;
-    sendpack[packetIdx++] = 0;
-    sendpack[packetIdx++] = 0;
-
-    // Something to do with elapsed time
-    uint32_t cc = xthal_get_ccount();
-    sendpack[packetIdx++] = cc >> 24;
-    sendpack[packetIdx++] = cc >> 16;
-    sendpack[packetIdx++] = cc >> 8;
-    sendpack[packetIdx++] = cc;
-
-    // If we're connected to something
-    if( got_an_ip )
-    {
-        // And there's a specific server to reply to
-        if( send_back_on_ip && send_back_on_port )
-        {
-            // Send the packet to the server
-            pUdpServer->proto.udp->remote_port = send_back_on_port;
-            uint32_to_IP4(send_back_on_ip, pUdpServer->proto.udp->remote_ip);
-            send_back_on_ip = 0;
-            send_back_on_port = 0;
-            espconn_sendto( (struct espconn*)pUdpServer, sendpack, sizeof( sendpack ));
-        }
-        else
-        {
-            // Otherwise send it to REMOTE_IP_CODE:8000
-            pUdpServer->proto.udp->remote_port = 8000;
-            uint32_to_IP4(REMOTE_IP_CODE, pUdpServer->proto.udp->remote_ip);
-            udp_pending = UDP_TIMEOUT;
-            espconn_sendto( (struct espconn*)pUdpServer, sendpack, sizeof( sendpack ));
-        }
-
-    }
-}
-
-/**
  * Tasks that happen all the time.
  * Called at the end of each procTask() loop
  */
@@ -531,118 +356,7 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
         swadgeModes[rtcMem.currentSwadgeMode]->fnTimerCallback();
     }
 
-    if( udp_pending )
-    {
-        udp_pending--;
-    }
-
-    if( ticks_since_override < TICKER_TIMEOUT )
-    {
-        // Color override?
-        ticks_since_override++;
-    }
-    else if( hpa_is_paused_for_wifi && printed_ip )
-    {
-        StartHPATimer(); // Init the high speed ADC timer.
-        hpa_is_paused_for_wifi = 0; // only need to do once prevents unstable ADC
-    }
-
-    struct station_config wcfg;
-    struct ip_info ipi;
-    int stat = wifi_station_get_connect_status();
-    if( stat == STATION_WRONG_PASSWORD || stat == STATION_NO_AP_FOUND || stat == STATION_CONNECT_FAIL )
-    {
-        wifi_station_disconnect();
-        wifi_fails++;
-        os_printf( "Connection failed with code %d... Retrying, try: %d", stat, wifi_fails );
-        os_printf("\n");
-        if( wifi_fails == 2 )
-        {
-            SwitchToSoftAP();
-            got_an_ip = 1;
-            printed_ip = 1;
-        }
-        else
-        {
-            wifi_station_connect();
-            got_an_ip = 0;
-        }
-        ets_memset( ledOut + wifi_fails * 3, 255, 3 );
-        setLeds( (led_t*)ledOut, NUM_LIN_LEDS * 3 );
-    }
-    else if( stat == STATION_GOT_IP && !got_an_ip )
-    {
-        wifi_station_get_config( &wcfg );
-        wifi_get_ip_info(0, &ipi);
-        os_printf( "STAT: %d\n", stat );
-#define chop_ip(x) (((x)>>0)&0xff), (((x)>>8)&0xff), (((x)>>16)&0xff), (((x)>>24)&0xff)
-        os_printf( "IP: %d.%d.%d.%d\n", chop_ip(ipi.ip.addr) );
-        os_printf( "NM: %d.%d.%d.%d\n", chop_ip(ipi.netmask.addr) );
-        os_printf( "GW: %d.%d.%d.%d\n", chop_ip(ipi.gw.addr) );
-        os_printf( "Connected to: /%s/\n", wcfg.ssid );
-        got_an_ip = 1;
-        wifi_fails = 0;
-    }
-}
-
-/**
- * UDP Packet handler, registered with espconn_regist_recvcb().
- * It mostly replies with debug packets from TransmitGenericEvent()
- *
- * @param arg      The espconn struct for this packet
- * @param pusrdata The data which was received
- * @param len      The length of the data received
- */
-static void ICACHE_FLASH_ATTR udpserver_recv(void* arg, char* pusrdata, unsigned short len)
-{
-    struct espconn* pespconn = (struct espconn*)arg;
-
-    remot_info* ri = 0;
-    espconn_get_connection_info( pespconn, &ri, 0);
-
-    // uint8_t buffer[MAX_FRAME];
-    // uint8_t ledout[] = { 0x00, 0xff, 0xaa, 0x00, 0xff, 0xaa, };
-    //os_printf("X");
-    // ws2812_push( pusrdata+3, len );
-    //os_printf( "%02x\n", pusrdata[6] );
-    if( pusrdata[6] == 0x11 )
-    {
-
-        send_back_on_ip = IP4_to_uint32(ri->remote_ip);
-        send_back_on_port = ri->remote_port;
-
-        TransmitGenericEvent();
-    }
-    if( pusrdata[6] == 0x13 )
-    {
-        uint8_t ledret[NUM_LIN_LEDS * 3 + 6 + 2];
-        ets_memcpy( ledret, mymac, 6 );
-        ledret[6] = 0x14;
-        ledret[7] = NUM_LIN_LEDS;
-        ets_memcpy( ledret, ledOut, NUM_LIN_LEDS * 3 );
-
-        // Request LEDs
-        send_back_on_ip = IP4_to_uint32(ri->remote_ip);
-        send_back_on_port = ri->remote_port;
-
-        pUdpServer->proto.udp->remote_port = send_back_on_port;
-        uint32_to_IP4(send_back_on_ip, pUdpServer->proto.udp->remote_ip);
-        send_back_on_ip = 0;
-        send_back_on_port = 0;
-        espconn_sendto( (struct espconn*)pUdpServer, ledret, sizeof( ledret ));
-
-        TransmitGenericEvent();
-    }
-    else if( pusrdata[6] == 0x02 )
-    {
-        if (! ((mymac[5] ^ pusrdata[7])&pusrdata[8]) )
-        {
-            ets_memcpy( ledOut, pusrdata + 10, len - 10 );
-            ticks_since_override = TICKER_TIMEOUT + 1;
-            setLeds( (led_t*)ledOut, 255 * 3 );
-            ticks_since_override = 0;
-        }
-    }
+	StartHPATimer(); // Init the high speed ADC timer.
 }
 
 /**
@@ -783,13 +497,6 @@ void ICACHE_FLASH_ATTR user_init(void)
     SetupGPIO(HandleButtonEventIRQ,
               NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback);
 
-    // If SOFT_AP is requested, but the left button isnt held, override it with NO_WIFI
-    if(SOFT_AP == swadgeModes[rtcMem.currentSwadgeMode]->wifiMode &&
-            (GetButtons() & 0b10) != 0b10)
-    {
-        swadgeModes[rtcMem.currentSwadgeMode]->wifiMode = NO_WIFI;
-    }
-
     // Set up a timer to switch the swadge mode
     os_timer_disarm(&modeSwitchTimer);
     os_timer_setfn(&modeSwitchTimer, modeSwitchTimerFn, NULL);
@@ -797,7 +504,6 @@ void ICACHE_FLASH_ATTR user_init(void)
     // Set the current WiFi mode based on what the swadge mode wants
     switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
     {
-        case SOFT_AP:
         case ESP_NOW:
         {
             if(!(wifi_set_opmode_current( SOFTAP_MODE ) &&
@@ -807,6 +513,7 @@ void ICACHE_FLASH_ATTR user_init(void)
             }
             break;
         }
+        case SOFT_AP:
         case NO_WIFI:
         {
             if(!(wifi_set_opmode_current( NULL_MODE ) &&
@@ -843,18 +550,13 @@ void ICACHE_FLASH_ATTR user_init(void)
 
     switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
     {
-        case SOFT_AP:
-        {
-            SwitchToSoftAP();
-            os_printf( "Booting in SoftAP\n" );
-            break;
-        }
         case ESP_NOW:
         {
             espNowInit();
             os_printf( "Booting in ESP-NOW\n" );
             break;
         }
+        case SOFT_AP:
         case NO_WIFI:
         {
             os_printf( "Booting with no wifi\n" );
@@ -865,64 +567,19 @@ void ICACHE_FLASH_ATTR user_init(void)
     // Common services pre-init
     CSPreInit();
 
-    switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
-    {
-        case SOFT_AP:
-        {
-            // Set up UDP server to process received packets with udpserver_recv()
-            // The local port is 8001 and the remote port is 8000
-            pUdpServer = (struct espconn*)os_zalloc(sizeof(struct espconn));
-            ets_memset( pUdpServer, 0, sizeof( struct espconn ) );
-            espconn_create( pUdpServer );
-            pUdpServer->type = ESPCONN_UDP;
-            pUdpServer->proto.udp = (esp_udp*)os_zalloc(sizeof(esp_udp));
-            pUdpServer->proto.udp->local_port = 8001;
-            pUdpServer->proto.udp->remote_port = 8000;
-            uint32_to_IP4(REMOTE_IP_CODE, pUdpServer->proto.udp->remote_ip);
-            espconn_regist_recvcb(pUdpServer, udpserver_recv);
-            int error = 0;
-            if( (error = espconn_create( pUdpServer )) )
-            {
-                while(1)
-                {
-                    os_printf( "\r\nCould not create UDP server %d\r\n", error );
-                }
-            }
-
-            // Common services (wifi) init. Sets up another UDP server to receive
-            // commands (issue_command)and an HTTP server
-            CSInit(true);
-            break;
-        }
-        case ESP_NOW:
-        case NO_WIFI:
-        {
-            os_printf( "Don't start a server\n" );
-            // Common services (wifi) init. Sets up another UDP server to receive
-            // commands (issue_command)and an HTTP server
-            CSInit(false);
-            break;
-        }
-    }
+	// Common services (wifi) init. Sets up another UDP server to receive
+	// commands (issue_command)and an HTTP server
+	CSInit(false);
 
     // Start a software timer to call CSTick() every 100ms and start the hw timer eventually
-    os_timer_disarm(&some_timer);
-    os_timer_setfn(&some_timer, (os_timer_func_t*)timerFunc100ms, NULL);
-    os_timer_arm(&some_timer, 100, 1);
+    os_timer_disarm(&timerHandle100ms);
+    os_timer_setfn(&timerHandle100ms, (os_timer_func_t*)timerFunc100ms, NULL);
+    os_timer_arm(&timerHandle100ms, 100, 1);
 
     // Only start the HPA timer if there's an audio callback
     if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
     {
-        // Tricky: If we are in station mode, wait for that to get resolved before enabling the high speed timer.
-        if( wifi_get_opmode() == STATION_MODE )
-        {
-            hpa_is_paused_for_wifi = true;
-        }
-        else
-        {
-            // Init the high speed ADC timer.
-            StartHPATimer();
-        }
+		StartHPATimer();
     }
 
     // Initialize LEDs
@@ -1002,16 +659,9 @@ void ExitCritical(void)
 void ICACHE_FLASH_ATTR setLeds(led_t* ledData, uint16_t ledDataLen)
 {
     // If the LEDs were overwritten with a UDP command, keep them that way for a while
-    if( ticks_since_override < TICKER_TIMEOUT )
-    {
-        return;
-    }
-    else
-    {
-        // Otherwise send out the LED data
-        ws2812_push( (uint8_t*) ledData, ledDataLen );
-        //os_printf("%s, %d LEDs\r\n", __func__, ledDataLen / 3);
-    }
+	// Otherwise send out the LED data
+	ws2812_push( (uint8_t*) ledData, ledDataLen );
+	//os_printf("%s, %d LEDs\r\n", __func__, ledDataLen / 3);
 }
 
 /**
