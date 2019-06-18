@@ -34,7 +34,7 @@ PROJECT_URL := $(subst .com:,.com/,$(subst .git,,$(subst git@,https://,$(shell g
 ################################################################################
 
 FWBURNFLAGS  = -b 2000000
-PORT  = /dev/ttyUSB0
+PORT  = /dev/ttyS4
 FLASH_WRITE_FLAGS = # --verify
 MFS_PAGE_OFFSET=532480
 
