@@ -181,6 +181,12 @@ void ICACHE_FLASH_ATTR SetupGPIO(void (*handler)(uint8_t state, int button, int 
         GPIO_OUTPUT_SET(GPIO_ID_PIN(gpioInfoOutput[i].GPID), gpioInfoOutput[i].initialState );
     }
 
+    // Turn off the mic if it's not being used
+    if(false == enableMic)
+    {
+    	GPIO_OUTPUT_SET(GPIO_ID_PIN(14), 0);
+    }
+
     // Set GPIO16 for Input,  mux configuration for XPD_DCDC and rtc_gpio0 connection
     WRITE_PERI_REG(PAD_XPD_DCDC_CONF,
                    (READ_PERI_REG(PAD_XPD_DCDC_CONF) & 0xffffffbc) | (uint32)
