@@ -35,13 +35,12 @@ Extra copyright info:
 *******************************************************************************/
 
 
-#include "slc_register.h"
 #include "esp82xxutil.h"
 #include <c_types.h>
 #include "ws2812_i2s.h"
 #include "user_interface.h"
-#include "pin_mux_register.h"
 #include "missingEspFnPrototypes.h"
+#include "slc_register.h"
 
 // This should be defined in the cfg file, but if the eclipse indexer can't see that...
 #if !defined(WS2812_THREE_SAMPLE) && !defined(WS2812_FOUR_SAMPLE)
@@ -359,6 +358,7 @@ void ICACHE_FLASH_ATTR ws2812_init()
     //----
 
     //Init pins to i2s functions
+#define FUNC_I2SO_DATA 1 // see https://github.com/espressif/ESP8266_MP3_DECODER/blob/master/include/espressif/esp8266/pin_mux_register.h
     PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0RXD_U, FUNC_I2SO_DATA);
     //  PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_I2SO_WS);
     //  PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDO_U, FUNC_I2SO_BCK);

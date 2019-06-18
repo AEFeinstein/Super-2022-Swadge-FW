@@ -130,6 +130,7 @@ EXTRA_CFLAGS := $(EXTRA_CFLAGS) $(patsubst %, -D%, $(DEFINES)) -DVERSTR='"$(VERS
 INC = $(patsubst %, -I%, \
 	$(SRC_DIRS) \
 	esp82xx/include \
+	$(SDK)/driver_lib/include/driver \
 	$(SDK)/include)
 
 # This is the directory in which object files will be stored

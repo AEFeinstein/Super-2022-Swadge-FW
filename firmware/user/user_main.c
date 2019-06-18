@@ -5,30 +5,20 @@
  * Includes
  *==========================================================================*/
 
-#include "mem.h"
-#include "c_types.h"
-#include "user_interface.h"
-#include "ets_sys.h"
-#include "uart.h"
 #include "osapi.h"
-#include "espconn.h"
-#include "esp82xxutil.h"
+
+#include "uart.h"
 #include "ws2812_i2s.h"
 #include "hpatimer.h"
-#include "DFT32.h"
 #include "ccconfig.h"
-#include <embeddednf.h>
 #include <embeddedout.h>
 #include <commonservices.h>
-#include "ets_sys.h"
-#include "gpio.h"
 #include "gpio_buttons.h"
 #include "custom_commands.h"
-#include "ssid.h"
 #include "user_main.h"
-#include "espnow.h"
-#include "missingEspFnPrototypes.h"
 #include "espNowUtils.h"
+#include "brzo_i2c.h"
+#include "oled.h"
 #include "mode_guitar_tuner.h"
 #include "mode_colorchord.h"
 #include "mode_reflector_game.h"
@@ -36,10 +26,6 @@
 #include "mode_dance.h"
 #include "mode_flashlight.h"
 #include "mode_demo.h"
-#include "brzo_i2c.h"
-#include "MMA8452Q.h"
-#include "oled.h"
-#include "font.h"
 
 /*============================================================================
  * Defines
