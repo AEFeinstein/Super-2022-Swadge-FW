@@ -42,6 +42,8 @@ You can also set up a Linux virtual machine, like [Xubuntu](https://xubuntu.org/
     /Swadge-Devkit-Fw/firmware$ sudo chmod 666 /dev/ttyS4
     /Swadge-Devkit-Fw/firmware$ make burn
     ```
+    If you have problems with burning the firmware or transfering page data over network (`make netburn` or `make netweb`), you should removing ```VERIFY_FLASH_WRITE``` from the makefile's list of ```DEFINES```. This way the ESP checks if the flash is written correctly.
+
 # 3. Setting up an IDE
  
 Programming in a text editor is nice. I think working in an IDE is nicer. Installing VSCode or Eclipse in Linux is pretty easy, and there are plenty of guides out there.
