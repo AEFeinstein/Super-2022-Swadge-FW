@@ -37,12 +37,12 @@ You can also set up a Linux virtual machine, like [Xubuntu](https://xubuntu.org/
     $ cd Swadge-Devkit-Fw/firmware/
     /Swadge-Devkit-Fw/firmware$ make
     ```
-1. Flash the firmware to an ESP8266. You make have to modify ```PORT``` in ```makefile``` to point to your specific serial port. If you're using WSL, [the Windows port ```COM{N}``` maps to the Linux port ```/dev/ttyS{N}```](https://blogs.msdn.microsoft.com/wsl/2017/04/14/serial-support-on-the-windows-subsystem-for-linux/). If you're using a virtual machine, you'll need to forward your COM port to a Linux serial device. You may have to set read and write permissions on the serial port before burning.
+1. Flash the firmware to an ESP8266. You make have to modify ```PORT``` in ```makefile``` to point to your specific serial port. If you're using WSL, [the Windows port ```COM{N}``` maps to the Linux port ```/dev/ttyS{N}```](https://blogs.msdn.microsoft.com/wsl/2017/04/14/serial-support-on-the-windows-subsystem-for-linux/). If you're using a virtual machine, you'll need to forward your COM port to a Linux serial device. You may have to set read and write permissions on the serial port before flashing.
     ```
     /Swadge-Devkit-Fw/firmware$ sudo chmod 666 /dev/ttyS4
     /Swadge-Devkit-Fw/firmware$ make burn
     ```
-    If you have problems with burning the firmware or transfering page data over network (`make netburn` or `make netweb`), you should removing ```VERIFY_FLASH_WRITE``` from the makefile's list of ```DEFINES```. This way the ESP checks if the flash is written correctly.
+    If you have problems with flashing the firmware or transfering page data over network (`make netburn` or `make netweb`), you should removing ```VERIFY_FLASH_WRITE``` from the makefile's list of ```DEFINES```. This way the ESP checks if the flash is written correctly.
 
 # 3. Setting up an IDE
  
@@ -56,3 +56,9 @@ This year I'm trying [Visual Studio Code](https://code.visualstudio.com/)
 Here's a guide to using Visual Studio Code with WSL: https://code.visualstudio.com/docs/remote/wsl
 
 This repo has project files for both Eclipse and Visual Studio Code. The project is based on a makefile, so you can do whatever you're comfortable with.
+
+# 4. Hardware Connection
+
+The I2S Out (WS2812 in) pin is the same as RX1 (pin 25), which means if you are programming via the UART, the LEDs will blink wildly.
+
+The UART is used for both programming and printing debug statements, so any serial terminal must be closed before programming. For WSL, the ```burn``` task calls ```burn-dbg.sh```, which kills all instances of [```putty.exe```](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html), flashes the new firmware, and restarts ```putty.exe```. Similar scripts may be written for other environments and serial terminals. You cannot start a serial terminal from a makefile, since the makefile requires all programs it started to finish in order to finish.
