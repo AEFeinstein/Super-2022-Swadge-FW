@@ -1,0 +1,13 @@
+{
+    "files.associations": {
+        "buttons.h": "c",
+        "ets_sys.h": "c",
+        "osapi.h": "c",
+        "user_interface.h": "c",
+        "brzo_i2c.h": "c",
+        "custom_commands.h": "c",
+        "gpio.h": "c",
+        "mma8452q.h": "c",
+        "uart.h": "c"
+    }
+}

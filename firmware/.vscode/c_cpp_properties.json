@@ -1,0 +1,17 @@
+{
+    "configurations": [
+        {
+            "name": "ESP8266-GCC",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/home/adam/esp-open-sdk/xtensa-lx106-elf/include/**"
+            ],
+            "defines": [],
+            "compilerPath": "/home/adam/esp-open-sdk/xtensa-lx106-elf/bin/xtensa-lx106-elf-gcc",
+            "cStandard": "c99",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "gcc-x64"
+        }
+    ],
+    "version": 4
+}
