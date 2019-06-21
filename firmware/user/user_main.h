@@ -171,20 +171,15 @@ void ICACHE_FLASH_ATTR enterDeepSleep(bool disableWifi, uint64_t sleepUs);
 
 void ICACHE_FLASH_ATTR showLedCount(uint8_t num, uint32_t color);
 uint32_t ICACHE_FLASH_ATTR getLedColorPerNumber(uint8_t num, uint8_t lightness);
-void ICACHE_FLASH_ATTR buttonCallback(uint8_t state, int button, int down);
+
+void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int down);
+void ICACHE_FLASH_ATTR swadgeModeEspNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi); 
+void ICACHE_FLASH_ATTR swadgeModeEspNowSendCb(uint8_t* mac_addr, mt_tx_status status);
 
 /*============================================================================
  * Variables
  *==========================================================================*/
 
-/**
- * An array of swadge modes. Only the current mode's functions are called
- */
-extern swadgeMode* swadgeModes[];
-/**
- * true if the current swadge mode was initialized, false otherwise
- */
-extern bool swadgeModeInit;
 /**
  * The memory which persists through deep sleep. All other RAM is cleared
  * The current swadge mode is stored here

@@ -89,7 +89,7 @@ void ICACHE_FLASH_ATTR DeepSleepChangeSwadgeMode(void);
  * @param button  The button number which was pressed
  * @param down 1 if the button was pressed, 0 if it was released
  */
-void ICACHE_FLASH_ATTR buttonCallback(uint8_t state, int button, int down)
+void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int down)
 {
     if(0 == button)
     {
@@ -99,6 +99,28 @@ void ICACHE_FLASH_ATTR buttonCallback(uint8_t state, int button, int down)
     {
         // Pass the button event to the mode
         swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(state, button, down);
+    }
+}
+
+/**
+ * TODO
+ */
+void ICACHE_FLASH_ATTR swadgeModeEspNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi)
+{
+    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowRecvCb)
+    {
+        swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowRecvCb(mac_addr, data, len, rssi);
+    }
+}
+
+/**
+ * TODO
+ */
+void ICACHE_FLASH_ATTR swadgeModeEspNowSendCb(uint8_t* mac_addr, mt_tx_status status)
+{
+    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowSendCb)
+    {
+        swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowSendCb(mac_addr, (mt_tx_status)status);
     }
 }
 

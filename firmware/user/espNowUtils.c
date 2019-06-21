@@ -167,10 +167,7 @@ void ICACHE_FLASH_ATTR espNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t le
               dbg);
 #endif
 
-    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowRecvCb)
-    {
-        swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowRecvCb(mac_addr, data, len, rssi);
-    }
+    swadgeModeEspNowRecvCb(mac_addr, data, len, rssi);
 }
 
 /**
@@ -224,10 +221,7 @@ void ICACHE_FLASH_ATTR espNowSendCb(uint8_t* mac_addr, uint8_t status)
         }
     }
 
-    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowSendCb)
-    {
-        swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowSendCb(mac_addr, (mt_tx_status)status);
-    }
+    swadgeModeEspNowSendCb(mac_addr, (mt_tx_status)status);
 }
 
 /**

@@ -91,7 +91,7 @@ void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void)
         }
         else
         {
-            buttonCallback(buttonQueue[buttonEvtHead].stat,
+            swadgeModeButtonCallback(buttonQueue[buttonEvtHead].stat,
                            buttonQueue[buttonEvtHead].btn,
                            buttonQueue[buttonEvtHead].down);
 
