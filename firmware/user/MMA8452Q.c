@@ -11,7 +11,7 @@
 #define MMA8452Q_ADDRESS 0x1C
 #define MMA8452Q_FREQ    400
 
-void ICACHE_FLASH_ATTR MMA8452Q_setup(void)
+bool ICACHE_FLASH_ATTR MMA8452Q_setup(void)
 {
 	brzo_i2c_start_transaction(MMA8452Q_ADDRESS, MMA8452Q_FREQ);
 
@@ -34,7 +34,7 @@ void ICACHE_FLASH_ATTR MMA8452Q_setup(void)
 	config[1] = 0x00;
 	brzo_i2c_write(config, sizeof(config), false);
 
-	brzo_i2c_end_transaction();
+	return (0 == brzo_i2c_end_transaction());
 }
 
 void ICACHE_FLASH_ATTR MMA8452Q_poll(accel_t * currentAccel)

@@ -167,7 +167,7 @@ void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
 
     // Write the RTC memory so it knows what mode to be in when waking up
     system_rtc_mem_write(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem));
-    os_printf("rtc mem written\r\n");
+    os_printf("rtc mem written\n");
 
     // Check if the next mode wants wifi or not
     switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
@@ -178,7 +178,7 @@ void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
             // Radio calibration is done after deep-sleep wake up; this increases
             // the current consumption.
             system_deep_sleep_set_option(1);
-            os_printf("deep sleep option set 1\r\n");
+            os_printf("deep sleep option set 1\n");
             break;
         }
         case NO_WIFI:
@@ -187,7 +187,7 @@ void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
             // has the least current consumption; the device is not able to
             // transmit or receive data after wake up.
             system_deep_sleep_set_option(4);
-            os_printf("deep sleep option set 4\r\n");
+            os_printf("deep sleep option set 4\n");
             break;
         }
     }
@@ -310,29 +310,27 @@ void ICACHE_FLASH_ATTR user_init(void)
 {
     // Initialize the UART
     uart_init(BIT_RATE_74880, BIT_RATE_74880);
-    os_printf("\r\nSwadge 2019\r\n");
+    os_printf("\nSwadge 2020\n");
 
     // Read data fom RTC memory if we're waking from deep sleep
     struct rst_info* resetInfo = system_get_rst_info();
     if(REASON_DEEP_SLEEP_AWAKE == resetInfo->reason)
     {
-        os_printf("read rtc mem\r\n");
+        os_printf("read rtc mem\n");
         // Try to read from rtc memory
         if(!system_rtc_mem_read(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem)))
         {
-            os_printf("rtc mem read fail\r\n");
             // if it fails, zero it out instead
             ets_memset(&rtcMem, 0, sizeof(rtcMem));
+            os_printf("rtc mem read fail\n");
         }
     }
     else
     {
         // if it fails, zero it out instead
         ets_memset(&rtcMem, 0, sizeof(rtcMem));
+        os_printf("zero rtc mem\n");
     }
-
-    // Initialize GPIOs
-    SetupGPIO(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback);
 
     // Set the current WiFi mode based on what the swadge mode wants
     switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
@@ -342,8 +340,10 @@ void ICACHE_FLASH_ATTR user_init(void)
             if(!(wifi_set_opmode_current( SOFTAP_MODE ) &&
                     wifi_set_opmode( SOFTAP_MODE )))
             {
-                os_printf("Set SOFTAP_MODE before boot failed\r\n");
+                os_printf("Set SOFTAP_MODE before boot failed\n");
             }
+            espNowInit();
+            os_printf( "Booting in ESP-NOW\n" );
             break;
         }
         case SOFT_AP:
@@ -352,62 +352,60 @@ void ICACHE_FLASH_ATTR user_init(void)
             if(!(wifi_set_opmode_current( NULL_MODE ) &&
                     wifi_set_opmode( NULL_MODE )))
             {
-                os_printf("Set NULL_MODE before boot failed\r\n");
+                os_printf("Set NULL_MODE before boot failed\n");
             }
-            break;
-        }
-    }
-
-    // Uncomment this to force a system restore.
-    // system_restore();
-
-    // Load configurable parameters from SPI memory
-    LoadSettings();
-
-    os_printf("Wins: %d\r\n", getRefGameWins());
-
-#ifdef PROFILE
-    GPIO_OUTPUT_SET(GPIO_ID_PIN(0), 0);
-#endif
-
-    // Held buttons aren't used on boot for anything, but they could be
-    /*
-    int firstbuttons = GetButtons();
-    if( (firstbuttons & 0x08) )
-    {
-    // Restore all settings to
-    os_printf( "Restore and save defaults (except # of leds).\n" );
-    RevertAndSaveAllSettingsExceptLEDs();
-    }
-    */
-
-    switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
-    {
-        case ESP_NOW:
-        {
-            espNowInit();
-            os_printf( "Booting in ESP-NOW\n" );
-            break;
-        }
-        case SOFT_AP:
-        case NO_WIFI:
-        {
             os_printf( "Booting with no wifi\n" );
             break;
         }
     }
 
-    // Common services pre-init
+    // Common services pre-init and init, after wifi is initialized
     CSPreInit();
-
-    // Common services (wifi) init. Sets up another UDP server to receive
-    // commands (issue_command)and an HTTP server
     CSInit(false);
 
-    // Start a software timer to call CSTick() every 100ms and start the hw timer eventually
-    os_timer_disarm(&timerHandle100ms);
-    os_timer_setfn(&timerHandle100ms, (os_timer_func_t*)timerFunc100ms, NULL);
-    os_timer_arm(&timerHandle100ms, 100, 1);
+    // Load configurable parameters from SPI memory
+    LoadSettings();
+
+    // Initialize GPIOs
+    SetupGPIO(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback);
+#ifdef PROFILE
+    GPIO_OUTPUT_SET(GPIO_ID_PIN(0), 0);
+#endif
+
+    // Initialize LEDs
+    ws2812_init();
+    os_printf("LEDs initialized\n");
+
+    // Initialize i2c
+    brzo_i2c_setup(100);
+    os_printf("I2C initialized\n");
+
+    // Initialize accel
+    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
+    {
+        if(true == MMA8452Q_setup())
+        {
+            os_printf("Accelerometer initialized\n");
+        }
+        else
+        {
+            os_printf("Accelerometer initialization failed\n");
+        }
+    }
+    else
+    {
+        os_printf("Accelerometer not needed\n");
+    }
+
+    // Initialize display
+    if(true == begin(true))
+    {
+        os_printf("OLED initialized\n");
+    }
+    else
+    {
+        os_printf("OLED initialization failed\n");
+    }
 
     // Only start the HPA timer if there's an audio callback
     if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
@@ -415,48 +413,26 @@ void ICACHE_FLASH_ATTR user_init(void)
         StartHPATimer();
     }
 
-    // Initialize LEDs
-    ws2812_init();
-
-    // Initialize i2c
-    brzo_i2c_setup(100);
-
-    // Initialize accel
-    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
-    {
-        MMA8452Q_setup();
-        os_printf("MMA8452Q initialized\n");
-    }
-
-    // Initialize display
-    begin(true);
-    os_printf("OLED initialized\n");
-
-    // Attempt to make ADC more stable
-    // https:// github.com/esp8266/Arduino/issues/2070
-    // see peripherals https:// espressif.com/en/support/explore/faq
-    // wifi_set_sleep_type(NONE_SLEEP_T); // on its own stopped wifi working
-    // wifi_fpm_set_sleep_type(NONE_SLEEP_T); // with this seemed no difference
-
     // Initialize the current mode
-    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->modeName)
-    {
-        os_printf("mode: %d: %s\r\n", rtcMem.currentSwadgeMode, swadgeModes[rtcMem.currentSwadgeMode]->modeName);
-    }
-    else
-    {
-        os_printf("mode: %d: no name\r\n", rtcMem.currentSwadgeMode);
-    }
-
     if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEnterMode)
     {
         swadgeModes[rtcMem.currentSwadgeMode]->fnEnterMode();
     }
     swadgeModeInit = true;
 
+    // Debug print
+    os_printf("mode: %d: %s initialized\n", rtcMem.currentSwadgeMode,
+              (NULL != swadgeModes[rtcMem.currentSwadgeMode]->modeName) ?
+              (swadgeModes[rtcMem.currentSwadgeMode]->modeName) : ("No Name"));
+
+    // Start a software timer to call CSTick() every 100ms
+    os_timer_disarm(&timerHandle100ms);
+    os_timer_setfn(&timerHandle100ms, (os_timer_func_t*)timerFunc100ms, NULL);
+    os_timer_arm(&timerHandle100ms, 100, 1);
+
     // Add a process to filter queued ADC samples and output LED signals
+    // This is faster than every 100ms
     system_os_task(procTask, PROC_TASK_PRIO, procTaskQueue, PROC_TASK_QUEUE_LEN);
-    // Kick off procTask()
     system_os_post(PROC_TASK_PRIO, 0, 0 );
 }
 
@@ -494,7 +470,7 @@ void ICACHE_FLASH_ATTR setLeds(led_t* ledData, uint16_t ledDataLen)
     // If the LEDs were overwritten with a UDP command, keep them that way for a while
     // Otherwise send out the LED data
     ws2812_push( (uint8_t*) ledData, ledDataLen );
-    //os_printf("%s, %d LEDs\r\n", __func__, ledDataLen / 3);
+    //os_printf("%s, %d LEDs\n", __func__, ledDataLen / 3);
 }
 
 /**
