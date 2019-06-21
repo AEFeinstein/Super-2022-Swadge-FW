@@ -67,7 +67,6 @@ uint8_t modeLedBrightness = 0;
  * Prototypes
  *==========================================================================*/
 
-void ICACHE_FLASH_ATTR RETick(void);
 static void ICACHE_FLASH_ATTR procTask(os_event_t* events);
 
 void ICACHE_FLASH_ATTR user_pre_init(void);
@@ -258,33 +257,11 @@ void ICACHE_FLASH_ATTR enterDeepSleep(bool disableWifi, uint64_t sleepUs)
 }
 
 /**
- * Tasks that happen all the time.
- * Called at the end of each procTask() loop
- */
-void ICACHE_FLASH_ATTR RETick(void)
-{
-    // If colorchord is active and the HPA isn't running, start it
-    if( COLORCHORD_ACTIVE && !isHpaRunning() )
-    {
-        ExitCritical();
-    }
-
-    // If colorchord isn't running and the HPA is running, stop it
-    if( !COLORCHORD_ACTIVE && isHpaRunning() )
-    {
-        EnterCritical();
-    }
-
-    // Common services tick, fast mode
-    CSTick( 0 );
-}
-
-/**
  * This task is constantly called by posting itself instead of being in an
  * infinite loop. ESP doesn't like infinite loops.
  *
  * It handles synchronous button events, audio samples which have been read
- * and are queued for processing, and calling RETick()
+ * and are queued for processing, and calling CSTick()
  *
  * @param events Checked before posting this task again
  */
@@ -325,7 +302,20 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
 
     if( events->sig == 0 && events->par == 0 )
     {
-        RETick();
+        // If colorchord is active and the HPA isn't running, start it
+        if( COLORCHORD_ACTIVE && !isHpaRunning() )
+        {
+            ExitCritical();
+        }
+
+        // If colorchord isn't running and the HPA is running, stop it
+        if( !COLORCHORD_ACTIVE && isHpaRunning() )
+        {
+            EnterCritical();
+        }
+
+        // Common services tick, fast mode
+        CSTick( 0 );
     }
 }
 
