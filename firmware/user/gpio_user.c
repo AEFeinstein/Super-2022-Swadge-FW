@@ -225,10 +225,20 @@ uint8_t ICACHE_FLASH_ATTR getLastGPIOState(void)
 }
 
 /**
- *
+ * TODO
  * @param on
  */
 void ICACHE_FLASH_ATTR setOledResetOn(bool on)
 {
     GPIO_OUTPUT_SET(GPIO_ID_PIN(15), on ? 1 : 0 );
+}
+
+/**
+ * TODO
+ */
+void ICACHE_FLASH_ATTR setGpiosForBoot(void)
+{
+    GPIO_OUTPUT_SET(GPIO_ID_PIN(0),  1 );
+    GPIO_OUTPUT_SET(GPIO_ID_PIN(2),  1 );
+    GPIO_OUTPUT_SET(GPIO_ID_PIN(15), 0 );
 }

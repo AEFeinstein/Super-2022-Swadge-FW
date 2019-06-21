@@ -47,20 +47,12 @@ led_t;
  * Structs
  *==========================================================================*/
 
-typedef struct __attribute__((aligned(4)))
-{
-    uint32_t currentSwadgeMode;
-}
-rtcMem_t;
-
-typedef struct _swadgeMode swadgeMode;
-
 /**
  * A struct of all the function pointers necessary for a swadge mode. If a mode
  * does not need a particular function, say it doesn't do audio handling, it
  * is safe to set the pointer to NULL. It just won't be called.
  */
-struct _swadgeMode
+typedef struct _swadgeMode
 {
     /**
      * This swadge mode's name, mostly for debugging.
@@ -134,8 +126,8 @@ struct _swadgeMode
      *
      * @param accel
      */
-    void (*fnAccelerometerCallback)(accel_t * accel);
-};
+    void (*fnAccelerometerCallback)(accel_t* accel);
+} swadgeMode;
 
 /*============================================================================
  * Functions
@@ -160,30 +152,11 @@ void ICACHE_FLASH_ATTR setLeds(led_t* ledData, uint16_t ledDataLen);
  */
 void ICACHE_FLASH_ATTR espNowSend(const uint8_t* data, uint8_t len);
 
-/**
- * Enter deep sleep mode for some number of microseconds. This also
- * controls whether or not WiFi will be enabled when the ESP wakes.
- *
- * @param disableWifi true to disable wifi, false to enable wifi
- * @param sleepUs     The duration of time (us) when the device is in Deep-sleep.
- */
-void ICACHE_FLASH_ATTR enterDeepSleep(bool disableWifi, uint64_t sleepUs);
-
 void ICACHE_FLASH_ATTR showLedCount(uint8_t num, uint32_t color);
 uint32_t ICACHE_FLASH_ATTR getLedColorPerNumber(uint8_t num, uint8_t lightness);
 
 void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int down);
-void ICACHE_FLASH_ATTR swadgeModeEspNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi); 
+void ICACHE_FLASH_ATTR swadgeModeEspNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi);
 void ICACHE_FLASH_ATTR swadgeModeEspNowSendCb(uint8_t* mac_addr, mt_tx_status status);
-
-/*============================================================================
- * Variables
- *==========================================================================*/
-
-/**
- * The memory which persists through deep sleep. All other RAM is cleared
- * The current swadge mode is stored here
- */
-extern rtcMem_t rtcMem;
 
 #endif /* USER_USER_MAIN_H_ */

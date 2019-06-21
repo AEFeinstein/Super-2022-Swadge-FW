@@ -38,6 +38,16 @@
 #define RTC_MEM_ADDR 64
 
 /*============================================================================
+ * Structs
+ *==========================================================================*/
+
+typedef struct __attribute__((aligned(4)))
+{
+    uint32_t currentSwadgeMode;
+}
+rtcMem_t;
+
+/*============================================================================
  * Variables
  *==========================================================================*/
 
@@ -59,23 +69,18 @@ swadgeMode* swadgeModes[] =
 bool swadgeModeInit = false;
 
 rtcMem_t rtcMem = {0};
-os_timer_t modeSwitchTimer = {0};
-
-uint8_t modeLedBrightness = 0;
 
 /*============================================================================
  * Prototypes
  *==========================================================================*/
 
-static void ICACHE_FLASH_ATTR procTask(os_event_t* events);
-
 void ICACHE_FLASH_ATTR user_pre_init(void);
 void ICACHE_FLASH_ATTR user_init(void);
+
+static void ICACHE_FLASH_ATTR procTask(os_event_t* events);
 static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg);
 
-void ICACHE_FLASH_ATTR incrementSwadgeModeNoSleep(void);
-void ICACHE_FLASH_ATTR modeSwitchTimerFn(void* arg);
-void ICACHE_FLASH_ATTR DeepSleepChangeSwadgeMode(void);
+void ICACHE_FLASH_ATTR incrementSwadgeMode(void);
 
 /*============================================================================
  * Functions
@@ -92,7 +97,8 @@ void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int d
 {
     if(0 == button)
     {
-        // TODO switch the mode
+        // Switch the mode
+        incrementSwadgeMode();
     }
     else if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
     {
@@ -128,7 +134,7 @@ void ICACHE_FLASH_ATTR swadgeModeEspNowSendCb(uint8_t* mac_addr, mt_tx_status st
  * mode's LED pattern, and starts a timer to reboot into the next mode.
  * If the reboot timer is running, it will be reset
  */
-void ICACHE_FLASH_ATTR incrementSwadgeModeNoSleep(void)
+void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
 {
     // If the mode is initialized, tear it down
     if(swadgeModeInit)
@@ -159,53 +165,9 @@ void ICACHE_FLASH_ATTR incrementSwadgeModeNoSleep(void)
     // Switch to the next mode, or start from the beginning if we're at the end
     rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
 
-    // Start a timer to reboot into this mode
-    modeLedBrightness = 0xFF;
-    os_timer_disarm(&modeSwitchTimer);
-    os_timer_arm(&modeSwitchTimer, 3, true);
-}
-
-/**
- * Callback called when the swadge mode is changing. It displays and fades the
- * current mode number. When the mode fades all the way out, the swadge goes
- * into deep sleep and when it wakes it boots into the next mode
- *
- * @param arg
- */
-void ICACHE_FLASH_ATTR modeSwitchTimerFn(void* arg __attribute__((unused)))
-{
-    if(0 == modeLedBrightness)
-    {
-        os_timer_disarm(&modeSwitchTimer);
-        DeepSleepChangeSwadgeMode();
-    }
-    else
-    {
-        // Show the LEDs for this mode before rebooting into it
-        showLedCount(1 + rtcMem.currentSwadgeMode,
-                     getLedColorPerNumber(rtcMem.currentSwadgeMode, modeLedBrightness));
-
-        modeLedBrightness--;
-    }
-}
-
-/**
- * Switch to the next registered swadge mode. This will wait until the mode
- * switch / programming mode button isn't pressed, then deep sleep into the next
- * swadge mode.
- *
- * Calling wifi_set_opmode_current() and wifi_set_opmode() in here causes crashes
- */
-void ICACHE_FLASH_ATTR DeepSleepChangeSwadgeMode(void)
-{
-    // If the mode switch button is held down
-    if(GetButtons() & 0x01)
-    {
-        // Try rebooting again in 1ms
-        os_timer_disarm(&modeSwitchTimer);
-        os_timer_arm(&modeSwitchTimer, 1, false);
-        return;
-    }
+    // Write the RTC memory so it knows what mode to be in when waking up
+    system_rtc_mem_write(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem));
+    os_printf("rtc mem written\r\n");
 
     // Check if the next mode wants wifi or not
     switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
@@ -213,47 +175,28 @@ void ICACHE_FLASH_ATTR DeepSleepChangeSwadgeMode(void)
         case SOFT_AP:
         case ESP_NOW:
         {
-            // Sleeeeep. It calls user_init on wake, which will use the new mode
-            enterDeepSleep(false, 1000);
+            // Radio calibration is done after deep-sleep wake up; this increases
+            // the current consumption.
+            system_deep_sleep_set_option(1);
+            os_printf("deep sleep option set 1\r\n");
             break;
         }
         case NO_WIFI:
         {
-            // Sleeeeep. It calls user_init on wake, which will use the new mode
-            enterDeepSleep(true, 1000);
+            // Disable RF after deep-sleep wake up, just like modem sleep; this
+            // has the least current consumption; the device is not able to
+            // transmit or receive data after wake up.
+            system_deep_sleep_set_option(4);
+            os_printf("deep sleep option set 4\r\n");
             break;
         }
     }
-}
 
-/**
- * Enter deep sleep mode for some number of microseconds. This also
- * controls whether or not WiFi will be enabled when the ESP wakes.
- *
- * @param disableWifi true to disable wifi, false to enable wifi
- * @param sleepUs     The duration of time (us) when the device is in Deep-sleep.
- */
-void ICACHE_FLASH_ATTR enterDeepSleep(bool disableWifi, uint64_t sleepUs)
-{
-    system_rtc_mem_write(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem));
-    os_printf("rtc mem written\r\n");
+    // Be extra sure the GPIOs are in the right state for boot
+    setGpiosForBoot();
 
-    if(disableWifi)
-    {
-        // Disable RF after deep-sleep wake up, just like modem sleep; this
-        // has the least current consumption; the device is not able to
-        // transmit or receive data after wake up.
-        system_deep_sleep_set_option(4);
-        os_printf("deep sleep option set 4\r\n");
-    }
-    else
-    {
-        // Radio calibration is done after deep-sleep wake up; this increases
-        // the current consumption.
-        system_deep_sleep_set_option(1);
-        os_printf("deep sleep option set 1\r\n");
-    }
-    system_deep_sleep(sleepUs);
+    // Sleeeeep. It calls user_init on wake, which will use the new mode
+    system_deep_sleep(1000);
 }
 
 /**
@@ -390,10 +333,6 @@ void ICACHE_FLASH_ATTR user_init(void)
 
     // Initialize GPIOs
     SetupGPIO(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback);
-
-    // Set up a timer to switch the swadge mode
-    os_timer_disarm(&modeSwitchTimer);
-    os_timer_setfn(&modeSwitchTimer, modeSwitchTimerFn, NULL);
 
     // Set the current WiFi mode based on what the swadge mode wants
     switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
