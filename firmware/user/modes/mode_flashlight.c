@@ -13,6 +13,7 @@
 #include "user_main.h"
 #include "mode_flashlight.h"
 #include "morse_code.h"
+#include "buttons.h"
 
 /*============================================================================
  * Defines

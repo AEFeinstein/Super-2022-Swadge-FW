@@ -12,7 +12,7 @@
 #include "osapi.h"
 #include "oled.h"
 #include "brzo_i2c.h"
-#include "gpio_buttons.h"
+#include "gpio_user.h"
 
 //==============================================================================
 // Defines and Enums

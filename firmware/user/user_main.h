@@ -171,7 +171,7 @@ void ICACHE_FLASH_ATTR enterDeepSleep(bool disableWifi, uint64_t sleepUs);
 
 void ICACHE_FLASH_ATTR showLedCount(uint8_t num, uint32_t color);
 uint32_t ICACHE_FLASH_ATTR getLedColorPerNumber(uint8_t num, uint8_t lightness);
-void ICACHE_FLASH_ATTR enableDebounce(bool enable);
+void ICACHE_FLASH_ATTR buttonCallback(uint8_t state, int button, int down);
 
 /*============================================================================
  * Variables

@@ -189,6 +189,7 @@ digraph G {
 #include "mode_reflector_game.h"
 #include "osapi.h"
 #include "custom_commands.h"
+#include "buttons.h"
 
 /*============================================================================
  * Defines

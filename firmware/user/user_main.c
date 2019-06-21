@@ -13,7 +13,8 @@
 #include "ccconfig.h"
 #include <embeddedout.h>
 #include <commonservices.h>
-#include "gpio_buttons.h"
+#include "gpio_user.h"
+#include "buttons.h"
 #include "custom_commands.h"
 #include "user_main.h"
 #include "espNowUtils.h"
@@ -36,22 +37,6 @@
 
 #define RTC_MEM_ADDR 64
 
-#define NUM_BUTTON_EVTS 10
-#define DEBOUNCE_US      200000
-#define DEBOUNCE_US_FAST   7000
-
-/*============================================================================
- * Structs
- *==========================================================================*/
-
-typedef struct
-{
-    uint8_t stat;
-    int btn;
-    int down;
-    uint32_t time;
-} buttonEvt;
-
 /*============================================================================
  * Variables
  *==========================================================================*/
@@ -63,7 +48,7 @@ uint32_t samp_iir = 0;
 
 swadgeMode* swadgeModes[] =
 {
-	&demoMode,
+    &demoMode,
     &colorchordMode,
     &reflectorGameMode,
     &dancesMode,
@@ -73,13 +58,6 @@ swadgeMode* swadgeModes[] =
 };
 bool swadgeModeInit = false;
 
-// TODO move to button GPIO file
-volatile buttonEvt buttonQueue[NUM_BUTTON_EVTS] = {{0}};
-volatile uint8_t buttonEvtHead = 0;
-volatile uint8_t buttonEvtTail = 0;
-uint32_t lastButtonPress[4] = {0};
-bool debounceEnabled = true;
-
 rtcMem_t rtcMem = {0};
 os_timer_t modeSwitchTimer = {0};
 
@@ -88,9 +66,6 @@ uint8_t modeLedBrightness = 0;
 /*============================================================================
  * Prototypes
  *==========================================================================*/
-
-void HandleButtonEventIRQ( uint8_t stat, int btn, int down );
-void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void);
 
 void ICACHE_FLASH_ATTR RETick(void);
 static void ICACHE_FLASH_ATTR procTask(os_event_t* events);
@@ -106,6 +81,26 @@ void ICACHE_FLASH_ATTR DeepSleepChangeSwadgeMode(void);
 /*============================================================================
  * Functions
  *==========================================================================*/
+
+/**
+ * Pass a button event from the logic in button.h to the active swadge mode
+ *
+ * @param state A bitmask of all button statuses
+ * @param button  The button number which was pressed
+ * @param down 1 if the button was pressed, 0 if it was released
+ */
+void ICACHE_FLASH_ATTR buttonCallback(uint8_t state, int button, int down)
+{
+    if(0 == button)
+    {
+        // TODO switch the mode
+    }
+    else if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
+    {
+        // Pass the button event to the mode
+        swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(state, button, down);
+    }
+}
 
 /**
  * This deinitializes the current mode if it is initialized, displays the next
@@ -331,8 +326,8 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
 
     if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
     {
-    	accel_t accel = {0};
-    	MMA8452Q_poll(&accel);
+        accel_t accel = {0};
+        MMA8452Q_poll(&accel);
         swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback(&accel);
     }
 
@@ -342,105 +337,7 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
         swadgeModes[rtcMem.currentSwadgeMode]->fnTimerCallback();
     }
 
-	StartHPATimer(); // Init the high speed ADC timer.
-}
-
-/**
- * This function is passed into SetupGPIO() as the callback for button interrupts.
- * It is called every time a button is pressed or released
- *
- * This is an interrupt, so it can't be ICACHE_FLASH_ATTR. It quickly queues
- * button events
- *
- * TODO move to button GPIO file
- *
- * @param stat A bitmask of all button statuses
- * @param btn The button number which was pressed
- * @param down 1 if the button was pressed, 0 if it was released
- */
-void HandleButtonEventIRQ( uint8_t stat, int btn, int down )
-{
-    // Queue up the button event
-    buttonQueue[buttonEvtTail].stat = stat;
-    buttonQueue[buttonEvtTail].btn = btn;
-    buttonQueue[buttonEvtTail].down = down;
-    buttonQueue[buttonEvtTail].time = system_get_time();
-    buttonEvtTail = (buttonEvtTail + 1) % NUM_BUTTON_EVTS;
-}
-
-/**
- * Process queued button events synchronously
- *
- * TODO move to button GPIO file
- */
-void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void)
-{
-    if(buttonEvtHead != buttonEvtTail)
-    {
-    	os_printf("btn  %d\ndown\n%d\nstat\n%d time %d\n",
-    			buttonQueue[buttonEvtHead].btn,
-    			buttonQueue[buttonEvtHead].down,
-    			buttonQueue[buttonEvtHead].stat,
-    			buttonQueue[buttonEvtHead].time);
-//        // The 0th button is the mode switch button, don't pass that to the mode
-//        if(0 == buttonQueue[buttonEvtHead].btn)
-//        {
-//            // Make sure no two presses happen within 100ms of each other
-//            if(buttonQueue[buttonEvtHead].time - lastButtonPress[buttonQueue[buttonEvtHead].btn] < DEBOUNCE_US)
-//            {
-//                ; // Consume this event below, don't count it as a press
-//            }
-//            else if(buttonQueue[buttonEvtHead].down)
-//            {
-//                // Note the time of this button press
-//                lastButtonPress[buttonQueue[buttonEvtHead].btn] = buttonQueue[buttonEvtHead].time;
-//                incrementSwadgeModeNoSleep();
-//            }
-//        }
-//        // Pass the button to the mode
-//        else
-    	if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
-        {
-            uint32_t debounceUs;
-            if(debounceEnabled)
-            {
-                debounceUs = DEBOUNCE_US;
-            }
-            else
-            {
-                debounceUs = DEBOUNCE_US_FAST;
-            }
-
-            if(buttonQueue[buttonEvtHead].time - lastButtonPress[buttonQueue[buttonEvtHead].btn] < debounceUs)
-            {
-                ; // Consume this event below, don't count it as a press
-            }
-            else
-            {
-                // Pass the button event to the mode
-                swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(
-                    buttonQueue[buttonEvtHead].stat,
-                    buttonQueue[buttonEvtHead].btn,
-                    buttonQueue[buttonEvtHead].down);
-
-                // Note the time of this button press
-                lastButtonPress[buttonQueue[buttonEvtHead].btn] = buttonQueue[buttonEvtHead].time;
-            }
-        }
-
-        // Increment the head
-        buttonEvtHead = (buttonEvtHead + 1) % NUM_BUTTON_EVTS;
-    }
-}
-
-/**
- * Enable or disable button debounce for non-mode switch buttons
- *
- * @param enable true to enable, false to disable
- */
-void ICACHE_FLASH_ATTR enableDebounce(bool enable)
-{
-    debounceEnabled = enable;
+    StartHPATimer(); // Init the high speed ADC timer.
 }
 
 /**
@@ -480,8 +377,7 @@ void ICACHE_FLASH_ATTR user_init(void)
     }
 
     // Initialize GPIOs
-    SetupGPIO(HandleButtonEventIRQ,
-              NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback);
+    SetupGPIO(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback);
 
     // Set up a timer to switch the swadge mode
     os_timer_disarm(&modeSwitchTimer);
@@ -553,9 +449,9 @@ void ICACHE_FLASH_ATTR user_init(void)
     // Common services pre-init
     CSPreInit();
 
-	// Common services (wifi) init. Sets up another UDP server to receive
-	// commands (issue_command)and an HTTP server
-	CSInit(false);
+    // Common services (wifi) init. Sets up another UDP server to receive
+    // commands (issue_command)and an HTTP server
+    CSInit(false);
 
     // Start a software timer to call CSTick() every 100ms and start the hw timer eventually
     os_timer_disarm(&timerHandle100ms);
@@ -565,7 +461,7 @@ void ICACHE_FLASH_ATTR user_init(void)
     // Only start the HPA timer if there's an audio callback
     if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
     {
-		StartHPATimer();
+        StartHPATimer();
     }
 
     // Initialize LEDs
@@ -577,8 +473,8 @@ void ICACHE_FLASH_ATTR user_init(void)
     // Initialize accel
     if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
     {
-		MMA8452Q_setup();
-		os_printf("MMA8452Q initialized\n");
+        MMA8452Q_setup();
+        os_printf("MMA8452Q initialized\n");
     }
 
     // Initialize display
@@ -645,9 +541,9 @@ void ExitCritical(void)
 void ICACHE_FLASH_ATTR setLeds(led_t* ledData, uint16_t ledDataLen)
 {
     // If the LEDs were overwritten with a UDP command, keep them that way for a while
-	// Otherwise send out the LED data
-	ws2812_push( (uint8_t*) ledData, ledDataLen );
-	//os_printf("%s, %d LEDs\r\n", __func__, ledDataLen / 3);
+    // Otherwise send out the LED data
+    ws2812_push( (uint8_t*) ledData, ledDataLen );
+    //os_printf("%s, %d LEDs\r\n", __func__, ledDataLen / 3);
 }
 
 /**

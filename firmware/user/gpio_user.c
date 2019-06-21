@@ -2,15 +2,11 @@
  * Includes
  *==========================================================================*/
 
-#include "gpio_buttons.h"
-#include "user_interface.h"
-#include "c_types.h"
-#include <gpio.h>
-#include <ets_sys.h>
-#include <esp82xxutil.h>
 #include <osapi.h>
-#include "missingEspFnPrototypes.h"
-#include <uart.h>
+#include <gpio.h>
+#include "esp82xxutil.h"
+#include "gpio_user.h"
+#include "buttons.h"
 
 /*============================================================================
  * Defines
@@ -23,7 +19,6 @@
  * Prototypes
  *==========================================================================*/
 
-void gpio_pin_intr_state_set(uint32 i, GPIO_INT_TYPE intr_state);
 void gpioInterrupt( void* v );
 
 /*============================================================================
@@ -42,58 +37,57 @@ typedef struct
  * Variables
  *==========================================================================*/
 
-void (* volatile mButtonHandler)(uint8_t state, int button, int down) = NULL;
 volatile uint8_t LastGPIOState;
 
 // Matches order in button_mask
 static const gpioInfo_t gpioInfoInput[] =
 {
-	// Up
-	{
-		.GPID = 13,
-		.func = FUNC_GPIO13,
-		.periph = PERIPHS_IO_MUX_MTCK_U,
-		.initialState = 1
-	},
-	// Down
-	{
-		.GPID = 5,
-		.func = FUNC_GPIO5,
-		.periph = PERIPHS_IO_MUX_GPIO5_U,
-		.initialState = 1
-	},
-	// Left
-	{
-		.GPID = 4,
-		.func = FUNC_GPIO4,
-		.periph = PERIPHS_IO_MUX_GPIO4_U,
-		.initialState = 1
-	},
-	// Right
-	{
-		.GPID = 12,
-		.func = FUNC_GPIO12,
-		.periph = PERIPHS_IO_MUX_MTDI_U,
-		.initialState = 1
-	},
+    // Up
+    {
+        .GPID = 13,
+        .func = FUNC_GPIO13,
+        .periph = PERIPHS_IO_MUX_MTCK_U,
+        .initialState = 1
+    },
+    // Down
+    {
+        .GPID = 5,
+        .func = FUNC_GPIO5,
+        .periph = PERIPHS_IO_MUX_GPIO5_U,
+        .initialState = 1
+    },
+    // Left
+    {
+        .GPID = 4,
+        .func = FUNC_GPIO4,
+        .periph = PERIPHS_IO_MUX_GPIO4_U,
+        .initialState = 1
+    },
+    // Right
+    {
+        .GPID = 12,
+        .func = FUNC_GPIO12,
+        .periph = PERIPHS_IO_MUX_MTDI_U,
+        .initialState = 1
+    },
 };
 
 static const gpioInfo_t gpioInfoOutput[] =
 {
-	// GPIO15 used as RST for the OLED
-	{
-		.GPID = 15,
-		.func = FUNC_GPIO15,
-		.periph = PERIPHS_IO_MUX_MTDO_U,
-		.initialState = 0
-	},
-	// Pull GPIO 14 high, this is for the microphone
-	{
-		.GPID = 14,
-		.func = FUNC_GPIO14,
-		.periph = PERIPHS_IO_MUX_MTMS_U,
-		.initialState = 1
-	},
+    // GPIO15 used as RST for the OLED
+    {
+        .GPID = 15,
+        .func = FUNC_GPIO15,
+        .periph = PERIPHS_IO_MUX_MTDO_U,
+        .initialState = 0
+    },
+    // Pull GPIO 14 high, this is for the microphone
+    {
+        .GPID = 14,
+        .func = FUNC_GPIO14,
+        .periph = PERIPHS_IO_MUX_MTMS_U,
+        .initialState = 1
+    },
 };
 
 /*============================================================================
@@ -119,11 +113,7 @@ void gpioInterrupt( void* v __attribute__((unused)))
         // If the current button state doesn't match the previous button state
         if( (status & mask) != (LastGPIOState & mask) )
         {
-            // Call the callback
-            if(NULL != mButtonHandler)
-            {
-                mButtonHandler( status, i, (status & mask) ? 1 : 0 );
-            }
+            HandleButtonEventIRQ( status, i, (status & mask) ? 1 : 0 );
         }
     }
     // Record the current state for the next interrupt
@@ -137,12 +127,11 @@ void gpioInterrupt( void* v __attribute__((unused)))
 /**
  * Initialize the GPIOs as button inputs with internal pullups and interrupts
  * Also set 14 high for the microphone
+ * 
+ * @param enableMic true to enable the microphone, false to disable it
  */
-void ICACHE_FLASH_ATTR SetupGPIO(void (*handler)(uint8_t state, int button, int down), bool enableMic)
+void ICACHE_FLASH_ATTR SetupGPIO(bool enableMic)
 {
-    // Save the handler
-    mButtonHandler = handler;
-
     // Disable gpio interrupts
     ETS_GPIO_INTR_DISABLE();
     // interrupt handler for GPIOs in gpioInfo[]
@@ -184,7 +173,7 @@ void ICACHE_FLASH_ATTR SetupGPIO(void (*handler)(uint8_t state, int button, int 
     // Turn off the mic if it's not being used
     if(false == enableMic)
     {
-    	GPIO_OUTPUT_SET(GPIO_ID_PIN(14), 0);
+        GPIO_OUTPUT_SET(GPIO_ID_PIN(14), 0);
     }
 
     // Set GPIO16 for Input,  mux configuration for XPD_DCDC and rtc_gpio0 connection
@@ -204,7 +193,7 @@ void ICACHE_FLASH_ATTR SetupGPIO(void (*handler)(uint8_t state, int button, int 
 }
 
 /**
- * Read up to eight button states from PIN_IN and return them as a bitmas
+ * Read up to eight button states from PIN_IN and return them as a bitmask
  *
  * @return An 8 bit bitmask corresponding to the button states in gpioInfo[]
  *         Bit 0 is the first button, bit 1 is the second button, etc
@@ -241,5 +230,5 @@ uint8_t ICACHE_FLASH_ATTR getLastGPIOState(void)
  */
 void ICACHE_FLASH_ATTR setOledResetOn(bool on)
 {
-	 GPIO_OUTPUT_SET(GPIO_ID_PIN(15), on ? 1 : 0 );
+    GPIO_OUTPUT_SET(GPIO_ID_PIN(15), on ? 1 : 0 );
 }
