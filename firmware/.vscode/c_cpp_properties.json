@@ -3,11 +3,19 @@
         {
             "name": "ESP8266-GCC",
             "includePath": [
-                "${workspaceFolder}/**",
-                "/home/adam/esp-open-sdk/xtensa-lx106-elf/include/**"
+                "${workspaceFolder}",
+                "${workspaceFolder}/user",
+                "${workspaceFolder}/user/display",
+                "${workspaceFolder}/user/display/fonts",
+                "${workspaceFolder}/user/modes",
+                "${workspaceFolder}/esp82xx/include",
+                "${workspaceFolder}/esp82xx/toolchain/esp_nonos_sdk/include",
+                "${workspaceFolder}/esp82xx/toolchain/esp_nonos_sdk/driver_lib/include/driver/",
+                "${workspaceFolder}/embeddedcommon/",
+                "${env:ESP_ROOT}/xtensa-lx106-elf/include"
             ],
             "defines": [],
-            "compilerPath": "/home/adam/esp-open-sdk/xtensa-lx106-elf/bin/xtensa-lx106-elf-gcc",
+            "compilerPath": "${env:ESP_ROOT}/xtensa-lx106-elf/bin/xtensa-lx106-elf-gcc",
             "cStandard": "c99",
             "cppStandard": "c++17",
             "intelliSenseMode": "gcc-x64"

@@ -34,7 +34,7 @@ PROJECT_URL := $(subst .com:,.com/,$(subst .git,,$(subst git@,https://,$(shell g
 ################################################################################
 
 FWBURNFLAGS  = -b 2000000
-PORT  = /dev/ttyS4
+PORT  = /dev/ttyS3
 FLASH_WRITE_FLAGS = # --verify
 MFS_PAGE_OFFSET=532480
 
@@ -202,7 +202,7 @@ all: $(FW_FILE1) $(FW_FILE2) $(WEBPAGE_MFS)
 
 # To build the two firmware files for flashing, you have to build the main file
 $(FW_FILE1) $(FW_FILE2) : $(FW_FILE0)
-	PATH=$(PATH):$(ESP_ROOT)/xtensa-lx106-elf/bin $(ESP_ROOT)/esptool/esptool.py elf2image $(FW_FILE0)
+	$(ESP_ROOT)/esptool/esptool.py elf2image $(FW_FILE0)
 
 # To build the main file, you have to compile the objects and create the stripped libgcc
 $(FW_FILE0): $(OBJECTS) $(LIBGCC_STRIPPED)
