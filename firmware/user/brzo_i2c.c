@@ -1017,7 +1017,7 @@ void ICACHE_RAM_ATTR brzo_i2c_start_transaction(uint8_t slave_address, uint16_t 
 	}
 }
 
-uint8_t ICACHE_RAM_ATTR brzo_i2c_end_transaction()
+uint8_t ICACHE_RAM_ATTR brzo_i2c_end_transaction(void)
 {
 	// returns 0 if transaction completed successfully or error code encoded as follows
 	// Bit 0 (1) : Bus not free, i.e. either SDA or SCL is low
@@ -1099,7 +1099,7 @@ void ICACHE_FLASH_ATTR brzo_i2c_setup(uint32_t clock_stretch_time_out_usec)
 	);
 }
 
-uint8_t ICACHE_FLASH_ATTR brzo_i2c_get_error()
+uint8_t ICACHE_FLASH_ATTR brzo_i2c_get_error(void)
 {
 	return i2c_error;
 }

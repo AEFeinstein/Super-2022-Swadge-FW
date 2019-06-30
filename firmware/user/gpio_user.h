@@ -3,7 +3,7 @@
 
 void ICACHE_FLASH_ATTR SetupGPIO(bool enableMic);
 uint8_t ICACHE_FLASH_ATTR getLastGPIOState(void);
-unsigned char GetButtons();
+unsigned char GetButtons(void);
 void setOledResetOn(bool on);
 void ICACHE_FLASH_ATTR setGpiosForBoot(void);
 

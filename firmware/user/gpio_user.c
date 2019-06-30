@@ -198,7 +198,7 @@ void ICACHE_FLASH_ATTR SetupGPIO(bool enableMic)
  * @return An 8 bit bitmask corresponding to the button states in gpioInfo[]
  *         Bit 0 is the first button, bit 1 is the second button, etc
  */
-uint8_t GetButtons()
+uint8_t GetButtons(void)
 {
     uint8_t ret = 0;
 

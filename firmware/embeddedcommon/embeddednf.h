@@ -100,13 +100,13 @@ extern uint16_t note_peak_amps2[]; //[MAXNOTES]  (Responds quicker)
 extern uint8_t  note_jumped_to[];  //[MAXNOTES] When a note combines into another one,
 	//this records where it went.  I.e. if your note just disappeared, check this flag.
 
-void ICACHE_FLASH_ATTR UpdateFreqs();		//Not user-useful on most systems.
-void ICACHE_FLASH_ATTR HandleFrameInfo();	//Not user-useful on most systems
+void ICACHE_FLASH_ATTR UpdateFreqs(void);		//Not user-useful on most systems.
+void ICACHE_FLASH_ATTR HandleFrameInfo(void);	//Not user-useful on most systems
 
 
 
 //Call this when starting.
-void ICACHE_FLASH_ATTR InitColorChord();
+void ICACHE_FLASH_ATTR InitColorChord(void);
 
 
 #endif

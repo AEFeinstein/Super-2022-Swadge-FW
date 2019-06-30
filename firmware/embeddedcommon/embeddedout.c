@@ -12,7 +12,7 @@ uint8_t ledFreqOutOld[NUM_LIN_LEDS];
 
 uint8_t RootNoteOffset;
 
-void ICACHE_FLASH_ATTR UpdateLinearLEDs()
+void ICACHE_FLASH_ATTR UpdateLinearLEDs(void)
 {
 	//Source material:
 	/*
@@ -235,7 +235,7 @@ void ICACHE_FLASH_ATTR UpdateLinearLEDs()
 
 
 
-void ICACHE_FLASH_ATTR UpdateAllSameLEDs()
+void ICACHE_FLASH_ATTR UpdateAllSameLEDs(void)
 {
 	int i;
 	uint8_t freq = 0;

@@ -85,7 +85,8 @@ EXTRA_CFLAGS = \
 	-Wunused-local-typedefs \
 	-Wuninitialized \
 	-Wshadow \
-	-Wredundant-decls
+	-Wredundant-decls \
+	-Wstrict-prototypes
 
 # And these are warnings, lots of warnings
 #EXTRA_CFLAGS := $(EXTRA_CFLAGS) \
@@ -98,7 +99,6 @@ EXTRA_CFLAGS = \
 #	-Wmissing-prototypes \
 #	-Wpedantic \
 #	-Wsign-conversion \
-#	-Wstrict-prototypes \
 #	-Wswitch-default \
 #	-Wswitch-enum \
 #	-Wunused-macros
