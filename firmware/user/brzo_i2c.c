@@ -29,9 +29,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <gpio.h>
 #include <user_interface.h>
 
-extern void ets_isr_mask(unsigned intr); // missing definition
-extern void ets_isr_unmask(unsigned intr); // missing definition
-
 #ifndef ICACHE_RAM_ATTR
 #define ICACHE_RAM_ATTR
 #endif
