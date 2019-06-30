@@ -1,6 +1,6 @@
 ## Flashing from Anywhere
 
-Download binaries to flash from a binaries.tar.gz file here: https://github.com/cnlohr/swadge2019/releases
+Download binaries to flash from a binaries.tar.gz file here: https://github.com/AEFeinstein/Swadge-Devkit-Fw/releases
 
 Make sure to install pyserial:
 ```
