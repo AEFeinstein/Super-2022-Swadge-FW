@@ -83,7 +83,8 @@ EXTRA_CFLAGS = \
 	-Wpointer-arith \
 	-Wunused-but-set-variable \
 	-Wunused-local-typedefs \
-	-Wuninitialized
+	-Wuninitialized \
+	-Wshadow
 
 # And these are warnings, lots of warnings
 #EXTRA_CFLAGS := $(EXTRA_CFLAGS) \
@@ -96,7 +97,6 @@ EXTRA_CFLAGS = \
 #	-Wmissing-prototypes \
 #	-Wpedantic \
 #	-Wredundant-decls \
-#	-Wshadow \
 #	-Wsign-conversion \
 #	-Wstrict-prototypes \
 #	-Wswitch-default \

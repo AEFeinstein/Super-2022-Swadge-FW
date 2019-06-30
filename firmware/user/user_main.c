@@ -511,14 +511,14 @@ uint32_t ICACHE_FLASH_ATTR getLedColorPerNumber(uint8_t num, uint8_t lightness)
  * @param num   The number of LEDs to light
  * @param color The color to light the LEDs
  */
-void ICACHE_FLASH_ATTR showLedCount(uint8_t num, uint32_t color)
+void ICACHE_FLASH_ATTR showLedCount(uint8_t num, uint32_t colorToShow)
 {
     led_t leds[6] = {{0}};
 
     led_t rgb;
-    rgb.r = (color >> 16) & 0xFF;
-    rgb.g = (color >>  8) & 0xFF;
-    rgb.b = (color >>  0) & 0xFF;
+    rgb.r = (colorToShow >> 16) & 0xFF;
+    rgb.g = (colorToShow >>  8) & 0xFF;
+    rgb.b = (colorToShow >>  0) & 0xFF;
 
     // Set the LEDs
     switch(num)
