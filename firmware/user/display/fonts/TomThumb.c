@@ -1,6 +1,7 @@
 #include "font.h"
 
-sprite_t font_TomThumb[] = {
+sprite_t font_TomThumb[] =
+{
     {
         .width = 3,
         .data = {

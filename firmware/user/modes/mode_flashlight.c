@@ -191,25 +191,25 @@ void ICACHE_FLASH_ATTR flashlightButtonCallback(
     {
         switch(button)
         {
-        case 2:
-        {
-            // Right button cycles strobes
-            strobeIdx = (strobeIdx + 1) % NUM_STROBES;
-            startFlashlightStrobe();
-            break;
-        }
-        case 1:
-        {
-            // Left button start a one time timer 1.5s from now
-            os_timer_disarm(&flashlightButtonHoldTimer);
-            os_timer_arm(&flashlightButtonHoldTimer, 1500, false);
-            holdTimerRunning = true;
-            break;
-        }
-        default:
-        {
-            break;
-        }
+            case 2:
+            {
+                // Right button cycles strobes
+                strobeIdx = (strobeIdx + 1) % NUM_STROBES;
+                startFlashlightStrobe();
+                break;
+            }
+            case 1:
+            {
+                // Left button start a one time timer 1.5s from now
+                os_timer_disarm(&flashlightButtonHoldTimer);
+                os_timer_arm(&flashlightButtonHoldTimer, 1500, false);
+                holdTimerRunning = true;
+                break;
+            }
+            default:
+            {
+                break;
+            }
         }
     }
     else if(1 == button && holdTimerRunning)

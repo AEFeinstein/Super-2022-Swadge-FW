@@ -29,17 +29,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define BRZO_I2C_DISABLE_INTERRUPTS 0
 
 #ifdef ARDUINO
-#include "Arduino.h"
+    #include "Arduino.h"
 #else
-#include <c_types.h>
+    #include <c_types.h>
 
-// SDA on GPIO2, SCL on GPIO0
-#define BRZO_I2C_SDA_MUX PERIPHS_IO_MUX_GPIO2_U
-#define BRZO_I2C_SCL_MUX PERIPHS_IO_MUX_GPIO0_U
-#define BRZO_I2C_SDA_GPIO 2
-#define BRZO_I2C_SCL_GPIO 0
-#define BRZO_I2C_SDA_FUNC FUNC_GPIO2
-#define BRZO_I2C_SCL_FUNC FUNC_GPIO0
+    // SDA on GPIO2, SCL on GPIO0
+    #define BRZO_I2C_SDA_MUX PERIPHS_IO_MUX_GPIO2_U
+    #define BRZO_I2C_SCL_MUX PERIPHS_IO_MUX_GPIO0_U
+    #define BRZO_I2C_SDA_GPIO 2
+    #define BRZO_I2C_SCL_GPIO 0
+    #define BRZO_I2C_SDA_FUNC FUNC_GPIO2
+    #define BRZO_I2C_SCL_FUNC FUNC_GPIO0
 
 #endif
 
@@ -54,8 +54,8 @@ void brzo_i2c_setup(uint32_t clock_stretch_time_out_usec);
 #endif
 
 void brzo_i2c_start_transaction(uint8_t slave_address, uint16_t SCL_frequency_KHz);
-void brzo_i2c_write(const uint8_t *data, uint32_t no_of_bytes, bool repeated_start);
-void brzo_i2c_read(uint8_t *data, uint32_t nr_of_bytes, bool repeated_start);
+void brzo_i2c_write(const uint8_t* data, uint32_t no_of_bytes, bool repeated_start);
+void brzo_i2c_read(uint8_t* data, uint32_t nr_of_bytes, bool repeated_start);
 void brzo_i2c_ACK_polling(uint16_t ACK_polling_time_out_usec);
 uint8_t brzo_i2c_end_transaction(void);
 uint8_t brzo_i2c_get_error(void);

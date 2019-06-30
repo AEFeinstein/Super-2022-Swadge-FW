@@ -22,16 +22,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef ARDUINO
-#include <eagle_soc.h>
-#include <ets_sys.h>
-#include <os_type.h>
-#include <osapi.h>
-#include <gpio.h>
-#include <user_interface.h>
+    #include <eagle_soc.h>
+    #include <ets_sys.h>
+    #include <os_type.h>
+    #include <osapi.h>
+    #include <gpio.h>
+    #include <user_interface.h>
 
-#ifndef ICACHE_RAM_ATTR
-#define ICACHE_RAM_ATTR
-#endif
+    #ifndef ICACHE_RAM_ATTR
+        #define ICACHE_RAM_ATTR
+    #endif
 #endif
 
 #include "brzo_i2c.h"
@@ -46,7 +46,7 @@ uint16_t i2c_SCL_frequency = 0;
 uint8_t i2c_error = 0;
 
 
-void ICACHE_RAM_ATTR brzo_i2c_write(const uint8_t *data, uint32_t no_of_bytes, bool repeated_start)
+void ICACHE_RAM_ATTR brzo_i2c_write(const uint8_t* data, uint32_t no_of_bytes, bool repeated_start)
 {
     // Pointer to Data Buffer, Number of Bytes to Send from Data Buffer
     // Returns 0 or Error encoded as follows
@@ -60,12 +60,21 @@ void ICACHE_RAM_ATTR brzo_i2c_write(const uint8_t *data, uint32_t no_of_bytes, b
 
 
     // Do not perform an i2c write if a previous i2c command has already failed
-    if (i2c_error > 0) return;
+    if (i2c_error > 0)
+    {
+        return;
+    }
     uint8_t byte_to_send = i2c_slave_address << 1;
     // Assembler Variables
     uint32_t a_set = 0, a_repeated = 0, a_in_value = 0, a_temp1 = 0, a_bit_index = 0;
-    if (repeated_start == true) a_repeated = 1;
-    else a_repeated = 0;
+    if (repeated_start == true)
+    {
+        a_repeated = 1;
+    }
+    else
+    {
+        a_repeated = 0;
+    }
     asm volatile (
         // If BRZO_I2C_DISABLE_INTERRUPTS is set to 1, then all interrupts are disabled,
         //   i.e. interrupts up to the highest interrupt level of 15
@@ -361,7 +370,7 @@ void ICACHE_RAM_ATTR brzo_i2c_write(const uint8_t *data, uint32_t no_of_bytes, b
     return;
 }
 
-void ICACHE_RAM_ATTR brzo_i2c_read(uint8_t *data, uint32_t nr_of_bytes, bool repeated_start)
+void ICACHE_RAM_ATTR brzo_i2c_read(uint8_t* data, uint32_t nr_of_bytes, bool repeated_start)
 {
     // Pointer to Data Buffer, Number of Bytes to Read from Data Buffer
     // Set i2c_error as follows
@@ -374,17 +383,27 @@ void ICACHE_RAM_ATTR brzo_i2c_read(uint8_t *data, uint32_t nr_of_bytes, bool rep
     // Bit 5 (32): --
 
     // Set i2c_error and return if "empty" i2c read
-    if (nr_of_bytes == 0) {
+    if (nr_of_bytes == 0)
+    {
         i2c_error = 16;
         return;
     }
     // Do not perform an i2c read if a previous i2c command has already failed
-    if (i2c_error > 0) return;
+    if (i2c_error > 0)
+    {
+        return;
+    }
     // Assembler Variables
     uint32_t a_set = 0, a_repeated = 0, a_in_value = 0, a_temp1 = 0, a_temp2 = 0, a_bit_index = 0;
     a_temp2 = 0;
-    if (repeated_start == true) a_repeated = 1;
-    else a_repeated = 0;
+    if (repeated_start == true)
+    {
+        a_repeated = 1;
+    }
+    else
+    {
+        a_repeated = 0;
+    }
     // a_temp2 holds 7 Bit slave address, with the LSB = 1 for i2c read
     a_temp2 = (i2c_slave_address << 1) | 1;
 
@@ -488,7 +507,7 @@ void ICACHE_RAM_ATTR brzo_i2c_read(uint8_t *data, uint32_t nr_of_bytes, bool rep
         "l_slave_ack_r:"
         // Postcondition:
         //   ACK by slave for slave address and read command
-        //	 SDA = 0 by the slave (!)
+        //   SDA = 0 by the slave (!)
         //   SCL = 1
         //   9th Clock Cycle is finished
         //   At least one byte should be read by the master, i.e. nr_of_bytes >= 1
@@ -563,7 +582,7 @@ void ICACHE_RAM_ATTR brzo_i2c_read(uint8_t *data, uint32_t nr_of_bytes, bool rep
         "BNEZ   %[r_temp1], l_stretch_rB;"
         // We have reached the clock stretch timeout, i.e. SCL is still pulled low by the slave
         // Different than with the brzo_i2c_write, we don't have to set SDA to high here, since both SDA and SCL
-        //	 are controlled by the slave.
+        //   are controlled by the slave.
         // Error: Bus is not free, since SCL is still low AND clock stretch timeout reached
         "MOVI.N %[r_error], 8;"
         // We explicitly do not send a STOP instead we exit, i.e. jump to l_exit and not to l_send_stop
@@ -746,7 +765,8 @@ void ICACHE_RAM_ATTR brzo_i2c_read(uint8_t *data, uint32_t nr_of_bytes, bool rep
     return;
 }
 
-void ICACHE_RAM_ATTR brzo_i2c_ACK_polling(uint16_t ACK_polling_time_out_usec) {
+void ICACHE_RAM_ATTR brzo_i2c_ACK_polling(uint16_t ACK_polling_time_out_usec)
+{
     // Timeout for ACK polling in usec
     // Returns 0 or Error encoded as follows
     // Bit 0 (1) : Bus not free, i.e. either SDA or SCL is low
@@ -761,10 +781,12 @@ void ICACHE_RAM_ATTR brzo_i2c_ACK_polling(uint16_t ACK_polling_time_out_usec) {
     uint16_t iteration_ACK_polling_timeout;
     uint8_t byte_to_send = i2c_slave_address << 1;
 
-    if (ACK_polling_time_out_usec == 0) {
+    if (ACK_polling_time_out_usec == 0)
+    {
         iteration_ACK_polling_timeout = 1;
     }
-    else {
+    else
+    {
         iteration_ACK_polling_timeout = ACK_polling_time_out_usec / ACK_polling_loop_usec;
     }
 
@@ -919,7 +941,7 @@ void ICACHE_RAM_ATTR brzo_i2c_ACK_polling(uint16_t ACK_polling_time_out_usec) {
         //   SDA a little bit too early
         // clear : 0x60000308
         "S16I   %[r_sda_bitmask], %[r_set], 4;"
-        //	SDA is still pulled low by the slave (and the master), so we have to signal the slave to release it.
+        //  SDA is still pulled low by the slave (and the master), so we have to signal the slave to release it.
         //  We will do this by letting SCL go low.
         "MOV.N  %[r_temp1], %[r_iteration_scl_halfcycle];"
         // We are at the beginning of the 10th cycle
@@ -988,31 +1010,88 @@ void ICACHE_RAM_ATTR brzo_i2c_start_transaction(uint8_t slave_address, uint16_t 
     // 7 Bit Slave Address; SCL Frequency in Steps of 100 KHz, range: 100 -- 1000 KHz
 
     i2c_slave_address = slave_address;
-    if (i2c_SCL_frequency != SCL_frequency_KHz) {
+    if (i2c_SCL_frequency != SCL_frequency_KHz)
+    {
         uint16_t fr_sel = (SCL_frequency_KHz + 50) / 100;
         ACK_polling_loop_usec = 95 / fr_sel;
-        if (system_get_cpu_freq() == 160) {
-            if (fr_sel <= 1) iteration_scl_halfcycle = 156;
-            else if (fr_sel == 2) iteration_scl_halfcycle = 79;
-            else if (fr_sel == 3) iteration_scl_halfcycle = 51;
-            else if (fr_sel == 4) iteration_scl_halfcycle = 38;
-            else if (fr_sel == 5) iteration_scl_halfcycle = 30;
-            else if (fr_sel == 6) iteration_scl_halfcycle = 24;
-            else if (fr_sel == 7) iteration_scl_halfcycle = 20;
-            else if (fr_sel == 8) iteration_scl_halfcycle = 18;
-            else if (fr_sel == 9) iteration_scl_halfcycle = 15;
-            else iteration_scl_halfcycle = 14;
+        if (system_get_cpu_freq() == 160)
+        {
+            if (fr_sel <= 1)
+            {
+                iteration_scl_halfcycle = 156;
+            }
+            else if (fr_sel == 2)
+            {
+                iteration_scl_halfcycle = 79;
+            }
+            else if (fr_sel == 3)
+            {
+                iteration_scl_halfcycle = 51;
+            }
+            else if (fr_sel == 4)
+            {
+                iteration_scl_halfcycle = 38;
+            }
+            else if (fr_sel == 5)
+            {
+                iteration_scl_halfcycle = 30;
+            }
+            else if (fr_sel == 6)
+            {
+                iteration_scl_halfcycle = 24;
+            }
+            else if (fr_sel == 7)
+            {
+                iteration_scl_halfcycle = 20;
+            }
+            else if (fr_sel == 8)
+            {
+                iteration_scl_halfcycle = 18;
+            }
+            else if (fr_sel == 9)
+            {
+                iteration_scl_halfcycle = 15;
+            }
+            else
+            {
+                iteration_scl_halfcycle = 14;
+            }
         }
-        else {
+        else
+        {
             // 80 MHz
-            if (fr_sel <= 1) iteration_scl_halfcycle = 80;
-            else if (fr_sel == 2) iteration_scl_halfcycle = 37;
-            else if (fr_sel == 3) iteration_scl_halfcycle = 26;
-            else if (fr_sel == 4) iteration_scl_halfcycle = 19;
-            else if (fr_sel == 5) iteration_scl_halfcycle = 14;
-            else if (fr_sel == 6) iteration_scl_halfcycle = 11;
-            else if (fr_sel == 7) iteration_scl_halfcycle = 9;
-            else iteration_scl_halfcycle = 8;
+            if (fr_sel <= 1)
+            {
+                iteration_scl_halfcycle = 80;
+            }
+            else if (fr_sel == 2)
+            {
+                iteration_scl_halfcycle = 37;
+            }
+            else if (fr_sel == 3)
+            {
+                iteration_scl_halfcycle = 26;
+            }
+            else if (fr_sel == 4)
+            {
+                iteration_scl_halfcycle = 19;
+            }
+            else if (fr_sel == 5)
+            {
+                iteration_scl_halfcycle = 14;
+            }
+            else if (fr_sel == 6)
+            {
+                iteration_scl_halfcycle = 11;
+            }
+            else if (fr_sel == 7)
+            {
+                iteration_scl_halfcycle = 9;
+            }
+            else
+            {
+                iteration_scl_halfcycle = 8;
+            }
         }
     }
 }
@@ -1035,9 +1114,9 @@ uint8_t ICACHE_RAM_ATTR brzo_i2c_end_transaction(void)
 }
 
 #ifdef ARDUINO
-void ICACHE_FLASH_ATTR brzo_i2c_setup(uint8_t sda, uint8_t scl, uint32_t clock_stretch_time_out_usec)
+    void ICACHE_FLASH_ATTR brzo_i2c_setup(uint8_t sda, uint8_t scl, uint32_t clock_stretch_time_out_usec)
 #else
-void ICACHE_FLASH_ATTR brzo_i2c_setup(uint32_t clock_stretch_time_out_usec)
+    void ICACHE_FLASH_ATTR brzo_i2c_setup(uint32_t clock_stretch_time_out_usec)
 #endif
 {
     // SDA pin, SCL pin
@@ -1046,16 +1125,30 @@ void ICACHE_FLASH_ATTR brzo_i2c_setup(uint32_t clock_stretch_time_out_usec)
     // Assembler Variables
     uint32_t a_set = 0, a_temp1 = 0;
 
-    if (system_get_cpu_freq() == 160) {
+    if (system_get_cpu_freq() == 160)
+    {
         iteration_remove_spike = 15;
-        if (clock_stretch_time_out_usec < 100) iteration_scl_clock_stretch = 730;
-        else iteration_scl_clock_stretch = 730 * clock_stretch_time_out_usec / 100;
+        if (clock_stretch_time_out_usec < 100)
+        {
+            iteration_scl_clock_stretch = 730;
+        }
+        else
+        {
+            iteration_scl_clock_stretch = 730 * clock_stretch_time_out_usec / 100;
+        }
     }
-    else {
+    else
+    {
         // 80 MHz
         iteration_remove_spike = 7;
-        if (clock_stretch_time_out_usec < 100) iteration_scl_clock_stretch = 470;
-        else iteration_scl_clock_stretch = 470 * clock_stretch_time_out_usec / 100;
+        if (clock_stretch_time_out_usec < 100)
+        {
+            iteration_scl_clock_stretch = 470;
+        }
+        else
+        {
+            iteration_scl_clock_stretch = 470 * clock_stretch_time_out_usec / 100;
+        }
     }
 
 #ifdef ARDUINO
@@ -1069,9 +1162,13 @@ void ICACHE_FLASH_ATTR brzo_i2c_setup(uint32_t clock_stretch_time_out_usec)
     PIN_FUNC_SELECT(BRZO_I2C_SDA_MUX, BRZO_I2C_SDA_FUNC);
     PIN_FUNC_SELECT(BRZO_I2C_SCL_MUX, BRZO_I2C_SCL_FUNC);
 
-    GPIO_REG_WRITE(GPIO_PIN_ADDR(GPIO_ID_PIN(BRZO_I2C_SDA_GPIO)), GPIO_REG_READ(GPIO_PIN_ADDR(GPIO_ID_PIN(BRZO_I2C_SDA_GPIO))) | GPIO_PIN_PAD_DRIVER_SET(GPIO_PAD_DRIVER_ENABLE)); //open drain;
+    GPIO_REG_WRITE(GPIO_PIN_ADDR(GPIO_ID_PIN(BRZO_I2C_SDA_GPIO)),
+                   GPIO_REG_READ(GPIO_PIN_ADDR(GPIO_ID_PIN(BRZO_I2C_SDA_GPIO))) | GPIO_PIN_PAD_DRIVER_SET(
+                       GPIO_PAD_DRIVER_ENABLE)); //open drain;
     GPIO_REG_WRITE(GPIO_ENABLE_ADDRESS, GPIO_REG_READ(GPIO_ENABLE_ADDRESS) | (1 << BRZO_I2C_SDA_GPIO));
-    GPIO_REG_WRITE(GPIO_PIN_ADDR(GPIO_ID_PIN(BRZO_I2C_SCL_GPIO)), GPIO_REG_READ(GPIO_PIN_ADDR(GPIO_ID_PIN(BRZO_I2C_SCL_GPIO))) | GPIO_PIN_PAD_DRIVER_SET(GPIO_PAD_DRIVER_ENABLE)); //open drain;
+    GPIO_REG_WRITE(GPIO_PIN_ADDR(GPIO_ID_PIN(BRZO_I2C_SCL_GPIO)),
+                   GPIO_REG_READ(GPIO_PIN_ADDR(GPIO_ID_PIN(BRZO_I2C_SCL_GPIO))) | GPIO_PIN_PAD_DRIVER_SET(
+                       GPIO_PAD_DRIVER_ENABLE)); //open drain;
     GPIO_REG_WRITE(GPIO_ENABLE_ADDRESS, GPIO_REG_READ(GPIO_ENABLE_ADDRESS) | (1 << BRZO_I2C_SCL_GPIO));
 
     ETS_GPIO_INTR_ENABLE();

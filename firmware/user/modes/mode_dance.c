@@ -890,40 +890,40 @@ void ICACHE_FLASH_ATTR danceTimerMode14(void* arg __attribute__((unused)))
     {
         switch(strobeCount)
         {
-        case 13:
-        {
-            // From 130 to 140ms, be red
-            leds[i].r = 255;
-            leds[i].g = 0;
-            leds[i].b = 0;
-            break;
-        }
-        case 27:
-        {
-            // From 270 to 280ms, be green
-            leds[i].r = 0;
-            leds[i].g = 255;
-            leds[i].b = 0;
-            break;
-        }
-        case 41:
-        {
-            // From 410 to 420ms, be blue
-            leds[i].r = 0;
-            leds[i].g = 0;
-            leds[i].b = 255;
+            case 13:
+            {
+                // From 130 to 140ms, be red
+                leds[i].r = 255;
+                leds[i].g = 0;
+                leds[i].b = 0;
+                break;
+            }
+            case 27:
+            {
+                // From 270 to 280ms, be green
+                leds[i].r = 0;
+                leds[i].g = 255;
+                leds[i].b = 0;
+                break;
+            }
+            case 41:
+            {
+                // From 410 to 420ms, be blue
+                leds[i].r = 0;
+                leds[i].g = 0;
+                leds[i].b = 255;
 
-            resetStrobeCount = true;
-            break;
-        }
-        default:
-        {
-            // Otherwise be off
-            leds[i].r = 0;
-            leds[i].g = 0;
-            leds[i].b = 0;
-            break;
-        }
+                resetStrobeCount = true;
+                break;
+            }
+            default:
+            {
+                // Otherwise be off
+                leds[i].r = 0;
+                leds[i].g = 0;
+                leds[i].b = 0;
+                break;
+            }
         }
     }
 

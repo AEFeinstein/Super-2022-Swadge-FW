@@ -188,85 +188,85 @@ void ICACHE_FLASH_ATTR morseTimerOnCallback(void* timer_arg __attribute__((unuse
     // Dot, dash, or null (end of char's dots & dashes)
     switch(dotsAndDashes[morseDotDashIdx])
     {
-    case '.':
-    {
-        // Turn on the LEDs for a dot
-        led_t leds[6] = {{0}};
-        uint8_t i;
-        for(i = 0; i < 6; i++)
+        case '.':
         {
-            leds[i].r = 0xFF;
-            leds[i].g = 0xFF;
-            leds[i].b = 0x00;
-        }
-        setLeds(leds, sizeof(leds));
+            // Turn on the LEDs for a dot
+            led_t leds[6] = {{0}};
+            uint8_t i;
+            for(i = 0; i < 6; i++)
+            {
+                leds[i].r = 0xFF;
+                leds[i].g = 0xFF;
+                leds[i].b = 0x00;
+            }
+            setLeds(leds, sizeof(leds));
 
-        // 1. The length of a dot is one unit.
-        os_timer_arm(&morseTimerOff, MORSE_TIME_MS, false);
-        morseDotDashIdx++;
-        return;
-    }
-    case '-':
-    {
-        // Turn on the LEDs for a dash
-        led_t leds[6] = {{0}};
-        uint8_t i;
-        for(i = 0; i < 6; i++)
-        {
-            leds[i].r = 0xFF;
-            leds[i].g = 0x00;
-            leds[i].b = 0xFF;
-        }
-        setLeds(leds, sizeof(leds));
-
-        // 2. A dash is three units.
-        os_timer_arm(&morseTimerOff, 3 * MORSE_TIME_MS, false);
-        morseDotDashIdx++;
-        return;
-    }
-    case 0: // NULL
-    {
-        // end of this char, don't turn the LEDs on
-        // Reset bit count
-        morseDotDashIdx = 0;
-
-        // Peek at the next letter. Spaces between words get more time than
-        // between letters in a word
-        morseStringIdx++;
-        switch(morseString[morseStringIdx])
-        {
-        case 0: // NULL
-        {
-            // End of string
-            endMorseSequence();
+            // 1. The length of a dot is one unit.
+            os_timer_arm(&morseTimerOff, MORSE_TIME_MS, false);
+            morseDotDashIdx++;
             return;
         }
-        case ' ':
+        case '-':
         {
-            // 5. The space between words is seven units.
+            // Turn on the LEDs for a dash
+            led_t leds[6] = {{0}};
+            uint8_t i;
+            for(i = 0; i < 6; i++)
+            {
+                leds[i].r = 0xFF;
+                leds[i].g = 0x00;
+                leds[i].b = 0xFF;
+            }
+            setLeds(leds, sizeof(leds));
+
+            // 2. A dash is three units.
+            os_timer_arm(&morseTimerOff, 3 * MORSE_TIME_MS, false);
+            morseDotDashIdx++;
+            return;
+        }
+        case 0: // NULL
+        {
+            // end of this char, don't turn the LEDs on
+            // Reset bit count
+            morseDotDashIdx = 0;
+
+            // Peek at the next letter. Spaces between words get more time than
+            // between letters in a word
             morseStringIdx++;
-            // Only wait 6 units b/c one unit was already waited for
-            // after the previous dot/dash
-            os_timer_arm(&morseTimerOn, 6 * MORSE_TIME_MS, false);
+            switch(morseString[morseStringIdx])
+            {
+                case 0: // NULL
+                {
+                    // End of string
+                    endMorseSequence();
+                    return;
+                }
+                case ' ':
+                {
+                    // 5. The space between words is seven units.
+                    morseStringIdx++;
+                    // Only wait 6 units b/c one unit was already waited for
+                    // after the previous dot/dash
+                    os_timer_arm(&morseTimerOn, 6 * MORSE_TIME_MS, false);
+                    return;
+                }
+                default:
+                {
+                    // 4. The space between letters is three units.
+                    // Only wait 2 units b/c one unit was already waited for
+                    // after the previous dot/dash
+                    os_timer_arm(&morseTimerOn, 2 * MORSE_TIME_MS, false);
+                    return;
+                }
+            }
             return;
         }
         default:
         {
-            // 4. The space between letters is three units.
-            // Only wait 2 units b/c one unit was already waited for
-            // after the previous dot/dash
-            os_timer_arm(&morseTimerOn, 2 * MORSE_TIME_MS, false);
+            // Invalid char
+            endMorseSequence();
             return;
         }
-        }
-        return;
-    }
-    default:
-    {
-        // Invalid char
-        endMorseSequence();
-        return;
-    }
     }
 }
 

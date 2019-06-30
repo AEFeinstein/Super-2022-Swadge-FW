@@ -8,13 +8,14 @@
 #ifndef MMA8452Q_H_
 #define MMA8452Q_H_
 
-typedef struct {
+typedef struct
+{
     int x;
     int y;
     int z;
 } accel_t;
 
 bool MMA8452Q_setup(void);
-void MMA8452Q_poll(accel_t * currentAccel);
+void MMA8452Q_poll(accel_t* currentAccel);
 
 #endif /* MMA8452Q_H_ */

@@ -1,6 +1,7 @@
 #include "font.h"
 
-sprite_t font_Radiostars[] = {
+sprite_t font_Radiostars[] =
+{
     {
         .width = 8,
         .data = {

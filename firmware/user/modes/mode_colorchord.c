@@ -114,20 +114,20 @@ void ICACHE_FLASH_ATTR colorchordSampleHandler(int32_t samp)
         // Update the LEDs as necessary
         switch( COLORCHORD_OUTPUT_DRIVER )
         {
-        case 0:
-        {
-            UpdateLinearLEDs();
-            break;
-        }
-        case 1:
-        {
-            UpdateAllSameLEDs();
-            break;
-        }
-        default:
-        {
-            break;
-        }
+            case 0:
+            {
+                UpdateLinearLEDs();
+                break;
+            }
+            case 1:
+            {
+                UpdateAllSameLEDs();
+                break;
+            }
+            default:
+            {
+                break;
+            }
         };
 
         // Push out the LED data
@@ -161,49 +161,49 @@ void ICACHE_FLASH_ATTR colorchordButtonCallback(
 
         switch(button)
         {
-        case 1:
-        {
-            // gCOLORCHORD_OUTPUT_DRIVER can be either 0 for multiple LED
-            // colors or 1 for all the same LED color
-            CCS.gCOLORCHORD_OUTPUT_DRIVER =
-                (CCS.gCOLORCHORD_OUTPUT_DRIVER + 1) % 2;
+            case 1:
+            {
+                // gCOLORCHORD_OUTPUT_DRIVER can be either 0 for multiple LED
+                // colors or 1 for all the same LED color
+                CCS.gCOLORCHORD_OUTPUT_DRIVER =
+                    (CCS.gCOLORCHORD_OUTPUT_DRIVER + 1) % 2;
 
-            led_t leds[6] = {{0}};
-            if(CCS.gCOLORCHORD_OUTPUT_DRIVER)
-            {
-                // All the same LED
-                uint8_t i;
-                for(i = 0; i < 6; i++)
+                led_t leds[6] = {{0}};
+                if(CCS.gCOLORCHORD_OUTPUT_DRIVER)
                 {
-                    leds[i].r = 0;
-                    leds[i].g = 0;
-                    leds[i].b = 255;
+                    // All the same LED
+                    uint8_t i;
+                    for(i = 0; i < 6; i++)
+                    {
+                        leds[i].r = 0;
+                        leds[i].g = 0;
+                        leds[i].b = 255;
+                    }
                 }
-            }
-            else
-            {
-                // Multiple output colors
-                uint8_t i;
-                for(i = 0; i < 6; i++)
+                else
                 {
-                    uint32_t color = getLedColorPerNumber(i, 0xFF);
-                    leds[i].r = (color >>  0) & 0xFF;
-                    leds[i].g = (color >>  8) & 0xFF;
-                    leds[i].b = (color >> 16) & 0xFF;
+                    // Multiple output colors
+                    uint8_t i;
+                    for(i = 0; i < 6; i++)
+                    {
+                        uint32_t color = getLedColorPerNumber(i, 0xFF);
+                        leds[i].r = (color >>  0) & 0xFF;
+                        leds[i].g = (color >>  8) & 0xFF;
+                        leds[i].b = (color >> 16) & 0xFF;
+                    }
                 }
+                setLeds(leds, sizeof(leds));
+                break;
             }
-            setLeds(leds, sizeof(leds));
-            break;
-        }
-        case 2:
-        {
-            cycleColorchordSensitivity();
-            break;
-        }
-        default:
-        {
-            break;
-        }
+            case 2:
+            {
+                cycleColorchordSensitivity();
+                break;
+            }
+            default:
+            {
+                break;
+            }
         }
     }
 }

@@ -37,7 +37,7 @@ bool ICACHE_FLASH_ATTR MMA8452Q_setup(void)
     return (0 == brzo_i2c_end_transaction());
 }
 
-void ICACHE_FLASH_ATTR MMA8452Q_poll(accel_t * currentAccel)
+void ICACHE_FLASH_ATTR MMA8452Q_poll(accel_t* currentAccel)
 {
     // Read 7 bytes of data(0x00)
     brzo_i2c_start_transaction(MMA8452Q_ADDRESS, MMA8452Q_FREQ);

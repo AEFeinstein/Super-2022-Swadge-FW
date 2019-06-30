@@ -1,6 +1,7 @@
 #include "font.h"
 
-sprite_t font_IbmVga8[] = {
+sprite_t font_IbmVga8[] =
+{
     {
         .width = 7,
         .data = {

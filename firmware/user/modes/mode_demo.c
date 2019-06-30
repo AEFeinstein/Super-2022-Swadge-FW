@@ -47,7 +47,7 @@ void ICACHE_FLASH_ATTR demoTimerCallback(void);
 void ICACHE_FLASH_ATTR demoSampleHandler(int32_t samp);
 void ICACHE_FLASH_ATTR demoButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down);
-void ICACHE_FLASH_ATTR demoAccelerometerHandler(accel_t * accel);
+void ICACHE_FLASH_ATTR demoAccelerometerHandler(accel_t* accel);
 
 /*============================================================================
  * Variables
@@ -186,7 +186,7 @@ void ICACHE_FLASH_ATTR demoButtonCallback( uint8_t state,
  * @param x
  * @param z
  */
-void ICACHE_FLASH_ATTR demoAccelerometerHandler(accel_t * accel)
+void ICACHE_FLASH_ATTR demoAccelerometerHandler(accel_t* accel)
 {
     demoAccel.x = accel->x;
     demoAccel.y = accel->y;

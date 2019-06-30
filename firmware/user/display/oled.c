@@ -172,18 +172,19 @@ void ICACHE_FLASH_ATTR drawPixel(uint8_t x, uint8_t y, color c)
         }
         switch(c)
         {
-        case WHITE:
-            buffer[1 + (x + (y / 8)*OLED_WIDTH)] |=  (1 << (y & 7));
-            break;
-        case BLACK:
-            buffer[1 + (x + (y / 8)*OLED_WIDTH)] &= ~(1 << (y & 7));
-            break;
-        case INVERSE:
-            buffer[1 + (x + (y / 8)*OLED_WIDTH)] ^=  (1 << (y & 7));
-            break;
-        default: {
-            break;
-        }
+            case WHITE:
+                buffer[1 + (x + (y / 8)*OLED_WIDTH)] |=  (1 << (y & 7));
+                break;
+            case BLACK:
+                buffer[1 + (x + (y / 8)*OLED_WIDTH)] &= ~(1 << (y & 7));
+                break;
+            case INVERSE:
+                buffer[1 + (x + (y / 8)*OLED_WIDTH)] ^=  (1 << (y & 7));
+                break;
+            default:
+            {
+                break;
+            }
         }
     }
 }

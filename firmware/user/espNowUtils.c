@@ -209,21 +209,21 @@ void ICACHE_FLASH_ATTR espNowSendCb(uint8_t* mac_addr, uint8_t status)
 
     switch((mt_tx_status)status)
     {
-    case MT_TX_STATUS_OK:
-    {
-        // os_printf("ESP NOW MT_TX_STATUS_OK\r\n");
-        break;
-    }
-    case MT_TX_STATUS_FAILED:
-    {
-        os_printf("ESP NOW MT_TX_STATUS_FAILED\r\n");
-        break;
-    }
-    default:
-    {
-        os_printf("ESP UNKNOWN STATUS %d\r\n", (mt_tx_status)status);
-        break;
-    }
+        case MT_TX_STATUS_OK:
+        {
+            // os_printf("ESP NOW MT_TX_STATUS_OK\r\n");
+            break;
+        }
+        case MT_TX_STATUS_FAILED:
+        {
+            os_printf("ESP NOW MT_TX_STATUS_FAILED\r\n");
+            break;
+        }
+        default:
+        {
+            os_printf("ESP UNKNOWN STATUS %d\r\n", (mt_tx_status)status);
+            break;
+        }
     }
 
     swadgeModeEspNowSendCb(mac_addr, (mt_tx_status)status);
