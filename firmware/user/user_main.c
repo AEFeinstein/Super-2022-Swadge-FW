@@ -52,9 +52,7 @@ rtcMem_t;
  *==========================================================================*/
 
 static os_timer_t timerHandle100ms = {0};
-
 os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
-uint32_t samp_iir = 0;
 
 swadgeMode* swadgeModes[] =
 {
@@ -67,7 +65,6 @@ swadgeMode* swadgeModes[] =
     &guitarTunerMode,
 };
 bool swadgeModeInit = false;
-
 rtcMem_t rtcMem = {0};
 
 /*============================================================================
@@ -83,217 +80,8 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg);
 void ICACHE_FLASH_ATTR incrementSwadgeMode(void);
 
 /*============================================================================
- * Functions
+ * Initialization Functions
  *==========================================================================*/
-
-/**
- * Pass a button event from the logic in button.h to the active swadge mode
- *
- * @param state A bitmask of all button statuses
- * @param button  The button number which was pressed
- * @param down 1 if the button was pressed, 0 if it was released
- */
-void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int down)
-{
-    if(0 == button)
-    {
-        // Switch the mode
-        incrementSwadgeMode();
-    }
-    else if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
-    {
-        // Pass the button event to the mode
-        swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(state, button, down);
-    }
-}
-
-/**
- * TODO
- */
-void ICACHE_FLASH_ATTR swadgeModeEspNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi)
-{
-    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowRecvCb)
-    {
-        swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowRecvCb(mac_addr, data, len, rssi);
-    }
-}
-
-/**
- * TODO
- */
-void ICACHE_FLASH_ATTR swadgeModeEspNowSendCb(uint8_t* mac_addr, mt_tx_status status)
-{
-    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowSendCb)
-    {
-        swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowSendCb(mac_addr, (mt_tx_status)status);
-    }
-}
-
-/**
- * This deinitializes the current mode if it is initialized, displays the next
- * mode's LED pattern, and starts a timer to reboot into the next mode.
- * If the reboot timer is running, it will be reset
- */
-void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
-{
-    // If the mode is initialized, tear it down
-    if(swadgeModeInit)
-    {
-        // Call the exit callback for the current mode
-        if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode)
-        {
-            swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode();
-        }
-
-        // Clean up ESP NOW if that's where we were at
-        switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
-        {
-            case ESP_NOW:
-            {
-                espNowDeinit();
-                break;
-            }
-            case SOFT_AP:
-            case NO_WIFI:
-            {
-                break;
-            }
-        }
-        swadgeModeInit = false;
-    }
-
-    // Switch to the next mode, or start from the beginning if we're at the end
-    rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
-
-    // Write the RTC memory so it knows what mode to be in when waking up
-    system_rtc_mem_write(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem));
-    os_printf("rtc mem written\n");
-
-    // Check if the next mode wants wifi or not
-    switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
-    {
-        case SOFT_AP:
-        case ESP_NOW:
-        {
-            // Radio calibration is done after deep-sleep wake up; this increases
-            // the current consumption.
-            system_deep_sleep_set_option(1);
-            os_printf("deep sleep option set 1\n");
-            break;
-        }
-        case NO_WIFI:
-        {
-            // Disable RF after deep-sleep wake up, just like modem sleep; this
-            // has the least current consumption; the device is not able to
-            // transmit or receive data after wake up.
-            system_deep_sleep_set_option(4);
-            os_printf("deep sleep option set 4\n");
-            break;
-        }
-    }
-
-    // Be extra sure the GPIOs are in the right state for boot
-    setGpiosForBoot();
-
-    // Sleeeeep. It calls user_init on wake, which will use the new mode
-    system_deep_sleep(1000);
-}
-
-/**
- * This task is constantly called by posting itself instead of being in an
- * infinite loop. ESP doesn't like infinite loops.
- *
- * It handles synchronous button events, audio samples which have been read
- * and are queued for processing, and calling CSTick()
- *
- * @param events Checked before posting this task again
- */
-static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
-{
-    // Post another task to this thread
-    system_os_post(PROC_TASK_PRIO, 0, 0 );
-
-    // For profiling so we can see how much CPU is spent in this loop.
-#ifdef PROFILE
-    WRITE_PERI_REG( PERIPHS_GPIO_BASEADDR + GPIO_ID_PIN(0), 1 );
-#endif
-
-    // Process queued button presses synchronously
-    HandleButtonEventSynchronous();
-
-    // While there are samples available from the ADC
-    while( sampleAvailable() )
-    {
-        // Get the sample
-        int32_t samp = getSample();
-        // Run the sample through an IIR filter
-        samp_iir = samp_iir - (samp_iir >> 10) + samp;
-        samp = (samp - (samp_iir >> 10)) * 16;
-        // Amplify the sample
-        samp = (samp * CCS.gINITIAL_AMP) >> 4;
-
-        // Pass the button to the mode
-        if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
-        {
-            swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback(samp);
-        }
-    }
-
-#ifdef PROFILE
-    WRITE_PERI_REG( PERIPHS_GPIO_BASEADDR + GPIO_ID_PIN(0), 0 );
-#endif
-
-    if( events->sig == 0 && events->par == 0 )
-    {
-        // If colorchord is active and the HPA isn't running, start it
-        if( COLORCHORD_ACTIVE && !isHpaRunning() )
-        {
-            ExitCritical();
-        }
-
-        // If colorchord isn't running and the HPA is running, stop it
-        if( !COLORCHORD_ACTIVE && isHpaRunning() )
-        {
-            EnterCritical();
-        }
-
-        // Common services tick, fast mode
-        CSTick( 0 );
-    }
-}
-
-/**
- * Timer handler for a software timer set to fire every 100ms, forever.
- * Calls CSTick() every 100ms.
- *
- * If the hardware is in wifi station mode, this Enables the hardware timer
- * to sample the ADC once the IP address has been received and printed
- *
- * Also handles logic for infrastructure wifi mode, which isn't being used
- *
- * TODO call this faster, but have each action still happen at 100ms (round robin)
- *
- * @param arg unused
- */
-static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
-{
-    CSTick( 1 );
-
-    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
-    {
-        accel_t accel = {0};
-        MMA8452Q_poll(&accel);
-        swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback(&accel);
-    }
-
-    // Tick the current mode every 100ms
-    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnTimerCallback)
-    {
-        swadgeModes[rtcMem.currentSwadgeMode]->fnTimerCallback();
-    }
-
-    StartHPATimer(); // Init the high speed ADC timer.
-}
 
 /**
  * Required function, must call system_partition_table_regist()
@@ -304,7 +92,8 @@ void ICACHE_FLASH_ATTR user_pre_init(void)
 }
 
 /**
- * The main initialization function
+ * The main initialization function. This will be called when switching modes,
+ * since mode switching is essentially a reboot
  */
 void ICACHE_FLASH_ATTR user_init(void)
 {
@@ -313,8 +102,7 @@ void ICACHE_FLASH_ATTR user_init(void)
     os_printf("\nSwadge 2020\n");
 
     // Read data fom RTC memory if we're waking from deep sleep
-    struct rst_info* resetInfo = system_get_rst_info();
-    if(REASON_DEEP_SLEEP_AWAKE == resetInfo->reason)
+    if(REASON_DEEP_SLEEP_AWAKE == system_get_rst_info()->reason)
     {
         os_printf("read rtc mem\n");
         // Try to read from rtc memory
@@ -436,6 +224,111 @@ void ICACHE_FLASH_ATTR user_init(void)
     system_os_post(PROC_TASK_PRIO, 0, 0 );
 }
 
+/*============================================================================
+ * Looping Functions
+ *==========================================================================*/
+
+/**
+ * This task is constantly called by posting itself instead of being in an
+ * infinite loop. ESP doesn't like infinite loops.
+ *
+ * It handles synchronous button events, audio samples which have been read
+ * and are queued for processing, and calling CSTick()
+ *
+ * @param events Checked before posting this task again
+ */
+static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
+{
+    // Post another task to this thread
+    system_os_post(PROC_TASK_PRIO, 0, 0 );
+
+    // For profiling so we can see how much CPU is spent in this loop.
+#ifdef PROFILE
+    WRITE_PERI_REG( PERIPHS_GPIO_BASEADDR + GPIO_ID_PIN(0), 1 );
+#endif
+
+    // Process queued button presses synchronously
+    HandleButtonEventSynchronous();
+
+    // While there are samples available from the ADC
+    while( sampleAvailable() )
+    {
+        // Get the sample
+        int32_t samp = getSample();
+        // Run the sample through an IIR filter
+        static uint32_t samp_iir; // This will persist between function calls
+        samp_iir = samp_iir - (samp_iir >> 10) + samp;
+        samp = (samp - (samp_iir >> 10)) * 16;
+        // Amplify the sample
+        samp = (samp * CCS.gINITIAL_AMP) >> 4;
+
+        // Pass the button to the mode
+        if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
+        {
+            swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback(samp);
+        }
+    }
+
+#ifdef PROFILE
+    WRITE_PERI_REG( PERIPHS_GPIO_BASEADDR + GPIO_ID_PIN(0), 0 );
+#endif
+
+    if( events->sig == 0 && events->par == 0 )
+    {
+        // If colorchord is active and the HPA isn't running, start it
+        if( COLORCHORD_ACTIVE && !isHpaRunning() )
+        {
+            ExitCritical();
+        }
+
+        // If colorchord isn't running and the HPA is running, stop it
+        if( !COLORCHORD_ACTIVE && isHpaRunning() )
+        {
+            EnterCritical();
+        }
+
+        // Common services tick, fast mode
+        CSTick( 0 );
+    }
+}
+
+/**
+ * Timer handler for a software timer set to fire every 100ms, forever.
+ * Calls CSTick() every 100ms.
+ *
+ * If the hardware is in wifi station mode, this Enables the hardware timer
+ * to sample the ADC once the IP address has been received and printed
+ *
+ * Also handles logic for infrastructure wifi mode, which isn't being used
+ *
+ * TODO call this faster, but have each action still happen at 100ms (round robin)
+ *
+ * @param arg unused
+ */
+static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
+{
+    CSTick( 1 );
+
+    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
+    {
+        accel_t accel = {0};
+        MMA8452Q_poll(&accel);
+        swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback(&accel);
+    }
+
+    // Tick the current mode every 100ms
+    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnTimerCallback)
+    {
+        swadgeModes[rtcMem.currentSwadgeMode]->fnTimerCallback();
+    }
+
+    StartHPATimer(); // Init the high speed ADC timer.
+}
+
+/*============================================================================
+ * Interrupt Functions
+ *==========================================================================*/
+
 /**
  * If the firmware enters a critical section, disable the hardware timer
  * used to sample the ADC and the corresponding interrupt
@@ -456,6 +349,134 @@ void ExitCritical(void)
     ContinueHPATimer();
 }
 
+/*============================================================================
+ * Swadge Mode Utility Functions
+ *==========================================================================*/
+
+/**
+ * This deinitializes the current mode if it is initialized, displays the next
+ * mode's LED pattern, and starts a timer to reboot into the next mode.
+ * If the reboot timer is running, it will be reset
+ */
+void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
+{
+    // If the mode is initialized, tear it down
+    if(swadgeModeInit)
+    {
+        // Call the exit callback for the current mode
+        if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode)
+        {
+            swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode();
+        }
+
+        // Clean up ESP NOW if that's where we were at
+        switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
+        {
+            case ESP_NOW:
+            {
+                espNowDeinit();
+                break;
+            }
+            case SOFT_AP:
+            case NO_WIFI:
+            {
+                break;
+            }
+        }
+        swadgeModeInit = false;
+    }
+
+    // Switch to the next mode, or start from the beginning if we're at the end
+    rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
+
+    // Write the RTC memory so it knows what mode to be in when waking up
+    system_rtc_mem_write(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem));
+    os_printf("rtc mem written\n");
+
+    // Check if the next mode wants wifi or not
+    switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
+    {
+        case SOFT_AP:
+        case ESP_NOW:
+        {
+            // Radio calibration is done after deep-sleep wake up; this increases
+            // the current consumption.
+            system_deep_sleep_set_option(1);
+            os_printf("deep sleep option set 1\n");
+            break;
+        }
+        case NO_WIFI:
+        {
+            // Disable RF after deep-sleep wake up, just like modem sleep; this
+            // has the least current consumption; the device is not able to
+            // transmit or receive data after wake up.
+            system_deep_sleep_set_option(4);
+            os_printf("deep sleep option set 4\n");
+            break;
+        }
+    }
+
+    // Be extra sure the GPIOs are in the right state for boot
+    setGpiosForBoot();
+
+    // Sleeeeep. It calls user_init() on wake, which will use the new mode
+    system_deep_sleep(1000);
+}
+
+/*============================================================================
+ * Swadge Mode Callback Functions
+ *==========================================================================*/
+
+/**
+ * Pass a button event from the logic in button.h to the active swadge mode
+ * It routes through user_main.c, which knows what the current mode is
+ *
+ * @param state A bitmask of all button statuses
+ * @param button  The button number which was pressed
+ * @param down 1 if the button was pressed, 0 if it was released
+ */
+void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int down)
+{
+    if(0 == button)
+    {
+        // Switch the mode
+        incrementSwadgeMode();
+    }
+    else if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
+    {
+        // Pass the button event to the mode
+        swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(state, button, down);
+    }
+}
+
+/**
+ * Callback from ESP NOW to the current Swadge mode whenever a packet is received
+ * It routes through user_main.c, which knows what the current mode is
+ */
+void ICACHE_FLASH_ATTR swadgeModeEspNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi)
+{
+    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowRecvCb)
+    {
+        swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowRecvCb(mac_addr, data, len, rssi);
+    }
+}
+
+/**
+ * Callback from ESP NOW to the current Swadge mode whenever a packet is sent
+ * It routes through user_main.c, which knows what the current mode is
+ */
+void ICACHE_FLASH_ATTR swadgeModeEspNowSendCb(uint8_t* mac_addr, mt_tx_status status)
+{
+    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowSendCb)
+    {
+        swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowSendCb(mac_addr, (mt_tx_status)status);
+    }
+}
+
+/*============================================================================
+ * LED Utility Functions
+ *==========================================================================*/
+
 /**
  * Set the state of the six RGB LEDs, but don't overwrite if the LEDs were
  * set via UDP for at least TICKER_TIMEOUT increments of 100ms
@@ -467,8 +488,6 @@ void ExitCritical(void)
  */
 void ICACHE_FLASH_ATTR setLeds(led_t* ledData, uint16_t ledDataLen)
 {
-    // If the LEDs were overwritten with a UDP command, keep them that way for a while
-    // Otherwise send out the LED data
     ws2812_push( (uint8_t*) ledData, ledDataLen );
     //os_printf("%s, %d LEDs\n", __func__, ledDataLen / 3);
 }

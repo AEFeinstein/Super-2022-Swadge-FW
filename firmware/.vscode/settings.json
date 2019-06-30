@@ -1,4 +1,5 @@
 {
+    "astyle.astylerc": "${workspaceFolder}/astylerc",
     "files.associations": {
         "DFT32.h": "c",
         "embeddednf.h": "c",
