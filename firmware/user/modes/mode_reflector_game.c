@@ -645,6 +645,10 @@ void ICACHE_FLASH_ATTR refSendCb(uint8_t* mac_addr __attribute__((unused)),
             }
             break;
         }
+        default:
+        {
+            break;
+        }
     }
 }
 
@@ -844,6 +848,10 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
             // Just LED animations, don't do anything with messages
             break;
         }
+        default:
+        {
+            break;
+        }
     }
 }
 
@@ -912,6 +920,10 @@ void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event)
             }
             // Mark this event
             ref.cnc.rxGameStartAck = true;
+            break;
+        }
+        default:
+        {
             break;
         }
     }
@@ -1058,6 +1070,10 @@ void ICACHE_FLASH_ATTR refStartRound(void)
         {
             ref_printf("ACT_BOTH\r\n");
             ref.led.Degree = 0;
+            break;
+        }
+        default:
+        {
             break;
         }
     }
@@ -1253,6 +1269,10 @@ void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
             // Handled in refShowConnectionLedTimeout()
             break;
         }
+        default:
+        {
+            break;
+        }
     }
 
     // Copy the color value to all LEDs
@@ -1280,6 +1300,10 @@ void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
                 ref.led.Leds[i].r = ref.led.connectionDim;
                 break;
             }
+            default:
+            {
+                break;
+            }
         }
     }
 
@@ -1305,6 +1329,10 @@ void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
                 ref.led.Leds[2].b = 25;
                 break;
             }
+            default:
+            {
+                break;
+            }
         }
     }
     if(ref.cnc.rxGameStartMsg)
@@ -1326,6 +1354,10 @@ void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
                 ref.led.Leds[4].g = 0;
                 ref.led.Leds[4].r = 0;
                 ref.led.Leds[4].b = 25;
+                break;
+            }
+            default:
+            {
                 break;
             }
         }
@@ -1378,6 +1410,10 @@ void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
                 ref.led.Leds[ref.led.Degree / DEG_PER_LED].b = 252 / 4;
                 break;
             }
+            default:
+            {
+                break;
+            }
         }
 
         // Don't turn on LEDs past 180 degrees
@@ -1410,6 +1446,10 @@ void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
                 ref.led.Degree += 360;
             }
 
+            break;
+        }
+        default:
+        {
             break;
         }
     }
@@ -1844,6 +1884,10 @@ void ICACHE_FLASH_ATTR refSinglePlayerRestart(void* arg __attribute__((unused)))
             refStartRound();
             break;
         }
+        default:
+        {
+            break;
+        }
     }
 
     setLeds(ref.led.Leds, sizeof(ref.led.Leds));
@@ -1971,6 +2015,10 @@ void ICACHE_FLASH_ATTR refAdjustledSpeed(bool reset, bool up)
                 ref.gam.ledPeriodMs = LED_TIMER_MS_STARTING_HARD;
                 break;
             }
+            default:
+            {
+                break;
+            }
         }
     }
     else if (GOING_SECOND == ref.cnc.playOrder && false == ref.gam.receiveFirstMsg)
@@ -1993,6 +2041,10 @@ void ICACHE_FLASH_ATTR refAdjustledSpeed(bool reset, bool up)
                 ref.gam.ledPeriodMs -= 2;
                 break;
             }
+            default:
+            {
+                break;
+            }
         }
         // Anything less than a 3ms period is impossible...
         if(ref.gam.ledPeriodMs < 3)
@@ -2013,6 +2065,10 @@ void ICACHE_FLASH_ATTR refAdjustledSpeed(bool reset, bool up)
             case HARD:
             {
                 ref.gam.ledPeriodMs += 2;
+                break;
+            }
+            default:
+            {
                 break;
             }
         }

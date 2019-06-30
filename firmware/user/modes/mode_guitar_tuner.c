@@ -462,6 +462,10 @@ void ICACHE_FLASH_ATTR guitarTunerButtonCallback(
                 cycleColorchordSensitivity();
                 break;
             }
+            default:
+            {
+                break;
+            }
         }
     }
 }

@@ -86,7 +86,9 @@ EXTRA_CFLAGS = \
 	-Wuninitialized \
 	-Wshadow \
 	-Wredundant-decls \
-	-Wstrict-prototypes
+	-Wstrict-prototypes \
+	-Wjump-misses-init \
+	-Wswitch-default
 
 # And these are warnings, lots of warnings
 #EXTRA_CFLAGS := $(EXTRA_CFLAGS) \
@@ -95,11 +97,9 @@ EXTRA_CFLAGS = \
 #	-Wconversion \
 #	-Wdouble-promotion \
 #	-Wformat-nonliteral \
-#	-Wjump-misses-init \
 #	-Wmissing-prototypes \
 #	-Wpedantic \
 #	-Wsign-conversion \
-#	-Wswitch-default \
 #	-Wswitch-enum \
 #	-Wunused-macros
 

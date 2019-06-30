@@ -124,6 +124,10 @@ void ICACHE_FLASH_ATTR colorchordSampleHandler(int32_t samp)
                 UpdateAllSameLEDs();
                 break;
             }
+            default:
+            {
+                break;
+            }
         };
 
         // Push out the LED data
@@ -194,6 +198,10 @@ void ICACHE_FLASH_ATTR colorchordButtonCallback(
             case 2:
             {
                 cycleColorchordSensitivity();
+                break;
+            }
+            default:
+            {
                 break;
             }
         }

@@ -134,6 +134,7 @@ void ICACHE_FLASH_ATTR user_init(void)
             os_printf( "Booting in ESP-NOW\n" );
             break;
         }
+        default:
         case SOFT_AP:
         case NO_WIFI:
         {
@@ -377,6 +378,7 @@ void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
                 espNowDeinit();
                 break;
             }
+            default:
             case SOFT_AP:
             case NO_WIFI:
             {
@@ -396,7 +398,6 @@ void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
     // Check if the next mode wants wifi or not
     switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
     {
-        case SOFT_AP:
         case ESP_NOW:
         {
             // Radio calibration is done after deep-sleep wake up; this increases
@@ -405,6 +406,8 @@ void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
             os_printf("deep sleep option set 1\n");
             break;
         }
+        default:
+        case SOFT_AP:
         case NO_WIFI:
         {
             // Disable RF after deep-sleep wake up, just like modem sleep; this
@@ -558,6 +561,10 @@ void ICACHE_FLASH_ATTR showLedCount(uint8_t num, uint32_t colorToShow)
         case 1:
         {
             ets_memcpy(&leds[0], &rgb, sizeof(rgb));
+            break;
+        }
+        default:
+        {
             break;
         }
     }

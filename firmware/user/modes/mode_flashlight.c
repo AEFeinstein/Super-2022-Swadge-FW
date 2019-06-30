@@ -206,6 +206,10 @@ void ICACHE_FLASH_ATTR flashlightButtonCallback(
                 holdTimerRunning = true;
                 break;
             }
+            default:
+            {
+                break;
+            }
         }
     }
     else if(1 == button && holdTimerRunning)

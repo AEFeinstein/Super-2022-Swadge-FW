@@ -49,6 +49,9 @@ void ICACHE_FLASH_ATTR plotText(uint8_t x, uint8_t y, char * text, fonts font) {
 				x = plotChar(x, y, *text, font_Radiostars, FONT_HEIGHT_RADIOSTARS);
 				break;
 			}
+			default: {
+				break;
+			}
 		}
 		text++;
 	}
