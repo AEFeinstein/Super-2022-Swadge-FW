@@ -9,9 +9,9 @@
 #define MMA8452Q_H_
 
 typedef struct {
-	int x;
-	int y;
-	int z;
+    int x;
+    int y;
+    int z;
 } accel_t;
 
 bool MMA8452Q_setup(void);

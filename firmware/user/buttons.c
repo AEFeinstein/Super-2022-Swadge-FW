@@ -92,8 +92,8 @@ void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void)
         else
         {
             swadgeModeButtonCallback(buttonQueue[buttonEvtHead].stat,
-                           buttonQueue[buttonEvtHead].btn,
-                           buttonQueue[buttonEvtHead].down);
+                                     buttonQueue[buttonEvtHead].btn,
+                                     buttonQueue[buttonEvtHead].down);
 
             // Note the time of this button press
             lastButtonPress[buttonQueue[buttonEvtHead].btn] = buttonQueue[buttonEvtHead].time;

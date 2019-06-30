@@ -138,14 +138,14 @@ void ICACHE_FLASH_ATTR clearDisplay(void)
  */
 void ICACHE_FLASH_ATTR fillDisplayArea(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, color c)
 {
-	uint8_t x, y;
-	for(x = x1; x <= x2; x++)
-	{
-		for(y = y1; y <= y2; y++)
-		{
-			drawPixel(x, y, c);
-		}
-	}
+    uint8_t x, y;
+    for(x = x1; x <= x2; x++)
+    {
+        for(y = y1; y <= y2; y++)
+        {
+            drawPixel(x, y, c);
+        }
+    }
     buffer[0] = SSD1306_DATA;
 }
 
@@ -172,18 +172,18 @@ void ICACHE_FLASH_ATTR drawPixel(uint8_t x, uint8_t y, color c)
         }
         switch(c)
         {
-            case WHITE:
-                buffer[1 + (x + (y / 8)*OLED_WIDTH)] |=  (1 << (y & 7));
-                break;
-            case BLACK:
-                buffer[1 + (x + (y / 8)*OLED_WIDTH)] &= ~(1 << (y & 7));
-                break;
-            case INVERSE:
-                buffer[1 + (x + (y / 8)*OLED_WIDTH)] ^=  (1 << (y & 7));
-                break;
-            default: {
-                break;
-            }
+        case WHITE:
+            buffer[1 + (x + (y / 8)*OLED_WIDTH)] |=  (1 << (y & 7));
+            break;
+        case BLACK:
+            buffer[1 + (x + (y / 8)*OLED_WIDTH)] &= ~(1 << (y & 7));
+            break;
+        case INVERSE:
+            buffer[1 + (x + (y / 8)*OLED_WIDTH)] ^=  (1 << (y & 7));
+            break;
+        default: {
+            break;
+        }
         }
     }
 }
@@ -202,7 +202,7 @@ bool ICACHE_FLASH_ATTR begin(bool reset)
     // Reset SSD1306 if requested and reset pin specified in constructor
     if(reset)
     {
-    	setOledResetOn(true);  // VDD goes high at start
+        setOledResetOn(true);  // VDD goes high at start
         ets_delay_us(1000);    // pause for 1 ms
         setOledResetOn(false);  // Bring reset low
         ets_delay_us(10000);   // Wait 10 ms

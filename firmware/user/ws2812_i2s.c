@@ -44,7 +44,7 @@ Extra copyright info:
 
 // This should be defined in the cfg file, but if the eclipse indexer can't see that...
 #if !defined(WS2812_THREE_SAMPLE) && !defined(WS2812_FOUR_SAMPLE)
-    #define WS2812_FOUR_SAMPLE
+#define WS2812_FOUR_SAMPLE
 #endif
 
 //Creates an I2S SR of 93,750 Hz, or 3 MHz Bitclock (.333us/sample)
@@ -52,13 +52,13 @@ Extra copyright info:
 //It is likely you could speed this up a little.
 
 #ifdef WS2812_THREE_SAMPLE
-    #define WS_I2S_BCK 22  //Seems to work as low as 19, but is shakey at 18.
-    #define WS_I2S_DIV 4
+#define WS_I2S_BCK 22  //Seems to work as low as 19, but is shakey at 18.
+#define WS_I2S_DIV 4
 #elif defined( WS2812_FOUR_SAMPLE )
-    #define WS_I2S_BCK 17  //Seems to work as low as 14, shoddy at 13.
-    #define WS_I2S_DIV 4
+#define WS_I2S_BCK 17  //Seems to work as low as 14, shoddy at 13.
+#define WS_I2S_DIV 4
 #else
-    #error You need to either define WS2812_THREE_SAMPLE or WS2812_FOUR_SAMPLE
+#error You need to either define WS2812_THREE_SAMPLE or WS2812_FOUR_SAMPLE
 #endif
 
 #ifndef i2c_bbpll
@@ -76,7 +76,7 @@ Extra copyright info:
     i2c_readReg_Mask(block, block##_hostid,  reg_add,  reg_add##_msb,  reg_add##_lsb)
 #endif
 #ifndef ETS_SLC_INUM
-    #define ETS_SLC_INUM       1
+#define ETS_SLC_INUM       1
 #endif
 
 

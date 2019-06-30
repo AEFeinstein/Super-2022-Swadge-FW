@@ -123,29 +123,29 @@ void ICACHE_FLASH_ATTR user_init(void)
     // Set the current WiFi mode based on what the swadge mode wants
     switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
     {
-        case ESP_NOW:
+    case ESP_NOW:
+    {
+        if(!(wifi_set_opmode_current( SOFTAP_MODE ) &&
+                wifi_set_opmode( SOFTAP_MODE )))
         {
-            if(!(wifi_set_opmode_current( SOFTAP_MODE ) &&
-                    wifi_set_opmode( SOFTAP_MODE )))
-            {
-                os_printf("Set SOFTAP_MODE before boot failed\n");
-            }
-            espNowInit();
-            os_printf( "Booting in ESP-NOW\n" );
-            break;
+            os_printf("Set SOFTAP_MODE before boot failed\n");
         }
-        default:
-        case SOFT_AP:
-        case NO_WIFI:
+        espNowInit();
+        os_printf( "Booting in ESP-NOW\n" );
+        break;
+    }
+    default:
+    case SOFT_AP:
+    case NO_WIFI:
+    {
+        if(!(wifi_set_opmode_current( NULL_MODE ) &&
+                wifi_set_opmode( NULL_MODE )))
         {
-            if(!(wifi_set_opmode_current( NULL_MODE ) &&
-                    wifi_set_opmode( NULL_MODE )))
-            {
-                os_printf("Set NULL_MODE before boot failed\n");
-            }
-            os_printf( "Booting with no wifi\n" );
-            break;
+            os_printf("Set NULL_MODE before boot failed\n");
         }
+        os_printf( "Booting with no wifi\n" );
+        break;
+    }
     }
 
     // Common services pre-init and init, after wifi is initialized
@@ -373,17 +373,17 @@ void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
         // Clean up ESP NOW if that's where we were at
         switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
         {
-            case ESP_NOW:
-            {
-                espNowDeinit();
-                break;
-            }
-            default:
-            case SOFT_AP:
-            case NO_WIFI:
-            {
-                break;
-            }
+        case ESP_NOW:
+        {
+            espNowDeinit();
+            break;
+        }
+        default:
+        case SOFT_AP:
+        case NO_WIFI:
+        {
+            break;
+        }
         }
         swadgeModeInit = false;
     }
@@ -398,25 +398,25 @@ void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
     // Check if the next mode wants wifi or not
     switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
     {
-        case ESP_NOW:
-        {
-            // Radio calibration is done after deep-sleep wake up; this increases
-            // the current consumption.
-            system_deep_sleep_set_option(1);
-            os_printf("deep sleep option set 1\n");
-            break;
-        }
-        default:
-        case SOFT_AP:
-        case NO_WIFI:
-        {
-            // Disable RF after deep-sleep wake up, just like modem sleep; this
-            // has the least current consumption; the device is not able to
-            // transmit or receive data after wake up.
-            system_deep_sleep_set_option(4);
-            os_printf("deep sleep option set 4\n");
-            break;
-        }
+    case ESP_NOW:
+    {
+        // Radio calibration is done after deep-sleep wake up; this increases
+        // the current consumption.
+        system_deep_sleep_set_option(1);
+        os_printf("deep sleep option set 1\n");
+        break;
+    }
+    default:
+    case SOFT_AP:
+    case NO_WIFI:
+    {
+        // Disable RF after deep-sleep wake up, just like modem sleep; this
+        // has the least current consumption; the device is not able to
+        // transmit or receive data after wake up.
+        system_deep_sleep_set_option(4);
+        os_printf("deep sleep option set 4\n");
+        break;
+    }
     }
 
     // Be extra sure the GPIOs are in the right state for boot
@@ -526,47 +526,47 @@ void ICACHE_FLASH_ATTR showLedCount(uint8_t num, uint32_t colorToShow)
     // Set the LEDs
     switch(num)
     {
-        case 6:
-        {
-            ets_memcpy(&leds[3], &rgb, sizeof(rgb));
-        }
-        // no break
-        case 5:
-        {
-            ets_memcpy(&leds[0], &rgb, sizeof(rgb));
-        }
-        // no break
-        case 4:
-        {
-            ets_memcpy(&leds[1], &rgb, sizeof(rgb));
-            ets_memcpy(&leds[2], &rgb, sizeof(rgb));
-            ets_memcpy(&leds[4], &rgb, sizeof(rgb));
-            ets_memcpy(&leds[5], &rgb, sizeof(rgb));
-            break;
-        }
+    case 6:
+    {
+        ets_memcpy(&leds[3], &rgb, sizeof(rgb));
+    }
+    // no break
+    case 5:
+    {
+        ets_memcpy(&leds[0], &rgb, sizeof(rgb));
+    }
+    // no break
+    case 4:
+    {
+        ets_memcpy(&leds[1], &rgb, sizeof(rgb));
+        ets_memcpy(&leds[2], &rgb, sizeof(rgb));
+        ets_memcpy(&leds[4], &rgb, sizeof(rgb));
+        ets_memcpy(&leds[5], &rgb, sizeof(rgb));
+        break;
+    }
 
-        case 3:
-        {
-            ets_memcpy(&leds[0], &rgb, sizeof(rgb));
-            ets_memcpy(&leds[2], &rgb, sizeof(rgb));
-            ets_memcpy(&leds[4], &rgb, sizeof(rgb));
-            break;
-        }
+    case 3:
+    {
+        ets_memcpy(&leds[0], &rgb, sizeof(rgb));
+        ets_memcpy(&leds[2], &rgb, sizeof(rgb));
+        ets_memcpy(&leds[4], &rgb, sizeof(rgb));
+        break;
+    }
 
-        case 2:
-        {
-            ets_memcpy(&leds[3], &rgb, sizeof(rgb));
-        }
-        // no break
-        case 1:
-        {
-            ets_memcpy(&leds[0], &rgb, sizeof(rgb));
-            break;
-        }
-        default:
-        {
-            break;
-        }
+    case 2:
+    {
+        ets_memcpy(&leds[3], &rgb, sizeof(rgb));
+    }
+    // no break
+    case 1:
+    {
+        ets_memcpy(&leds[0], &rgb, sizeof(rgb));
+        break;
+    }
+    default:
+    {
+        break;
+    }
     }
 
     // Draw the LEDs

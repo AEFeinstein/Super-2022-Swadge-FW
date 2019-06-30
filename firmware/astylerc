@@ -34,3 +34,5 @@
 --max-code-length=120
 
 --mode=c
+
+--lineend=linux

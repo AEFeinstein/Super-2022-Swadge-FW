@@ -11,9 +11,9 @@
 #include <stdint.h>
 
 typedef enum {
-	TOM_THUMB,
-	IBM_VGA_8,
-	RADIOSTARS
+    TOM_THUMB,
+    IBM_VGA_8,
+    RADIOSTARS
 } fonts;
 
 typedef struct {

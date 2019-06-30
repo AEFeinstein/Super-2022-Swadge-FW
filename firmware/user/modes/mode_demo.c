@@ -64,7 +64,7 @@ swadgeMode demoMode =
     .wifiMode = SOFT_AP,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
-	.fnAccelerometerCallback = demoAccelerometerHandler
+    .fnAccelerometerCallback = demoAccelerometerHandler
 };
 
 static int samplesProcessed = 0;
@@ -98,47 +98,47 @@ void ICACHE_FLASH_ATTR demoExitMode(void)
  */
 void ICACHE_FLASH_ATTR demoTimerCallback(void)
 {
-	// Clear the display
-	clearDisplay();
+    // Clear the display
+    clearDisplay();
 
-	// Draw a title
-	plotText(0, 0, "DEMO MODE", RADIOSTARS);
+    // Draw a title
+    plotText(0, 0, "DEMO MODE", RADIOSTARS);
 
-	// Display the acceleration on the display
-	char accelStr[32] = {0};
+    // Display the acceleration on the display
+    char accelStr[32] = {0};
 
-	ets_snprintf(accelStr, sizeof(accelStr), "X:%d", demoAccel.x);
-	plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
+    ets_snprintf(accelStr, sizeof(accelStr), "X:%d", demoAccel.x);
+    plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
 
-	ets_snprintf(accelStr, sizeof(accelStr), "Y:%d", demoAccel.y);
-	plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
+    ets_snprintf(accelStr, sizeof(accelStr), "Y:%d", demoAccel.y);
+    plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
 
-	ets_snprintf(accelStr, sizeof(accelStr), "Z:%d", demoAccel.z);
-	plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
+    ets_snprintf(accelStr, sizeof(accelStr), "Z:%d", demoAccel.z);
+    plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
 
-	if(mButtonState & DOWN)
-	{
-		// Down
-		plotCircle(BTN_CTR_X, BTN_CTR_Y + BTN_OFF, BTN_RAD);
-	}
-	if(mButtonState & UP)
-	{
-		// Up
-		plotCircle(BTN_CTR_X, BTN_CTR_Y - BTN_OFF, BTN_RAD);
-	}
-	if(mButtonState & LEFT)
-	{
-		// Left
-		plotCircle(BTN_CTR_X - BTN_OFF, BTN_CTR_Y, BTN_RAD);
-	}
-	if(mButtonState & RIGHT)
-	{
-		// Right
-		plotCircle(BTN_CTR_X + BTN_OFF, BTN_CTR_Y, BTN_RAD);
-	}
+    if(mButtonState & DOWN)
+    {
+        // Down
+        plotCircle(BTN_CTR_X, BTN_CTR_Y + BTN_OFF, BTN_RAD);
+    }
+    if(mButtonState & UP)
+    {
+        // Up
+        plotCircle(BTN_CTR_X, BTN_CTR_Y - BTN_OFF, BTN_RAD);
+    }
+    if(mButtonState & LEFT)
+    {
+        // Left
+        plotCircle(BTN_CTR_X - BTN_OFF, BTN_CTR_Y, BTN_RAD);
+    }
+    if(mButtonState & RIGHT)
+    {
+        // Right
+        plotCircle(BTN_CTR_X + BTN_OFF, BTN_CTR_Y, BTN_RAD);
+    }
 
-	// Update the display
-	display();
+    // Update the display
+    display();
 }
 
 /**
@@ -159,7 +159,7 @@ void ICACHE_FLASH_ATTR demoSampleHandler(int32_t samp)
 
         // Set LEDs
         UpdateLinearLEDs();
-		setLeds( (led_t*)ledOut, NUM_LIN_LEDS * 3 );
+        setLeds( (led_t*)ledOut, NUM_LIN_LEDS * 3 );
 
         // Reset the sample count
         samplesProcessed = 0;
@@ -174,9 +174,9 @@ void ICACHE_FLASH_ATTR demoSampleHandler(int32_t samp)
  * @param down   true if the button was pressed, false if it was released
  */
 void ICACHE_FLASH_ATTR demoButtonCallback( uint8_t state,
-		int button __attribute__((unused)), int down __attribute__((unused)))
+        int button __attribute__((unused)), int down __attribute__((unused)))
 {
-	mButtonState = state;
+    mButtonState = state;
 }
 
 /**
@@ -188,7 +188,7 @@ void ICACHE_FLASH_ATTR demoButtonCallback( uint8_t state,
  */
 void ICACHE_FLASH_ATTR demoAccelerometerHandler(accel_t * accel)
 {
-	demoAccel.x = accel->x;
-	demoAccel.y = accel->y;
-	demoAccel.z = accel->z;
+    demoAccel.x = accel->x;
+    demoAccel.y = accel->y;
+    demoAccel.z = accel->z;
 }

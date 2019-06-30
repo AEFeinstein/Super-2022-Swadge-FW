@@ -127,7 +127,7 @@ void gpioInterrupt( void* v __attribute__((unused)))
 /**
  * Initialize the GPIOs as button inputs with internal pullups and interrupts
  * Also set 14 high for the microphone
- * 
+ *
  * @param enableMic true to enable the microphone, false to disable it
  */
 void ICACHE_FLASH_ATTR SetupGPIO(bool enableMic)

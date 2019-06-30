@@ -197,9 +197,9 @@ digraph G {
 
 //#define REF_DEBUG_PRINT
 #ifdef REF_DEBUG_PRINT
-    #define ref_printf(...) os_printf(__VA_ARGS__)
+#define ref_printf(...) os_printf(__VA_ARGS__)
 #else
-    #define ref_printf(...)
+#define ref_printf(...)
 #endif
 
 // The time we'll spend retrying messages
@@ -612,43 +612,43 @@ void ICACHE_FLASH_ATTR refSendCb(uint8_t* mac_addr __attribute__((unused)),
 {
     switch(status)
     {
-        case MT_TX_STATUS_OK:
+    case MT_TX_STATUS_OK:
+    {
+        if(0 != ref.ack.timeSentUs)
         {
-            if(0 != ref.ack.timeSentUs)
+            uint32_t transmissionTimeUs = system_get_time() - ref.ack.timeSentUs;
+            ref_printf("Transmission time %dus\r\n", transmissionTimeUs);
+            // The timers are all millisecond, so make sure that
+            // transmissionTimeUs is at least 1ms
+            if(transmissionTimeUs < 1000)
             {
-                uint32_t transmissionTimeUs = system_get_time() - ref.ack.timeSentUs;
-                ref_printf("Transmission time %dus\r\n", transmissionTimeUs);
-                // The timers are all millisecond, so make sure that
-                // transmissionTimeUs is at least 1ms
-                if(transmissionTimeUs < 1000)
-                {
-                    transmissionTimeUs = 1000;
-                }
-
-                // Round it to the nearest Ms, add 69ms (the measured worst case)
-                // then add some randomness [0ms to 15ms random]
-                uint32_t waitTimeMs = ((transmissionTimeUs + 500) / 1000) + 69 + (os_random() & 0b1111);
-
-                // Start the timer
-                ref_printf("ack timer set for %dms\r\n", waitTimeMs);
-                os_timer_arm(&ref.tmr.TxRetry, waitTimeMs, false);
+                transmissionTimeUs = 1000;
             }
-            break;
+
+            // Round it to the nearest Ms, add 69ms (the measured worst case)
+            // then add some randomness [0ms to 15ms random]
+            uint32_t waitTimeMs = ((transmissionTimeUs + 500) / 1000) + 69 + (os_random() & 0b1111);
+
+            // Start the timer
+            ref_printf("ack timer set for %dms\r\n", waitTimeMs);
+            os_timer_arm(&ref.tmr.TxRetry, waitTimeMs, false);
         }
-        case MT_TX_STATUS_FAILED:
+        break;
+    }
+    case MT_TX_STATUS_FAILED:
+    {
+        // If a message is stored
+        if(ref.ack.msgToAckLen > 0)
         {
-            // If a message is stored
-            if(ref.ack.msgToAckLen > 0)
-            {
-                // try again in 1ms
-                os_timer_arm(&ref.tmr.TxRetry, 1, false);
-            }
-            break;
+            // try again in 1ms
+            os_timer_arm(&ref.tmr.TxRetry, 1, false);
         }
-        default:
-        {
-            break;
-        }
+        break;
+    }
+    default:
+    {
+        break;
+    }
     }
 }
 
@@ -756,102 +756,102 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
 
     switch(ref.gameState)
     {
-        case R_CONNECTING:
+    case R_CONNECTING:
+    {
+        // Received another broadcast, Check if this RSSI is strong enough
+        if(!ref.cnc.broadcastReceived &&
+                rssi > CONNECTION_RSSI &&
+                ets_strlen(connectionMsg) == len &&
+                0 == ets_memcmp(data, connectionMsg, len))
         {
-            // Received another broadcast, Check if this RSSI is strong enough
-            if(!ref.cnc.broadcastReceived &&
-                    rssi > CONNECTION_RSSI &&
-                    ets_strlen(connectionMsg) == len &&
-                    0 == ets_memcmp(data, connectionMsg, len))
+            ref_printf("Broadcast Received, sending game start message\r\n");
+
+            // We received a broadcast, don't allow another
+            ref.cnc.broadcastReceived = true;
+
+            // Save the other ESP's MAC
+            ets_memcpy(ref.cnc.otherMac, mac_addr, sizeof(ref.cnc.otherMac));
+            ref.cnc.otherMacReceived = true;
+
+            // Send a message to that ESP to start the game.
+            ets_sprintf(&gameStartMsg[MAC_IDX], macFmtStr,
+                        mac_addr[0],
+                        mac_addr[1],
+                        mac_addr[2],
+                        mac_addr[3],
+                        mac_addr[4],
+                        mac_addr[5]);
+
+            // If it's acked, call refGameStartAckRecv(), if not reinit with refInit()
+            refSendMsg(gameStartMsg, ets_strlen(gameStartMsg), true, refGameStartAckRecv, refRestart);
+        }
+        // Received a response to our broadcast
+        else if (!ref.cnc.rxGameStartMsg &&
+                 ets_strlen(gameStartMsg) == len &&
+                 0 == ets_memcmp(data, gameStartMsg, SEQ_IDX))
+        {
+            ref_printf("Game start message received, ACKing\r\n");
+
+            // This is another swadge trying to start a game, which means
+            // they received our connectionMsg. First disable our connectionMsg
+            os_timer_disarm(&ref.tmr.Connection);
+
+            // And process this connection event
+            refProcConnectionEvt(RX_GAME_START_MSG);
+        }
+
+        break;
+    }
+    case R_WAITING:
+    {
+        // Received a message that the other swadge lost
+        if(ets_strlen(roundLossMsg) == len &&
+                0 == ets_memcmp(data, roundLossMsg, SEQ_IDX))
+        {
+            // Received a message, so stop the failure timer
+            os_timer_disarm(&ref.tmr.Reinit);
+
+            // The other swadge lost, so chalk a win!
+            ref.gam.Wins++;
+
+            // Display the win
+            refRoundResultLed(true);
+        }
+        else if(ets_strlen(roundContinueMsg) == len &&
+                0 == ets_memcmp(data, roundContinueMsg, SEQ_IDX))
+        {
+            // Received a message, so stop the failure timer
+            os_timer_disarm(&ref.tmr.Reinit);
+
+            // Get faster or slower based on the other swadge's timing
+            if(0 == ets_memcmp(&data[EXT_IDX], spdUp, ets_strlen(spdUp)))
             {
-                ref_printf("Broadcast Received, sending game start message\r\n");
-
-                // We received a broadcast, don't allow another
-                ref.cnc.broadcastReceived = true;
-
-                // Save the other ESP's MAC
-                ets_memcpy(ref.cnc.otherMac, mac_addr, sizeof(ref.cnc.otherMac));
-                ref.cnc.otherMacReceived = true;
-
-                // Send a message to that ESP to start the game.
-                ets_sprintf(&gameStartMsg[MAC_IDX], macFmtStr,
-                            mac_addr[0],
-                            mac_addr[1],
-                            mac_addr[2],
-                            mac_addr[3],
-                            mac_addr[4],
-                            mac_addr[5]);
-
-                // If it's acked, call refGameStartAckRecv(), if not reinit with refInit()
-                refSendMsg(gameStartMsg, ets_strlen(gameStartMsg), true, refGameStartAckRecv, refRestart);
+                refAdjustledSpeed(false, true);
             }
-            // Received a response to our broadcast
-            else if (!ref.cnc.rxGameStartMsg &&
-                     ets_strlen(gameStartMsg) == len &&
-                     0 == ets_memcmp(data, gameStartMsg, SEQ_IDX))
+            else if(0 == ets_memcmp(&data[EXT_IDX], spdDn, ets_strlen(spdDn)))
             {
-                ref_printf("Game start message received, ACKing\r\n");
-
-                // This is another swadge trying to start a game, which means
-                // they received our connectionMsg. First disable our connectionMsg
-                os_timer_disarm(&ref.tmr.Connection);
-
-                // And process this connection event
-                refProcConnectionEvt(RX_GAME_START_MSG);
+                refAdjustledSpeed(false, false);
             }
 
-            break;
+            refStartRound();
         }
-        case R_WAITING:
-        {
-            // Received a message that the other swadge lost
-            if(ets_strlen(roundLossMsg) == len &&
-                    0 == ets_memcmp(data, roundLossMsg, SEQ_IDX))
-            {
-                // Received a message, so stop the failure timer
-                os_timer_disarm(&ref.tmr.Reinit);
-
-                // The other swadge lost, so chalk a win!
-                ref.gam.Wins++;
-
-                // Display the win
-                refRoundResultLed(true);
-            }
-            else if(ets_strlen(roundContinueMsg) == len &&
-                    0 == ets_memcmp(data, roundContinueMsg, SEQ_IDX))
-            {
-                // Received a message, so stop the failure timer
-                os_timer_disarm(&ref.tmr.Reinit);
-
-                // Get faster or slower based on the other swadge's timing
-                if(0 == ets_memcmp(&data[EXT_IDX], spdUp, ets_strlen(spdUp)))
-                {
-                    refAdjustledSpeed(false, true);
-                }
-                else if(0 == ets_memcmp(&data[EXT_IDX], spdDn, ets_strlen(spdDn)))
-                {
-                    refAdjustledSpeed(false, false);
-                }
-
-                refStartRound();
-            }
-            break;
-        }
-        case R_PLAYING:
-        {
-            // Currently playing a game, shouldn't do anything with messages
-            break;
-        }
-        case R_SHOW_CONNECTION:
-        case R_SHOW_GAME_RESULT:
-        {
-            // Just LED animations, don't do anything with messages
-            break;
-        }
-        default:
-        {
-            break;
-        }
+        break;
+    }
+    case R_PLAYING:
+    {
+        // Currently playing a game, shouldn't do anything with messages
+        break;
+    }
+    case R_SHOW_CONNECTION:
+    case R_SHOW_GAME_RESULT:
+    {
+        // Just LED animations, don't do anything with messages
+        break;
+    }
+    default:
+    {
+        break;
+    }
     }
 }
 
@@ -899,33 +899,33 @@ void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event)
 
     switch(event)
     {
-        case RX_GAME_START_MSG:
+    case RX_GAME_START_MSG:
+    {
+        // Already received the ack, become the client
+        if(!ref.cnc.rxGameStartMsg && ref.cnc.rxGameStartAck)
         {
-            // Already received the ack, become the client
-            if(!ref.cnc.rxGameStartMsg && ref.cnc.rxGameStartAck)
-            {
-                ref.cnc.playOrder = GOING_SECOND;
-                ref.gam.receiveFirstMsg = false;
-            }
-            // Mark this event
-            ref.cnc.rxGameStartMsg = true;
-            break;
+            ref.cnc.playOrder = GOING_SECOND;
+            ref.gam.receiveFirstMsg = false;
         }
-        case RX_GAME_START_ACK:
+        // Mark this event
+        ref.cnc.rxGameStartMsg = true;
+        break;
+    }
+    case RX_GAME_START_ACK:
+    {
+        // Already received the msg, become the server
+        if(!ref.cnc.rxGameStartAck && ref.cnc.rxGameStartMsg)
         {
-            // Already received the msg, become the server
-            if(!ref.cnc.rxGameStartAck && ref.cnc.rxGameStartMsg)
-            {
-                ref.cnc.playOrder = GOING_FIRST;
-            }
-            // Mark this event
-            ref.cnc.rxGameStartAck = true;
-            break;
+            ref.cnc.playOrder = GOING_FIRST;
         }
-        default:
-        {
-            break;
-        }
+        // Mark this event
+        ref.cnc.rxGameStartAck = true;
+        break;
+    }
+    default:
+    {
+        break;
+    }
     }
 
     // If both the game start messages are good, start the game
@@ -961,29 +961,29 @@ void ICACHE_FLASH_ATTR refShowConnectionLedTimeout(void* arg __attribute__((unus
     uint8_t currBrightness = ref.led.Leds[0].r;
     switch(ref.led.ConnLedState)
     {
-        case LED_CONNECTED_BRIGHT:
+    case LED_CONNECTED_BRIGHT:
+    {
+        currBrightness++;
+        if(currBrightness == 0xFF)
         {
-            currBrightness++;
-            if(currBrightness == 0xFF)
-            {
-                ref.led.ConnLedState = LED_CONNECTED_DIM;
-            }
-            break;
+            ref.led.ConnLedState = LED_CONNECTED_DIM;
         }
-        case LED_CONNECTED_DIM:
+        break;
+    }
+    case LED_CONNECTED_DIM:
+    {
+        currBrightness--;
+        if(currBrightness == 0x00)
         {
-            currBrightness--;
-            if(currBrightness == 0x00)
-            {
-                refStartPlaying(NULL);
-            }
-            break;
+            refStartPlaying(NULL);
         }
-        default:
-        {
-            // No other cases handled
-            break;
-        }
+        break;
+    }
+    default:
+    {
+        // No other cases handled
+        break;
+    }
     }
     ets_memset(ref.led.Leds, currBrightness, sizeof(ref.led.Leds));
     setLeds(ref.led.Leds, sizeof(ref.led.Leds));
@@ -1054,28 +1054,28 @@ void ICACHE_FLASH_ATTR refStartRound(void)
     // Set the LED's starting angle
     switch(ref.gam.Action)
     {
-        case ACT_CLOCKWISE:
-        {
-            ref_printf("ACT_CLOCKWISE\r\n");
-            ref.led.Degree = 300;
-            break;
-        }
-        case ACT_COUNTERCLOCKWISE:
-        {
-            ref_printf("ACT_COUNTERCLOCKWISE\r\n");
-            ref.led.Degree = 60;
-            break;
-        }
-        case ACT_BOTH:
-        {
-            ref_printf("ACT_BOTH\r\n");
-            ref.led.Degree = 0;
-            break;
-        }
-        default:
-        {
-            break;
-        }
+    case ACT_CLOCKWISE:
+    {
+        ref_printf("ACT_CLOCKWISE\r\n");
+        ref.led.Degree = 300;
+        break;
+    }
+    case ACT_COUNTERCLOCKWISE:
+    {
+        ref_printf("ACT_COUNTERCLOCKWISE\r\n");
+        ref.led.Degree = 60;
+        break;
+    }
+    case ACT_BOTH:
+    {
+        ref_printf("ACT_BOTH\r\n");
+        ref.led.Degree = 0;
+        break;
+    }
+    default:
+    {
+        break;
+    }
     }
     ref.gam.shouldTurnOnLeds = true;
 
@@ -1200,79 +1200,79 @@ void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
 {
     switch(ref.led.ConnLedState)
     {
-        case LED_OFF:
-        {
-            // Reset this timer to LED_PERIOD_MS
-            refDisarmAllLedTimers();
-            os_timer_arm(&ref.tmr.ConnLed, 4, true);
+    case LED_OFF:
+    {
+        // Reset this timer to LED_PERIOD_MS
+        refDisarmAllLedTimers();
+        os_timer_arm(&ref.tmr.ConnLed, 4, true);
 
-            ref.led.connectionDim = 0;
-            ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+        ref.led.connectionDim = 0;
+        ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
 
-            ref.led.ConnLedState = LED_ON_1;
-            break;
-        }
-        case LED_ON_1:
-        {
-            // Turn LEDs on
-            ref.led.connectionDim = 255;
+        ref.led.ConnLedState = LED_ON_1;
+        break;
+    }
+    case LED_ON_1:
+    {
+        // Turn LEDs on
+        ref.led.connectionDim = 255;
 
-            // Prepare the first dimming
-            ref.led.ConnLedState = LED_DIM_1;
-            break;
-        }
-        case LED_DIM_1:
+        // Prepare the first dimming
+        ref.led.ConnLedState = LED_DIM_1;
+        break;
+    }
+    case LED_DIM_1:
+    {
+        // Dim leds
+        ref.led.connectionDim--;
+        // If its kind of dim, turn it on again
+        if(ref.led.connectionDim == 1)
         {
-            // Dim leds
-            ref.led.connectionDim--;
-            // If its kind of dim, turn it on again
-            if(ref.led.connectionDim == 1)
-            {
-                ref.led.ConnLedState = LED_ON_2;
-            }
-            break;
+            ref.led.ConnLedState = LED_ON_2;
         }
-        case LED_ON_2:
+        break;
+    }
+    case LED_ON_2:
+    {
+        // Turn LEDs on
+        ref.led.connectionDim = 255;
+        // Prepare the second dimming
+        ref.led.ConnLedState = LED_DIM_2;
+        break;
+    }
+    case LED_DIM_2:
+    {
+        // Dim leds
+        ref.led.connectionDim -= 1;
+        // If its off, start waiting
+        if(ref.led.connectionDim == 0)
         {
-            // Turn LEDs on
-            ref.led.connectionDim = 255;
-            // Prepare the second dimming
-            ref.led.ConnLedState = LED_DIM_2;
-            break;
+            ref.led.ConnLedState = LED_OFF_WAIT;
         }
-        case LED_DIM_2:
-        {
-            // Dim leds
-            ref.led.connectionDim -= 1;
-            // If its off, start waiting
-            if(ref.led.connectionDim == 0)
-            {
-                ref.led.ConnLedState = LED_OFF_WAIT;
-            }
-            break;
-        }
-        case LED_OFF_WAIT:
-        {
-            // Start a timer to update LEDs
-            refDisarmAllLedTimers();
-            os_timer_arm(&ref.tmr.ConnLed, 1000, true);
+        break;
+    }
+    case LED_OFF_WAIT:
+    {
+        // Start a timer to update LEDs
+        refDisarmAllLedTimers();
+        os_timer_arm(&ref.tmr.ConnLed, 1000, true);
 
-            // When it fires, start all over again
-            ref.led.ConnLedState = LED_OFF;
+        // When it fires, start all over again
+        ref.led.ConnLedState = LED_OFF;
 
-            // And dont update the LED state this time
-            return;
-        }
-        case LED_CONNECTED_BRIGHT:
-        case LED_CONNECTED_DIM:
-        {
-            // Handled in refShowConnectionLedTimeout()
-            break;
-        }
-        default:
-        {
-            break;
-        }
+        // And dont update the LED state this time
+        return;
+    }
+    case LED_CONNECTED_BRIGHT:
+    case LED_CONNECTED_DIM:
+    {
+        // Handled in refShowConnectionLedTimeout()
+        break;
+    }
+    default:
+    {
+        break;
+    }
     }
 
     // Copy the color value to all LEDs
@@ -1282,28 +1282,28 @@ void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
     {
         switch(ref.gam.difficulty)
         {
-            case EASY:
-            {
-                // Turn on blue
-                ref.led.Leds[i].b = ref.led.connectionDim;
-                break;
-            }
-            case MEDIUM:
-            {
-                // Turn on green
-                ref.led.Leds[i].g = ref.led.connectionDim;
-                break;
-            }
-            case HARD:
-            {
-                // Turn on red
-                ref.led.Leds[i].r = ref.led.connectionDim;
-                break;
-            }
-            default:
-            {
-                break;
-            }
+        case EASY:
+        {
+            // Turn on blue
+            ref.led.Leds[i].b = ref.led.connectionDim;
+            break;
+        }
+        case MEDIUM:
+        {
+            // Turn on green
+            ref.led.Leds[i].g = ref.led.connectionDim;
+            break;
+        }
+        case HARD:
+        {
+            // Turn on red
+            ref.led.Leds[i].r = ref.led.connectionDim;
+            break;
+        }
+        default:
+        {
+            break;
+        }
         }
     }
 
@@ -1312,54 +1312,54 @@ void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
     {
         switch(ref.gam.difficulty)
         {
-            case EASY:
-            {
-                // Green on blue
-                ref.led.Leds[2].g = 25;
-                ref.led.Leds[2].r = 0;
-                ref.led.Leds[2].b = 0;
-                break;
-            }
-            case MEDIUM:
-            case HARD:
-            {
-                // Blue on green and red
-                ref.led.Leds[2].g = 0;
-                ref.led.Leds[2].r = 0;
-                ref.led.Leds[2].b = 25;
-                break;
-            }
-            default:
-            {
-                break;
-            }
+        case EASY:
+        {
+            // Green on blue
+            ref.led.Leds[2].g = 25;
+            ref.led.Leds[2].r = 0;
+            ref.led.Leds[2].b = 0;
+            break;
+        }
+        case MEDIUM:
+        case HARD:
+        {
+            // Blue on green and red
+            ref.led.Leds[2].g = 0;
+            ref.led.Leds[2].r = 0;
+            ref.led.Leds[2].b = 25;
+            break;
+        }
+        default:
+        {
+            break;
+        }
         }
     }
     if(ref.cnc.rxGameStartMsg)
     {
         switch(ref.gam.difficulty)
         {
-            case EASY:
-            {
-                // Green on blue
-                ref.led.Leds[4].g = 25;
-                ref.led.Leds[4].r = 0;
-                ref.led.Leds[4].b = 0;
-                break;
-            }
-            case MEDIUM:
-            case HARD:
-            {
-                // Blue on green and red
-                ref.led.Leds[4].g = 0;
-                ref.led.Leds[4].r = 0;
-                ref.led.Leds[4].b = 25;
-                break;
-            }
-            default:
-            {
-                break;
-            }
+        case EASY:
+        {
+            // Green on blue
+            ref.led.Leds[4].g = 25;
+            ref.led.Leds[4].r = 0;
+            ref.led.Leds[4].b = 0;
+            break;
+        }
+        case MEDIUM:
+        case HARD:
+        {
+            // Blue on green and red
+            ref.led.Leds[4].g = 0;
+            ref.led.Leds[4].r = 0;
+            ref.led.Leds[4].b = 25;
+            break;
+        }
+        default:
+        {
+            break;
+        }
         }
     }
 
@@ -1390,30 +1390,30 @@ void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
     {
         switch(ref.gam.Action)
         {
-            case ACT_BOTH:
-            {
-                // Make sure this value decays to exactly zero above
-                ref.led.Leds[ref.led.Degree / DEG_PER_LED].r = 252;
-                ref.led.Leds[ref.led.Degree / DEG_PER_LED].g = 0;
-                ref.led.Leds[ref.led.Degree / DEG_PER_LED].b = 252 / 4;
+        case ACT_BOTH:
+        {
+            // Make sure this value decays to exactly zero above
+            ref.led.Leds[ref.led.Degree / DEG_PER_LED].r = 252;
+            ref.led.Leds[ref.led.Degree / DEG_PER_LED].g = 0;
+            ref.led.Leds[ref.led.Degree / DEG_PER_LED].b = 252 / 4;
 
-                ref.led.Leds[(360 - ref.led.Degree) / DEG_PER_LED].r = 252;
-                ref.led.Leds[(360 - ref.led.Degree) / DEG_PER_LED].g = 0;
-                ref.led.Leds[(360 - ref.led.Degree) / DEG_PER_LED].b = 252 / 4;
-                break;
-            }
-            case ACT_COUNTERCLOCKWISE:
-            case ACT_CLOCKWISE:
-            {
-                ref.led.Leds[ref.led.Degree / DEG_PER_LED].r = 252;
-                ref.led.Leds[ref.led.Degree / DEG_PER_LED].g = 0;
-                ref.led.Leds[ref.led.Degree / DEG_PER_LED].b = 252 / 4;
-                break;
-            }
-            default:
-            {
-                break;
-            }
+            ref.led.Leds[(360 - ref.led.Degree) / DEG_PER_LED].r = 252;
+            ref.led.Leds[(360 - ref.led.Degree) / DEG_PER_LED].g = 0;
+            ref.led.Leds[(360 - ref.led.Degree) / DEG_PER_LED].b = 252 / 4;
+            break;
+        }
+        case ACT_COUNTERCLOCKWISE:
+        case ACT_CLOCKWISE:
+        {
+            ref.led.Leds[ref.led.Degree / DEG_PER_LED].r = 252;
+            ref.led.Leds[ref.led.Degree / DEG_PER_LED].g = 0;
+            ref.led.Leds[ref.led.Degree / DEG_PER_LED].b = 252 / 4;
+            break;
+        }
+        default:
+        {
+            break;
+        }
         }
 
         // Don't turn on LEDs past 180 degrees
@@ -1427,31 +1427,31 @@ void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)))
     // Move the exciter according to the mode
     switch(ref.gam.Action)
     {
-        case ACT_BOTH:
-        case ACT_CLOCKWISE:
+    case ACT_BOTH:
+    case ACT_CLOCKWISE:
+    {
+        ref.led.Degree += 2;
+        if(ref.led.Degree > 359)
         {
-            ref.led.Degree += 2;
-            if(ref.led.Degree > 359)
-            {
-                ref.led.Degree -= 360;
-            }
+            ref.led.Degree -= 360;
+        }
 
-            break;
-        }
-        case ACT_COUNTERCLOCKWISE:
+        break;
+    }
+    case ACT_COUNTERCLOCKWISE:
+    {
+        ref.led.Degree -= 2;
+        if(ref.led.Degree < 0)
         {
-            ref.led.Degree -= 2;
-            if(ref.led.Degree < 0)
-            {
-                ref.led.Degree += 360;
-            }
+            ref.led.Degree += 360;
+        }
 
-            break;
-        }
-        default:
-        {
-            break;
-        }
+        break;
+    }
+    default:
+    {
+        break;
+    }
     }
 
     // Physically set the LEDs
@@ -1691,203 +1691,203 @@ void ICACHE_FLASH_ATTR refSinglePlayerRestart(void* arg __attribute__((unused)))
 {
     switch(ref.led.singlePlayerDisplayState)
     {
-        case NOT_DISPLAYING:
+    case NOT_DISPLAYING:
+    {
+        // Not supposed to be here
+        break;
+    }
+    case FAIL_DISPLAY_ON_1:
+    {
+        ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+        uint8_t i;
+        for(i = 0; i < 6; i++)
         {
-            // Not supposed to be here
-            break;
+            ref.led.Leds[i].r = 0xFF;
         }
-        case FAIL_DISPLAY_ON_1:
-        {
-            ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
-            uint8_t i;
-            for(i = 0; i < 6; i++)
-            {
-                ref.led.Leds[i].r = 0xFF;
-            }
 
-            ref.led.singlePlayerDisplayState = FAIL_DISPLAY_OFF_2;
-            break;
-        }
-        case FAIL_DISPLAY_OFF_2:
+        ref.led.singlePlayerDisplayState = FAIL_DISPLAY_OFF_2;
+        break;
+    }
+    case FAIL_DISPLAY_OFF_2:
+    {
+        ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+        ref.led.singlePlayerDisplayState = FAIL_DISPLAY_ON_3;
+        break;
+    }
+    case FAIL_DISPLAY_ON_3:
+    {
+        uint8_t i;
+        for(i = 0; i < 6; i++)
         {
-            ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
-            ref.led.singlePlayerDisplayState = FAIL_DISPLAY_ON_3;
-            break;
+            ref.led.Leds[i].r = 0xFF;
         }
-        case FAIL_DISPLAY_ON_3:
-        {
-            uint8_t i;
-            for(i = 0; i < 6; i++)
-            {
-                ref.led.Leds[i].r = 0xFF;
-            }
-            ref.led.singlePlayerDisplayState = FAIL_DISPLAY_OFF_4;
-            break;
-        }
-        case FAIL_DISPLAY_OFF_4:
-        {
-            ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
-            ref.led.singlePlayerDisplayState = SCORE_DISPLAY_INIT;
-            break;
-        }
-        case SCORE_DISPLAY_INIT:
-        {
-            // Clear the LEDs
-            ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
-            ref.led.ledsLit = 0;
+        ref.led.singlePlayerDisplayState = FAIL_DISPLAY_OFF_4;
+        break;
+    }
+    case FAIL_DISPLAY_OFF_4:
+    {
+        ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+        ref.led.singlePlayerDisplayState = SCORE_DISPLAY_INIT;
+        break;
+    }
+    case SCORE_DISPLAY_INIT:
+    {
+        // Clear the LEDs
+        ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+        ref.led.ledsLit = 0;
 
-            if(ref.gam.singlePlayerRounds > 9)
-            {
-                // For two digit numbers, start with the tens digit
-                ref.led.singlePlayerDisplayState = FIRST_DIGIT_INC;
-                ref.led.digitToDisplay = ref.gam.singlePlayerRounds / 10;
-            }
-            else
-            {
-                // Otherwise just go to the ones digit
-                ref.led.singlePlayerDisplayState = SECOND_DIGIT_INC;
-                ref.led.digitToDisplay = ref.gam.singlePlayerRounds % 10;
-            }
-            break;
-        }
-        case FIRST_DIGIT_INC:
+        if(ref.gam.singlePlayerRounds > 9)
         {
-            // Light each LED one at a time
-            if(ref.led.ledsLit < ref.led.digitToDisplay)
-            {
-                // Light the LED
-                refSinglePlayerScoreLed(ref.led.ledsLit, &digitCountFirstPrimary, &digitCountFirstSecondary);
-
-                // keep track of how many LEDs are lit
-                ref.led.ledsLit++;
-            }
-            else
-            {
-                // All LEDs are lit, blink this number
-                ref.led.singlePlayerDisplayState = FIRST_DIGIT_OFF;
-            }
-            break;
+            // For two digit numbers, start with the tens digit
+            ref.led.singlePlayerDisplayState = FIRST_DIGIT_INC;
+            ref.led.digitToDisplay = ref.gam.singlePlayerRounds / 10;
         }
-        case FIRST_DIGIT_OFF:
+        else
         {
-            // Turn everything off
-            ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
-            ref.led.ledsLit = 0;
-
-            // Then set it up to turn on
-            ref.led.singlePlayerDisplayState = FIRST_DIGIT_ON;
-            break;
-        }
-        case FIRST_DIGIT_ON:
-        {
-            // Reset the timer to show the final number a little longer
-            os_timer_disarm(&ref.tmr.SinglePlayerRestart);
-            os_timer_arm(&ref.tmr.SinglePlayerRestart, RESTART_COUNT_BLINK_PERIOD_MS, false);
-
-            // Light the full number all at once
-            while(ref.led.ledsLit < ref.led.digitToDisplay)
-            {
-                refSinglePlayerScoreLed(ref.led.ledsLit, &digitCountFirstPrimary, &digitCountFirstSecondary);
-                // keep track of how many LEDs are lit
-                ref.led.ledsLit++;
-            }
-            // Then turn everything off again
-            ref.led.singlePlayerDisplayState = FIRST_DIGIT_OFF_2;
-            break;
-        }
-        case FIRST_DIGIT_OFF_2:
-        {
-            // Reset the timer to normal speed
-            os_timer_disarm(&ref.tmr.SinglePlayerRestart);
-            os_timer_arm(&ref.tmr.SinglePlayerRestart, RESTART_COUNT_PERIOD_MS, true);
-
-            // turn all LEDs off
-            ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
-            ref.led.ledsLit = 0;
-
-            ref.led.digitToDisplay = ref.gam.singlePlayerRounds % 10;
+            // Otherwise just go to the ones digit
             ref.led.singlePlayerDisplayState = SECOND_DIGIT_INC;
-
-            break;
+            ref.led.digitToDisplay = ref.gam.singlePlayerRounds % 10;
         }
-        case SECOND_DIGIT_INC:
+        break;
+    }
+    case FIRST_DIGIT_INC:
+    {
+        // Light each LED one at a time
+        if(ref.led.ledsLit < ref.led.digitToDisplay)
         {
-            // Light each LED one at a time
-            if(ref.led.ledsLit < ref.led.digitToDisplay)
-            {
-                // Light the LED
-                refSinglePlayerScoreLed(ref.led.ledsLit, &digitCountSecondPrimary, &digitCountSecondSecondary);
+            // Light the LED
+            refSinglePlayerScoreLed(ref.led.ledsLit, &digitCountFirstPrimary, &digitCountFirstSecondary);
 
-                // keep track of how many LEDs are lit
-                ref.led.ledsLit++;
-            }
-            else
-            {
-                // All LEDs are lit, blink this number
-                ref.led.singlePlayerDisplayState = SECOND_DIGIT_OFF;
-            }
-            break;
+            // keep track of how many LEDs are lit
+            ref.led.ledsLit++;
         }
-        case SECOND_DIGIT_OFF:
+        else
         {
-            // Turn everything off
-            ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
-            ref.led.ledsLit = 0;
-
-            // Then set it up to turn on
-            ref.led.singlePlayerDisplayState = SECOND_DIGIT_ON;
-            break;
+            // All LEDs are lit, blink this number
+            ref.led.singlePlayerDisplayState = FIRST_DIGIT_OFF;
         }
-        case SECOND_DIGIT_ON:
+        break;
+    }
+    case FIRST_DIGIT_OFF:
+    {
+        // Turn everything off
+        ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+        ref.led.ledsLit = 0;
+
+        // Then set it up to turn on
+        ref.led.singlePlayerDisplayState = FIRST_DIGIT_ON;
+        break;
+    }
+    case FIRST_DIGIT_ON:
+    {
+        // Reset the timer to show the final number a little longer
+        os_timer_disarm(&ref.tmr.SinglePlayerRestart);
+        os_timer_arm(&ref.tmr.SinglePlayerRestart, RESTART_COUNT_BLINK_PERIOD_MS, false);
+
+        // Light the full number all at once
+        while(ref.led.ledsLit < ref.led.digitToDisplay)
         {
-            // Reset the timer to show the final number a little longer
-            os_timer_disarm(&ref.tmr.SinglePlayerRestart);
-            os_timer_arm(&ref.tmr.SinglePlayerRestart, RESTART_COUNT_BLINK_PERIOD_MS, false);
-
-            // Light the full number all at once
-            while(ref.led.ledsLit < ref.led.digitToDisplay)
-            {
-                refSinglePlayerScoreLed(ref.led.ledsLit, &digitCountSecondPrimary, &digitCountSecondSecondary);
-                // keep track of how many LEDs are lit
-                ref.led.ledsLit++;
-            }
-            // Then turn everything off again
-            ref.led.singlePlayerDisplayState = SECOND_DIGIT_OFF_2;
-            break;
+            refSinglePlayerScoreLed(ref.led.ledsLit, &digitCountFirstPrimary, &digitCountFirstSecondary);
+            // keep track of how many LEDs are lit
+            ref.led.ledsLit++;
         }
-        case SECOND_DIGIT_OFF_2:
+        // Then turn everything off again
+        ref.led.singlePlayerDisplayState = FIRST_DIGIT_OFF_2;
+        break;
+    }
+    case FIRST_DIGIT_OFF_2:
+    {
+        // Reset the timer to normal speed
+        os_timer_disarm(&ref.tmr.SinglePlayerRestart);
+        os_timer_arm(&ref.tmr.SinglePlayerRestart, RESTART_COUNT_PERIOD_MS, true);
+
+        // turn all LEDs off
+        ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+        ref.led.ledsLit = 0;
+
+        ref.led.digitToDisplay = ref.gam.singlePlayerRounds % 10;
+        ref.led.singlePlayerDisplayState = SECOND_DIGIT_INC;
+
+        break;
+    }
+    case SECOND_DIGIT_INC:
+    {
+        // Light each LED one at a time
+        if(ref.led.ledsLit < ref.led.digitToDisplay)
         {
-            // Reset the timer to normal speed
-            os_timer_disarm(&ref.tmr.SinglePlayerRestart);
-            os_timer_arm(&ref.tmr.SinglePlayerRestart, RESTART_COUNT_PERIOD_MS, true);
+            // Light the LED
+            refSinglePlayerScoreLed(ref.led.ledsLit, &digitCountSecondPrimary, &digitCountSecondSecondary);
 
-            // turn all LEDs off
-            ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
-            ref.led.ledsLit = 0;
-
-            ref.led.singlePlayerDisplayState = SCORE_DISPLAY_FINISH;
-
-            break;
+            // keep track of how many LEDs are lit
+            ref.led.ledsLit++;
         }
-        case SCORE_DISPLAY_FINISH:
+        else
         {
-            // Disarm the timer
-            os_timer_disarm(&ref.tmr.SinglePlayerRestart);
-
-            // For next time
-            ref.led.singlePlayerDisplayState = NOT_DISPLAYING;
-
-            // Reset and start another round
-            ref.gam.singlePlayerRounds = 0;
-            ref.gam.singlePlayerTopHits = 0;
-            refAdjustledSpeed(true, true);
-            refStartRound();
-            break;
+            // All LEDs are lit, blink this number
+            ref.led.singlePlayerDisplayState = SECOND_DIGIT_OFF;
         }
-        default:
+        break;
+    }
+    case SECOND_DIGIT_OFF:
+    {
+        // Turn everything off
+        ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+        ref.led.ledsLit = 0;
+
+        // Then set it up to turn on
+        ref.led.singlePlayerDisplayState = SECOND_DIGIT_ON;
+        break;
+    }
+    case SECOND_DIGIT_ON:
+    {
+        // Reset the timer to show the final number a little longer
+        os_timer_disarm(&ref.tmr.SinglePlayerRestart);
+        os_timer_arm(&ref.tmr.SinglePlayerRestart, RESTART_COUNT_BLINK_PERIOD_MS, false);
+
+        // Light the full number all at once
+        while(ref.led.ledsLit < ref.led.digitToDisplay)
         {
-            break;
+            refSinglePlayerScoreLed(ref.led.ledsLit, &digitCountSecondPrimary, &digitCountSecondSecondary);
+            // keep track of how many LEDs are lit
+            ref.led.ledsLit++;
         }
+        // Then turn everything off again
+        ref.led.singlePlayerDisplayState = SECOND_DIGIT_OFF_2;
+        break;
+    }
+    case SECOND_DIGIT_OFF_2:
+    {
+        // Reset the timer to normal speed
+        os_timer_disarm(&ref.tmr.SinglePlayerRestart);
+        os_timer_arm(&ref.tmr.SinglePlayerRestart, RESTART_COUNT_PERIOD_MS, true);
+
+        // turn all LEDs off
+        ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+        ref.led.ledsLit = 0;
+
+        ref.led.singlePlayerDisplayState = SCORE_DISPLAY_FINISH;
+
+        break;
+    }
+    case SCORE_DISPLAY_FINISH:
+    {
+        // Disarm the timer
+        os_timer_disarm(&ref.tmr.SinglePlayerRestart);
+
+        // For next time
+        ref.led.singlePlayerDisplayState = NOT_DISPLAYING;
+
+        // Reset and start another round
+        ref.gam.singlePlayerRounds = 0;
+        ref.gam.singlePlayerTopHits = 0;
+        refAdjustledSpeed(true, true);
+        refStartRound();
+        break;
+    }
+    default:
+    {
+        break;
+    }
     }
 
     setLeds(ref.led.Leds, sizeof(ref.led.Leds));
@@ -2000,25 +2000,25 @@ void ICACHE_FLASH_ATTR refAdjustledSpeed(bool reset, bool up)
     {
         switch(ref.gam.difficulty)
         {
-            case EASY:
-            {
-                ref.gam.ledPeriodMs = LED_TIMER_MS_STARTING_EASY;
-                break;
-            }
-            case MEDIUM:
-            {
-                ref.gam.ledPeriodMs = LED_TIMER_MS_STARTING_MEDIUM;
-                break;
-            }
-            case HARD:
-            {
-                ref.gam.ledPeriodMs = LED_TIMER_MS_STARTING_HARD;
-                break;
-            }
-            default:
-            {
-                break;
-            }
+        case EASY:
+        {
+            ref.gam.ledPeriodMs = LED_TIMER_MS_STARTING_EASY;
+            break;
+        }
+        case MEDIUM:
+        {
+            ref.gam.ledPeriodMs = LED_TIMER_MS_STARTING_MEDIUM;
+            break;
+        }
+        case HARD:
+        {
+            ref.gam.ledPeriodMs = LED_TIMER_MS_STARTING_HARD;
+            break;
+        }
+        default:
+        {
+            break;
+        }
         }
     }
     else if (GOING_SECOND == ref.cnc.playOrder && false == ref.gam.receiveFirstMsg)
@@ -2030,21 +2030,21 @@ void ICACHE_FLASH_ATTR refAdjustledSpeed(bool reset, bool up)
     {
         switch(ref.gam.difficulty)
         {
-            case EASY:
-            case MEDIUM:
-            {
-                ref.gam.ledPeriodMs--;
-                break;
-            }
-            case HARD:
-            {
-                ref.gam.ledPeriodMs -= 2;
-                break;
-            }
-            default:
-            {
-                break;
-            }
+        case EASY:
+        case MEDIUM:
+        {
+            ref.gam.ledPeriodMs--;
+            break;
+        }
+        case HARD:
+        {
+            ref.gam.ledPeriodMs -= 2;
+            break;
+        }
+        default:
+        {
+            break;
+        }
         }
         // Anything less than a 3ms period is impossible...
         if(ref.gam.ledPeriodMs < 3)
@@ -2056,21 +2056,21 @@ void ICACHE_FLASH_ATTR refAdjustledSpeed(bool reset, bool up)
     {
         switch(ref.gam.difficulty)
         {
-            case EASY:
-            case MEDIUM:
-            {
-                ref.gam.ledPeriodMs++;
-                break;
-            }
-            case HARD:
-            {
-                ref.gam.ledPeriodMs += 2;
-                break;
-            }
-            default:
-            {
-                break;
-            }
+        case EASY:
+        case MEDIUM:
+        {
+            ref.gam.ledPeriodMs++;
+            break;
+        }
+        case HARD:
+        {
+            ref.gam.ledPeriodMs += 2;
+            break;
+        }
+        default:
+        {
+            break;
+        }
         }
     }
 }
