@@ -6,6 +6,7 @@
  *==========================================================================*/
 
 #include "osapi.h"
+#include "user_interface.h"
 
 #include "uart.h"
 #include "ws2812_i2s.h"
@@ -27,6 +28,7 @@
 #include "mode_dance.h"
 #include "mode_flashlight.h"
 #include "mode_demo.h"
+#include "PartitionMap.h"
 
 /*============================================================================
  * Defines
@@ -148,9 +150,10 @@ void ICACHE_FLASH_ATTR user_init(void)
         }
     }
 
+    // TODO check if replacement is necessary
     // Common services pre-init and init, after wifi is initialized
-    CSPreInit();
-    CSInit(false);
+    // CSPreInit();
+    // CSInit(false);
 
     // Load configurable parameters from SPI memory
     LoadSettings();
@@ -288,8 +291,9 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
             EnterCritical();
         }
 
+        // TODO check if replacement is necessary
         // Common services tick, fast mode
-        CSTick( 0 );
+        // CSTick( 0 );
     }
 }
 
@@ -308,7 +312,8 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
  */
 static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
 {
-    CSTick( 1 );
+    // TODO check if replacement is necessary
+    // CSTick( 1 );
 
     if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
     {

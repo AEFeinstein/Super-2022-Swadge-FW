@@ -44,18 +44,20 @@ MFS_PAGE_OFFSET=532480
 
 # This is a list of directories to scan for c files recursively
 SRC_DIRS_RECURSIVE = \
-	user
+	user \
+	embeddedcommon
 
 # This is a list of directories to scan for c files not recursively
-SRC_DIRS_FLAT = \
-	esp82xx/fwsrc \
-	embeddedcommon
+SRC_DIRS_FLAT = # esp82xx/fwsrc
+
+# This is a list of files to compile directly. There's no scanning here
+SRC_FILES = esp82xx/toolchain/esp_nonos_sdk/driver_lib/driver/uart.c
 
 # This is a list of all source directories
 SRC_DIRS = $(shell find $(SRC_DIRS_RECURSIVE) -type d) $(SRC_DIRS_FLAT)
 
 # This is a list of all source c files 
-SOURCES  = $(shell find $(SRC_DIRS) -maxdepth 1 -name "*.c")
+SOURCES  = $(shell find $(SRC_DIRS) -maxdepth 1 -name "*.c") $(SRC_FILES)
 
 # These are flags for the compiler
 EXTRA_CFLAGS = \
@@ -130,6 +132,7 @@ EXTRA_CFLAGS := $(EXTRA_CFLAGS) $(patsubst %, -D%, $(DEFINES)) -DVERSTR='"$(VERS
 INC = $(patsubst %, -I%, \
 	$(SRC_DIRS) \
 	esp82xx/include \
+	$(SDK)/driver_lib/include/ \
 	$(SDK)/driver_lib/include/driver \
 	$(SDK)/include)
 

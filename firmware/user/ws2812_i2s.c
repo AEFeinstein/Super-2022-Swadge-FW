@@ -35,7 +35,6 @@ Extra copyright info:
 *******************************************************************************/
 
 
-#include "esp82xxutil.h"
 #include <c_types.h>
 #include "ws2812_i2s.h"
 #include "user_interface.h"

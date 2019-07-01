@@ -13,7 +13,6 @@
  *==========================================================================*/
 
 #include "c_types.h"
-#include "esp82xxutil.h"
 #include <stdint.h>
 #include <stddef.h>
 #include "MMA8452Q.h"

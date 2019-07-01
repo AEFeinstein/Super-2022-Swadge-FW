@@ -40,6 +40,8 @@
         "mode_reflector_game.h": "c",
         "morse_code.h": "c",
         "user_main.h": "c",
-        "ws2812_i2s.h": "c"
+        "ws2812_i2s.h": "c",
+        "user_interface.h": "c",
+        "partitionmap.h": "c"
     }
 }
