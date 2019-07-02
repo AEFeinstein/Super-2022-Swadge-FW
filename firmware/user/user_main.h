@@ -12,9 +12,10 @@
  * Includes
  *==========================================================================*/
 
-#include "c_types.h"
+#include <c_types.h>
 #include <stdint.h>
 #include <stddef.h>
+
 #include "MMA8452Q.h"
 
 /*============================================================================
@@ -157,5 +158,8 @@ uint32_t ICACHE_FLASH_ATTR getLedColorPerNumber(uint8_t num, uint8_t lightness);
 void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int down);
 void ICACHE_FLASH_ATTR swadgeModeEspNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi);
 void ICACHE_FLASH_ATTR swadgeModeEspNowSendCb(uint8_t* mac_addr, mt_tx_status status);
+
+void EnterCritical(void);
+void ExitCritical(void);
 
 #endif /* USER_USER_MAIN_H_ */

@@ -2,18 +2,18 @@
  * Includes
  *==========================================================================*/
 
-#include "osapi.h"
-#include "spi_flash.h"
-#include "commonservices.h"
-#include <gpio.h>
-#include <ccconfig.h>
-#include <eagle_soc.h>
-#include <DFT32.h>
-#include <embeddednf.h>
-#include <embeddedout.h>
-#include "custom_commands.h"
 #include <osapi.h>
 #include <uart.h>
+#include <spi_flash.h>
+#include <gpio.h>
+#include <eagle_soc.h>
+
+#include "ccconfig.h"
+#include "DFT32.h"
+#include "embeddednf.h"
+#include "embeddedout.h"
+#include "custom_commands.h"
+#include "user_main.h"
 #include "spi_memory_addrs.h"
 
 /*============================================================================
@@ -294,21 +294,3 @@ uint8_t ICACHE_FLASH_ATTR getRefGameWins(void)
 //    // Write to SPI flash
 //    SaveSettings();
 //}
-
-/**
- * Receives custom UDP commands on BACKEND_PORT. The UDP server is set up by CSInit() via user_init()
- * Custom UDP commands start with the letter 'C' or 'c'
- * Individual commands are documented in README.md
- *
- * @param buffer   The buffer to fill with data to return
- * @param retsize  The length of the buffer to fill with data to return
- * @param pusrdata The received data, starting with 'C' or 'c'
- * @param len      The length of the received data
- * @return The length of the return buffer filled with data
- */
-int ICACHE_FLASH_ATTR CustomCommand(char* buffer  __attribute__((unused)), int retsize  __attribute__((unused)),
-                                    char* pusrdata  __attribute__((unused)), unsigned short len __attribute__((unused)))
-{
-    return -1;
-}
-

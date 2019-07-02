@@ -7,3 +7,4 @@ execute_reflash
 mfsmaker
 pushtodev
 tmp
+firmware/libgcc_stripped.a
