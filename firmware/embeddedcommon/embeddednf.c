@@ -1,7 +1,8 @@
 //Copyright 2015 <>< Charles Lohr under the ColorChord License.
 
+#include <osapi.h>
+
 #include "embeddednf.h"
-#include "osapi.h"
 
 uint16_t folded_bins[FIXBPERO];
 uint16_t fuzzed_bins[FIXBINS];

@@ -9,11 +9,12 @@
  * Includes
  *==========================================================================*/
 
+#include <osapi.h>
+
 #include "user_main.h"
 #include "mode_colorchord.h"
 #include "DFT32.h"
 #include "embeddedout.h"
-#include "osapi.h"
 
 /*============================================================================
  * Defines

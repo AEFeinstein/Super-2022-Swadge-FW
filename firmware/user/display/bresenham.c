@@ -13,8 +13,7 @@
  * http://members.chello.at/~easyfilter/bresenham.c
  */
 
-#include "osapi.h"
-
+#include <osapi.h>
 #include <math.h>
 #include <stdlib.h>
 

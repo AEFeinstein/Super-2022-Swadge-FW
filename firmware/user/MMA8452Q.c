@@ -4,7 +4,8 @@
 // This code is designed to work with the MMA8452Q_I2CS I2C Mini Module available from ControlEverything.com.
 // https://www.controleverything.com/content/Accelorometer?sku=MMA8452Q_I2CS#tabs-0-product_tabset-2
 
-#include "osapi.h"
+#include <osapi.h>
+
 #include "brzo_i2c.h"
 #include "MMA8452Q.h"
 

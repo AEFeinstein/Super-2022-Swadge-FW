@@ -5,9 +5,9 @@
  *      Author: Adam Feinstein
  */
 
-#include "osapi.h"
-#include "oled.h"
+#include <osapi.h>
 
+#include "oled.h"
 #include "font.h"
 
 uint8_t ICACHE_FLASH_ATTR plotChar(uint8_t x, uint8_t y,

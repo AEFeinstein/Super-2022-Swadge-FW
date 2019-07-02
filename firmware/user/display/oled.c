@@ -9,7 +9,8 @@
 // Includes
 //==============================================================================
 
-#include "osapi.h"
+#include <osapi.h>
+
 #include "oled.h"
 #include "brzo_i2c.h"
 #include "gpio_user.h"

@@ -9,12 +9,13 @@
  * Includes
  *==========================================================================*/
 
+#include <osapi.h>
 #include <limits.h>
+
 #include "user_main.h"
 #include "mode_guitar_tuner.h"
 #include "DFT32.h"
 #include "embeddedout.h"
-#include "osapi.h"
 #include "mode_colorchord.h"
 
 /*============================================================================

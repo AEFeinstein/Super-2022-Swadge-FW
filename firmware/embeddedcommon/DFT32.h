@@ -3,7 +3,7 @@
 #ifndef _DFT32_H
 #define _DFT32_H
 
-#include <ccconfig.h>
+#include "ccconfig.h"
 
 #ifdef ICACHE_FLASH
 #include <c_types.h> //If on ESP8266

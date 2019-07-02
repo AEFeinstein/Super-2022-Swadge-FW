@@ -10,13 +10,13 @@
  *==========================================================================*/
 
 #include <c_types.h>
-#include "user_interface.h"
-#include "espNowUtils.h"
-#include "uart.h"
+#include <user_interface.h>
+#include <uart.h>
 #include <espnow.h>
-#include "user_main.h"
 #include <osapi.h>
-#include "commonservices.h"
+
+#include "espNowUtils.h"
+#include "user_main.h"
 
 /*============================================================================
  * Variables

@@ -17,11 +17,12 @@
  * Includes
  *==========================================================================*/
 
+#include <osapi.h>
+
 #include "user_main.h"
 #include "mode_demo.h"
 #include "DFT32.h"
 #include "embeddedout.h"
-#include "osapi.h"
 #include "oled.h"
 #include "font.h"
 #include "MMA8452Q.h"

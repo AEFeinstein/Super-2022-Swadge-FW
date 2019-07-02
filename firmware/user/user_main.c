@@ -5,15 +5,15 @@
  * Includes
  *==========================================================================*/
 
-#include "osapi.h"
-#include "user_interface.h"
+#include <osapi.h>
+#include <user_interface.h>
+#include <uart.h>
 
-#include "uart.h"
+#include "embeddedout.h"
+
 #include "ws2812_i2s.h"
 #include "hpatimer.h"
 #include "ccconfig.h"
-#include <embeddedout.h>
-#include <commonservices.h>
 #include "gpio_user.h"
 #include "buttons.h"
 #include "custom_commands.h"
@@ -21,6 +21,8 @@
 #include "espNowUtils.h"
 #include "brzo_i2c.h"
 #include "oled.h"
+#include "PartitionMap.h"
+
 #include "mode_guitar_tuner.h"
 #include "mode_colorchord.h"
 #include "mode_reflector_game.h"
@@ -28,7 +30,6 @@
 #include "mode_dance.h"
 #include "mode_flashlight.h"
 #include "mode_demo.h"
-#include "PartitionMap.h"
 
 /*============================================================================
  * Defines

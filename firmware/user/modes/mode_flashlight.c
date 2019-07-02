@@ -9,7 +9,8 @@
  * Includes
  *==========================================================================*/
 
-#include "osapi.h"
+#include <osapi.h>
+
 #include "user_main.h"
 #include "mode_flashlight.h"
 #include "morse_code.h"

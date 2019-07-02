@@ -9,7 +9,8 @@
  * Includes
  *==========================================================================*/
 
-#include "osapi.h"
+#include <osapi.h>
+
 #include "morse_code.h"
 #include "user_main.h"
 

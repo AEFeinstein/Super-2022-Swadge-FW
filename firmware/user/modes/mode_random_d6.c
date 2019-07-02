@@ -9,11 +9,12 @@
  * Includes
  *==========================================================================*/
 
+#include <stdint.h>
+#include <osapi.h>
+
 #include "ccconfig.h"
 #include "user_main.h"
 #include "mode_random_d6.h"
-#include <stdint.h>
-#include "osapi.h"
 #include "embeddedout.h"
 
 /*============================================================================

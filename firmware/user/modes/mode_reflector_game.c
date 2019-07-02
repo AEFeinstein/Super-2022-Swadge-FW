@@ -185,8 +185,9 @@ digraph G {
  * Includes
  *==========================================================================*/
 
-#include "osapi.h"
-#include "user_interface.h"
+#include <osapi.h>
+#include <user_interface.h>
+
 #include "user_main.h"
 #include "mode_reflector_game.h"
 #include "custom_commands.h"
