@@ -37,7 +37,7 @@ Extra copyright info:
 
 #include <c_types.h>
 #include <user_interface.h>
-#include <slc_register.h>
+#include <driver/slc_register.h>
 
 #include "ws2812_i2s.h"
 #include "missingEspFnPrototypes.h"

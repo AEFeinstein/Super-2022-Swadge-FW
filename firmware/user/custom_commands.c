@@ -3,7 +3,6 @@
  *==========================================================================*/
 
 #include <osapi.h>
-#include <uart.h>
 #include <spi_flash.h>
 #include <gpio.h>
 #include <eagle_soc.h>

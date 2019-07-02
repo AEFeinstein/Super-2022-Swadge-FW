@@ -11,7 +11,6 @@
 
 #include <c_types.h>
 #include <user_interface.h>
-#include <uart.h>
 #include <espnow.h>
 #include <osapi.h>
 

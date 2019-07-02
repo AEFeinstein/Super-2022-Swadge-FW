@@ -20,16 +20,6 @@ AR           = $(PREFIX)ar
 CP           = cp
 
 ################################################################################
-# Version related stuff
-################################################################################
-
-VCMD = git describe --abbrev=5 --dirty=-dev --always --tags 2>/dev/null
-VERSION := $(shell $(VCMD) || { cd esp82xx 2>/dev/null; $(VCMD) ; } ||  echo "unknown")
-VERSSTR := Version: $(VERSION) - Build $(shell LANG=en_us_8859_1 date '+%a, %b %e %Y, %R:%S %z') with
-PROJECT_NAME := $(notdir $(shell git rev-parse --show-toplevel 2>/dev/null || echo "exp82xx-project"))
-PROJECT_URL := $(subst .com:,.com/,$(subst .git,,$(subst git@,https://,$(shell git config --get remote.origin.url 2>/dev/null || echo "https://github.com/con-f-use/esp82xx-basic.git"))))
-
-################################################################################
 # Options for burning
 ################################################################################
 
@@ -106,31 +96,19 @@ EXTRA_CFLAGS = \
 
 # These are a list of #define symbols in the makefile
 DEFINES = \
-	ICACHE_FLASH \
-	DISABLE_CHARRX \
-	QUIET_REFLASH \
-	WS2812_FOUR_SAMPLE \
-	USE_OPTIMIZE_PRINTF \
-	DISABLE_MDNS \
-	DISABLE_AUTO_SWITCH_TO_AP \
-	DISABLE_NET_REFLASH \
 	SOFTAP_CHANNEL=11 \
-	WEB_PORT=80 \
-	COM_PORT=7777 \
-	BACKEND_PORT=7878 \
-	SLOWTICK_MS=50 
-
-# Append the liset of Defines to the version string
-VERSSTR += $(DEFINES)
+	WS2812_FOUR_SAMPLE=1 \
+	DISABLE_CHARRX=1 \
+	USE_OPTIMIZE_PRINTF=1 \
+	ICACHE_FLASH=1
 
 # This appends the defines to the EXTRA_CFLAGS
-EXTRA_CFLAGS := $(EXTRA_CFLAGS) $(patsubst %, -D%, $(DEFINES)) -DVERSTR='"$(VERSSTR)"'
+EXTRA_CFLAGS := $(EXTRA_CFLAGS) $(patsubst %, -D%, $(DEFINES))
 
 # Treat every source directory as one to search for headers in, also add a few more
 INC = $(patsubst %, -I%, \
 	$(SRC_DIRS) \
 	$(SDK)/driver_lib/include/ \
-	$(SDK)/driver_lib/include/driver \
 	$(SDK)/include)
 
 # This is the directory in which object files will be stored
@@ -214,7 +192,7 @@ $(FW_FILE0): $(OBJECTS) $(LIBGCC_STRIPPED)
 
 # This copies and stripps the libgcc.a file from the toolchain
 $(LIBGCC_STRIPPED) :
-	cp $(GCC_FOLDER)/lib/gcc/xtensa-lx106-elf/$(ESP_GCC_VERS)/libgcc.a libgcc_stripped.a
+	$(CP) $(GCC_FOLDER)/lib/gcc/xtensa-lx106-elf/$(ESP_GCC_VERS)/libgcc.a libgcc_stripped.a
 	$(AR) dv libgcc_stripped.a __gcc_bcmp.o
 	$(AR) dv libgcc_stripped.a _absvdi2.o
 	$(AR) dv libgcc_stripped.a _absvsi2.o
@@ -298,7 +276,6 @@ clean:
 	-@find ./ -type f -name '$(notdir $(LIBGCC_STRIPPED))' -delete
 	-@find ./$(OBJ_DIR)/ -type f -name '*.o' -delete
 	-@rm -rf docs
-	-@make -C ./web clean
 
 ################################################################################
 # Targets for Flashing
@@ -308,7 +285,7 @@ clean:
 burn : $(FW_FILE1) $(FW_FILE2)
 	$(ESPTOOL_PY) $(FWBURNFLAGS) --port $(PORT) write_flash -fm dio $(FLASH_WRITE_FLAGS) 0x00000 $(FW_FILE1) 0x10000 $(FW_FILE2)
 
-# Build everything and burn the two firmware files, init data, and the webpage
+# Build everything and burn the two firmware files, and init data
 burnitall : all
 	$(ESPTOOL_PY) $(FWBURNFLAGS) --port $(PORT) write_flash -fm dio $(FLASH_WRITE_FLAGS) 0x00000 $(FW_FILE1) 0x10000 $(FW_FILE2) 0x1FB000 $(SDK)/bin/blank.bin 0x1FC000 $(SDK)/bin/esp_init_data_default_v08.bin 0x1FE000 $(SDK)/bin/blank.bin
 
