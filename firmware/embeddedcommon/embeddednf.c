@@ -42,8 +42,6 @@ int main()
 
 #endif
 
-#define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
-
 
 void ICACHE_FLASH_ATTR UpdateFreqs(void)
 {

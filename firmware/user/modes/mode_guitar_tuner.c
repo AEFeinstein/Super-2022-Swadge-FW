@@ -315,7 +315,18 @@ void ICACHE_FLASH_ATTR guitarTunerSampleHandler(int32_t samp)
                 }
                 break;
             }
-            default:
+            case SEMITONE_0:
+            case SEMITONE_1:
+            case SEMITONE_2:
+            case SEMITONE_3:
+            case SEMITONE_4:
+            case SEMITONE_5:
+            case SEMITONE_6:
+            case SEMITONE_7:
+            case SEMITONE_8:
+            case SEMITONE_9:
+            case SEMITONE_10:
+            case SEMITONE_11:
             {
                 uint8_t semitoneIdx = (currentMode - SEMITONE_0) * 2;
                 // Pick out the current magnitude and filter it
@@ -381,6 +392,11 @@ void ICACHE_FLASH_ATTR guitarTunerSampleHandler(int32_t samp)
                     colors[i].b = CLAMP(blu, 0, 255);
                 }
 
+                break;
+            }
+            case MAX_GUITAR_MODES:
+            default:
+            {
                 break;
             }
         }

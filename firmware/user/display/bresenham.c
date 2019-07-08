@@ -20,9 +20,6 @@
 #include "bresenham.h"
 #include "oled.h"
 
-#define max(a, b) (((a) > (b)) ? (a) : (b))
-#define min(a, b) (((a) < (b)) ? (a) : (b))
-
 #define assert(x) \
     if(false == (x)) { \
         return; \

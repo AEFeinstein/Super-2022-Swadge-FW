@@ -8,11 +8,8 @@ GCC_FOLDER = $(ESP_ROOT)/xtensa-lx106-elf
 ESPTOOL_PY = $(ESP_ROOT)/esptool/esptool.py
 SDK        = ./ESP8266_NONOS_SDK
 
-XTLIB        = $(SDK)/lib
-ESP_GCC_VERS = 4.8.5
-XTGCCLIB     = $(GCC_FOLDER)/lib/gcc/xtensa-lx106-elf/$(ESP_GCC_VERS)/libgcc.a
-FOLDERPREFIX = $(GCC_FOLDER)/bin
-PREFIX       = $(FOLDERPREFIX)/xtensa-lx106-elf-
+XTGCCLIB     = $(GCC_FOLDER)/lib/gcc/xtensa-lx106-elf/4.8.5/libgcc.a
+PREFIX       = $(GCC_FOLDER)/bin/xtensa-lx106-elf-
 CC           = $(PREFIX)gcc
 OBJCOPY      = $(PREFIX)objcopy
 LD           = $(PREFIX)ld
@@ -48,8 +45,8 @@ SRC_DIRS = $(shell find $(SRC_DIRS_RECURSIVE) -type d) $(SRC_DIRS_FLAT)
 # This is a list of all source c files 
 SOURCES  = $(shell find $(SRC_DIRS) -maxdepth 1 -name "*.c") $(SRC_FILES)
 
-# These are flags for the compiler
-EXTRA_CFLAGS = \
+# These are flags for the compiler, all files
+CFLAGS = \
 	-c \
 	-mlongcalls \
 	-Os \
@@ -60,15 +57,15 @@ EXTRA_CFLAGS = \
 	-Wl,-Map,output.map \
 	-B$(SDK)/lib \
 	-g \
-	-std=gnu99 \
-	-Wall \
+	-std=gnu99
+
+# These are warning flags for the compiler, all files
+CFLAGS_WARNINGS = \
 	-Wextra \
 	-Wundef \
-	-Wunused \
 	-Wformat=2 \
 	-Winvalid-pch \
 	-Wlogical-op \
-	-Wmissing-declarations \
 	-Wmissing-format-attribute \
 	-Wmissing-include-dirs \
 	-Wpointer-arith \
@@ -77,33 +74,35 @@ EXTRA_CFLAGS = \
 	-Wuninitialized \
 	-Wshadow \
 	-Wredundant-decls \
-	-Wstrict-prototypes \
 	-Wjump-misses-init \
-	-Wswitch-default
+	-Wswitch-default \
+	-Wcast-align \
+	-Wformat-nonliteral \
+	-Wswitch-enum
 
-# And these are warnings, lots of warnings
-#EXTRA_CFLAGS := $(EXTRA_CFLAGS) \
-#	-Wcast-align \
-#	-Wcast-qual \
-#	-Wconversion \
-#	-Wdouble-promotion \
-#	-Wformat-nonliteral \
-#	-Wmissing-prototypes \
-#	-Wpedantic \
-#	-Wsign-conversion \
-#	-Wswitch-enum \
-#	-Wunused-macros
+# These are warning flags for the compiler, just for files outside $(SDK)
+CFLAGS_WARNINGS_EXTRA = \
+	-Wall \
+	-Wunused \
+	-Wunused-macros \
+	-Wmissing-declarations \
+	-Wmissing-prototypes
+	# -Wstrict-prototypes
+	# -Wcast-qual \
+	# -Wpedantic \
+	# -Wconversion \
+	# -Wsign-conversion \
+	# -Wdouble-promotion \
 
 # These are a list of #define symbols in the makefile
-DEFINES = \
+DEFINES_LIST = \
 	SOFTAP_CHANNEL=11 \
 	WS2812_FOUR_SAMPLE=1 \
 	DISABLE_CHARRX=1 \
 	USE_OPTIMIZE_PRINTF=1 \
 	ICACHE_FLASH=1
 
-# This appends the defines to the EXTRA_CFLAGS
-EXTRA_CFLAGS := $(EXTRA_CFLAGS) $(patsubst %, -D%, $(DEFINES))
+DEFINES = $(patsubst %, -D%, $(DEFINES_LIST))
 
 # Treat every source directory as one to search for headers in, also add a few more
 INC = $(patsubst %, -I%, \
@@ -188,11 +187,16 @@ $(FW_FILE0): $(OBJECTS) $(LIBGCC_STRIPPED)
 # This compiles each c file into an o file
 ./$(OBJ_DIR)/%.o: ./%.c
 	@mkdir -p $(@D) # This creates a directory before building an object in it.
-	$(CC) $(EXTRA_CFLAGS) $(INC) $< -o $@
+	$(CC) $(CFLAGS) $(CFLAGS_WARNINGS) $(CFLAGS_WARNINGS_EXTRA) $(DEFINES) $(INC) $< -o $@
+
+# This compiles each c file in the SDK folder into an o file. Fewer warnings than other files
+./$(OBJ_DIR)/$(SDK)/%.o: ./$(SDK)/%.c
+	@mkdir -p $(@D) # This creates a directory before building an object in it.
+	$(CC) $(CFLAGS) $(CFLAGS_WARNINGS) $(DEFINES) $(INC) $< -o $@
 
 # This copies and stripps the libgcc.a file from the toolchain
 $(LIBGCC_STRIPPED) :
-	$(CP) $(GCC_FOLDER)/lib/gcc/xtensa-lx106-elf/$(ESP_GCC_VERS)/libgcc.a libgcc_stripped.a
+	$(CP) $(XTGCCLIB) libgcc_stripped.a
 	$(AR) dv libgcc_stripped.a __gcc_bcmp.o
 	$(AR) dv libgcc_stripped.a _absvdi2.o
 	$(AR) dv libgcc_stripped.a _absvsi2.o
