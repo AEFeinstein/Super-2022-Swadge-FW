@@ -6,7 +6,7 @@
 
 GCC_FOLDER = $(ESP_ROOT)/xtensa-lx106-elf
 ESPTOOL_PY = $(ESP_ROOT)/esptool/esptool.py
-SDK        = ./esp82xx/toolchain/esp_nonos_sdk
+SDK        = ./ESP8266_NONOS_SDK
 
 XTLIB        = $(SDK)/lib
 ESP_GCC_VERS = 4.8.5
@@ -40,7 +40,7 @@ SRC_DIRS_RECURSIVE = \
 SRC_DIRS_FLAT =
 
 # This is a list of files to compile directly. There's no scanning here
-SRC_FILES = esp82xx/toolchain/esp_nonos_sdk/driver_lib/driver/uart.c
+SRC_FILES = $(SDK)/driver_lib/driver/uart.c
 
 # This is a list of all source directories
 SRC_DIRS = $(shell find $(SRC_DIRS_RECURSIVE) -type d) $(SRC_DIRS_FLAT)
@@ -328,8 +328,7 @@ docs :
 
 # Update the submodules
 bump_submodule :
-	cd esp82xx; git pull origin master; git submodule update --init --recursive; cd ..
-	cd esp82xx/toolchain/esp_nonos_sdk; git pull origin master; git submodule update --init --recursive; cd ../../..
+	cd ESP8266_NONOS_SDK; git pull origin master; git submodule update --init --recursive; cd ..
 
 # Print any value from this makefile
 print-%  : ; @echo $* = $($*)

@@ -6,7 +6,7 @@
         "**/.hg": true,
         "**/CVS": true,
         "**/.DS_Store": true,
-        "**/esp_nonos_sdk/**": true
+        "**/ESP8266_NONOS_SDK/**": true
     },
     "files.associations": {
         "DFT32.h": "c",
