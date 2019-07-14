@@ -16,9 +16,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#include "MMA8452Q.h"
-
-/*============================================================================
+ /*============================================================================
  * Enums
  *==========================================================================*/
 
@@ -35,6 +33,10 @@ typedef enum
     MT_TX_STATUS_FAILED,
 } mt_tx_status;
 
+/*============================================================================
+ * Structs
+ *==========================================================================*/
+
 typedef struct __attribute__ ((__packed__))
 {
     uint8_t g;
@@ -43,9 +45,12 @@ typedef struct __attribute__ ((__packed__))
 }
 led_t;
 
-/*============================================================================
- * Structs
- *==========================================================================*/
+typedef struct
+{
+    int16_t x;
+    int16_t y;
+    int16_t z;
+} accel_t;
 
 /**
  * A struct of all the function pointers necessary for a swadge mode. If a mode
@@ -122,9 +127,10 @@ typedef struct _swadgeMode
      */
     void (*fnEspNowSendCb)(uint8_t* mac_addr, mt_tx_status status);
     /**
-     * TODO
+     * This function is called periodically with the current acceleration
+     * vector.
      *
-     * @param accel
+     * @param accel A struct with 10 bit signed X, Y, and Z accel vectors
      */
     void (*fnAccelerometerCallback)(accel_t* accel);
 } swadgeMode;

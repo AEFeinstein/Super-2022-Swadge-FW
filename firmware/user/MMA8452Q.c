@@ -7,6 +7,7 @@
 #include <osapi.h>
 
 #include "brzo_i2c.h"
+#include "user_main.h"
 #include "MMA8452Q.h"
 
 #define MMA8452Q_ADDRESS 0x1C

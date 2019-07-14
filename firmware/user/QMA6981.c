@@ -12,6 +12,7 @@
 // https://github.com/yangzhiqiang723/rainbow-RB59M325ALB/blob/02ea6fc2a7f9744273b850cff751ffd2fcf1820b/inc/QMA6981.h
 
 #include <osapi.h>
+#include "user_main.h"
 #include "brzo_i2c.h"
 #include "QMA6981.h"
 
@@ -159,10 +160,11 @@ int16_t ICACHE_FLASH_ATTR convertTwosComplement10bit(uint16_t in);
  *==========================================================================*/
 
 /**
- * @brief TODO
+ * @brief Write a single byte of data to the given QMA6981 register
  *
- * @param addr
- * @param data
+ * @param addr The address to write to
+ * @param data The single byte to write
+ * @return true if the data was read, false if there was an i2c error
  */
 uint8_t ICACHE_FLASH_ATTR QMA6981_writereg(QMA6981_reg_addr addr, uint8_t data)
 {
@@ -173,12 +175,12 @@ uint8_t ICACHE_FLASH_ATTR QMA6981_writereg(QMA6981_reg_addr addr, uint8_t data)
 }
 
 /**
- * @brief TODO
+ * @brief TODO Read a number of bytes from the given QMA6981 register
  *
- * @param addr
- * @param len
- * @param data
- * @return uint8_t QMA6981_readreg
+ * @param addr The address to read from
+ * @param len  The number of bytes to read
+ * @param data A pointer to read the bytes into
+ * @return true if the data was read, false if there was an i2c error
  */
 uint8_t ICACHE_FLASH_ATTR QMA6981_readreg(QMA6981_reg_addr addr, uint8_t len, uint8_t* data)
 {
@@ -190,14 +192,12 @@ uint8_t ICACHE_FLASH_ATTR QMA6981_readreg(QMA6981_reg_addr addr, uint8_t len, ui
 }
 
 /**
- * @brief TODO
+ * @brief Initialize the QMA6981 and start it going
  *
- * @return true
- * @return false
+ * @return true if initialization succeeded, false if it failed
  */
 bool ICACHE_FLASH_ATTR QMA6981_setup(void)
 {
-
     QMA6981_POWER_VAL active =
     {
         .bitmask.MODE_BIT = true,
@@ -244,9 +244,9 @@ bool ICACHE_FLASH_ATTR QMA6981_setup(void)
 }
 
 /**
- * @brief TODO
+ * @brief Poll the QMA6981 for the current acceleration value
  *
- * @param currentAccel
+ * @param currentAccel A pointer where the acceleration data will be stored
  */
 void ICACHE_FLASH_ATTR QMA6981_poll(accel_t* currentAccel)
 {
@@ -268,7 +268,7 @@ void ICACHE_FLASH_ATTR QMA6981_poll(accel_t* currentAccel)
 }
 
 /**
- * @brief TODO
+ * @brief Helper function to convert a 10 bit 2's complement number to 16 bit
  *
  * @param in
  * @return int16_t convertTwosComplement10bit
