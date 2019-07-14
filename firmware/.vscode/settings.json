@@ -52,6 +52,7 @@
         "user_interface.h": "c",
         "partitionmap.h": "c",
         "c_types.h": "c",
-        "osapi.h": "c"
+        "osapi.h": "c",
+        "qma6981.h": "c"
     }
 }
