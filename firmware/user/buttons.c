@@ -70,12 +70,6 @@ void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void)
 {
     if(buttonEvtHead != buttonEvtTail)
     {
-        os_printf("btn  %d\ndown\n%d\nstat\n%d time %d\n",
-                  buttonQueue[buttonEvtHead].btn,
-                  buttonQueue[buttonEvtHead].down,
-                  buttonQueue[buttonEvtHead].stat,
-                  buttonQueue[buttonEvtHead].time);
-
         uint32_t debounceUs;
         if(debounceEnabled)
         {
