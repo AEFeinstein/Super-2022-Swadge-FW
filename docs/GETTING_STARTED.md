@@ -37,10 +37,21 @@ You can also set up a Linux virtual machine, like [Xubuntu](https://xubuntu.org/
     $ cd Swadge-Devkit-Fw/firmware/
     /Swadge-Devkit-Fw/firmware$ make
     ```
-1. Flash the firmware to an ESP8266. You make have to modify ```PORT``` in ```makefile``` to point to your specific serial port. If you're using WSL, [the Windows port ```COM{N}``` maps to the Linux port ```/dev/ttyS{N}```](https://blogs.msdn.microsoft.com/wsl/2017/04/14/serial-support-on-the-windows-subsystem-for-linux/). If you're using a virtual machine, you'll need to forward your COM port to a Linux serial device. You may have to set read and write permissions on the serial port before flashing.
+1. Flash the firmware to an ESP8266. You will need to add two environment variables to your ```.bashrc``` file so ```makefile``` knows where to find the Swadge, and an optional third one to automatically start ```putty.exe```. ```ESP_PORT``` is the ESP8266's serial port, and will be specific to your machine. ```ESP_FLASH_BITRATE``` is how fast the firmware is flashed. 2000000 is a common value, though if it doesn't work, try something slower, like 1500000. ```ESP_PORT_WIN``` is an optional Windows COM port to be used when starting ```putty.exe``` from WSL.
     ```
-    /Swadge-Devkit-Fw/firmware$ sudo chmod 666 /dev/ttyS4
-    /Swadge-Devkit-Fw/firmware$ make burn
+    $ nano ~/.bashrc
+    
+    Append this, after changing the port:
+    export ESP_PORT=/dev/ttyS3
+    export ESP_FLASH_BITRATE=2000000
+    export ESP_PORT_WIN=COM3
+    ```
+   If you're using WSL, [the Windows port ```COM{N}``` maps to the Linux port ```/dev/ttyS{N}```](https://blogs.msdn.microsoft.com/wsl/2017/04/14/serial-support-on-the-windows-subsystem-for-linux/). If you're using a virtual machine, you'll need to forward your COM port to a Linux serial port.
+1. Restart your Linux environment so the environment variables are actually set.
+1. Flash the firmware to your Swadge. You may have to set read and write permissions on the serial port before flashing.
+    ```
+    $ sudo chmod 666 /dev/ttyS3
+    $ make burn
     ```
 
 # 3. Setting up an IDE

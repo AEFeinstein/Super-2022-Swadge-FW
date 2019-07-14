@@ -2,4 +2,4 @@
 
 taskkill.exe /IM "putty.exe" /F
 make burn
-putty.exe -serial COM3 -sercfg 74880
+cmd.exe /C "START /B putty.exe -serial $ESP_PORT_WIN -sercfg 74880"
