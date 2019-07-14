@@ -23,6 +23,7 @@
 #include "oled.h"
 #include "PartitionMap.h"
 #include "QMA6981.h"
+#include "MMA8452Q.h"
 
 #include "mode_guitar_tuner.h"
 #include "mode_colorchord.h"
