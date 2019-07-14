@@ -58,22 +58,27 @@ void ICACHE_FLASH_ATTR MMA8452Q_poll(accel_t* currentAccel)
     else
     {
         // Convert the data to 12-bits
-        currentAccel->x = ((data[1] * 256) + data[2]) / 16;
-        if(currentAccel->x > 2047)
+        currentAccel->x = (data[1] << 4) | ((data[2] >> 4) & 0x0F);
+        if(currentAccel->x & 0x0800)
         {
-            currentAccel->x -= 4096;
+            currentAccel->x |= 0xF000;
         }
 
-        currentAccel->y = ((data[3] * 256) + data[4]) / 16;
-        if(currentAccel->y > 2047)
+        currentAccel->y = (data[3] << 4) | ((data[4] >> 4) & 0x0F);
+        if(currentAccel->y & 0x0800)
         {
-            currentAccel->y -= 4096;
+            currentAccel->y |= 0xF000;
         }
 
-        currentAccel->z = ((data[5] * 256) + data[6]) / 16;
-        if(currentAccel->z > 2047)
+        currentAccel->z = (data[5] << 4) | ((data[6] >> 4) & 0x0F);
+        if(currentAccel->z & 0x0800)
         {
-            currentAccel->z -= 4096;
+            currentAccel->z |= 0xF000;
         }
+
+        // QMA6981 is only 10 bits, so go from 12 to 10 here for consistency
+        currentAccel->x /= 4;
+        currentAccel->y /= 4;
+        currentAccel->z /= 4;
     }
 }

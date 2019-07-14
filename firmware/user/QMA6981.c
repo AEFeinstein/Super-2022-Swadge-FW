@@ -8,8 +8,8 @@
 // Datasheet at
 // https://datasheet.lcsc.com/szlcsc/QST-QMA6981_C310611.pdf
 // Some values taken from
-// https://github.com/yangzhiqiang723/rainbow-RB59M325ALB/blob/02ea6fc2a7f9744273b850cff751ffd2fcf1820b/src/qmaX981.c
-// https://github.com/yangzhiqiang723/rainbow-RB59M325ALB/blob/02ea6fc2a7f9744273b850cff751ffd2fcf1820b/inc/qmaX981.h
+// https://github.com/yangzhiqiang723/rainbow-RB59M325ALB/blob/02ea6fc2a7f9744273b850cff751ffd2fcf1820b/src/QMA6981.c
+// https://github.com/yangzhiqiang723/rainbow-RB59M325ALB/blob/02ea6fc2a7f9744273b850cff751ffd2fcf1820b/inc/QMA6981.h
 
 #include <osapi.h>
 #include "brzo_i2c.h"
@@ -18,130 +18,145 @@
 #define QMA6981_ADDR 0x12
 #define QMA6981_FREQ  400
 
-/*ODR SET @lower ODR*/
-#define QMA6981_ODR_250HZ           0x0d
-#define QMA6981_ODR_125HZ           0x0c
-#define QMA6981_ODR_62HZ            0x0b
-#define QMA6981_ODR_31HZ            0x0a
-#define QMA6981_ODR_16HZ            0x09
+/*============================================================================
+ * Register addresses and definitions
+ *==========================================================================*/
 
-
-/* Accelerometer Sensor Full Scale */
-#define QMAX981_RANGE_2G            0x01
-#define QMAX981_RANGE_4G            0x02
-#define QMAX981_RANGE_8G            0x04
-#define QMAX981_RANGE_16G           0x08
-#define QMAX981_RANGE_32G           0x0f
+/* For the bandwidth register */
 
 typedef enum
 {
-    CHIP_ID = 0x00,
-    DATA = 0x01,
-    STEP_CNT = 0x07,
-    INT_STATUS = 0x0A,
-    FIFO_STATUS = 0x0E,
-    FULL_SCALE = 0x0F,
-    BW = 0x10,
-    POWER_MODE = 0x11,
-    STEP_CONF = 0x13,
-    INT_EN = 0x16,
-    INT_SRC = 0x18,
-    INT_MAP = 0x19,
-    INT_PIN_CONF = 0x20,
-    INT_LATCH = 0x21,
-    LowG_HighG = 0x22,
-    OS_CUST = 0x27,
-    TAP = 0x2A,
-    _4D_6D = 0x2C,
-    FIFO_WM = 0x31,
-    SelfTest = 0x32,
-    NVM_CFG = 0x33,
-    SOFT_RESET = 0x36,
-    IMAGE = 0x37,
-    FIFO_CONF = 0x3E,
+    QMA6981_BW_3_9  = 0b000,
+    QMA6981_BW_7_8  = 0b001,
+    QMA6981_BW_15_6 = 0b010,
+    QMA6981_BW_31_2 = 0b011,
+    QMA6981_BW_62_5 = 0b100,
+    QMA6981_BW_125  = 0b101,
+    QMA6981_BW_250  = 0b110,
+    QMA6981_BW_500  = 0b111,
+} QMA6981_BANDWIDTH;
+
+typedef union
+{
+    uint8_t val;
+    struct
+    {
+        QMA6981_BANDWIDTH BW : 5;
+        bool ODRH            : 1;
+    } bitmask;
+} QMA6981_BW_VAL;
+
+/* For the range register */
+
+enum
+{
+    QMA6981_RANGE_2G  = 0x01,
+    QMA6981_RANGE_4G  = 0x02,
+    QMA6981_RANGE_8G  = 0x04,
+};
+
+/* For interrupt configuration register */
+
+typedef union
+{
+    uint8_t val;
+    struct
+    {
+        bool res               : 1;
+        bool STEP_UNSIMILAR_EN : 1;
+        bool STEP_QUIT_EN      : 1;
+        bool STEP_EN           : 1;
+        bool D_TAP_EN          : 1;
+        bool S_TAP_EN          : 1;
+        bool ORIENT_EN         : 1;
+        bool FOB_EN            : 1;
+    } bitmask;
+} QMA6981_INT_EN0_VAL;
+
+/* For the power level value register */
+
+typedef enum
+{
+    Tpreset_12us   = 0b00,
+    Tpreset_96us   = 0b01,
+    Tpreset_768us  = 0b10,
+    Tpreset_2048us = 0b11
+} QMA6981_POWER_VAL_PRESET;
+
+typedef enum
+{
+    SLEEP_DUR_FULL_SPEED = 0b0000,
+    SLEEP_DUR_0_5ms      = 0b0001,
+    SLEEP_DUR_1ms        = 0b0110,
+    SLEEP_DUR_2ms        = 0b0111,
+    SLEEP_DUR_4ms        = 0b1000,
+    SLEEP_DUR_6ms        = 0b1001,
+    SLEEP_DUR_10ms       = 0b1010,
+    SLEEP_DUR_25ms       = 0b1011,
+    SLEEP_DUR_50ms       = 0b1100,
+    SLEEP_DUR_100ms      = 0b1101,
+    SLEEP_DUR_500ms      = 0b1110,
+    SLEEP_DUR_1000ms     = 0b1111,
+} QMA6981_POWER_VAL_SLEEP_DUR;
+
+typedef union
+{
+    uint8_t val;
+    struct
+    {
+        QMA6981_POWER_VAL_SLEEP_DUR SLEEP_DUR : 4;
+        QMA6981_POWER_VAL_PRESET PRESET       : 2;
+        bool res                              : 1;
+        bool MODE_BIT                         : 1;
+    } bitmask;
+} QMA6981_POWER_VAL;
+
+/* Soft reset register value */
+
+#define QMA6981_SOFT_RESET_ALL_REGISTERS 0xB6
+
+/* Register addresses */
+
+typedef enum
+{
+    QMA6981_CHIP_ID      = 0x00,
+    QMA6981_DATA         = 0x01,
+    QMA6981_STEP_CNT     = 0x07,
+    QMA6981_INT_STATUS   = 0x0A,
+    QMA6981_FIFO_STATUS  = 0x0E,
+    QMA6981_FULL_SCALE   = 0x0F,
+    QMA6981_BW           = 0x10,
+    QMA6981_POWER_MODE   = 0x11,
+    QMA6981_STEP_CONF    = 0x13,
+    QMA6981_INT_EN       = 0x16,
+    QMA6981_INT_SRC      = 0x18,
+    QMA6981_INT_MAP      = 0x19,
+    QMA6981_INT_PIN_CONF = 0x20,
+    QMA6981_INT_LATCH    = 0x21,
+    QMA6981_LowG_HighG   = 0x22,
+    QMA6981_OS_CUST      = 0x27,
+    QMA6981_TAP_1        = 0x2A,
+    QMA6981_TAP_2        = 0x2B,
+    QMA6981__4D_6D       = 0x2C,
+    QMA6981_FIFO_WM      = 0x31,
+    QMA6981_SelfTest     = 0x32,
+    QMA6981_NVM_CFG      = 0x33,
+    QMA6981_SOFT_RESET   = 0x36,
+    QMA6981_IMAGE        = 0x37,
+    QMA6981_FIFO_CONF    = 0x3E,
 } QMA6981_reg_addr;
 
-void qmaX981_writereg(uint8_t addr, uint8_t data);
+/*============================================================================
+ * Function prototypes
+ *==========================================================================*/
 
-/**
- * @brief
- *
- * @return true
- * @return false
- */
-bool QMA6981_setup(void)
-{
-    // Read 1 byte of data(0x00)
-    brzo_i2c_start_transaction(QMA6981_ADDR, QMA6981_FREQ);
+uint8_t ICACHE_FLASH_ATTR QMA6981_writereg(QMA6981_reg_addr addr, uint8_t data);
+uint8_t ICACHE_FLASH_ATTR QMA6981_readreg(QMA6981_reg_addr addr, uint8_t len, uint8_t* data);
+int16_t ICACHE_FLASH_ATTR convertTwosComplement10bit(uint16_t in);
 
-    uint8_t reg[1] = {CHIP_ID};
-    brzo_i2c_write(reg, sizeof(reg), false);
-
-    uint8_t data[1] = {0};
-    brzo_i2c_read(data, sizeof(data), false);
-
-    uint8_t err = brzo_i2c_end_transaction();
-
-    if(0 == err)
-    {
-        os_printf("QMA6981 chip ID %d\n", data[0]);
-
-        brzo_i2c_start_transaction(QMA6981_ADDR, QMA6981_FREQ);
-
-        qmaX981_writereg(POWER_MODE, 0x80);
-        qmaX981_writereg(SOFT_RESET, 0xb6);
-        qmaX981_writereg(0xff, 5);
-        qmaX981_writereg(SOFT_RESET, 0x00);
-        qmaX981_writereg(POWER_MODE, 0x80);
-        os_delay_us(5);
-        qmaX981_writereg(FULL_SCALE, QMAX981_RANGE_4G);
-        qmaX981_writereg(BW, QMA6981_ODR_125HZ);
-
-        qmaX981_writereg(BW, 0x05);
-        qmaX981_writereg(POWER_MODE, 0x80); // 0x85 {0x2a, 0x80},
-        qmaX981_writereg(0x2b, 0x03);   //0x14  125*7
-        qmaX981_writereg(INT_EN, 0x20);
-        qmaX981_writereg(INT_MAP, 0x20);
-        qmaX981_writereg(INT_PIN_CONF, 0x00);
-
-        return (0 == brzo_i2c_end_transaction()) ? true : false;
-    }
-    else
-    {
-        os_printf("Couldn't read QMA6981 chip ID, err: %d\n", err);
-    }
-}
-
-/**
- * @brief
- *
- * @param currentAccel
- */
-void QMA6981_poll(accel_t* currentAccel)
-{
-    // Read 7 bytes of data(0x00)
-    brzo_i2c_start_transaction(QMA6981_ADDR, QMA6981_FREQ);
-
-    uint8_t reg[1] = {DATA};
-    brzo_i2c_write(reg, sizeof(reg), false);
-
-    uint8_t data[6] = {0};
-    brzo_i2c_read(data, sizeof(data), false);
-
-    uint8_t err = brzo_i2c_end_transaction();
-
-    if(err != 0)
-    {
-        os_printf("Error : Input/Output error %02X\n", err);
-    }
-    else
-    {
-        // Convert the data to 12-bits
-        currentAccel->x = ((data[0] >> 1 ) | (data[1]) << 7);
-        currentAccel->y = ((data[2] >> 1 ) | (data[3]) << 7);
-        currentAccel->z = ((data[4] >> 1 ) | (data[5]) << 7);
-    }
-}
+/*============================================================================
+ * Functions
+ *==========================================================================*/
 
 /**
  * @brief TODO
@@ -149,8 +164,123 @@ void QMA6981_poll(accel_t* currentAccel)
  * @param addr
  * @param data
  */
-void qmaX981_writereg(uint8_t addr, uint8_t data)
+uint8_t ICACHE_FLASH_ATTR QMA6981_writereg(QMA6981_reg_addr addr, uint8_t data)
 {
+    brzo_i2c_start_transaction(QMA6981_ADDR, QMA6981_FREQ);
     uint8_t writeCmd[2] = {addr, data};
     brzo_i2c_write(writeCmd, sizeof(writeCmd), false);
+    return brzo_i2c_end_transaction();
+}
+
+/**
+ * @brief TODO
+ *
+ * @param addr
+ * @param len
+ * @param data
+ * @return uint8_t QMA6981_readreg
+ */
+uint8_t ICACHE_FLASH_ATTR QMA6981_readreg(QMA6981_reg_addr addr, uint8_t len, uint8_t* data)
+{
+    brzo_i2c_start_transaction(QMA6981_ADDR, QMA6981_FREQ);
+    uint8_t reg[1] = {addr};
+    brzo_i2c_write(reg, sizeof(reg), false);
+    brzo_i2c_read(data, len, false);
+    return brzo_i2c_end_transaction();
+}
+
+/**
+ * @brief TODO
+ *
+ * @return true
+ * @return false
+ */
+bool ICACHE_FLASH_ATTR QMA6981_setup(void)
+{
+
+    QMA6981_POWER_VAL active =
+    {
+        .bitmask.MODE_BIT = true,
+        .bitmask.res = true,
+        .bitmask.SLEEP_DUR = SLEEP_DUR_FULL_SPEED,
+        .bitmask.PRESET = Tpreset_12us
+    };
+    if(0 != QMA6981_writereg(QMA6981_POWER_MODE, active.val))
+    {
+        return false;
+    }
+
+    if(0 != QMA6981_writereg(QMA6981_SOFT_RESET, QMA6981_SOFT_RESET_ALL_REGISTERS))
+    {
+        return false;
+    }
+    if(0 != QMA6981_writereg(QMA6981_POWER_MODE, active.val))
+    {
+        return false;
+    }
+    os_delay_us(5);
+
+    QMA6981_BW_VAL bandwidth =
+    {
+        .bitmask.ODRH = false,
+        .bitmask.BW = QMA6981_BW_31_2
+    };
+    if(0 != QMA6981_writereg(QMA6981_BW, bandwidth.val))
+    {
+        return false;
+    }
+
+    if(0 != QMA6981_writereg(QMA6981_FULL_SCALE, QMA6981_RANGE_2G))
+    {
+        return false;
+    }
+
+    if(0 != QMA6981_writereg(QMA6981_POWER_MODE, active.val))
+    {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * @brief TODO
+ *
+ * @param currentAccel
+ */
+void ICACHE_FLASH_ATTR QMA6981_poll(accel_t* currentAccel)
+{
+    // Read 7 bytes of data(0x00)
+    uint8_t raw_data[6];
+    if(0 != QMA6981_readreg(QMA6981_DATA, 6, raw_data))
+    {
+        os_printf("read xyz error!!!\n");
+        QMA6981_setup();
+        return;
+    }
+    else
+    {
+        // Convert the data to 12-bits
+        currentAccel->x = convertTwosComplement10bit(((raw_data[0] >> 6 ) | (raw_data[1]) << 2) & 0x03FF);
+        currentAccel->y = convertTwosComplement10bit(((raw_data[2] >> 6 ) | (raw_data[3]) << 2) & 0x03FF);
+        currentAccel->z = convertTwosComplement10bit(((raw_data[4] >> 6 ) | (raw_data[5]) << 2) & 0x03FF);
+    }
+}
+
+/**
+ * @brief TODO
+ *
+ * @param in
+ * @return int16_t convertTwosComplement10bit
+ */
+int16_t ICACHE_FLASH_ATTR convertTwosComplement10bit(uint16_t in)
+{
+    if(in & 0x200)
+    {
+        return (in | 0xFC00); // extend the sign bit all the way out
+    }
+    else
+    {
+        return (in & 0x01FF); // make sure the sign bits are cleared
+    }
 }

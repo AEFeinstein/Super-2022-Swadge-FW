@@ -10,9 +10,9 @@
 
 typedef struct
 {
-    int x;
-    int y;
-    int z;
+    int16_t x;
+    int16_t y;
+    int16_t z;
 } accel_t;
 
 bool MMA8452Q_setup(void);
