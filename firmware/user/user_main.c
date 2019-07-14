@@ -22,6 +22,8 @@
 #include "brzo_i2c.h"
 #include "oled.h"
 #include "PartitionMap.h"
+#include "QMA6981.h"
+#include "MMA8452Q.h"
 
 #include "mode_guitar_tuner.h"
 #include "mode_colorchord.h"
@@ -69,6 +71,9 @@ swadgeMode* swadgeModes[] =
 };
 bool swadgeModeInit = false;
 rtcMem_t rtcMem = {0};
+
+bool MMA8452Q_init = false;
+bool QMA6981_init = false;
 
 /*============================================================================
  * Prototypes
@@ -173,16 +178,34 @@ void ICACHE_FLASH_ATTR user_init(void)
     {
         if(true == MMA8452Q_setup())
         {
-            os_printf("Accelerometer initialized\n");
+            MMA8452Q_init = true;
+            os_printf("MMA8452Q initialized\n");
         }
         else
         {
-            os_printf("Accelerometer initialization failed\n");
+            os_printf("MMA8452Q initialization failed\n");
         }
     }
     else
     {
-        os_printf("Accelerometer not needed\n");
+        os_printf("MMA8452Q not needed\n");
+    }
+
+    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
+    {
+        if(true == QMA6981_setup())
+        {
+            QMA6981_init = true;
+            os_printf("QMA6981 initialized\n");
+        }
+        else
+        {
+            os_printf("QMA6981 initialization failed\n");
+        }
+    }
+    else
+    {
+        os_printf("QMA6981 not needed\n");
     }
 
     // Initialize display
@@ -306,7 +329,14 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
     if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
     {
         accel_t accel = {0};
-        MMA8452Q_poll(&accel);
+        if(true == MMA8452Q_init)
+        {
+            MMA8452Q_poll(&accel);
+        }
+        else if(true == QMA6981_init)
+        {
+            QMA6981_poll(&accel);
+        }
         swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback(&accel);
     }
 
