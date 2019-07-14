@@ -5,14 +5,15 @@
  * Includes
  *==========================================================================*/
 
-#include "osapi.h"
+#include <osapi.h>
+#include <user_interface.h>
+#include <driver/uart.h>
 
-#include "uart.h"
+#include "embeddedout.h"
+
 #include "ws2812_i2s.h"
 #include "hpatimer.h"
 #include "ccconfig.h"
-#include <embeddedout.h>
-#include <commonservices.h>
 #include "gpio_user.h"
 #include "buttons.h"
 #include "custom_commands.h"
@@ -20,6 +21,8 @@
 #include "espNowUtils.h"
 #include "brzo_i2c.h"
 #include "oled.h"
+#include "PartitionMap.h"
+
 #include "mode_guitar_tuner.h"
 #include "mode_colorchord.h"
 #include "mode_reflector_game.h"
@@ -148,10 +151,6 @@ void ICACHE_FLASH_ATTR user_init(void)
         }
     }
 
-    // Common services pre-init and init, after wifi is initialized
-    CSPreInit();
-    CSInit(false);
-
     // Load configurable parameters from SPI memory
     LoadSettings();
 
@@ -214,7 +213,7 @@ void ICACHE_FLASH_ATTR user_init(void)
               (NULL != swadgeModes[rtcMem.currentSwadgeMode]->modeName) ?
               (swadgeModes[rtcMem.currentSwadgeMode]->modeName) : ("No Name"));
 
-    // Start a software timer to call CSTick() every 100ms
+    // Start a software timer to run every 100ms
     os_timer_disarm(&timerHandle100ms);
     os_timer_setfn(&timerHandle100ms, (os_timer_func_t*)timerFunc100ms, NULL);
     os_timer_arm(&timerHandle100ms, 100, 1);
@@ -233,8 +232,8 @@ void ICACHE_FLASH_ATTR user_init(void)
  * This task is constantly called by posting itself instead of being in an
  * infinite loop. ESP doesn't like infinite loops.
  *
- * It handles synchronous button events, audio samples which have been read
- * and are queued for processing, and calling CSTick()
+ * It handles synchronous button events and audio samples which have been read
+ * and are queued for processing
  *
  * @param events Checked before posting this task again
  */
@@ -287,15 +286,11 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
         {
             EnterCritical();
         }
-
-        // Common services tick, fast mode
-        CSTick( 0 );
     }
 }
 
 /**
  * Timer handler for a software timer set to fire every 100ms, forever.
- * Calls CSTick() every 100ms.
  *
  * If the hardware is in wifi station mode, this Enables the hardware timer
  * to sample the ADC once the IP address has been received and printed
@@ -308,8 +303,6 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
  */
 static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
 {
-    CSTick( 1 );
-
     if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
     {
         accel_t accel = {0};

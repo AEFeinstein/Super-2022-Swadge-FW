@@ -8,10 +8,10 @@
                 "${workspaceFolder}/user/display",
                 "${workspaceFolder}/user/display/fonts",
                 "${workspaceFolder}/user/modes",
-                "${workspaceFolder}/esp82xx/include",
-                "${workspaceFolder}/esp82xx/toolchain/esp_nonos_sdk/include",
-                "${workspaceFolder}/esp82xx/toolchain/esp_nonos_sdk/driver_lib/include/driver/",
                 "${workspaceFolder}/embeddedcommon/",
+                "${workspaceFolder}/ESP8266_NONOS_SDK/include",
+                "${workspaceFolder}/ESP8266_NONOS_SDK/driver_lib/include/",
+                "${workspaceFolder}/ESP8266_NONOS_SDK/driver_lib/include/driver/",
                 "${env:ESP_ROOT}/xtensa-lx106-elf/include"
             ],
             "defines": [],

@@ -5,14 +5,15 @@
  * Includes
  *==========================================================================*/
 
+#include <osapi.h>
+#include <mem.h>
+#include <eagle_soc.h>
+#include <user_interface.h>
+#include <ets_sys.h>
+
 #include "hpatimer.h"
 #include "adc.h"
-#include "osapi.h"
-#include "mem.h"
-#include "eagle_soc.h"
-#include "user_interface.h"
-#include "ets_sys.h"
-#include <missingEspFnPrototypes.h>
+#include "missingEspFnPrototypes.h"
 
 /*============================================================================
  * Defines

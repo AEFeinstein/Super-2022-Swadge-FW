@@ -185,9 +185,11 @@ digraph G {
  * Includes
  *==========================================================================*/
 
+#include <osapi.h>
+#include <user_interface.h>
+
 #include "user_main.h"
 #include "mode_reflector_game.h"
-#include "osapi.h"
 #include "custom_commands.h"
 #include "buttons.h"
 
@@ -354,7 +356,6 @@ swadgeMode reflectorGameMode =
 };
 
 // Indices into messages to send
-#define HDR_IDX 0
 #define CMD_IDX 4
 #define SEQ_IDX 8
 #define MAC_IDX 11
@@ -979,6 +980,12 @@ void ICACHE_FLASH_ATTR refShowConnectionLedTimeout(void* arg __attribute__((unus
             }
             break;
         }
+        case LED_OFF:
+        case LED_ON_1:
+        case LED_DIM_1:
+        case LED_ON_2:
+        case LED_DIM_2:
+        case LED_OFF_WAIT:
         default:
         {
             // No other cases handled

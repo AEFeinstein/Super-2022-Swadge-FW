@@ -13,16 +13,12 @@
  * http://members.chello.at/~easyfilter/bresenham.c
  */
 
-#include "osapi.h"
-
+#include <osapi.h>
 #include <math.h>
 #include <stdlib.h>
 
 #include "bresenham.h"
 #include "oled.h"
-
-#define max(a, b) (((a) > (b)) ? (a) : (b))
-#define min(a, b) (((a) < (b)) ? (a) : (b))
 
 #define assert(x) \
     if(false == (x)) { \

@@ -6,28 +6,15 @@
 
 GCC_FOLDER = $(ESP_ROOT)/xtensa-lx106-elf
 ESPTOOL_PY = $(ESP_ROOT)/esptool/esptool.py
-SDK        = ./esp82xx/toolchain/esp_nonos_sdk
+SDK        = ./ESP8266_NONOS_SDK
 
-XTLIB        = $(SDK)/lib
-ESP_GCC_VERS = 4.8.5
-XTGCCLIB     = $(GCC_FOLDER)/lib/gcc/xtensa-lx106-elf/$(ESP_GCC_VERS)/libgcc.a
-FOLDERPREFIX = $(GCC_FOLDER)/bin
-PREFIX       = $(FOLDERPREFIX)/xtensa-lx106-elf-
+XTGCCLIB     = $(GCC_FOLDER)/lib/gcc/xtensa-lx106-elf/4.8.5/libgcc.a
+PREFIX       = $(GCC_FOLDER)/bin/xtensa-lx106-elf-
 CC           = $(PREFIX)gcc
 OBJCOPY      = $(PREFIX)objcopy
 LD           = $(PREFIX)ld
 AR           = $(PREFIX)ar
 CP           = cp
-
-################################################################################
-# Version related stuff
-################################################################################
-
-VCMD = git describe --abbrev=5 --dirty=-dev --always --tags 2>/dev/null
-VERSION := $(shell $(VCMD) || { cd esp82xx 2>/dev/null; $(VCMD) ; } ||  echo "unknown")
-VERSSTR := Version: $(VERSION) - Build $(shell LANG=en_us_8859_1 date '+%a, %b %e %Y, %R:%S %z') with
-PROJECT_NAME := $(notdir $(shell git rev-parse --show-toplevel 2>/dev/null || echo "exp82xx-project"))
-PROJECT_URL := $(subst .com:,.com/,$(subst .git,,$(subst git@,https://,$(shell git config --get remote.origin.url 2>/dev/null || echo "https://github.com/con-f-use/esp82xx-basic.git"))))
 
 ################################################################################
 # Options for burning
@@ -36,7 +23,6 @@ PROJECT_URL := $(subst .com:,.com/,$(subst .git,,$(subst git@,https://,$(shell g
 FWBURNFLAGS  = -b 2000000
 PORT  = /dev/ttyS3
 FLASH_WRITE_FLAGS = # --verify
-MFS_PAGE_OFFSET=532480
 
 ################################################################################
 # Compilation options
@@ -44,21 +30,23 @@ MFS_PAGE_OFFSET=532480
 
 # This is a list of directories to scan for c files recursively
 SRC_DIRS_RECURSIVE = \
-	user
+	user \
+	embeddedcommon
 
 # This is a list of directories to scan for c files not recursively
-SRC_DIRS_FLAT = \
-	esp82xx/fwsrc \
-	embeddedcommon
+SRC_DIRS_FLAT =
+
+# This is a list of files to compile directly. There's no scanning here
+SRC_FILES = $(SDK)/driver_lib/driver/uart.c
 
 # This is a list of all source directories
 SRC_DIRS = $(shell find $(SRC_DIRS_RECURSIVE) -type d) $(SRC_DIRS_FLAT)
 
 # This is a list of all source c files 
-SOURCES  = $(shell find $(SRC_DIRS) -maxdepth 1 -name "*.c")
+SOURCES  = $(shell find $(SRC_DIRS) -maxdepth 1 -name "*.c") $(SRC_FILES)
 
-# These are flags for the compiler
-EXTRA_CFLAGS = \
+# These are flags for the compiler, all files
+CFLAGS = \
 	-c \
 	-mlongcalls \
 	-Os \
@@ -69,15 +57,15 @@ EXTRA_CFLAGS = \
 	-Wl,-Map,output.map \
 	-B$(SDK)/lib \
 	-g \
-	-std=gnu99 \
-	-Wall \
+	-std=gnu99
+
+# These are warning flags for the compiler, all files
+CFLAGS_WARNINGS = \
 	-Wextra \
 	-Wundef \
-	-Wunused \
 	-Wformat=2 \
 	-Winvalid-pch \
 	-Wlogical-op \
-	-Wmissing-declarations \
 	-Wmissing-format-attribute \
 	-Wmissing-include-dirs \
 	-Wpointer-arith \
@@ -86,51 +74,40 @@ EXTRA_CFLAGS = \
 	-Wuninitialized \
 	-Wshadow \
 	-Wredundant-decls \
-	-Wstrict-prototypes \
 	-Wjump-misses-init \
-	-Wswitch-default
+	-Wswitch-default \
+	-Wcast-align \
+	-Wformat-nonliteral \
+	-Wswitch-enum
 
-# And these are warnings, lots of warnings
-#EXTRA_CFLAGS := $(EXTRA_CFLAGS) \
-#	-Wcast-align \
-#	-Wcast-qual \
-#	-Wconversion \
-#	-Wdouble-promotion \
-#	-Wformat-nonliteral \
-#	-Wmissing-prototypes \
-#	-Wpedantic \
-#	-Wsign-conversion \
-#	-Wswitch-enum \
-#	-Wunused-macros
+# These are warning flags for the compiler, just for files outside $(SDK)
+CFLAGS_WARNINGS_EXTRA = \
+	-Wall \
+	-Wunused \
+	-Wunused-macros \
+	-Wmissing-declarations \
+	-Wmissing-prototypes
+	# -Wstrict-prototypes
+	# -Wcast-qual \
+	# -Wpedantic \
+	# -Wconversion \
+	# -Wsign-conversion \
+	# -Wdouble-promotion \
 
 # These are a list of #define symbols in the makefile
-DEFINES = \
-	ICACHE_FLASH \
-	DISABLE_CHARRX \
-	QUIET_REFLASH \
-	WS2812_FOUR_SAMPLE \
-	USE_OPTIMIZE_PRINTF \
-	MFS_PAGE_OFFSET=$(MFS_PAGE_OFFSET) \
-	DISABLE_MDNS \
-	DISABLE_AUTO_SWITCH_TO_AP \
-	DISABLE_NET_REFLASH \
+DEFINES_LIST = \
 	SOFTAP_CHANNEL=11 \
-	WEB_PORT=80 \
-	COM_PORT=7777 \
-	BACKEND_PORT=7878 \
-	SLOWTICK_MS=50 
+	WS2812_FOUR_SAMPLE=1 \
+	DISABLE_CHARRX=1 \
+	USE_OPTIMIZE_PRINTF=1 \
+	ICACHE_FLASH=1
 
-# Append the liset of Defines to the version string
-VERSSTR += $(DEFINES)
-
-# This appends the defines to the EXTRA_CFLAGS
-EXTRA_CFLAGS := $(EXTRA_CFLAGS) $(patsubst %, -D%, $(DEFINES)) -DVERSTR='"$(VERSSTR)"'
+DEFINES = $(patsubst %, -D%, $(DEFINES_LIST))
 
 # Treat every source directory as one to search for headers in, also add a few more
 INC = $(patsubst %, -I%, \
 	$(SRC_DIRS) \
-	esp82xx/include \
-	$(SDK)/driver_lib/include/driver \
+	$(SDK)/driver_lib/include/ \
 	$(SDK)/include)
 
 # This is the directory in which object files will be stored
@@ -159,7 +136,7 @@ LIBS = \
 
 # These are directories to look for library files in
 LIB_DIRS = \
-	esp82xx \
+	. \
 	$(SDK)/lib \
 	$(ESP_ROOT)/xtensa-lx106-elf/xtensa-lx106-elf/sysroot/lib/
 
@@ -185,8 +162,7 @@ LINKER_SCRIPT_FLAGS = $(patsubst %, -T $(SDK)/ld/%, $(LINKER_SCRIPTS))
 FW_FILE0 = image.elf
 FW_FILE1 = image.elf-0x00000.bin
 FW_FILE2 = image.elf-0x10000.bin
-LIBGCC_STRIPPED = esp82xx/libgcc_stripped.a
-WEBPAGE_MFS = web/page.mpfs
+LIBGCC_STRIPPED = libgcc_stripped.a
 DBG_MAP=image.map
 DBG_LST=image.lst
 
@@ -198,7 +174,7 @@ DBG_LST=image.lst
 .PHONY: all clean debug bump_submodule erase dumprom wipechip burnitall burn burn_cutecom docs print-%
 
 # Build everything!
-all: $(FW_FILE1) $(FW_FILE2) $(WEBPAGE_MFS)
+all: $(FW_FILE1) $(FW_FILE2)
 
 # To build the two firmware files for flashing, you have to build the main file
 $(FW_FILE1) $(FW_FILE2) : $(FW_FILE0)
@@ -211,87 +187,88 @@ $(FW_FILE0): $(OBJECTS) $(LIBGCC_STRIPPED)
 # This compiles each c file into an o file
 ./$(OBJ_DIR)/%.o: ./%.c
 	@mkdir -p $(@D) # This creates a directory before building an object in it.
-	$(CC) $(EXTRA_CFLAGS) $(INC) $< -o $@
+	$(CC) $(CFLAGS) $(CFLAGS_WARNINGS) $(CFLAGS_WARNINGS_EXTRA) $(DEFINES) $(INC) $< -o $@
+
+# This compiles each c file in the SDK folder into an o file. Fewer warnings than other files
+./$(OBJ_DIR)/$(SDK)/%.o: ./$(SDK)/%.c
+	@mkdir -p $(@D) # This creates a directory before building an object in it.
+	$(CC) $(CFLAGS) $(CFLAGS_WARNINGS) $(DEFINES) $(INC) $< -o $@
 
 # This copies and stripps the libgcc.a file from the toolchain
 $(LIBGCC_STRIPPED) :
-	cp $(GCC_FOLDER)/lib/gcc/xtensa-lx106-elf/$(ESP_GCC_VERS)/libgcc.a esp82xx/libgcc_stripped.a
-	$(AR) dv esp82xx/libgcc_stripped.a __gcc_bcmp.o
-	$(AR) dv esp82xx/libgcc_stripped.a _absvdi2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _absvsi2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _addsubsf3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _addvdi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _addvsi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _ashldi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _bswapdi2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _bswapsi2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _clear_cache.o
-	$(AR) dv esp82xx/libgcc_stripped.a _clrsbdi2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _clrsbsi2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _clzdi2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _clzsi2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _cmpdi2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _ctzdi2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _ctzsi2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _divdc3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _divdf3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _divdi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _divsc3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _divsi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _extendsfdf2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _ffsdi2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _ffssi2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _fixdfdi.o
-	$(AR) dv esp82xx/libgcc_stripped.a _fixdfsi.o
-	$(AR) dv esp82xx/libgcc_stripped.a _fixsfdi.o
-	$(AR) dv esp82xx/libgcc_stripped.a _fixunsdfdi.o
-	$(AR) dv esp82xx/libgcc_stripped.a _fixunsdfsi.o
-	$(AR) dv esp82xx/libgcc_stripped.a _fixunssfdi.o
-	$(AR) dv esp82xx/libgcc_stripped.a _fixunssfsi.o
-	$(AR) dv esp82xx/libgcc_stripped.a _floatdidf.o
-	$(AR) dv esp82xx/libgcc_stripped.a _floatdisf.o
-	$(AR) dv esp82xx/libgcc_stripped.a _floatsidf.o
-	$(AR) dv esp82xx/libgcc_stripped.a _floatsisf.o
-	$(AR) dv esp82xx/libgcc_stripped.a _floatundidf.o
-	$(AR) dv esp82xx/libgcc_stripped.a _floatundisf.o
-	$(AR) dv esp82xx/libgcc_stripped.a _floatunsidf.o
-	$(AR) dv esp82xx/libgcc_stripped.a _floatunsisf.o
-	$(AR) dv esp82xx/libgcc_stripped.a _lshrdi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _moddi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _muldc3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _muldf3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _muldi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _mulsc3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _mulsf3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _mulsi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _mulvdi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _mulvsi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _negdf2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _negdi2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _negsf2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _negvdi2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _negvsi2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _paritydi2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _paritysi2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _popcountdi2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _popcountsi2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _powidf2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _powisf2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _subvdi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _subvsi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _truncdfsf2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _ucmpdi2.o
-	$(AR) dv esp82xx/libgcc_stripped.a _udiv_w_sdiv.o
-	$(AR) dv esp82xx/libgcc_stripped.a _udivdi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _udivmoddi4.o
-	$(AR) dv esp82xx/libgcc_stripped.a _udivsi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _umoddi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _umodsi3.o
-	$(AR) dv esp82xx/libgcc_stripped.a _umulsidi3.o
-
-# To build the webpage file, call its makefile
-$(WEBPAGE_MFS) :
-	make -C ./web
+	$(CP) $(XTGCCLIB) libgcc_stripped.a
+	$(AR) dv libgcc_stripped.a __gcc_bcmp.o
+	$(AR) dv libgcc_stripped.a _absvdi2.o
+	$(AR) dv libgcc_stripped.a _absvsi2.o
+	$(AR) dv libgcc_stripped.a _addsubsf3.o
+	$(AR) dv libgcc_stripped.a _addvdi3.o
+	$(AR) dv libgcc_stripped.a _addvsi3.o
+	$(AR) dv libgcc_stripped.a _ashldi3.o
+	$(AR) dv libgcc_stripped.a _bswapdi2.o
+	$(AR) dv libgcc_stripped.a _bswapsi2.o
+	$(AR) dv libgcc_stripped.a _clear_cache.o
+	$(AR) dv libgcc_stripped.a _clrsbdi2.o
+	$(AR) dv libgcc_stripped.a _clrsbsi2.o
+	$(AR) dv libgcc_stripped.a _clzdi2.o
+	$(AR) dv libgcc_stripped.a _clzsi2.o
+	$(AR) dv libgcc_stripped.a _cmpdi2.o
+	$(AR) dv libgcc_stripped.a _ctzdi2.o
+	$(AR) dv libgcc_stripped.a _ctzsi2.o
+	$(AR) dv libgcc_stripped.a _divdc3.o
+	$(AR) dv libgcc_stripped.a _divdf3.o
+	$(AR) dv libgcc_stripped.a _divdi3.o
+	$(AR) dv libgcc_stripped.a _divsc3.o
+	$(AR) dv libgcc_stripped.a _divsi3.o
+	$(AR) dv libgcc_stripped.a _extendsfdf2.o
+	$(AR) dv libgcc_stripped.a _ffsdi2.o
+	$(AR) dv libgcc_stripped.a _ffssi2.o
+	$(AR) dv libgcc_stripped.a _fixdfdi.o
+	$(AR) dv libgcc_stripped.a _fixdfsi.o
+	$(AR) dv libgcc_stripped.a _fixsfdi.o
+	$(AR) dv libgcc_stripped.a _fixunsdfdi.o
+	$(AR) dv libgcc_stripped.a _fixunsdfsi.o
+	$(AR) dv libgcc_stripped.a _fixunssfdi.o
+	$(AR) dv libgcc_stripped.a _fixunssfsi.o
+	$(AR) dv libgcc_stripped.a _floatdidf.o
+	$(AR) dv libgcc_stripped.a _floatdisf.o
+	$(AR) dv libgcc_stripped.a _floatsidf.o
+	$(AR) dv libgcc_stripped.a _floatsisf.o
+	$(AR) dv libgcc_stripped.a _floatundidf.o
+	$(AR) dv libgcc_stripped.a _floatundisf.o
+	$(AR) dv libgcc_stripped.a _floatunsidf.o
+	$(AR) dv libgcc_stripped.a _floatunsisf.o
+	$(AR) dv libgcc_stripped.a _lshrdi3.o
+	$(AR) dv libgcc_stripped.a _moddi3.o
+	$(AR) dv libgcc_stripped.a _muldc3.o
+	$(AR) dv libgcc_stripped.a _muldf3.o
+	$(AR) dv libgcc_stripped.a _muldi3.o
+	$(AR) dv libgcc_stripped.a _mulsc3.o
+	$(AR) dv libgcc_stripped.a _mulsf3.o
+	$(AR) dv libgcc_stripped.a _mulsi3.o
+	$(AR) dv libgcc_stripped.a _mulvdi3.o
+	$(AR) dv libgcc_stripped.a _mulvsi3.o
+	$(AR) dv libgcc_stripped.a _negdf2.o
+	$(AR) dv libgcc_stripped.a _negdi2.o
+	$(AR) dv libgcc_stripped.a _negsf2.o
+	$(AR) dv libgcc_stripped.a _negvdi2.o
+	$(AR) dv libgcc_stripped.a _negvsi2.o
+	$(AR) dv libgcc_stripped.a _paritydi2.o
+	$(AR) dv libgcc_stripped.a _paritysi2.o
+	$(AR) dv libgcc_stripped.a _popcountdi2.o
+	$(AR) dv libgcc_stripped.a _popcountsi2.o
+	$(AR) dv libgcc_stripped.a _powidf2.o
+	$(AR) dv libgcc_stripped.a _powisf2.o
+	$(AR) dv libgcc_stripped.a _subvdi3.o
+	$(AR) dv libgcc_stripped.a _subvsi3.o
+	$(AR) dv libgcc_stripped.a _truncdfsf2.o
+	$(AR) dv libgcc_stripped.a _ucmpdi2.o
+	$(AR) dv libgcc_stripped.a _udiv_w_sdiv.o
+	$(AR) dv libgcc_stripped.a _udivdi3.o
+	$(AR) dv libgcc_stripped.a _udivmoddi4.o
+	$(AR) dv libgcc_stripped.a _udivsi3.o
+	$(AR) dv libgcc_stripped.a _umoddi3.o
+	$(AR) dv libgcc_stripped.a _umodsi3.o
+	$(AR) dv libgcc_stripped.a _umulsidi3.o
 
 # This clean everything
 clean:
@@ -303,7 +280,6 @@ clean:
 	-@find ./ -type f -name '$(notdir $(LIBGCC_STRIPPED))' -delete
 	-@find ./$(OBJ_DIR)/ -type f -name '*.o' -delete
 	-@rm -rf docs
-	-@make -C ./web clean
 
 ################################################################################
 # Targets for Flashing
@@ -313,9 +289,9 @@ clean:
 burn : $(FW_FILE1) $(FW_FILE2)
 	$(ESPTOOL_PY) $(FWBURNFLAGS) --port $(PORT) write_flash -fm dio $(FLASH_WRITE_FLAGS) 0x00000 $(FW_FILE1) 0x10000 $(FW_FILE2)
 
-# Build everything and burn the two firmware files, init data, and the webpage
+# Build everything and burn the two firmware files, and init data
 burnitall : all
-	$(ESPTOOL_PY) $(FWBURNFLAGS) --port $(PORT) write_flash -fm dio $(FLASH_WRITE_FLAGS) 0x00000 $(FW_FILE1) 0x10000 $(FW_FILE2) 0x1FB000 $(SDK)/bin/blank.bin 0x1FC000 $(SDK)/bin/esp_init_data_default_v08.bin 0x1FE000 $(SDK)/bin/blank.bin $(MFS_PAGE_OFFSET) $(WEBPAGE_MFS)
+	$(ESPTOOL_PY) $(FWBURNFLAGS) --port $(PORT) write_flash -fm dio $(FLASH_WRITE_FLAGS) 0x00000 $(FW_FILE1) 0x10000 $(FW_FILE2) 0x1FB000 $(SDK)/bin/blank.bin 0x1FC000 $(SDK)/bin/esp_init_data_default_v08.bin 0x1FE000 $(SDK)/bin/blank.bin
 
 # Erase the ESP8266
 erase :
@@ -356,8 +332,7 @@ docs :
 
 # Update the submodules
 bump_submodule :
-	cd esp82xx; git pull origin master; git submodule update --init --recursive; cd ..
-	cd esp82xx/toolchain/esp_nonos_sdk; git pull origin master; git submodule update --init --recursive; cd ../../..
+	cd ESP8266_NONOS_SDK; git pull origin master; git submodule update --init --recursive; cd ..
 
 # Print any value from this makefile
 print-%  : ; @echo $* = $($*)

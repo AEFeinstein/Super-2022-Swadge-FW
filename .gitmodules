@@ -1,6 +1,6 @@
 [submodule "piflash/esptool"]
 	path = piflash/esptool
 	url = https://github.com/espressif/esptool
-[submodule "firmware/esp82xx"]
-	path = firmware/esp82xx
-	url = https://github.com/AEFeinstein/esp82xx
+[submodule "firmware/ESP8266_NONOS_SDK"]
+	path = firmware/ESP8266_NONOS_SDK
+	url = https://github.com/espressif/ESP8266_NONOS_SDK

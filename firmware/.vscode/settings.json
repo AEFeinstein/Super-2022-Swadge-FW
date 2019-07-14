@@ -1,5 +1,13 @@
 {
     "astyle.astylerc": "${workspaceFolder}/astylerc",
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/CVS": true,
+        "**/.DS_Store": true,
+        "**/ESP8266_NONOS_SDK/**": true
+    },
     "files.associations": {
         "DFT32.h": "c",
         "embeddednf.h": "c",
@@ -40,6 +48,10 @@
         "mode_reflector_game.h": "c",
         "morse_code.h": "c",
         "user_main.h": "c",
-        "ws2812_i2s.h": "c"
+        "ws2812_i2s.h": "c",
+        "user_interface.h": "c",
+        "partitionmap.h": "c",
+        "c_types.h": "c",
+        "osapi.h": "c"
     }
 }

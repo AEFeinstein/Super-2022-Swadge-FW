@@ -16,13 +16,13 @@ You can also set up a Linux virtual machine, like [Xubuntu](https://xubuntu.org/
     $ sudo apt-get dist-upgrade
     $ sudo apt-get install build-essential make unrar-free autoconf automake libtool gcc g++ gperf flex bison texinfo gawk ncurses-dev libexpat-dev python-dev python python-serial sed git unzip bash help2man wget bzip2 libtool-bin libusb-1.0-0-dev
     ```
-1. Check out the [pfalcon's esp-open-sdk](https://github.com/pfalcon/esp-open-sdk), move to the ```esp-open-sdk``` folder and build it. More detailed instructions are on this project's page. Warning, building this takes a while (like 30 minutes)!
+1. Check out the [pfalcon's esp-open-sdk](https://github.com/pfalcon/esp-open-sdk), move to the ```esp-open-sdk``` folder and build it. More detailed instructions are on that project's page. Warning, building this takes a while (like 30 minutes)!
     ```
     $ git clone --recursive https://github.com/pfalcon/esp-open-sdk.git
     $ cd esp-open-sdk/
     /esp-open-sdk$ make
     ```
-1. Set up environment variables by appending the following to your ```.bashrc``` file. You'll want to modify them with your own home folder name. If you're using WSL, you might have to [follow these instructions to remove Windows paths from your ```PATH``` variable](https://stackoverflow.com/a/51345880).
+1. Set up environment variables by appending the following to your ```.bashrc``` file. You'll want to modify them with your own home folder name.
     ```
     $ nano ~/.bashrc
     
@@ -42,7 +42,6 @@ You can also set up a Linux virtual machine, like [Xubuntu](https://xubuntu.org/
     /Swadge-Devkit-Fw/firmware$ sudo chmod 666 /dev/ttyS4
     /Swadge-Devkit-Fw/firmware$ make burn
     ```
-    If you have problems with flashing the firmware or transfering page data over network (`make netburn` or `make netweb`), you should removing ```VERIFY_FLASH_WRITE``` from the makefile's list of ```DEFINES```. This way the ESP checks if the flash is written correctly.
 
 # 3. Setting up an IDE
  

@@ -9,12 +9,13 @@
  * Includes
  *==========================================================================*/
 
+#include <osapi.h>
+#include <stdint.h>
+#include <user_interface.h>
+
 #include "ccconfig.h"
 #include "user_main.h"
-#include <stdint.h>
-#include "user_interface.h"
 #include "user_main.h"
-#include "osapi.h"
 #include "embeddedout.h"
 #include "custom_commands.h"
 
