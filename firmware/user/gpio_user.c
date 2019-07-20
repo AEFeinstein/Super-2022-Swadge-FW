@@ -51,13 +51,6 @@ static const gpioInfo_t gpioInfoInput[] =
         .periph = PERIPHS_IO_MUX_MTCK_U,
         .initialState = 1
     },
-    // Down
-    {
-        .GPID = 5,
-        .func = FUNC_GPIO5,
-        .periph = PERIPHS_IO_MUX_GPIO5_U,
-        .initialState = 1
-    },
     // Left
     {
         .GPID = 4,
@@ -70,6 +63,13 @@ static const gpioInfo_t gpioInfoInput[] =
         .GPID = 12,
         .func = FUNC_GPIO12,
         .periph = PERIPHS_IO_MUX_MTDI_U,
+        .initialState = 1
+    },
+    // Down
+    {
+        .GPID = 5,
+        .func = FUNC_GPIO5,
+        .periph = PERIPHS_IO_MUX_GPIO5_U,
         .initialState = 1
     },
 };
