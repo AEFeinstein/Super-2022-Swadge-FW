@@ -168,4 +168,7 @@ void ICACHE_FLASH_ATTR swadgeModeEspNowSendCb(uint8_t* mac_addr, mt_tx_status st
 void EnterCritical(void);
 void ExitCritical(void);
 
+uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode *** modePtr);
+void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode);
+
 #endif /* USER_USER_MAIN_H_ */

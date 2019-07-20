@@ -25,6 +25,7 @@
 #include "QMA6981.h"
 #include "MMA8452Q.h"
 
+#include "mode_menu.h"
 #include "mode_guitar_tuner.h"
 #include "mode_colorchord.h"
 #include "mode_reflector_game.h"
@@ -61,6 +62,7 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
 {
+    &menuMode, // Menu must be the first
     &demoMode,
     &colorchordMode,
     &reflectorGameMode,
@@ -84,8 +86,6 @@ void ICACHE_FLASH_ATTR user_init(void);
 
 static void ICACHE_FLASH_ATTR procTask(os_event_t* events);
 static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg);
-
-void ICACHE_FLASH_ATTR incrementSwadgeMode(void);
 
 /*============================================================================
  * Initialization Functions
@@ -212,6 +212,8 @@ void ICACHE_FLASH_ATTR user_init(void)
     if(true == begin(true))
     {
         os_printf("OLED initialized\n");
+        clearDisplay();
+        display();
     }
     else
     {
@@ -223,6 +225,10 @@ void ICACHE_FLASH_ATTR user_init(void)
     {
         StartHPATimer();
     }
+
+    // Turn LEDs off
+    led_t leds[NUM_LIN_LEDS] = {{0}};
+    setLeds(leds, sizeof(leds));
 
     // Initialize the current mode
     if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEnterMode)
@@ -381,8 +387,10 @@ void ExitCritical(void)
  * This deinitializes the current mode if it is initialized, displays the next
  * mode's LED pattern, and starts a timer to reboot into the next mode.
  * If the reboot timer is running, it will be reset
+ * 
+ * @param newMode The index of the new mode
  */
-void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
+void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
 {
     // If the mode is initialized, tear it down
     if(swadgeModeInit)
@@ -412,7 +420,7 @@ void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
     }
 
     // Switch to the next mode, or start from the beginning if we're at the end
-    rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
+    rtcMem.currentSwadgeMode = newMode;
 
     // Write the RTC memory so it knows what mode to be in when waking up
     system_rtc_mem_write(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem));
@@ -449,6 +457,18 @@ void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
     system_deep_sleep(1000);
 }
 
+/**
+ * Return the array of swadge mode pointers through a parameter and the number
+ * of modes through the return value
+ *
+ * @return the number of swadge modes
+ */
+uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr)
+{
+    *modePtr = swadgeModes;
+    return (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
+}
+
 /*============================================================================
  * Swadge Mode Callback Functions
  *==========================================================================*/
@@ -465,8 +485,8 @@ void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int d
 {
     if(0 == button)
     {
-        // Switch the mode
-        incrementSwadgeMode();
+        // Go back to the menu
+        switchToSwadgeMode(0);
     }
     else if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
     {
