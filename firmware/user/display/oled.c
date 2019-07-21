@@ -57,6 +57,7 @@ typedef enum
     SSD1306_SETMULTIPLEX        = 0xA8,
     SSD1306_DISPLAYOFF          = 0xAE,
     SSD1306_DISPLAYON           = 0xAF,
+    SSD1306_PAGEADDRPAGING      = 0xB0,
     SSD1306_COMSCANINC          = 0xC0,
     SSD1306_COMSCANDEC          = 0xC8,
     SSD1306_SETDISPLAYOFFSET    = 0xD3,
@@ -109,11 +110,15 @@ void ICACHE_FLASH_ATTR setVcomhDeselectLevel(VcomhDeselectLevel level);
 
 void ICACHE_FLASH_ATTR setChargePumpSetting(bool enable);
 
+void ICACHE_FLASH_ATTR setPageAddressPagingMode(uint8_t page);
+void ICACHE_FLASH_ATTR setLowerColAddrPagingMode(uint8_t col);
+void ICACHE_FLASH_ATTR setUpperColAddrPagingMode(uint8_t col);
+
 //==============================================================================
 // Variables
 //==============================================================================
 
-uint8_t buffer[1 + (OLED_WIDTH * (OLED_HEIGHT / 8))] = { SSD1306_DATA };
+uint8_t buffer[(OLED_WIDTH * (OLED_HEIGHT / 8))] = { 0 };
 
 //==============================================================================
 // Functions
@@ -125,7 +130,6 @@ uint8_t buffer[1 + (OLED_WIDTH * (OLED_HEIGHT / 8))] = { SSD1306_DATA };
 void ICACHE_FLASH_ATTR clearDisplay(void)
 {
     ets_memset(buffer, 0, sizeof(buffer));
-    buffer[0] = SSD1306_DATA;
 }
 
 /**
@@ -147,7 +151,6 @@ void ICACHE_FLASH_ATTR fillDisplayArea(uint8_t x1, uint8_t y1, uint8_t x2, uint8
             drawPixel(x, y, c);
         }
     }
-    buffer[0] = SSD1306_DATA;
 }
 
 /**
@@ -174,13 +177,13 @@ void ICACHE_FLASH_ATTR drawPixel(uint8_t x, uint8_t y, color c)
         switch(c)
         {
             case WHITE:
-                buffer[1 + (x + (y / 8)*OLED_WIDTH)] |=  (1 << (y & 7));
+                buffer[(x + (y / 8)*OLED_WIDTH)] |=  (1 << (y & 7));
                 break;
             case BLACK:
-                buffer[1 + (x + (y / 8)*OLED_WIDTH)] &= ~(1 << (y & 7));
+                buffer[(x + (y / 8)*OLED_WIDTH)] &= ~(1 << (y & 7));
                 break;
             case INVERSE:
-                buffer[1 + (x + (y / 8)*OLED_WIDTH)] ^=  (1 << (y & 7));
+                buffer[(x + (y / 8)*OLED_WIDTH)] ^=  (1 << (y & 7));
                 break;
             default:
             {
@@ -219,7 +222,7 @@ bool ICACHE_FLASH_ATTR begin(bool reset)
     setMultiplexRatio(OLED_HEIGHT - 1);
     setDisplayOffset(0);
     setDisplayStartLine(0);
-    setMemoryAddressingMode(HORIZONTAL_ADDRESSING);
+    setMemoryAddressingMode(PAGE_ADDRESSING);
     setSegmentRemap(true);
     setComOutputScanDirection(false);
     setComPinsHardwareConfig(true, false);
@@ -248,10 +251,25 @@ bool ICACHE_FLASH_ATTR display(void)
     // Start i2c
     brzo_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
 
-    setPageAddress(0, 7);
-    setColumnAddress(0, OLED_WIDTH - 1);
-    brzo_i2c_write(buffer, sizeof(buffer), false);
+    // Draw the display, one byte at a time
+    uint8_t individualPage[2] = {SSD1306_DATA};
+    for(int p = 0; p < 8; p++)
+    {
+        // Address the page
+        setPageAddressPagingMode(p);
+        for(int c = 0; c < 128; c++)
+        {
+            // Address the column by splitting the nibbles
+            setLowerColAddrPagingMode(c & 0x0F);
+            setUpperColAddrPagingMode((c >> 4) & 0x0F);
 
+            // Pick the byte out of the framebuffer
+            individualPage[1] = buffer[(p * 128) + c];
+
+            // Write the data
+            brzo_i2c_write(individualPage, sizeof(individualPage), false);
+        }
+    }
     // end i2c
     return (0 == brzo_i2c_end_transaction());
 }
@@ -426,6 +444,63 @@ void ICACHE_FLASH_ATTR setPageAddress(uint8_t startAddr, uint8_t endAddr)
         SSD1306_PAGEADDR,
         startAddr,
         endAddr
+    };
+    brzo_i2c_write(data, sizeof(data), false);
+}
+
+/**
+ * @brief When in PAGE_ADDRESSING, address the page to write to 
+ *
+ * @param page The page to write to, 0 to 7
+ */
+void ICACHE_FLASH_ATTR setPageAddressPagingMode(uint8_t page)
+{
+    if(page > 7)
+    {
+        return;
+    }
+    uint8_t data[] =
+    {
+        SSD1306_CMD,
+        SSD1306_PAGEADDRPAGING + page,
+    };
+    brzo_i2c_write(data, sizeof(data), false);
+}
+
+/**
+ * @brief When in PAGE_ADDRESSING, address the column's lower nibble
+ *
+ * @param col The lower nibble of the column to write to, 0 to 15
+ */
+void ICACHE_FLASH_ATTR setLowerColAddrPagingMode(uint8_t col)
+{
+    if(col > 15)
+    {
+        return;
+    }
+    uint8_t data[] =
+    {
+        SSD1306_CMD,
+        SSD1306_SETLOWCOLUMN + col,
+    };
+    brzo_i2c_write(data, sizeof(data), false);
+}
+
+/**
+ * @brief When in PAGE_ADDRESSING, address the column's upper nibble
+ *
+ * @param col The upper nibble of the column to write to, 0 to 15
+ */
+void ICACHE_FLASH_ATTR setUpperColAddrPagingMode(uint8_t col)
+{
+    if(col > 15)
+    {
+        return;
+    }
+    uint8_t data[] =
+    {
+        SSD1306_CMD,
+        SSD1306_SETHIGHCOLUMN + col,
     };
     brzo_i2c_write(data, sizeof(data), false);
 }
