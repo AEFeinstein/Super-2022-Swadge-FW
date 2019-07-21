@@ -20,13 +20,16 @@
 //==============================================================================
 
 #define OLED_ADDRESS (0x78 >> 1)
-#define OLED_FREQ    800
+#define OLED_FREQ 800
+
+#define SSD1306_NUM_PAGES 8
+#define SSD1306_NUM_COLS 128
 
 typedef enum
 {
     HORIZONTAL_ADDRESSING = 0x00,
-    VERTICAL_ADDRESSING   = 0x01,
-    PAGE_ADDRESSING       = 0x02
+    VERTICAL_ADDRESSING = 0x01,
+    PAGE_ADDRESSING = 0x02
 } memoryAddressingMode;
 
 typedef enum
@@ -38,48 +41,48 @@ typedef enum
 
 typedef enum
 {
-    SSD1306_CMD  = 0x00,
+    SSD1306_CMD = 0x00,
     SSD1306_DATA = 0x40
 } SSD1306_prefix;
 
 typedef enum
 {
-    SSD1306_MEMORYMODE          = 0x20,
-    SSD1306_COLUMNADDR          = 0x21,
-    SSD1306_PAGEADDR            = 0x22,
-    SSD1306_SETCONTRAST         = 0x81,
-    SSD1306_CHARGEPUMP          = 0x8D,
-    SSD1306_SEGREMAP            = 0xA0,
+    SSD1306_MEMORYMODE = 0x20,
+    SSD1306_COLUMNADDR = 0x21,
+    SSD1306_PAGEADDR = 0x22,
+    SSD1306_SETCONTRAST = 0x81,
+    SSD1306_CHARGEPUMP = 0x8D,
+    SSD1306_SEGREMAP = 0xA0,
     SSD1306_DISPLAYALLON_RESUME = 0xA4,
-    SSD1306_DISPLAYALLON        = 0xA5,
-    SSD1306_NORMALDISPLAY       = 0xA6,
-    SSD1306_INVERTDISPLAY       = 0xA7,
-    SSD1306_SETMULTIPLEX        = 0xA8,
-    SSD1306_DISPLAYOFF          = 0xAE,
-    SSD1306_DISPLAYON           = 0xAF,
-    SSD1306_PAGEADDRPAGING      = 0xB0,
-    SSD1306_COMSCANINC          = 0xC0,
-    SSD1306_COMSCANDEC          = 0xC8,
-    SSD1306_SETDISPLAYOFFSET    = 0xD3,
-    SSD1306_SETDISPLAYCLOCKDIV  = 0xD5,
-    SSD1306_SETPRECHARGE        = 0xD9,
-    SSD1306_SETCOMPINS          = 0xDA,
-    SSD1306_SETVCOMDETECT       = 0xDB,
+    SSD1306_DISPLAYALLON = 0xA5,
+    SSD1306_NORMALDISPLAY = 0xA6,
+    SSD1306_INVERTDISPLAY = 0xA7,
+    SSD1306_SETMULTIPLEX = 0xA8,
+    SSD1306_DISPLAYOFF = 0xAE,
+    SSD1306_DISPLAYON = 0xAF,
+    SSD1306_PAGEADDRPAGING = 0xB0,
+    SSD1306_COMSCANINC = 0xC0,
+    SSD1306_COMSCANDEC = 0xC8,
+    SSD1306_SETDISPLAYOFFSET = 0xD3,
+    SSD1306_SETDISPLAYCLOCKDIV = 0xD5,
+    SSD1306_SETPRECHARGE = 0xD9,
+    SSD1306_SETCOMPINS = 0xDA,
+    SSD1306_SETVCOMDETECT = 0xDB,
 
-    SSD1306_SETLOWCOLUMN        = 0x00,
-    SSD1306_SETHIGHCOLUMN       = 0x10,
-    SSD1306_SETSTARTLINE        = 0x40,
+    SSD1306_SETLOWCOLUMN = 0x00,
+    SSD1306_SETHIGHCOLUMN = 0x10,
+    SSD1306_SETSTARTLINE = 0x40,
 
-    SSD1306_EXTERNALVCC         = 0x01,
-    SSD1306_SWITCHCAPVCC        = 0x02,
+    SSD1306_EXTERNALVCC = 0x01,
+    SSD1306_SWITCHCAPVCC = 0x02,
 
-    SSD1306_RIGHT_HORIZONTAL_SCROLL              = 0x26,
-    SSD1306_LEFT_HORIZONTAL_SCROLL               = 0x27,
+    SSD1306_RIGHT_HORIZONTAL_SCROLL = 0x26,
+    SSD1306_LEFT_HORIZONTAL_SCROLL = 0x27,
     SSD1306_VERTICAL_AND_RIGHT_HORIZONTAL_SCROLL = 0x29,
-    SSD1306_VERTICAL_AND_LEFT_HORIZONTAL_SCROLL  = 0x2A,
-    SSD1306_DEACTIVATE_SCROLL                    = 0x2E,
-    SSD1306_ACTIVATE_SCROLL                      = 0x2F,
-    SSD1306_SET_VERTICAL_SCROLL_AREA             = 0xA3,
+    SSD1306_VERTICAL_AND_LEFT_HORIZONTAL_SCROLL = 0x2A,
+    SSD1306_DEACTIVATE_SCROLL = 0x2E,
+    SSD1306_ACTIVATE_SCROLL = 0x2F,
+    SSD1306_SET_VERTICAL_SCROLL_AREA = 0xA3,
 } SSD1306_cmd;
 
 //==============================================================================
@@ -114,11 +117,15 @@ void ICACHE_FLASH_ATTR setPageAddressPagingMode(uint8_t page);
 void ICACHE_FLASH_ATTR setLowerColAddrPagingMode(uint8_t col);
 void ICACHE_FLASH_ATTR setUpperColAddrPagingMode(uint8_t col);
 
+bool ICACHE_FLASH_ATTR findDiffBounds(uint8_t* prior, uint8_t* curr, int16_t* bounds);
+void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* curr, int16_t* bounds);
+
 //==============================================================================
 // Variables
 //==============================================================================
 
-uint8_t buffer[(OLED_WIDTH * (OLED_HEIGHT / 8))] = { 0 };
+uint8_t currentFb[(OLED_WIDTH * (OLED_HEIGHT / 8))] = {0};
+uint8_t priorFb[(OLED_WIDTH * (OLED_HEIGHT / 8))] = {0};
 
 //==============================================================================
 // Functions
@@ -129,7 +136,7 @@ uint8_t buffer[(OLED_WIDTH * (OLED_HEIGHT / 8))] = { 0 };
  */
 void ICACHE_FLASH_ATTR clearDisplay(void)
 {
-    ets_memset(buffer, 0, sizeof(buffer));
+    ets_memset(currentFb, 0, sizeof(currentFb));
 }
 
 /**
@@ -144,9 +151,9 @@ void ICACHE_FLASH_ATTR clearDisplay(void)
 void ICACHE_FLASH_ATTR fillDisplayArea(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, color c)
 {
     uint8_t x, y;
-    for(x = x1; x <= x2; x++)
+    for (x = x1; x <= x2; x++)
     {
-        for(y = y1; y <= y2; y++)
+        for (y = y1; y <= y2; y++)
         {
             drawPixel(x, y, c);
         }
@@ -162,11 +169,11 @@ void ICACHE_FLASH_ATTR fillDisplayArea(uint8_t x1, uint8_t y1, uint8_t x2, uint8
  */
 void ICACHE_FLASH_ATTR drawPixel(uint8_t x, uint8_t y, color c)
 {
-    if((x < OLED_WIDTH) && (y < OLED_HEIGHT))
+    if ((x < OLED_WIDTH) && (y < OLED_HEIGHT))
     {
-        x = (OLED_WIDTH  - 1) - x;
+        x = (OLED_WIDTH - 1) - x;
         y = (OLED_HEIGHT - 1) - y;
-        if(y % 2 == 0)
+        if (y % 2 == 0)
         {
             y = (y >> 1);
         }
@@ -174,16 +181,16 @@ void ICACHE_FLASH_ATTR drawPixel(uint8_t x, uint8_t y, color c)
         {
             y = (y >> 1) + (OLED_HEIGHT >> 1);
         }
-        switch(c)
+        switch (c)
         {
             case WHITE:
-                buffer[(x + (y / 8)*OLED_WIDTH)] |=  (1 << (y & 7));
+                currentFb[(x + (y / 8) * OLED_WIDTH)] |= (1 << (y & 7));
                 break;
             case BLACK:
-                buffer[(x + (y / 8)*OLED_WIDTH)] &= ~(1 << (y & 7));
+                currentFb[(x + (y / 8) * OLED_WIDTH)] &= ~(1 << (y & 7));
                 break;
             case INVERSE:
-                buffer[(x + (y / 8)*OLED_WIDTH)] ^=  (1 << (y & 7));
+                currentFb[(x + (y / 8) * OLED_WIDTH)] ^= (1 << (y & 7));
                 break;
             default:
             {
@@ -199,17 +206,17 @@ void ICACHE_FLASH_ATTR drawPixel(uint8_t x, uint8_t y, color c)
  * @param reset true to reset the OLED using the RST line, false to leave it alone
  * @return true if it initialized, false if it failed
  */
-bool ICACHE_FLASH_ATTR begin(bool reset)
+bool ICACHE_FLASH_ATTR initOLED(bool reset)
 {
     // Clear the RAM
     clearDisplay();
 
     // Reset SSD1306 if requested and reset pin specified in constructor
-    if(reset)
+    if (reset)
     {
         setOledResetOn(true);  // VDD goes high at start
         ets_delay_us(1000);    // pause for 1 ms
-        setOledResetOn(false);  // Bring reset low
+        setOledResetOn(false); // Bring reset low
         ets_delay_us(10000);   // Wait 10 ms
         setOledResetOn(true);  // Bring out of reset
     }
@@ -236,8 +243,130 @@ bool ICACHE_FLASH_ATTR begin(bool reset)
     activateScroll(false);
     setDisplayOn(true);
 
+    // Also clear the display's RAM on boot
+    uint8_t page;
+    uint8_t clearPage[1 + SSD1306_NUM_COLS] = {0};
+    clearPage[0] = SSD1306_DATA;
+    for (page = 0; page < SSD1306_NUM_PAGES; page++)
+    {
+        // Address the page
+        setPageAddressPagingMode(page);
+        setLowerColAddrPagingMode(0);
+        setUpperColAddrPagingMode(0);
+
+        // Write the data
+        brzo_i2c_write(clearPage, sizeof(clearPage), false);
+    }
+
     // End i2c
     return (0 == brzo_i2c_end_transaction());
+}
+
+/**
+ * @brief Find the first and last differences in a page
+ *
+ * @param prior The prior framebuffer to compare
+ * @param curr  The current framebuffer to compare
+ * @param bounds A pointer to return the first and last difference index through
+ * @return true if there are any differences, false otherwise
+ */
+inline bool ICACHE_FLASH_ATTR findDiffBounds(uint8_t* prior, uint8_t* curr, int16_t* bounds)
+{
+    int16_t col;
+    bool anyDiffs = false;
+    // Look for the first difference
+    for (col = 0; col < SSD1306_NUM_COLS; col++)
+    {
+        // If there's a difference
+        if (prior[col] != curr[col])
+        {
+            // Mark it
+            bounds[0] = col;
+            // Then look for the last difference
+            for (col = SSD1306_NUM_COLS - 1; col >= 0; col--)
+            {
+                // If there's a difference
+                if (prior[col] != curr[col])
+                {
+                    // Mark it
+                    bounds[1] = col;
+                    break;
+                }
+            }
+            anyDiffs = true;
+            break;
+        }
+    }
+    return anyDiffs;
+}
+
+/**
+ * Send the differences between the prior frame and the current frame to the
+ * OLED using the fewest number of SPI bytes
+ *
+ * @param prior The prior frame
+ * @param curr  The current frame
+ * @param bounds The indices of the first and last differences
+ */
+inline void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* curr, int16_t* bounds)
+{
+    int16_t col;
+
+    // Address the page
+    setPageAddressPagingMode(page);
+
+    uint8_t numBytesDifferent = 0;
+    uint8_t numBytesSame = 0;
+    int16_t colAddr = -1;
+
+    // For the range of bytes with differences
+    for (col = bounds[0]; col <= bounds[1]; col++)
+    {
+        // Check if the bytes are different
+        if (prior[col] != curr[col])
+        {
+            // No colAddr yet, so just starting
+            if (-1 == colAddr)
+            {
+                numBytesDifferent = 0;
+                colAddr = col;
+            }
+
+            // Take into account same bytes that weren't counted here
+            if (numBytesSame > 0)
+            {
+                numBytesDifferent += numBytesSame;
+                numBytesSame = 0;
+            }
+
+            numBytesDifferent++;
+        }
+        else
+        {
+            // Bytes are the same
+            numBytesSame++;
+        }
+
+        // If there are at least two bytes that haven't changed, write them
+        // Addressing takes two bytes, so this is the break-even point
+        // Also write bytes when we're at the end of the page
+        if (((-1 != colAddr) && numBytesSame >= 2) || (col == bounds[1]))
+        {
+            setLowerColAddrPagingMode(colAddr & 0x0F);
+            setUpperColAddrPagingMode((colAddr >> 4) & 0x0F);
+
+            uint8_t diffs[1 + numBytesDifferent];
+            diffs[0] = SSD1306_DATA;
+            memcpy(&diffs[1], &curr[colAddr], numBytesDifferent);
+
+            // Write the data
+            brzo_i2c_write(diffs, sizeof(diffs), false);
+
+            numBytesDifferent = 0;
+            numBytesSame = 0;
+            colAddr = -1;
+        }
+    }
 }
 
 /**
@@ -246,30 +375,53 @@ bool ICACHE_FLASH_ATTR begin(bool reset)
  *
  * @return true if the data was sent, false if it failed
  */
-bool ICACHE_FLASH_ATTR display(void)
+bool ICACHE_FLASH_ATTR updateOLED(void)
 {
+    int16_t page;
+    bool anyDiffs = false;
+    int16_t diffBounds[SSD1306_NUM_PAGES][2] =
+    {
+        {-1, -1},
+        {-1, -1},
+        {-1, -1},
+        {-1, -1},
+        {-1, -1},
+        {-1, -1},
+        {-1, -1},
+        {-1, -1},
+    };
+
+    // Compare the prior and current framebuffers, looking for any differences
+    for (page = 0; page < SSD1306_NUM_PAGES; page++)
+    {
+        if (findDiffBounds(&priorFb[page * SSD1306_NUM_COLS], &currentFb[page * SSD1306_NUM_COLS], diffBounds[page]))
+        {
+            anyDiffs = true;
+        }
+    }
+
+    // No framebuffer updates, just return
+    if (false == anyDiffs)
+    {
+        return true;
+    }
+
     // Start i2c
     brzo_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
 
-    // Draw the display, one byte at a time
-    uint8_t individualPage[2] = {SSD1306_DATA};
-    for(int p = 0; p < 8; p++)
+    // Find the actual differences and push them out
+    for (page = 0; page < SSD1306_NUM_PAGES; page++)
     {
-        // Address the page
-        setPageAddressPagingMode(p);
-        for(int c = 0; c < 128; c++)
+        // If there's a difference in this page, look harder
+        if (0 <= diffBounds[page][0])
         {
-            // Address the column by splitting the nibbles
-            setLowerColAddrPagingMode(c & 0x0F);
-            setUpperColAddrPagingMode((c >> 4) & 0x0F);
-
-            // Pick the byte out of the framebuffer
-            individualPage[1] = buffer[(p * 128) + c];
-
-            // Write the data
-            brzo_i2c_write(individualPage, sizeof(individualPage), false);
+            checkPage(page, &priorFb[page * SSD1306_NUM_COLS], &currentFb[page * SSD1306_NUM_COLS], diffBounds[page]);
         }
     }
+
+    // Copy the framebuffer to the prior
+    memcpy(priorFb, currentFb, sizeof(currentFb));
+
     // end i2c
     return (0 == brzo_i2c_end_transaction());
 }
@@ -350,8 +502,6 @@ void ICACHE_FLASH_ATTR setDisplayOn(bool on)
     brzo_i2c_write(data, sizeof(data), false);
 }
 
-
-
 //==============================================================================
 // Scrolling Command Table
 //==============================================================================
@@ -410,7 +560,7 @@ void ICACHE_FLASH_ATTR setMemoryAddressingMode(memoryAddressingMode mode)
  */
 void ICACHE_FLASH_ATTR setColumnAddress(uint8_t startAddr, uint8_t endAddr)
 {
-    if(startAddr > 127 || endAddr > 127)
+    if (startAddr > 127 || endAddr > 127)
     {
         return;
     }
@@ -434,7 +584,7 @@ void ICACHE_FLASH_ATTR setColumnAddress(uint8_t startAddr, uint8_t endAddr)
  */
 void ICACHE_FLASH_ATTR setPageAddress(uint8_t startAddr, uint8_t endAddr)
 {
-    if(startAddr > 7 || endAddr > 7)
+    if (startAddr > 7 || endAddr > 7)
     {
         return;
     }
@@ -449,13 +599,13 @@ void ICACHE_FLASH_ATTR setPageAddress(uint8_t startAddr, uint8_t endAddr)
 }
 
 /**
- * @brief When in PAGE_ADDRESSING, address the page to write to 
+ * @brief When in PAGE_ADDRESSING, address the page to write to
  *
  * @param page The page to write to, 0 to 7
  */
 void ICACHE_FLASH_ATTR setPageAddressPagingMode(uint8_t page)
 {
-    if(page > 7)
+    if (page > 7)
     {
         return;
     }
@@ -474,7 +624,7 @@ void ICACHE_FLASH_ATTR setPageAddressPagingMode(uint8_t page)
  */
 void ICACHE_FLASH_ATTR setLowerColAddrPagingMode(uint8_t col)
 {
-    if(col > 15)
+    if (col > 15)
     {
         return;
     }
@@ -493,7 +643,7 @@ void ICACHE_FLASH_ATTR setLowerColAddrPagingMode(uint8_t col)
  */
 void ICACHE_FLASH_ATTR setUpperColAddrPagingMode(uint8_t col)
 {
-    if(col > 15)
+    if (col > 15)
     {
         return;
     }
@@ -517,7 +667,7 @@ void ICACHE_FLASH_ATTR setUpperColAddrPagingMode(uint8_t col)
  */
 void ICACHE_FLASH_ATTR setDisplayStartLine(uint8_t startLineRegister)
 {
-    if(startLineRegister > 63)
+    if (startLineRegister > 63)
     {
         return;
     }
@@ -552,7 +702,7 @@ void ICACHE_FLASH_ATTR setSegmentRemap(bool colAddr)
  */
 void ICACHE_FLASH_ATTR setMultiplexRatio(uint8_t ratio)
 {
-    if(ratio < 15 || ratio > 63)
+    if (ratio < 15 || ratio > 63)
     {
         // Invalid
         return;
@@ -589,7 +739,7 @@ void ICACHE_FLASH_ATTR setComOutputScanDirection(bool increment)
  */
 void ICACHE_FLASH_ATTR setDisplayOffset(uint8_t offset)
 {
-    if(offset > 63)
+    if (offset > 63)
     {
         return;
     }
@@ -636,7 +786,7 @@ void ICACHE_FLASH_ATTR setComPinsHardwareConfig(bool sequential, bool remap)
  */
 void ICACHE_FLASH_ATTR setDisplayClockDivideRatio(uint8_t divideRatio, uint8_t oscFreq)
 {
-    if(divideRatio > 15 || oscFreq > 15)
+    if (divideRatio > 15 || oscFreq > 15)
     {
         return;
     }
@@ -659,7 +809,7 @@ void ICACHE_FLASH_ATTR setDisplayClockDivideRatio(uint8_t divideRatio, uint8_t o
  */
 void ICACHE_FLASH_ATTR setPrechargePeriod(uint8_t phase1period, uint8_t phase2period)
 {
-    if(phase1period > 15 || phase2period > 15)
+    if (phase1period > 15 || phase2period > 15)
     {
         return;
     }

@@ -139,7 +139,7 @@ void ICACHE_FLASH_ATTR demoTimerCallback(void)
     }
 
     // Update the display
-    display();
+    updateOLED();
 }
 
 /**

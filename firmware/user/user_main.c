@@ -209,11 +209,9 @@ void ICACHE_FLASH_ATTR user_init(void)
     }
 
     // Initialize display
-    if(true == begin(true))
+    if(true == initOLED(true))
     {
         os_printf("OLED initialized\n");
-        clearDisplay();
-        display();
     }
     else
     {

@@ -116,5 +116,5 @@ void ICACHE_FLASH_ATTR drawMenu(void)
                  modes[modeToDraw]->modeName, IBM_VGA_8);
     }
 
-    display();
+    updateOLED();
 }
