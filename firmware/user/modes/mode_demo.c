@@ -137,9 +137,6 @@ void ICACHE_FLASH_ATTR demoTimerCallback(void)
         // Right
         plotCircle(BTN_CTR_X + BTN_OFF, BTN_CTR_Y, BTN_RAD);
     }
-
-    // Update the display
-    updateOLED();
 }
 
 /**

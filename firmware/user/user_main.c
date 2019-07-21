@@ -351,6 +351,9 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
     }
 
     StartHPATimer(); // Init the high speed ADC timer.
+
+    // Update the display
+    updateOLED();
 }
 
 /*============================================================================
@@ -385,7 +388,7 @@ void ExitCritical(void)
  * This deinitializes the current mode if it is initialized, displays the next
  * mode's LED pattern, and starts a timer to reboot into the next mode.
  * If the reboot timer is running, it will be reset
- * 
+ *
  * @param newMode The index of the new mode
  */
 void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)

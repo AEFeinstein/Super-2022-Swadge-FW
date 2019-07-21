@@ -115,6 +115,4 @@ void ICACHE_FLASH_ATTR drawMenu(void)
         plotText(MARGIN + 6, idx * (MARGIN + FONT_HEIGHT_IBMVGA8),
                  modes[modeToDraw]->modeName, IBM_VGA_8);
     }
-
-    updateOLED();
 }
