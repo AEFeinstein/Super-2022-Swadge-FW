@@ -77,6 +77,8 @@ rtcMem_t rtcMem = {0};
 bool MMA8452Q_init = false;
 bool QMA6981_init = false;
 
+uint8_t menuChangeBarProgress = 0;
+
 /*============================================================================
  * Prototypes
  *==========================================================================*/
@@ -86,6 +88,8 @@ void ICACHE_FLASH_ATTR user_init(void);
 
 static void ICACHE_FLASH_ATTR procTask(os_event_t* events);
 static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg);
+
+static void ICACHE_FLASH_ATTR drawChangeMenuBar(void);
 
 /*============================================================================
  * Initialization Functions
@@ -352,6 +356,8 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
 
     StartHPATimer(); // Init the high speed ADC timer.
 
+    drawChangeMenuBar();
+
     // Update the display
     updateOLED();
 }
@@ -470,6 +476,30 @@ uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr)
     return (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
 }
 
+/**
+ * Draw a progress bar on the bottom of the display if the menu button is being held.
+ * When the bar fills the display, reset the mode back to the menu
+ */
+void ICACHE_FLASH_ATTR drawChangeMenuBar(void)
+{
+    if(0 < menuChangeBarProgress)
+    {
+        // Clear the bottom bar
+        fillDisplayArea(0, OLED_HEIGHT - 1, OLED_WIDTH - 1, OLED_HEIGHT - 1, BLACK);
+        // Draw the menu change progress bar
+        fillDisplayArea(0, OLED_HEIGHT - 1, menuChangeBarProgress, OLED_HEIGHT - 1, WHITE);
+        // Increment the progress for next time
+        menuChangeBarProgress++;
+
+        // If it was held for long enough
+        if(menuChangeBarProgress == OLED_WIDTH)
+        {
+            // Go back to the menu
+            switchToSwadgeMode(0);
+        }
+    }
+}
+
 /*============================================================================
  * Swadge Mode Callback Functions
  *==========================================================================*/
@@ -486,8 +516,18 @@ void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int d
 {
     if(0 == button)
     {
-        // Go back to the menu
-        switchToSwadgeMode(0);
+        // If the menu button was pressed
+        if(down)
+        {
+            // Start drawing the progress bar
+            menuChangeBarProgress = 1;
+        }
+        else
+        {
+            // If it was released, stop drawing the progress bar and clear it
+            fillDisplayArea(0, OLED_HEIGHT - 1, menuChangeBarProgress, OLED_HEIGHT - 1, BLACK);
+            menuChangeBarProgress = 0;
+        }
     }
     else if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
     {
