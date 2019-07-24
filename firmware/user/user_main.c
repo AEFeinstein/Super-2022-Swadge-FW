@@ -489,10 +489,10 @@ void ICACHE_FLASH_ATTR drawChangeMenuBar(void)
         // Draw the menu change progress bar
         fillDisplayArea(0, OLED_HEIGHT - 1, menuChangeBarProgress, OLED_HEIGHT - 1, WHITE);
         // Increment the progress for next time
-        menuChangeBarProgress++;
+        menuChangeBarProgress += 10;
 
         // If it was held for long enough
-        if(menuChangeBarProgress == OLED_WIDTH)
+        if(menuChangeBarProgress == 131)
         {
             // Go back to the menu
             switchToSwadgeMode(0);

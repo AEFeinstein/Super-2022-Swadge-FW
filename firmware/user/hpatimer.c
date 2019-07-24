@@ -129,7 +129,6 @@ void PauseHPATimer(void)
 {
     TM1_EDGE_INT_DISABLE();
     ETS_FRC1_INTR_DISABLE();
-    system_timer_reinit(); // TODO this is the SW timer??
     hpaRunning = false;
 }
 
@@ -140,7 +139,6 @@ void ContinueHPATimer(void)
 {
     TM1_EDGE_INT_ENABLE();
     ETS_FRC1_INTR_ENABLE();
-    system_timer_reinit(); // TODO this is the SW timer??
     hs_adc_start();
     hpaRunning = true;
 }
