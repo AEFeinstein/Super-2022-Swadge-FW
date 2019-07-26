@@ -1098,7 +1098,8 @@ void ICACHE_RAM_ATTR brzo_i2c_start_transaction(uint8_t slave_address, uint16_t 
 
 uint8_t ICACHE_RAM_ATTR brzo_i2c_end_transaction(void)
 {
-    // returns 0 if transaction completed successfully or error code encoded as follows
+    // returns 0 if transaction completed successfully or error code encoded as below
+    //    AND clears i2c_error for next transaction
     // Bit 0 (1) : Bus not free, i.e. either SDA or SCL is low
     // Bit 1 (2) : Not ACK ("NACK") by slave during write: Either the slave did not respond to the given slave address;
     //             or it did not ACK a byte transferred by the master.
