@@ -57,7 +57,10 @@ rtcMem_t;
  * Variables
  *==========================================================================*/
 
-static os_timer_t timerHandle100ms = {0};
+static os_timer_t timerHandlePollAccel = {0};
+static os_timer_t timerHandleUpdateDisplay = {0};
+static os_timer_t timerHandleHpaTimer = {0};
+
 os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
@@ -87,7 +90,8 @@ void ICACHE_FLASH_ATTR user_pre_init(void);
 void ICACHE_FLASH_ATTR user_init(void);
 
 static void ICACHE_FLASH_ATTR procTask(os_event_t* events);
-static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg);
+static void ICACHE_FLASH_ATTR updateDisplay(void* arg);
+static void ICACHE_FLASH_ATTR pollAccel(void* arg);
 
 static void ICACHE_FLASH_ATTR drawChangeMenuBar(void);
 
@@ -212,10 +216,23 @@ void ICACHE_FLASH_ATTR user_init(void)
         os_printf("QMA6981 not needed\n");
     }
 
+    if(QMA6981_init || MMA8452Q_init)
+    {
+        // Start a software timer to run every 100ms
+        os_timer_disarm(&timerHandlePollAccel);
+        os_timer_setfn(&timerHandlePollAccel, (os_timer_func_t*)pollAccel, NULL);
+        os_timer_arm(&timerHandlePollAccel, 100, 1);
+    }
+
     // Initialize display
     if(true == initOLED(true))
     {
         os_printf("OLED initialized\n");
+
+        // Start a software timer to run every 100ms
+        os_timer_disarm(&timerHandleUpdateDisplay);
+        os_timer_setfn(&timerHandleUpdateDisplay, (os_timer_func_t*)updateDisplay, NULL);
+        os_timer_arm(&timerHandleUpdateDisplay, 100, 1);
     }
     else
     {
@@ -225,7 +242,12 @@ void ICACHE_FLASH_ATTR user_init(void)
     // Only start the HPA timer if there's an audio callback
     if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
     {
-        StartHPATimer();
+        StartHPATimer(NULL);
+
+        // Start a software timer to run every 100ms
+        os_timer_disarm(&timerHandleHpaTimer);
+        os_timer_setfn(&timerHandleHpaTimer, (os_timer_func_t*)StartHPATimer, NULL);
+        os_timer_arm(&timerHandleHpaTimer, 100, 1);
     }
 
     // Turn LEDs off
@@ -243,11 +265,6 @@ void ICACHE_FLASH_ATTR user_init(void)
     os_printf("mode: %d: %s initialized\n", rtcMem.currentSwadgeMode,
               (NULL != swadgeModes[rtcMem.currentSwadgeMode]->modeName) ?
               (swadgeModes[rtcMem.currentSwadgeMode]->modeName) : ("No Name"));
-
-    // Start a software timer to run every 100ms
-    os_timer_disarm(&timerHandle100ms);
-    os_timer_setfn(&timerHandle100ms, (os_timer_func_t*)timerFunc100ms, NULL);
-    os_timer_arm(&timerHandle100ms, 100, 1);
 
     // Add a process to filter queued ADC samples and output LED signals
     // This is faster than every 100ms
@@ -321,18 +338,11 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
 }
 
 /**
- * Timer handler for a software timer set to fire every 100ms, forever.
- *
- * If the hardware is in wifi station mode, this Enables the hardware timer
- * to sample the ADC once the IP address has been received and printed
- *
- * Also handles logic for infrastructure wifi mode, which isn't being used
- *
- * TODO call this faster, but have each action still happen at 100ms (round robin)
+ * @brief Polls the accelerometer every 100ms
  *
  * @param arg unused
  */
-static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
+static void ICACHE_FLASH_ATTR pollAccel(void* arg __attribute__((unused)))
 {
     if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
     {
@@ -347,9 +357,16 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
         }
         swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback(&accel);
     }
+}
 
-    StartHPATimer(); // Init the high speed ADC timer.
-
+/**
+ * @brief Updated the OLED display every 100ms
+ *
+ * @param arg unused
+ */
+static void ICACHE_FLASH_ATTR updateDisplay(void* arg __attribute__((unused)))
+{
+    // Draw the menu change bar if necessary
     drawChangeMenuBar();
 
     // Update the display

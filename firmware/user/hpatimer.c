@@ -103,7 +103,7 @@ uint8_t ICACHE_FLASH_ATTR getSample(void)
  *
  * Calls ContinueHPATimer() to fully enable to timer and start an ADC reading with hs_adc_start()
  */
-void ICACHE_FLASH_ATTR StartHPATimer(void)
+void ICACHE_FLASH_ATTR StartHPATimer(void* arg __attribute__((unused)))
 {
 
     RTC_REG_WRITE(FRC1_CTRL_ADDRESS,  FRC1_AUTO_RELOAD |
