@@ -324,6 +324,9 @@ inline void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* c
 
 #ifdef PARTIAL_DOUBLE_BUFFER
 
+    // Suppresses a warning
+    (void)prior;
+
     setLowerColAddrPagingMode(bounds[0] & 0x0F);
     setUpperColAddrPagingMode((bounds[0] >> 4) & 0x0F);
 

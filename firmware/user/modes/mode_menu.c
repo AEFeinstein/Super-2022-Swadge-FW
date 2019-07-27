@@ -13,6 +13,7 @@
  *==========================================================================*/
 
 #define MARGIN 3
+#define NUM_MENU_ROWS 5
 
 /*============================================================================
  * Function prototypes
@@ -39,8 +40,10 @@ swadgeMode menuMode =
 };
 
 uint8_t numModes = 0;
-uint8_t selectedMode = 1;
 swadgeMode** modes = NULL;
+uint8_t selectedMode = 0;
+uint8_t menuPos = 0;
+uint8_t cursorPos = 0;
 
 /*============================================================================
  * Variables
@@ -55,7 +58,10 @@ void ICACHE_FLASH_ATTR modeInit(void)
     numModes = getSwadgeModes(&modes);
     // Don't count the menu as a mode
     numModes--;
+
     selectedMode = 0;
+    menuPos = 0;
+    cursorPos = 0;
 
     drawMenu();
 }
@@ -74,17 +80,66 @@ void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state __attribute__((unused)),
     {
         switch(button)
         {
-            case 1:
+            case 0:
             {
-                // Cycle to the next mode
-                selectedMode = (selectedMode + 1) % numModes;
-                drawMenu();
+                // Select the mode
+                switchToSwadgeMode(1 + selectedMode);
                 break;
             }
             case 2:
             {
-                // Select the mode
-                switchToSwadgeMode(1 + selectedMode);
+                // Cycle the menu by either moving the cursor or shifting names
+                if(cursorPos < NUM_MENU_ROWS - 1)
+                {
+                    // Move the cursor
+                    cursorPos++;
+                }
+                else
+                {
+                    // Shift the names
+                    menuPos = (menuPos + 1) % numModes;
+                }
+
+                // Cycle the currently selected mode
+                selectedMode = (selectedMode + 1) % numModes;
+
+                // Draw the menu
+                drawMenu();
+                break;
+            }
+            case 1:
+            {
+                // Cycle the menu by either moving the cursor or shifting names
+                if(cursorPos > 0)
+                {
+                    // Move the cursor
+                    cursorPos--;
+                }
+                else
+                {
+                    // Shift the names
+                    if(0 == menuPos)
+                    {
+                        menuPos = numModes - 1;
+                    }
+                    else
+                    {
+                        menuPos--;
+                    }
+                }
+
+                // Cycle the currently selected mode
+                if(0 == selectedMode)
+                {
+                    selectedMode = numModes - 1;
+                }
+                else
+                {
+                    selectedMode--;
+                }
+
+                // Draw the menu
+                drawMenu();
                 break;
             }
             default:
@@ -104,13 +159,13 @@ void ICACHE_FLASH_ATTR drawMenu(void)
     clearDisplay();
 
     // Draw a cursor
-    plotText(0, 0, ">", IBM_VGA_8);
+    plotText(0, cursorPos * (MARGIN + FONT_HEIGHT_IBMVGA8), ">", IBM_VGA_8);
 
     // Draw all the mode names
     uint8_t idx;
-    for(idx = 0; idx < numModes; idx++)
+    for(idx = 0; idx < NUM_MENU_ROWS; idx++)
     {
-        uint8_t modeToDraw = 1 + ((selectedMode + idx) % numModes);
+        uint8_t modeToDraw = 1 + ((menuPos + idx) % numModes);
         plotText(MARGIN + 6, idx * (MARGIN + FONT_HEIGHT_IBMVGA8),
                  modes[modeToDraw]->modeName, IBM_VGA_8);
     }
