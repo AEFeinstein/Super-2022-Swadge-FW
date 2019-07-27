@@ -348,12 +348,6 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
         swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback(&accel);
     }
 
-    // Tick the current mode every 100ms
-    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnTimerCallback)
-    {
-        swadgeModes[rtcMem.currentSwadgeMode]->fnTimerCallback();
-    }
-
     StartHPATimer(); // Init the high speed ADC timer.
 
     drawChangeMenuBar();

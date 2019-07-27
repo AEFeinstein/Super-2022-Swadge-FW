@@ -44,7 +44,6 @@ swadgeMode randomD6Mode =
     .modeName = "Dice",
     .fnEnterMode = randInit,
     .fnExitMode = randDeinit,
-    .fnTimerCallback = NULL,
     .fnButtonCallback = randButtonCallback,
     .fnAudioCallback = NULL,
     .wifiMode = NO_WIFI,

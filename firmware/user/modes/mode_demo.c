@@ -59,7 +59,6 @@ swadgeMode demoMode =
     .modeName = "demo",
     .fnEnterMode = demoEnterMode,
     .fnExitMode = demoExitMode,
-    .fnTimerCallback = demoTimerCallback,
     .fnButtonCallback = demoButtonCallback,
     .fnAudioCallback = demoSampleHandler,
     .wifiMode = SOFT_AP,

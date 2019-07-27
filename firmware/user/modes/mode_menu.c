@@ -31,7 +31,6 @@ swadgeMode menuMode =
     .modeName = "menu",
     .fnEnterMode = modeInit,
     .fnExitMode = NULL,
-    .fnTimerCallback = NULL,
     .fnButtonCallback = modeButtonCallback,
     .fnAudioCallback = NULL,
     .wifiMode = NO_WIFI,
