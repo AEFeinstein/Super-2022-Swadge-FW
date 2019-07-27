@@ -19,6 +19,9 @@
 // Defines and Enums
 //==============================================================================
 
+#define DOUBLE_BUFFER
+#define PARTIAL_DOUBLE_BUFFER
+
 #define OLED_ADDRESS (0x78 >> 1)
 #define OLED_FREQ 800
 
@@ -117,15 +120,19 @@ void ICACHE_FLASH_ATTR setPageAddressPagingMode(uint8_t page);
 void ICACHE_FLASH_ATTR setLowerColAddrPagingMode(uint8_t col);
 void ICACHE_FLASH_ATTR setUpperColAddrPagingMode(uint8_t col);
 
-bool ICACHE_FLASH_ATTR findDiffBounds(uint8_t* prior, uint8_t* curr, int16_t* bounds);
-void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* curr, int16_t* bounds);
+#ifdef DOUBLE_BUFFER
+    bool ICACHE_FLASH_ATTR findDiffBounds(uint8_t* prior, uint8_t* curr, int16_t* bounds);
+    void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* curr, int16_t* bounds);
+#endif
 
 //==============================================================================
 // Variables
 //==============================================================================
 
 uint8_t currentFb[(OLED_WIDTH * (OLED_HEIGHT / 8))] = {0};
+#ifdef DOUBLE_BUFFER
 uint8_t priorFb[(OLED_WIDTH * (OLED_HEIGHT / 8))] = {0};
+#endif
 
 //==============================================================================
 // Functions
@@ -262,6 +269,8 @@ bool ICACHE_FLASH_ATTR initOLED(bool reset)
     return (0 == brzo_i2c_end_transaction());
 }
 
+#ifdef DOUBLE_BUFFER
+
 /**
  * @brief Find the first and last differences in a page
  *
@@ -310,11 +319,25 @@ inline bool ICACHE_FLASH_ATTR findDiffBounds(uint8_t* prior, uint8_t* curr, int1
  */
 inline void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* curr, int16_t* bounds)
 {
-    int16_t col;
-
     // Address the page
     setPageAddressPagingMode(page);
 
+#ifdef PARTIAL_DOUBLE_BUFFER
+
+    setLowerColAddrPagingMode(bounds[0] & 0x0F);
+    setUpperColAddrPagingMode((bounds[0] >> 4) & 0x0F);
+
+    uint8_t numBytesDifferent = bounds[1] - bounds[0] + 1;
+    uint8_t diffs[1 + numBytesDifferent];
+    diffs[0] = SSD1306_DATA;
+    memcpy(&diffs[1], &curr[bounds[0]], numBytesDifferent);
+
+    // Write the data
+    brzo_i2c_write(diffs, sizeof(diffs), false);
+
+#else
+
+    int16_t col;
     uint8_t numBytesDifferent = 0;
     uint8_t numBytesSame = 0;
     int16_t colAddr = -1;
@@ -367,7 +390,10 @@ inline void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* c
             colAddr = -1;
         }
     }
+#endif
 }
+
+#endif
 
 /**
  * Push data currently in RAM to SSD1306 display.
@@ -377,6 +403,8 @@ inline void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* c
  */
 bool ICACHE_FLASH_ATTR updateOLED(void)
 {
+#ifdef DOUBLE_BUFFER
+
     int16_t page;
     bool anyDiffs = false;
     int16_t diffBounds[SSD1306_NUM_PAGES][2] =
@@ -424,6 +452,31 @@ bool ICACHE_FLASH_ATTR updateOLED(void)
 
     // end i2c
     return (0 == brzo_i2c_end_transaction());
+
+#else
+
+    // Start i2c
+    brzo_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
+
+    // Find the actual differences and push them out
+    uint8_t page;
+    for (page = 0; page < SSD1306_NUM_PAGES; page++)
+    {
+        uint8_t wholePage[1 + SSD1306_NUM_COLS] = {0};
+        wholePage[0] = SSD1306_DATA;
+        memcpy(&wholePage[1], &currentFb[page * SSD1306_NUM_COLS], sizeof(wholePage) - 1);
+
+        // Address the page
+        setPageAddressPagingMode(page);
+        setLowerColAddrPagingMode(0);
+        setUpperColAddrPagingMode(0);
+        brzo_i2c_write(wholePage, sizeof(wholePage), false);
+    }
+
+    // end i2c
+    return (0 == brzo_i2c_end_transaction());
+
+#endif
 }
 
 //==============================================================================
