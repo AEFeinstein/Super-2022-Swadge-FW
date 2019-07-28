@@ -53,6 +53,7 @@
         "partitionmap.h": "c",
         "c_types.h": "c",
         "osapi.h": "c",
-        "qma6981.h": "c"
+        "qma6981.h": "c",
+        "sprite.h": "c"
     }
 }

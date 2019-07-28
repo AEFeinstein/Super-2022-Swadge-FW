@@ -24,6 +24,7 @@
 #include "DFT32.h"
 #include "embeddedout.h"
 #include "oled.h"
+#include "sprite.h"
 #include "font.h"
 #include "MMA8452Q.h"
 #include "bresenham.h"
@@ -50,6 +51,7 @@ void ICACHE_FLASH_ATTR demoButtonCallback(uint8_t state __attribute__((unused)),
 void ICACHE_FLASH_ATTR demoAccelerometerHandler(accel_t* accel);
 
 void ICACHE_FLASH_ATTR updateDisplay(void);
+static void ICACHE_FLASH_ATTR rotateBanana(void* arg __attribute__((unused)));
 
 /*============================================================================
  * Variables
@@ -72,6 +74,204 @@ static int samplesProcessed = 0;
 accel_t demoAccel = {0};
 uint8_t mButtonState = 0;
 
+static os_timer_t timerHandleBanana = {0};
+static uint8_t bananaIdx = 0;
+const sprite_t rotating_banana[] =
+{
+    // frame_0_delay-0.07s.png
+    {
+        .width = 16,
+        .height = 16,
+        .data =
+        {
+            0b0000000010000000,
+            0b0000000110000000,
+            0b0000000011000000,
+            0b0000000010100000,
+            0b0000000010010000,
+            0b0000000100010000,
+            0b0000000100001000,
+            0b0000000100001000,
+            0b0000000100001000,
+            0b0000001000001000,
+            0b0000010000001000,
+            0b0001100000010000,
+            0b0110000000100000,
+            0b0100000011000000,
+            0b0110011100000000,
+            0b0001100000000000,
+        }
+    },
+    // frame_1_delay-0.07s.png
+    {
+        .width = 16,
+        .height = 16,
+        .data =
+        {
+            0b0000000100000000,
+            0b0000000110000000,
+            0b0000000110000000,
+            0b0000000110000000,
+            0b0000001001000000,
+            0b0000001001000000,
+            0b0000001000100000,
+            0b0000001000100000,
+            0b0000010000100000,
+            0b0000010000100000,
+            0b0000010000100000,
+            0b0000100000100000,
+            0b0001000001000000,
+            0b0001000011000000,
+            0b0000111100000000,
+            0b0000000000000000,
+        }
+    },
+    // frame_2_delay-0.07s.png
+    {
+        .width = 16,
+        .height = 16,
+        .data =
+        {
+            0b0000000100000000,
+            0b0000001100000000,
+            0b0000001100000000,
+            0b0000010100000000,
+            0b0000010100000000,
+            0b0000100100000000,
+            0b0000100010000000,
+            0b0001000010000000,
+            0b0001000010000000,
+            0b0001000010000000,
+            0b0001000001000000,
+            0b0000100001000000,
+            0b0000100001000000,
+            0b0000011001000000,
+            0b0000000110000000,
+            0b0000000000000000,
+        }
+    },
+    // frame_3_delay-0.07s.png
+    {
+        .width = 16,
+        .height = 16,
+        .data =
+        {
+            0b0000001100000000,
+            0b0000001100000000,
+            0b0000011000000000,
+            0b0000101000000000,
+            0b0001001000000000,
+            0b0010001000000000,
+            0b0010000100000000,
+            0b0010000100000000,
+            0b0010000100000000,
+            0b0010000010000000,
+            0b0001000001000000,
+            0b0001000000110000,
+            0b0000100000001000,
+            0b0000011000000100,
+            0b0000000111111000,
+            0b0000000000000000,
+        }
+    },
+    // frame_4_delay-0.07s.png
+    {
+        .width = 16,
+        .height = 16,
+        .data =
+        {
+            0b0000001100000000,
+            0b0000001100000000,
+            0b0000011000000000,
+            0b0000101000000000,
+            0b0001001100000000,
+            0b0010000100000000,
+            0b0010000100000000,
+            0b0010000100000000,
+            0b0010000010000000,
+            0b0010000010000000,
+            0b0001000001000000,
+            0b0001000000100000,
+            0b0000100000011000,
+            0b0000010000000100,
+            0b0000001100000100,
+            0b0000000011111100,
+        }
+    },
+    // frame_5_delay-0.07s.png
+    {
+        .width = 16,
+        .height = 16,
+        .data =
+        {
+            0b0000000100000000,
+            0b0000001100000000,
+            0b0000001100000000,
+            0b0000010010000000,
+            0b0000010010000000,
+            0b0000100010000000,
+            0b0000100001000000,
+            0b0000100001000000,
+            0b0000100001000000,
+            0b0000100001000000,
+            0b0000100000100000,
+            0b0000010000100000,
+            0b0000010000100000,
+            0b0000001000010000,
+            0b0000001000010000,
+            0b0000000111110000,
+        }
+    },
+    // frame_6_delay-0.07s.png
+    {
+        .width = 16,
+        .height = 16,
+        .data =
+        {
+            0b0000000100000000,
+            0b0000000110000000,
+            0b0000000101000000,
+            0b0000000100100000,
+            0b0000000100100000,
+            0b0000001000100000,
+            0b0000001000010000,
+            0b0000001000010000,
+            0b0000001000010000,
+            0b0000010000010000,
+            0b0000010000100000,
+            0b0000010000100000,
+            0b0000010000100000,
+            0b0000010000100000,
+            0b0000100001000000,
+            0b0000111110000000,
+        }
+    },
+    // frame_7_delay-0.07s.png
+    {
+        .width = 16,
+        .height = 16,
+        .data =
+        {
+            0b0000000110000000,
+            0b0000000011000000,
+            0b0000000010100000,
+            0b0000000010100000,
+            0b0000000010010000,
+            0b0000000100001000,
+            0b0000000100001000,
+            0b0000000100001000,
+            0b0000000100001000,
+            0b0000001000001000,
+            0b0000010000010000,
+            0b0000100000010000,
+            0b0001000000100000,
+            0b0010000001000000,
+            0b0100000010000000,
+            0b0111111100000000,
+        }
+    },
+};
+
 /*============================================================================
  * Functions
  *==========================================================================*/
@@ -84,6 +284,11 @@ void ICACHE_FLASH_ATTR demoEnterMode(void)
     InitColorChord();
     samplesProcessed = 0;
     enableDebounce(false);
+
+    // Start a software timer to rotate the banana every 100ms
+    os_timer_disarm(&timerHandleBanana);
+    os_timer_setfn(&timerHandleBanana, (os_timer_func_t*)rotateBanana, NULL);
+    os_timer_arm(&timerHandleBanana, 100, 1);
 }
 
 /**
@@ -91,7 +296,17 @@ void ICACHE_FLASH_ATTR demoEnterMode(void)
  */
 void ICACHE_FLASH_ATTR demoExitMode(void)
 {
+    os_timer_disarm(&timerHandleBanana);
+}
 
+/**
+ * @brief Called on a timer, this rotates the banana by picking the next sprite
+ *
+ * @param arg unused
+ */
+static void ICACHE_FLASH_ATTR rotateBanana(void* arg __attribute__((unused)))
+{
+    bananaIdx = (bananaIdx + 1) % (sizeof(rotating_banana) / sizeof(rotating_banana[0]));
 }
 
 /**
@@ -137,6 +352,9 @@ void ICACHE_FLASH_ATTR updateDisplay(void)
         // Right
         plotCircle(BTN_CTR_X + BTN_OFF, BTN_CTR_Y, BTN_RAD);
     }
+
+    // Draw the banana
+    plotSprite(54, 32, &rotating_banana[bananaIdx]);
 }
 
 /**

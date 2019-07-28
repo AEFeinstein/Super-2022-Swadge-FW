@@ -4,6 +4,7 @@ sprite_t font_Radiostars[] =
 {
     {
         .width = 8,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000000,
             0b0000000000000000,
@@ -21,6 +22,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 3,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000111,
             0b0000000000000111,
@@ -38,6 +40,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 7,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000001110111,
             0b0000000001110111,
@@ -55,6 +58,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000000,
             0b0000000000110011,
@@ -72,6 +76,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000011011000,
             0b0000000011011000,
@@ -89,6 +94,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 10,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001110110000,
             0b0000001010110000,
@@ -106,6 +112,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001111111110,
             0b0000011111111111,
@@ -123,6 +130,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 3,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000111,
             0b0000000000000111,
@@ -140,6 +148,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 5,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000001111,
             0b0000000000011111,
@@ -157,6 +166,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 5,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000011110,
             0b0000000000011111,
@@ -174,6 +184,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 7,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000000,
             0b0000000000000000,
@@ -191,6 +202,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 8,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000000,
             0b0000000000000000,
@@ -208,6 +220,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 3,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000000,
             0b0000000000000000,
@@ -225,6 +238,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 8,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000000,
             0b0000000000000000,
@@ -242,6 +256,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 3,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000000,
             0b0000000000000000,
@@ -259,6 +274,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000000,
             0b0000000000000011,
@@ -276,6 +292,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001111111110,
             0b0000011111111111,
@@ -293,6 +310,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 5,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000011,
             0b0000000000000111,
@@ -310,6 +328,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001111111110,
             0b0000011111111111,
@@ -327,6 +346,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001111111110,
             0b0000011111111111,
@@ -344,6 +364,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001100000110,
             0b0000011100000111,
@@ -361,6 +382,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000011111111110,
             0b0000011111111111,
@@ -378,6 +400,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001111111110,
             0b0000011111111111,
@@ -395,6 +418,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001111111110,
             0b0000011111111111,
@@ -412,6 +436,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001111111110,
             0b0000011111111111,
@@ -429,6 +454,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001111111110,
             0b0000011111111111,
@@ -446,6 +472,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 3,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000000,
             0b0000000000000000,
@@ -463,6 +490,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 3,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000000,
             0b0000000000000000,
@@ -480,6 +508,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 7,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000011,
             0b0000000000000111,
@@ -497,6 +526,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 8,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000000,
             0b0000000000000000,
@@ -514,6 +544,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 7,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000001100000,
             0b0000000001110000,
@@ -531,6 +562,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001111111110,
             0b0000011111111111,
@@ -548,6 +580,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 12,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000011111111110,
             0b0000111111111111,
@@ -565,6 +598,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000100000,
             0b0000000001110000,
@@ -582,6 +616,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000011111111110,
             0b0000011111111111,
@@ -599,6 +634,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001111111110,
             0b0000011111111111,
@@ -616,6 +652,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000011110000000,
             0b0000011111100000,
@@ -633,6 +670,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001111111110,
             0b0000011111111111,
@@ -650,6 +688,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001111111110,
             0b0000011111111111,
@@ -667,6 +706,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001111111110,
             0b0000011111111111,
@@ -684,6 +724,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001100000110,
             0b0000011100000111,
@@ -701,6 +742,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 3,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000111,
             0b0000000000000111,
@@ -718,6 +760,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000110,
             0b0000000000000111,
@@ -735,6 +778,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001100000111,
             0b0000011100001110,
@@ -752,6 +796,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001100000000,
             0b0000011100000000,
@@ -769,6 +814,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001000000010,
             0b0000011100000111,
@@ -786,6 +832,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001100000110,
             0b0000011110000111,
@@ -803,6 +850,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001111111110,
             0b0000011111111111,
@@ -820,6 +868,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000011111111110,
             0b0000011111111111,
@@ -837,6 +886,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001111111000,
             0b0000011111111100,
@@ -854,6 +904,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001111111110,
             0b0000011111111111,
@@ -871,6 +922,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001111111110,
             0b0000011111111111,
@@ -888,6 +940,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001111111110,
             0b0000011111111111,
@@ -905,6 +958,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001100000110,
             0b0000011100000111,
@@ -922,6 +976,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000011100000111,
             0b0000011100000111,
@@ -939,6 +994,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000001000100010,
             0b0000011000100011,
@@ -956,6 +1012,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000000,
             0b0000011000000011,
@@ -973,6 +1030,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000011000000011,
             0b0000011100000111,
@@ -990,6 +1048,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 10,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000111111111,
             0b0000001111111111,
@@ -1007,6 +1066,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 5,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000011111,
             0b0000000000011111,
@@ -1024,6 +1084,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000000,
             0b0000011000000000,
@@ -1041,6 +1102,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 5,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000011111,
             0b0000000000011111,
@@ -1058,6 +1120,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 11,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000100000,
             0b0000000001110000,
@@ -1075,6 +1138,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 8,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000000,
             0b0000000000000000,
@@ -1092,6 +1156,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 2,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000000,
             0b0000000000000010,
@@ -1109,6 +1174,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 6,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000001111,
             0b0000000000011111,
@@ -1126,6 +1192,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 3,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000111,
             0b0000000000000111,
@@ -1143,6 +1210,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 6,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000111100,
             0b0000000000111110,
@@ -1160,6 +1228,7 @@ sprite_t font_Radiostars[] =
     },
     {
         .width = 9,
+        .height = FONT_HEIGHT_RADIOSTARS,
         .data = {
             0b0000000000000000,
             0b0000000000100011,
