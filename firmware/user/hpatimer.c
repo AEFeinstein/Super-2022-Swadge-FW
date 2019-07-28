@@ -103,7 +103,7 @@ uint8_t ICACHE_FLASH_ATTR getSample(void)
  *
  * Calls ContinueHPATimer() to fully enable to timer and start an ADC reading with hs_adc_start()
  */
-void ICACHE_FLASH_ATTR StartHPATimer(void)
+void ICACHE_FLASH_ATTR StartHPATimer(void* arg __attribute__((unused)))
 {
 
     RTC_REG_WRITE(FRC1_CTRL_ADDRESS,  FRC1_AUTO_RELOAD |
@@ -129,7 +129,6 @@ void PauseHPATimer(void)
 {
     TM1_EDGE_INT_DISABLE();
     ETS_FRC1_INTR_DISABLE();
-    system_timer_reinit(); // TODO this is the SW timer??
     hpaRunning = false;
 }
 
@@ -140,7 +139,6 @@ void ContinueHPATimer(void)
 {
     TM1_EDGE_INT_ENABLE();
     ETS_FRC1_INTR_ENABLE();
-    system_timer_reinit(); // TODO this is the SW timer??
     hs_adc_start();
     hpaRunning = true;
 }

@@ -91,7 +91,6 @@ swadgeMode flashlightMode =
     .modeName = "flashlight",
     .fnEnterMode = flashlightEnterMode,
     .fnExitMode = flashlightExitMode,
-    .fnTimerCallback = NULL,
     .fnButtonCallback = flashlightButtonCallback,
     .fnAudioCallback = NULL,
     .wifiMode = NO_WIFI,

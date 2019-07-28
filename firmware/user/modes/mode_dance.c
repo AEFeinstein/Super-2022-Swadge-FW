@@ -94,7 +94,6 @@ swadgeMode dancesMode =
     .modeName = "dances",
     .fnEnterMode = danceEnterMode,
     .fnExitMode = danceExitMode,
-    .fnTimerCallback = NULL,
     .fnButtonCallback = danceButtonCallback,
     .fnAudioCallback = NULL,
     .wifiMode = NO_WIFI,

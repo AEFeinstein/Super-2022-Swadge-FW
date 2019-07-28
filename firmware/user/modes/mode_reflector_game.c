@@ -344,10 +344,9 @@ void ICACHE_FLASH_ATTR refRoundResultLed(bool);
 
 swadgeMode reflectorGameMode =
 {
-    .modeName = "reflector_game",
+    .modeName = "reflector game",
     .fnEnterMode = refInit,
     .fnExitMode = refDeinit,
-    .fnTimerCallback = NULL,
     .fnButtonCallback = refButton,
     .fnAudioCallback = NULL,
     .wifiMode = ESP_NOW,

@@ -41,10 +41,9 @@ void ICACHE_FLASH_ATTR randLedResult(void* arg __attribute__((unused)));
 
 swadgeMode randomD6Mode =
 {
-    .modeName = "random_d6",
+    .modeName = "Dice",
     .fnEnterMode = randInit,
     .fnExitMode = randDeinit,
-    .fnTimerCallback = NULL,
     .fnButtonCallback = randButtonCallback,
     .fnAudioCallback = NULL,
     .wifiMode = NO_WIFI,

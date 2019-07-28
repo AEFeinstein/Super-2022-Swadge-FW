@@ -78,7 +78,6 @@ swadgeMode guitarTunerMode =
     .modeName = "guitarTuner",
     .fnEnterMode = guitarTunerEnterMode,
     .fnExitMode = guitarTunerExitMode,
-    .fnTimerCallback = NULL,
     .fnButtonCallback = guitarTunerButtonCallback,
     .fnAudioCallback = guitarTunerSampleHandler,
     .wifiMode = SOFT_AP,
