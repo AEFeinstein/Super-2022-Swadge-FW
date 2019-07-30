@@ -168,6 +168,16 @@ void ICACHE_FLASH_ATTR fillDisplayArea(uint8_t x1, uint8_t y1, uint8_t x2, uint8
 }
 
 /**
+ * @brief Copy an entire frame's worth of pixels to the framebuffer
+ *
+ * @param frame The frame to copy into the frameBuffer
+ */
+void ICACHE_FLASH_ATTR drawFrame(const uint8_t* frame)
+{
+    memcpy(currentFb, frame, sizeof(currentFb));
+}
+
+/**
  * Set/clear/invert a single pixel.
  *
  * @param x Column of display, 0 is at the left
