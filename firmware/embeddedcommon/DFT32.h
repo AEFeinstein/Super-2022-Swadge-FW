@@ -73,7 +73,7 @@ void UpdateOutputBins32(void);
 //for you to process with uint16_t's more easily.
 //This is updated every time the DFT hits the octavecount, or 1/32 updates.
 extern uint16_t embeddedbins32[];  //[FIXBINS]
-
+extern const int16_t Ssinonlytable[];
 
 #endif
 

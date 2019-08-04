@@ -33,6 +33,7 @@
 #include "mode_dance.h"
 #include "mode_flashlight.h"
 #include "mode_demo.h"
+#include "mode_roll.h"
 
 /*============================================================================
  * Defines
@@ -73,6 +74,7 @@ swadgeMode* swadgeModes[] =
     &randomD6Mode,
     &flashlightMode,
     &guitarTunerMode,
+    &rollMode,
 };
 bool swadgeModeInit = false;
 rtcMem_t rtcMem = {0};
@@ -503,7 +505,7 @@ void ICACHE_FLASH_ATTR drawChangeMenuBar(void)
         menuChangeBarProgress += 10;
 
         // If it was held for long enough
-        if(menuChangeBarProgress == 131)
+        if(menuChangeBarProgress >= 131)
         {
             // Go back to the menu
             switchToSwadgeMode(0);
@@ -525,17 +527,12 @@ void ICACHE_FLASH_ATTR drawChangeMenuBar(void)
  */
 void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int down)
 {
-    if(0 == button)
+    if(0 == button) // If the menu button was pressed
     {
-        // If the menu button was pressed
-        if(0 == rtcMem.currentSwadgeMode)
+        if(down)
         {
-            // Only for the menu mode, pass the button event to the mode
-            swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(state, button, down);
-        }
-        else if(down)
-        {
-            // Start drawing the progress bar
+            // Start drawing the progress bar which if not stopped by a release
+            //  will bring up menu mode
             menuChangeBarProgress = 1;
         }
         else
@@ -545,7 +542,9 @@ void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int d
             menuChangeBarProgress = 0;
         }
     }
-    else if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
+    // Pass the button event to the mode
+    // Note will pass button 0 releases stopped progress bar drawing
+    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
     {
         // Pass the button event to the mode
         swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(state, button, down);
