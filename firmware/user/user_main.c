@@ -527,12 +527,17 @@ void ICACHE_FLASH_ATTR drawChangeMenuBar(void)
  */
 void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int down)
 {
-    if(0 == button) // If the menu button was pressed
+    if(0 == button)
     {
-        if(down)
+        // If the menu button was pressed
+        if(0 == rtcMem.currentSwadgeMode)
         {
-            // Start drawing the progress bar which if not stopped by a release
-            //  will bring up menu mode
+            // Only for the menu mode, pass the button event to the mode
+            swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(state, button, down);
+        }
+        else if(down)
+        {
+            // Start drawing the progress bar
             menuChangeBarProgress = 1;
         }
         else
@@ -542,13 +547,12 @@ void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int d
             menuChangeBarProgress = 0;
         }
     }
-    // Pass the button event to the mode
-    // Note will pass button 0 releases stopped progress bar drawing
     if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
     {
         // Pass the button event to the mode
         swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(state, button, down);
     }
+
 }
 
 /**
