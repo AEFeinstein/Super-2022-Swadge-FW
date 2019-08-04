@@ -24,82 +24,8 @@
 #define SPRITE_DIM 4
 
 /*============================================================================
- * Function prototypes
+ * Sprites
  *==========================================================================*/
-
-void ICACHE_FLASH_ATTR snakeInit(void);
-void ICACHE_FLASH_ATTR snakeDeinit(void);
-void ICACHE_FLASH_ATTR snakeButtonCallback(uint8_t state, int button, int down);
-void ICACHE_FLASH_ATTR addSnakeNode(const sprite_t* sprite);
-void ICACHE_FLASH_ATTR drawSnakeFrame(void* arg);
-
-/*============================================================================
- * Variables
- *==========================================================================*/
-
-swadgeMode snakeMode =
-{
-    .modeName = "Snake",
-    .fnEnterMode = snakeInit,
-    .fnExitMode = snakeDeinit,
-    .fnButtonCallback = snakeButtonCallback,
-    .fnAudioCallback = NULL,
-    .wifiMode = NO_WIFI,
-    .fnEspNowRecvCb = NULL,
-    .fnEspNowSendCb = NULL,
-};
-
-const sprite_t spriteHead =
-{
-    .width = SPRITE_DIM,
-    .height = SPRITE_DIM,
-    .data =
-    {
-        0b0110,
-        0b1001,
-        0b1001,
-        0b0110,
-    }
-};
-
-const sprite_t spriteBody =
-{
-    .width = SPRITE_DIM,
-    .height = SPRITE_DIM,
-    .data =
-    {
-        0b0110,
-        0b1111,
-        0b1111,
-        0b0110,
-    }
-};
-
-const sprite_t spriteTail =
-{
-    .width = SPRITE_DIM,
-    .height = SPRITE_DIM,
-    .data =
-    {
-        0b0110,
-        0b1101,
-        0b1011,
-        0b0110,
-    }
-};
-
-const sprite_t spriteFood =
-{
-    .width = SPRITE_DIM,
-    .height = SPRITE_DIM,
-    .data =
-    {
-        0b1001,
-        0b0110,
-        0b0110,
-        0b1001,
-    }
-};
 
 const uint8_t snakeBackground[] =
 {
@@ -169,6 +95,152 @@ const uint8_t snakeBackground[] =
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0,
 };
 
+typedef enum
+{
+    HEAD_UP,
+    HEAD_RIGHT,
+    HEAD_DOWN,
+    HEAD_LEFT,
+    EATH_UP,
+    EATH_RIGHT,
+    EATH_DOWN,
+    EATH_LEFT,
+    BODY_UP,
+    BODY_RIGHT,
+    BODY_DOWN,
+    BODY_LEFT,
+    TAIL_UP,
+    TAIL_RIGHT,
+    TAIL_DOWN,
+    TAIL_LEFT,
+    BODY_UP_FAT,
+    BODY_RIGHT_FAT,
+    BODY_DOWN_FAT,
+    BODY_LEFT_FAT,
+    CORNER_UPRIGHT,
+    CORNER_UPLEFT,
+    CORNER_DOWNRIGHT,
+    CORNER_DOWNLEFT,
+    CORNER_RIGHTUP,
+    CORNER_RIGHTDOWN,
+    CORNER_LEFTUP,
+    CORNER_LEFTDOWN,
+    CORNER_UPRIGHT_FAT,
+    CORNER_UPLEFT_FAT,
+    CORNER_DOWNRIGHT_FAT,
+    CORNER_DOWNLEFT_FAT,
+    CORNER_RIGHTUP_FAT,
+    CORNER_RIGHTDOWN_FAT,
+    CORNER_LEFTUP_FAT,
+    CORNER_LEFTDOWN_FAT,
+    FOOD
+} spriteIdx_t;
+
+const uint16_t snakeSprites[] =
+{
+    // HEAD_UP,
+    0b0000011001101010,
+    // HEAD_RIGHT,
+    0b1000011011100000,
+    // HEAD_DOWN,
+    0b1010011001100000,
+    // HEAD_LEFT,
+    0b0001011001110000,
+    // EATH_UP,
+    0b0000100101101010,
+    // EATH_RIGHT,
+    0b1010010011000010,
+    // EATH_DOWN,
+    0b1010011010010000,
+    // EATH_LEFT,
+    0b0101001000110100,
+    // BODY_UP,
+    0b0110001001000110,
+    // BODY_RIGHT,
+    0b0000110110110000,
+    // BODY_DOWN,
+    0b0110010000100110,
+    // BODY_LEFT,
+    0b0000101111010000,
+    // TAIL_UP,
+    0b0110011000100010,
+    // TAIL_RIGHT,
+    0b0000001111110000,
+    // TAIL_DOWN,
+    0b0010001001100110,
+    // TAIL_LEFT,
+    0b0000110011110000,
+    // BODY_UP_FAT,
+    0b0110101111010110,
+    // BODY_RIGHT_FAT,
+    0b0110110110110110,
+    // BODY_DOWN_FAT,
+    0b0110110110110110,
+    // BODY_LEFT_FAT,
+    0b0110101111010110,
+    // CORNER_UPRIGHT,
+    0b0000001101010110,
+    // CORNER_UPLEFT,
+    0b0000110010100110,
+    // CORNER_DOWNRIGHT,
+    0b0110010100110000,
+    // CORNER_DOWNLEFT,
+    0b0110101011000000,
+    // CORNER_RIGHTUP,
+    0b0110101011000000,
+    // CORNER_RIGHTDOWN,
+    0b0000110010100110,
+    // CORNER_LEFTUP,
+    0b0110010100110000,
+    // CORNER_LEFTDOWN,
+    0b0000001101010110,
+    // CORNER_UPRIGHT_FAT,
+    0b0000001101010111,
+    // CORNER_UPLEFT_FAT,
+    0b0000110010101110,
+    // CORNER_DOWNRIGHT_FAT,
+    0b0111010100110000,
+    // CORNER_DOWNLEFT_FAT,
+    0b1110101011000000,
+    // CORNER_RIGHTUP_FAT,
+    0b1110101011000000,
+    // CORNER_RIGHTDOWN_FAT,
+    0b0000110010101110,
+    // CORNER_LEFTUP_FAT,
+    0b0111010100110000,
+    // CORNER_LEFTDOWN_FAT,
+    0b0000001101010111,
+    // FOOD
+    0b0100101001000000,
+};
+
+/*============================================================================
+ * Function prototypes
+ *==========================================================================*/
+
+void ICACHE_FLASH_ATTR snakeInit(void);
+void ICACHE_FLASH_ATTR snakeDeinit(void);
+void ICACHE_FLASH_ATTR snakeButtonCallback(uint8_t state, int button, int down);
+void ICACHE_FLASH_ATTR addSnakeNode(spriteIdx_t sprite);
+void ICACHE_FLASH_ATTR drawSnakeFrame(void* arg);
+void ICACHE_FLASH_ATTR plotSnakeSprite(uint8_t x, uint8_t y, spriteIdx_t sprite);
+
+/*============================================================================
+ * Variables
+ *==========================================================================*/
+
+swadgeMode snakeMode =
+{
+    .modeName = "Snake",
+    .fnEnterMode = snakeInit,
+    .fnExitMode = snakeDeinit,
+    .fnButtonCallback = snakeButtonCallback,
+    .fnAudioCallback = NULL,
+    .wifiMode = NO_WIFI,
+    .fnEspNowRecvCb = NULL,
+    .fnEspNowSendCb = NULL,
+};
+
 typedef struct
 {
     uint8_t x;
@@ -177,7 +249,7 @@ typedef struct
 
 typedef struct _snakeNode_t
 {
-    const sprite_t* sprite;
+    spriteIdx_t sprite;
     pos_t pos;
     struct _snakeNode_t* prevSegment;
     struct _snakeNode_t* nextSegment;
@@ -213,9 +285,11 @@ void ICACHE_FLASH_ATTR snakeInit(void)
     // Clear everything
     ets_memset(&snake, 0, sizeof(snake));
 
-    addSnakeNode(&spriteHead);
-    addSnakeNode(&spriteBody);
-    addSnakeNode(&spriteTail);
+    addSnakeNode(HEAD_RIGHT);
+    addSnakeNode(BODY_RIGHT);
+    addSnakeNode(BODY_RIGHT);
+    addSnakeNode(BODY_RIGHT);
+    addSnakeNode(TAIL_RIGHT);
 
     snake.dirSnake = RIGHT;
 
@@ -286,7 +360,7 @@ void ICACHE_FLASH_ATTR snakeButtonCallback(uint8_t state __attribute__((unused))
  *
  * @param The sprite of the segment to add
  */
-void ICACHE_FLASH_ATTR addSnakeNode(const sprite_t* sprite)
+void ICACHE_FLASH_ATTR addSnakeNode(spriteIdx_t sprite)
 {
     // If snakeList is NULL, start the snake
     if(NULL == snake.snakeList)
@@ -311,7 +385,7 @@ void ICACHE_FLASH_ATTR addSnakeNode(const sprite_t* sprite)
     snakePtr->nextSegment->sprite = sprite;
     snakePtr->nextSegment->prevSegment = snakePtr;
     snakePtr->nextSegment->nextSegment = NULL;
-    snakePtr->nextSegment->pos.x = snakePtr->pos.x - 4;
+    snakePtr->nextSegment->pos.x = snakePtr->pos.x - SPRITE_DIM;
     snakePtr->nextSegment->pos.y = snakePtr->pos.y;
 }
 
@@ -324,9 +398,9 @@ void ICACHE_FLASH_ATTR drawSnakeFrame(void* arg __attribute__((unused)))
     // TODO keep track of score, display score on death
 
     clearDisplay();
-    drawFrame(snakeBackground);
+    // drawFrame(snakeBackground);
 
-    // Find the tail of the snake
+    // // Find the tail of the snake
     snakeNode_t* snakePtr = snake.snakeList;
     while(NULL != snakePtr->nextSegment)
     {
@@ -380,10 +454,36 @@ void ICACHE_FLASH_ATTR drawSnakeFrame(void* arg __attribute__((unused)))
     snakePtr = snake.snakeList;
     while(NULL != snakePtr)
     {
-        plotSprite(snakePtr->pos.x, snakePtr->pos.y, snakePtr->sprite);
+        plotSnakeSprite(snakePtr->pos.x, snakePtr->pos.y, snakePtr->sprite);
         snakePtr = snakePtr->nextSegment;
     }
 
     // Draw the food
-    plotSprite(snake.posFood.x, snake.posFood.y, &spriteFood);
+    plotSnakeSprite(snake.posFood.x, snake.posFood.y, FOOD);
+}
+
+/**
+ * @brief
+ *
+ * @param x
+ * @param y
+ * @param sprite
+ */
+void ICACHE_FLASH_ATTR plotSnakeSprite(uint8_t x, uint8_t y, spriteIdx_t sprite)
+{
+    uint8_t xDraw, yDraw, spriteIdx = 15;
+    for(yDraw = 0; yDraw < SPRITE_DIM; yDraw++)
+    {
+        for(xDraw = 0; xDraw < SPRITE_DIM; xDraw++)
+        {
+            if(snakeSprites[sprite] & (1 << (spriteIdx--)))
+            {
+                drawPixel(x + xDraw, y + yDraw, WHITE);
+            }
+            else
+            {
+                drawPixel(x + xDraw, y + yDraw, BLACK);
+            }
+        }
+    }
 }
