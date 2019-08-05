@@ -152,6 +152,11 @@ void ICACHE_FLASH_ATTR demoSampleHandler(int32_t samp)
     // If at least 128 samples have been processed
     if( samplesProcessed >= 128 )
     {
+        // Don't bother if colorchord is inactive
+        if( !COLORCHORD_ACTIVE )
+        {
+            return;
+        }
         // Colorchord magic
         HandleFrameInfo();
 

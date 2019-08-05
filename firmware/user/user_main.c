@@ -368,7 +368,7 @@ static void ICACHE_FLASH_ATTR pollAccel(void* arg __attribute__((unused)))
  */
 static void ICACHE_FLASH_ATTR updateDisplay(void* arg __attribute__((unused)))
 {
-    // Draw the menu change bar if necessary
+    // Draw the menu change bar if necessary and possibly restart in menu mode
     drawChangeMenuBar();
 
     // Update the display
@@ -415,6 +415,9 @@ void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
     // If the mode is initialized, tear it down
     if(swadgeModeInit)
     {
+        // Turn LEDs off
+        led_t leds[NUM_LIN_LEDS] = {{0}};
+        setLeds(leds, sizeof(leds));
         // Call the exit callback for the current mode
         if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode)
         {

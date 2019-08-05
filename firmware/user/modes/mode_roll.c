@@ -139,7 +139,8 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
     }
 
     // Declare some LEDs, all off
-    led_t leds[16] = {{0}};
+    led_t leds[NUM_LIN_LEDS] = {{0}};
+#define GAP 1
 
 /*  Python
     for led in self.leds:
@@ -148,13 +149,13 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
             led.color = colorsys.hsv_to_rgb(self.ball.meanspeed,1,1)
 */
 
-    for (uint8_t indLed=0; indLed<8; indLed++)
+    for (uint8_t indLed=0; indLed<NUM_LIN_LEDS/GAP; indLed++)
     {
-        int16_t ledy = Ssinonlytable[((indLed<<5) + 0x80) % 256]*28/1500; // from -1500 to 1500
-        int16_t ledx = Ssinonlytable[((indLed<<5) + 0xC0) % 256]*28/1500;
+        int16_t ledy = Ssinonlytable[((indLed<<8)*GAP/NUM_LIN_LEDS + 0x80) % 256]*28/1500; // from -1500 to 1500
+        int16_t ledx = Ssinonlytable[((indLed<<8)*GAP/NUM_LIN_LEDS + 0xC0) % 256]*28/1500;
         len = norm(scxc - ledx, scyc - ledy);
         //os_printf("%d %d %d %d %d %d %d \n",indLed, ledx, ledy, scxc, scyc, len, 255 - len * 4);
-        leds[2*indLed].r = 255 - len * 4;
+        leds[GAP*indLed].r = 255 - len * 4;
     }
     setRollLeds(leds, sizeof(leds));
 
