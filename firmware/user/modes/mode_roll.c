@@ -24,15 +24,12 @@
 #include "MMA8452Q.h"
 #include "bresenham.h"
 #include "buttons.h"
+#include "math.h"
 
 /*============================================================================
  * Defines
  *==========================================================================*/
 
-//#define BTN_CTR_X 96
-//#define BTN_CTR_Y 40
-#define BTN_RAD    8
-//#define BTN_OFF   12
 
 /*============================================================================
  * Prototypes
@@ -47,6 +44,7 @@ void ICACHE_FLASH_ATTR rollAccelerometerHandler(accel_t* accel);
 
 void ICACHE_FLASH_ATTR roll_updateDisplay(void);
 uint16_t ICACHE_FLASH_ATTR norm(int16_t xc, int16_t yc);
+void ICACHE_FLASH_ATTR setRollLeds(led_t* ledData, uint8_t ledDataLen);
 /*============================================================================
  * Static Const Variables
  *==========================================================================*/
@@ -117,7 +115,8 @@ uint16_t ICACHE_FLASH_ATTR norm(int16_t xc, int16_t yc)
 
 void ICACHE_FLASH_ATTR roll_updateDisplay(void)
 {
-    int16_t scxc, scyc;
+    int16_t scxc = 0;
+    int16_t scyc = 0;
     // Clear the display
     clearDisplay();
 
