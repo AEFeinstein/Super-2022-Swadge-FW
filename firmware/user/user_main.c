@@ -491,6 +491,7 @@ uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr)
  * Draw a progress bar on the bottom of the display if the menu button is being held.
  * When the bar fills the display, reset the mode back to the menu
  */
+#define BAR_INCREMENT 10
 void ICACHE_FLASH_ATTR drawChangeMenuBar(void)
 {
     if(0 < menuChangeBarProgress)
@@ -500,11 +501,13 @@ void ICACHE_FLASH_ATTR drawChangeMenuBar(void)
         // Draw the menu change progress bar
         fillDisplayArea(0, OLED_HEIGHT - 1, menuChangeBarProgress, OLED_HEIGHT - 1, WHITE);
         // Increment the progress for next time
-        menuChangeBarProgress += 10;
+        menuChangeBarProgress += BAR_INCREMENT;
 
         // If it was held for long enough
-        if(menuChangeBarProgress == 131)
+        if(menuChangeBarProgress >= 131)
         {
+            // Stop bar so will only get here once
+            menuChangeBarProgress = 0;
             // Go back to the menu
             switchToSwadgeMode(0);
         }
