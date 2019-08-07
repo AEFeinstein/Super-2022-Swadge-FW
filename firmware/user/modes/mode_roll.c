@@ -25,12 +25,13 @@
 #include "bresenham.h"
 #include "buttons.h"
 #include "math.h"
+#include "ode_solvers.h"
 
 /*============================================================================
  * Defines
  *==========================================================================*/
-
-
+//NOTE in ode_solvers.h is #define of FLOATING float    or double to test
+#define LEN_PENDULUM 1
 /*============================================================================
  * Prototypes
  *==========================================================================*/
@@ -45,6 +46,13 @@ void ICACHE_FLASH_ATTR rollAccelerometerHandler(accel_t* accel);
 void ICACHE_FLASH_ATTR roll_updateDisplay(void);
 uint16_t ICACHE_FLASH_ATTR norm(int16_t xc, int16_t yc);
 void ICACHE_FLASH_ATTR setRollLeds(led_t* ledData, uint8_t ledDataLen);
+void dnx(FLOATING, FLOATING [], FLOATING [], int );
+//brought in from ode_solvers.h
+//void rk4_dn1(void(*)(FLOATING, FLOATING [], FLOATING [], int ),
+//               FLOATING, FLOATING, FLOATING [], FLOATING [], int);
+//void euler_dn1(void(*)(FLOATING, FLOATING [], FLOATING [], int ),
+//               FLOATING, FLOATING, FLOATING [], FLOATING [], int);
+
 /*============================================================================
  * Static Const Variables
  *==========================================================================*/
@@ -81,6 +89,22 @@ accel_t rollAccel = {0};
 uint8_t rollButtonState = 0;
 uint8_t rollBrightnessIdx = 0;
 int roll_ledCount = 0;
+
+/* global variables for ODE */
+const FLOATING g = 9.81;               // free fall acceleration in m/s^2
+const FLOATING m = 1.0;                // mass of a projectile in kg
+const FLOATING rad = 3.1415926/180.0;  // radians
+const int neqn = 2;                      // number of first-order equations
+#define MAX_EQNS 4                     // MAX number of first-order equations
+FLOATING ti, tf, dt;
+FLOATING xi[MAX_EQNS], xf[MAX_EQNS];
+FLOATING v0, a0;
+
+FLOATING xAccel;
+FLOATING yAccel;
+FLOATING zAccel;
+FLOATING len;
+
 /*============================================================================
  * Functions
  *==========================================================================*/
@@ -91,6 +115,22 @@ int roll_ledCount = 0;
 void ICACHE_FLASH_ATTR rollEnterMode(void)
 {
     enableDebounce(false);
+    /* initial information for ODE */
+/* for thrown ball
+    ti = 0.0;                // initial value for variable t
+    v0 = 180.0;              // initial speed (m/s)
+    a0 =  45.0;              // initial angle (degrees)
+    xi[0] = 0.0;             // initial position in x (m)
+    xi[1] = 0.0;             // initial position in y (m)
+    xi[2] = v0*cos(a0*rad);  // initial speed in x direction (m.s)
+    xi[3] = v0*sin(a0*rad);  // initial speed in y direction (m/s)
+    dt = 0.1;                // step size for integration (s)
+*/
+// For damped pendulum
+    ti = 0.0;                // initial value for variable t
+    xi[0] = 0.0;             // initial angle position in (radians)
+    xi[1] = 0.0;             // initial angular speed in radians/ sec
+    dt = 0.1;                // step size for integration (s)
 }
 
 /**
@@ -112,28 +152,122 @@ void ICACHE_FLASH_ATTR rollExitMode(void)
 //    return xc>yc? xc + (yc>>1) : yc + (xc>>1);
 //}
 
+
+
+
+/*==== RHS of ODE ===============================================*/
+
+/*
+// Motion of thrown ball
+void ICACHE_FLASH_ATTR dnx(FLOATING t, FLOATING x[], FLOATING dx[], int n)
+{
+// to stop warning that t and n not used
+   t = t;
+   n = n;
+   //first order
+    dx[0] = x[2];
+    dx[1] = x[3];
+   // second order
+    dx[2] = 0.0;
+    dx[3] = (-1.0)*g;
+}
+*/
+
+/*
+Python
+def derivs(t, state, force):
+    g = gravity()
+    # seems to use portrait mode coor while scene uses landscape
+    # holding ipad flat
+    # gxy points from center of screen to lowest point on circle around the center
+    #   magnitude is cos of angle with vertical
+    gxy = Vector2(g.y, -g.x)
+    down = math.atan2(gxy[0], -gxy[1])
+    #print(g.z)
+    # gravity in direction of down
+    #return numpy.array([state[1], force + -9.8/L1 * sin(state[0] - down) - .05 * state[1]])
+    # gravity scaled by g.z so max when nearly flat
+    #return numpy.array([state[1], force + g.z * 9.8/L1 * sin(state[0] - down) - .05 * state[1]])
+    # gravity is proportional to  downward component
+    return numpy.array([state[1], force + -9.8 *sqrt(1.0 - g.z**2)/L1 * sin(state[0] - down) - .05 * state[1]])
+*/
+
+// Motion of damped rigid pendulum with gravity the downward component
+// of the accelerometer
+// Here x is [th, thdot] position in radian, speed in radians/sec
+void ICACHE_FLASH_ATTR dnx(FLOATING t, FLOATING x[], FLOATING dx[], int n)
+{
+// to stop warning that t and n not used
+   t = t;
+   n = n;
+   //first order
+   dx[0] = x[1];
+   // second order
+   FLOATING down = atan2(yAccel, -xAccel);
+   //os_printf("100down = %d\n", (int)(100*down)); // down 0 is with positve x on accel pointing down
+   FLOATING force = 0.0; // later used for button replulsion
+   //os_printf("%d\n", (int)(100*zAccel)); //xAccel can exceed 1
+//TODO so this computation sometime got error and then got negative overflow and all stopped working
+   //dx[1] = force + -g * sqrt(1.0 - pow(zAccel, 2)) / LEN_PENDULUM * sin(x[0] - down) - .05 * x[1];
+   //safer calculation that won't get sqrt of negative number
+   dx[1] = force + -g * sqrt(pow(xAccel,2) + pow(yAccel, 2)) / LEN_PENDULUM * sin(x[0] - down) - .05 * x[1];
+}
+
+
 void ICACHE_FLASH_ATTR roll_updateDisplay(void)
 {
-    int16_t scxc = 0;
-    int16_t scyc = 0;
     // Clear the display
     clearDisplay();
 
+    //NOTE bug in Expressif OS can't print floating point! Must cast as int
+    //debug print for thrown ball
+    //os_printf("100t = %d, x = %d, y = %d, vx = %d, vy = %d\n", (int)(100*ti), (int)xi[0], (int)xi[1], (int)xi[2], (int)xi[3]);
+
+    //Save accelerometer reading in global storage
+//TODO can get values bigger than 1. here, my accelerometer has 14 bits
+    xAccel = rollAccel.x / 256.0;
+    yAccel = rollAccel.y / 256.0;
+    zAccel = rollAccel.z / 256.0;
+
+    tf = ti + dt;
+    // Do one step of ODE solver
+    //euler_dn1(dnx, ti, dt, xi, xf, neqn);
+    rk4_dn1(dnx, ti, dt, xi, xf, neqn);
+
+    // prepare for the next step
+    ti = tf;
+    for (uint8_t i = 0; i<=neqn-1; i = i+1)
+    {
+        xi[i] = xf[i];
+    }
+    len = 1;
+
+
+    int16_t scxc = 0;
+    int16_t scyc = 0;
+/*
     // Using center of screen as orgin, position ball  proportional to x,y component of rollAccel
     //plotCircle(64 + (rollAccel.x>>2), 32 - (rollAccel.y>>3), BTN_RAD);
 
     // Using center of screen as orgin, position ball on circle of radius 32 with direction x,y component of rollAccel
-    int16_t xc = rollAccel.x;
-    int16_t yc = rollAccel.y;
-    float len = sqrt(xc*xc + yc*yc);
+    //int16_t xc = rollAccel.x;
+    //int16_t yc = rollAccel.y;
+
+
+    len = sqrt(xc*xc + yc*yc);
     //uint16_t len = sqrt(xc*xc + yc*yc);
     //uint16_t len = norm(xc, yc);
+*/
+
     if (len>0) {
         // scale normalized vector to length 28 to keep ball within bounds of screen
-        //scxc = ((xc*28) / len);
-        //scyc = ((yc*28) / len);
-        scxc = 28.0 * xc / len; // ((xc*28) / len);
-        scyc = 28.0 * yc / len; // ((yc*28) / len);
+        //scxc = ((xc*28) / len); // for rolling ball
+        //scyc = ((yc*28) / len); // for rolling ball
+        //scxc = 28.0 * xc / len; // for rolling ball using Floating point
+        //scyc = 28.0 * yc / len; // for rolling ball using Floating point
+        scxc = -28.0 * cos(xf[0]);
+        scyc =  28.0 * sin(xf[0]);
+	//os_printf("100th %d, 100x %d, 100y %d\n", (int)(100*xf[0]), (int)(100*scxc), (int)(100*scyc));
 	//os_printf("xc %d, yc %d, len %d scxc %d scyc %d\n", xc, yc, len, scxc, scyc);
         plotCircle(64 + scxc, 32 - scyc, 5);
         plotCircle(64 + scxc, 32 - scyc, 3);
