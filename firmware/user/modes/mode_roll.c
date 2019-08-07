@@ -90,8 +90,6 @@ int roll_ledCount = 0;
  */
 void ICACHE_FLASH_ATTR rollEnterMode(void)
 {
-//    InitColorChord();
-//    samplesProcessed = 0;
     enableDebounce(false);
 }
 
@@ -103,15 +101,16 @@ void ICACHE_FLASH_ATTR rollExitMode(void)
 
 }
 
+
 /**
  * Approximates sqrt of sum of squares
  */
-uint16_t ICACHE_FLASH_ATTR norm(int16_t xc, int16_t yc)
-{
-    xc = xc<0? -xc : xc;
-    yc = yc<0? -yc : yc;
-    return xc>yc? xc + (yc>>1) : yc + (xc>>1);
-}
+//uint16_t ICACHE_FLASH_ATTR norm(int16_t xc, int16_t yc)
+//{
+//    xc = xc<0? -xc : xc;
+//    yc = yc<0? -yc : yc;
+//    return xc>yc? xc + (yc>>1) : yc + (xc>>1);
+//}
 
 void ICACHE_FLASH_ATTR roll_updateDisplay(void)
 {
@@ -126,11 +125,15 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
     // Using center of screen as orgin, position ball on circle of radius 32 with direction x,y component of rollAccel
     int16_t xc = rollAccel.x;
     int16_t yc = rollAccel.y;
-    uint16_t len = norm(xc, yc);
+    float len = sqrt(xc*xc + yc*yc);
+    //uint16_t len = sqrt(xc*xc + yc*yc);
+    //uint16_t len = norm(xc, yc);
     if (len>0) {
         // scale normalized vector to length 28 to keep ball within bounds of screen
-        scxc = ((xc*28) / len);
-        scyc = ((yc*28) / len);
+        //scxc = ((xc*28) / len);
+        //scyc = ((yc*28) / len);
+        scxc = 28.0 * xc / len; // ((xc*28) / len);
+        scyc = 28.0 * yc / len; // ((yc*28) / len);
 	//os_printf("xc %d, yc %d, len %d scxc %d scyc %d\n", xc, yc, len, scxc, scyc);
         plotCircle(64 + scxc, 32 - scyc, 5);
         plotCircle(64 + scxc, 32 - scyc, 3);
@@ -152,9 +155,12 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
     {
         int16_t ledy = Ssinonlytable[((indLed<<8)*GAP/NUM_LIN_LEDS + 0x80) % 256]*28/1500; // from -1500 to 1500
         int16_t ledx = Ssinonlytable[((indLed<<8)*GAP/NUM_LIN_LEDS + 0xC0) % 256]*28/1500;
-        len = norm(scxc - ledx, scyc - ledy);
+        len = sqrt((scxc - ledx)*(scxc - ledx) + (scyc - ledy)*(scyc - ledy));
+        //len = norm(scxc - ledx, scyc - ledy);
+        uint8_t glow = 255 * pow(1.0 - (len / 56.0), 3);
         //os_printf("%d %d %d %d %d %d %d \n",indLed, ledx, ledy, scxc, scyc, len, 255 - len * 4);
-        leds[GAP*indLed].r = 255 - len * 4;
+        //leds[GAP*indLed].r = 255 - len * 4;
+        leds[GAP*indLed].r = glow;
     }
     setRollLeds(leds, sizeof(leds));
 
