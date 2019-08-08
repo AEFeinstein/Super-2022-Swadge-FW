@@ -97,121 +97,177 @@ const uint8_t snakeBackground[] =
 
 typedef enum
 {
-    HEAD_UP,
-    HEAD_RIGHT,
-    HEAD_DOWN,
-    HEAD_LEFT,
-    EATH_UP,
-    EATH_RIGHT,
-    EATH_DOWN,
-    EATH_LEFT,
-    BODY_UP,
-    BODY_RIGHT,
-    BODY_DOWN,
-    BODY_LEFT,
-    TAIL_UP,
-    TAIL_RIGHT,
-    TAIL_DOWN,
-    TAIL_LEFT,
-    BODY_UP_FAT,
-    BODY_RIGHT_FAT,
-    BODY_DOWN_FAT,
-    BODY_LEFT_FAT,
-    CORNER_UPRIGHT,
-    CORNER_UPLEFT,
-    CORNER_DOWNRIGHT,
-    CORNER_DOWNLEFT,
-    CORNER_RIGHTUP,
-    CORNER_RIGHTDOWN,
-    CORNER_LEFTUP,
-    CORNER_LEFTDOWN,
-    CORNER_UPRIGHT_FAT,
-    CORNER_UPLEFT_FAT,
-    CORNER_DOWNRIGHT_FAT,
-    CORNER_DOWNLEFT_FAT,
-    CORNER_RIGHTUP_FAT,
-    CORNER_RIGHTDOWN_FAT,
-    CORNER_LEFTUP_FAT,
-    CORNER_LEFTDOWN_FAT,
-    FOOD
-} spriteIdx_t;
+    HEAD_UP              = 0b0000011001101010,
+    HEAD_RIGHT           = 0b1000011011100000,
+    HEAD_DOWN            = 0b1010011001100000,
+    HEAD_LEFT            = 0b0001011001110000,
+    EATH_UP              = 0b0000100101101010,
+    EATH_RIGHT           = 0b1010010011000010,
+    EATH_DOWN            = 0b1010011010010000,
+    EATH_LEFT            = 0b0101001000110100,
+    BODY_UP              = 0b0110001001000110,
+    BODY_RIGHT           = 0b0000110110110000,
+    BODY_DOWN            = 0b0110010000100110,
+    BODY_LEFT            = 0b0000101111010000,
+    TAIL_UP              = 0b0110011000100010,
+    TAIL_RIGHT           = 0b0000001111110000,
+    TAIL_DOWN            = 0b0010001001100110,
+    TAIL_LEFT            = 0b0000110011110000,
+    BODY_UP_FAT          = 0b0110101111010110,
+    BODY_RIGHT_FAT       = 0b0110110110110110,
+    BODY_DOWN_FAT        = 0b0110110110110110,
+    BODY_LEFT_FAT        = 0b0110101111010110,
+    CORNER_UPRIGHT       = 0b0000001101010110,
+    CORNER_UPLEFT        = 0b0000110010100110,
+    CORNER_DOWNRIGHT     = 0b0110010100110000,
+    CORNER_DOWNLEFT      = 0b0110101011000000,
+    CORNER_RIGHTUP       = 0b0110101011000000,
+    CORNER_RIGHTDOWN     = 0b0000110010100110,
+    CORNER_LEFTUP        = 0b0110010100110000,
+    CORNER_LEFTDOWN      = 0b0000001101010110,
+    CORNER_UPRIGHT_FAT   = 0b0000001101010111,
+    CORNER_UPLEFT_FAT    = 0b0000110010101110,
+    CORNER_DOWNRIGHT_FAT = 0b0111010100110000,
+    CORNER_DOWNLEFT_FAT  = 0b1110101011000000,
+    CORNER_RIGHTUP_FAT   = 0b1110101011000000,
+    CORNER_RIGHTDOWN_FAT = 0b0000110010101110,
+    CORNER_LEFTUP_FAT    = 0b0111010100110000,
+    CORNER_LEFTDOWN_FAT  = 0b0000001101010111,
+    FOOD                 = 0b0100101001000000,
+} snakeSprite;
 
-const uint16_t snakeSprites[] =
+const snakeSprite spriteTransitionTable[2][4][4] =
 {
-    // HEAD_UP,
-    0b0000011001101010,
-    // HEAD_RIGHT,
-    0b1000011011100000,
-    // HEAD_DOWN,
-    0b1010011001100000,
-    // HEAD_LEFT,
-    0b0001011001110000,
-    // EATH_UP,
-    0b0000100101101010,
-    // EATH_RIGHT,
-    0b1010010011000010,
-    // EATH_DOWN,
-    0b1010011010010000,
-    // EATH_LEFT,
-    0b0101001000110100,
-    // BODY_UP,
-    0b0110001001000110,
-    // BODY_RIGHT,
-    0b0000110110110000,
-    // BODY_DOWN,
-    0b0110010000100110,
-    // BODY_LEFT,
-    0b0000101111010000,
-    // TAIL_UP,
-    0b0110011000100010,
-    // TAIL_RIGHT,
-    0b0000001111110000,
-    // TAIL_DOWN,
-    0b0010001001100110,
-    // TAIL_LEFT,
-    0b0000110011110000,
-    // BODY_UP_FAT,
-    0b0110101111010110,
-    // BODY_RIGHT_FAT,
-    0b0110110110110110,
-    // BODY_DOWN_FAT,
-    0b0110110110110110,
-    // BODY_LEFT_FAT,
-    0b0110101111010110,
-    // CORNER_UPRIGHT,
-    0b0000001101010110,
-    // CORNER_UPLEFT,
-    0b0000110010100110,
-    // CORNER_DOWNRIGHT,
-    0b0110010100110000,
-    // CORNER_DOWNLEFT,
-    0b0110101011000000,
-    // CORNER_RIGHTUP,
-    0b0110101011000000,
-    // CORNER_RIGHTDOWN,
-    0b0000110010100110,
-    // CORNER_LEFTUP,
-    0b0110010100110000,
-    // CORNER_LEFTDOWN,
-    0b0000001101010110,
-    // CORNER_UPRIGHT_FAT,
-    0b0000001101010111,
-    // CORNER_UPLEFT_FAT,
-    0b0000110010101110,
-    // CORNER_DOWNRIGHT_FAT,
-    0b0111010100110000,
-    // CORNER_DOWNLEFT_FAT,
-    0b1110101011000000,
-    // CORNER_RIGHTUP_FAT,
-    0b1110101011000000,
-    // CORNER_RIGHTDOWN_FAT,
-    0b0000110010101110,
-    // CORNER_LEFTUP_FAT,
-    0b0111010100110000,
-    // CORNER_LEFTDOWN_FAT,
-    0b0000001101010111,
-    // FOOD
-    0b0100101001000000,
+    // Snake is skinny
+    {
+        // Head is UP
+        {
+            // Body is UP
+            BODY_UP,
+            // Body is RIGHT
+            CORNER_RIGHTUP,
+            // Body is DOWN
+            BODY_UP,
+            // Body is LEFT
+            CORNER_LEFTUP,
+        },
+        // Head is RIGHT
+        {
+            // Body is UP
+            CORNER_UPRIGHT,
+            // Body is RIGHT
+            BODY_RIGHT,
+            // Body is DOWN
+            CORNER_DOWNRIGHT,
+            // Body is LEFT
+            BODY_RIGHT,
+        },
+        // Head is DOWN
+        {
+            // Body is UP
+            BODY_DOWN,
+            // Body is RIGHT
+            CORNER_RIGHTDOWN,
+            // Body is DOWN
+            BODY_DOWN,
+            // Body is LEFT
+            CORNER_LEFTDOWN,
+        },
+        // Head is LEFT
+        {
+            // Body is UP
+            CORNER_UPLEFT,
+            // Body is RIGHT
+            BODY_LEFT,
+            // Body is DOWN
+            CORNER_DOWNLEFT,
+            // Body is LEFT
+            BODY_LEFT,
+        }
+    },
+    // Snake is fat
+    {
+        // Head is UP
+        {
+            // Body is UP
+            BODY_UP_FAT,
+            // Body is RIGHT
+            CORNER_RIGHTUP_FAT,
+            // Body is DOWN
+            BODY_UP_FAT,
+            // Body is LEFT
+            CORNER_LEFTUP_FAT,
+        },
+        // Head is RIGHT
+        {
+            // Body is UP
+            CORNER_UPRIGHT_FAT,
+            // Body is RIGHT
+            BODY_RIGHT_FAT,
+            // Body is DOWN
+            CORNER_DOWNRIGHT_FAT,
+            // Body is LEFT
+            BODY_RIGHT_FAT,
+        },
+        // Head is DOWN
+        {
+            // Body is UP
+            BODY_DOWN_FAT,
+            // Body is RIGHT
+            CORNER_RIGHTDOWN_FAT,
+            // Body is DOWN
+            BODY_DOWN_FAT,
+            // Body is LEFT
+            CORNER_LEFTDOWN_FAT,
+        },
+        // Head is LEFT
+        {
+            // Body is UP
+            CORNER_UPLEFT_FAT,
+            // Body is RIGHT
+            BODY_LEFT_FAT,
+            // Body is DOWN
+            CORNER_DOWNLEFT_FAT,
+            // Body is LEFT
+            BODY_LEFT_FAT,
+        }
+    }
+};
+
+const snakeSprite headTransitionTable[2][4] =
+{
+    {
+        // Head is UP
+        HEAD_UP,
+        // Head is RIGHT
+        HEAD_RIGHT,
+        // Head is DOWN
+        HEAD_DOWN,
+        // Head is LEFT
+        HEAD_LEFT,
+    },
+    {
+        // Head is UP
+        EATH_UP,
+        // Head is RIGHT
+        EATH_RIGHT,
+        // Head is DOWN
+        EATH_DOWN,
+        // Head is LEFT
+        EATH_LEFT,
+    }
+};
+
+const snakeSprite tailTransitionTable[4] =
+{
+    // Tail is UP
+    TAIL_UP,
+    // Tail is RIGHT
+    TAIL_RIGHT,
+    // Tail is DOWN
+    TAIL_DOWN,
+    // Tail is LEFT
+    TAIL_LEFT,
 };
 
 /*============================================================================
@@ -221,10 +277,9 @@ const uint16_t snakeSprites[] =
 void ICACHE_FLASH_ATTR snakeInit(void);
 void ICACHE_FLASH_ATTR snakeDeinit(void);
 void ICACHE_FLASH_ATTR snakeButtonCallback(uint8_t state, int button, int down);
-void ICACHE_FLASH_ATTR addSnakeNode(spriteIdx_t sprite, uint8_t ttl);
+void ICACHE_FLASH_ATTR addSnakeNode(snakeSprite sprite, uint8_t ttl);
 void ICACHE_FLASH_ATTR drawSnakeFrame(void* arg);
-void ICACHE_FLASH_ATTR plotSnakeSprite(uint8_t x, uint8_t y, spriteIdx_t sprite);
-
+void ICACHE_FLASH_ATTR plotSnakeSprite(uint8_t x, uint8_t y, snakeSprite sprite);
 
 void ICACHE_FLASH_ATTR moveSnake(void);
 void ICACHE_FLASH_ATTR checkGameLogic(void);
@@ -256,27 +311,28 @@ typedef struct
     uint8_t y;
 } pos_t;
 
+typedef enum
+{
+    UP    = 0,
+    RIGHT = 1,
+    DOWN  = 2,
+    LEFT  = 3
+} dir_t;
+
 typedef struct _snakeNode_t
 {
-    spriteIdx_t sprite;
+    snakeSprite sprite;
     pos_t pos;
+    dir_t dir;
     uint8_t ttl;
     struct _snakeNode_t* prevSegment;
     struct _snakeNode_t* nextSegment;
 } snakeNode_t;
 
-typedef enum
-{
-    UP,
-    RIGHT,
-    DOWN,
-    LEFT
-} dir_t;
-
 struct
 {
     snakeNode_t* snakeList;
-    dir_t dirSnake;
+    dir_t dir;
     pos_t posFood;
     uint16_t length;
 } snake;
@@ -306,7 +362,7 @@ void ICACHE_FLASH_ATTR snakeInit(void)
 
     snake.length = 7;
 
-    snake.dirSnake = RIGHT;
+    snake.dir = RIGHT;
 
     // TODO randomly place food
 
@@ -315,7 +371,7 @@ void ICACHE_FLASH_ATTR snakeInit(void)
     // Start a software timer to run every 100ms
     os_timer_disarm(&timerHandleSnakeLogic);
     os_timer_setfn(&timerHandleSnakeLogic, (os_timer_func_t*)drawSnakeFrame, NULL);
-    os_timer_arm(&timerHandleSnakeLogic, 100, 1);
+    os_timer_arm(&timerHandleSnakeLogic, 1000, 1);
 }
 
 /**
@@ -350,16 +406,16 @@ void ICACHE_FLASH_ATTR snakeButtonCallback(uint8_t state __attribute__((unused))
         {
             case 1:
             {
-                if(0 == snake.dirSnake)
+                if(0 == snake.dir)
                 {
-                    snake.dirSnake += 4;
+                    snake.dir += 4;
                 }
-                snake.dirSnake--;
+                snake.dir--;
                 break;
             }
             case 2:
             {
-                snake.dirSnake = (snake.dirSnake + 1) % 4;
+                snake.dir = (snake.dir + 1) % 4;
                 break;
             }
             default:
@@ -375,7 +431,7 @@ void ICACHE_FLASH_ATTR snakeButtonCallback(uint8_t state __attribute__((unused))
  *
  * @param The sprite of the segment to add
  */
-void ICACHE_FLASH_ATTR addSnakeNode(spriteIdx_t sprite, uint8_t ttl)
+void ICACHE_FLASH_ATTR addSnakeNode(snakeSprite sprite, uint8_t ttl)
 {
     // If snakeList is NULL, start the snake
     if(NULL == snake.snakeList)
@@ -386,6 +442,7 @@ void ICACHE_FLASH_ATTR addSnakeNode(spriteIdx_t sprite, uint8_t ttl)
         // Start in the middle of the display
         snake.snakeList->pos.x = OLED_WIDTH / 2;
         snake.snakeList->pos.y = OLED_HEIGHT / 2;
+        snake.snakeList->dir = RIGHT;
         snake.snakeList->prevSegment = NULL;
         snake.snakeList->nextSegment = NULL;
         return;
@@ -404,6 +461,7 @@ void ICACHE_FLASH_ATTR addSnakeNode(spriteIdx_t sprite, uint8_t ttl)
     snakePtr->nextSegment->nextSegment = NULL;
     snakePtr->nextSegment->pos.x = snakePtr->pos.x - SPRITE_DIM;
     snakePtr->nextSegment->pos.y = snakePtr->pos.y;
+    snakePtr->nextSegment->dir = RIGHT;
 }
 
 /**
@@ -434,7 +492,6 @@ void ICACHE_FLASH_ATTR drawSnakeFrame(void* arg __attribute__((unused)))
  */
 inline uint8_t ICACHE_FLASH_ATTR wrapIdx(uint8_t idx, uint8_t delta, uint8_t max)
 {
-
     if(delta > idx)
     {
         idx += max;
@@ -466,32 +523,30 @@ void ICACHE_FLASH_ATTR moveSnake(void)
     newHead->ttl = snake.length;
 
     // Figure out where the new head is, and its sprite
-    switch(snake.dirSnake)
+    newHead->dir = snake.dir;
+    newHead->sprite = headTransitionTable[0][newHead->dir];
+    switch(snake.dir)
     {
         case UP:
         {
-            newHead->sprite = HEAD_UP;
-            newHead->pos.x = oldHead->pos.x;
-            newHead->pos.y = wrapIdx(oldHead->pos.y, SPRITE_DIM, OLED_HEIGHT);
-            break;
-        }
-        case DOWN:
-        {
-            newHead->sprite = HEAD_DOWN;
             newHead->pos.x = oldHead->pos.x;
             newHead->pos.y = wrapIdx(oldHead->pos.y, -SPRITE_DIM, OLED_HEIGHT);
             break;
         }
+        case DOWN:
+        {
+            newHead->pos.x = oldHead->pos.x;
+            newHead->pos.y = wrapIdx(oldHead->pos.y, SPRITE_DIM, OLED_HEIGHT);
+            break;
+        }
         case LEFT:
         {
-            newHead->sprite = HEAD_LEFT;
             newHead->pos.x = wrapIdx(oldHead->pos.x, -SPRITE_DIM, OLED_WIDTH);
             newHead->pos.y = oldHead->pos.y;
             break;
         }
         case RIGHT:
         {
-            newHead->sprite = HEAD_RIGHT;
             newHead->pos.x = wrapIdx(oldHead->pos.x, SPRITE_DIM, OLED_WIDTH);
             newHead->pos.y = oldHead->pos.y;
             break;
@@ -502,28 +557,32 @@ void ICACHE_FLASH_ATTR moveSnake(void)
         }
     }
 
-    // TODO swap sprite right behind the head
-    newHead->nextSegment->sprite = BODY_RIGHT;
+    // Swap sprite right behind the head and adjust it's direction to match the head
+    snakeNode_t* neck = newHead->nextSegment;
+    newHead->nextSegment->sprite = spriteTransitionTable[0][newHead->dir][neck->nextSegment->dir];
+    neck->dir = newHead->dir;
 
     // Iterate through the list, decrementing the ttl
     snakeNode_t* snakePtr = snake.snakeList;
     while(NULL != snakePtr)
     {
         snakePtr->ttl--;
-        // If this segment is done, remove it from the list and free it
-        if(0 == snakePtr->ttl)
+        if(1 == snakePtr->ttl)
         {
+            // Draw a new tail here
+            snakePtr->sprite = tailTransitionTable[snakePtr->dir];
+        }
+        else if(0 == snakePtr->ttl)
+        {
+            // If this segment is done, remove it from the list and free it
             snakePtr->prevSegment->nextSegment = NULL;
             os_free(snakePtr);
+            snakePtr = NULL;
         }
-        else
+
+        // iterate
+        if (NULL != snakePtr)
         {
-            if(1 == snakePtr->ttl)
-            {
-                // TODO draw a new tail here
-                snakePtr->sprite = TAIL_RIGHT;
-            }
-            // iterate
             snakePtr = snakePtr->nextSegment;
         }
     }
@@ -579,14 +638,14 @@ void ICACHE_FLASH_ATTR drawFood(void)
  * @param y
  * @param sprite
  */
-void ICACHE_FLASH_ATTR plotSnakeSprite(uint8_t x, uint8_t y, spriteIdx_t sprite)
+void ICACHE_FLASH_ATTR plotSnakeSprite(uint8_t x, uint8_t y, snakeSprite sprite)
 {
     uint8_t xDraw, yDraw, spriteIdx = 15;
     for(yDraw = 0; yDraw < SPRITE_DIM; yDraw++)
     {
         for(xDraw = 0; xDraw < SPRITE_DIM; xDraw++)
         {
-            if(snakeSprites[sprite] & (1 << (spriteIdx--)))
+            if(sprite & (1 << (spriteIdx--)))
             {
                 drawPixel(x + xDraw, y + yDraw, WHITE);
             }
