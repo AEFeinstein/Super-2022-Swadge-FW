@@ -19,6 +19,11 @@ typedef enum
 typedef struct
 {
     bool isConnected;
+    char msgId[4];
+
+    char conMsg[8];
+    char ackMsg[16];
+    char startMsg[16];
 
     struct
     {
@@ -53,9 +58,12 @@ typedef struct
     } tmr;
 } p2pInfo;
 
-void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p);
-void ICACHE_FLASH_ATTR p2pSendMsg(p2pInfo* p2p, char* msg, uint16_t len,
-                                  bool shouldAck, void (*success)(void*), void (*failure)(void*));
-void ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi);
+void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId);
+void ICACHE_FLASH_ATTR p2pStartConnection(p2pInfo* p2p);
+void ICACHE_FLASH_ATTR p2pSendMsg(p2pInfo* p2p, char* msg, uint16_t len);
+void ICACHE_FLASH_ATTR p2pSendCb(p2pInfo* p2p, uint8_t* mac_addr __attribute__((unused)),
+                                 mt_tx_status status);
+bool ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi);
+void ICACHE_FLASH_ATTR p2pDeinit(p2pInfo* p2p);
 
 #endif
