@@ -44,11 +44,12 @@
 
 void ICACHE_FLASH_ATTR demoEnterMode(void);
 void ICACHE_FLASH_ATTR demoExitMode(void);
-void ICACHE_FLASH_ATTR demoTimerCallback(void);
 void ICACHE_FLASH_ATTR demoSampleHandler(int32_t samp);
 void ICACHE_FLASH_ATTR demoButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down);
 void ICACHE_FLASH_ATTR demoAccelerometerHandler(accel_t* accel);
+
+void ICACHE_FLASH_ATTR updateDisplay(void);
 
 /*============================================================================
  * Variables
@@ -59,7 +60,6 @@ swadgeMode demoMode =
     .modeName = "demo",
     .fnEnterMode = demoEnterMode,
     .fnExitMode = demoExitMode,
-    .fnTimerCallback = demoTimerCallback,
     .fnButtonCallback = demoButtonCallback,
     .fnAudioCallback = demoSampleHandler,
     .wifiMode = SOFT_AP,
@@ -97,7 +97,7 @@ void ICACHE_FLASH_ATTR demoExitMode(void)
 /**
  * TODO
  */
-void ICACHE_FLASH_ATTR demoTimerCallback(void)
+void ICACHE_FLASH_ATTR updateDisplay(void)
 {
     // Clear the display
     clearDisplay();
@@ -121,10 +121,6 @@ void ICACHE_FLASH_ATTR demoTimerCallback(void)
     {
         // Down
         plotCircle(BTN_CTR_X, BTN_CTR_Y + BTN_OFF, BTN_RAD);
-    }
-    if(mButtonState & UP)
-    {
-        // Up
         plotCircle(BTN_CTR_X, BTN_CTR_Y - BTN_OFF, BTN_RAD);
     }
     if(mButtonState & LEFT)
@@ -137,9 +133,6 @@ void ICACHE_FLASH_ATTR demoTimerCallback(void)
         // Right
         plotCircle(BTN_CTR_X + BTN_OFF, BTN_CTR_Y, BTN_RAD);
     }
-
-    // Update the display
-    display();
 }
 
 /**
@@ -178,6 +171,7 @@ void ICACHE_FLASH_ATTR demoButtonCallback( uint8_t state,
         int button __attribute__((unused)), int down __attribute__((unused)))
 {
     mButtonState = state;
+    updateDisplay();
 }
 
 /**
@@ -192,4 +186,5 @@ void ICACHE_FLASH_ATTR demoAccelerometerHandler(accel_t* accel)
     demoAccel.x = accel->x;
     demoAccel.y = accel->y;
     demoAccel.z = accel->z;
+    updateDisplay();
 }

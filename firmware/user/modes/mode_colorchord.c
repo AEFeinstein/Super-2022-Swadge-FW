@@ -44,7 +44,6 @@ swadgeMode colorchordMode =
     .modeName = "colorchord",
     .fnEnterMode = colorchordEnterMode,
     .fnExitMode = colorchordExitMode,
-    .fnTimerCallback = NULL,
     .fnButtonCallback = colorchordButtonCallback,
     .fnAudioCallback = colorchordSampleHandler,
     .wifiMode = SOFT_AP,

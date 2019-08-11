@@ -50,11 +50,11 @@ void ICACHE_FLASH_ATTR MMA8452Q_poll(accel_t* currentAccel)
     uint8_t data[7] = {0};
     brzo_i2c_read(data, sizeof(data), false);
 
-    brzo_i2c_end_transaction();
+    uint8_t completion_code = brzo_i2c_end_transaction();
 
-    if(brzo_i2c_get_error() != 0)
+    if(completion_code != 0)
     {
-        os_printf("Error : Input/Output error %02X\n", brzo_i2c_get_error());
+        os_printf("Error : Input/Output error %02X\n", completion_code);
     }
     else
     {

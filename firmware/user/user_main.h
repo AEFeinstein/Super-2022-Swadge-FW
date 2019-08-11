@@ -75,11 +75,6 @@ typedef struct _swadgeMode
      */
     void (*fnExitMode)(void);
     /**
-     * This function is called every 100ms from user_main.c's timerFunc100ms().
-     * It should be used to update any state based on time
-     */
-    void (*fnTimerCallback)(void);
-    /**
      * This function is called when a button press is detected from user_main.c's
      * HandleButtonEvent(). It does not pass mode select button events. It is
      * called from an interrupt, so do the minimal amount of processing here as
@@ -167,5 +162,8 @@ void ICACHE_FLASH_ATTR swadgeModeEspNowSendCb(uint8_t* mac_addr, mt_tx_status st
 
 void EnterCritical(void);
 void ExitCritical(void);
+
+uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode *** modePtr);
+void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode);
 
 #endif /* USER_USER_MAIN_H_ */

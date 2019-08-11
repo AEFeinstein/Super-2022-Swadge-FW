@@ -25,6 +25,7 @@
 #include "QMA6981.h"
 #include "MMA8452Q.h"
 
+#include "mode_menu.h"
 #include "mode_guitar_tuner.h"
 #include "mode_colorchord.h"
 #include "mode_reflector_game.h"
@@ -56,11 +57,15 @@ rtcMem_t;
  * Variables
  *==========================================================================*/
 
-static os_timer_t timerHandle100ms = {0};
+static os_timer_t timerHandlePollAccel = {0};
+static os_timer_t timerHandleUpdateDisplay = {0};
+static os_timer_t timerHandleHpaTimer = {0};
+
 os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
 {
+    &menuMode, // Menu must be the first
     &demoMode,
     &colorchordMode,
     &reflectorGameMode,
@@ -75,6 +80,8 @@ rtcMem_t rtcMem = {0};
 bool MMA8452Q_init = false;
 bool QMA6981_init = false;
 
+uint8_t menuChangeBarProgress = 0;
+
 /*============================================================================
  * Prototypes
  *==========================================================================*/
@@ -83,9 +90,10 @@ void ICACHE_FLASH_ATTR user_pre_init(void);
 void ICACHE_FLASH_ATTR user_init(void);
 
 static void ICACHE_FLASH_ATTR procTask(os_event_t* events);
-static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg);
+static void ICACHE_FLASH_ATTR updateDisplay(void* arg);
+static void ICACHE_FLASH_ATTR pollAccel(void* arg);
 
-void ICACHE_FLASH_ATTR incrementSwadgeMode(void);
+static void ICACHE_FLASH_ATTR drawChangeMenuBar(void);
 
 /*============================================================================
  * Initialization Functions
@@ -208,10 +216,23 @@ void ICACHE_FLASH_ATTR user_init(void)
         os_printf("QMA6981 not needed\n");
     }
 
+    if(QMA6981_init || MMA8452Q_init)
+    {
+        // Start a software timer to run every 100ms
+        os_timer_disarm(&timerHandlePollAccel);
+        os_timer_setfn(&timerHandlePollAccel, (os_timer_func_t*)pollAccel, NULL);
+        os_timer_arm(&timerHandlePollAccel, 100, 1);
+    }
+
     // Initialize display
-    if(true == begin(true))
+    if(true == initOLED(true))
     {
         os_printf("OLED initialized\n");
+
+        // Start a software timer to run every 100ms
+        os_timer_disarm(&timerHandleUpdateDisplay);
+        os_timer_setfn(&timerHandleUpdateDisplay, (os_timer_func_t*)updateDisplay, NULL);
+        os_timer_arm(&timerHandleUpdateDisplay, 100, 1);
     }
     else
     {
@@ -221,8 +242,17 @@ void ICACHE_FLASH_ATTR user_init(void)
     // Only start the HPA timer if there's an audio callback
     if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
     {
-        StartHPATimer();
+        StartHPATimer(NULL);
+
+        // Start a software timer to run every 100ms
+        os_timer_disarm(&timerHandleHpaTimer);
+        os_timer_setfn(&timerHandleHpaTimer, (os_timer_func_t*)StartHPATimer, NULL);
+        os_timer_arm(&timerHandleHpaTimer, 100, 1);
     }
+
+    // Turn LEDs off
+    led_t leds[NUM_LIN_LEDS] = {{0}};
+    setLeds(leds, sizeof(leds));
 
     // Initialize the current mode
     if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEnterMode)
@@ -235,11 +265,6 @@ void ICACHE_FLASH_ATTR user_init(void)
     os_printf("mode: %d: %s initialized\n", rtcMem.currentSwadgeMode,
               (NULL != swadgeModes[rtcMem.currentSwadgeMode]->modeName) ?
               (swadgeModes[rtcMem.currentSwadgeMode]->modeName) : ("No Name"));
-
-    // Start a software timer to run every 100ms
-    os_timer_disarm(&timerHandle100ms);
-    os_timer_setfn(&timerHandle100ms, (os_timer_func_t*)timerFunc100ms, NULL);
-    os_timer_arm(&timerHandle100ms, 100, 1);
 
     // Add a process to filter queued ADC samples and output LED signals
     // This is faster than every 100ms
@@ -313,18 +338,11 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
 }
 
 /**
- * Timer handler for a software timer set to fire every 100ms, forever.
- *
- * If the hardware is in wifi station mode, this Enables the hardware timer
- * to sample the ADC once the IP address has been received and printed
- *
- * Also handles logic for infrastructure wifi mode, which isn't being used
- *
- * TODO call this faster, but have each action still happen at 100ms (round robin)
+ * @brief Polls the accelerometer every 100ms
  *
  * @param arg unused
  */
-static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
+static void ICACHE_FLASH_ATTR pollAccel(void* arg __attribute__((unused)))
 {
     if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
     {
@@ -339,14 +357,20 @@ static void ICACHE_FLASH_ATTR timerFunc100ms(void* arg __attribute__((unused)))
         }
         swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback(&accel);
     }
+}
 
-    // Tick the current mode every 100ms
-    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnTimerCallback)
-    {
-        swadgeModes[rtcMem.currentSwadgeMode]->fnTimerCallback();
-    }
+/**
+ * @brief Updated the OLED display every 100ms
+ *
+ * @param arg unused
+ */
+static void ICACHE_FLASH_ATTR updateDisplay(void* arg __attribute__((unused)))
+{
+    // Draw the menu change bar if necessary
+    drawChangeMenuBar();
 
-    StartHPATimer(); // Init the high speed ADC timer.
+    // Update the display
+    updateOLED();
 }
 
 /*============================================================================
@@ -381,8 +405,10 @@ void ExitCritical(void)
  * This deinitializes the current mode if it is initialized, displays the next
  * mode's LED pattern, and starts a timer to reboot into the next mode.
  * If the reboot timer is running, it will be reset
+ *
+ * @param newMode The index of the new mode
  */
-void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
+void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
 {
     // If the mode is initialized, tear it down
     if(swadgeModeInit)
@@ -412,7 +438,7 @@ void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
     }
 
     // Switch to the next mode, or start from the beginning if we're at the end
-    rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
+    rtcMem.currentSwadgeMode = newMode;
 
     // Write the RTC memory so it knows what mode to be in when waking up
     system_rtc_mem_write(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem));
@@ -449,6 +475,45 @@ void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
     system_deep_sleep(1000);
 }
 
+/**
+ * Return the array of swadge mode pointers through a parameter and the number
+ * of modes through the return value
+ *
+ * @return the number of swadge modes
+ */
+uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr)
+{
+    *modePtr = swadgeModes;
+    return (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
+}
+
+/**
+ * Draw a progress bar on the bottom of the display if the menu button is being held.
+ * When the bar fills the display, reset the mode back to the menu
+ */
+#define BAR_INCREMENT 10
+void ICACHE_FLASH_ATTR drawChangeMenuBar(void)
+{
+    if(0 < menuChangeBarProgress)
+    {
+        // Clear the bottom bar
+        fillDisplayArea(0, OLED_HEIGHT - 1, OLED_WIDTH - 1, OLED_HEIGHT - 1, BLACK);
+        // Draw the menu change progress bar
+        fillDisplayArea(0, OLED_HEIGHT - 1, menuChangeBarProgress, OLED_HEIGHT - 1, WHITE);
+        // Increment the progress for next time
+        menuChangeBarProgress += BAR_INCREMENT;
+
+        // If it was held for long enough
+        if(menuChangeBarProgress >= 131)
+        {
+            // Stop bar so will only get here once
+            menuChangeBarProgress = 0;
+            // Go back to the menu
+            switchToSwadgeMode(0);
+        }
+    }
+}
+
 /*============================================================================
  * Swadge Mode Callback Functions
  *==========================================================================*/
@@ -465,8 +530,23 @@ void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int d
 {
     if(0 == button)
     {
-        // Switch the mode
-        incrementSwadgeMode();
+        // If the menu button was pressed
+        if(0 == rtcMem.currentSwadgeMode)
+        {
+            // Only for the menu mode, pass the button event to the mode
+            swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(state, button, down);
+        }
+        else if(down)
+        {
+            // Start drawing the progress bar
+            menuChangeBarProgress = 1;
+        }
+        else
+        {
+            // If it was released, stop drawing the progress bar and clear it
+            fillDisplayArea(0, OLED_HEIGHT - 1, menuChangeBarProgress, OLED_HEIGHT - 1, BLACK);
+            menuChangeBarProgress = 0;
+        }
     }
     else if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
     {

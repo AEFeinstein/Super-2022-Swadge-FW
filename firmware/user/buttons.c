@@ -80,7 +80,8 @@ void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void)
             debounceUs = DEBOUNCE_US_FAST;
         }
 
-        if(buttonQueue[buttonEvtHead].time - lastButtonPress[buttonQueue[buttonEvtHead].btn] < debounceUs)
+        if(0 != buttonQueue[buttonEvtHead].btn &&
+                buttonQueue[buttonEvtHead].time - lastButtonPress[buttonQueue[buttonEvtHead].btn] < debounceUs)
         {
             ; // Consume this event below, don't count it as a press
         }
