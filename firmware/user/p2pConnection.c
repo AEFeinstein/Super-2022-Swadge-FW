@@ -1,3 +1,40 @@
+/* PlantUML documentation
+
+== Connection ==
+
+group Part 1
+"Swadge_AB:AB:AB:AB:AB:AB" ->  "Swadge_12:12:12:12:12:12" : "p2p_con" (broadcast)
+"Swadge_12:12:12:12:12:12" ->  "Swadge_AB:AB:AB:AB:AB:AB" : "p2p_str_00_AB:AB:AB:AB:AB:AB"
+note left: Stop Broadcasting, set p2p->cnc.rxGameStartMsg
+"Swadge_AB:AB:AB:AB:AB:AB" ->  "Swadge_12:12:12:12:12:12" : "p2p_ack_00_12:12:12:12:12:12"
+note right: set p2p->cnc.rxGameStartAck
+end
+
+group Part 2
+"Swadge_12:12:12:12:12:12" ->  "Swadge_AB:AB:AB:AB:AB:AB" : "p2p_con" (broadcast)
+"Swadge_AB:AB:AB:AB:AB:AB" ->  "Swadge_12:12:12:12:12:12" : "p2p_str_01_12:12:12:12:12:12"
+note right: Stop Broadcasting, set p2p->cnc.rxGameStartMsg, become CLIENT
+"Swadge_12:12:12:12:12:12" ->  "Swadge_AB:AB:AB:AB:AB:AB" : "p2p_ack_01_AB:AB:AB:AB:AB:AB"
+note left: set p2p->cnc.rxGameStartAck, become SERVER
+end
+
+== Unreliable Communication Example ==
+
+group Retries & Sequence Numbers
+"Swadge_AB:AB:AB:AB:AB:AB" ->x "Swadge_12:12:12:12:12:12" : "p2p_cnt_04_12:12:12:12:12:12_up"
+note right: msg not received
+"Swadge_AB:AB:AB:AB:AB:AB" ->  "Swadge_12:12:12:12:12:12" : "p2p_cnt_04_12:12:12:12:12:12_up"
+note left: first retry, up to five retries
+"Swadge_12:12:12:12:12:12" ->x "Swadge_AB:AB:AB:AB:AB:AB" : "p2p_ack_04_AB:AB:AB:AB:AB:AB"
+note left: ack not received
+"Swadge_AB:AB:AB:AB:AB:AB" ->  "Swadge_12:12:12:12:12:12" : "p2p_cnt_04_12:12:12:12:12:12_up"
+note left: second retry
+note right: duplicate seq num, ignore message
+"Swadge_12:12:12:12:12:12" ->  "Swadge_AB:AB:AB:AB:AB:AB" : "p2p_ack_05_AB:AB:AB:AB:AB:AB"
+end
+
+*/
+
 /*============================================================================
  * Includes
  *==========================================================================*/
@@ -20,11 +57,11 @@
     #define p2p_printf(...)
 #endif
 
-// The time we'll spend retrying messages
-#define RETRY_TIME_MS 3000
-
 // Minimum RSSI to accept a connection broadcast
 #define CONNECTION_RSSI 55
+
+// The time we'll spend retrying messages
+#define RETRY_TIME_MS 3000
 
 // Time to wait between connection events and game rounds.
 // Transmission can be 3s (see above), the round @ 12ms period is 3.636s
@@ -51,7 +88,7 @@ void ICACHE_FLASH_ATTR p2pTxRetryTimeout(void* arg);
 void ICACHE_FLASH_ATTR p2pRestart(void* arg);
 void ICACHE_FLASH_ATTR p2pStartRestartTimer(void* arg);
 void ICACHE_FLASH_ATTR p2pProcConnectionEvt(p2pInfo* p2p, connectionEvt_t event);
-void ICACHE_FLASH_ATTR p2pGameStartAckRecv(void* arg __attribute__((unused)));
+void ICACHE_FLASH_ATTR p2pGameStartAckRecv(void* arg);
 void ICACHE_FLASH_ATTR p2pSendAckToMac(p2pInfo* p2p, uint8_t* mac_addr);
 void ICACHE_FLASH_ATTR p2pSendMsgEx(p2pInfo* p2p, char* msg, uint16_t len,
                                     bool shouldAck, void (*success)(void*), void (*failure)(void*));
@@ -61,7 +98,13 @@ void ICACHE_FLASH_ATTR p2pSendMsgEx(p2pInfo* p2p, char* msg, uint16_t len,
  *==========================================================================*/
 
 /**
- * Initialize everything and start sending broadcast messages
+ * @brief Initialize the p2p connection protocol
+ *
+ * @param p2p           The p2pInfo struct with all the state information
+ * @param msgId         A three character, null terminated message ID. Must be
+ *                      unique per-swadge mode.
+ * @param conCallbackFn A function pointer which will be called when connection
+ *                      events occur
  */
 void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId, p2pConCallbackFn conCallbackFn)
 {
@@ -70,12 +113,13 @@ void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId, p2pConCallbackFn
     // Make sure everything is zero!
     ets_memset(p2p, 0, sizeof(p2pInfo));
 
+    // Set the callback function for connection events
     p2p->conCallbackFn = conCallbackFn;
 
-    // Except the tracked sequence number, which starts at 255 so that a 0
-    // received is valid.
+    // Set the initial sequence number at 255 so that a 0 received is valid.
     p2p->cnc.lastSeqNum = 255;
 
+    // Set the three character message ID
     ets_strncpy(p2p->msgId, msgId, sizeof(p2p->msgId));
 
     // Get and save the string form of our MAC address
@@ -117,26 +161,27 @@ void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId, p2pConCallbackFn
                  0xFF,
                  0xFF);
 
-    // Set up a timer for acking messages, don't start it
+    // Set up a timer for acking messages
     os_timer_disarm(&p2p->tmr.TxRetry);
     os_timer_setfn(&p2p->tmr.TxRetry, p2pTxRetryTimeout, p2p);
 
+    // Set up a timer for when a message never gets ACKed
     os_timer_disarm(&p2p->tmr.TxAllRetries);
     os_timer_setfn(&p2p->tmr.TxAllRetries, p2pTxAllRetriesTimeout, p2p);
 
-    // Set up a timer to restart after failure. don't start it
+    // Set up a timer to restart after abject failure
     os_timer_disarm(&p2p->tmr.Reinit);
     os_timer_setfn(&p2p->tmr.Reinit, p2pRestart, p2p);
 
-    // Set up a timer to do an initial connection, don't start it
+    // Set up a timer to do an initial connection
     os_timer_disarm(&p2p->tmr.Connection);
     os_timer_setfn(&p2p->tmr.Connection, p2pConnectionTimeout, p2p);
 }
 
 /**
- * @brief TODO
+ * Start the connection process by sending broadcasts and notify the mode
  *
- * @param p2p
+ * @param p2p The p2pInfo struct with all the state information
  */
 void ICACHE_FLASH_ATTR p2pStartConnection(p2pInfo* p2p)
 {
@@ -151,7 +196,9 @@ void ICACHE_FLASH_ATTR p2pStartConnection(p2pInfo* p2p)
 }
 
 /**
- * Clean up all timers
+ * Stop up all timers
+ *
+ * @param p2p The p2pInfo struct with all the state information
  */
 void ICACHE_FLASH_ATTR p2pDeinit(p2pInfo* p2p)
 {
@@ -164,9 +211,13 @@ void ICACHE_FLASH_ATTR p2pDeinit(p2pInfo* p2p)
 }
 
 /**
- * @brief TODO
+ * Send a broadcast connection message
  *
- * @param arg
+ * Called periodically, with some randomness mixed in from the tmr.Connection
+ * timer. The timer is set when connection starts and is stopped when we
+ * receive a response to our connection broadcast
+ *
+ * @param arg The p2pInfo struct with all the state information
  */
 void ICACHE_FLASH_ATTR p2pConnectionTimeout(void* arg)
 {
@@ -186,9 +237,12 @@ void ICACHE_FLASH_ATTR p2pConnectionTimeout(void* arg)
 }
 
 /**
- * @brief TODO
+ * Retries sending a message to be acked
  *
- * @param arg
+ * Called from the tmr.TxRetry timer. The timer is set when a message to be
+ * ACKed is sent and cleared when an ACK is received
+ *
+ * @param arg The p2pInfo struct with all the state information
  */
 void ICACHE_FLASH_ATTR p2pTxRetryTimeout(void* arg)
 {
@@ -204,9 +258,13 @@ void ICACHE_FLASH_ATTR p2pTxRetryTimeout(void* arg)
 }
 
 /**
- * @brief TODO
+ * Stops a message transmission attempt after all retries have been exhausted
+ * and calls p2p->ack.FailureFn() if a function was given
  *
- * @param arg
+ * Called from the tmr.TxAllRetries timer. The timer is set when a message to
+ * be ACKed is sent for the first time and cleared when the message is ACKed.
+ *
+ * @param arg The p2pInfo struct with all the state information
  */
 void ICACHE_FLASH_ATTR p2pTxAllRetriesTimeout(void* arg)
 {
@@ -230,11 +288,14 @@ void ICACHE_FLASH_ATTR p2pTxAllRetriesTimeout(void* arg)
 }
 
 /**
- * @brief
+ * Send a message from one Swadge to another. This must not be called before
+ * the CON_ESTABLISHED event occurs. Message addressing, ACKing, and retries
+ * all happen automatically
  *
- * @param p2p
- * @param msg
- * @param len
+ * @param p2p     The p2pInfo struct with all the state information
+ * @param msg     The mandatory three char message type
+ * @param payload An optional message payload string, may be NULL, up to 32 chars
+ * @param len     The length of the optional message payload string. May be 0
  */
 void ICACHE_FLASH_ATTR p2pSendMsg(p2pInfo* p2p, char* msg, char* payload, uint16_t len)
 {
@@ -270,13 +331,15 @@ void ICACHE_FLASH_ATTR p2pSendMsg(p2pInfo* p2p, char* msg, char* payload, uint16
                      payload);
     }
 
-    p2pSendMsgEx(p2p, builtMsg, strlen(builtMsg), true, p2pStartRestartTimer, p2pRestart);
+    // TODO success and failure passed to swadge mode?
+    p2pSendMsgEx(p2p, builtMsg, strlen(builtMsg), true, NULL, p2pRestart);
 }
 
 /**
  * Wrapper for sending an ESP-NOW message. Handles ACKing and retries for
  * non-broadcast style messages
  *
+ * @param p2p       The p2pInfo struct with all the state information
  * @param msg       The message to send, may contain destination MAC
  * @param len       The length of the message to send
  * @param shouldAck true if this message should be acked, false if we don't care
@@ -343,11 +406,15 @@ void ICACHE_FLASH_ATTR p2pSendMsgEx(p2pInfo* p2p, char* msg, uint16_t len,
 }
 
 /**
- * This is called whenever an ESP NOW packet is received
+ * This is must be called whenever an ESP NOW packet is received
  *
+ * @param p2p      The p2pInfo struct with all the state information
  * @param mac_addr The MAC of the swadge that sent the data
  * @param data     The data
  * @param len      The length of the data
+ * @param rssi     The RSSI of th received message, a proxy for distance
+ * @return false if the message was processed here,
+ *         true if the message should be processed by the swadge mode
  */
 bool ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi)
 {
@@ -494,9 +561,6 @@ bool ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data
     }
     else
     {
-        // Received a message, so stop the failure timer
-        os_timer_disarm(&p2p->tmr.Reinit);
-
         // Let the mode handle it
         return true;
     }
@@ -505,6 +569,7 @@ bool ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data
 /**
  * Helper function to send an ACK message to the given MAC
  *
+ * @param p2p      The p2pInfo struct with all the state information
  * @param mac_addr The MAC to address this ACK to
  */
 void ICACHE_FLASH_ATTR p2pSendAckToMac(p2pInfo* p2p, uint8_t* mac_addr)
@@ -527,7 +592,7 @@ void ICACHE_FLASH_ATTR p2pSendAckToMac(p2pInfo* p2p, uint8_t* mac_addr)
 /**
  * This is called when p2p->startMsg is acked and processes the connection event
  *
- * @param arg unused
+ * @param arg The p2pInfo struct with all the state information
  */
 void ICACHE_FLASH_ATTR p2pGameStartAckRecv(void* arg)
 {
@@ -543,6 +608,7 @@ void ICACHE_FLASH_ATTR p2pGameStartAckRecv(void* arg)
  * 2. This swadge has to receive an ack to a start message sent to another swadge
  * The order of events determines who is the 'client' and who is the 'server'
  *
+ * @param p2p   The p2pInfo struct with all the state information
  * @param event The event that occurred
  */
 void ICACHE_FLASH_ATTR p2pProcConnectionEvt(p2pInfo* p2p, connectionEvt_t event)
@@ -610,23 +676,26 @@ void ICACHE_FLASH_ATTR p2pProcConnectionEvt(p2pInfo* p2p, connectionEvt_t event)
 }
 
 /**
- * This starts a timer to reinit everything, used in case of a failure
+ * This starts a timer to call p2pRestart(), used in case of a failure
+ * The timer is set when one half of the necessary connection messages is received
+ * The timer is disarmed when the connection is established
  *
- * @param arg unused
+ * @param arg The p2pInfo struct with all the state information
  */
 void ICACHE_FLASH_ATTR p2pStartRestartTimer(void* arg)
 {
     p2p_printf("%s\r\n", __func__);
 
     p2pInfo* p2p = (p2pInfo*)arg;
-    // Give 5 seconds to get a result, or else restart
+    // If the connection isn't established in FAILURE_RESTART_MS, restart
     os_timer_arm(&p2p->tmr.Reinit, FAILURE_RESTART_MS, false);
 }
 
 /**
- * Restart by deiniting then initing
+ * Restart by deiniting then initing. Persist the msgId and p2p->conCallbackFn
+ * fields
  *
- * @param arg unused
+ * @param arg The p2pInfo struct with all the state information
  */
 void ICACHE_FLASH_ATTR p2pRestart(void* arg)
 {
@@ -646,15 +715,18 @@ void ICACHE_FLASH_ATTR p2pRestart(void* arg)
 }
 
 /**
+ * This must be called by whatever function is registered to the Swadge mode's
+ * fnEspNowSendCb
+ *
  * This is called after an attempted transmission. If it was successful, and the
  * message should be acked, start a retry timer. If it wasn't successful, just
  * try again
  *
- * @param mac_addr
- * @param status
+ * @param p2p      The p2pInfo struct with all the state information
+ * @param mac_addr unused
+ * @param status   Whether the transmission succeeded or failed
  */
-void ICACHE_FLASH_ATTR p2pSendCb(p2pInfo* p2p, uint8_t* mac_addr __attribute__((unused)),
-                                 mt_tx_status status)
+void ICACHE_FLASH_ATTR p2pSendCb(p2pInfo* p2p, uint8_t* mac_addr __attribute__((unused)), mt_tx_status status)
 {
     p2p_printf("%s\r\n", __func__);
 
@@ -701,20 +773,29 @@ void ICACHE_FLASH_ATTR p2pSendCb(p2pInfo* p2p, uint8_t* mac_addr __attribute__((
 }
 
 /**
- * @brief TODO
+ * After the swadge is connected to another, return whether this Swadge is
+ * player 1 or player 2. This can be used to determine client/server roles
  *
- * @param p2p
- * @return playOrder_t p2pGetPlayOrder
+ * @param p2p The p2pInfo struct with all the state information
+ * @return    GOING_SECOND, GOING_FIRST, or NOT_SET
  */
 playOrder_t ICACHE_FLASH_ATTR p2pGetPlayOrder(p2pInfo* p2p)
 {
-    return p2p->cnc.playOrder;
+    if(p2p->isConnected)
+    {
+        return p2p->cnc.playOrder;
+    }
+    else
+    {
+        return NOT_SET;
+    }
 }
 
 /**
- * @brief TODO
+ * Override whether the Swadge is player 1 or player 2. You probably shouldn't
+ * do this, but you might want to for single player modes
  *
- * @param p2p
+ * @param p2p The p2pInfo struct with all the state information
  */
 void ICACHE_FLASH_ATTR p2pSetPlayOrder(p2pInfo* p2p, playOrder_t order)
 {

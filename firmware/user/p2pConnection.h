@@ -11,6 +11,7 @@
 
 typedef enum
 {
+    NOT_SET,
     GOING_SECOND,
     GOING_FIRST
 } playOrder_t;
@@ -78,8 +79,7 @@ void ICACHE_FLASH_ATTR p2pDeinit(p2pInfo* p2p);
 void ICACHE_FLASH_ATTR p2pStartConnection(p2pInfo* p2p);
 
 void ICACHE_FLASH_ATTR p2pSendMsg(p2pInfo* p2p, char* msg, char* payload, uint16_t len);
-void ICACHE_FLASH_ATTR p2pSendCb(p2pInfo* p2p, uint8_t* mac_addr __attribute__((unused)),
-                                 mt_tx_status status);
+void ICACHE_FLASH_ATTR p2pSendCb(p2pInfo* p2p, uint8_t* mac_addr, mt_tx_status status);
 bool ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi);
 
 playOrder_t ICACHE_FLASH_ATTR p2pGetPlayOrder(p2pInfo* p2p);
