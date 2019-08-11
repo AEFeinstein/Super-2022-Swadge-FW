@@ -55,7 +55,8 @@ CFLAGS = \
 	-Wl,-Map,output.map \
 	-B$(SDK)/lib \
 	-g \
-	-std=gnu99
+	-std=gnu99 \
+	-MD
 
 # These are warning flags for the compiler, all files
 CFLAGS_WARNINGS = \
@@ -277,6 +278,7 @@ clean:
 	-@find ./ -type f -name '$(DBG_LST)' -delete
 	-@find ./ -type f -name '$(notdir $(LIBGCC_STRIPPED))' -delete
 	-@find ./$(OBJ_DIR)/ -type f -name '*.o' -delete
+	-@find ./$(OBJ_DIR)/ -type f -name '*.d' -delete
 	-@rm -rf docs
 
 ################################################################################
@@ -334,3 +336,9 @@ bump_submodule :
 
 # Print any value from this makefile
 print-%  : ; @echo $* = $($*)
+
+#################################################################################
+# Needed to automatically detect changes in header files
+# https://nathandumont.com/blog/automatically-detect-changes-in-header-files-in-a
+#################################################################################
+-include $(OBJECTS:.o=.d)
