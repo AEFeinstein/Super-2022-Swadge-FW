@@ -31,12 +31,6 @@
 // (240 steps of rotation + (252/4) steps of decay) * 12ms
 #define FAILURE_RESTART_MS 8000
 
-// Indices into messages to send
-#define CMD_IDX 4
-#define SEQ_IDX 8
-#define MAC_IDX 11
-// #define EXT_IDX 29
-
 /*============================================================================
  * Variables
  *==========================================================================*/
@@ -69,12 +63,14 @@ void ICACHE_FLASH_ATTR p2pSendMsgEx(p2pInfo* p2p, char* msg, uint16_t len,
 /**
  * Initialize everything and start sending broadcast messages
  */
-void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId)
+void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId, p2pConCallbackFn conCallbackFn)
 {
     p2p_printf("%s\r\n", __func__);
 
     // Make sure everything is zero!
     ets_memset(p2p, 0, sizeof(p2pInfo));
+
+    p2p->conCallbackFn = conCallbackFn;
 
     // Except the tracked sequence number, which starts at 255 so that a 0
     // received is valid.
@@ -147,6 +143,11 @@ void ICACHE_FLASH_ATTR p2pStartConnection(p2pInfo* p2p)
     p2p_printf("%s\r\n", __func__);
 
     os_timer_arm(&p2p->tmr.Connection, 1, false);
+
+    if(NULL != p2p->conCallbackFn)
+    {
+        p2p->conCallbackFn(CON_STARTED);
+    }
 }
 
 /**
@@ -268,7 +269,6 @@ void ICACHE_FLASH_ATTR p2pSendMsg(p2pInfo* p2p, char* msg, char* payload, uint16
                      p2p->cnc.otherMac[5],
                      payload);
     }
-
 
     p2pSendMsgEx(p2p, builtMsg, strlen(builtMsg), true, p2pStartRestartTimer, p2pRestart);
 }
@@ -494,6 +494,9 @@ bool ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data
     }
     else
     {
+        // Received a message, so stop the failure timer
+        os_timer_disarm(&p2p->tmr.Reinit);
+
         // Let the mode handle it
         return true;
     }
@@ -571,10 +574,18 @@ void ICACHE_FLASH_ATTR p2pProcConnectionEvt(p2pInfo* p2p, connectionEvt_t event)
             p2p->cnc.rxGameStartAck = true;
             break;
         }
+        case CON_STARTED:
+        case CON_ESTABLISHED:
+        case CON_LOST:
         default:
         {
             break;
         }
+    }
+
+    if(NULL != p2p->conCallbackFn)
+    {
+        p2p->conCallbackFn(event);
     }
 
     // If both the game start messages are good, start the game
@@ -585,7 +596,11 @@ void ICACHE_FLASH_ATTR p2pProcConnectionEvt(p2pInfo* p2p, connectionEvt_t event)
 
         p2p->isConnected = true;
 
-        // TODO tell the mode it's connected
+        // tell the mode it's connected
+        if(NULL != p2p->conCallbackFn)
+        {
+            p2p->conCallbackFn(CON_ESTABLISHED);
+        }
     }
     else
     {
@@ -618,10 +633,16 @@ void ICACHE_FLASH_ATTR p2pRestart(void* arg)
     p2p_printf("%s\r\n", __func__);
 
     p2pInfo* p2p = (p2pInfo*)arg;
+
+    if(NULL != p2p->conCallbackFn)
+    {
+        p2p->conCallbackFn(CON_LOST);
+    }
+
     char msgId[4] = {0};
     ets_strncpy(msgId, p2p->msgId, sizeof(msgId));
     p2pDeinit(p2p);
-    p2pInitialize(p2p, msgId);
+    p2pInitialize(p2p, msgId, p2p->conCallbackFn);
 }
 
 /**

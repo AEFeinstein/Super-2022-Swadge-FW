@@ -3,17 +3,28 @@
 
 #include <osapi.h>
 
-typedef enum
-{
-    RX_GAME_START_ACK,
-    RX_GAME_START_MSG
-} connectionEvt_t;
+// Indices into messages
+#define CMD_IDX 4
+#define SEQ_IDX 8
+#define MAC_IDX 11
+#define EXT_IDX 29
 
 typedef enum
 {
     GOING_SECOND,
     GOING_FIRST
 } playOrder_t;
+
+typedef enum
+{
+    CON_STARTED,
+    RX_GAME_START_ACK,
+    RX_GAME_START_MSG,
+    CON_ESTABLISHED,
+    CON_LOST
+} connectionEvt_t;
+
+typedef void (*p2pConCallbackFn)(connectionEvt_t);
 
 // Variables to track acking messages
 typedef struct
@@ -24,6 +35,8 @@ typedef struct
     char conMsg[8];
     char ackMsg[32];
     char startMsg[32];
+
+    p2pConCallbackFn conCallbackFn;
 
     struct
     {
@@ -58,7 +71,8 @@ typedef struct
     } tmr;
 } p2pInfo;
 
-void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId);
+
+void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId, p2pConCallbackFn conCallbackFn);
 void ICACHE_FLASH_ATTR p2pDeinit(p2pInfo* p2p);
 
 void ICACHE_FLASH_ATTR p2pStartConnection(p2pInfo* p2p);

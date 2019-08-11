@@ -113,6 +113,7 @@ void ICACHE_FLASH_ATTR refSendCb(uint8_t* mac_addr, mt_tx_status status);
 // Helper function
 void ICACHE_FLASH_ATTR refSinglePlayerRestart(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refSinglePlayerScoreLed(uint8_t ledToLight, led_t* colorPrimary, led_t* colorSecondary);
+void ICACHE_FLASH_ATTR refConnectionCallback(connectionEvt_t event);
 
 // Game functions
 void ICACHE_FLASH_ATTR refStartPlaying(void* arg __attribute__((unused)));
@@ -222,6 +223,44 @@ static led_t digitCountSecondSecondary =
  * Functions
  *==========================================================================*/
 
+void ICACHE_FLASH_ATTR refConnectionCallback(connectionEvt_t event)
+{
+    os_printf("%s %d\n", __func__, event);
+    switch(event)
+    {
+        case CON_STARTED:
+        {
+            break;
+        }
+        case RX_GAME_START_ACK:
+        {
+            break;
+        }
+        case RX_GAME_START_MSG:
+        {
+            break;
+        }
+        case CON_ESTABLISHED:
+        {
+            // Connection was successful, so disarm the failure timer
+            ref.gameState = R_SHOW_CONNECTION;
+
+            ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+            ref.led.ConnLedState = LED_CONNECTED_BRIGHT;
+
+            refDisarmAllLedTimers();
+            // 6ms * ~500 steps == 3s animation
+            os_timer_arm(&ref.tmr.ShowConnectionLed, 6, true);
+            break;
+        }
+        default:
+        case CON_LOST:
+        {
+            break;
+        }
+    }
+}
+
 /**
  * Initialize everything and start sending broadcast messages
  */
@@ -235,7 +274,7 @@ void ICACHE_FLASH_ATTR refInit(void)
     // Make sure everything is zero!
     ets_memset(&ref, 0, sizeof(ref));
 
-    p2pInitialize(&ref.p2pRef, "ref");
+    p2pInitialize(&ref.p2pRef, "ref", refConnectionCallback);
 
     // Set up a timer for showing a successful connection, don't start it
     os_timer_disarm(&ref.tmr.ShowConnectionLed);
@@ -309,61 +348,53 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
 {
     if(true == p2pRecvMsg(&ref.p2pRef, mac_addr, data, len, rssi))
     {
-        // switch(ref.gameState)
-        // {
-        //     case R_CONNECTING:
-        //         break;
-        //     case R_WAITING:
-        //     {
-        //         // Received a message that the other swadge lost
-        //         if(ets_strlen(roundLossMsg) == len &&
-        //                 0 == ets_memcmp(data, roundLossMsg, SEQ_IDX))
-        //         {
-        //             // Received a message, so stop the failure timer
-        //             os_timer_disarm(&ref.tmr.Reinit);
+        switch(ref.gameState)
+        {
+            case R_CONNECTING:
+                break;
+            case R_WAITING:
+            {
+                // Received a message that the other swadge lost
+                if(0 == ets_memcmp(&data[CMD_IDX], "los", 3))
+                {
+                    // The other swadge lost, so chalk a win!
+                    ref.gam.Wins++;
 
-        //             // The other swadge lost, so chalk a win!
-        //             ref.gam.Wins++;
+                    // Display the win
+                    refRoundResultLed(true);
+                }
+                if(0 == ets_memcmp(&data[CMD_IDX], "cnt", 3))
+                {
+                    // Get faster or slower based on the other swadge's timing
+                    if(0 == ets_memcmp(&data[EXT_IDX], spdUp, ets_strlen(spdUp)))
+                    {
+                        refAdjustledSpeed(false, true);
+                    }
+                    else if(0 == ets_memcmp(&data[EXT_IDX], spdDn, ets_strlen(spdDn)))
+                    {
+                        refAdjustledSpeed(false, false);
+                    }
 
-        //             // Display the win
-        //             refRoundResultLed(true);
-        //         }
-        //         else if(ets_strlen(roundContinueMsg) == len &&
-        //                 0 == ets_memcmp(data, roundContinueMsg, SEQ_IDX))
-        //         {
-        //             // Received a message, so stop the failure timer
-        //             os_timer_disarm(&ref.tmr.Reinit);
-
-        //             // Get faster or slower based on the other swadge's timing
-        //             if(0 == ets_memcmp(&data[EXT_IDX], spdUp, ets_strlen(spdUp)))
-        //             {
-        //                 refAdjustledSpeed(false, true);
-        //             }
-        //             else if(0 == ets_memcmp(&data[EXT_IDX], spdDn, ets_strlen(spdDn)))
-        //             {
-        //                 refAdjustledSpeed(false, false);
-        //             }
-
-        //             refStartRound();
-        //         }
-        //         break;
-        //     }
-        //     case R_PLAYING:
-        //     {
-        //         // Currently playing a game, shouldn't do anything with messages
-        //         break;
-        //     }
-        //     case R_SHOW_CONNECTION:
-        //     case R_SHOW_GAME_RESULT:
-        //     {
-        //         // Just LED animations, don't do anything with messages
-        //         break;
-        //     }
-        //     default:
-        //     {
-        //         break;
-        //     }
-        // }
+                    refStartRound();
+                }
+                break;
+            }
+            case R_PLAYING:
+            {
+                // Currently playing a game, shouldn't do anything with messages
+                break;
+            }
+            case R_SHOW_CONNECTION:
+            case R_SHOW_GAME_RESULT:
+            {
+                // Just LED animations, don't do anything with messages
+                break;
+            }
+            default:
+            {
+                break;
+            }
+        }
     }
 }
 
