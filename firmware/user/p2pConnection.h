@@ -22,13 +22,13 @@ typedef struct
     char msgId[4];
 
     char conMsg[8];
-    char ackMsg[16];
-    char startMsg[16];
+    char ackMsg[32];
+    char startMsg[32];
 
     struct
     {
         bool isWaitingForAck;
-        char msgToAck[32];
+        char msgToAck[64];
         uint16_t msgToAckLen;
         uint32_t timeSentUs;
         void (*SuccessFn)(void*);
@@ -59,11 +59,16 @@ typedef struct
 } p2pInfo;
 
 void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId);
+void ICACHE_FLASH_ATTR p2pDeinit(p2pInfo* p2p);
+
 void ICACHE_FLASH_ATTR p2pStartConnection(p2pInfo* p2p);
-void ICACHE_FLASH_ATTR p2pSendMsg(p2pInfo* p2p, char* msg, uint16_t len);
+
+void ICACHE_FLASH_ATTR p2pSendMsg(p2pInfo* p2p, char* msg, char* payload, uint16_t len);
 void ICACHE_FLASH_ATTR p2pSendCb(p2pInfo* p2p, uint8_t* mac_addr __attribute__((unused)),
                                  mt_tx_status status);
 bool ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi);
-void ICACHE_FLASH_ATTR p2pDeinit(p2pInfo* p2p);
+
+playOrder_t ICACHE_FLASH_ATTR p2pGetPlayOrder(p2pInfo* p2p);
+void ICACHE_FLASH_ATTR p2pSetPlayOrder(p2pInfo* p2p, playOrder_t order);
 
 #endif

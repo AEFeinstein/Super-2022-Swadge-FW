@@ -71,6 +71,8 @@ void ICACHE_FLASH_ATTR p2pSendMsgEx(p2pInfo* p2p, char* msg, uint16_t len,
  */
 void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId)
 {
+    p2p_printf("%s\r\n", __func__);
+
     // Make sure everything is zero!
     ets_memset(p2p, 0, sizeof(p2pInfo));
 
@@ -95,6 +97,30 @@ void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId)
     ets_snprintf(p2p->conMsg, sizeof(p2p->conMsg), p2pConnectionMsgFmt,
                  p2p->msgId);
 
+    // Set up dummy ACK message
+    ets_snprintf(p2p->ackMsg, sizeof(p2p->ackMsg), p2pNoPayloadMsgFmt,
+                 p2p->msgId,
+                 "ack",
+                 0,
+                 0xFF,
+                 0xFF,
+                 0xFF,
+                 0xFF,
+                 0xFF,
+                 0xFF);
+
+    // Set up dummy start message
+    ets_snprintf(p2p->startMsg, sizeof(p2p->startMsg), p2pNoPayloadMsgFmt,
+                 p2p->msgId,
+                 "str",
+                 0,
+                 0xFF,
+                 0xFF,
+                 0xFF,
+                 0xFF,
+                 0xFF,
+                 0xFF);
+
     // Set up a timer for acking messages, don't start it
     os_timer_disarm(&p2p->tmr.TxRetry);
     os_timer_setfn(&p2p->tmr.TxRetry, p2pTxRetryTimeout, p2p);
@@ -118,6 +144,8 @@ void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId)
  */
 void ICACHE_FLASH_ATTR p2pStartConnection(p2pInfo* p2p)
 {
+    p2p_printf("%s\r\n", __func__);
+
     os_timer_arm(&p2p->tmr.Connection, 1, false);
 }
 
@@ -141,6 +169,8 @@ void ICACHE_FLASH_ATTR p2pDeinit(p2pInfo* p2p)
  */
 void ICACHE_FLASH_ATTR p2pConnectionTimeout(void* arg)
 {
+    p2p_printf("%s\r\n", __func__);
+
     p2pInfo* p2p = (p2pInfo*)arg;
 
     // Send a connection broadcast
@@ -161,6 +191,8 @@ void ICACHE_FLASH_ATTR p2pConnectionTimeout(void* arg)
  */
 void ICACHE_FLASH_ATTR p2pTxRetryTimeout(void* arg)
 {
+    p2p_printf("%s\r\n", __func__);
+
     p2pInfo* p2p = (p2pInfo*)arg;
 
     if(p2p->ack.msgToAckLen > 0)
@@ -177,6 +209,8 @@ void ICACHE_FLASH_ATTR p2pTxRetryTimeout(void* arg)
  */
 void ICACHE_FLASH_ATTR p2pTxAllRetriesTimeout(void* arg)
 {
+    p2p_printf("%s\r\n", __func__);
+
     p2pInfo* p2p = (p2pInfo*)arg;
 
     // Disarm all timers
@@ -201,9 +235,42 @@ void ICACHE_FLASH_ATTR p2pTxAllRetriesTimeout(void* arg)
  * @param msg
  * @param len
  */
-void ICACHE_FLASH_ATTR p2pSendMsg(p2pInfo* p2p, char* msg, uint16_t len)
+void ICACHE_FLASH_ATTR p2pSendMsg(p2pInfo* p2p, char* msg, char* payload, uint16_t len)
 {
-    p2pSendMsgEx(p2p, msg, len, true, p2pStartRestartTimer, p2pRestart);
+    p2p_printf("%s\r\n", __func__);
+
+    char builtMsg[64] = {0};
+
+    if(NULL == payload || len == 0)
+    {
+        ets_snprintf(builtMsg, sizeof(builtMsg), p2pNoPayloadMsgFmt,
+                     p2p->msgId,
+                     msg,
+                     0, // sequence number
+                     p2p->cnc.otherMac[0],
+                     p2p->cnc.otherMac[1],
+                     p2p->cnc.otherMac[2],
+                     p2p->cnc.otherMac[3],
+                     p2p->cnc.otherMac[4],
+                     p2p->cnc.otherMac[5]);
+    }
+    else
+    {
+        ets_snprintf(builtMsg, sizeof(builtMsg), p2pPayloadMsgFmt,
+                     p2p->msgId,
+                     msg,
+                     0, // sequence number, filled in later
+                     p2p->cnc.otherMac[0],
+                     p2p->cnc.otherMac[1],
+                     p2p->cnc.otherMac[2],
+                     p2p->cnc.otherMac[3],
+                     p2p->cnc.otherMac[4],
+                     p2p->cnc.otherMac[5],
+                     payload);
+    }
+
+
+    p2pSendMsgEx(p2p, builtMsg, strlen(builtMsg), true, p2pStartRestartTimer, p2pRestart);
 }
 
 /**
@@ -219,6 +286,8 @@ void ICACHE_FLASH_ATTR p2pSendMsg(p2pInfo* p2p, char* msg, uint16_t len)
 void ICACHE_FLASH_ATTR p2pSendMsgEx(p2pInfo* p2p, char* msg, uint16_t len,
                                     bool shouldAck, void (*success)(void*), void (*failure)(void*))
 {
+    p2p_printf("%s\r\n", __func__);
+
     // If this is a first time message and longer than a connection message
     if( (p2p->ack.msgToAck != msg) && ets_strlen(p2p->conMsg) < len)
     {
@@ -459,6 +528,8 @@ void ICACHE_FLASH_ATTR p2pSendAckToMac(p2pInfo* p2p, uint8_t* mac_addr)
  */
 void ICACHE_FLASH_ATTR p2pGameStartAckRecv(void* arg)
 {
+    p2p_printf("%s\r\n", __func__);
+
     p2pInfo* p2p = (p2pInfo*)arg;
     p2pProcConnectionEvt(p2p, RX_GAME_START_ACK);
 }
@@ -530,6 +601,8 @@ void ICACHE_FLASH_ATTR p2pProcConnectionEvt(p2pInfo* p2p, connectionEvt_t event)
  */
 void ICACHE_FLASH_ATTR p2pStartRestartTimer(void* arg)
 {
+    p2p_printf("%s\r\n", __func__);
+
     p2pInfo* p2p = (p2pInfo*)arg;
     // Give 5 seconds to get a result, or else restart
     os_timer_arm(&p2p->tmr.Reinit, FAILURE_RESTART_MS, false);
@@ -542,6 +615,8 @@ void ICACHE_FLASH_ATTR p2pStartRestartTimer(void* arg)
  */
 void ICACHE_FLASH_ATTR p2pRestart(void* arg)
 {
+    p2p_printf("%s\r\n", __func__);
+
     p2pInfo* p2p = (p2pInfo*)arg;
     char msgId[4] = {0};
     ets_strncpy(msgId, p2p->msgId, sizeof(msgId));
@@ -560,6 +635,8 @@ void ICACHE_FLASH_ATTR p2pRestart(void* arg)
 void ICACHE_FLASH_ATTR p2pSendCb(p2pInfo* p2p, uint8_t* mac_addr __attribute__((unused)),
                                  mt_tx_status status)
 {
+    p2p_printf("%s\r\n", __func__);
+
     switch(status)
     {
         case MT_TX_STATUS_OK:
@@ -600,4 +677,25 @@ void ICACHE_FLASH_ATTR p2pSendCb(p2pInfo* p2p, uint8_t* mac_addr __attribute__((
             break;
         }
     }
+}
+
+/**
+ * @brief TODO
+ *
+ * @param p2p
+ * @return playOrder_t p2pGetPlayOrder
+ */
+playOrder_t ICACHE_FLASH_ATTR p2pGetPlayOrder(p2pInfo* p2p)
+{
+    return p2p->cnc.playOrder;
+}
+
+/**
+ * @brief TODO
+ *
+ * @param p2p
+ */
+void ICACHE_FLASH_ATTR p2pSetPlayOrder(p2pInfo* p2p, playOrder_t order)
+{
+    p2p->cnc.playOrder = order;
 }

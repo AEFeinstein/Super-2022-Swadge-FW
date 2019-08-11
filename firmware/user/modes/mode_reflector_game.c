@@ -144,20 +144,9 @@ swadgeMode reflectorGameMode =
     .fnEspNowSendCb = refSendCb,
 };
 
-// Indices into messages to send
-#define MAC_IDX 11
-#define EXT_IDX 29
-
-// Messages to send.
-char connectionMsg[]     = "ref_con";
-char ackMsg[]            = "ref_ack_sn_00:00:00:00:00:00";
-char gameStartMsg[]      = "ref_str_sn_00:00:00:00:00:00";
-char roundLossMsg[]      = "ref_los_sn_00:00:00:00:00:00";
-char roundContinueMsg[]  = "ref_cnt_sn_00:00:00:00:00:00_xx";
-char spdUp[] =                                          "up";
-char spdDn[] =                                          "dn";
-char spdNc[] =                                          "nc";
-const char macFmtStr[] = "%02X:%02X:%02X:%02X:%02X:%02X";
+const char spdUp[] = "up";
+const char spdDn[] = "dn";
+const char spdNc[] = "nc";
 
 struct
 {
@@ -457,14 +446,14 @@ void ICACHE_FLASH_ATTR refStartPlaying(void* arg __attribute__((unused)))
         refDeinit();
         refInit();
     }
-    else if(GOING_FIRST == ref.p2pRef.cnc.playOrder)
+    else if(GOING_FIRST == p2pGetPlayOrder(&ref.p2pRef))
     {
         ref.gameState = R_PLAYING;
 
         // Start playing
         refStartRound();
     }
-    else if(GOING_SECOND == ref.p2pRef.cnc.playOrder)
+    else if(GOING_SECOND == p2pGetPlayOrder(&ref.p2pRef))
     {
         ref.gameState = R_WAITING;
 
@@ -827,7 +816,7 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
         {
             // Start single player mode
             ref.gam.singlePlayer = true;
-            ref.p2pRef.cnc.playOrder = GOING_FIRST;
+            p2pSetPlayOrder(&ref.p2pRef, GOING_FIRST);
             refStartPlaying(NULL);
         }
         else if(2 == button)
@@ -873,7 +862,7 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
         {
             ref_printf("Won the round, continue the game\r\n");
 
-            char* spdPtr;
+            const char* spdPtr;
             // Add information about the timing
             if(ref.led.Leds[3].r >= 192)
             {
@@ -926,19 +915,7 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
                 setLeds(ref.led.Leds, sizeof(ref.led.Leds));
 
                 // Send a message to the other swadge that this round was a success
-                ets_sprintf(&roundContinueMsg[MAC_IDX], macFmtStr,
-                            ref.p2pRef.cnc.otherMac[0],
-                            ref.p2pRef.cnc.otherMac[1],
-                            ref.p2pRef.cnc.otherMac[2],
-                            ref.p2pRef.cnc.otherMac[3],
-                            ref.p2pRef.cnc.otherMac[4],
-                            ref.p2pRef.cnc.otherMac[5]);
-                roundContinueMsg[EXT_IDX - 1] = '_';
-                ets_sprintf(&roundContinueMsg[EXT_IDX], "%s", spdPtr);
-
-                // If it's acked, start a timer to reinit if a result is never received
-                // If it's not acked, reinit with refRestart()
-                p2pSendMsg(&ref.p2pRef, roundContinueMsg, ets_strlen(roundContinueMsg));
+                p2pSendMsg(&ref.p2pRef, "cnt", (char*)spdPtr, strlen(spdPtr));
             }
         }
         else if(failed)
@@ -983,16 +960,9 @@ void ICACHE_FLASH_ATTR refSendRoundLossMsg(void)
         refRoundResultLed(false);
 
         // Send a message to that ESP that we lost the round
-        ets_sprintf(&roundLossMsg[MAC_IDX], macFmtStr,
-                    ref.p2pRef.cnc.otherMac[0],
-                    ref.p2pRef.cnc.otherMac[1],
-                    ref.p2pRef.cnc.otherMac[2],
-                    ref.p2pRef.cnc.otherMac[3],
-                    ref.p2pRef.cnc.otherMac[4],
-                    ref.p2pRef.cnc.otherMac[5]);
         // If it's acked, start a timer to reinit if another message is never received
         // If it's not acked, reinit with refRestart()
-        p2pSendMsg(&ref.p2pRef, roundLossMsg, ets_strlen(roundLossMsg));
+        p2pSendMsg(&ref.p2pRef, "los", NULL, 0);
     }
 }
 
@@ -1285,13 +1255,13 @@ void ICACHE_FLASH_ATTR refRoundResultLed(bool roundWinner)
     if(roundWinner)
     {
         ref.gameState = R_SHOW_GAME_RESULT;
-        ref.p2pRef.cnc.playOrder = GOING_FIRST;
+        p2pSetPlayOrder(&ref.p2pRef, GOING_FIRST);
     }
     else
     {
         // Set ref.gameState here to R_WAITING to make sure a message isn't missed
         ref.gameState = R_WAITING;
-        ref.p2pRef.cnc.playOrder = GOING_SECOND;
+        p2pSetPlayOrder(&ref.p2pRef, GOING_SECOND);
         ref.gam.receiveFirstMsg = false;
     }
 
@@ -1339,7 +1309,7 @@ void ICACHE_FLASH_ATTR refAdjustledSpeed(bool reset, bool up)
             }
         }
     }
-    else if (GOING_SECOND == ref.p2pRef.cnc.playOrder && false == ref.gam.receiveFirstMsg)
+    else if (GOING_SECOND == p2pGetPlayOrder(&ref.p2pRef) && false == ref.gam.receiveFirstMsg)
     {
         // If going second, ignore the first up/dn from the first player
         ref.gam.receiveFirstMsg = true;
