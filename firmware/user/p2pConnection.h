@@ -19,10 +19,17 @@ typedef enum
     CON_LOST
 } connectionEvt_t;
 
+typedef enum
+{
+    MSG_ACKED,
+    MSG_FAILED
+} messageStatus_t;
+
 typedef struct _p2pInfo p2pInfo;
 
-typedef void (*p2pConCallbackFn)(p2pInfo* p2p, connectionEvt_t);
-typedef void (*p2pMsgCallbackFn)(p2pInfo* p2p, char* msg, uint8_t* payload, uint8_t len);
+typedef void (*p2pConCbFn)(p2pInfo* p2p, connectionEvt_t);
+typedef void (*p2pMsgRxCbFn)(p2pInfo* p2p, char* msg, uint8_t* payload, uint8_t len);
+typedef void (*p2pMsgTxCbFn)(p2pInfo* p2p, messageStatus_t status);
 
 // Variables to track acking messages
 typedef struct _p2pInfo
@@ -34,8 +41,9 @@ typedef struct _p2pInfo
     char startMsg[32];
 
     // Callback function pointers
-    p2pConCallbackFn conCallbackFn;
-    p2pMsgCallbackFn msgCallbackFn;
+    p2pConCbFn conCbFn;
+    p2pMsgRxCbFn msgRxCbFn;
+    p2pMsgTxCbFn msgTxCbFn;
 
     // Variables used for acking and retrying messages
     struct
@@ -74,13 +82,13 @@ typedef struct _p2pInfo
 } p2pInfo;
 
 void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId,
-                                     p2pConCallbackFn conCallbackFn,
-                                     p2pMsgCallbackFn msgCallbackFn);
+                                     p2pConCbFn conCbFn,
+                                     p2pMsgRxCbFn msgRxCbFn);
 void ICACHE_FLASH_ATTR p2pDeinit(p2pInfo* p2p);
 
 void ICACHE_FLASH_ATTR p2pStartConnection(p2pInfo* p2p);
 
-void ICACHE_FLASH_ATTR p2pSendMsg(p2pInfo* p2p, char* msg, char* payload, uint16_t len);
+void ICACHE_FLASH_ATTR p2pSendMsg(p2pInfo* p2p, char* msg, char* payload, uint16_t len, p2pMsgTxCbFn msgTxCbFn);
 void ICACHE_FLASH_ATTR p2pSendCb(p2pInfo* p2p, uint8_t* mac_addr, mt_tx_status status);
 void ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi);
 

@@ -23,7 +23,7 @@
  * Defines
  *==========================================================================*/
 
-#define REF_DEBUG_PRINT
+// #define REF_DEBUG_PRINT
 #ifdef REF_DEBUG_PRINT
     #define ref_printf(...) os_printf(__VA_ARGS__)
 #else
@@ -115,6 +115,7 @@ void ICACHE_FLASH_ATTR refSinglePlayerRestart(void* arg __attribute__((unused)))
 void ICACHE_FLASH_ATTR refSinglePlayerScoreLed(uint8_t ledToLight, led_t* colorPrimary, led_t* colorSecondary);
 void ICACHE_FLASH_ATTR refConnectionCallback(p2pInfo* p2p, connectionEvt_t event);
 void ICACHE_FLASH_ATTR refMsgCallbackFn(p2pInfo* p2p, char* msg, uint8_t* payload, uint8_t len);
+void ICACHE_FLASH_ATTR refMsgTxCbFn(p2pInfo* p2p, messageStatus_t status);
 
 // Game functions
 void ICACHE_FLASH_ATTR refStartPlaying(void* arg __attribute__((unused)));
@@ -356,7 +357,8 @@ void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, 
  * @param payload
  * @param len
  */
-void ICACHE_FLASH_ATTR refMsgCallbackFn(p2pInfo* p2p __attribute__((unused)), char* msg, uint8_t* payload, uint8_t len __attribute__((unused)))
+void ICACHE_FLASH_ATTR refMsgCallbackFn(p2pInfo* p2p __attribute__((unused)), char* msg, uint8_t* payload,
+                                        uint8_t len __attribute__((unused)))
 {
     if(len > 0)
     {
@@ -964,7 +966,7 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
                 setLeds(ref.led.Leds, sizeof(ref.led.Leds));
 
                 // Send a message to the other swadge that this round was a success
-                p2pSendMsg(&ref.p2pRef, "cnt", (char*)spdPtr, strlen(spdPtr));
+                p2pSendMsg(&ref.p2pRef, "cnt", (char*)spdPtr, strlen(spdPtr), refMsgTxCbFn);
             }
         }
         else if(failed)
@@ -975,6 +977,35 @@ void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
         else
         {
             ref_printf("Neither won nor lost the round\r\n");
+        }
+    }
+}
+
+/**
+ * @brief TODO
+ *
+ * @param p2p
+ * @param status
+ */
+void ICACHE_FLASH_ATTR refMsgTxCbFn(p2pInfo* p2p __attribute__((unused)),
+                                    messageStatus_t status)
+{
+    switch(status)
+    {
+        case MSG_ACKED:
+        {
+            ref_printf("%s MSG_ACKED\n", __func__);
+            break;
+        }
+        case MSG_FAILED:
+        {
+            ref_printf("%s MSG_FAILED\n", __func__);
+            break;
+        }
+        default:
+        {
+            ref_printf("%s UNKNOWN\n", __func__);
+            break;
         }
     }
 }
@@ -1011,7 +1042,7 @@ void ICACHE_FLASH_ATTR refSendRoundLossMsg(void)
         // Send a message to that ESP that we lost the round
         // If it's acked, start a timer to reinit if another message is never received
         // If it's not acked, reinit with refRestart()
-        p2pSendMsg(&ref.p2pRef, "los", NULL, 0);
+        p2pSendMsg(&ref.p2pRef, "los", NULL, 0, refMsgTxCbFn);
     }
 }
 

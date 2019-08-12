@@ -98,6 +98,8 @@ void ICACHE_FLASH_ATTR p2pGameStartAckRecv(void* arg);
 void ICACHE_FLASH_ATTR p2pSendAckToMac(p2pInfo* p2p, uint8_t* mac_addr);
 void ICACHE_FLASH_ATTR p2pSendMsgEx(p2pInfo* p2p, char* msg, uint16_t len,
                                     bool shouldAck, void (*success)(void*), void (*failure)(void*));
+void ICACHE_FLASH_ATTR p2pModeMsgSuccess(void* arg);
+void ICACHE_FLASH_ATTR p2pModeMsgFailure(void* arg);
 
 /*============================================================================
  * Functions
@@ -109,14 +111,14 @@ void ICACHE_FLASH_ATTR p2pSendMsgEx(p2pInfo* p2p, char* msg, uint16_t len,
  * @param p2p           The p2pInfo struct with all the state information
  * @param msgId         A three character, null terminated message ID. Must be
  *                      unique per-swadge mode.
- * @param conCallbackFn A function pointer which will be called when connection
+ * @param conCbFn A function pointer which will be called when connection
  *                      events occur
- * @param msgCallbackFn A function pointer which will be called when a packet
+ * @param msgRxCbFn A function pointer which will be called when a packet
  *                      is received for the swadge mode
  */
 void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId,
-                                     p2pConCallbackFn conCallbackFn,
-                                     p2pMsgCallbackFn msgCallbackFn)
+                                     p2pConCbFn conCbFn,
+                                     p2pMsgRxCbFn msgRxCbFn)
 {
     p2p_printf("%s\r\n", __func__);
 
@@ -124,8 +126,8 @@ void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId,
     ets_memset(p2p, 0, sizeof(p2pInfo));
 
     // Set the callback functions for connection and message events
-    p2p->conCallbackFn = conCallbackFn;
-    p2p->msgCallbackFn = msgCallbackFn;
+    p2p->conCbFn = conCbFn;
+    p2p->msgRxCbFn = msgRxCbFn;
 
     // Set the initial sequence number at 255 so that a 0 received is valid.
     p2p->cnc.lastSeqNum = 255;
@@ -200,9 +202,9 @@ void ICACHE_FLASH_ATTR p2pStartConnection(p2pInfo* p2p)
 
     os_timer_arm(&p2p->tmr.Connection, 1, false);
 
-    if(NULL != p2p->conCallbackFn)
+    if(NULL != p2p->conCbFn)
     {
-        p2p->conCallbackFn(p2p, CON_STARTED);
+        p2p->conCbFn(p2p, CON_STARTED);
     }
 }
 
@@ -303,12 +305,14 @@ void ICACHE_FLASH_ATTR p2pTxAllRetriesTimeout(void* arg)
  * the CON_ESTABLISHED event occurs. Message addressing, ACKing, and retries
  * all happen automatically
  *
- * @param p2p     The p2pInfo struct with all the state information
- * @param msg     The mandatory three char message type
- * @param payload An optional message payload string, may be NULL, up to 32 chars
- * @param len     The length of the optional message payload string. May be 0
+ * @param p2p       The p2pInfo struct with all the state information
+ * @param msg       The mandatory three char message type
+ * @param payload   An optional message payload string, may be NULL, up to 32 chars
+ * @param len       The length of the optional message payload string. May be 0
+ * @param msgTxCbFn A callback function when this message is ACKed or dropped
  */
-void ICACHE_FLASH_ATTR p2pSendMsg(p2pInfo* p2p, char* msg, char* payload, uint16_t len)
+void ICACHE_FLASH_ATTR p2pSendMsg(p2pInfo* p2p, char* msg, char* payload,
+                                  uint16_t len, p2pMsgTxCbFn msgTxCbFn)
 {
     p2p_printf("%s\r\n", __func__);
 
@@ -342,8 +346,42 @@ void ICACHE_FLASH_ATTR p2pSendMsg(p2pInfo* p2p, char* msg, char* payload, uint16
                      payload);
     }
 
-    // TODO success and failure passed to swadge mode?
-    p2pSendMsgEx(p2p, builtMsg, strlen(builtMsg), true, NULL, p2pRestart);
+    p2p->msgTxCbFn = msgTxCbFn;
+    p2pSendMsgEx(p2p, builtMsg, strlen(builtMsg), true, p2pModeMsgSuccess, p2pModeMsgFailure);
+}
+
+/**
+ * Callback function for when a message sent by the Swadge mode, not during
+ * the connection process, is ACKed
+ *
+ * @param arg The p2pInfo struct with all the state information
+ */
+void ICACHE_FLASH_ATTR p2pModeMsgSuccess(void* arg)
+{
+    p2p_printf("%s\r\n", __func__);
+
+    p2pInfo* p2p = (p2pInfo*)arg;
+    if(NULL != p2p->msgTxCbFn)
+    {
+        p2p->msgTxCbFn(p2p, MSG_ACKED);
+    }
+}
+
+/**
+ * Callback function for when a message sent by the Swadge mode, not during
+ * the connection process, is dropped
+ *
+ * @param arg The p2pInfo struct with all the state information
+ */
+void ICACHE_FLASH_ATTR p2pModeMsgFailure(void* arg)
+{
+    p2p_printf("%s\r\n", __func__);
+
+    p2pInfo* p2p = (p2pInfo*)arg;
+    if(NULL != p2p->msgTxCbFn)
+    {
+        p2p->msgTxCbFn(p2p, MSG_FAILED);
+    }
 }
 
 /**
@@ -573,11 +611,11 @@ void ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data
     else
     {
         // Let the mode handle it
-        if(NULL != p2p->msgCallbackFn)
+        if(NULL != p2p->msgRxCbFn)
         {
             char msgType[4] = {0};
             memcpy(msgType, &data[CMD_IDX], 3 * sizeof(char));
-            p2p->msgCallbackFn(p2p, msgType, &data[EXT_IDX], len - EXT_IDX);
+            p2p->msgRxCbFn(p2p, msgType, &data[EXT_IDX], len - EXT_IDX);
         }
     }
 }
@@ -665,9 +703,9 @@ void ICACHE_FLASH_ATTR p2pProcConnectionEvt(p2pInfo* p2p, connectionEvt_t event)
         }
     }
 
-    if(NULL != p2p->conCallbackFn)
+    if(NULL != p2p->conCbFn)
     {
-        p2p->conCallbackFn(p2p, event);
+        p2p->conCbFn(p2p, event);
     }
 
     // If both the game start messages are good, start the game
@@ -679,9 +717,9 @@ void ICACHE_FLASH_ATTR p2pProcConnectionEvt(p2pInfo* p2p, connectionEvt_t event)
         p2p->cnc.isConnected = true;
 
         // tell the mode it's connected
-        if(NULL != p2p->conCallbackFn)
+        if(NULL != p2p->conCbFn)
         {
-            p2p->conCallbackFn(p2p, CON_ESTABLISHED);
+            p2p->conCbFn(p2p, CON_ESTABLISHED);
         }
     }
     else
@@ -708,7 +746,7 @@ void ICACHE_FLASH_ATTR p2pStartRestartTimer(void* arg)
 }
 
 /**
- * Restart by deiniting then initing. Persist the msgId and p2p->conCallbackFn
+ * Restart by deiniting then initing. Persist the msgId and p2p->conCbFn
  * fields
  *
  * @param arg The p2pInfo struct with all the state information
@@ -719,15 +757,15 @@ void ICACHE_FLASH_ATTR p2pRestart(void* arg)
 
     p2pInfo* p2p = (p2pInfo*)arg;
 
-    if(NULL != p2p->conCallbackFn)
+    if(NULL != p2p->conCbFn)
     {
-        p2p->conCallbackFn(p2p, CON_LOST);
+        p2p->conCbFn(p2p, CON_LOST);
     }
 
     char msgId[4] = {0};
     ets_strncpy(msgId, p2p->msgId, sizeof(msgId));
     p2pDeinit(p2p);
-    p2pInitialize(p2p, msgId, p2p->conCallbackFn, p2p->msgCallbackFn);
+    p2pInitialize(p2p, msgId, p2p->conCbFn, p2p->msgRxCbFn);
 }
 
 /**
