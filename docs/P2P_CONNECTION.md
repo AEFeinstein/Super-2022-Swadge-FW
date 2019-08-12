@@ -74,7 +74,7 @@ You must provide a three character message type (``char* msg``).
 
 You may provide a payload, up to 32 bytes, and its length (``char* payload``, ``uint16_t len``).
 
-You may provide a function pointer which will be called when the message is either ACKed or dropped. The potential arguments to this callback function are:
+You may provide a function pointer which will be called when the message is either ACKed or dropped (``p2pMsgTxCbFn msgTxCbFn``). The potential arguments to this callback function are:
  * ``MSG_ACKED``
  * ``MSG_FAILED``
  
@@ -93,6 +93,6 @@ This function may be called to figure out the play order of the connected Swadge
 ```
 void ICACHE_FLASH_ATTR p2pSetPlayOrder(p2pInfo* p2p, playOrder_t order);
 ```
-This function may be called to manually override the play order of the connected Swadges. It is not recommended, but may be useful for implementing a single-player mode.
+This function may be called to manually override the play order of the connected Swadges (``playOrder_t order``). It is not recommended, but may be useful for implementing a single-player mode.
 
 ----
