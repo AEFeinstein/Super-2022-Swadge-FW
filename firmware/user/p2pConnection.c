@@ -448,7 +448,7 @@ void ICACHE_FLASH_ATTR p2pSendMsgEx(p2pInfo* p2p, char* msg, uint16_t len,
         }
 
         // Mark the time this transmission started, the retry timer gets
-        // started in refSendCb()
+        // started in p2pSendCb()
         p2p->ack.timeSentUs = system_get_time();
     }
     espNowSend((const uint8_t*)msg, len);
@@ -474,12 +474,12 @@ void ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data
     os_free(dbgMsg);
 #endif
 
-    // Check if this is a "ref" message
+    // Check if this message matches our message ID
     if(len < CMD_IDX ||
             (0 != ets_memcmp(data, p2p->conMsg, CMD_IDX)))
     {
-        // This message is too short, or not a "ref" message
-        p2p_printf("DISCARD: Not a ref message\r\n");
+        // This message is too short, or does not match our message ID
+        p2p_printf("DISCARD: Not a message for '%s'\r\n", p2p->msgId);
         return;
     }
 
@@ -502,7 +502,7 @@ void ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data
         return;
     }
 
-    // By here, we know the received message was a "ref" message, either a
+    // By here, we know the received message matches our message ID, either a
     // broadcast or for us. If this isn't an ack message, ack it
     if(len >= SEQ_IDX &&
             0 != ets_memcmp(data, p2p->ackMsg, SEQ_IDX))
@@ -589,7 +589,7 @@ void ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data
                          mac_addr[4],
                          mac_addr[5]);
 
-            // If it's acked, call p2pGameStartAckRecv(), if not reinit with refInit()
+            // If it's acked, call p2pGameStartAckRecv(), if not reinit with p2pRestart()
             p2pSendMsgEx(p2p, p2p->startMsg, ets_strlen(p2p->startMsg), true, p2pGameStartAckRecv, p2pRestart);
         }
         // Received a response to our broadcast
