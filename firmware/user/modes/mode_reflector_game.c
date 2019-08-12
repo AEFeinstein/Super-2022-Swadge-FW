@@ -23,7 +23,7 @@
  * Defines
  *==========================================================================*/
 
-//#define REF_DEBUG_PRINT
+#define REF_DEBUG_PRINT
 #ifdef REF_DEBUG_PRINT
     #define ref_printf(...) os_printf(__VA_ARGS__)
 #else
@@ -113,7 +113,8 @@ void ICACHE_FLASH_ATTR refSendCb(uint8_t* mac_addr, mt_tx_status status);
 // Helper function
 void ICACHE_FLASH_ATTR refSinglePlayerRestart(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refSinglePlayerScoreLed(uint8_t ledToLight, led_t* colorPrimary, led_t* colorSecondary);
-void ICACHE_FLASH_ATTR refConnectionCallback(connectionEvt_t event);
+void ICACHE_FLASH_ATTR refConnectionCallback(p2pInfo* p2p, connectionEvt_t event);
+void ICACHE_FLASH_ATTR refMsgCallbackFn(p2pInfo* p2p, char* msg, uint8_t* payload, uint8_t len);
 
 // Game functions
 void ICACHE_FLASH_ATTR refStartPlaying(void* arg __attribute__((unused)));
@@ -222,7 +223,7 @@ static led_t digitCountSecondSecondary =
  * Functions
  *==========================================================================*/
 
-void ICACHE_FLASH_ATTR refConnectionCallback(connectionEvt_t event)
+void ICACHE_FLASH_ATTR refConnectionCallback(p2pInfo* p2p __attribute__((unused)), connectionEvt_t event)
 {
     os_printf("%s %d\n", __func__, event);
     switch(event)
@@ -273,7 +274,7 @@ void ICACHE_FLASH_ATTR refInit(void)
     // Make sure everything is zero!
     ets_memset(&ref, 0, sizeof(ref));
 
-    p2pInitialize(&ref.p2pRef, "ref", refConnectionCallback);
+    p2pInitialize(&ref.p2pRef, "ref", refConnectionCallback, refMsgCallbackFn);
 
     // Set up a timer for showing a successful connection, don't start it
     os_timer_disarm(&ref.tmr.ShowConnectionLed);
@@ -345,54 +346,72 @@ void ICACHE_FLASH_ATTR refSendCb(uint8_t* mac_addr __attribute__((unused)),
  */
 void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi)
 {
-    if(true == p2pRecvMsg(&ref.p2pRef, mac_addr, data, len, rssi))
+    p2pRecvMsg(&ref.p2pRef, mac_addr, data, len, rssi);
+}
+
+/**
+ * @brief
+ *
+ * @param msg
+ * @param payload
+ * @param len
+ */
+void ICACHE_FLASH_ATTR refMsgCallbackFn(p2pInfo* p2p __attribute__((unused)), char* msg, uint8_t* payload, uint8_t len __attribute__((unused)))
+{
+    if(len > 0)
     {
-        switch(ref.gameState)
+        ref_printf("%s %s %s\n", __func__, msg, payload);
+    }
+    else
+    {
+        ref_printf("%s %s\n", __func__, msg);
+    }
+
+    switch(ref.gameState)
+    {
+        case R_CONNECTING:
+            break;
+        case R_WAITING:
         {
-            case R_CONNECTING:
-                break;
-            case R_WAITING:
+            // Received a message that the other swadge lost
+            if(0 == ets_memcmp(msg, "los", 3))
             {
-                // Received a message that the other swadge lost
-                if(0 == ets_memcmp(&data[CMD_IDX], "los", 3))
-                {
-                    // The other swadge lost, so chalk a win!
-                    ref.gam.Wins++;
+                // The other swadge lost, so chalk a win!
+                ref.gam.Wins++;
 
-                    // Display the win
-                    refRoundResultLed(true);
-                }
-                if(0 == ets_memcmp(&data[CMD_IDX], "cnt", 3))
+                // Display the win
+                refRoundResultLed(true);
+            }
+            if(0 == ets_memcmp(msg, "cnt", 3))
+            {
+                // Get faster or slower based on the other swadge's timing
+                if(0 == ets_memcmp(payload, spdUp, ets_strlen(spdUp)))
                 {
-                    // Get faster or slower based on the other swadge's timing
-                    if(0 == ets_memcmp(&data[EXT_IDX], spdUp, ets_strlen(spdUp)))
-                    {
-                        refAdjustledSpeed(false, true);
-                    }
-                    else if(0 == ets_memcmp(&data[EXT_IDX], spdDn, ets_strlen(spdDn)))
-                    {
-                        refAdjustledSpeed(false, false);
-                    }
-
-                    refStartRound();
+                    refAdjustledSpeed(false, true);
                 }
-                break;
+                else if(0 == ets_memcmp(payload, spdDn, ets_strlen(spdDn)))
+                {
+                    refAdjustledSpeed(false, false);
+                }
+
+                refStartRound();
             }
-            case R_PLAYING:
-            {
-                // Currently playing a game, shouldn't do anything with messages
-                break;
-            }
-            case R_SHOW_CONNECTION:
-            case R_SHOW_GAME_RESULT:
-            {
-                // Just LED animations, don't do anything with messages
-                break;
-            }
-            default:
-            {
-                break;
-            }
+            break;
+        }
+        case R_PLAYING:
+        {
+            // Currently playing a game, shouldn't do anything with messages
+            break;
+        }
+        case R_SHOW_CONNECTION:
+        case R_SHOW_GAME_RESULT:
+        {
+            // Just LED animations, don't do anything with messages
+            break;
+        }
+        default:
+        {
+            break;
         }
     }
 }

@@ -68,6 +68,12 @@ end
 // (240 steps of rotation + (252/4) steps of decay) * 12ms
 #define FAILURE_RESTART_MS 8000
 
+// Indices into messages
+#define CMD_IDX 4
+#define SEQ_IDX 8
+#define MAC_IDX 11
+#define EXT_IDX 29
+
 /*============================================================================
  * Variables
  *==========================================================================*/
@@ -105,16 +111,21 @@ void ICACHE_FLASH_ATTR p2pSendMsgEx(p2pInfo* p2p, char* msg, uint16_t len,
  *                      unique per-swadge mode.
  * @param conCallbackFn A function pointer which will be called when connection
  *                      events occur
+ * @param msgCallbackFn A function pointer which will be called when a packet
+ *                      is received for the swadge mode
  */
-void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId, p2pConCallbackFn conCallbackFn)
+void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId,
+                                     p2pConCallbackFn conCallbackFn,
+                                     p2pMsgCallbackFn msgCallbackFn)
 {
     p2p_printf("%s\r\n", __func__);
 
     // Make sure everything is zero!
     ets_memset(p2p, 0, sizeof(p2pInfo));
 
-    // Set the callback function for connection events
+    // Set the callback functions for connection and message events
     p2p->conCallbackFn = conCallbackFn;
+    p2p->msgCallbackFn = msgCallbackFn;
 
     // Set the initial sequence number at 255 so that a 0 received is valid.
     p2p->cnc.lastSeqNum = 255;
@@ -191,7 +202,7 @@ void ICACHE_FLASH_ATTR p2pStartConnection(p2pInfo* p2p)
 
     if(NULL != p2p->conCallbackFn)
     {
-        p2p->conCallbackFn(CON_STARTED);
+        p2p->conCallbackFn(p2p, CON_STARTED);
     }
 }
 
@@ -416,7 +427,7 @@ void ICACHE_FLASH_ATTR p2pSendMsgEx(p2pInfo* p2p, char* msg, uint16_t len,
  * @return false if the message was processed here,
  *         true if the message should be processed by the swadge mode
  */
-bool ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi)
+void ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi)
 {
 #ifdef P2P_DEBUG_PRINT
     char* dbgMsg = (char*)os_zalloc(sizeof(char) * (len + 1));
@@ -431,7 +442,7 @@ bool ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data
     {
         // This message is too short, or not a "ref" message
         p2p_printf("DISCARD: Not a ref message\r\n");
-        return false;
+        return;
     }
 
     // If this message has a MAC, check it
@@ -440,7 +451,7 @@ bool ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data
     {
         // This MAC isn't for us
         p2p_printf("DISCARD: Not for our MAC\r\n");
-        return false;
+        return;
     }
 
     // If this is anything besides a broadcast, check the other MAC
@@ -450,7 +461,7 @@ bool ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data
     {
         // This isn't from the other known swadge
         p2p_printf("DISCARD: Not from the other MAC\r\n");
-        return false;
+        return;
     }
 
     // By here, we know the received message was a "ref" message, either a
@@ -474,7 +485,7 @@ bool ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data
         if(theirSeq == p2p->cnc.lastSeqNum)
         {
             p2p_printf("DISCARD: Duplicate sequence number\r\n");
-            return false;
+            return;
         }
         else
         {
@@ -508,10 +519,10 @@ bool ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data
             p2p->ack.isWaitingForAck = false;
         }
         // Don't process anything else when waiting for an ack
-        return false;
+        return;
     }
 
-    if(false == p2p->isConnected)
+    if(false == p2p->cnc.isConnected)
     {
         // Received another broadcast, Check if this RSSI is strong enough
         if(!p2p->cnc.broadcastReceived &&
@@ -557,12 +568,17 @@ bool ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data
             // And process this connection event
             p2pProcConnectionEvt(p2p, RX_GAME_START_MSG);
         }
-        return false;
+        return;
     }
     else
     {
         // Let the mode handle it
-        return true;
+        if(NULL != p2p->msgCallbackFn)
+        {
+            char msgType[4] = {0};
+            memcpy(msgType, &data[CMD_IDX], 3 * sizeof(char));
+            p2p->msgCallbackFn(p2p, msgType, &data[EXT_IDX], len - EXT_IDX);
+        }
     }
 }
 
@@ -651,7 +667,7 @@ void ICACHE_FLASH_ATTR p2pProcConnectionEvt(p2pInfo* p2p, connectionEvt_t event)
 
     if(NULL != p2p->conCallbackFn)
     {
-        p2p->conCallbackFn(event);
+        p2p->conCallbackFn(p2p, event);
     }
 
     // If both the game start messages are good, start the game
@@ -660,12 +676,12 @@ void ICACHE_FLASH_ATTR p2pProcConnectionEvt(p2pInfo* p2p, connectionEvt_t event)
         // Connection was successful, so disarm the failure timer
         os_timer_disarm(&p2p->tmr.Reinit);
 
-        p2p->isConnected = true;
+        p2p->cnc.isConnected = true;
 
         // tell the mode it's connected
         if(NULL != p2p->conCallbackFn)
         {
-            p2p->conCallbackFn(CON_ESTABLISHED);
+            p2p->conCallbackFn(p2p, CON_ESTABLISHED);
         }
     }
     else
@@ -705,13 +721,13 @@ void ICACHE_FLASH_ATTR p2pRestart(void* arg)
 
     if(NULL != p2p->conCallbackFn)
     {
-        p2p->conCallbackFn(CON_LOST);
+        p2p->conCallbackFn(p2p, CON_LOST);
     }
 
     char msgId[4] = {0};
     ets_strncpy(msgId, p2p->msgId, sizeof(msgId));
     p2pDeinit(p2p);
-    p2pInitialize(p2p, msgId, p2p->conCallbackFn);
+    p2pInitialize(p2p, msgId, p2p->conCallbackFn, p2p->msgCallbackFn);
 }
 
 /**
@@ -781,7 +797,7 @@ void ICACHE_FLASH_ATTR p2pSendCb(p2pInfo* p2p, uint8_t* mac_addr __attribute__((
  */
 playOrder_t ICACHE_FLASH_ATTR p2pGetPlayOrder(p2pInfo* p2p)
 {
-    if(p2p->isConnected)
+    if(p2p->cnc.isConnected)
     {
         return p2p->cnc.playOrder;
     }
