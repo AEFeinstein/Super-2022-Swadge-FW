@@ -4,6 +4,8 @@
 
 The p2p connection protocol is object-oriented-ish. There is a single struct defined in ``p2pConnection.h``, ``p2pInfo``, which contains all the state and timer information for the protocol. The protocol does not allocate any memory for this, it must be provided by the Swadge mode. Every function takes a pointer to this memory as its first argument.
 
+The Swadge mode is not responsible for maintaining any sort of state or managing the connection sequence. It is recommended that the Swadge mode updates its UI in reaction to reported connection events and received messages.
+
 The messages are underscore delimited with the following format:
 
 ```mid_typ_sn_XX:XX:XX:XX:XX:XX_payload```
@@ -12,26 +14,24 @@ The messages are underscore delimited with the following format:
    * ``con`` - A connection broadcast used when pairing
    * ``str`` - A start message used when pairing
    * ``ack`` - An ACK message used when transmitting messages
- * ``sn`` - A two byte ASCII sequence number from 0 to 99. This is not included in ``con`` broadcasts.
- * ``XX:XX:XX:XX:XX:XX`` - A 17 char destination MAC address. After a connection is established, a Swadge will only process messages addressed to its MAC address. This is not included in ``con`` broadcasts.
+ * ``sn`` - A two char ASCII sequence number from 00 to 99. This is not included in ``con`` broadcasts.
+ * ``XX:XX:XX:XX:XX:XX`` - A 17 char destination MAC address. After a connection is established, a Swadge will only process messages addressed to its MAC address. This is not included in ``con`` broadcasts. The source MAC address is automatically handled by ESP-NOW.
  * ``payload`` - An optional payload, up to 32 chars. If a Swadge mode only needs to transmit small amounts of data, multiple message types may be sufficient.
 
 ## Function Descriptions
 ```
-void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId,
-                                     p2pConCbFn conCbFn,
-                                     p2pMsgRxCbFn msgRxCbFn);
+void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId, p2pConCbFn conCbFn, p2pMsgRxCbFn msgRxCbFn);
 ```
 This function **must** be called to initialize the p2p connection protocol. It should be called once, when the Swadge Mode is initializing.
 
 The Swadge mode must provide a three char ID for all its messages (``char* msgId``). This must be unique per-mode and prevents one mode from processing another mode's messages.
 
 The Swadge mode should provide a function pointer to handle UI based on connection events (``p2pConCbFn conCbFn``). The events that will be reported are:
- * ``CON_STARTED``
- * ``RX_GAME_START_ACK``
- * ``RX_GAME_START_MSG``
- * ``CON_ESTABLISHED``
- * ``CON_LOST``
+ * ``CON_STARTED`` - The connection process has started broadcasting packets
+ * ``RX_GAME_START_MSG`` - A game start message has been received from another Swadge. This may happen before or after ``RX_GAME_START_ACK``
+ * ``RX_GAME_START_ACK`` - The game start message we sent to another Swadge has been ACKed. This may happen before or after ``RX_GAME_START_MSG``
+ * ``CON_ESTABLISHED`` - Both our game start message was acked and we received a game start message from another Swadge, indicating the connection has been established
+ * ``CON_LOST`` - The connection was lost. This may occur if connection starts, but times out. Once a connection is established, the protocol will not lose it. A Swadge mode may deem a connection to be lost if a message, or multiple messages are not ACKed.
  
 The Swadge mode should provide a function pointer to process received messages (``p2pMsgRxCbFn msgRxCbFn``). Connection messages and ACKs will not be sent to this callback.
 
