@@ -18,6 +18,19 @@ The messages are underscore delimited with the following format:
  * ``XX:XX:XX:XX:XX:XX`` - A 17 char destination MAC address. After a connection is established, a Swadge will only process messages addressed to its MAC address. This is not included in ``con`` broadcasts. The source MAC address is automatically handled by ESP-NOW.
  * ``payload`` - An optional payload, up to 32 chars. If a Swadge mode only needs to transmit small amounts of data, multiple message types may be sufficient.
 
+## Integration
+
+1. Set your Swadge mode's ``wifiMode`` to ``ESP_NOW``.
+1. Call ``p2pInitialize()`` from the function registered to your mode's ``fnEnterMode``. You must supply a pointer to your connection's ``p2pInfo`` to this function and all subsequent functions, a unique ``msgId`` for this connection, and callback functions for receiving connection events and messages from connected Swadges.
+1. Call ``p2pDeinit()`` from the function registered to your mode's ``fnExitMode``. This cleans up the connection before quitting.
+1. Call ``p2pRecvCb()`` from the function registered to your mode's ``fnEspNowRecvCb`` and pass through all the parameters in order. This allows the p2p connection protocol to process incoming messages and establish connections. **Do not do anything else with the received message in this function.** When an application level message is received, it will be passed through the ``p2pMsgRxCbFn`` function registered with ``p2pInitialize()``.
+1. Call ``p2pSendCb()`` from the function registered to your mode's ``fnEspNowSendCb`` and pass through all the parameters in order. This allows the p2p connection protocol to know when messages were successfully transmitted (or not). **Do not do anything else with the received callback.**
+1. Call ``p2pStartConnection()`` when you want to start looking for another Swadge to connect to. This may be automatic when the mode starts, or initiated manually through the UI.
+1. Wait for connection events to be passed through the ``p2pConCbFn`` function registered with ``p2pInitialize()``. The events are listed below.
+1. Once ``CON_ESTABLISHED`` occurs, check if you are player 1 or 2 by calling ``p2pGetPlayOrder()``.
+1. Send messages to the connected Swadge by calling ``p2pSendMsg()``
+1. Receive messages from the connected Swadge through the ``p2pMsgRxCbFn`` function registered with ``p2pInitialize()``.
+
 ## Function Descriptions
 ```
 void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId, p2pConCbFn conCbFn, p2pMsgRxCbFn msgRxCbFn);
@@ -33,7 +46,10 @@ The Swadge mode should provide a function pointer to handle UI based on connecti
  * ``CON_ESTABLISHED`` - Both our game start message was acked and we received a game start message from another Swadge, indicating the connection has been established
  * ``CON_LOST`` - The connection was lost. This may occur if connection starts, but times out. Once a connection is established, the protocol will not lose it. A Swadge mode may deem a connection to be lost if a message, or multiple messages are not ACKed.
  
-The Swadge mode should provide a function pointer to process received messages (``p2pMsgRxCbFn msgRxCbFn``). Connection messages and ACKs will not be sent to this callback.
+The Swadge mode should provide a function pointer to process received messages (``p2pMsgRxCbFn msgRxCbFn``). Connection messages, duplicate messages, and ACKs will not be sent to this callback. It will receive
+ * ``msg`` - The unique three character message type of this message. Remember, ``con``, ``ack``, and ``str`` are reserved values.
+ * ``payload`` - An optional message payload, up to 32 bytes. Doesn't have to be a string, but strings make debugging easier
+ * ``len`` - the length of the optional payload
 
 ----
 
@@ -59,7 +75,7 @@ This function **must** be called by the function registered to the Swadge mode's
 ----
 
 ```
-void ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi);
+void ICACHE_FLASH_ATTR p2pRecvCb(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi);
 ```
 This function **must** be called by the function registered to the Swadge mode's ``fnEspNowRecvCb`` function pointer. This is how incoming messages get processed by the p2p connection protocol. The Swadge Mode must not process any incoming messages directly. Incoming messages meant for the Swadge mode will be emitted through the ``p2pMsgRxCbFn msgRxCbFn``, set by ``p2pInitialize()``
 
