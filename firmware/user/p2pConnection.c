@@ -465,7 +465,7 @@ void ICACHE_FLASH_ATTR p2pSendMsgEx(p2pInfo* p2p, char* msg, uint16_t len,
  * @return false if the message was processed here,
  *         true if the message should be processed by the swadge mode
  */
-void ICACHE_FLASH_ATTR p2pRecvMsg(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi)
+void ICACHE_FLASH_ATTR p2pRecvCb(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi)
 {
 #ifdef P2P_DEBUG_PRINT
     char* dbgMsg = (char*)os_zalloc(sizeof(char) * (len + 1));

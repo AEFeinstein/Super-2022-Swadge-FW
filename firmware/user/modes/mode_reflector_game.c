@@ -347,7 +347,7 @@ void ICACHE_FLASH_ATTR refSendCb(uint8_t* mac_addr __attribute__((unused)),
  */
 void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi)
 {
-    p2pRecvMsg(&ref.p2pRef, mac_addr, data, len, rssi);
+    p2pRecvCb(&ref.p2pRef, mac_addr, data, len, rssi);
 }
 
 /**
