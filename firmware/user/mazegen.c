@@ -3,14 +3,24 @@
 // Code by Jacek Wieczorek
 // modified by bbkiwi
 
-//#include <stdio.h>
+
 #include <stdlib.h>
 #include <time.h>
-//#include <string.h>
-//#include <stdbool.h>
 #include "mazegen.h"
+
+
+//#define UBUNTU
+#ifdef UBUNTU
+#define ICACHE_FLASH_ATTR 
+#include <stdio.h>
+#include <stdbool.h>
+typedef unsigned char       uint8_t;
+#define os_printf printf
+#define os_random rand
+#else
 #include <osapi.h>
 #include "user_main.h"
+#endif
 
 #define FAIL 1
 #define DEBUG 1
@@ -52,19 +62,19 @@ uint8_t ICACHE_FLASH_ATTR init(uint8_t width, uint8_t height, Node ** nodes )
 	//Allocate memory for maze
 	*nodes = calloc( width * height, sizeof( Node ) );
 	if ( *nodes == NULL ) return FAIL;
-		
+
 	//Setup crucial nodes
 	for ( i = 0; i < width; i++ )
 	{
 		for ( j = 0; j < height; j++ )
 		{
 			n = *nodes + i + j * width;
-			if ( i * j % 2 ) 
+			if ( i * j % 2 )
 			{
 				n->x = i;
 				n->y = j;
 				n->dirs = 15; //Assume that all directions can be explored (4 youngest bits set)
-				n->c = ' '; 
+				n->c = ' ';
 			}
 			else n->c = '#'; //Add walls between nodes
 		}
@@ -125,7 +135,7 @@ int16_t ICACHE_FLASH_ATTR wallIntervals_helper(bool usetranspose, uint8_t outerl
 						} else {
 							os_printf("indwall exceeds max of %d\n", MAXNUMWALLS);
 							return 0; //give up
-						}				
+						}
 					}
 					intervalstarted = false;
 				}
@@ -149,7 +159,7 @@ int16_t ICACHE_FLASH_ATTR wallIntervals(uint8_t width, uint8_t height, Node * no
 	{
 		indwall = wallIntervals_helper(true, width, height, xleft, xright, ybot, ytop, width, height, nodes, indwall);
 	}
-	return indwall; //if zero means failed 
+	return indwall; //if zero means failed
 
 }
 
@@ -164,10 +174,10 @@ Node ICACHE_FLASH_ATTR *link(uint8_t width, uint8_t height, Node * nodes,  Node 
 	uint8_t y = 0;
 	char dir;
 	Node *dest;
-	
+
 	//Nothing can be done if null pointer is given - return
 	if ( n == NULL ) return NULL;
-	
+
 	//While there are directions still unexplored
 	while ( n->dirs )
 	{
@@ -175,10 +185,10 @@ Node ICACHE_FLASH_ATTR *link(uint8_t width, uint8_t height, Node * nodes,  Node 
 		dir = ( 1 << ( os_random( ) % 4 ) );
 		//If it has already been explored - try again
 		if ( ~n->dirs & dir ) continue;
-		
+
 		//Mark direction as explored
 		n->dirs &= ~dir;
-		
+
 		//Depending on chosen direction
 		switch ( dir )
 		{
@@ -191,7 +201,7 @@ Node ICACHE_FLASH_ATTR *link(uint8_t width, uint8_t height, Node * nodes,  Node 
 				}
 				else continue;
 				break;
-			
+
 			//Check if it's possible to go down
 			case 2:
 				if ( n->y + 2 < height )
@@ -201,8 +211,8 @@ Node ICACHE_FLASH_ATTR *link(uint8_t width, uint8_t height, Node * nodes,  Node 
 				}
 				else continue;
 				break;
-			
-			//Check if it's possible to go left	
+
+			//Check if it's possible to go left
 			case 4:
 				if ( n->x - 2 >= 0 )
 				{
@@ -211,7 +221,7 @@ Node ICACHE_FLASH_ATTR *link(uint8_t width, uint8_t height, Node * nodes,  Node 
 				}
 				else continue;
 				break;
-			
+
 			//Check if it's possible to go up
 			case 8:
 				if ( n->y - 2 >= 0 )
@@ -224,27 +234,27 @@ Node ICACHE_FLASH_ATTR *link(uint8_t width, uint8_t height, Node * nodes,  Node 
 			default:
 				(void)0;
 		}
-		
+
 		//Get destination node into pointer (makes things a tiny bit faster)
 		dest = nodes + x + y * width;
-		
+
 		//Make sure that destination node is not a wall
 		if ( dest->c == ' ' )
 		{
 			//If destination is a linked node already - abort
 			if ( dest->parent != NULL ) continue;
-			
+
 			//Otherwise, adopt node
 			dest->parent = n;
-			
+
 			//Remove wall between nodes
 			nodes[n->x + ( x - n->x ) / 2 + ( n->y + ( y - n->y ) / 2 ) * width].c = ' ';
-			
+
 			//Return address of the child node
 			return dest;
 		}
 	}
-	
+
 	//If nothing more can be done here - return parent's address
 	return n->parent;
 }
@@ -297,19 +307,13 @@ int16_t ICACHE_FLASH_ATTR get_maze(uint8_t width, uint8_t height, uint8_t xleft[
 
 	// Make a random maze
 	getwalls(width, height, nodes);
-/*
-	if (getwalls(width, height, nodes) )
-	{
-		os_printf( "out of memory! Exceeds MAX\n");
-		return 0;
-	}
-*/
+
 	//Get intervals making up walls
 	// can be used to draw it on OLED and cannot be crossed
 	int16_t indwall = getwallsintervals(width, height, nodes, xleft, xright, ybot, ytop);
 
 #if DEBUG
-	// Show Maze as printed characters 
+	// Show Maze as printed characters
 	draw(width, height, nodes );
 
 
@@ -321,7 +325,7 @@ int16_t ICACHE_FLASH_ATTR get_maze(uint8_t width, uint8_t height, uint8_t xleft[
 	}
 	os_printf("\n");
 #endif
-	//De allocate memory 
+	//Deallocate memory
 	deinit(nodes);
 
 	return indwall;
@@ -345,7 +349,7 @@ void ICACHE_FLASH_ATTR main( uint8_t argc, char **argv )
 		os_printf("%s: please specify maze dimensions!\n", argv[0] );
 		exit( FAIL );
 	}
-	
+
 	//Read maze dimensions from command line arguments
 	if ( sscanf( argv[1], "%d", &width ) + sscanf( argv[2], "%d", &height ) < 2 )
 	{
@@ -359,7 +363,7 @@ void ICACHE_FLASH_ATTR main( uint8_t argc, char **argv )
 		os_printf("%s: dimensions must be odd!\n", argv[0] );
 		exit( FAIL );
 	}
-	
+
 	//Do not allow negative dimensions
 	if ( width <= 0 || height <= 0 )
 	{
