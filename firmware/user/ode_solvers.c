@@ -5,6 +5,11 @@
 #include <osapi.h>
 #include "ode_solvers.h"
 
+/* global variables for ODE */
+const FLOATING gravity = 9.81;               // free fall acceleration in m/s^2
+const FLOATING mass = 1;                // mass of a projectile in kg
+const FLOATING radconversion = 3.1415926/180.0;  // radians
+uint8_t numberoffirstordereqn;                          // number of first-order equations
 
 /*==============================================================
   ODE Solver from 

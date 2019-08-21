@@ -50,7 +50,7 @@ uint8_t cursorPos = 0;
  *==========================================================================*/
 
 /**
- * Initialize the meny by getting the list of modes from user_main.c
+ * Initialize the menu by getting the list of modes from user_main.c
  */
 void ICACHE_FLASH_ATTR modeInit(void)
 {

@@ -34,6 +34,7 @@
 #include "mode_flashlight.h"
 #include "mode_demo.h"
 #include "mode_roll.h"
+#include "mode_maze.h"
 
 /*============================================================================
  * Defines
@@ -75,6 +76,7 @@ swadgeMode* swadgeModes[] =
     &flashlightMode,
     &guitarTunerMode,
     &rollMode,
+    &mazeMode,
 };
 bool swadgeModeInit = false;
 rtcMem_t rtcMem = {0};
