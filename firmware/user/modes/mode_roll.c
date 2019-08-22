@@ -45,7 +45,7 @@ void ICACHE_FLASH_ATTR rollButtonCallback(uint8_t state __attribute__((unused)),
 void ICACHE_FLASH_ATTR rollAccelerometerHandler(accel_t* accel);
 
 void ICACHE_FLASH_ATTR roll_updateDisplay(void);
-uint16_t ICACHE_FLASH_ATTR norm(int16_t xc, int16_t yc);
+//uint16_t ICACHE_FLASH_ATTR norm(int16_t xc, int16_t yc);
 void ICACHE_FLASH_ATTR setRollLeds(led_t* ledData, uint8_t ledDataLen);
 void dnxdampedpendulum(FLOATING, FLOATING [], FLOATING [], int );
 void dnx2dvelocity(FLOATING, FLOATING [], FLOATING [], int );
@@ -93,8 +93,8 @@ accel_t rollAccel = {0};
 uint8_t rollButtonState = 0;
 uint8_t rollBrightnessIdx = 0;
 int roll_ledCount = 0;
-int8_t scxc = 0;
-int8_t scyc = 0;
+FLOATING scxc = 0;
+FLOATING scyc = 0;
 
 
 /* global variables for ODE */

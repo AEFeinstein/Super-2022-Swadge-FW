@@ -48,7 +48,8 @@ uint16_t ICACHE_FLASH_ATTR norm(int16_t xc, int16_t yc);
 void ICACHE_FLASH_ATTR setmazeLeds(led_t* ledData, uint8_t ledDataLen);
 void dnx(FLOATING, FLOATING [], FLOATING [], int );
 int16_t ICACHE_FLASH_ATTR get_maze(uint8_t width, uint8_t height, uint8_t xleft[], uint8_t xright[], uint8_t ybot[], uint8_t ytop[]);
-
+uint8_t ICACHE_FLASH_ATTR intervalsmeet(FLOATING a,FLOATING c,FLOATING b,FLOATING d,FLOATING e,FLOATING f);
+uint8_t ICACHE_FLASH_ATTR  gonethru(FLOATING b_prev[], FLOATING b_now[], FLOATING p_1[], FLOATING p_2[], FLOATING rball, FLOATING b_nowadjusted[]);
 /*============================================================================
  * Static Const Variables
  *==========================================================================*/
@@ -101,6 +102,10 @@ FLOATING xAccel;
 FLOATING yAccel;
 FLOATING zAccel;
 FLOATING len;
+FLOATING scxc;
+FLOATING scyc;
+FLOATING scxcprev = 2.0;
+FLOATING scycprev = 2.0;
 
 uint8_t width = 7;
 uint8_t height = 3; //Maze dimensions must be odd>1 probably for OLED use 31 15
@@ -112,7 +117,10 @@ uint8_t xright[MAXNUMWALLS];
 uint8_t ytop[MAXNUMWALLS];
 uint8_t ybot[MAXNUMWALLS];
 
-
+FLOATING wxleft[MAXNUMWALLS];
+FLOATING wxright[MAXNUMWALLS];
+FLOATING wytop[MAXNUMWALLS];
+FLOATING wybot[MAXNUMWALLS];
 /*============================================================================
  * Functions
  *==========================================================================*/
@@ -128,6 +136,14 @@ void ICACHE_FLASH_ATTR mazeEnterMode(void)
     mazescaley = 63/height;
     for (uint8_t i = 0; i < indwall; i++)
     {
+        wxleft[i]  = mazescalex * xleft[i];
+	wybot[i]   = mazescaley * ybot[i];
+        wxright[i] = mazescalex * xright[i];
+	wytop[i]   = mazescaley * ytop[i];
+	// for width 63 height 31 wx vary from 0, 4, 8, ..., 124  and wy vary from 0, 4, ... 60   radius 1 ball
+	//           31        15         from 0, 8, 16, ..., 120                  0, 8, ..., 56  radius 2 ball
+        //           15         7 wx      from 0, 16, ... , 112       wy           0, 16, ..., 48 radius 3 ball
+        //            7         3         from 0, 32, ..., 96                      0, 32, ...  radius 4 ball
         os_printf("(%d, %d) to (%d, %d)\n", mazescalex*xleft[i], mazescaley*ybot[i], mazescalex*xright[i], mazescaley*ytop[i]);
     }
     
@@ -140,6 +156,75 @@ void ICACHE_FLASH_ATTR mazeExitMode(void)
 {
 
 }
+
+/**
+ * Linear Alg Find Intersection of line segments
+ */
+
+uint8_t ICACHE_FLASH_ATTR intervalsmeet(FLOATING a,FLOATING c,FLOATING b,FLOATING d,FLOATING e,FLOATING f)
+{
+    // given two points p_1, p_2 in the (x,y) plane specifying a line interval from p_1 to p_2
+    //.    parameterized by t
+    // a moving object which was at b_prev and is currently at b_now
+    // returns true if the object crossed the line interval
+    // this can also be useful if want the line interval to be a barrier by
+    //    reverting to b_prev
+    // the column vector [a,c] is p_2 - p_1
+    // the column vector [b,d] is b_now - b_prev
+    // the column vector [e,f] is vector from p_1 to b_prev =  b_prev - p_1
+    // looking for parametric solution to
+    // p_1 + t(p_2 - p_1) = b_prev + s(b_now - b_prev) with 0<= t,s <= 1
+    // if (a -b)(t)  (e)
+    //    (c -d)(s)  (f) has unique solution with 0<= t,s <= 1
+    // returns True
+
+    FLOATING det = -a*d + b*c;
+    if (det == 0) return false;
+    FLOATING t = (-e*d + f*b) / det; // t is param of interval
+    if ((t < 0) || (t > 1)) return false;
+    FLOATING s = (a*f - c*e) / det; //s is param of interval from b_prev to b_now
+    if ((s < 0) || (s > 1)) return false;
+    return true;
+}
+
+uint8_t ICACHE_FLASH_ATTR  gonethru(FLOATING b_prev[], FLOATING b_now[], FLOATING p_1[], FLOATING p_2[], FLOATING rball, FLOATING b_nowadjusted[])
+{
+    // given two points p_1, p_2 in the (x,y) plane specifying a line interval from p_1 to p_2
+    // a moving object (ball of radius rball, or point if rball is None)
+    // whos center was at b_prev and is currently at b_now
+    // returns true if the balls leading (in direction of travel) boundary crossed the line interval
+    // this can also be useful if want the line interval to be a barrier by
+    //    reverting to b_prev
+    // b_nowadjusted is mutable list which is the point moved back to inside boundary
+    FLOATING pperp[2];
+    uint8_t didgothru;
+
+    b_nowadjusted[0] = b_now[0];
+    b_nowadjusted[1] = b_now[1];
+    pperp[0] = p_2[1]-p_1[1];
+    pperp[1] = p_1[0]-p_2[0];
+
+    FLOATING pperplen = sqrt(pperp[0] * pperp[0] + pperp[1] * pperp[1]);
+
+    if (pperplen == 0.0) return false;
+
+    pperp[0] = pperp[0] / pperplen; // make unit vector
+    pperp[1] = pperp[1] / pperplen; // make unit vector
+
+
+    FLOATING testdir = pperp[0] * (b_now[0] - b_prev[0]) + pperp[1] * (b_now[1] - b_prev[1]);
+    if (testdir == 0.0) return false;
+
+    b_nowadjusted[0] = b_now[0] - testdir * pperp[0];
+    b_nowadjusted[1] = b_now[1] - testdir * pperp[1];
+
+    if (testdir > 0) // > for leading edge , < for trailing edge
+        didgothru =  intervalsmeet(p_2[0]-p_1[0], p_2[1]-p_1[1], b_now[0]-b_prev[0], b_now[1]-b_prev[1], b_prev[0] + rball*pperp[0] - p_1[0], b_prev[1] + rball*pperp[1] - p_1[1]);
+    else
+        didgothru = intervalsmeet(p_2[0]-p_1[0], p_2[1]-p_1[1], b_now[0]-b_prev[0], b_now[1]-b_prev[1], b_prev[0] - rball*pperp[0] - p_1[0], b_prev[1] - rball*pperp[1] - p_1[1]);
+    return didgothru;
+}
+
 
 
 
@@ -159,18 +244,40 @@ void ICACHE_FLASH_ATTR maze_updateDisplay(void)
 
     //Save accelerometer reading in global storage
 //TODO can get values bigger than 1. here, my accelerometer has 14 bits
-    xAccel = mazeAccel.x / 256.0;
-    yAccel = mazeAccel.y / 256.0;
-    zAccel = mazeAccel.z / 256.0;
+//  but these are usually between +- 255
+    xAccel = mazeAccel.x;
+    yAccel = mazeAccel.y;
+    zAccel = mazeAccel.z;
 
- 
-    int16_t scxc = mazeAccel.x>>2;
-    int16_t scyc = mazeAccel.y>>3;
+    // want -63 to 63 to go approx from 0 to 124 for scxc and 60 to 0 for scyc
+    scxc = xAccel + 62; //xAccel/63 * 62 + 62
+    scyc = -yAccel/2 + 30; //yAccel/63  + 30
 
+
+    for (uint8_t i = 0; i < indwall; i++)
+    {
+	FLOATING p_1[2] = {wxleft[i], wybot[i]};
+	FLOATING p_2[2] = {wxright[i], wytop[i]};
+	FLOATING b_prev[2] = {scxcprev, scycprev};
+	FLOATING b_now[2] = {scxc, scyc};
+	FLOATING b_nowadjusted[2];
+
+	if ( gonethru(b_prev, b_now, p_1, p_2, 1, b_nowadjusted) )
+	{
+              scxc = b_nowadjusted[0];
+              scyc = b_nowadjusted[1];
+	//} else {
+        //    self.x = self.state[0] // update
+         //   self.y = self.state[1]
+	}
+    }
+
+    scxcprev = scxc;
+    scycprev = scyc;
     
-    //plotCircle(64 + scxc, 32 - scyc, 5);
-    plotCircle(64 + scxc, 32 - scyc, 3);
-    plotCircle(64 + scxc, 32 - scyc, 1);
+    //plotCircle(scxc, scyc, 5);
+    plotCircle(scxc, scyc, 3);
+    plotCircle(scxc, scyc, 1);
 
 
     // Declare some LEDs, all off
