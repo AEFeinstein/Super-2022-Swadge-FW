@@ -181,9 +181,9 @@ uint8_t ICACHE_FLASH_ATTR intervalsmeet(FLOATING a,FLOATING c,FLOATING b,FLOATIN
     FLOATING det = -a*d + b*c;
     if (det == 0) return false;
     FLOATING t = (-e*d + f*b) / det; // t is param of interval
-    if ((t < 0) || (t > 1)) return false;
+    if ((t < -0.05) || (t > 1.05)) return false;
     FLOATING s = (a*f - c*e) / det; //s is param of interval from b_prev to b_now
-    if ((s < 0) || (s > 1)) return false;
+    if ((s < -0.05) || (s > 1.05)) return false;
     return true;
 }
 
@@ -245,9 +245,9 @@ void ICACHE_FLASH_ATTR maze_updateDisplay(void)
     //Save accelerometer reading in global storage
 //TODO can get values bigger than 1. here, my accelerometer has 14 bits
 //  but these are usually between +- 255
-    xAccel = mazeAccel.x;
-    yAccel = mazeAccel.y;
-    zAccel = mazeAccel.z;
+    xAccel = 0.9*xAccel + 0.1*mazeAccel.x;
+    yAccel = 0.9*yAccel + 0.1*mazeAccel.y;
+    zAccel = 0.9*zAccel + 0.1*mazeAccel.z;
 
     // want -63 to 63 to go approx from 0 to 124 for scxc and 60 to 0 for scyc
     scxc = xAccel + 62; //xAccel/63 * 62 + 62
