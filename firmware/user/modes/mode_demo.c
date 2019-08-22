@@ -28,6 +28,7 @@
 #include "MMA8452Q.h"
 #include "bresenham.h"
 #include "buttons.h"
+#include "gpio_user.h"
 
 /*============================================================================
  * Defines
@@ -37,6 +38,8 @@
 #define BTN_CTR_Y 40
 #define BTN_RAD    8
 #define BTN_OFF   12
+
+#define BUZZER_CYCLE_MS 500
 
 /*============================================================================
  * Prototypes
@@ -50,6 +53,7 @@ void ICACHE_FLASH_ATTR demoButtonCallback(uint8_t state __attribute__((unused)),
 void ICACHE_FLASH_ATTR demoAccelerometerHandler(accel_t* accel);
 
 void ICACHE_FLASH_ATTR updateDisplay(void);
+void ICACHE_FLASH_ATTR toggleBuzzer(void* arg __attribute__((unused)));
 
 /*============================================================================
  * Variables
@@ -72,6 +76,11 @@ static int samplesProcessed = 0;
 accel_t demoAccel = {0};
 uint8_t mButtonState = 0;
 
+os_timer_t toggleBuzzerTimer = {0};
+
+uint16_t mBuzzerTimeOn = 1;
+uint8_t mBuzzerOn = 0;
+
 /*============================================================================
  * Functions
  *==========================================================================*/
@@ -84,6 +93,39 @@ void ICACHE_FLASH_ATTR demoEnterMode(void)
     InitColorChord();
     samplesProcessed = 0;
     enableDebounce(false);
+
+    setBuzzerOn(false);
+    os_timer_disarm(&toggleBuzzerTimer);
+    os_timer_setfn(&toggleBuzzerTimer, toggleBuzzer, NULL);
+    os_timer_arm(&toggleBuzzerTimer, BUZZER_CYCLE_MS - mBuzzerTimeOn, true);
+}
+
+/**
+ * @brief TODO
+ *
+ * @param arg
+ */
+void ICACHE_FLASH_ATTR toggleBuzzer(void* arg __attribute__((unused)))
+{
+    if(false == getBuzzerState())
+    {
+        setBuzzerOn(true);
+        os_timer_disarm(&toggleBuzzerTimer);
+        os_timer_arm(&toggleBuzzerTimer, mBuzzerTimeOn, true);
+        os_printf("mBuzzerTimeOn %3d\n", mBuzzerTimeOn);
+        mBuzzerOn++;
+        if(mBuzzerOn == 4)
+        {
+            mBuzzerOn = 0;
+            mBuzzerTimeOn++;
+        }
+    }
+    else
+    {
+        setBuzzerOn(false);
+        os_timer_disarm(&toggleBuzzerTimer);
+        os_timer_arm(&toggleBuzzerTimer, BUZZER_CYCLE_MS - mBuzzerTimeOn, true);
+    }
 }
 
 /**
