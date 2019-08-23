@@ -28,7 +28,7 @@
 #include "MMA8452Q.h"
 #include "bresenham.h"
 #include "buttons.h"
-#include "gpio_user.h"
+#include "hpatimer.h"
 
 /*============================================================================
  * Defines
@@ -39,15 +39,12 @@
 #define BTN_RAD    8
 #define BTN_OFF   12
 
-#define BUZZER_CYCLE_MS 500
-
 /*============================================================================
  * Prototypes
  *==========================================================================*/
 
 void ICACHE_FLASH_ATTR demoEnterMode(void);
 void ICACHE_FLASH_ATTR demoExitMode(void);
-void ICACHE_FLASH_ATTR demoSampleHandler(int32_t samp);
 void ICACHE_FLASH_ATTR demoButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down);
 void ICACHE_FLASH_ATTR demoAccelerometerHandler(accel_t* accel);
@@ -65,7 +62,6 @@ swadgeMode demoMode =
     .fnEnterMode = demoEnterMode,
     .fnExitMode = demoExitMode,
     .fnButtonCallback = demoButtonCallback,
-    .fnAudioCallback = demoSampleHandler,
     .wifiMode = SOFT_AP,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
@@ -79,7 +75,9 @@ uint8_t mButtonState = 0;
 os_timer_t toggleBuzzerTimer = {0};
 
 uint16_t mBuzzerTimeOn = 1;
-uint8_t mBuzzerOn = 0;
+uint8_t mBuzzerOnDemo = 0;
+const uint32_t freqTable[] = {262, 294, 330, 349, 392, 440, 494, 523};
+uint8_t freqIdx = 0;
 
 /*============================================================================
  * Functions
@@ -94,10 +92,10 @@ void ICACHE_FLASH_ATTR demoEnterMode(void)
     samplesProcessed = 0;
     enableDebounce(false);
 
-    setBuzzerOn(false);
+    setBuzzerOn(mBuzzerOnDemo);
     os_timer_disarm(&toggleBuzzerTimer);
     os_timer_setfn(&toggleBuzzerTimer, toggleBuzzer, NULL);
-    os_timer_arm(&toggleBuzzerTimer, BUZZER_CYCLE_MS - mBuzzerTimeOn, true);
+    os_timer_arm(&toggleBuzzerTimer, 1000, true);
 }
 
 /**
@@ -107,25 +105,13 @@ void ICACHE_FLASH_ATTR demoEnterMode(void)
  */
 void ICACHE_FLASH_ATTR toggleBuzzer(void* arg __attribute__((unused)))
 {
-    if(false == getBuzzerState())
+    setBuzzerOn(mBuzzerOnDemo);
+    if(mBuzzerOnDemo)
     {
-        setBuzzerOn(true);
-        os_timer_disarm(&toggleBuzzerTimer);
-        os_timer_arm(&toggleBuzzerTimer, mBuzzerTimeOn, true);
-        os_printf("mBuzzerTimeOn %3d\n", mBuzzerTimeOn);
-        mBuzzerOn++;
-        if(mBuzzerOn == 4)
-        {
-            mBuzzerOn = 0;
-            mBuzzerTimeOn++;
-        }
+        setBuzzerFrequency(freqTable[freqIdx] * 2);
+        freqIdx = (freqIdx + 1) % (sizeof(freqTable) / sizeof(freqTable[0]));
     }
-    else
-    {
-        setBuzzerOn(false);
-        os_timer_disarm(&toggleBuzzerTimer);
-        os_timer_arm(&toggleBuzzerTimer, BUZZER_CYCLE_MS - mBuzzerTimeOn, true);
-    }
+    mBuzzerOnDemo = !mBuzzerOnDemo;
 }
 
 /**
@@ -174,31 +160,6 @@ void ICACHE_FLASH_ATTR updateDisplay(void)
     {
         // Right
         plotCircle(BTN_CTR_X + BTN_OFF, BTN_CTR_Y, BTN_RAD);
-    }
-}
-
-/**
- * Just run colorchord
- *
- * @param samp A 32 bit audio sample read from the ADC (microphone)
- */
-void ICACHE_FLASH_ATTR demoSampleHandler(int32_t samp)
-{
-    PushSample32( samp );
-    samplesProcessed++;
-
-    // If at least 128 samples have been processed
-    if( samplesProcessed >= 128 )
-    {
-        // Colorchord magic
-        HandleFrameInfo();
-
-        // Set LEDs
-        UpdateLinearLEDs();
-        setLeds( (led_t*)ledOut, NUM_LIN_LEDS * 3 );
-
-        // Reset the sample count
-        samplesProcessed = 0;
     }
 }
 

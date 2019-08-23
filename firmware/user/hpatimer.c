@@ -14,6 +14,7 @@
 #include "hpatimer.h"
 #include "adc.h"
 #include "missingEspFnPrototypes.h"
+#include "gpio_user.h"
 
 /*============================================================================
  * Defines
@@ -43,12 +44,9 @@ typedef enum
  * Variables
  *==========================================================================*/
 
-//BUFFSIZE must be a power-of-two
-volatile uint8_t sounddata[HPABUFFSIZE] = {0};
-volatile uint16_t soundhead = 0;
-volatile uint16_t soundtail = 0;
-
 volatile bool hpaRunning = false;
+uint32_t mFrequency = 32000;
+bool mBuzzerOn = false;
 
 /*============================================================================
  * Prototypes
@@ -71,30 +69,10 @@ static void timerhandle( void* v );
 static void timerhandle( void* v __attribute__((unused)))
 {
     RTC_CLR_REG_MASK(FRC1_INT_ADDRESS, FRC1_INT_CLR_MASK);
-    uint16_t r = hs_adc_read();
-    sounddata[soundhead] = r >> 6;
-    soundhead = (soundhead + 1) & (HPABUFFSIZE - 1);
-}
-
-/**
- * @return true if a sample has been read from the ADC and is queued for processing
- */
-bool ICACHE_FLASH_ATTR sampleAvailable(void)
-{
-    return soundhead != soundtail;
-}
-
-/**
- * Get a sample from the ADC in the queue, return it, and increment the queue so
- * the next sample is returned the next time this is called
- *
- * @return the sample which was read from the ADC
- */
-uint8_t ICACHE_FLASH_ATTR getSample(void)
-{
-    uint8_t samp = sounddata[soundtail];
-    soundtail = (soundtail + 1) % (HPABUFFSIZE);
-    return samp;
+    if(mBuzzerOn)
+    {
+        setBuzzerGpio(!getBuzzerGpio());
+    }
 }
 
 /**
@@ -103,27 +81,23 @@ uint8_t ICACHE_FLASH_ATTR getSample(void)
  *
  * Calls ContinueHPATimer() to fully enable to timer and start an ADC reading with hs_adc_start()
  */
-void ICACHE_FLASH_ATTR StartHPATimer(void* arg __attribute__((unused)))
+void ICACHE_FLASH_ATTR StartHPATimer(void)
 {
-
     RTC_REG_WRITE(FRC1_CTRL_ADDRESS,  FRC1_AUTO_RELOAD |
                   DIVDED_BY_16 | //5MHz main clock.
                   FRC1_ENABLE_TIMER |
                   TM_EDGE_INT );
 
-    RTC_REG_WRITE(FRC1_LOAD_ADDRESS,  5000000 / DFREQ);
-    RTC_REG_WRITE(FRC1_COUNT_ADDRESS, 5000000 / DFREQ);
+    RTC_REG_WRITE(FRC1_LOAD_ADDRESS,  5000000 / mFrequency);
+    RTC_REG_WRITE(FRC1_COUNT_ADDRESS, 5000000 / mFrequency);
 
-    //pwm_set_freq_duty(freq, duty);
-    //pwm_start();
-    //    RTC_REG_WRITE(FRC1_LOAD_ADDRESS, local_single[0].h_time);
     ETS_FRC_TIMER1_INTR_ATTACH(timerhandle, NULL);
 
     ContinueHPATimer();
 }
 
 /**
- * Pause the hardware timer used to sample the ADC
+ * Pause the hardware timer
  */
 void PauseHPATimer(void)
 {
@@ -133,13 +107,12 @@ void PauseHPATimer(void)
 }
 
 /**
- * Start the hardware timer used to sample the ADC
+ * Start the hardware timer
  */
 void ContinueHPATimer(void)
 {
     TM1_EDGE_INT_ENABLE();
     ETS_FRC1_INTR_ENABLE();
-    hs_adc_start();
     hpaRunning = true;
 }
 
@@ -149,4 +122,38 @@ void ContinueHPATimer(void)
 bool ICACHE_FLASH_ATTR isHpaRunning(void)
 {
     return hpaRunning;
+}
+
+/**
+ * @brief Set the Buzzer On object
+ *
+ * @param on true to play sound, false to not play sound
+ */
+void ICACHE_FLASH_ATTR setBuzzerOn(bool on)
+{
+    mBuzzerOn = on;
+    if(false == on)
+    {
+        setBuzzerGpio(false);
+    }
+}
+
+/**
+ * @brief Set the current PWM output frequency
+ *
+ * @param frequency The frequency to call the timer. The square wave will have a
+ *                  frequency of half this
+ */
+void ICACHE_FLASH_ATTR setBuzzerFrequency(uint32_t frequency)
+{
+    if(frequency > 32000)
+    {
+        frequency = 32000;
+    }
+    // Set the frequency
+    mFrequency = frequency;
+
+    // Stop and start the timer at the new frequency
+    PauseHPATimer();
+    StartHPATimer();
 }

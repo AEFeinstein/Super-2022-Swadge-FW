@@ -7,21 +7,12 @@
 #ifndef _HPATIMER_H
 #define _HPATIMER_H
 
-#include <c_types.h>
-#include "ccconfig.h" //For DFREQ
-
-//Using a system timer on the ESP to poll the ADC in at a regular interval...
-
-//BUFFSIZE must be a power-of-two
-#define HPABUFFSIZE 512
-
-uint8_t ICACHE_FLASH_ATTR getSample(void);
-bool ICACHE_FLASH_ATTR sampleAvailable(void);
-
-void ICACHE_FLASH_ATTR StartHPATimer(void* arg);
+void ICACHE_FLASH_ATTR StartHPATimer(void);
 void ContinueHPATimer(void);
 void PauseHPATimer(void);
 bool ICACHE_FLASH_ATTR isHpaRunning(void);
+void ICACHE_FLASH_ATTR setBuzzerOn(bool on);
+void ICACHE_FLASH_ATTR setBuzzerFrequency(uint32_t frequency);
 
 #endif
 

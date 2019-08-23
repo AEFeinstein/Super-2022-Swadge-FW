@@ -242,7 +242,7 @@ void ICACHE_FLASH_ATTR setOledResetOn(bool on)
  * Set the buzzer either off or on
  * @param on true to set it on, false to set it off
  */
-void ICACHE_FLASH_ATTR setBuzzerOn(bool on)
+void ICACHE_FLASH_ATTR setBuzzerGpio(bool on)
 {
     mBuzzerState = on;
     GPIO_OUTPUT_SET(GPIO_ID_PIN(5), on ? 1 : 0 );
@@ -253,7 +253,7 @@ void ICACHE_FLASH_ATTR setBuzzerOn(bool on)
  *
  * @return true if the buzzer is on, false if it is off
  */
-bool ICACHE_FLASH_ATTR getBuzzerState(void)
+bool ICACHE_FLASH_ATTR getBuzzerGpio(void)
 {
     return mBuzzerState;
 }
