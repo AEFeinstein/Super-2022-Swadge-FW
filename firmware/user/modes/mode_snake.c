@@ -22,6 +22,10 @@
  *==========================================================================*/
 
 #define SPRITE_DIM 4
+#define SNAKE_FIELD_OFFSET_X 24
+#define SNAKE_FIELD_OFFSET_Y 14
+#define SNAKE_FIELD_WIDTH  SPRITE_DIM * 20
+#define SNAKE_FIELD_HEIGHT SPRITE_DIM * 11
 
 /*============================================================================
  * Sprites
@@ -271,39 +275,8 @@ const snakeSprite tailTransitionTable[4] =
 };
 
 /*============================================================================
- * Function prototypes
+ * Typedefs
  *==========================================================================*/
-
-void ICACHE_FLASH_ATTR snakeInit(void);
-void ICACHE_FLASH_ATTR snakeDeinit(void);
-void ICACHE_FLASH_ATTR snakeButtonCallback(uint8_t state, int button, int down);
-void ICACHE_FLASH_ATTR addSnakeNode(snakeSprite sprite, uint8_t ttl);
-void ICACHE_FLASH_ATTR drawSnakeFrame(void* arg);
-void ICACHE_FLASH_ATTR plotSnakeSprite(uint8_t x, uint8_t y, snakeSprite sprite);
-
-void ICACHE_FLASH_ATTR moveSnake(void);
-void ICACHE_FLASH_ATTR checkGameLogic(void);
-void ICACHE_FLASH_ATTR drawSnake(void);
-void ICACHE_FLASH_ATTR drawCritter(void);
-void ICACHE_FLASH_ATTR drawFood(void);
-
-inline uint8_t ICACHE_FLASH_ATTR wrapIdx(uint8_t idx, int8_t delta, uint8_t min, uint8_t max);
-
-/*============================================================================
- * Variables
- *==========================================================================*/
-
-swadgeMode snakeMode =
-{
-    .modeName = "Snake",
-    .fnEnterMode = snakeInit,
-    .fnExitMode = snakeDeinit,
-    .fnButtonCallback = snakeButtonCallback,
-    .fnAudioCallback = NULL,
-    .wifiMode = NO_WIFI,
-    .fnEspNowRecvCb = NULL,
-    .fnEspNowSendCb = NULL,
-};
 
 typedef struct
 {
@@ -328,6 +301,43 @@ typedef struct _snakeNode_t
     struct _snakeNode_t* prevSegment;
     struct _snakeNode_t* nextSegment;
 } snakeNode_t;
+
+/*============================================================================
+ * Function prototypes
+ *==========================================================================*/
+
+void ICACHE_FLASH_ATTR snakeInit(void);
+void ICACHE_FLASH_ATTR snakeDeinit(void);
+void ICACHE_FLASH_ATTR snakeButtonCallback(uint8_t state, int button, int down);
+void ICACHE_FLASH_ATTR addSnakeNode(snakeSprite sprite, uint8_t ttl);
+void ICACHE_FLASH_ATTR drawSnakeFrame(void* arg);
+void ICACHE_FLASH_ATTR plotSnakeSprite(uint8_t x, uint8_t y, snakeSprite sprite);
+
+void ICACHE_FLASH_ATTR moveSnake(void);
+void ICACHE_FLASH_ATTR checkGameLogic(void);
+void ICACHE_FLASH_ATTR drawSnake(void);
+void ICACHE_FLASH_ATTR drawCritter(void);
+void ICACHE_FLASH_ATTR placeSnakeFood(void);
+void ICACHE_FLASH_ATTR drawFood(void);
+
+bool ICACHE_FLASH_ATTR isOccupiedBySnake(uint8_t x, uint8_t y);
+inline uint8_t ICACHE_FLASH_ATTR wrapIdx(uint8_t idx, int8_t delta, uint8_t max);
+
+/*============================================================================
+ * Variables
+ *==========================================================================*/
+
+swadgeMode snakeMode =
+{
+    .modeName = "Snake",
+    .fnEnterMode = snakeInit,
+    .fnExitMode = snakeDeinit,
+    .fnButtonCallback = snakeButtonCallback,
+    .fnAudioCallback = NULL,
+    .wifiMode = NO_WIFI,
+    .fnEspNowRecvCb = NULL,
+    .fnEspNowSendCb = NULL,
+};
 
 struct
 {
@@ -364,14 +374,15 @@ void ICACHE_FLASH_ATTR snakeInit(void)
 
     snake.dir = RIGHT;
 
-    // TODO randomly place food
+    // randomly place food
+    placeSnakeFood();
 
     drawSnakeFrame(NULL);
 
     // Start a software timer to run every 100ms
     os_timer_disarm(&timerHandleSnakeLogic);
     os_timer_setfn(&timerHandleSnakeLogic, (os_timer_func_t*)drawSnakeFrame, NULL);
-    os_timer_arm(&timerHandleSnakeLogic, 100, 1);
+    os_timer_arm(&timerHandleSnakeLogic, 1000, 1);
 }
 
 /**
@@ -440,8 +451,8 @@ void ICACHE_FLASH_ATTR addSnakeNode(snakeSprite sprite, uint8_t ttl)
         snake.snakeList->sprite = sprite;
         snake.snakeList->ttl = ttl;
         // Start in the middle of the display
-        snake.snakeList->pos.x = OLED_WIDTH / 2;
-        snake.snakeList->pos.y = OLED_HEIGHT / 2 + 2;
+        snake.snakeList->pos.x = SNAKE_FIELD_WIDTH / 2;
+        snake.snakeList->pos.y = SNAKE_FIELD_HEIGHT / 2 + 2;
         snake.snakeList->dir = RIGHT;
         snake.snakeList->prevSegment = NULL;
         snake.snakeList->nextSegment = NULL;
@@ -509,16 +520,16 @@ void ICACHE_FLASH_ATTR drawSnakeFrame(void* arg __attribute__((unused)))
  * @param max
  * @return uint8_t wrapIdx
  */
-inline uint8_t ICACHE_FLASH_ATTR wrapIdx(uint8_t idx, int8_t delta, uint8_t min, uint8_t max)
+inline uint8_t ICACHE_FLASH_ATTR wrapIdx(uint8_t idx, int8_t delta, uint8_t max)
 {
-    idx += delta;
-    while(idx < min)
+    if(idx + delta < 0)
     {
-        idx += (max - min);
+        idx += max;
     }
-    while(idx >= max)
+    idx += delta;
+    if(idx >= max)
     {
-        idx -= (max - min);
+        idx -= max;
     }
     return idx;
 }
@@ -549,24 +560,24 @@ void ICACHE_FLASH_ATTR moveSnake(void)
         case UP:
         {
             newHead->pos.x = oldHead->pos.x;
-            newHead->pos.y = wrapIdx(oldHead->pos.y, -SPRITE_DIM, 14, OLED_HEIGHT - 6);
+            newHead->pos.y = wrapIdx(oldHead->pos.y, -SPRITE_DIM, SNAKE_FIELD_HEIGHT);
             break;
         }
         case DOWN:
         {
             newHead->pos.x = oldHead->pos.x;
-            newHead->pos.y = wrapIdx(oldHead->pos.y, SPRITE_DIM, 14, OLED_HEIGHT - 6);
+            newHead->pos.y = wrapIdx(oldHead->pos.y, SPRITE_DIM, SNAKE_FIELD_HEIGHT);
             break;
         }
         case LEFT:
         {
-            newHead->pos.x = wrapIdx(oldHead->pos.x, -SPRITE_DIM, 24, OLED_WIDTH - 24);
+            newHead->pos.x = wrapIdx(oldHead->pos.x, -SPRITE_DIM, SNAKE_FIELD_WIDTH);
             newHead->pos.y = oldHead->pos.y;
             break;
         }
         case RIGHT:
         {
-            newHead->pos.x = wrapIdx(oldHead->pos.x, SPRITE_DIM, 24, OLED_WIDTH - 24);
+            newHead->pos.x = wrapIdx(oldHead->pos.x, SPRITE_DIM, SNAKE_FIELD_WIDTH);
             newHead->pos.y = oldHead->pos.y;
             break;
         }
@@ -643,6 +654,56 @@ void ICACHE_FLASH_ATTR drawCritter(void)
 /**
  * @brief TODO
  *
+ * @param toCheck
+ * @return true
+ * @return false
+ */
+bool ICACHE_FLASH_ATTR isOccupiedBySnake(uint8_t x, uint8_t y)
+{
+    snakeNode_t* node = snake.snakeList;
+    while(NULL != node)
+    {
+        if((node->pos.x == x) && (node->pos.y == y))
+        {
+            return true;
+        }
+        node = node->nextSegment;
+    }
+    return false;
+}
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR placeSnakeFood(void)
+{
+    uint8_t randPos = os_random() % ((SNAKE_FIELD_HEIGHT * SNAKE_FIELD_WIDTH) / SPRITE_DIM - snake.length);
+    uint8_t linearAddr = 0;
+    for(uint8_t y = 0; y < SNAKE_FIELD_HEIGHT; y += SPRITE_DIM)
+    {
+        for(uint8_t x = 0; x < SNAKE_FIELD_WIDTH; x += SPRITE_DIM)
+        {
+            if(!isOccupiedBySnake(x, y))
+            {
+                if(randPos == linearAddr)
+                {
+                    snake.posFood.x = x;
+                    snake.posFood.y = y;
+                    return;
+                }
+                else
+                {
+                    linearAddr++;
+                }
+            }
+        }
+    }
+}
+
+/**
+ * @brief TODO
+ *
  */
 void ICACHE_FLASH_ATTR drawFood(void)
 {
@@ -659,6 +720,9 @@ void ICACHE_FLASH_ATTR drawFood(void)
  */
 void ICACHE_FLASH_ATTR plotSnakeSprite(uint8_t x, uint8_t y, snakeSprite sprite)
 {
+    x += SNAKE_FIELD_OFFSET_X;
+    y += SNAKE_FIELD_OFFSET_Y;
+
     uint8_t xDraw, yDraw, spriteIdx = 15;
     for(yDraw = 0; yDraw < SPRITE_DIM; yDraw++)
     {
