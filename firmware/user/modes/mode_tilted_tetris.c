@@ -20,6 +20,12 @@
 #define BTN_RAD    8
 #define BTN_OFF   12
 
+#define BTN_START_GAME RIGHT
+#define BTN_START_SCORES LEFT
+#define BTN_START_TITLE LEFT
+#define BTN_ROTATE LEFT
+#define BTN_DROP RIGHT
+
 // update task info.
 #define UPDATE_TIME_MS 16 
 
@@ -51,6 +57,10 @@ void ICACHE_FLASH_ATTR ttScoresDisplay(void);
 
 // helper functions.
 void ICACHE_FLASH_ATTR ttChangeState(tiltedTetrisState_t newState);
+bool ICACHE_FLASH_ATTR ttIsButtonPressed(uint8_t button);
+void ICACHE_FLASH_ATTR ttRotateTetromino();
+void ICACHE_FLASH_ATTR ttDropTetromino();
+void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size);
 
 swadgeMode tiltedTetrisMode = 
 {
@@ -67,6 +77,7 @@ swadgeMode tiltedTetrisMode =
 
 accel_t ttAccel = {0};
 uint8_t ttButtonState = 0;
+uint8_t ttLastButtonState = 0;
 
 static os_timer_t timerHandleUpdate = {0};
 
@@ -85,7 +96,8 @@ tiltedTetrisState_t currState = TT_TITLE;
 
 void ICACHE_FLASH_ATTR ttInit(void)
 {
-	enableDebounce(true);	//TODO: what should this be set to? debounce true = events don't fire until they're held down for a bit, but less event spam
+    // Give us responsive input.
+	enableDebounce(false);	
 	
 	// Reset mode time tracking.
 	modeStartTime = system_get_time();
@@ -108,7 +120,6 @@ void ICACHE_FLASH_ATTR ttDeInit(void)
 void ICACHE_FLASH_ATTR ttButtonCallback(uint8_t state, int button, int down)
 {
 	ttButtonState = state;	// Set the state of all buttons
-    //ttUpdateDisplay();		// Update the display
 }
 
 void ICACHE_FLASH_ATTR ttAccelerometerCallback(accel_t* accel)
@@ -148,6 +159,9 @@ static void ICACHE_FLASH_ATTR ttUpdate(void* arg)
         }
     };
 
+    // Mark what our inputs were the last time we acted on them.
+    ttLastButtonState = ttButtonState;
+
 	// Handle Drawing Frame (based on the state)
 	switch( currState )
     {
@@ -170,24 +184,57 @@ static void ICACHE_FLASH_ATTR ttUpdate(void* arg)
 }
 
 void ICACHE_FLASH_ATTR ttTitleInput(void)
-{
-	//button a = start game
-	//button b = go to score screen
-	//accel = tilt something on screen like you would a tetromino
+{   
+    //button a = start game
+    if(ttIsButtonPressed(BTN_START_GAME))
+    {
+        ttChangeState(TT_GAME);
+    }
+    //button b = go to score screen
+    else if(ttIsButtonPressed(BTN_START_SCORES))
+    {
+        ttChangeState(TT_SCORES);
+    }
+
+    //TODO: accel = tilt something on screen like you would a tetromino
 }
 
 void ICACHE_FLASH_ATTR ttGameInput(void)
 {
 	//button a = rotate piece
-	//button b = instant drop piece
-	//accel = tilt the current tetromino
+    if(ttIsButtonPressed(BTN_ROTATE))
+    {
+        ttRotateTetromino();
+    }
+    //button b = instant drop piece
+    if(ttIsButtonPressed(BTN_DROP))
+    {
+        ttDropTetromino();
+    }
+    
+	//TODO: accel = tilt the current tetromino
+
+    //TODO: this is a debug input, remove it when done.
+    if(ttIsButtonPressed(DOWN))
+    {
+        ttChangeState(TT_SCORES);
+    }
 }
 
 void ICACHE_FLASH_ATTR ttScoresInput(void)
 {
 	//button a = start game
-	//button b = go to title screen
-	//accel = tilt to scroll through history of scores?
+    if(ttIsButtonPressed(BTN_START_GAME))
+    {
+        ttChangeState(TT_GAME);
+    }
+    //button b = go to title screen
+    else if(ttIsButtonPressed(BTN_START_TITLE))
+    {
+        ttChangeState(TT_TITLE);
+    }
+
+	//TODO: accel = tilt to scroll through history of scores?
 }
 
 void ICACHE_FLASH_ATTR ttTitleDisplay(void)
@@ -201,7 +248,8 @@ void ICACHE_FLASH_ATTR ttTitleDisplay(void)
     clearDisplay();
 
     // Draw a title
-    plotText(0, 0, "TILTED TETRIS", RADIOSTARS);
+    plotText(25, 0, "TILTED", RADIOSTARS);
+    plotText(35, (FONT_HEIGHT_RADIOSTARS + 1), "TETRIS", RADIOSTARS);
 
     // Display the acceleration on the display
     char accelStr[32] = {0};
@@ -214,37 +262,74 @@ void ICACHE_FLASH_ATTR ttTitleDisplay(void)
 
     ets_snprintf(accelStr, sizeof(accelStr), "Z:%d", ttAccel.z);
     plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
-
-    if(ttButtonState & DOWN)
-    {
-        // Down
-        plotCircle(BTN_CTR_X, BTN_CTR_Y + BTN_OFF, BTN_RAD);
-    }
-    if(ttButtonState & UP)
-    {
-        // Up
-        plotCircle(BTN_CTR_X, BTN_CTR_Y - BTN_OFF, BTN_RAD);
-    }
-    if(ttButtonState & LEFT)
-    {
-        // Left
-        plotCircle(BTN_CTR_X - BTN_OFF, BTN_CTR_Y, BTN_RAD);
-    }
-    if(ttButtonState & RIGHT)
-    {
-        // Right
-        plotCircle(BTN_CTR_X + BTN_OFF, BTN_CTR_Y, BTN_RAD);
-    }
 }
 
 void ICACHE_FLASH_ATTR ttGameDisplay(void)
 {
+    // Clear the display
+    clearDisplay();
 
+    plotText(0, 0, "GAME", RADIOSTARS);
+
+    // straight test
+    int posX = 5;
+    int posY = 20;
+    plotSquare(posX,posY,5);
+    plotSquare(posX+5,posY,5);
+    plotSquare(posX+10,posY,5);
+    plotSquare(posX+15,posY,5);
+
+    // square test
+    posX += 25;
+    plotSquare(posX,posY,5);
+    plotSquare(posX+5,posY,5);
+    plotSquare(posX,posY+5,5);
+    plotSquare(posX+5,posY+5,5);
+
+    // T test
+    posX += 15;
+    plotSquare(posX,posY,5);
+    plotSquare(posX+5,posY,5);
+    plotSquare(posX+10,posY,5);
+    plotSquare(posX+5,posY+5,5);
+
+    // J test
+    posX += 20;
+    plotSquare(posX,posY,5);
+    plotSquare(posX+5,posY,5);
+    plotSquare(posX+10,posY,5);
+    plotSquare(posX+10,posY+5,5);
+
+    // L test
+    posX += 20;
+    plotSquare(posX,posY,5);
+    plotSquare(posX+5,posY,5);
+    plotSquare(posX+10,posY,5);
+    plotSquare(posX,posY+5,5);
+
+    // S test
+    //TODO: is the subtract the right move here?
+    posX = 5;
+    posY += 15;
+    plotSquare(posX,posY,5);
+    plotSquare(posX+5,posY,5);
+    plotSquare(posX+5,posY-5,5);
+    plotSquare(posX+10,posY-5,5);
+
+    // Z test
+    posX += 20;
+    plotSquare(posX,posY,5);
+    plotSquare(posX+5,posY,5);
+    plotSquare(posX+5,posY+5,5);
+    plotSquare(posX+10,posY+5,5);
 }
 
 void ICACHE_FLASH_ATTR ttScoresDisplay(void)
 {
+    // Clear the display
+    clearDisplay();
 
+    plotText(0, 0, "SCORES", RADIOSTARS);
 }
 
 // helper functions.
@@ -254,4 +339,25 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltedTetrisState_t newState)
 	currState = newState;
 	stateStartTime = system_get_time();
 	stateTime = 0;
+}
+
+bool ICACHE_FLASH_ATTR ttIsButtonPressed(uint8_t button)
+{
+    //TODO: can press events get lost this way?
+    return (ttButtonState & button) && !(ttLastButtonState & button);
+}
+
+void ICACHE_FLASH_ATTR ttRotateTetromino()
+{
+    //TODO: fill in. does this need a rot direction as parameter?
+}
+
+void ICACHE_FLASH_ATTR ttDropTetromino()
+{
+    //TODO: fill in.
+}
+
+void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size)
+{
+    plotRect(x0, y0, x0 + size, y0 + size);
 }
