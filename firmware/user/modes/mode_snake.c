@@ -275,6 +275,18 @@ const snakeSprite tailTransitionTable[4] =
     TAIL_LEFT,
 };
 
+
+typedef enum
+{
+    bug1 = 0b10101010101010101010101010101010,
+    bug2 = 0b11001100110011001100110011001100,
+    bug4 = 0b11101110111011101110111011101110,
+    bug3 = 0b11110000111100001111000011110000,
+    bug5 = 0b11010100101010101101010010101010,
+} critterSprite;
+
+const critterSprite critterSprites[5] = {bug1, bug2, bug3, bug4, bug5};
+
 /*============================================================================
  * Typedefs
  *==========================================================================*/
@@ -317,6 +329,7 @@ void ICACHE_FLASH_ATTR plotSnakeSprite(uint8_t x, uint8_t y, snakeSprite sprite)
 
 void ICACHE_FLASH_ATTR moveSnake(void);
 void ICACHE_FLASH_ATTR drawSnake(void);
+void ICACHE_FLASH_ATTR placeCritter(void);
 void ICACHE_FLASH_ATTR drawCritter(void);
 void ICACHE_FLASH_ATTR placeSnakeFood(void);
 void ICACHE_FLASH_ATTR drawFood(void);
@@ -347,9 +360,12 @@ struct
     snakeNode_t* snakeList;
     dir_t dir;
     pos_t posFood;
+    pos_t posCritter;
+    critterSprite cSprite;
     uint16_t length;
     uint32_t score;
     uint8_t foodEaten;
+    uint16_t lastCritterAt;
     uint8_t critterTimerCount;
     os_timer_t timerHandleSnakeLogic;
 } snake;
@@ -570,10 +586,10 @@ void ICACHE_FLASH_ATTR moveSnake(void)
     {
         // Mmm, tasty
         newHead->isFat = 1;
-        snake.length++;
         snake.foodEaten++;
 
         // Increment all the ttls, effectively making the snake longer
+        snake.length++;
         snakeNode_t* snakePtr = snake.snakeList;
         while(NULL != snakePtr)
         {
@@ -582,6 +598,25 @@ void ICACHE_FLASH_ATTR moveSnake(void)
         }
 
         snake.score += 5;
+    }
+    else if((newHead->pos.y == snake.posCritter.y) && (newHead->pos.x == snake.posCritter.x
+            || newHead->pos.x == snake.posCritter.x + SPRITE_DIM) )
+    {
+        // Mmm a critter
+        newHead->isFat = 1;
+
+        // Increment all the ttls, effectively making the snake longer
+        snake.length++;
+        snakeNode_t* snakePtr = snake.snakeList;
+        while(NULL != snakePtr)
+        {
+            snakePtr->ttl++;
+            snakePtr = snakePtr->nextSegment;
+        }
+
+        snake.score += (5 * snake.critterTimerCount);
+
+        snake.critterTimerCount = 0;
     }
 
     // Swap sprite right behind the head and adjust it's direction to match the head
@@ -626,9 +661,15 @@ void ICACHE_FLASH_ATTR moveSnake(void)
         {
             placeSnakeFood();
         }
-        if(0 == snake.critterTimerCount && 0 < snake.foodEaten && snake.foodEaten % 5 == 0)
+        if(0 == snake.critterTimerCount &&
+                snake.lastCritterAt != snake.foodEaten &&
+                snake.foodEaten % 5 == 0)
         {
+            // Pick random snake.cSprite
+            snake.cSprite = critterSprites[os_random() % (sizeof(critterSprites) / sizeof(critterSprites[0]))];
             snake.critterTimerCount = 20;
+            placeCritter();
+            snake.lastCritterAt = snake.foodEaten;
         }
     }
 }
@@ -662,6 +703,39 @@ void ICACHE_FLASH_ATTR placeSnakeFood(void)
             }
         }
     }
+    // TODO ultimate winner?
+}
+
+/**
+ * @brief
+ *
+ */
+void ICACHE_FLASH_ATTR placeCritter(void)
+{
+    uint16_t randPos = os_random() % (((SNAKE_FIELD_HEIGHT / SPRITE_DIM) *
+                                       ((SNAKE_FIELD_WIDTH - SPRITE_DIM)  / SPRITE_DIM)) -
+                                      snake.length);
+    uint16_t linearAddr = 0;
+    for(uint8_t y = 0; y < SNAKE_FIELD_HEIGHT; y += SPRITE_DIM)
+    {
+        for(uint8_t x = 0; x < SNAKE_FIELD_WIDTH - SPRITE_DIM; x += SPRITE_DIM)
+        {
+            if(!isOccupiedBySnake(x, y, snake.snakeList) && !isOccupiedBySnake(x + SPRITE_DIM, y, snake.snakeList))
+            {
+                if(randPos == linearAddr)
+                {
+                    snake.posCritter.x = x;
+                    snake.posCritter.y = y;
+                    return;
+                }
+                else
+                {
+                    linearAddr++;
+                }
+            }
+        }
+    }
+    // TODO ultimate winner?
 }
 
 /*******************************************************************************
@@ -801,7 +875,8 @@ void ICACHE_FLASH_ATTR drawFood(void)
  */
 void ICACHE_FLASH_ATTR drawCritter(void)
 {
-    // Nothing for now
+    plotSnakeSprite(snake.posCritter.x, snake.posCritter.y,              (snake.cSprite & 0xFFFF0000) >> 16);
+    plotSnakeSprite(snake.posCritter.x + SPRITE_DIM, snake.posCritter.y, (snake.cSprite & 0x0000FFFF));
 }
 
 /**
