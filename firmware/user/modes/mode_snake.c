@@ -26,6 +26,7 @@
 #define SNAKE_FIELD_OFFSET_Y 14
 #define SNAKE_FIELD_WIDTH  SPRITE_DIM * 20
 #define SNAKE_FIELD_HEIGHT SPRITE_DIM * 11
+#define SNAKE_INITIAL_LEN 7
 
 /*============================================================================
  * Sprites
@@ -310,7 +311,7 @@ typedef struct _snakeNode_t
 void ICACHE_FLASH_ATTR snakeInit(void);
 void ICACHE_FLASH_ATTR snakeDeinit(void);
 void ICACHE_FLASH_ATTR snakeButtonCallback(uint8_t state, int button, int down);
-void ICACHE_FLASH_ATTR addSnakeNode(snakeSprite sprite, uint8_t ttl);
+void ICACHE_FLASH_ATTR addSnakeNode(uint8_t ttl);
 void ICACHE_FLASH_ATTR drawSnakeFrame(void* arg);
 void ICACHE_FLASH_ATTR plotSnakeSprite(uint8_t x, uint8_t y, snakeSprite sprite);
 
@@ -348,6 +349,8 @@ struct
     pos_t posFood;
     uint16_t length;
     uint32_t score;
+    uint8_t foodEaten;
+    uint8_t critterTimerCount;
     os_timer_t timerHandleSnakeLogic;
 } snake;
 
@@ -364,19 +367,16 @@ void ICACHE_FLASH_ATTR snakeInit(void)
     // Clear everything
     ets_memset(&snake, 0, sizeof(snake));
 
-    addSnakeNode(HEAD_RIGHT, 7);
-    addSnakeNode(BODY_RIGHT, 6);
-    addSnakeNode(BODY_RIGHT, 5);
-    addSnakeNode(BODY_RIGHT, 4);
-    addSnakeNode(BODY_RIGHT, 3);
-    addSnakeNode(BODY_RIGHT, 2);
-    addSnakeNode(TAIL_RIGHT, 1);
-
-    snake.length = 7;
+    uint8_t i;
+    for(i = 0; i < SNAKE_INITIAL_LEN; i++)
+    {
+        addSnakeNode(SNAKE_INITIAL_LEN - i);
+    }
 
     snake.dir = RIGHT;
-
     snake.score = 0;
+    snake.foodEaten = 0;
+    snake.critterTimerCount = 0;
 
     // randomly place food
     placeSnakeFood();
@@ -446,13 +446,15 @@ void ICACHE_FLASH_ATTR snakeButtonCallback(uint8_t state __attribute__((unused))
  *
  * @param The sprite of the segment to add
  */
-void ICACHE_FLASH_ATTR addSnakeNode(snakeSprite sprite, uint8_t ttl)
+void ICACHE_FLASH_ATTR addSnakeNode(uint8_t ttl)
 {
+    snake.length++;
+
     // If snakeList is NULL, start the snake
     if(NULL == snake.snakeList)
     {
         snake.snakeList = (snakeNode_t*)os_malloc(sizeof(snakeNode_t));
-        snake.snakeList->sprite = sprite;
+        snake.snakeList->sprite = HEAD_RIGHT;
         snake.snakeList->ttl = ttl;
         // Start in the middle of the display
         snake.snakeList->pos.x = SNAKE_FIELD_WIDTH / 2;
@@ -471,8 +473,15 @@ void ICACHE_FLASH_ATTR addSnakeNode(snakeSprite sprite, uint8_t ttl)
         snakePtr = snakePtr->nextSegment;
     }
     snakePtr->nextSegment = (snakeNode_t*)os_malloc(sizeof(snakeNode_t));
-    snakePtr->nextSegment->sprite = sprite;
     snakePtr->nextSegment->ttl = ttl;
+    if(1 == ttl)
+    {
+        snakePtr->nextSegment->sprite = TAIL_RIGHT;
+    }
+    else
+    {
+        snakePtr->nextSegment->sprite = BODY_RIGHT;
+    }
     snakePtr->nextSegment->pos.x = snakePtr->pos.x - SPRITE_DIM;
     snakePtr->nextSegment->pos.y = snakePtr->pos.y;
     snakePtr->nextSegment->dir = RIGHT;
@@ -486,6 +495,7 @@ void ICACHE_FLASH_ATTR addSnakeNode(snakeSprite sprite, uint8_t ttl)
  */
 void ICACHE_FLASH_ATTR drawSnakeFrame(void* arg __attribute__((unused)))
 {
+    char scoreStr[16];
     // TODO check game logic (check death, check food, grow snake, randomly place food)
     // TODO keep track of score, display score on death
 
@@ -507,16 +517,25 @@ void ICACHE_FLASH_ATTR drawSnakeFrame(void* arg __attribute__((unused)))
         }
     }
 
-    moveSnake();
+    if(snake.critterTimerCount > 0)
+    {
+        snake.critterTimerCount--;
+    }
 
+    moveSnake();
     drawSnake();
-    drawCritter();
+
+    if(snake.critterTimerCount > 0)
+    {
+        drawCritter();
+        ets_snprintf(scoreStr, sizeof(scoreStr), "%02d", snake.critterTimerCount);
+        plotText(96, 5, scoreStr, TOM_THUMB);
+    }
     drawFood();
 
-    char scoreStr[16];
-    ets_snprintf(scoreStr, sizeof(scoreStr), "%d", snake.score);
+    ets_snprintf(scoreStr, sizeof(scoreStr), "%04d", snake.score);
     plotText(24, 5, scoreStr, TOM_THUMB);
-    plotText(96, 5, "99", TOM_THUMB);
+
 }
 
 /**
@@ -552,6 +571,7 @@ void ICACHE_FLASH_ATTR moveSnake(void)
         // Mmm, tasty
         newHead->isFat = 1;
         snake.length++;
+        snake.foodEaten++;
 
         // Increment all the ttls, effectively making the snake longer
         snakeNode_t* snakePtr = snake.snakeList;
@@ -599,11 +619,17 @@ void ICACHE_FLASH_ATTR moveSnake(void)
         // Collided with self, game over
         os_timer_disarm(&snake.timerHandleSnakeLogic);
     }
-
-    // If the food was eaten, place it somewhere else
-    else if(newHead->isFat)
+    else
     {
-        placeSnakeFood();
+        // If the food was eaten, place it somewhere else
+        if(newHead->isFat)
+        {
+            placeSnakeFood();
+        }
+        if(0 == snake.critterTimerCount && 0 < snake.foodEaten && snake.foodEaten % 5 == 0)
+        {
+            snake.critterTimerCount = 20;
+        }
     }
 }
 
