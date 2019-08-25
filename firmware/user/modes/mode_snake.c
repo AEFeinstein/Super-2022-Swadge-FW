@@ -298,6 +298,7 @@ typedef struct _snakeNode_t
     pos_t pos;
     dir_t dir;
     uint8_t ttl;
+    uint8_t isFat;
     struct _snakeNode_t* prevSegment;
     struct _snakeNode_t* nextSegment;
 } snakeNode_t;
@@ -314,14 +315,15 @@ void ICACHE_FLASH_ATTR drawSnakeFrame(void* arg);
 void ICACHE_FLASH_ATTR plotSnakeSprite(uint8_t x, uint8_t y, snakeSprite sprite);
 
 void ICACHE_FLASH_ATTR moveSnake(void);
-void ICACHE_FLASH_ATTR checkGameLogic(void);
 void ICACHE_FLASH_ATTR drawSnake(void);
 void ICACHE_FLASH_ATTR drawCritter(void);
 void ICACHE_FLASH_ATTR placeSnakeFood(void);
 void ICACHE_FLASH_ATTR drawFood(void);
 
-bool ICACHE_FLASH_ATTR isOccupiedBySnake(uint8_t x, uint8_t y);
+bool ICACHE_FLASH_ATTR isOccupiedBySnake(uint8_t x, uint8_t y, snakeNode_t* node);
 inline uint8_t ICACHE_FLASH_ATTR wrapIdx(uint8_t idx, int8_t delta, uint8_t max);
+void ICACHE_FLASH_ATTR moveSnakePos(pos_t* pos, dir_t dir);
+uint8_t ICACHE_FLASH_ATTR isFoodAheadOfHead(void);
 
 /*============================================================================
  * Variables
@@ -345,9 +347,9 @@ struct
     dir_t dir;
     pos_t posFood;
     uint16_t length;
+    uint32_t score;
+    os_timer_t timerHandleSnakeLogic;
 } snake;
-
-static os_timer_t timerHandleSnakeLogic = {0};
 
 /*============================================================================
  * Functions
@@ -374,15 +376,17 @@ void ICACHE_FLASH_ATTR snakeInit(void)
 
     snake.dir = RIGHT;
 
+    snake.score = 0;
+
     // randomly place food
     placeSnakeFood();
 
     drawSnakeFrame(NULL);
 
-    // Start a software timer to run every 100ms
-    os_timer_disarm(&timerHandleSnakeLogic);
-    os_timer_setfn(&timerHandleSnakeLogic, (os_timer_func_t*)drawSnakeFrame, NULL);
-    os_timer_arm(&timerHandleSnakeLogic, 1000, 1);
+    // Start a software timer to run every 400ms
+    os_timer_disarm(&snake.timerHandleSnakeLogic);
+    os_timer_setfn(&snake.timerHandleSnakeLogic, (os_timer_func_t*)drawSnakeFrame, NULL);
+    os_timer_arm(&snake.timerHandleSnakeLogic, 400, 1);
 }
 
 /**
@@ -390,7 +394,7 @@ void ICACHE_FLASH_ATTR snakeInit(void)
  */
 void ICACHE_FLASH_ATTR snakeDeinit(void)
 {
-    os_timer_disarm(&timerHandleSnakeLogic);
+    os_timer_disarm(&snake.timerHandleSnakeLogic);
 
     snakeNode_t* snakePtr = snake.snakeList;
     while(NULL != snakePtr)
@@ -454,6 +458,7 @@ void ICACHE_FLASH_ATTR addSnakeNode(snakeSprite sprite, uint8_t ttl)
         snake.snakeList->pos.x = SNAKE_FIELD_WIDTH / 2;
         snake.snakeList->pos.y = SNAKE_FIELD_HEIGHT / 2 + 2;
         snake.snakeList->dir = RIGHT;
+        snake.snakeList->isFat = 0;
         snake.snakeList->prevSegment = NULL;
         snake.snakeList->nextSegment = NULL;
         return;
@@ -468,11 +473,12 @@ void ICACHE_FLASH_ATTR addSnakeNode(snakeSprite sprite, uint8_t ttl)
     snakePtr->nextSegment = (snakeNode_t*)os_malloc(sizeof(snakeNode_t));
     snakePtr->nextSegment->sprite = sprite;
     snakePtr->nextSegment->ttl = ttl;
-    snakePtr->nextSegment->prevSegment = snakePtr;
-    snakePtr->nextSegment->nextSegment = NULL;
     snakePtr->nextSegment->pos.x = snakePtr->pos.x - SPRITE_DIM;
     snakePtr->nextSegment->pos.y = snakePtr->pos.y;
     snakePtr->nextSegment->dir = RIGHT;
+    snakePtr->nextSegment->isFat = 0;
+    snakePtr->nextSegment->prevSegment = snakePtr;
+    snakePtr->nextSegment->nextSegment = NULL;
 }
 
 /**
@@ -502,14 +508,139 @@ void ICACHE_FLASH_ATTR drawSnakeFrame(void* arg __attribute__((unused)))
     }
 
     moveSnake();
-    checkGameLogic();
+
     drawSnake();
     drawCritter();
     drawFood();
 
-    plotText(24, 5, "12345", TOM_THUMB);
+    char scoreStr[16];
+    ets_snprintf(scoreStr, sizeof(scoreStr), "%d", snake.score);
+    plotText(24, 5, scoreStr, TOM_THUMB);
     plotText(96, 5, "99", TOM_THUMB);
 }
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR moveSnake(void)
+{
+    // Save the old head
+    snakeNode_t* oldHead = snake.snakeList;
+
+    // create a new head and link it to the list
+    snakeNode_t* newHead = (snakeNode_t*)os_malloc(sizeof(snakeNode_t));
+    newHead->prevSegment = NULL;
+    newHead->nextSegment = oldHead;
+    oldHead->prevSegment = newHead;
+    snake.snakeList = newHead;
+
+    // Figure out where the new head is, and its sprite
+    newHead->dir = snake.dir;
+    newHead->pos.x = newHead->nextSegment->pos.x;
+    newHead->pos.y = newHead->nextSegment->pos.y;
+    moveSnakePos(&newHead->pos, newHead->dir);
+    newHead->ttl = snake.length;
+
+    // Figure out the sprite based on the food location and direction
+    newHead->sprite = headTransitionTable[isFoodAheadOfHead()][newHead->dir];
+
+    // See if we ate anything
+    newHead->isFat = 0;
+    if(newHead->pos.x == snake.posFood.x && newHead->pos.y == snake.posFood.y)
+    {
+        // Mmm, tasty
+        newHead->isFat = 1;
+        snake.length++;
+
+        // Increment all the ttls, effectively making the snake longer
+        snakeNode_t* snakePtr = snake.snakeList;
+        while(NULL != snakePtr)
+        {
+            snakePtr->ttl++;
+            snakePtr = snakePtr->nextSegment;
+        }
+
+        snake.score += 5;
+    }
+
+    // Swap sprite right behind the head and adjust it's direction to match the head
+    snakeNode_t* neck = newHead->nextSegment;
+    newHead->nextSegment->sprite = spriteTransitionTable[newHead->nextSegment->isFat][newHead->dir][neck->nextSegment->dir];
+    neck->dir = newHead->dir;
+
+    // Iterate through the list, decrementing the ttls
+    snakeNode_t* snakePtr = snake.snakeList;
+    while(NULL != snakePtr)
+    {
+        snakePtr->ttl--;
+        if(1 == snakePtr->ttl)
+        {
+            // Draw a new tail here
+            snakePtr->sprite = tailTransitionTable[snakePtr->dir];
+        }
+        else if(0 == snakePtr->ttl)
+        {
+            // If this segment is done, remove it from the list and free it
+            snakePtr->prevSegment->nextSegment = NULL;
+            os_free(snakePtr);
+            snakePtr = NULL;
+        }
+
+        // iterate
+        if (NULL != snakePtr)
+        {
+            snakePtr = snakePtr->nextSegment;
+        }
+    }
+
+    if(isOccupiedBySnake(newHead->pos.x, newHead->pos.y, snake.snakeList->nextSegment))
+    {
+        // Collided with self, game over
+        os_timer_disarm(&snake.timerHandleSnakeLogic);
+    }
+
+    // If the food was eaten, place it somewhere else
+    else if(newHead->isFat)
+    {
+        placeSnakeFood();
+    }
+}
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR placeSnakeFood(void)
+{
+    uint16_t randPos = os_random() % (((SNAKE_FIELD_HEIGHT / SPRITE_DIM) *
+                                       (SNAKE_FIELD_WIDTH  / SPRITE_DIM)) -
+                                      snake.length);
+    uint16_t linearAddr = 0;
+    for(uint8_t y = 0; y < SNAKE_FIELD_HEIGHT; y += SPRITE_DIM)
+    {
+        for(uint8_t x = 0; x < SNAKE_FIELD_WIDTH; x += SPRITE_DIM)
+        {
+            if(!isOccupiedBySnake(x, y, snake.snakeList))
+            {
+                if(randPos == linearAddr)
+                {
+                    snake.posFood.x = x;
+                    snake.posFood.y = y;
+                    return;
+                }
+                else
+                {
+                    linearAddr++;
+                }
+            }
+        }
+    }
+}
+
+/*******************************************************************************
+ * Helper functions
+ ******************************************************************************/
 
 /**
  * @brief TODO
@@ -537,48 +668,31 @@ inline uint8_t ICACHE_FLASH_ATTR wrapIdx(uint8_t idx, int8_t delta, uint8_t max)
 /**
  * @brief TODO
  *
+ * @param pos
+ * @param dir
  */
-void ICACHE_FLASH_ATTR moveSnake(void)
+void ICACHE_FLASH_ATTR moveSnakePos(pos_t* pos, dir_t dir)
 {
-    // Save the old head
-    snakeNode_t* oldHead = snake.snakeList;
-
-    // create a new head, and link it to the list
-    snakeNode_t* newHead = (snakeNode_t*)os_malloc(sizeof(snakeNode_t));
-    newHead->prevSegment = NULL;
-    newHead->nextSegment = oldHead;
-    oldHead->prevSegment = newHead;
-    snake.snakeList = newHead;
-
-    newHead->ttl = snake.length;
-
-    // Figure out where the new head is, and its sprite
-    newHead->dir = snake.dir;
-    newHead->sprite = headTransitionTable[0][newHead->dir];
-    switch(snake.dir)
+    switch(dir)
     {
         case UP:
         {
-            newHead->pos.x = oldHead->pos.x;
-            newHead->pos.y = wrapIdx(oldHead->pos.y, -SPRITE_DIM, SNAKE_FIELD_HEIGHT);
+            pos->y = wrapIdx(pos->y, -SPRITE_DIM, SNAKE_FIELD_HEIGHT);
             break;
         }
         case DOWN:
         {
-            newHead->pos.x = oldHead->pos.x;
-            newHead->pos.y = wrapIdx(oldHead->pos.y, SPRITE_DIM, SNAKE_FIELD_HEIGHT);
+            pos->y = wrapIdx(pos->y, SPRITE_DIM, SNAKE_FIELD_HEIGHT);
             break;
         }
         case LEFT:
         {
-            newHead->pos.x = wrapIdx(oldHead->pos.x, -SPRITE_DIM, SNAKE_FIELD_WIDTH);
-            newHead->pos.y = oldHead->pos.y;
+            pos->x = wrapIdx(pos->x, -SPRITE_DIM, SNAKE_FIELD_WIDTH);
             break;
         }
         case RIGHT:
         {
-            newHead->pos.x = wrapIdx(oldHead->pos.x, SPRITE_DIM, SNAKE_FIELD_WIDTH);
-            newHead->pos.y = oldHead->pos.y;
+            pos->x = wrapIdx(pos->x, SPRITE_DIM, SNAKE_FIELD_WIDTH);
             break;
         }
         default:
@@ -586,46 +700,49 @@ void ICACHE_FLASH_ATTR moveSnake(void)
             break;
         }
     }
-
-    // Swap sprite right behind the head and adjust it's direction to match the head
-    snakeNode_t* neck = newHead->nextSegment;
-    newHead->nextSegment->sprite = spriteTransitionTable[0][newHead->dir][neck->nextSegment->dir];
-    neck->dir = newHead->dir;
-
-    // Iterate through the list, decrementing the ttl
-    snakeNode_t* snakePtr = snake.snakeList;
-    while(NULL != snakePtr)
-    {
-        snakePtr->ttl--;
-        if(1 == snakePtr->ttl)
-        {
-            // Draw a new tail here
-            snakePtr->sprite = tailTransitionTable[snakePtr->dir];
-        }
-        else if(0 == snakePtr->ttl)
-        {
-            // If this segment is done, remove it from the list and free it
-            snakePtr->prevSegment->nextSegment = NULL;
-            os_free(snakePtr);
-            snakePtr = NULL;
-        }
-
-        // iterate
-        if (NULL != snakePtr)
-        {
-            snakePtr = snakePtr->nextSegment;
-        }
-    }
 }
 
 /**
  * @brief TODO
  *
+ * @param toCheck
+ * @return true
+ * @return false
  */
-void ICACHE_FLASH_ATTR checkGameLogic(void)
+bool ICACHE_FLASH_ATTR isOccupiedBySnake(uint8_t x, uint8_t y, snakeNode_t* node)
 {
-    // nothing for now
+    while(NULL != node)
+    {
+        if((node->pos.x == x) && (node->pos.y == y))
+        {
+            return true;
+        }
+        node = node->nextSegment;
+    }
+    return false;
 }
+
+/**
+ * @brief TODO
+ *
+ * @return uint8_t
+ */
+uint8_t ICACHE_FLASH_ATTR isFoodAheadOfHead(void)
+{
+    pos_t headPos;
+    headPos.x = snake.snakeList->pos.x;
+    headPos.y = snake.snakeList->pos.y;
+    moveSnakePos(&headPos, snake.snakeList->dir);
+    if(headPos.x == snake.posFood.x && headPos.y == snake.posFood.y)
+    {
+        return 1;
+    }
+    return 0;
+}
+
+/*******************************************************************************
+ * Functions for drawing
+ ******************************************************************************/
 
 /**
  * @brief TODO
@@ -646,65 +763,6 @@ void ICACHE_FLASH_ATTR drawSnake(void)
  * @brief TODO
  *
  */
-void ICACHE_FLASH_ATTR drawCritter(void)
-{
-    // Nothing for now
-}
-
-/**
- * @brief TODO
- *
- * @param toCheck
- * @return true
- * @return false
- */
-bool ICACHE_FLASH_ATTR isOccupiedBySnake(uint8_t x, uint8_t y)
-{
-    snakeNode_t* node = snake.snakeList;
-    while(NULL != node)
-    {
-        if((node->pos.x == x) && (node->pos.y == y))
-        {
-            return true;
-        }
-        node = node->nextSegment;
-    }
-    return false;
-}
-
-/**
- * @brief TODO
- *
- */
-void ICACHE_FLASH_ATTR placeSnakeFood(void)
-{
-    uint8_t randPos = os_random() % ((SNAKE_FIELD_HEIGHT * SNAKE_FIELD_WIDTH) / SPRITE_DIM - snake.length);
-    uint8_t linearAddr = 0;
-    for(uint8_t y = 0; y < SNAKE_FIELD_HEIGHT; y += SPRITE_DIM)
-    {
-        for(uint8_t x = 0; x < SNAKE_FIELD_WIDTH; x += SPRITE_DIM)
-        {
-            if(!isOccupiedBySnake(x, y))
-            {
-                if(randPos == linearAddr)
-                {
-                    snake.posFood.x = x;
-                    snake.posFood.y = y;
-                    return;
-                }
-                else
-                {
-                    linearAddr++;
-                }
-            }
-        }
-    }
-}
-
-/**
- * @brief TODO
- *
- */
 void ICACHE_FLASH_ATTR drawFood(void)
 {
     // Draw the food
@@ -712,7 +770,16 @@ void ICACHE_FLASH_ATTR drawFood(void)
 }
 
 /**
- * @brief
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR drawCritter(void)
+{
+    // Nothing for now
+}
+
+/**
+ * @brief TODO
  *
  * @param x
  * @param y
