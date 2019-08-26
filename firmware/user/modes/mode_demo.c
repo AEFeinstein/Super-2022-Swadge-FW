@@ -336,10 +336,6 @@ void ICACHE_FLASH_ATTR updateDisplay(void)
     {
         // Down
         plotCircle(BTN_CTR_X, BTN_CTR_Y + BTN_OFF, BTN_RAD);
-    }
-    if(mButtonState & UP)
-    {
-        // Up
         plotCircle(BTN_CTR_X, BTN_CTR_Y - BTN_OFF, BTN_RAD);
     }
     if(mButtonState & LEFT)
