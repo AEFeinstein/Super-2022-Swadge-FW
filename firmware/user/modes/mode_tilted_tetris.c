@@ -38,6 +38,27 @@ typedef enum
 	//TODO: does this need a transition state?
 } tiltedTetrisState_t;
 
+typedef enum
+{
+    I_TETROMINO,	
+    O_TETROMINO,	
+    T_TETROMINO,
+    J_TETROMINO,
+    L_TETROMINO,
+    S_TETROMINO,
+    Z_TETROMINO
+} tetromino_t;
+
+/*
+//TODO: this can just be modeled with int and modulus, easier math but is it performant on an ESP?
+typedef enum
+{
+    ROT_0, //spawn
+    ROT_1,	
+    ROT_2,
+    ROT_3
+} tetrominoRotations_t;*/
+
 // function prototypes go here.
 void ICACHE_FLASH_ATTR ttInit(void);
 void ICACHE_FLASH_ATTR ttDeInit(void);
@@ -58,9 +79,18 @@ void ICACHE_FLASH_ATTR ttScoresDisplay(void);
 // helper functions.
 void ICACHE_FLASH_ATTR ttChangeState(tiltedTetrisState_t newState);
 bool ICACHE_FLASH_ATTR ttIsButtonPressed(uint8_t button);
-void ICACHE_FLASH_ATTR ttRotateTetromino();
-void ICACHE_FLASH_ATTR ttDropTetromino();
+void ICACHE_FLASH_ATTR drawTetromino(int x0, int y0, tetromino_t type, int rotation, uint8_t unitSize, bool drawBounds);
+void ICACHE_FLASH_ATTR plotITetromino(int x0, int y0, int rotation, uint8_t unitSize);
+void ICACHE_FLASH_ATTR plotOTetromino(int x0, int y0, int rotation, uint8_t unitSize);
+void ICACHE_FLASH_ATTR plotTTetromino(int x0, int y0, int rotation, uint8_t unitSize);
+void ICACHE_FLASH_ATTR plotJTetromino(int x0, int y0, int rotation, uint8_t unitSize);
+void ICACHE_FLASH_ATTR plotLTetromino(int x0, int y0, int rotation, uint8_t unitSize);
+void ICACHE_FLASH_ATTR plotSTetromino(int x0, int y0, int rotation, uint8_t unitSize);
+void ICACHE_FLASH_ATTR plotZTetromino(int x0, int y0, int rotation, uint8_t unitSize);
+void ICACHE_FLASH_ATTR rotateTetromino();
+void ICACHE_FLASH_ATTR dropTetromino();
 void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size);
+void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, int xUnits, int yUnits, int unitSize);
 
 swadgeMode tiltedTetrisMode = 
 {
@@ -204,12 +234,12 @@ void ICACHE_FLASH_ATTR ttGameInput(void)
 	//button a = rotate piece
     if(ttIsButtonPressed(BTN_ROTATE))
     {
-        ttRotateTetromino();
+        rotateTetromino();
     }
     //button b = instant drop piece
     if(ttIsButtonPressed(BTN_DROP))
     {
-        ttDropTetromino();
+        dropTetromino();
     }
     
 	//TODO: accel = tilt the current tetromino
@@ -264,64 +294,56 @@ void ICACHE_FLASH_ATTR ttTitleDisplay(void)
     plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
 }
 
+int testRotation = 0;
+
 void ICACHE_FLASH_ATTR ttGameDisplay(void)
 {
     // Clear the display
     clearDisplay();
 
-    plotText(0, 0, "GAME", RADIOSTARS);
+    // vertical screen orientation.
+    //plotGrid(0, 0, 20, 10, 4);
 
+    // horizontal screen orientation.
+    plotGrid(45, -1, 10, 16, 4);
+    // next piece area
+    plotGrid(65, -1, 10, 16, 4);
+    // score
+    // lines
+    // level
+    // the current high score?
+
+    /*    
     // straight test
     int posX = 5;
     int posY = 20;
-    plotSquare(posX,posY,5);
-    plotSquare(posX+5,posY,5);
-    plotSquare(posX+10,posY,5);
-    plotSquare(posX+15,posY,5);
+    int testUnitSize = 4; 
+    drawTetromino(posX, posY, I_TETROMINO, testRotation, testUnitSize, false);
 
     // square test
     posX += 25;
-    plotSquare(posX,posY,5);
-    plotSquare(posX+5,posY,5);
-    plotSquare(posX,posY+5,5);
-    plotSquare(posX+5,posY+5,5);
-
-    // T test
-    posX += 15;
-    plotSquare(posX,posY,5);
-    plotSquare(posX+5,posY,5);
-    plotSquare(posX+10,posY,5);
-    plotSquare(posX+5,posY+5,5);
+    drawTetromino(posX, posY, O_TETROMINO, testRotation, testUnitSize, false);
 
     // J test
-    posX += 20;
-    plotSquare(posX,posY,5);
-    plotSquare(posX+5,posY,5);
-    plotSquare(posX+10,posY,5);
-    plotSquare(posX+10,posY+5,5);
+    posX += 25;
+    drawTetromino(posX, posY, J_TETROMINO, testRotation, testUnitSize, false);
 
     // L test
     posX += 20;
-    plotSquare(posX,posY,5);
-    plotSquare(posX+5,posY,5);
-    plotSquare(posX+10,posY,5);
-    plotSquare(posX,posY+5,5);
+    drawTetromino(posX, posY, L_TETROMINO, testRotation, testUnitSize, false);
 
+    // T test
+    posX += 20;
+    drawTetromino(posX, posY, T_TETROMINO, testRotation, testUnitSize, false);
+    
     // S test
-    //TODO: is the subtract the right move here?
     posX = 5;
-    posY += 15;
-    plotSquare(posX,posY,5);
-    plotSquare(posX+5,posY,5);
-    plotSquare(posX+5,posY-5,5);
-    plotSquare(posX+10,posY-5,5);
+    posY += 25;
+    drawTetromino(posX, posY, S_TETROMINO, testRotation, testUnitSize, false);
 
     // Z test
     posX += 20;
-    plotSquare(posX,posY,5);
-    plotSquare(posX+5,posY,5);
-    plotSquare(posX+5,posY+5,5);
-    plotSquare(posX+10,posY+5,5);
+    drawTetromino(posX, posY, Z_TETROMINO, testRotation, testUnitSize, false);*/
 }
 
 void ICACHE_FLASH_ATTR ttScoresDisplay(void)
@@ -347,12 +369,256 @@ bool ICACHE_FLASH_ATTR ttIsButtonPressed(uint8_t button)
     return (ttButtonState & button) && !(ttLastButtonState & button);
 }
 
-void ICACHE_FLASH_ATTR ttRotateTetromino()
+void ICACHE_FLASH_ATTR drawTetromino(int x0, int y0, tetromino_t type, int rotation, uint8_t unitSize, bool drawBounds)
 {
-    //TODO: fill in. does this need a rot direction as parameter?
+    if(drawBounds)
+    {
+        switch(type)
+        {
+            case I_TETROMINO:
+			    plotSquare(x0,y0,unitSize*4);
+                break;
+            case O_TETROMINO:
+			    plotRect(x0,y0,x0+unitSize*4,y0+unitSize*3);
+                break;
+            default: 
+                plotSquare(x0,y0,unitSize*3);
+        }
+    }
+
+    switch(type)
+    {
+        case I_TETROMINO:
+		    plotITetromino(x0,y0,rotation,unitSize);
+            break;
+        case O_TETROMINO:
+		    plotOTetromino(x0,y0,rotation,unitSize);
+            break;
+        case T_TETROMINO:
+		    plotTTetromino(x0,y0,rotation,unitSize);
+            break;
+        case J_TETROMINO:
+		    plotJTetromino(x0,y0,rotation,unitSize);
+            break;
+        case L_TETROMINO:
+		    plotLTetromino(x0,y0,rotation,unitSize);
+            break;
+        case S_TETROMINO:
+		    plotSTetromino(x0,y0,rotation,unitSize);
+            break;
+        case Z_TETROMINO:
+		    plotZTetromino(x0,y0,rotation,unitSize);
+            break;
+    }
 }
 
-void ICACHE_FLASH_ATTR ttDropTetromino()
+void ICACHE_FLASH_ATTR plotITetromino(int x0, int y0, int rotation, uint8_t unitSize)
+{
+    rotation = rotation%4;
+    switch(rotation)
+    {
+        case 0:
+            plotSquare(x0,              y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize*3,   y0+unitSize,    unitSize);
+            break;
+        case 1:
+            plotSquare(x0+unitSize*2,   y0,             unitSize);
+            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize*2,   y0+unitSize*2,  unitSize);
+            plotSquare(x0+unitSize*2,   y0+unitSize*3,  unitSize);
+            break;
+        case 2:
+            plotSquare(x0,              y0+unitSize*2,  unitSize);
+            plotSquare(x0+unitSize,     y0+unitSize*2,  unitSize);
+            plotSquare(x0+unitSize*2,   y0+unitSize*2,  unitSize);
+            plotSquare(x0+unitSize*3,   y0+unitSize*2,  unitSize);
+            break;
+        case 3:
+            plotSquare(x0+unitSize*1,   y0,             unitSize);
+            plotSquare(x0+unitSize*1,   y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize*1,   y0+unitSize*2,  unitSize);
+            plotSquare(x0+unitSize*1,   y0+unitSize*3,  unitSize);
+            break;
+    }
+}
+
+void ICACHE_FLASH_ATTR plotOTetromino(int x0, int y0, int rotation, uint8_t unitSize)
+{
+    plotSquare(x0+unitSize,     y0,             unitSize);
+    plotSquare(x0+unitSize*2,   y0,             unitSize);
+    plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
+    plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
+}
+
+void ICACHE_FLASH_ATTR plotTTetromino(int x0, int y0, int rotation, uint8_t unitSize)
+{
+    rotation = rotation%4;
+    switch(rotation)
+    {
+        case 0:
+            plotSquare(x0+unitSize,     y0,             unitSize);
+            plotSquare(x0,              y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
+            break;
+        case 1:
+            plotSquare(x0+unitSize,   y0,             unitSize);
+            plotSquare(x0+unitSize,   y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize,   y0+unitSize*2,  unitSize);
+            plotSquare(x0+unitSize*2, y0+unitSize,    unitSize);
+            break;
+        case 2:
+            plotSquare(x0+unitSize,     y0+unitSize*2,  unitSize);
+            plotSquare(x0,              y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
+            break;
+        case 3:
+            plotSquare(x0+unitSize,   y0,             unitSize);
+            plotSquare(x0+unitSize,   y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize,   y0+unitSize*2,  unitSize);
+            plotSquare(x0,            y0+unitSize,    unitSize);
+            break;
+    }
+}
+
+void ICACHE_FLASH_ATTR plotJTetromino(int x0, int y0, int rotation, uint8_t unitSize)
+{
+    rotation = rotation%4;
+    switch(rotation)
+    {
+        case 0:
+            plotSquare(x0,              y0,             unitSize);
+            plotSquare(x0,              y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
+            break;
+        case 1:
+            plotSquare(x0+unitSize,   y0,             unitSize);
+            plotSquare(x0+unitSize*2, y0,             unitSize);
+            plotSquare(x0+unitSize,   y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize,   y0+unitSize*2,  unitSize);
+            break;
+        case 2:
+            plotSquare(x0,              y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize*2,   y0+unitSize*2,  unitSize);
+            break;
+        case 3:
+            plotSquare(x0+unitSize,   y0,             unitSize);
+            plotSquare(x0+unitSize,   y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize,   y0+unitSize*2,  unitSize);
+            plotSquare(x0,            y0+unitSize*2,  unitSize);
+            break;
+    }
+}
+
+void ICACHE_FLASH_ATTR plotLTetromino(int x0, int y0, int rotation, uint8_t unitSize)
+{
+    rotation = rotation%4;
+    switch(rotation)
+    {
+        case 0:
+            plotSquare(x0+unitSize*2,   y0,             unitSize);
+            plotSquare(x0,              y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
+            break;
+        case 1:
+            plotSquare(x0+unitSize,     y0,             unitSize);
+            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize,     y0+unitSize*2,  unitSize);
+            plotSquare(x0+unitSize*2,   y0+unitSize*2,  unitSize);
+            break;
+        case 2:
+            plotSquare(x0,              y0+unitSize*2,  unitSize);
+            plotSquare(x0,              y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
+            break;
+        case 3:
+            plotSquare(x0,            y0,             unitSize);
+            plotSquare(x0+unitSize,   y0,             unitSize);
+            plotSquare(x0+unitSize,   y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize,   y0+unitSize*2,  unitSize);
+            break;
+    }
+}
+
+void ICACHE_FLASH_ATTR plotSTetromino(int x0, int y0, int rotation, uint8_t unitSize)
+{
+    rotation = rotation%4;
+    switch(rotation)
+    {
+        case 0:
+            plotSquare(x0,              y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize,     y0,             unitSize);
+            plotSquare(x0+unitSize*2,   y0,             unitSize);
+            break;
+        case 1:
+            plotSquare(x0+unitSize,     y0,             unitSize);
+            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize*2,   y0+unitSize*2,  unitSize);
+            break;
+        case 2:
+            plotSquare(x0,              y0+unitSize*2,  unitSize);
+            plotSquare(x0+unitSize,     y0+unitSize*2,  unitSize);
+            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
+            break;
+        case 3:
+            plotSquare(x0,              y0,             unitSize);
+            plotSquare(x0,              y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize,     y0+unitSize*2,  unitSize);
+            break;
+    }
+}
+
+void ICACHE_FLASH_ATTR plotZTetromino(int x0, int y0, int rotation, uint8_t unitSize)
+{
+    rotation = rotation%4;
+    switch(rotation)
+    {
+        case 0:
+            plotSquare(x0,              y0,             unitSize);
+            plotSquare(x0+unitSize,     y0,             unitSize);
+            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
+            break;
+        case 1:
+            plotSquare(x0+unitSize,     y0+unitSize*2,  unitSize);
+            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize*2,   y0,             unitSize);
+            break;
+        case 2:
+            plotSquare(x0,              y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize,     y0+unitSize*2,  unitSize);
+            plotSquare(x0+unitSize*2,   y0+unitSize*2,  unitSize);
+            break;
+        case 3:
+            plotSquare(x0,            y0+unitSize*2,  unitSize);
+            plotSquare(x0,            y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize,   y0+unitSize,    unitSize);
+            plotSquare(x0+unitSize,   y0,             unitSize);
+            break;
+    }
+}
+
+void ICACHE_FLASH_ATTR rotateTetromino()
+{
+    //TODO: fill in. does this need a rot direction as parameter?
+    testRotation++;
+}
+
+void ICACHE_FLASH_ATTR dropTetromino()
 {
     //TODO: fill in.
 }
@@ -361,3 +627,15 @@ void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size)
 {
     plotRect(x0, y0, x0 + size, y0 + size);
 }
+
+void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, int xUnits, int yUnits, int unitSize)
+{
+    for (int x = 0; x < xUnits; x++)
+    {
+        for (int y = 0; y < yUnits; y++) 
+        {
+            plotSquare(x0+x*unitSize, y0+y*unitSize, unitSize);
+        }
+    }
+}
+
