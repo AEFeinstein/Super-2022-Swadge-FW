@@ -67,7 +67,9 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
 {
+#ifndef USE_2019_SWADGE
     &menuMode, // Menu must be the first
+#endif
     &demoMode,
     &colorchordMode,
     &reflectorGameMode,
@@ -97,8 +99,12 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events);
 static void ICACHE_FLASH_ATTR updateDisplay(void* arg);
 static void ICACHE_FLASH_ATTR pollAccel(void* arg);
 
+#ifndef USE_2019_SWADGE
 static void ICACHE_FLASH_ATTR drawChangeMenuBar(void);
-
+#endif
+#ifdef USE_2019_SWADGE
+void ICACHE_FLASH_ATTR incrementSwadgeMode(void);
+#endif
 /*============================================================================
  * Initialization Functions
  *==========================================================================*/
@@ -370,8 +376,11 @@ static void ICACHE_FLASH_ATTR pollAccel(void* arg __attribute__((unused)))
  */
 static void ICACHE_FLASH_ATTR updateDisplay(void* arg __attribute__((unused)))
 {
+
+#ifndef USE_2019_SWADGE
     // Draw the menu change bar if necessary and possibly restart in menu mode
     drawChangeMenuBar();
+#endif
 
     // Update the display
     updateOLED();
@@ -404,15 +413,25 @@ void ExitCritical(void)
 /*============================================================================
  * Swadge Mode Utility Functions
  *==========================================================================*/
+#ifdef USE_2019_SWADGE
+void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
+{
+	(void) newMode;
+}
+#endif
 
 /**
  * This deinitializes the current mode if it is initialized, displays the next
  * mode's LED pattern, and starts a timer to reboot into the next mode.
  * If the reboot timer is running, it will be reset
  *
- * @param newMode The index of the new mode
  */
+#ifndef USE_2019_SWADGE
 void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
+#endif
+#ifdef USE_2019_SWADGE
+void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
+#endif
 {
     // If the mode is initialized, tear it down
     if(swadgeModeInit)
@@ -445,8 +464,12 @@ void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
     }
 
     // Switch to the next mode, or start from the beginning if we're at the end
+#ifndef USE_2019_SWADGE
     rtcMem.currentSwadgeMode = newMode;
-
+#endif
+#ifdef USE_2019_SWADGE
+    rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
+#endif
     // Write the RTC memory so it knows what mode to be in when waking up
     system_rtc_mem_write(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem));
     os_printf("rtc mem written\n");
@@ -494,6 +517,7 @@ uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr)
     return (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
 }
 
+#ifndef USE_2019_SWADGE
 /**
  * Draw a progress bar on the bottom of the display if the menu button is being held.
  * When the bar fills the display, reset the mode back to the menu
@@ -520,7 +544,7 @@ void ICACHE_FLASH_ATTR drawChangeMenuBar(void)
         }
     }
 }
-
+#endif
 /*============================================================================
  * Swadge Mode Callback Functions
  *==========================================================================*/
@@ -537,6 +561,7 @@ void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int d
 {
     if(0 == button)
     {
+#ifndef USE_2019_SWADGE
         // If the menu button was pressed
         if(0 == rtcMem.currentSwadgeMode)
         {
@@ -554,9 +579,14 @@ void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int d
             fillDisplayArea(0, OLED_HEIGHT - 1, menuChangeBarProgress, OLED_HEIGHT - 1, BLACK);
             menuChangeBarProgress = 0;
         }
+#endif
+#ifdef USE_2019_SWADGE
+	// Switch the mode
+	incrementSwadgeMode();
+#endif
     }
-//NOTE button 0 can only be used for menu, if want to be able to use momentary press in other modes
-//     change 'else if' to 'if'
+    //NOTE for 2020 button 0 can only be used for menu, if want to be able to use momentary press in other modes
+    //     change 'else if' to 'if'
     else if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
     {
         // Pass the button event to the mode
