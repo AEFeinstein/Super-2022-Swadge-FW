@@ -197,8 +197,9 @@ digraph G {
  * Defines
  *==========================================================================*/
 
-//#define REF_DEBUG_PRINT
+#define REF_DEBUG_PRINT
 #ifdef REF_DEBUG_PRINT
+#include <stdlib.h>
     #define ref_printf(...) os_printf(__VA_ARGS__)
 #else
     #define ref_printf(...)
@@ -662,10 +663,10 @@ void ICACHE_FLASH_ATTR refSendCb(uint8_t* mac_addr __attribute__((unused)),
 void ICACHE_FLASH_ATTR refRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi)
 {
 #ifdef REF_DEBUG_PRINT
-    char* dbgMsg = (char*)os_zalloc(sizeof(char) * (len + 1));
+    char* dbgMsg = (char*)malloc(sizeof(char) * (len + 1));
     ets_memcpy(dbgMsg, data, len);
     ref_printf("%s: %s\r\n", __func__, dbgMsg);
-    os_free(dbgMsg);
+    free(dbgMsg);
 #endif
 
     // Check if this is a "ref" message
@@ -1122,10 +1123,10 @@ void ICACHE_FLASH_ATTR refSendMsg(char* msg, uint16_t len, bool shouldAck, void 
     }
 
 #ifdef REF_DEBUG_PRINT
-    char* dbgMsg = (char*)os_zalloc(sizeof(char) * (len + 1));
+    char* dbgMsg = (char*)malloc(sizeof(char) * (len + 1));
     ets_memcpy(dbgMsg, msg, len);
     ref_printf("%s: %s\r\n", __func__, dbgMsg);
-    os_free(dbgMsg);
+    free(dbgMsg);
 #endif
 
     if(shouldAck)

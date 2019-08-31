@@ -27,7 +27,7 @@ typedef unsigned char       uint8_t;
 
 typedef struct
 {
-	uint8_t x, y; //Node position - little waste of memory, but it allows faster generation
+	//uint8_t x, y; //Node position - little waste of memory, but it allows faster generation
 	void *parent; //Pointer to parent node
 	char c; //Character to be displayed
 	char dirs; //Directions that still haven't been explored
@@ -71,8 +71,8 @@ uint8_t ICACHE_FLASH_ATTR init(uint8_t width, uint8_t height, Node ** nodes )
 			n = *nodes + i + j * width;
 			if ( i * j % 2 )
 			{
-				n->x = i;
-				n->y = j;
+				//n->x = i;
+				//n->y = j;
 				n->dirs = 15; //Assume that all directions can be explored (4 youngest bits set)
 				n->c = ' ';
 			}
@@ -117,7 +117,7 @@ int16_t ICACHE_FLASH_ATTR wallIntervals_helper(bool usetranspose, uint8_t outerl
 		for ( j = 1; j < innerlooplimit + 1; j++ )
 		{
 #if DEBUG > 1
-			printf("%c i=%d, intervalstarted=%d, j=%d, jbegin=%d, indwall=%d\n",usetranspose ? nodes[i+ j * width].c : nodes[j+ i * width].c,
+			os_printf("%c i=%d, intervalstarted=%d, j=%d, jbegin=%d, indwall=%d\n",usetranspose ? nodes[i+ j * width].c : nodes[j+ i * width].c,
 					 i, intervalstarted, j,jbegin, indwall);
 #endif
 			if ((j==innerlooplimit) || (usetranspose ? nodes[i+ j * width].c : nodes[j+ i * width].c)  == ' ')
@@ -189,45 +189,47 @@ Node ICACHE_FLASH_ATTR *link(uint8_t width, uint8_t height, Node * nodes,  Node 
 		//Mark direction as explored
 		n->dirs &= ~dir;
 
+//os_printf("%d = %d and %d = %d\n", (n - nodes) % width, n->x, (n-nodes)/width, n->y);
+
 		//Depending on chosen direction
 		switch ( dir )
 		{
 			//Check if it's possible to go right
 			case 1:
-				if ( n->x + 2 < width )
+				if ( ((n - nodes) % width) + 2 < width )
 				{
-					x = n->x + 2;
-					y = n->y;
+					x = ((n - nodes) % width) + 2;
+					y = ((n-nodes)/width);
 				}
 				else continue;
 				break;
 
 			//Check if it's possible to go down
 			case 2:
-				if ( n->y + 2 < height )
+				if ( ((n-nodes)/width) + 2 < height )
 				{
-					x = n->x;
-					y = n->y + 2;
+					x = ((n - nodes) % width);
+					y = ((n-nodes)/width) + 2;
 				}
 				else continue;
 				break;
 
 			//Check if it's possible to go left
 			case 4:
-				if ( n->x - 2 >= 0 )
+				if ( ((n - nodes) % width) - 2 >= 0 )
 				{
-					x = n->x - 2;
-					y = n->y;
+					x = ((n - nodes) % width) - 2;
+					y = ((n-nodes)/width);
 				}
 				else continue;
 				break;
 
 			//Check if it's possible to go up
 			case 8:
-				if ( n->y - 2 >= 0 )
+				if ( ((n-nodes)/width) - 2 >= 0 )
 				{
-					x = n->x;
-					y = n->y - 2;
+					x = ((n - nodes) % width);
+					y = ((n-nodes)/width) - 2;
 				}
 				else continue;
 				break;
@@ -248,7 +250,8 @@ Node ICACHE_FLASH_ATTR *link(uint8_t width, uint8_t height, Node * nodes,  Node 
 			dest->parent = n;
 
 			//Remove wall between nodes
-			nodes[n->x + ( x - n->x ) / 2 + ( n->y + ( y - n->y ) / 2 ) * width].c = ' ';
+			//nodes[((n - nodes) % width) + ( x - ((n - nodes) % width) ) / 2 + ( ((n-nodes)/width) + ( y - ((n-nodes)/width) ) / 2 ) * width].c = ' ';
+			nodes[( x + ((n - nodes) % width) ) / 2 + ( ( y + ((n-nodes)/width) ) / 2 ) * width].c = ' ';
 
 			//Return address of the child node
 			return dest;
@@ -315,10 +318,10 @@ int16_t ICACHE_FLASH_ATTR get_maze(uint8_t width, uint8_t height, uint8_t xleft[
 #if DEBUG
 	// Show Maze as printed characters
 	draw(width, height, nodes );
-
-
+	os_printf("Number of walls = %d\n", indwall);
+#endif
+#if DEBUG > 1
 	//Print wall intervals
-	os_printf("indwall = %d\n", indwall);
 	for (int16_t i=0; i<indwall; i++)
 	{
 		os_printf( "(%d, %d) to (%d, %d)\n", xleft[i], ybot[i], xright[i], ytop[i] );
