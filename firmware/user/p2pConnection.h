@@ -2,6 +2,7 @@
 #define _P2P_CONNECTION_H_
 
 #include <osapi.h>
+#include "user_main.h"
 
 typedef enum
 {

@@ -6,187 +6,13 @@
  *
  */
 
-/* PlantUML for communication:
-
-    == Connection ==
-
-    group Part 1
-    "Swadge_AB:AB:AB:AB:AB:AB" ->  "Swadge_12:12:12:12:12:12" : "ref_con" (broadcast)
-    "Swadge_12:12:12:12:12:12" ->  "Swadge_AB:AB:AB:AB:AB:AB" : "ref_str_00_AB:AB:AB:AB:AB:AB"
-    note left: Stop Broadcasting, set ref.cnc.rxGameStartMsg
-    "Swadge_AB:AB:AB:AB:AB:AB" ->  "Swadge_12:12:12:12:12:12" : "ref_ack_00_12:12:12:12:12:12"
-    note right: set ref.cnc.rxGameStartAck
-    end
-
-    group Part 2
-    "Swadge_12:12:12:12:12:12" ->  "Swadge_AB:AB:AB:AB:AB:AB" : "ref_con" (broadcast)
-    "Swadge_AB:AB:AB:AB:AB:AB" ->  "Swadge_12:12:12:12:12:12" : "ref_str_01_12:12:12:12:12:12"
-    note right: Stop Broadcasting, set ref.cnc.rxGameStartMsg, become CLIENT
-    "Swadge_12:12:12:12:12:12" ->  "Swadge_AB:AB:AB:AB:AB:AB" : "ref_ack_01_AB:AB:AB:AB:AB:AB"
-    note left: set ref.cnc.rxGameStartAck, become SERVER
-    end
-
-    == Gameplay ==
-
-    loop until someone loses (ref_los message sent)
-    "Swadge_AB:AB:AB:AB:AB:AB" ->  "Swadge_AB:AB:AB:AB:AB:AB"
-    note left: Play game
-    "Swadge_AB:AB:AB:AB:AB:AB" ->  "Swadge_12:12:12:12:12:12" : "ref_los_02_12:12:12:12:12:12" or\n"ref_cnt_02_12:12:12:12:12:12_up" or\n"ref_cnt_02_12:12:12:12:12:12_dn" or\n"ref_cnt_02_12:12:12:12:12:12_nc"
-    "Swadge_12:12:12:12:12:12" ->  "Swadge_AB:AB:AB:AB:AB:AB" : "ref_ack_02_AB:AB:AB:AB:AB:AB"
-    "Swadge_12:12:12:12:12:12" ->  "Swadge_12:12:12:12:12:12"
-    note right: Play game
-    "Swadge_12:12:12:12:12:12" ->  "Swadge_AB:AB:AB:AB:AB:AB" : "ref_los_03_AB:AB:AB:AB:AB:AB" or\n"ref_cnt_03_AB:AB:AB:AB:AB:AB_up" or\n"ref_cnt_03_AB:AB:AB:AB:AB:AB_dn" or\n"ref_cnt_03_AB:AB:AB:AB:AB:AB_nc"
-    "Swadge_AB:AB:AB:AB:AB:AB" ->  "Swadge_12:12:12:12:12:12" : "ref_ack_03_12:12:12:12:12:12"
-
-    note over "Swadge_AB:AB:AB:AB:AB:AB", "Swadge_12:12:12:12:12:12" : Each match is a best of three rounds\nSwadges go back to "connection" after the match is done
-    end
-
-    == Unreliable Communication Example ==
-
-    group Retries & Sequence Numbers
-    "Swadge_AB:AB:AB:AB:AB:AB" ->x "Swadge_12:12:12:12:12:12" : "ref_cnt_04_12:12:12:12:12:12_up"
-    note right: msg not received
-    "Swadge_AB:AB:AB:AB:AB:AB" ->  "Swadge_12:12:12:12:12:12" : "ref_cnt_04_12:12:12:12:12:12_up"
-    note left: first retry, up to five retries
-    "Swadge_12:12:12:12:12:12" ->x "Swadge_AB:AB:AB:AB:AB:AB" : "ref_ack_04_AB:AB:AB:AB:AB:AB"
-    note left: ack not received
-    "Swadge_AB:AB:AB:AB:AB:AB" ->  "Swadge_12:12:12:12:12:12" : "ref_cnt_04_12:12:12:12:12:12_up"
-    note left: second retry
-    note right: duplicate seq num, ignore message
-    "Swadge_12:12:12:12:12:12" ->  "Swadge_AB:AB:AB:AB:AB:AB" : "ref_ack_05_AB:AB:AB:AB:AB:AB"
-    end
-
-*/
-
-/* Graphviz for function calls, as of c5356eafd33750d373e2c1b0723947e560e2c2bf (I think...)
-
-digraph G {
-
-    node [style=filled];
-
-    subgraph cluster_legend {
-        label="Legend"
-        graph[style=dotted];
-        pos = "0,0!"
-        legend1[label="Callback Funcs" color=aquamarine]
-        legend2[label="Timer Funcs" color=cornflowerblue]
-    }
-
-    refInit[label="refInit()" color=aquamarine];
-    refDeinit[label="refDeinit()" color=aquamarine];
-    refButton[label="refButton()" color=aquamarine];
-    refRecvCb[label="refRecvCb()" color=aquamarine];
-    refSendCb[label="refSendCb()" color=aquamarine];
-    refRestart[label="refRestart()"];
-    refSendMsg[label="refSendMsg()"];
-    refSendAckToMac[label="refSendAckToMac()"];
-    refTxRetryTimeout[label="refTxRetryTimeout()" color=cornflowerblue];
-    refConnectionTimeout[label="refConnectionTimeout()" color=cornflowerblue];
-    refGameStartAckRecv[label="refGameStartAckRecv()"];
-    refProcConnectionEvt[label="refProcConnectionEvt()"];
-    refStartPlaying[label="refStartPlaying()" color=cornflowerblue];
-    refStartRound[label="refStartRound()"];
-    refSendRoundLossMsg[label="refSendRoundLossMsg()"];
-    refDisarmAllLedTimers[label="refDisarmAllLedTimers()"];
-    refConnLedTimeout[label="refConnLedTimeout()" color=cornflowerblue];
-    refShowConnectionLedTimeout[label="refShowConnectionLedTimeout()" color=cornflowerblue];
-    refGameLedTimeout[label="refGameLedTimeout()" color=cornflowerblue];
-    refRoundResultLed[label="refRoundResultLed()"];
-    refFailureRestart[label="refFailureRestart()" color=cornflowerblue];
-    refStartRestartTimer[label="refStartRestartTimer()" color=cornflowerblue];
-    refSinglePlayerRestart[label="refSinglePlayerRestart()" color=cornflowerblue];
-    refAdjustledSpeed[label="refAdjustledSpeed()"];
-    refTxAllRetriesTimeout[label="refTxAllRetriesTimeout()" color=cornflowerblue];
-
-    refInit -> refConnectionTimeout[label="timer"]
-    refInit -> refConnLedTimeout[label="timer"]
-
-    refDeinit -> refDisarmAllLedTimers
-
-    refRestart -> refInit
-    refRestart -> refDeinit
-
-    refConnectionTimeout -> refSendMsg
-    refConnectionTimeout -> refConnectionTimeout[label="timer"]
-
-    refFailureRestart -> refRestart
-
-    refSendCb-> refTxRetryTimeout[label="timer"]
-
-    refRecvCb -> refRestart
-    refRecvCb -> refSendAckToMac
-    refRecvCb -> refGameStartAckRecv
-    refRecvCb -> refProcConnectionEvt
-    refRecvCb -> refStartRound
-    refRecvCb -> refSendMsg
-    refRecvCb -> refRoundResultLed
-    refRecvCb -> refAdjustledSpeed
-
-    refSendAckToMac -> refSendMsg
-
-    refGameStartAckRecv -> refProcConnectionEvt
-
-    refProcConnectionEvt -> refDisarmAllLedTimers
-    refProcConnectionEvt -> refShowConnectionLedTimeout[label="timer"];
-    refProcConnectionEvt -> refFailureRestart[label="timer"]
-    refProcConnectionEvt -> refStartRestartTimer[label="timer"]
-
-    refShowConnectionLedTimeout -> refStartPlaying
-
-    refStartPlaying -> refRestart
-    refStartPlaying -> refDisarmAllLedTimers
-    refStartPlaying -> refStartRound
-    refStartPlaying -> refFailureRestart[label="timer"]
-    refStartPlaying -> refStartRestartTimer[label="timer"]
-    refAdjustledSpeed -> refAdjustledSpeed
-
-    refStartRound -> refDisarmAllLedTimers
-    refStartRound -> refGameLedTimeout[label="timer"]
-
-    refSendMsg -> refTxRetryTimeout[label="timer"]
-    refSendMsg -> refTxAllRetriesTimeout[label="timer"]
-
-    refTxRetryTimeout -> refSendMsg
-
-    refConnLedTimeout -> refDisarmAllLedTimers
-    refConnLedTimeout -> refConnLedTimeout[label="timer"]
-
-    refGameLedTimeout -> refSendRoundLossMsg
-
-    refButton -> refRestart
-    refButton -> refDisarmAllLedTimers
-    refButton -> refSendMsg
-    refButton -> refSendRoundLossMsg
-    refButton -> refFailureRestart[label="timer"]
-    refButton -> refStartRestartTimer[label="timer"]
-    refButton -> refStartPlaying
-    refButton -> refAdjustledSpeed
-    refButton -> refStartRound
-
-    refSendRoundLossMsg -> refRestart
-    refSendRoundLossMsg -> refSendMsg
-    refSendRoundLossMsg -> refRoundResultLed
-    refSendRoundLossMsg -> refStartRestartTimer[label="timer"]
-    refSendRoundLossMsg -> refSinglePlayerRestart[label="timer"]
-
-    refRoundResultLed -> refDisarmAllLedTimers
-    refRoundResultLed -> refStartPlaying[label="timer"]
-
-    refStartRestartTimer -> refRestart
-
-    refSinglePlayerRestart -> refSinglePlayerScoreLed
-    refSinglePlayerRestart -> refAdjustledSpeed
-    refSinglePlayerRestart -> refStartRound
-}
-
-*/
-
 /*============================================================================
  * Includes
  *==========================================================================*/
 
 #include <osapi.h>
 #include <user_interface.h>
+#include <p2pConnection.h>
 
 #include "user_main.h"
 #include "mode_joust_game.h"
@@ -245,11 +71,11 @@ typedef enum
 //     GOING_FIRST
 // } playOrder_t;
 
-typedef enum
-{
-    RX_GAME_START_ACK,
-    RX_GAME_START_MSG
-} connectionEvt_t;
+// typedef enum
+// {
+//     RX_GAME_START_ACK,
+//     RX_GAME_START_MSG
+// } connectionEvt_t;
 
 typedef enum
 {
@@ -312,6 +138,8 @@ void ICACHE_FLASH_ATTR joustRestart(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refStartRestartTimer(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refSinglePlayerRestart(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refSinglePlayerScoreLed(uint8_t ledToLight, led_t* colorPrimary, led_t* colorSecondary);
+void ICACHE_FLASH_ATTR joustConnectionCallback(p2pInfo* p2p, connectionEvt_t event);
+void ICACHE_FLASH_ATTR joustMsgCallbackFn(p2pInfo* p2p, char* msg, uint8_t* payload, uint8_t len);
 
 // Transmission Functions
 void ICACHE_FLASH_ATTR joustSendMsg(char* msg, uint16_t len, bool shouldAck, void (*success)(void*),
@@ -375,31 +203,6 @@ struct
 {
     joustGameState_t gameState;
 
-    // Variables to track acking messages
-    struct
-    {
-        bool isWaitingForAck;
-        char msgToAck[32];
-        uint16_t msgToAckLen;
-        uint32_t timeSentUs;
-        void (*SuccessFn)(void*);
-        void (*FailureFn)(void*);
-    } ack;
-
-    // Connection state variables
-    struct
-    {
-        bool broadcastReceived;
-        bool rxGameStartMsg;
-        bool rxGameStartAck;
-        //playOrder_t playOrder;
-        char macStr[18];
-        uint8_t otherMac[6];
-        bool otherMacReceived;
-        uint8_t mySeqNum;
-        uint8_t lastSeqNum;
-    } cnc;
-
     // Game state variables
     struct
     {
@@ -418,14 +221,10 @@ struct
     // Timers
     struct
     {
-        os_timer_t TxRetry;
-        os_timer_t TxAllRetries;
-        os_timer_t Connection;
         os_timer_t StartPlaying;
         os_timer_t ConnLed;
         os_timer_t ShowConnectionLed;
         os_timer_t GameLed;
-        os_timer_t Reinit;
         os_timer_t SinglePlayerRestart;
     } tmr;
 
@@ -440,6 +239,8 @@ struct
         uint8_t digitToDisplay;
         uint8_t ledsLit;
     } led;
+
+    p2pInfo p2pJoust;
 } joust;
 
 // Colors
@@ -472,6 +273,112 @@ struct
  * Functions
  *==========================================================================*/
 
+ void ICACHE_FLASH_ATTR joustConnectionCallback(p2pInfo* p2p __attribute__((unused)), connectionEvt_t event)
+ {
+     os_printf("%s %d\n", __func__, event);
+     switch(event)
+     {
+         case CON_STARTED:
+         {
+             break;
+         }
+         case RX_GAME_START_ACK:
+         {
+             break;
+         }
+         case RX_GAME_START_MSG:
+         {
+             break;
+         }
+         case CON_ESTABLISHED:
+         {
+             // Connection was successful, so disarm the failure timer
+             joust.gameState = R_SHOW_CONNECTION;
+
+             ets_memset(joust.led.Leds, 0, sizeof(joust.led.Leds));
+             joust.led.ConnLedState = LED_CONNECTED_BRIGHT;
+
+             refDisarmAllLedTimers();
+             // 6ms * ~500 steps == 3s animation
+             os_timer_arm(&joust.tmr.ShowConnectionLed, 6, true);
+             break;
+         }
+         default:
+         case CON_LOST:
+         {
+             break;
+         }
+     }
+ }
+
+ /**
+  * @brief
+  *
+  * @param msg
+  * @param payload
+  * @param len
+  */
+ void ICACHE_FLASH_ATTR joustMsgCallbackFn(p2pInfo* p2p __attribute__((unused)), char* msg, uint8_t* payload,
+                                         uint8_t len __attribute__((unused)))
+ {
+     if(len > 0)
+     {
+         joust_printf("%s %s %s\n", __func__, msg, payload);
+     }
+     else
+     {
+         joust_printf("%s %s\n", __func__, msg);
+     }
+
+     switch(joust.gameState)
+     {
+         case R_CONNECTING:
+             break;
+         case R_WAITING:
+         {
+             // // Received a message that the other swadge lost
+             // if(0 == ets_memcmp(msg, "los", 3))
+             // {
+             //     // The other swadge lost, so chalk a win!
+             //     ref.gam.Wins++;
+             //
+             //     // Display the win
+             //     refRoundResultLed(true);
+             // }
+             // if(0 == ets_memcmp(msg, "cnt", 3))
+             // {
+             //     // Get faster or slower based on the other swadge's timing
+             //     if(0 == ets_memcmp(payload, spdUp, ets_strlen(spdUp)))
+             //     {
+             //         refAdjustledSpeed(false, true);
+             //     }
+             //     else if(0 == ets_memcmp(payload, spdDn, ets_strlen(spdDn)))
+             //     {
+             //         refAdjustledSpeed(false, false);
+             //     }
+             //
+             //     refStartRound();
+             // }
+             break;
+         }
+         case R_PLAYING:
+         {
+             // Currently playing a game, shouldn't do anything with messages
+             break;
+         }
+         case R_SHOW_CONNECTION:
+         case R_SHOW_GAME_RESULT:
+         {
+             // Just LED animations, don't do anything with messages
+             break;
+         }
+         default:
+         {
+             break;
+         }
+     }
+ }
+
 
 //were gonna need a lobby with lots of players
 /**
@@ -483,15 +390,14 @@ void ICACHE_FLASH_ATTR joustInit(void)
     joust_printf("\nwe are NOW in the JOUST MODE\n");
     joust_printf("%s\r\n", __func__);
 
+
+    p2pInitialize(&joust.p2pJoust, "jou", joustConnectionCallback, joustMsgCallbackFn);
+
     // Enable button debounce for consistent 1p/2p and difficulty config
     enableDebounce(true);
 
     // Make sure everything is zero!
     ets_memset(&joust, 0, sizeof(joust));
-
-    // Except the tracked sequence number, which starts at 255 so that a 0
-    // received is valid.
-    joust.cnc.lastSeqNum = 255;
 
     // Get and save the string form of our MAC address
     uint8_t mymac[6];
@@ -505,12 +411,6 @@ void ICACHE_FLASH_ATTR joustInit(void)
     //             mymac[4],
     //             mymac[5]);
 
-    // Set up a timer for acking messages, don't start it
-    os_timer_disarm(&joust.tmr.TxRetry);
-    os_timer_setfn(&joust.tmr.TxRetry, joustTxRetryTimeout, NULL);
-
-    os_timer_disarm(&joust.tmr.TxAllRetries);
-    os_timer_setfn(&joust.tmr.TxAllRetries, joustTxAllRetriesTimeout, NULL);
 
        //we don't need a timer to show a successful connection, but we do need
        //to start the game eventually
@@ -528,33 +428,19 @@ void ICACHE_FLASH_ATTR joustInit(void)
     os_timer_disarm(&joust.tmr.StartPlaying);
     os_timer_setfn(&joust.tmr.StartPlaying, joustStartPlaying, NULL);
 
-    // Set up a timer to do an initial connection, start it
-    os_timer_disarm(&joust.tmr.Connection);
-    os_timer_setfn(&joust.tmr.Connection, joustConnectionTimeout, NULL);
-
        //some is specific to reflector game, but we can still use some for
        //setting leds
     // Set up a timer to update LEDs, start it
     os_timer_disarm(&joust.tmr.ConnLed);
     os_timer_setfn(&joust.tmr.ConnLed, joustConnLedTimeout, NULL);
 
-    // Set up a timer to restart after failure. don't start it
-    os_timer_disarm(&joust.tmr.Reinit);
-    os_timer_setfn(&joust.tmr.Reinit, joustRestart, NULL);
-
     //specific to reflector game
 //     // Set up a timer to restart after failure. don't start it
 //     os_timer_disarm(&ref.tmr.SinglePlayerRestart);
 //     os_timer_setfn(&ref.tmr.SinglePlayerRestart, refSinglePlayerRestart, NULL);
 //
-#ifdef TEST_SCORE_DISPLAY
-    // This is just for testing the score display, not called in production
-    // ref.gam.singlePlayerRounds = 97;
-    // os_timer_arm(&ref.tmr.SinglePlayerRestart, RESTART_COUNT_PERIOD_MS, true);
-#else
-    os_timer_arm(&joust.tmr.Connection, 1, false);
+    p2pStartConnection(&joust.p2pJoust);
     os_timer_arm(&joust.tmr.ConnLed, 1, true);
-#endif
 }
 
 /**
@@ -564,12 +450,8 @@ void ICACHE_FLASH_ATTR joustDeinit(void)
 {
 
     joust_printf("%s\r\n", __func__);
-
-    // os_timer_disarm(&ref.tmr.Connection);
-    os_timer_disarm(&joust.tmr.TxRetry);
+    p2pDeinit(&joust.p2pJoust);
     // os_timer_disarm(&ref.tmr.StartPlaying);
-    // os_timer_disarm(&ref.tmr.Reinit);
-    os_timer_disarm(&joust.tmr.TxAllRetries);
     joustDisarmAllLedTimers();
 }
 
@@ -595,23 +477,7 @@ void ICACHE_FLASH_ATTR joustDisarmAllLedTimers(void)
     // os_timer_disarm(&ref.tmr.SinglePlayerRestart);
 }
 
-/**
- * This is called on the timer initConnectionTimer. It broadcasts the connectionMsgjoust
- *
- * @param arg unused
- */
-void ICACHE_FLASH_ATTR joustConnectionTimeout(void* arg __attribute__((unused)) )
-{
-    // Send a connection broadcast
-    joustSendMsg(connectionMsgjoust, ets_strlen(connectionMsgjoust), false, NULL, NULL);
 
-    // os_random returns a 32 bit number, so this is [500ms,1500ms]
-    uint32_t timeoutMs = 100 * (5 + (os_random() % 11));
-
-    // Start the timer again
-    joust_printf("retry broadcast in %dms\r\n", timeoutMs);
-    os_timer_arm(&joust.tmr.Connection, timeoutMs, false);
-}
 
 /**
  * This is called after an attempted transmission. If it was successful, and the
@@ -624,47 +490,9 @@ void ICACHE_FLASH_ATTR joustConnectionTimeout(void* arg __attribute__((unused)) 
 void ICACHE_FLASH_ATTR joustSendCb(uint8_t* mac_addr __attribute__((unused)),
                                  mt_tx_status status)
 {
-    switch(status)
-    {
-        case MT_TX_STATUS_OK:
-        {
-            if(0 != joust.ack.timeSentUs)
-            {
-                uint32_t transmissionTimeUs = system_get_time() - ref.ack.timeSentUs;
-                joust_printf("Transmission time %dus\r\n", transmissionTimeUs);
-                // The timers are all millisecond, so make sure that
-                // transmissionTimeUs is at least 1ms
-                if(transmissionTimeUs < 1000)
-                {
-                    transmissionTimeUs = 1000;
-                }
-
-                // Round it to the nearest Ms, add 69ms (the measured worst case)
-                // then add some randomness [0ms to 15ms random]
-                uint32_t waitTimeMs = ((transmissionTimeUs + 500) / 1000) + 69 + (os_random() & 0b1111);
-
-                // Start the timer
-                joust_printf("ack timer set for %dms\r\n", waitTimeMs);
-                os_timer_arm(&ref.tmr.TxRetry, waitTimeMs, false);
-            }
-            break;
-        }
-        case MT_TX_STATUS_FAILED:
-        {
-            // If a message is stored
-            if(joust.ack.msgToAckLen > 0)
-            {
-                // try again in 1ms
-                os_timer_arm(&joust.tmr.TxRetry, 1, false);
-            }
-            break;
-        }
-        default:
-        {
-            break;
-        }
-    }
+    p2pSendCb(&joust.p2pJoust, mac_addr, status);
 }
+
 
 /**
  * This is called whenever an ESP NOW packet is received
@@ -675,200 +503,10 @@ void ICACHE_FLASH_ATTR joustSendCb(uint8_t* mac_addr __attribute__((unused)),
  */
 void ICACHE_FLASH_ATTR joustRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi)
 {
-//This should print the incoming Messages
-//This function is also how the game starts as well
-#ifdef JOUST_DEBUG_PRINT
-    char* dbgMsg = (char*)os_zalloc(sizeof(char) * (len + 1));
-    ets_memcpy(dbgMsg, data, len);
-    joust_printf("%s: %s\r\n", __func__, dbgMsg);
-    os_free(dbgMsg);
-#endif
-    // Check if this is a "ref" message
-    if(len < CMD_IDX ||
-            (0 != ets_memcmp(data, connectionMsgjoust, CMD_IDX)))
-    {
-        // This message is too short, or not a "ref" message
-        joust_printf("DISCARD: Not a ref message\r\n");
-        return;
-    }
-//
-//     // If this message has a MAC, check it
-//     if(len >= ets_strlen(ackMsg) &&
-//             0 != ets_memcmp(&data[MAC_IDX], ref.cnc.macStr, ets_strlen(ref.cnc.macStr)))
-//     {
-//         // This MAC isn't for us
-//         joust_printf("DISCARD: Not for our MAC\r\n");
-//         return;
-//     }
-//
-//     // If this is anything besides a broadcast, check the other MAC
-//     if(ref.cnc.otherMacReceived &&
-//             len > ets_strlen(connectionMsgjoust) &&
-//             0 != ets_memcmp(mac_addr, ref.cnc.otherMac, sizeof(ref.cnc.otherMac)))
-//     {
-//         // This isn't from the other known swadge
-//         joust_printf("DISCARD: Not from the other MAC\r\n");
-//         return;
-//     }
-//
-//     // By here, we know the received message was a "ref" message, either a
-//     // broadcast or for us. If this isn't an ack message, ack it
-//     if(len >= SEQ_IDX &&
-//             0 != ets_memcmp(data, ackMsg, SEQ_IDX))
-//     {
-//         refSendAckToMac(mac_addr);
-//     }
-//
-//     // After ACKing the message, check the sequence number to see if we should
-//     // process it or ignore it (we already did!)
-//     if(len >= ets_strlen(ackMsg))
-//     {
-//         // Extract the sequence number
-//         uint8_t theirSeq = 0;
-//         theirSeq += (data[SEQ_IDX + 0] - '0') * 10;
-//         theirSeq += (data[SEQ_IDX + 1] - '0');
-//
-//         // Check it against the last known sequence number
-//         if(theirSeq == ref.cnc.lastSeqNum)
-//         {
-//             joust_printf("DISCARD: Duplicate sequence number\r\n");
-//             return;
-//         }
-//         else
-//         {
-//             ref.cnc.lastSeqNum = theirSeq;
-//             joust_printf("Store lastSeqNum %d\r\n", ref.cnc.lastSeqNum);
-//         }
-//     }
-//
-//     // ACKs can be received in any state
-//     if(ref.ack.isWaitingForAck)
-//     {
-//         // Check if this is an ACK
-//         if(ets_strlen(ackMsg) == len &&
-//                 0 == ets_memcmp(data, ackMsg, SEQ_IDX))
-//         {
-//             joust_printf("ACK Received\r\n");
-//
-//             // Call the function after receiving the ack
-//             if(NULL != ref.ack.SuccessFn)
-//             {
-//                 ref.ack.SuccessFn(NULL);
-//             }
-//
-//             // Clear ack timeout variables
-//             os_timer_disarm(&ref.tmr.TxRetry);
-//             // Disarm the whole transmission ack timer
-//             os_timer_disarm(&ref.tmr.TxAllRetries);
-//             // Clear out ACK variables
-//             ets_memset(&ref.ack, 0, sizeof(ref.ack));
-//
-//             ref.ack.isWaitingForAck = false;
-//         }
-//         // Don't process anything else when waiting for an ack
-//         return;
-//     }
-//
-//     switch(ref.gameState)
-//     {
-//         case R_CONNECTING:
-//         {
-//             // Received another broadcast, Check if this RSSI is strong enough
-//             if(!ref.cnc.broadcastReceived &&
-//                     rssi > CONNECTION_RSSI &&
-//                     ets_strlen(connectionMsgjoust) == len &&
-//                     0 == ets_memcmp(data, connectionMsgjoust, len))
-//             {
-//                 joust_printf("Broadcast Received, sending game start message\r\n");
-//
-//                 // We received a broadcast, don't allow another
-//                 ref.cnc.broadcastReceived = true;
-//
-//                 // Save the other ESP's MAC
-//                 ets_memcpy(ref.cnc.otherMac, mac_addr, sizeof(ref.cnc.otherMac));
-//                 ref.cnc.otherMacReceived = true;
-//
-//                 // Send a message to that ESP to start the game.
-//                 ets_sprintf(&gameStartMsg[MAC_IDX], macFmtStr,
-//                             mac_addr[0],
-//                             mac_addr[1],
-//                             mac_addr[2],
-//                             mac_addr[3],
-//                             mac_addr[4],
-//                             mac_addr[5]);
-//
-//                 // If it's acked, call refGameStartAckRecv(), if not reinit with refInit()
-//                 refSendMsg(gameStartMsg, ets_strlen(gameStartMsg), true, refGameStartAckRecv, refRestart);
-//             }
-//             // Received a response to our broadcast
-//             else if (!ref.cnc.rxGameStartMsg &&
-//                      ets_strlen(gameStartMsg) == len &&
-//                      0 == ets_memcmp(data, gameStartMsg, SEQ_IDX))
-//             {
-//                 joust_printf("Game start message received, ACKing\r\n");
-//
-//                 // This is another swadge trying to start a game, which means
-//                 // they received our connectionMsgjoust. First disable our connectionMsgjoust
-//                 os_timer_disarm(&ref.tmr.Connection);
-//
-//                 // And process this connection event
-//                 refProcConnectionEvt(RX_GAME_START_MSG);
-//             }
-//
-//             break;
-//         }
-//         case R_WAITING:
-//         {
-//             // Received a message that the other swadge lost
-//             if(ets_strlen(roundLossMsg) == len &&
-//                     0 == ets_memcmp(data, roundLossMsg, SEQ_IDX))
-//             {
-//                 // Received a message, so stop the failure timer
-//                 os_timer_disarm(&ref.tmr.Reinit);
-//
-//                 // The other swadge lost, so chalk a win!
-//                 ref.gam.Wins++;
-//
-//                 // Display the win
-//                 refRoundResultLed(true);
-//             }
-//             else if(ets_strlen(roundContinueMsg) == len &&
-//                     0 == ets_memcmp(data, roundContinueMsg, SEQ_IDX))
-//             {
-//                 // Received a message, so stop the failure timer
-//                 os_timer_disarm(&ref.tmr.Reinit);
-//
-//                 // Get faster or slower based on the other swadge's timing
-//                 if(0 == ets_memcmp(&data[EXT_IDX], spdUp, ets_strlen(spdUp)))
-//                 {
-//                     refAdjustledSpeed(false, true);
-//                 }
-//                 else if(0 == ets_memcmp(&data[EXT_IDX], spdDn, ets_strlen(spdDn)))
-//                 {
-//                     refAdjustledSpeed(false, false);
-//                 }
-//
-//                 refStartRound();
-//             }
-//             break;
-//         }
-//         case R_PLAYING:
-//         {
-//             // Currently playing a game, shouldn't do anything with messages
-//             break;
-//         }
-//         case R_SHOW_CONNECTION:
-//         case R_SHOW_GAME_RESULT:
-//         {
-//             // Just LED animations, don't do anything with messages
-//             break;
-//         }
-//         default:
-//         {
-//             break;
-//         }
-//     }
+    p2pRecvCb(&joust.p2pJoust, mac_addr, data, len, rssi);
 }
+
+
 
 // /**
 //  * Helper function to send an ACK message to the given MAC
@@ -1109,111 +747,7 @@ void ICACHE_FLASH_ATTR joustStartPlaying(void* arg __attribute__((unused)))
 //     os_timer_arm(&ref.tmr.GameLed, ref.gam.ledPeriodMs, true);
 // }
 
-/**
- * Wrapper for sending an ESP-NOW message. Handles ACKing and retries for
- * non-broadcast style messages
- *
- * @param msg       The message to send, may contain destination MAC
- * @param len       The length of the message to send
- * @param shouldAck true if this message should be acked, false if we don't care
- * @param success   A callback function if the message is acked. May be NULL
- * @param failure   A callback function if the message isn't acked. May be NULL
- */
-void ICACHE_FLASH_ATTR joustSendMsg(char* msg, uint16_t len, bool shouldAck, void (*success)(void*),
-                                  void (*failure)(void*))
-{
-    // If this is a first time message and longer than a connection message
-    if( (joust.ack.msgToAck != msg) && ets_strlen(connectionMsgjoust) < len)
-    {
-        // Insert a sequence number
-        msg[SEQ_IDX + 0] = '0' + (joust.cnc.mySeqNum / 10);
-        msg[SEQ_IDX + 1] = '0' + (joust.cnc.mySeqNum % 10);
 
-        // Increment the sequence number, 0-99
-        joust.cnc.mySeqNum++;
-        if(100 == joust.cnc.mySeqNum++)
-        {
-            joust.cnc.mySeqNum = 0;
-        }
-    }
-
-#ifdef JOUST_DEBUG_PRINT
-    char* dbgMsg = (char*)os_zalloc(sizeof(char) * (len + 1));
-    ets_memcpy(dbgMsg, msg, len);
-    joust_printf("%s: %s\r\n", __func__, dbgMsg);
-    os_free(dbgMsg);
-#endif
-
-    if(shouldAck)
-    {
-        // Set the state to wait for an ack
-        joust.ack.isWaitingForAck = true;
-
-        // If this is not a retry
-        if(joust.ack.msgToAck != msg)
-        {
-            joust_printf("sending for the first time\r\n");
-
-            // Store the message for potential retries
-            ets_memcpy(joust.ack.msgToAck, msg, len);
-            joust.ack.msgToAckLen = len;
-            joust.ack.SuccessFn = success;
-            joust.ack.FailureFn = failure;
-
-            // Start a timer to retry for 3s total
-            os_timer_disarm(&joust.tmr.TxAllRetries);
-            os_timer_arm(&joust.tmr.TxAllRetries, RETRY_TIME_MS, false);
-        }
-        else
-        {
-            joust_printf("this is a retry\r\n");
-        }
-
-        // Mark the time this transmission started, the retry timer gets
-        // started in refSendCb()
-        joust.ack.timeSentUs = system_get_time();
-    }
-    espNowSend((const uint8_t*)msg, len);
-}
-
-/**
- * This is called 3s after a transmission if an ACK is never received. It stops
- * the retries and calls the failure function, if provided
- *
- * @param arg unused
- */
-void ICACHE_FLASH_ATTR joustTxAllRetriesTimeout(void* arg __attribute__((unused)) )
-{
-    // Disarm all timers
-    os_timer_disarm(&joust.tmr.TxRetry);
-    os_timer_disarm(&joust.tmr.TxAllRetries);
-
-    // Call the failure function
-    joust_printf("Message totally failed \"%s\"\r\n", ref.ack.msgToAck);
-    if(NULL != joust.ack.FailureFn)
-    {
-        joust.ack.FailureFn(NULL);
-    }
-
-    // Clear out the ack variables
-    ets_memset(&joust.ack, 0, sizeof(joust.ack));
-}
-
-/**
- * This is called on a timer after refSendMsg(). The timer is disarmed if
- * the message is ACKed. If the message isn't ACKed, this will retry
- * transmission, for up to 3 seconds
- *
- * @param arg unused
- */
-void ICACHE_FLASH_ATTR joustTxRetryTimeout(void* arg __attribute__((unused)) )
-{
-    if(joust.ack.msgToAckLen > 0)
-    {
-        joust_printf("Retrying message \"%s\"\r\n", joust.ack.msgToAck);
-        joustSendMsg(joust.ack.msgToAck, joust.ack.msgToAckLen, true, joust.ack.SuccessFn, joust.ack.FailureFn);
-    }
-}
 
 /**
  * Called every 4ms, this updates the LEDs during connection
