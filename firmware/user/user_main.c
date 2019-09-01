@@ -33,6 +33,7 @@
 #include "mode_dance.h"
 #include "mode_flashlight.h"
 #include "mode_demo.h"
+#include "mode_joust_game.h"
 
 /*============================================================================
  * Defines
@@ -69,6 +70,7 @@ swadgeMode* swadgeModes[] =
     &demoMode,
     &colorchordMode,
     &reflectorGameMode,
+    &joustGameMode,
     &dancesMode,
     &randomD6Mode,
     &flashlightMode,
