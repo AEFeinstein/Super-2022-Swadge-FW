@@ -18,7 +18,8 @@
 #include "mode_joust_game.h"
 #include "custom_commands.h"
 #include "buttons.h"
-
+#include "oled.h"
+#include "font.h"
 /*============================================================================
  * Defines
  *==========================================================================*/
@@ -34,7 +35,7 @@
 #define RETRY_TIME_MS 3000
 
 // Minimum RSSI to accept a connection broadcast
-#define CONNECTION_RSSI 55
+// #define CONNECTION_RSSI 55
 
 // Degrees between each LED
 #define DEG_PER_LED 60
@@ -162,7 +163,7 @@ void ICACHE_FLASH_ATTR refAdjustledSpeed(bool reset, bool up);
 // LED Functions
 void ICACHE_FLASH_ATTR joustDisarmAllLedTimers(void);
 void ICACHE_FLASH_ATTR joustConnLedTimeout(void* arg __attribute__((unused)));
-void ICACHE_FLASH_ATTR refShowConnectionLedTimeout(void* arg __attribute__((unused)));
+void ICACHE_FLASH_ATTR joustShowConnectionLedTimeout(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refRoundResultLed(bool);
 
@@ -182,22 +183,7 @@ swadgeMode joustGameMode =
     .fnEspNowSendCb = joustSendCb,
 };
 
-// Indices into messages to send
-#define CMD_IDX 4
-#define SEQ_IDX 8
-#define MAC_IDX 11
-#define EXT_IDX 29
 
-// Messages to send.
-char connectionMsgjoust[]     = "joust_con";
-// char ackMsg[]            = "ref_ack_sn_00:00:00:00:00:00";
-// char gameStartMsg[]      = "ref_str_sn_00:00:00:00:00:00";
-// char roundLossMsg[]      = "ref_los_sn_00:00:00:00:00:00";
-// char roundContinueMsg[]  = "ref_cnt_sn_00:00:00:00:00:00_xx";
-// char spdUp[] =                                          "up";
-// char spdDn[] =                                          "dn";
-// char spdNc[] =                                          "nc";
-const char macFmtStrjoust[] = "%02X:%02X:%02X:%02X:%02X:%02X";
 
 struct
 {
@@ -294,12 +280,14 @@ struct
          {
              // Connection was successful, so disarm the failure timer
              joust.gameState = R_SHOW_CONNECTION;
-
+             clearDisplay();
+             plotText(0, 0, "Found", IBM_VGA_8);
              ets_memset(joust.led.Leds, 0, sizeof(joust.led.Leds));
              joust.led.ConnLedState = LED_CONNECTED_BRIGHT;
 
-             refDisarmAllLedTimers();
+             joustDisarmAllLedTimers();
              // 6ms * ~500 steps == 3s animation
+             //This is the start of the game
              os_timer_arm(&joust.tmr.ShowConnectionLed, 6, true);
              break;
          }
@@ -389,15 +377,17 @@ void ICACHE_FLASH_ATTR joustInit(void)
     //just print for now
     joust_printf("\nwe are NOW in the JOUST MODE\n");
     joust_printf("%s\r\n", __func__);
-
-
-    p2pInitialize(&joust.p2pJoust, "jou", joustConnectionCallback, joustMsgCallbackFn);
-
+    clearDisplay();
+    plotText(0, 0, "Searching", IBM_VGA_8);
     // Enable button debounce for consistent 1p/2p and difficulty config
     enableDebounce(true);
-
     // Make sure everything is zero!
     ets_memset(&joust, 0, sizeof(joust));
+    joust.p2pJoust.connectionRssi = 10;
+    joust_printf("the strength is AT THE BEG %d\r\n",joust.p2pJoust.connectionRssi);
+    p2pInitialize(&joust.p2pJoust, "jou", joustConnectionCallback, joustMsgCallbackFn);
+
+
 
     // Get and save the string form of our MAC address
     uint8_t mymac[6];
@@ -412,12 +402,12 @@ void ICACHE_FLASH_ATTR joustInit(void)
     //             mymac[5]);
 
 
-       //we don't need a timer to show a successful connection, but we do need
-       //to start the game eventually
-//     // Set up a timer for showing a successful connection, don't start it
-//     os_timer_disarm(&ref.tmr.ShowConnectionLed);
-//     os_timer_setfn(&ref.tmr.ShowConnectionLed, refShowConnectionLedTimeout, NULL);
-//
+     //we don't need a timer to show a successful connection, but we do need
+     //to start the game eventually
+    // Set up a timer for showing a successful connection, don't start it
+    os_timer_disarm(&joust.tmr.ShowConnectionLed);
+    os_timer_setfn(&joust.tmr.ShowConnectionLed, joustShowConnectionLedTimeout, NULL);
+
        //specific to reflector game, don't need this
 //     // Set up a timer for showing the game, don't start it
 //     os_timer_disarm(&ref.tmr.GameLed);
@@ -439,8 +429,11 @@ void ICACHE_FLASH_ATTR joustInit(void)
 //     os_timer_disarm(&ref.tmr.SinglePlayerRestart);
 //     os_timer_setfn(&ref.tmr.SinglePlayerRestart, refSinglePlayerRestart, NULL);
 //
+
     p2pStartConnection(&joust.p2pJoust);
+    joust.p2pJoust.connectionRssi = 10;
     os_timer_arm(&joust.tmr.ConnLed, 1, true);
+    joust_printf("the strength is AT THE END %d\r\n",joust.p2pJoust.connectionRssi);
 }
 
 /**
@@ -472,7 +465,7 @@ void ICACHE_FLASH_ATTR joustRestart(void* arg __attribute__((unused)))
 void ICACHE_FLASH_ATTR joustDisarmAllLedTimers(void)
 {
        os_timer_disarm(&joust.tmr.ConnLed);
-    // os_timer_disarm(&ref.tmr.ShowConnectionLed);
+       os_timer_disarm(&joust.tmr.ShowConnectionLed);
     // os_timer_disarm(&ref.tmr.GameLed);
     // os_timer_disarm(&ref.tmr.SinglePlayerRestart);
 }
@@ -503,151 +496,59 @@ void ICACHE_FLASH_ATTR joustSendCb(uint8_t* mac_addr __attribute__((unused)),
  */
 void ICACHE_FLASH_ATTR joustRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi)
 {
+    joust_printf("the strength is NOWWWWW 22222 %d\r\n",joust.p2pJoust.connectionRssi);
     p2pRecvCb(&joust.p2pJoust, mac_addr, data, len, rssi);
 }
 
 
 
-// /**
-//  * Helper function to send an ACK message to the given MAC
-//  *
-//  * @param mac_addr The MAC to address this ACK to
-//  */
-// void ICACHE_FLASH_ATTR refSendAckToMac(uint8_t* mac_addr)
-// {
-//     joust_printf("%s\r\n", __func__);
-//
-//     ets_sprintf(&ackMsg[MAC_IDX], macFmtStr,
-//                 mac_addr[0],
-//                 mac_addr[1],
-//                 mac_addr[2],
-//                 mac_addr[3],
-//                 mac_addr[4],
-//                 mac_addr[5]);
-//     refSendMsg(ackMsg, ets_strlen(ackMsg), false, NULL, NULL);
-// }
-//
-// /**
-//  * This is called when gameStartMsg is acked and processes the connection event
-//  *
-//  * @param arg unused
-//  */
-// void ICACHE_FLASH_ATTR refGameStartAckRecv(void* arg __attribute__((unused)))
-// {
-//     refProcConnectionEvt(RX_GAME_START_ACK);
-// }
-//
-// /**
-//  * Two steps are necessary to establish a connection in no particular order.
-//  * 1. This swadge has to receive a start message from another swadge
-//  * 2. This swadge has to receive an ack to a start message sent to another swadge
-//  * The order of events determines who is the 'client' and who is the 'server'
-//  *
-//  * @param event The event that occurred
-//  */
-// void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event)
-// {
-//     joust_printf("%s evt: %d, ref.cnc.rxGameStartMsg %d, ref.cnc.rxGameStartAck %d\r\n", __func__, event,
-//                ref.cnc.rxGameStartMsg, ref.cnc.rxGameStartAck);
-//
-//     switch(event)
-//     {
-//         case RX_GAME_START_MSG:
-//         {
-//             // Already received the ack, become the client
-//             if(!ref.cnc.rxGameStartMsg && ref.cnc.rxGameStartAck)
-//             {
-//                 ref.cnc.playOrder = GOING_SECOND;
-//                 ref.gam.receiveFirstMsg = false;
-//             }
-//             // Mark this event
-//             ref.cnc.rxGameStartMsg = true;
-//             break;
-//         }
-//         case RX_GAME_START_ACK:
-//         {
-//             // Already received the msg, become the server
-//             if(!ref.cnc.rxGameStartAck && ref.cnc.rxGameStartMsg)
-//             {
-//                 ref.cnc.playOrder = GOING_FIRST;
-//             }
-//             // Mark this event
-//             ref.cnc.rxGameStartAck = true;
-//             break;
-//         }
-//         default:
-//         {
-//             break;
-//         }
-//     }
-//
-//     // If both the game start messages are good, start the game
-//     if(ref.cnc.rxGameStartMsg && ref.cnc.rxGameStartAck)
-//     {
-//         // Connection was successful, so disarm the failure timer
-//         os_timer_disarm(&ref.tmr.Reinit);
-//
-//         ref.gameState = R_SHOW_CONNECTION;
-//
-//         ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
-//         ref.led.ConnLedState = LED_CONNECTED_BRIGHT;
-//
-//         refDisarmAllLedTimers();
-//         // 6ms * ~500 steps == 3s animation
-//         os_timer_arm(&ref.tmr.ShowConnectionLed, 6, true);
-//     }
-//     else
-//     {
-//         // Start a timer to reinit if we never finish connection
-//         refStartRestartTimer(NULL);
-//     }
-// }
-//
-// /**
-//  * This LED handling timer fades in and fades out white LEDs to indicate
-//  * a successful connection. After the animation, the game will start
-//  *
-//  * @param arg unused
-//  */
-// // void ICACHE_FLASH_ATTR refShowConnectionLedTimeout(void* arg __attribute__((unused)) )
-// // {
-// //     uint8_t currBrightness = ref.led.Leds[0].r;
-// //     switch(ref.led.ConnLedState)
-// //     {
-// //         case LED_CONNECTED_BRIGHT:
-// //         {
-// //             currBrightness++;
-// //             if(currBrightness == 0xFF)
-// //             {
-// //                 ref.led.ConnLedState = LED_CONNECTED_DIM;
-// //             }
-// //             break;
-// //         }
-// //         case LED_CONNECTED_DIM:
-// //         {
-// //             currBrightness--;
-// //             if(currBrightness == 0x00)
-// //             {
-// //                 joustStartPlaying(NULL);
-// //             }
-// //             break;
-// //         }
-// //         case LED_OFF:
-// //         case LED_ON_1:
-// //         case LED_DIM_1:
-// //         case LED_ON_2:
-// //         case LED_DIM_2:
-// //         case LED_OFF_WAIT:
-// //         default:
-// //         {
-// //             // No other cases handled
-// //             break;
-// //         }
-// //     }
-// //     ets_memset(ref.led.Leds, currBrightness, sizeof(ref.led.Leds));
-// //     setLeds(ref.led.Leds, sizeof(ref.led.Leds));
-// // }
-//
+
+
+/**
+ * This LED handling timer fades in and fades out white LEDs to indicate
+ * a successful connection. After the animation, the game will start
+ *
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR joustShowConnectionLedTimeout(void* arg __attribute__((unused)) )
+{
+    uint8_t currBrightness = joust.led.Leds[0].r;
+    switch(joust.led.ConnLedState)
+    {
+        case LED_CONNECTED_BRIGHT:
+        {
+            currBrightness++;
+            if(currBrightness == 0xFF)
+            {
+                joust.led.ConnLedState = LED_CONNECTED_DIM;
+            }
+            break;
+        }
+        case LED_CONNECTED_DIM:
+        {
+            currBrightness--;
+            if(currBrightness == 0x00)
+            {
+                joustStartPlaying(NULL);
+            }
+            break;
+        }
+        case LED_OFF:
+        case LED_ON_1:
+        case LED_DIM_1:
+        case LED_ON_2:
+        case LED_DIM_2:
+        case LED_OFF_WAIT:
+        default:
+        {
+            // No other cases handled
+            break;
+        }
+    }
+    ets_memset(joust.led.Leds, currBrightness, sizeof(joust.led.Leds));
+    setLeds(joust.led.Leds, sizeof(joust.led.Leds));
+}
+
 /**
  * This is called after connection is all done. Start the game!
  *
@@ -658,13 +559,13 @@ void ICACHE_FLASH_ATTR joustStartPlaying(void* arg __attribute__((unused)))
     joust_printf("%s\r\n", __func__);
     joust_printf("\nstarting the game\n");
 
-    // // Disable button debounce for minimum latency
-    // enableDebounce(false);
-    //
-    // // Turn off the LEDs
-    // refDisarmAllLedTimers();
-    // ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
-    // setLeds(ref.led.Leds, sizeof(ref.led.Leds));
+    // Disable button debounce for minimum latency
+    enableDebounce(false);
+
+    // Turn off the LEDs
+    refDisarmAllLedTimers();
+    ets_memset(joust.led.Leds, 0, sizeof(joust.led.Leds));
+    setLeds(joust.led.Leds, sizeof(joust.led.Leds));
     //
     // // Reset the LED timer to the default speed
     // refAdjustledSpeed(true, true);
@@ -754,7 +655,6 @@ void ICACHE_FLASH_ATTR joustStartPlaying(void* arg __attribute__((unused)))
  */
 void ICACHE_FLASH_ATTR joustConnLedTimeout(void* arg __attribute__((unused)))
 {
-    joust_printf("%d",joust.led.ConnLedState);
     switch(joust.led.ConnLedState)
     {
         case LED_OFF:
@@ -823,7 +723,7 @@ void ICACHE_FLASH_ATTR joustConnLedTimeout(void* arg __attribute__((unused)))
         case LED_CONNECTED_BRIGHT:
         case LED_CONNECTED_DIM:
         {
-            // Handled in refShowConnectionLedTimeout()
+            // Handled in joustShowConnectionLedTimeout()
             break;
         }
         default:
@@ -1452,40 +1352,6 @@ void ICACHE_FLASH_ATTR joustConnLedTimeout(void* arg __attribute__((unused)))
 //     setLeds(ref.led.Leds, sizeof(ref.led.Leds));
 // }
 //
-// /**
-//  * Helper function to set LEDs around the ring when displaying the single player
-//  * score. Given a number 0-9, light that many LEDs around the hexagon, and
-//  * overdraw with the secondary color when it wraps around
-//  *
-//  * @param ledToLight     The number LED to light, maybe > 5, which wrap around with colorSecondary
-//  * @param colorPrimary   The color to draw [1-6]
-//  * @param colorSecondary The color to overdraw [7-9]
-//  */
-// void ICACHE_FLASH_ATTR refSinglePlayerScoreLed(uint8_t ledToLight, led_t* colorPrimary, led_t* colorSecondary)
-// {
-//     if(ledToLight < 6)
-//     {
-//         if(ledToLight == 0)
-//         {
-//             ets_memcpy(&ref.led.Leds[0], colorPrimary, sizeof(led_t));
-//         }
-//         else
-//         {
-//             ets_memcpy(&ref.led.Leds[6 - ledToLight], colorPrimary, sizeof(led_t));
-//         }
-//     }
-//     else
-//     {
-//         if(ledToLight % 6 == 0)
-//         {
-//             ets_memcpy(&ref.led.Leds[0], colorSecondary, sizeof(led_t));
-//         }
-//         else
-//         {
-//             ets_memcpy(&ref.led.Leds[12 - ledToLight], colorSecondary, sizeof(led_t));
-//         }
-//     }
-// }
 //
 // /**
 //  * Show the wins and losses

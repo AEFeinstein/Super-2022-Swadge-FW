@@ -46,6 +46,8 @@ typedef struct _p2pInfo
     p2pMsgRxCbFn msgRxCbFn;
     p2pMsgTxCbFn msgTxCbFn;
 
+    uint8_t connectionRssi;
+
     // Variables used for acking and retrying messages
     struct
     {

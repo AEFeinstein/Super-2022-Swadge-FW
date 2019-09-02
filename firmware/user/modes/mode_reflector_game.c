@@ -296,7 +296,7 @@ void ICACHE_FLASH_ATTR refInit(void)
     // Set up a timer to restart after failure. don't start it
     os_timer_disarm(&ref.tmr.SinglePlayerRestart);
     os_timer_setfn(&ref.tmr.SinglePlayerRestart, refSinglePlayerRestart, NULL);
-
+    ref.p2pRef.connectionRssi = 55;
     p2pStartConnection(&ref.p2pRef);
     os_timer_arm(&ref.tmr.ConnLed, 1, true);
 }

@@ -58,7 +58,7 @@ end
 #endif
 
 // Minimum RSSI to accept a connection broadcast
-#define CONNECTION_RSSI 55
+//#define CONNECTION_RSSI 10
 
 // The time we'll spend retrying messages
 #define RETRY_TIME_MS 3000
@@ -121,7 +121,6 @@ void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId,
                                      p2pMsgRxCbFn msgRxCbFn)
 {
     p2p_printf("%s\r\n", __func__);
-
     // Make sure everything is zero!
     ets_memset(p2p, 0, sizeof(p2pInfo));
 
@@ -199,7 +198,6 @@ void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId,
 void ICACHE_FLASH_ATTR p2pStartConnection(p2pInfo* p2p)
 {
     p2p_printf("%s\r\n", __func__);
-
     os_timer_arm(&p2p->tmr.Connection, 1, false);
 
     if(NULL != p2p->conCbFn)
@@ -237,7 +235,6 @@ void ICACHE_FLASH_ATTR p2pConnectionTimeout(void* arg)
     p2p_printf("%s\r\n", __func__);
 
     p2pInfo* p2p = (p2pInfo*)arg;
-
     // Send a connection broadcast
     p2pSendMsgEx(p2p, p2p->conMsg, ets_strlen(p2p->conMsg), false, NULL, NULL);
 
@@ -564,7 +561,7 @@ void ICACHE_FLASH_ATTR p2pRecvCb(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data,
     {
         // Received another broadcast, Check if this RSSI is strong enough
         if(!p2p->cnc.broadcastReceived &&
-                rssi > CONNECTION_RSSI &&
+                rssi > p2p->connectionRssi &&
                 ets_strlen(p2p->conMsg) == len &&
                 0 == ets_memcmp(data, p2p->conMsg, len))
         {
