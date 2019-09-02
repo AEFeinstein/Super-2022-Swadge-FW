@@ -13,6 +13,8 @@
 #include <osapi.h>
 #include <user_interface.h>
 #include <p2pConnection.h>
+#include <math.h>
+// #include <string>
 
 #include "user_main.h"
 #include "mode_joust_game.h"
@@ -156,9 +158,10 @@ void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event);
 
 // Game functions
 void ICACHE_FLASH_ATTR joustStartPlaying(void* arg __attribute__((unused)));
-void ICACHE_FLASH_ATTR refStartRound(void);
+void ICACHE_FLASH_ATTR joustStartRound(void);
 void ICACHE_FLASH_ATTR refSendRoundLossMsg(void);
 void ICACHE_FLASH_ATTR refAdjustledSpeed(bool reset, bool up);
+void ICACHE_FLASH_ATTR joustAccelerometerHandler(accel_t* accel);
 
 // LED Functions
 void ICACHE_FLASH_ATTR joustDisarmAllLedTimers(void);
@@ -166,6 +169,8 @@ void ICACHE_FLASH_ATTR joustConnLedTimeout(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR joustShowConnectionLedTimeout(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refRoundResultLed(bool);
+
+void ICACHE_FLASH_ATTR joustUpdateDisplay(void);
 
 /*============================================================================
  * Variables
@@ -181,6 +186,7 @@ swadgeMode joustGameMode =
     .wifiMode = ESP_NOW,
     .fnEspNowRecvCb = joustRecvCb,
     .fnEspNowSendCb = joustSendCb,
+    .fnAccelerometerCallback = joustAccelerometerHandler
 };
 
 
@@ -188,7 +194,8 @@ swadgeMode joustGameMode =
 struct
 {
     joustGameState_t gameState;
-
+    accel_t joustAccel;
+    uint16_t rolling_average;
     // Game state variables
     struct
     {
@@ -384,7 +391,6 @@ void ICACHE_FLASH_ATTR joustInit(void)
     // Make sure everything is zero!
     ets_memset(&joust, 0, sizeof(joust));
     joust.p2pJoust.connectionRssi = 10;
-    joust_printf("the strength is AT THE BEG %d\r\n",joust.p2pJoust.connectionRssi);
     p2pInitialize(&joust.p2pJoust, "jou", joustConnectionCallback, joustMsgCallbackFn);
 
 
@@ -433,7 +439,6 @@ void ICACHE_FLASH_ATTR joustInit(void)
     p2pStartConnection(&joust.p2pJoust);
     joust.p2pJoust.connectionRssi = 10;
     os_timer_arm(&joust.tmr.ConnLed, 1, true);
-    joust_printf("the strength is AT THE END %d\r\n",joust.p2pJoust.connectionRssi);
 }
 
 /**
@@ -496,7 +501,6 @@ void ICACHE_FLASH_ATTR joustSendCb(uint8_t* mac_addr __attribute__((unused)),
  */
 void ICACHE_FLASH_ATTR joustRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi)
 {
-    joust_printf("the strength is NOWWWWW 22222 %d\r\n",joust.p2pJoust.connectionRssi);
     p2pRecvCb(&joust.p2pJoust, mac_addr, data, len, rssi);
 }
 
@@ -566,12 +570,14 @@ void ICACHE_FLASH_ATTR joustStartPlaying(void* arg __attribute__((unused)))
     refDisarmAllLedTimers();
     ets_memset(joust.led.Leds, 0, sizeof(joust.led.Leds));
     setLeds(joust.led.Leds, sizeof(joust.led.Leds));
-    //
+
     // // Reset the LED timer to the default speed
     // refAdjustledSpeed(true, true);
     //
-    // // Check for match end
+    // Check for match end
     // joust_printf("wins: %d, losses %d\r\n", ref.gam.Wins, ref.gam.Losses);
+    joust.gameState = R_PLAYING;
+    // joustStartRound();
     // if(ref.gam.Wins == 3 || ref.gam.Losses == 3)
     // {
     //     // Tally match win in SPI flash
@@ -600,54 +606,88 @@ void ICACHE_FLASH_ATTR joustStartPlaying(void* arg __attribute__((unused)))
     //     refStartRestartTimer(NULL);
     // }
 }
-//
-// /**
-//  * Start a round of the game by picking a random action and starting
-//  * refGameLedTimeout()
-//  */
-// void ICACHE_FLASH_ATTR refStartRound(void)
-// {
-//     ref.gameState = R_PLAYING;
-//
-//     // pick a random game action
-//     ref.gam.Action = os_random() % 3;
-//
-//     // Set the LED's starting angle
-//     switch(ref.gam.Action)
-//     {
-//         case ACT_CLOCKWISE:
-//         {
-//             joust_printf("ACT_CLOCKWISE\r\n");
-//             ref.led.Degree = 300;
-//             break;
-//         }
-//         case ACT_COUNTERCLOCKWISE:
-//         {
-//             joust_printf("ACT_COUNTERCLOCKWISE\r\n");
-//             ref.led.Degree = 60;
-//             break;
-//         }
-//         case ACT_BOTH:
-//         {
-//             joust_printf("ACT_BOTH\r\n");
-//             ref.led.Degree = 0;
-//             break;
-//         }
-//         default:
-//         {
-//             break;
-//         }
-//     }
-//     ref.gam.shouldTurnOnLeds = true;
-//
-//     // Clear the LEDs first
-//     refDisarmAllLedTimers();
-//     ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
-//     setLeds(ref.led.Leds, sizeof(ref.led.Leds));
-//     // Then set the game in motion
-//     os_timer_arm(&ref.tmr.GameLed, ref.gam.ledPeriodMs, true);
-// }
 
+/**
+ * Start a round of the game by picking a random action and starting
+ * refGameLedTimeout()
+ */
+void ICACHE_FLASH_ATTR joustStartRound(void)
+{
+    joust.gameState = R_PLAYING;
+    //
+    // // pick a random game action
+    // ref.gam.Action = os_random() % 3;
+    //
+    // // Set the LED's starting angle
+    // switch(ref.gam.Action)
+    // {
+    //     case ACT_CLOCKWISE:
+    //     {
+    //         joust_printf("ACT_CLOCKWISE\r\n");
+    //         ref.led.Degree = 300;
+    //         break;
+    //     }
+    //     case ACT_COUNTERCLOCKWISE:
+    //     {
+    //         joust_printf("ACT_COUNTERCLOCKWISE\r\n");
+    //         ref.led.Degree = 60;
+    //         break;
+    //     }
+    //     case ACT_BOTH:
+    //     {
+    //         joust_printf("ACT_BOTH\r\n");
+    //         ref.led.Degree = 0;
+    //         break;
+    //     }
+    //     default:
+    //     {
+    //         break;
+    //     }
+    // }
+    // ref.gam.shouldTurnOnLeds = true;
+    //
+    // // Clear the LEDs first
+    // refDisarmAllLedTimers();
+    // ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+    // setLeds(ref.led.Leds, sizeof(ref.led.Leds));
+    // // Then set the game in motion
+    // os_timer_arm(&ref.tmr.GameLed, ref.gam.ledPeriodMs, true);
+}
+
+
+void ICACHE_FLASH_ATTR joustUpdateDisplay(void)
+{
+    // Clear the display
+    clearDisplay();
+
+    // Draw a title
+    plotText(0, 0, "JOUST", RADIOSTARS);
+
+    // Display the acceleration on the display
+    char accelStr[32] = {0};
+
+    int mov = (int) sqrt(pow(joust.joustAccel.x,2) + pow(joust.joustAccel.y,2)+ pow(joust.joustAccel.z,2));
+
+    joust.rolling_average = (joust.rolling_average*2 + mov)/3;
+    ets_snprintf(accelStr ,sizeof(accelStr), "X:%d" , joust.rolling_average);
+
+    plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
+
+}
+
+/**
+ * Update the acceleration for the Joust mode
+ */
+void ICACHE_FLASH_ATTR joustAccelerometerHandler(accel_t* accel)
+{
+    if (joust.gameState == R_PLAYING){
+    joust.joustAccel.x = accel->x;
+    joust.joustAccel.y = accel->y;
+    joust.joustAccel.z = accel->z;
+
+    joustUpdateDisplay();
+    }
+}
 
 
 /**
