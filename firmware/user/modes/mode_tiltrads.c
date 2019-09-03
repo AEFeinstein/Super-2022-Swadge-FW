@@ -6,6 +6,7 @@
 */
 
 #include <osapi.h>
+#include <user_interface.h>
 
 #include "user_main.h"	//swadge mode
 #include "buttons.h"
@@ -13,12 +14,15 @@
 #include "font.h"		//draw text
 #include "bresenham.h"	//draw shapes
 
+// https://gamedevelopment.tutsplus.com/tutorials/implementing-tetris-collision-detection--gamedev-852
+// https://simon.lc/the-history-of-tetris-randomizers
+
 // any defines go here.
 // screen location offsets.
-#define BTN_CTR_X 96
-#define BTN_CTR_Y 40
-#define BTN_RAD    8
-#define BTN_OFF   12
+//#define BTN_CTR_X 96
+//#define BTN_CTR_Y 40
+//#define BTN_RAD    8
+//#define BTN_OFF   12
 
 #define BTN_START_GAME RIGHT
 #define BTN_START_SCORES LEFT
@@ -29,6 +33,13 @@
 // update task info.
 #define UPDATE_TIME_MS 16 
 
+// playfield settings.
+#define GRID_X 45
+#define GRID_Y -1
+#define GRID_UNIT_SIZE 4
+#define GRID_WIDTH 10
+#define GRID_HEIGHT 16
+
 // any enums go here.
 typedef enum
 {
@@ -38,15 +49,18 @@ typedef enum
 	//TODO: does this need a transition state?
 } tiltradsState_t;
 
+int tiltradsGrid[GRID_WIDTH][GRID_HEIGHT];
+
 typedef enum
 {
-    I_TETRAD,	
-    O_TETRAD,	
-    T_TETRAD,
-    J_TETRAD,
-    L_TETRAD,
-    S_TETRAD,
-    Z_TETRAD
+    EMPTY=0,    // for the grid, to render an empty space.
+    I_TETRAD=1,	
+    O_TETRAD=2,	
+    T_TETRAD=3,
+    J_TETRAD=4,
+    L_TETRAD=5,
+    S_TETRAD=6,
+    Z_TETRAD=7
 } tetrad_t;
 
 /*
@@ -87,10 +101,10 @@ void ICACHE_FLASH_ATTR plotJTetrad(int x0, int y0, int rotation, uint8_t unitSiz
 void ICACHE_FLASH_ATTR plotLTetrad(int x0, int y0, int rotation, uint8_t unitSize);
 void ICACHE_FLASH_ATTR plotSTetrad(int x0, int y0, int rotation, uint8_t unitSize);
 void ICACHE_FLASH_ATTR plotZTetrad(int x0, int y0, int rotation, uint8_t unitSize);
-void ICACHE_FLASH_ATTR rotateTetrad();
-void ICACHE_FLASH_ATTR dropTetrad();
+void ICACHE_FLASH_ATTR rotateTetrad(void);
+void ICACHE_FLASH_ATTR dropTetrad(void);
 void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size);
-void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, int xUnits, int yUnits, int unitSize, bool drawGridLines);
+void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, int unitSize, int gridWidth, int gridHeight, int grid[][gridHeight]);
 
 swadgeMode tiltradsMode = 
 {
@@ -147,7 +161,7 @@ void ICACHE_FLASH_ATTR ttDeInit(void)
 	os_timer_disarm(&timerHandleUpdate);
 }
 
-void ICACHE_FLASH_ATTR ttButtonCallback(uint8_t state, int button, int down)
+void ICACHE_FLASH_ATTR ttButtonCallback(uint8_t state, int button __attribute__((unused)), int down __attribute__((unused)))
 {
 	ttButtonState = state;	// Set the state of all buttons
 }
@@ -160,7 +174,7 @@ void ICACHE_FLASH_ATTR ttAccelerometerCallback(accel_t* accel)
     //ttUpdateDisplay();		// Update the display
 }
 
-static void ICACHE_FLASH_ATTR ttUpdate(void* arg)
+static void ICACHE_FLASH_ATTR ttUpdate(void* arg __attribute__((unused)))
 {
 	// Update time tracking.
 	uint32_t newModeTime = system_get_time() - modeStartTime;
@@ -187,6 +201,8 @@ static void ICACHE_FLASH_ATTR ttUpdate(void* arg)
 			ttScoresInput();
             break;
         }
+        default:
+            break;
     };
 
     // Mark what our inputs were the last time we acted on them.
@@ -210,6 +226,8 @@ static void ICACHE_FLASH_ATTR ttUpdate(void* arg)
 			ttScoresDisplay();
             break;
         }
+        default:
+            break;
     };
 }
 
@@ -301,14 +319,21 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     // Clear the display
     clearDisplay();
 
-    // vertical screen orientation.
-    //plotGrid(0, 0, 20, 10, 4);
+    // Just randomize garbage now to test.
+    /*for (int r = 0; r < GRID_WIDTH; r++) 
+    {
+        for (int c = 0; c < GRID_HEIGHT; c++) 
+        {
+            tiltradsGrid[r][c] = (c % 3 == 0) && (r % 2 == 0) ? 1 : 0;
+        }
+    }*/
 
     // horizontal screen orientation.
-    plotGrid(45, -1, 10, 16, 4, (testRotation % 2 == 0));
+    // draw the grid and existing pieces.
+    plotGrid(GRID_X, GRID_Y, GRID_UNIT_SIZE, GRID_WIDTH, GRID_HEIGHT, tiltradsGrid);
 
     // next piece area
-    plotGrid(45+40+4*3, 3, 6, 4, 4, (testRotation % 2 == 0));
+    //plotGrid(45+40+4*3, 3, 6, 4, 4, (testRotation % 2 == 0));
     
     //TODO: the next piece (centered)
 
@@ -365,6 +390,26 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
 	currState = newState;
 	stateStartTime = system_get_time();
 	stateTime = 0;
+
+    switch( currState )
+    {
+        case TT_TITLE:
+            break;
+        case TT_GAME:
+            // TODO: any game restart stuff should go here.
+            for (int x = 0; x < GRID_WIDTH; x++) 
+            {
+                for (int y = 0; y < GRID_HEIGHT; y++) 
+                {
+                    tiltradsGrid[x][y] = 0;
+                }
+            }
+            break;
+        case TT_SCORES:
+            break;
+        default:
+            break;
+    };
 }
 
 bool ICACHE_FLASH_ATTR ttIsButtonPressed(uint8_t button)
@@ -377,7 +422,8 @@ void ICACHE_FLASH_ATTR drawTetrad(int x0, int y0, tetrad_t type, int rotation, u
 {
     if(drawBounds)
     {
-        switch(type)
+        plotSquare(x0,y0,unitSize*4);
+        /*switch(type)
         {
             case I_TETRAD:
 			    plotSquare(x0,y0,unitSize*4);
@@ -387,11 +433,13 @@ void ICACHE_FLASH_ATTR drawTetrad(int x0, int y0, tetrad_t type, int rotation, u
                 break;
             default: 
                 plotSquare(x0,y0,unitSize*3);
-        }
+        }*/
     }
 
     switch(type)
     {
+        case EMPTY:
+            break;
         case I_TETRAD:
 		    plotITetrad(x0,y0,rotation,unitSize);
             break;
@@ -412,6 +460,8 @@ void ICACHE_FLASH_ATTR drawTetrad(int x0, int y0, tetrad_t type, int rotation, u
             break;
         case Z_TETRAD:
 		    plotZTetrad(x0,y0,rotation,unitSize);
+            break;
+        default:
             break;
     }
 }
@@ -445,10 +495,12 @@ void ICACHE_FLASH_ATTR plotITetrad(int x0, int y0, int rotation, uint8_t unitSiz
             plotSquare(x0+unitSize*1,   y0+unitSize*2,  unitSize);
             plotSquare(x0+unitSize*1,   y0+unitSize*3,  unitSize);
             break;
+        default:
+            break;
     }
 }
 
-void ICACHE_FLASH_ATTR plotOTetrad(int x0, int y0, int rotation, uint8_t unitSize)
+void ICACHE_FLASH_ATTR plotOTetrad(int x0, int y0, int rotation __attribute__((unused)), uint8_t unitSize)
 {
     plotSquare(x0+unitSize,     y0,             unitSize);
     plotSquare(x0+unitSize*2,   y0,             unitSize);
@@ -485,6 +537,8 @@ void ICACHE_FLASH_ATTR plotTTetrad(int x0, int y0, int rotation, uint8_t unitSiz
             plotSquare(x0+unitSize,   y0+unitSize*2,  unitSize);
             plotSquare(x0,            y0+unitSize,    unitSize);
             break;
+        default:
+            break;
     }
 }
 
@@ -516,6 +570,8 @@ void ICACHE_FLASH_ATTR plotJTetrad(int x0, int y0, int rotation, uint8_t unitSiz
             plotSquare(x0+unitSize,   y0+unitSize,    unitSize);
             plotSquare(x0+unitSize,   y0+unitSize*2,  unitSize);
             plotSquare(x0,            y0+unitSize*2,  unitSize);
+            break;
+        default:
             break;
     }
 }
@@ -549,6 +605,8 @@ void ICACHE_FLASH_ATTR plotLTetrad(int x0, int y0, int rotation, uint8_t unitSiz
             plotSquare(x0+unitSize,   y0+unitSize,    unitSize);
             plotSquare(x0+unitSize,   y0+unitSize*2,  unitSize);
             break;
+        default:
+            break;
     }
 }
 
@@ -580,6 +638,8 @@ void ICACHE_FLASH_ATTR plotSTetrad(int x0, int y0, int rotation, uint8_t unitSiz
             plotSquare(x0,              y0+unitSize,    unitSize);
             plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
             plotSquare(x0+unitSize,     y0+unitSize*2,  unitSize);
+            break;
+        default:
             break;
     }
 }
@@ -613,6 +673,8 @@ void ICACHE_FLASH_ATTR plotZTetrad(int x0, int y0, int rotation, uint8_t unitSiz
             plotSquare(x0+unitSize,   y0+unitSize,    unitSize);
             plotSquare(x0+unitSize,   y0,             unitSize);
             break;
+        default:
+            break;
     }
 }
 
@@ -632,21 +694,22 @@ void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size)
     plotRect(x0, y0, x0 + size, y0 + size);
 }
 
-void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, int xUnits, int yUnits, int unitSize, bool drawGridLines)
+void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, int unitSize, int gridWidth, int gridHeight, int grid[][gridHeight])
 {
-    if (drawGridLines) 
+    for (int x = 0; x < gridWidth; x++)
     {
-        for (int x = 0; x < xUnits; x++)
+        for (int y = 0; y < gridHeight; y++) 
         {
-            for (int y = 0; y < yUnits; y++) 
+            //TODO: different drawings based on value.
+            //TODO: render in tetris cascade border style.
+            if (grid[x][y] > 0) 
             {
                 plotSquare(x0+x*unitSize, y0+y*unitSize, unitSize);
             }
         }
     }
-    else
-    {
-        plotRect(x0, y0, x0 + unitSize * xUnits, y0 + unitSize * yUnits);
-    }
+    
+    // draw border.
+    plotRect(x0, y0, x0 + unitSize * gridWidth, y0 + unitSize * gridHeight);
 }
 
