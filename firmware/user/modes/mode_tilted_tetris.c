@@ -90,7 +90,7 @@ void ICACHE_FLASH_ATTR plotZTetromino(int x0, int y0, int rotation, uint8_t unit
 void ICACHE_FLASH_ATTR rotateTetromino();
 void ICACHE_FLASH_ATTR dropTetromino();
 void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size);
-void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, int xUnits, int yUnits, int unitSize);
+void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, int xUnits, int yUnits, int unitSize, bool drawGridLines);
 
 swadgeMode tiltedTetrisMode = 
 {
@@ -305,45 +305,49 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     //plotGrid(0, 0, 20, 10, 4);
 
     // horizontal screen orientation.
-    plotGrid(45, -1, 10, 16, 4);
-    // next piece area
-    plotGrid(65, -1, 10, 16, 4);
-    // score
-    // lines
-    // level
-    // the current high score?
+    plotGrid(45, -1, 10, 16, 4, (testRotation % 2 == 0));
 
-    /*    
+    // next piece area
+    plotGrid(45+40+4*3, 3, 6, 4, 4, (testRotation % 2 == 0));
+    
+    //TODO: the next piece (centered)
+
+    //TODO: score
+    //TODO: lines
+    //TODO: level
+    //TODO: the current high score?
+
+    
     // straight test
-    int posX = 5;
+    /*int posX = 5;
     int posY = 20;
     int testUnitSize = 4; 
-    drawTetromino(posX, posY, I_TETROMINO, testRotation, testUnitSize, false);
+    drawTetromino(posX, posY, I_TETROMINO, testRotation, testUnitSize, true);
 
     // square test
     posX += 25;
-    drawTetromino(posX, posY, O_TETROMINO, testRotation, testUnitSize, false);
+    drawTetromino(posX, posY, O_TETROMINO, testRotation, testUnitSize, true);
 
     // J test
     posX += 25;
-    drawTetromino(posX, posY, J_TETROMINO, testRotation, testUnitSize, false);
+    drawTetromino(posX, posY, J_TETROMINO, testRotation, testUnitSize, true);
 
     // L test
     posX += 20;
-    drawTetromino(posX, posY, L_TETROMINO, testRotation, testUnitSize, false);
+    drawTetromino(posX, posY, L_TETROMINO, testRotation, testUnitSize, true);
 
     // T test
     posX += 20;
-    drawTetromino(posX, posY, T_TETROMINO, testRotation, testUnitSize, false);
+    drawTetromino(posX, posY, T_TETROMINO, testRotation, testUnitSize, true);
     
     // S test
     posX = 5;
     posY += 25;
-    drawTetromino(posX, posY, S_TETROMINO, testRotation, testUnitSize, false);
+    drawTetromino(posX, posY, S_TETROMINO, testRotation, testUnitSize, true);
 
     // Z test
     posX += 20;
-    drawTetromino(posX, posY, Z_TETROMINO, testRotation, testUnitSize, false);*/
+    drawTetromino(posX, posY, Z_TETROMINO, testRotation, testUnitSize, true);*/
 }
 
 void ICACHE_FLASH_ATTR ttScoresDisplay(void)
@@ -628,14 +632,21 @@ void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size)
     plotRect(x0, y0, x0 + size, y0 + size);
 }
 
-void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, int xUnits, int yUnits, int unitSize)
+void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, int xUnits, int yUnits, int unitSize, bool drawGridLines)
 {
-    for (int x = 0; x < xUnits; x++)
+    if (drawGridLines) 
     {
-        for (int y = 0; y < yUnits; y++) 
+        for (int x = 0; x < xUnits; x++)
         {
-            plotSquare(x0+x*unitSize, y0+y*unitSize, unitSize);
+            for (int y = 0; y < yUnits; y++) 
+            {
+                plotSquare(x0+x*unitSize, y0+y*unitSize, unitSize);
+            }
         }
+    }
+    else
+    {
+        plotRect(x0, y0, x0 + unitSize * xUnits, y0 + unitSize * yUnits);
     }
 }
 
