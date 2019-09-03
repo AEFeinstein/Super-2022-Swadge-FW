@@ -33,7 +33,7 @@
 #include "mode_dance.h"
 #include "mode_flashlight.h"
 #include "mode_demo.h"
-#include "mode_tilted_tetris.h"
+#include "mode_tiltrads.h"
 
 /*============================================================================
  * Defines
@@ -67,7 +67,7 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 swadgeMode* swadgeModes[] =
 {
     &menuMode, // Menu must be the first
-	&tiltedTetrisMode,
+	&tiltradsMode,
     &demoMode,
     &colorchordMode,
     &reflectorGameMode,

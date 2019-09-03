@@ -1,5 +1,5 @@
 /*
-*	mode_tilted_tetris.c
+*	mode_tiltrads.c
 *
 *	Created on: Aug 2, 2019
 *		Author: Jonathan Moriarty
@@ -36,18 +36,18 @@ typedef enum
     TT_GAME,	// play the actual game
     TT_SCORES	// high scores / game over screen
 	//TODO: does this need a transition state?
-} tiltedTetrisState_t;
+} tiltradsState_t;
 
 typedef enum
 {
-    I_TETROMINO,	
-    O_TETROMINO,	
-    T_TETROMINO,
-    J_TETROMINO,
-    L_TETROMINO,
-    S_TETROMINO,
-    Z_TETROMINO
-} tetromino_t;
+    I_TETRAD,	
+    O_TETRAD,	
+    T_TETRAD,
+    J_TETRAD,
+    L_TETRAD,
+    S_TETRAD,
+    Z_TETRAD
+} tetrad_t;
 
 /*
 //TODO: this can just be modeled with int and modulus, easier math but is it performant on an ESP?
@@ -57,7 +57,7 @@ typedef enum
     ROT_1,	
     ROT_2,
     ROT_3
-} tetrominoRotations_t;*/
+} tetradRotations_t;*/
 
 // function prototypes go here.
 void ICACHE_FLASH_ATTR ttInit(void);
@@ -77,24 +77,24 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void);
 void ICACHE_FLASH_ATTR ttScoresDisplay(void);
 
 // helper functions.
-void ICACHE_FLASH_ATTR ttChangeState(tiltedTetrisState_t newState);
+void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState);
 bool ICACHE_FLASH_ATTR ttIsButtonPressed(uint8_t button);
-void ICACHE_FLASH_ATTR drawTetromino(int x0, int y0, tetromino_t type, int rotation, uint8_t unitSize, bool drawBounds);
-void ICACHE_FLASH_ATTR plotITetromino(int x0, int y0, int rotation, uint8_t unitSize);
-void ICACHE_FLASH_ATTR plotOTetromino(int x0, int y0, int rotation, uint8_t unitSize);
-void ICACHE_FLASH_ATTR plotTTetromino(int x0, int y0, int rotation, uint8_t unitSize);
-void ICACHE_FLASH_ATTR plotJTetromino(int x0, int y0, int rotation, uint8_t unitSize);
-void ICACHE_FLASH_ATTR plotLTetromino(int x0, int y0, int rotation, uint8_t unitSize);
-void ICACHE_FLASH_ATTR plotSTetromino(int x0, int y0, int rotation, uint8_t unitSize);
-void ICACHE_FLASH_ATTR plotZTetromino(int x0, int y0, int rotation, uint8_t unitSize);
-void ICACHE_FLASH_ATTR rotateTetromino();
-void ICACHE_FLASH_ATTR dropTetromino();
+void ICACHE_FLASH_ATTR drawTetrad(int x0, int y0, tetrad_t type, int rotation, uint8_t unitSize, bool drawBounds);
+void ICACHE_FLASH_ATTR plotITetrad(int x0, int y0, int rotation, uint8_t unitSize);
+void ICACHE_FLASH_ATTR plotOTetrad(int x0, int y0, int rotation, uint8_t unitSize);
+void ICACHE_FLASH_ATTR plotTTetrad(int x0, int y0, int rotation, uint8_t unitSize);
+void ICACHE_FLASH_ATTR plotJTetrad(int x0, int y0, int rotation, uint8_t unitSize);
+void ICACHE_FLASH_ATTR plotLTetrad(int x0, int y0, int rotation, uint8_t unitSize);
+void ICACHE_FLASH_ATTR plotSTetrad(int x0, int y0, int rotation, uint8_t unitSize);
+void ICACHE_FLASH_ATTR plotZTetrad(int x0, int y0, int rotation, uint8_t unitSize);
+void ICACHE_FLASH_ATTR rotateTetrad();
+void ICACHE_FLASH_ATTR dropTetrad();
 void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size);
 void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, int xUnits, int yUnits, int unitSize, bool drawGridLines);
 
-swadgeMode tiltedTetrisMode = 
+swadgeMode tiltradsMode = 
 {
-	.modeName = "Tilted Tetris",
+	.modeName = "Tiltrads",
 	.fnEnterMode = ttInit,
 	.fnExitMode = ttDeInit,
 	.fnButtonCallback = ttButtonCallback,
@@ -117,12 +117,12 @@ uint32_t deltaTime = 0;	// time elapsed since last update.
 uint32_t modeTime = 0;	// total time the mode has been running.
 uint32_t stateTime = 0;	// total time the game has been running.
 
-tiltedTetrisState_t currState = TT_TITLE;
+tiltradsState_t currState = TT_TITLE;
 
 //TODO: implement basic ux flow: *->menu screen->game screen->game over / high score screen->*
 //TODO: paste mode description from github issue into here, work from that.
 //TODO: accelerometer used to move pieces like a steering wheel, not tilting side to side.
-//TODO: draw a block, draw a tetromino, have it fall, have it land in place, tilt it.
+//TODO: draw a block, draw a tetrad, have it fall, have it land in place, tilt it.
 
 void ICACHE_FLASH_ATTR ttInit(void)
 {
@@ -226,7 +226,7 @@ void ICACHE_FLASH_ATTR ttTitleInput(void)
         ttChangeState(TT_SCORES);
     }
 
-    //TODO: accel = tilt something on screen like you would a tetromino
+    //TODO: accel = tilt something on screen like you would a tetrad
 }
 
 void ICACHE_FLASH_ATTR ttGameInput(void)
@@ -234,15 +234,15 @@ void ICACHE_FLASH_ATTR ttGameInput(void)
 	//button a = rotate piece
     if(ttIsButtonPressed(BTN_ROTATE))
     {
-        rotateTetromino();
+        rotateTetrad();
     }
     //button b = instant drop piece
     if(ttIsButtonPressed(BTN_DROP))
     {
-        dropTetromino();
+        dropTetrad();
     }
     
-	//TODO: accel = tilt the current tetromino
+	//TODO: accel = tilt the current tetrad
 
     //TODO: this is a debug input, remove it when done.
     if(ttIsButtonPressed(DOWN))
@@ -278,8 +278,8 @@ void ICACHE_FLASH_ATTR ttTitleDisplay(void)
     clearDisplay();
 
     // Draw a title
-    plotText(25, 0, "TILTED", RADIOSTARS);
-    plotText(35, (FONT_HEIGHT_RADIOSTARS + 1), "TETRIS", RADIOSTARS);
+    plotText(25, 0, "TILTRADS", RADIOSTARS);
+    //plotText(35, (FONT_HEIGHT_RADIOSTARS + 1), "TILTRADS", RADIOSTARS);
 
     // Display the acceleration on the display
     char accelStr[32] = {0};
@@ -322,32 +322,32 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     /*int posX = 5;
     int posY = 20;
     int testUnitSize = 4; 
-    drawTetromino(posX, posY, I_TETROMINO, testRotation, testUnitSize, true);
+    drawTetrad(posX, posY, I_TETRAD, testRotation, testUnitSize, true);
 
     // square test
     posX += 25;
-    drawTetromino(posX, posY, O_TETROMINO, testRotation, testUnitSize, true);
+    drawTetrad(posX, posY, O_TETRAD, testRotation, testUnitSize, true);
 
     // J test
     posX += 25;
-    drawTetromino(posX, posY, J_TETROMINO, testRotation, testUnitSize, true);
+    drawTetrad(posX, posY, J_TETRAD, testRotation, testUnitSize, true);
 
     // L test
     posX += 20;
-    drawTetromino(posX, posY, L_TETROMINO, testRotation, testUnitSize, true);
+    drawTetrad(posX, posY, L_TETRAD, testRotation, testUnitSize, true);
 
     // T test
     posX += 20;
-    drawTetromino(posX, posY, T_TETROMINO, testRotation, testUnitSize, true);
+    drawTetrad(posX, posY, T_TETRAD, testRotation, testUnitSize, true);
     
     // S test
     posX = 5;
     posY += 25;
-    drawTetromino(posX, posY, S_TETROMINO, testRotation, testUnitSize, true);
+    drawTetrad(posX, posY, S_TETRAD, testRotation, testUnitSize, true);
 
     // Z test
     posX += 20;
-    drawTetromino(posX, posY, Z_TETROMINO, testRotation, testUnitSize, true);*/
+    drawTetrad(posX, posY, Z_TETRAD, testRotation, testUnitSize, true);*/
 }
 
 void ICACHE_FLASH_ATTR ttScoresDisplay(void)
@@ -360,7 +360,7 @@ void ICACHE_FLASH_ATTR ttScoresDisplay(void)
 
 // helper functions.
 
-void ICACHE_FLASH_ATTR ttChangeState(tiltedTetrisState_t newState)
+void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
 {
 	currState = newState;
 	stateStartTime = system_get_time();
@@ -373,16 +373,16 @@ bool ICACHE_FLASH_ATTR ttIsButtonPressed(uint8_t button)
     return (ttButtonState & button) && !(ttLastButtonState & button);
 }
 
-void ICACHE_FLASH_ATTR drawTetromino(int x0, int y0, tetromino_t type, int rotation, uint8_t unitSize, bool drawBounds)
+void ICACHE_FLASH_ATTR drawTetrad(int x0, int y0, tetrad_t type, int rotation, uint8_t unitSize, bool drawBounds)
 {
     if(drawBounds)
     {
         switch(type)
         {
-            case I_TETROMINO:
+            case I_TETRAD:
 			    plotSquare(x0,y0,unitSize*4);
                 break;
-            case O_TETROMINO:
+            case O_TETRAD:
 			    plotRect(x0,y0,x0+unitSize*4,y0+unitSize*3);
                 break;
             default: 
@@ -392,31 +392,31 @@ void ICACHE_FLASH_ATTR drawTetromino(int x0, int y0, tetromino_t type, int rotat
 
     switch(type)
     {
-        case I_TETROMINO:
-		    plotITetromino(x0,y0,rotation,unitSize);
+        case I_TETRAD:
+		    plotITetrad(x0,y0,rotation,unitSize);
             break;
-        case O_TETROMINO:
-		    plotOTetromino(x0,y0,rotation,unitSize);
+        case O_TETRAD:
+		    plotOTetrad(x0,y0,rotation,unitSize);
             break;
-        case T_TETROMINO:
-		    plotTTetromino(x0,y0,rotation,unitSize);
+        case T_TETRAD:
+		    plotTTetrad(x0,y0,rotation,unitSize);
             break;
-        case J_TETROMINO:
-		    plotJTetromino(x0,y0,rotation,unitSize);
+        case J_TETRAD:
+		    plotJTetrad(x0,y0,rotation,unitSize);
             break;
-        case L_TETROMINO:
-		    plotLTetromino(x0,y0,rotation,unitSize);
+        case L_TETRAD:
+		    plotLTetrad(x0,y0,rotation,unitSize);
             break;
-        case S_TETROMINO:
-		    plotSTetromino(x0,y0,rotation,unitSize);
+        case S_TETRAD:
+		    plotSTetrad(x0,y0,rotation,unitSize);
             break;
-        case Z_TETROMINO:
-		    plotZTetromino(x0,y0,rotation,unitSize);
+        case Z_TETRAD:
+		    plotZTetrad(x0,y0,rotation,unitSize);
             break;
     }
 }
 
-void ICACHE_FLASH_ATTR plotITetromino(int x0, int y0, int rotation, uint8_t unitSize)
+void ICACHE_FLASH_ATTR plotITetrad(int x0, int y0, int rotation, uint8_t unitSize)
 {
     rotation = rotation%4;
     switch(rotation)
@@ -448,7 +448,7 @@ void ICACHE_FLASH_ATTR plotITetromino(int x0, int y0, int rotation, uint8_t unit
     }
 }
 
-void ICACHE_FLASH_ATTR plotOTetromino(int x0, int y0, int rotation, uint8_t unitSize)
+void ICACHE_FLASH_ATTR plotOTetrad(int x0, int y0, int rotation, uint8_t unitSize)
 {
     plotSquare(x0+unitSize,     y0,             unitSize);
     plotSquare(x0+unitSize*2,   y0,             unitSize);
@@ -456,7 +456,7 @@ void ICACHE_FLASH_ATTR plotOTetromino(int x0, int y0, int rotation, uint8_t unit
     plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
 }
 
-void ICACHE_FLASH_ATTR plotTTetromino(int x0, int y0, int rotation, uint8_t unitSize)
+void ICACHE_FLASH_ATTR plotTTetrad(int x0, int y0, int rotation, uint8_t unitSize)
 {
     rotation = rotation%4;
     switch(rotation)
@@ -488,7 +488,7 @@ void ICACHE_FLASH_ATTR plotTTetromino(int x0, int y0, int rotation, uint8_t unit
     }
 }
 
-void ICACHE_FLASH_ATTR plotJTetromino(int x0, int y0, int rotation, uint8_t unitSize)
+void ICACHE_FLASH_ATTR plotJTetrad(int x0, int y0, int rotation, uint8_t unitSize)
 {
     rotation = rotation%4;
     switch(rotation)
@@ -520,7 +520,7 @@ void ICACHE_FLASH_ATTR plotJTetromino(int x0, int y0, int rotation, uint8_t unit
     }
 }
 
-void ICACHE_FLASH_ATTR plotLTetromino(int x0, int y0, int rotation, uint8_t unitSize)
+void ICACHE_FLASH_ATTR plotLTetrad(int x0, int y0, int rotation, uint8_t unitSize)
 {
     rotation = rotation%4;
     switch(rotation)
@@ -552,7 +552,7 @@ void ICACHE_FLASH_ATTR plotLTetromino(int x0, int y0, int rotation, uint8_t unit
     }
 }
 
-void ICACHE_FLASH_ATTR plotSTetromino(int x0, int y0, int rotation, uint8_t unitSize)
+void ICACHE_FLASH_ATTR plotSTetrad(int x0, int y0, int rotation, uint8_t unitSize)
 {
     rotation = rotation%4;
     switch(rotation)
@@ -584,7 +584,7 @@ void ICACHE_FLASH_ATTR plotSTetromino(int x0, int y0, int rotation, uint8_t unit
     }
 }
 
-void ICACHE_FLASH_ATTR plotZTetromino(int x0, int y0, int rotation, uint8_t unitSize)
+void ICACHE_FLASH_ATTR plotZTetrad(int x0, int y0, int rotation, uint8_t unitSize)
 {
     rotation = rotation%4;
     switch(rotation)
@@ -616,13 +616,13 @@ void ICACHE_FLASH_ATTR plotZTetromino(int x0, int y0, int rotation, uint8_t unit
     }
 }
 
-void ICACHE_FLASH_ATTR rotateTetromino()
+void ICACHE_FLASH_ATTR rotateTetrad()
 {
     //TODO: fill in. does this need a rot direction as parameter?
     testRotation++;
 }
 
-void ICACHE_FLASH_ATTR dropTetromino()
+void ICACHE_FLASH_ATTR dropTetrad()
 {
     //TODO: fill in.
 }
