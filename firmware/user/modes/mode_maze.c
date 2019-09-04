@@ -78,7 +78,6 @@ static const uint8_t mazeBrightnesses[] =
     0x08,
     0x40,
     0x80,
-    0xC0,
 };
 
 
@@ -102,7 +101,7 @@ swadgeMode mazeMode =
 
 accel_t mazeAccel = {0};
 uint8_t mazeButtonState = 0;
-uint8_t mazeBrightnessIdx = 0;
+uint8_t mazeBrightnessIdx = 2;
 int maze_ledCount = 0;
 
 /* global variables for ODE */
@@ -124,7 +123,13 @@ FLOATING scxc;
 FLOATING scyc;
 FLOATING scxcprev = 2.0;
 FLOATING scycprev = 2.0;
+FLOATING scxcexit;
+FLOATING scycexit;
 FLOATING rballused = 5.0;
+uint16_t totalcyclestilldone;
+uint16_t totalhitstilldone;
+bool gameover;
+
 uint8_t width = 7;
 uint8_t height = 3; //Maze dimensions must be odd>1 probably for OLED use 31 15
 uint8_t mazescalex = 1;
@@ -158,6 +163,10 @@ void ICACHE_FLASH_ATTR mazeEnterMode(void)
 {
     int16_t i;
     int16_t startvert = 0;
+    totalcyclestilldone = 0;
+    totalhitstilldone = 0;
+    gameover = false;
+    // initial position upper left corner
     scxcprev = rballused;
     scycprev = rballused;
     // set these accelerometer readings consistant with starting at scxcprev and scycprev
@@ -166,6 +175,7 @@ void ICACHE_FLASH_ATTR mazeEnterMode(void)
 
     enableDebounce(false);
     numwalls = get_maze(width, height, xleft, xright, ybot, ytop);
+    // xleft, xright, ybot, ytop are lists of boundary intervals making maze
     numwallstodraw = numwalls;
     mazescalex = 127/width; //63,31,15,7
     mazescaley = 63/height; //31,15,7,3
@@ -174,7 +184,15 @@ void ICACHE_FLASH_ATTR mazeEnterMode(void)
     //           15         7 wx      from 0, 16, ... , 112       wy           0, 16, ..., 48 radius 3 ball
     //            7         3         from 0, 32, ..., 96                      0, 32, ...  radius 4 ball
     maze_printf("width:%d, height:%d mscx:%d mscy:%d\n", width, height, mazescalex, mazescaley);
-if (numwalls > MAXNUMWALLS) os_printf("numwalls = %d exceeds MAXNUMWALLS = %d", numwalls, MAXNUMWALLS);
+    if (numwalls > MAXNUMWALLS) os_printf("numwalls = %d exceeds MAXNUMWALLS = %d", numwalls, MAXNUMWALLS);
+
+    // exit is bottom right corner
+
+    scxcexit = mazescalex * (width - 1) - rballused;
+    scycexit = mazescaley * (height - 1) - rballused;
+os_printf("exit (%d, %d)\n", (int)scxcexit, (int)scycexit);
+
+    // produce scaled walls
     for (i = 0; i < numwalls; i++)
     {
         swxleft[i]  = mazescalex * xleft[i];
@@ -182,14 +200,18 @@ if (numwalls > MAXNUMWALLS) os_printf("numwalls = %d exceeds MAXNUMWALLS = %d", 
         swxright[i] = mazescalex * xright[i];
 	swytop[i]   = mazescaley * ytop[i];
         maze_printf("i %d (%d, %d) to (%d, %d)\n", i, mazescalex*xleft[i], mazescaley*ybot[i], mazescalex*xright[i], mazescaley*ytop[i]);
-
      }
+
+    // extend the scaled walls (could possibly use same storage for swxleft and wxleft etc, but need to be careful
+    //   that use original scaled values for making wxleft etc)
     // extend walls by 0.99*rball and compute possible extra stopper walls
     // ONLY for horizontal and vertical walls. Could do for arbitrary but
     // would first need to compute perpendicular vectors and use them. 
-    // NOTE using 0.99*rball is bit of fiddle may still be possible to telport
-    // extend walls
-    for (i = 0; i < numwalls; i++)
+    // extending by rball I think guarantees no passing thru corners, but also
+    // causes sticking above T junctions in maze.
+    // NOTE using 0.99*rball prevents sticking but has very small probability
+    // to telport at corners extend walls
+   for (i = 0; i < numwalls; i++)
     {
         if (swybot[i] == swytop[i]) // horizontal wall
         {
@@ -370,22 +392,35 @@ uint8_t ICACHE_FLASH_ATTR  gonethru(FLOATING b_prev[], FLOATING b_now[], FLOATIN
     
     if (didgothru)
     {
-         // If would have gonethru adjust back to previous point ie ignore movement - 
-         // TOO choppy
+         // Adjust back to previous point ie ignore movement - TOO choppy
          //b_nowadjusted[0] = b_prev[0];
          //b_nowadjusted[1] = b_prev[1];
+         // Could adjust to point of contact with interval but still choppy
+
+         // Adjust to roll along interval is would have gone thru
          b_nowadjusted[0] = b_now[0] + (1.0 - param[1]) * (- testdir * pperp[0]);
          b_nowadjusted[1] = b_now[1] + (1.0 - param[1]) * (- testdir * pperp[1]);
    }
     return didgothru;
 }
 
-
-
+led_t leds[NUM_LIN_LEDS] = {{0}};
 
 void ICACHE_FLASH_ATTR maze_updateDisplay(void)
 {
     FLOATING param[2];
+    bool gonethruany;
+    if (gameover)
+    {
+       // Show score
+       char scoreStr[32] = {0};
+       ets_snprintf(scoreStr, sizeof(scoreStr), "Time: %d", totalcyclestilldone);
+       plotText(20, OLED_HEIGHT - (5 * (FONT_HEIGHT_IBMVGA8 + 1)), scoreStr, IBM_VGA_8);
+       ets_snprintf(scoreStr, sizeof(scoreStr), "Wall: %d", totalhitstilldone);
+       plotText(20, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), scoreStr, IBM_VGA_8);
+       return;
+    }
+
     // Clear the display
     clearDisplay();
 
@@ -401,20 +436,39 @@ void ICACHE_FLASH_ATTR maze_updateDisplay(void)
     //Save accelerometer reading in global storage
 //TODO can get values bigger than 1. here, my accelerometer has 14 bits
 //  but these are usually between +- 255
+
     // Smooth accelerometer readings
     xAccel = 0.9*xAccel + 0.1*mazeAccel.x;
     yAccel = 0.9*yAccel + 0.1*mazeAccel.y;
     zAccel = 0.9*zAccel + 0.1*mazeAccel.z;
 
+#define GETVELOCITY
+#ifdef GETVELOCITY
+    // Accelerometer determines velocity and does one euler step with dt = .1
+    scxc = scxcprev + 0.1 * mazeAccel.x;
+    scyc = scycprev + 0.1 * mazeAccel.y;
+    // Smoothed accelerometer determining velocity puts inertia makes bit harder to control
+    //scxc = scxcprev + 0.1 * xAccel;
+    //scyc = scycprev + 0.1 * yAccel;
+#else
     // Smoothed accelerometer determines position on screen
-
     // want -63 to 63 to go approx from 0 to 124 for scxc and 60 to 0 for scyc
     scxc = xAccel + 62; //xAccel/63 * 62 + 62
+    scyc = yAccel/2 + 30; //yAccel/63  + 30
+#endif
+
+    // force values within screen range
+    // boundary walls should handle this
+    // but don't seem to always do so this hack
     scxc = min(scxc, 127.);
     scxc = max(scxc, 0.0);
-    scyc = yAccel/2 + 30; //yAccel/63  + 30
     scyc = min(scyc, 63.);
     scyc = max(scyc, 0.0);
+
+
+/**************************************
+//Keep ball within maze boundaries.
+**************************************/
 
 //maze_printf("Entry for (%d, %d) to (%d, %d)\n", (int)(100*scxcprev), (int)(100*scycprev), (int)(100*scxc), (int)(100*scyc));
 
@@ -428,7 +482,7 @@ for (uint8_t k = 0; k < 2; k++)
     FLOATING b_now[2] = {scxc, scyc};
     FLOATING b_nowadjusteduse[2] = {scxc, scyc};
     FLOATING closestintersection[] = {0, 0};
-    bool gonethruany = false;
+    gonethruany = false;
     FLOATING smin = 2;
     for (int16_t i = 0; i < numwalls; i++)
     {
@@ -487,10 +541,31 @@ maze_printf("    closest intersection at wall %d with s = %d at (%d, %d)\n", ius
  
 } // end two try loop
 
+// balls new coordinates scxc, scyc were adjusted if gonethruany is true
+// can keep a score of totaltime and totaltimehitting
+// can flash LED when touch
+
+    totalcyclestilldone++;
+    if (gonethruany) totalhitstilldone++;
+
+// Update previous location for next cycle
 
     scxcprev = scxc;
     scycprev = scyc;
-    
+
+// Test if at exit (bottom right corner) thus finished
+
+    if ((scxc == scxcexit) && (scyc == scycexit))
+    {
+        leds[0].r = 255;
+        // Compute score
+os_printf("Time to complete maze %d, time on walls %d\n",totalcyclestilldone, totalhitstilldone);
+        gameover = true;
+//TODO How to stop and save score and start new game
+    }
+
+// Draw the ball
+
     switch ((int)rballused - 1)
     {
         case 4:
@@ -507,19 +582,22 @@ maze_printf("    closest intersection at wall %d with s = %d at (%d, %d)\n", ius
 	   plotCircle(scxc + 0.5, scyc + 0.5, 0);
     }
 
-    // Declare some LEDs, all off
-    led_t leds[NUM_LIN_LEDS] = {{0}};
-#define GAP 1
+// Light some LEDS
 
-/*  Python
+
+/*  Old Python Code for setting alpha and color depending on balls position and speed
     for led in self.leds:
         led.alpha = (1 - abs(self.ball.position - led.position)/(30+2*self.size.h/2.5))**3
         if self.framecount % 1 == 0:
             led.color = colorsys.hsv_to_rgb(self.ball.meanspeed,1,1)
 */
 
+/*
+#define GAP 1
+
     for (uint8_t indLed=0; indLed<NUM_LIN_LEDS/GAP; indLed++)
     {
+        // imagine led is positioned around OLED, use distance to ball as surogate for its brightness
         int16_t ledy = Ssinonlytable[((indLed<<8)*GAP/NUM_LIN_LEDS + 0x80) % 256]*28/1500; // from -1500 to 1500
         int16_t ledx = Ssinonlytable[((indLed<<8)*GAP/NUM_LIN_LEDS + 0xC0) % 256]*28/1500;
         len = sqrt((scxc - ledx)*(scxc - ledx) + (scyc - ledy)*(scyc - ledy));
@@ -529,9 +607,10 @@ maze_printf("    closest intersection at wall %d with s = %d at (%d, %d)\n", ius
         //leds[GAP*indLed].r = 255 - len * 4;
         leds[GAP*indLed].r = glow;
     }
+*/
     setmazeLeds(leds, sizeof(leds));
 
-}
+} // end of maze_updateDisplay
 
 
 /**

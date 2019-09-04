@@ -65,7 +65,6 @@ static const uint8_t rollBrightnesses[] =
     0x08,
     0x40,
     0x80,
-    0xC0,
 };
 
 
@@ -91,7 +90,7 @@ uint8_t currentMethod = 0;
 uint8_t numMethods = 4;
 accel_t rollAccel = {0};
 uint8_t rollButtonState = 0;
-uint8_t rollBrightnessIdx = 0;
+uint8_t rollBrightnessIdx = 2;
 int roll_ledCount = 0;
 FLOATING scxc = 0;
 FLOATING scyc = 0;

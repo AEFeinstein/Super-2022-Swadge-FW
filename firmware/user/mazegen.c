@@ -28,6 +28,7 @@ typedef unsigned char       uint8_t;
 typedef struct
 {
 	//uint8_t x, y; //Node position - little waste of memory, but it allows faster generation
+        // eliminated and changed code to compute on fly as was short of memory
 	void *parent; //Pointer to parent node
 	char c; //Character to be displayed
 	char dirs; //Directions that still haven't been explored
@@ -116,7 +117,7 @@ int16_t ICACHE_FLASH_ATTR wallIntervals_helper(bool usetranspose, uint8_t outerl
 		intervalstarted = true;
 		for ( j = 1; j < innerlooplimit + 1; j++ )
 		{
-#if DEBUG > 1
+#if DEBUG > 2
 			os_printf("%c i=%d, intervalstarted=%d, j=%d, jbegin=%d, indwall=%d\n",usetranspose ? nodes[i+ j * width].c : nodes[j+ i * width].c,
 					 i, intervalstarted, j,jbegin, indwall);
 #endif
@@ -170,6 +171,9 @@ Node ICACHE_FLASH_ATTR *link(uint8_t width, uint8_t height, Node * nodes,  Node 
 	//Connects node to random neighbor (if possible) and returns
 	//address of next node that should be visited
 
+        //Original code used n->x and n->y but if not set up in struct
+        //they can be replace by  (n - nodes) % width and (n-nodes)/width resp.
+
 	uint8_t x = 0;
 	uint8_t y = 0;
 	char dir;
@@ -188,8 +192,6 @@ Node ICACHE_FLASH_ATTR *link(uint8_t width, uint8_t height, Node * nodes,  Node 
 
 		//Mark direction as explored
 		n->dirs &= ~dir;
-
-//os_printf("%d = %d and %d = %d\n", (n - nodes) % width, n->x, (n-nodes)/width, n->y);
 
 		//Depending on chosen direction
 		switch ( dir )
@@ -335,7 +337,6 @@ int16_t ICACHE_FLASH_ATTR get_maze(uint8_t width, uint8_t height, uint8_t xleft[
 }
 
 #ifdef UBUNTU
-//TODO this prob not working
 void ICACHE_FLASH_ATTR main( uint8_t argc, char **argv )
 {
 	uint8_t width, height; //Maze dimensions probably for OLED use 31 15

@@ -15,8 +15,12 @@
 // can specify how these relate to the landscape view of OLED.
 #define ORIENTATIONFIX
 #ifdef ORIENTATIONFIX
-#define XLEFTOLED accel.x
-#define YTOPOLED (-accel.y)
+//bbkiwi swadge mockup
+//#define XLEFTOLED accel.x
+//#define YTOPOLED (-accel.y)
+//swadge dev kit
+#define XLEFTOLED accel.y
+#define YTOPOLED  accel.x
 #define ZFACEOLED accel.z
 #endif
 
