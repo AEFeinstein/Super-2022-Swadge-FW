@@ -61,6 +61,8 @@
 
 typedef enum
 {
+    R_MENU,
+    R_SEARCHING,
     R_CONNECTING,
     R_SHOW_CONNECTION,
     R_PLAYING,
@@ -132,7 +134,8 @@ typedef enum
 // SwadgeMode Callbacks
 void ICACHE_FLASH_ATTR joustInit(void);
 void ICACHE_FLASH_ATTR joustDeinit(void);
-void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down);
+void ICACHE_FLASH_ATTR joustButton(uint8_t state __attribute__((unused)),
+        int button, int down);
 void ICACHE_FLASH_ATTR joustRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi);
 void ICACHE_FLASH_ATTR joustSendCb(uint8_t* mac_addr, mt_tx_status status);
 
@@ -143,6 +146,7 @@ void ICACHE_FLASH_ATTR refSinglePlayerRestart(void* arg __attribute__((unused)))
 void ICACHE_FLASH_ATTR refSinglePlayerScoreLed(uint8_t ledToLight, led_t* colorPrimary, led_t* colorSecondary);
 void ICACHE_FLASH_ATTR joustConnectionCallback(p2pInfo* p2p, connectionEvt_t event);
 void ICACHE_FLASH_ATTR joustMsgCallbackFn(p2pInfo* p2p, char* msg, uint8_t* payload, uint8_t len);
+void ICACHE_FLASH_ATTR joustMsgTxCbFn(p2pInfo* p2p, messageStatus_t status);
 
 // Transmission Functions
 void ICACHE_FLASH_ATTR joustSendMsg(char* msg, uint16_t len, bool shouldAck, void (*success)(void*),
@@ -159,7 +163,7 @@ void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event);
 // Game functions
 void ICACHE_FLASH_ATTR joustStartPlaying(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR joustStartRound(void);
-void ICACHE_FLASH_ATTR refSendRoundLossMsg(void);
+void ICACHE_FLASH_ATTR joustSendRoundLossMsg(void);
 void ICACHE_FLASH_ATTR refAdjustledSpeed(bool reset, bool up);
 void ICACHE_FLASH_ATTR joustAccelerometerHandler(accel_t* accel);
 
@@ -168,7 +172,7 @@ void ICACHE_FLASH_ATTR joustDisarmAllLedTimers(void);
 void ICACHE_FLASH_ATTR joustConnLedTimeout(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR joustShowConnectionLedTimeout(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)));
-void ICACHE_FLASH_ATTR refRoundResultLed(bool);
+void ICACHE_FLASH_ATTR joustRoundResultLed(bool);
 
 void ICACHE_FLASH_ATTR joustUpdateDisplay(void);
 
@@ -181,7 +185,7 @@ swadgeMode joustGameMode =
     .modeName = "joust",
     .fnEnterMode = joustInit,
     .fnExitMode = joustDeinit,
-    .fnButtonCallback = refButton,
+    .fnButtonCallback = joustButton,
     .fnAudioCallback = NULL,
     .wifiMode = ESP_NOW,
     .fnEspNowRecvCb = joustRecvCb,
@@ -331,14 +335,14 @@ struct
              break;
          case R_WAITING:
          {
-             // // Received a message that the other swadge lost
+             // Received a message that the other swadge lost
              // if(0 == ets_memcmp(msg, "los", 3))
              // {
              //     // The other swadge lost, so chalk a win!
-             //     ref.gam.Wins++;
+             //     // ref.gam.Wins++;
              //
              //     // Display the win
-             //     refRoundResultLed(true);
+             //     joustRoundResultLed(true);
              // }
              // if(0 == ets_memcmp(msg, "cnt", 3))
              // {
@@ -358,7 +362,15 @@ struct
          }
          case R_PLAYING:
          {
-             // Currently playing a game, shouldn't do anything with messages
+             if(0 == ets_memcmp(msg, "los", 3))
+             {
+                 // The other swadge lost, so chalk a win!
+                 // ref.gam.Wins++;
+
+                 // Display the win
+                 joustRoundResultLed(true);
+             }
+             // Currently playing a game, if a message is sent, then update score
              break;
          }
          case R_SHOW_CONNECTION:
@@ -385,20 +397,19 @@ void ICACHE_FLASH_ATTR joustInit(void)
     joust_printf("\nwe are NOW in the JOUST MODE\n");
     joust_printf("%s\r\n", __func__);
     clearDisplay();
-    plotText(0, 0, "Searching", IBM_VGA_8);
+    plotText(0, 0, "Press button", IBM_VGA_8);
     // Enable button debounce for consistent 1p/2p and difficulty config
     enableDebounce(true);
     // Make sure everything is zero!
     ets_memset(&joust, 0, sizeof(joust));
-    joust.p2pJoust.connectionRssi = 10;
     p2pInitialize(&joust.p2pJoust, "jou", joustConnectionCallback, joustMsgCallbackFn);
 
 
 
     // Get and save the string form of our MAC address
-    uint8_t mymac[6];
-    wifi_get_macaddr(SOFTAP_IF, mymac);
-    joust_printf("\ngonna print the mac string\n");
+    // uint8_t mymac[6];
+    // wifi_get_macaddr(SOFTAP_IF, mymac);
+    // joust_printf("\ngonna print the mac string\n");
     // ets_sprintf(joust.cnc.macStr, macFmtStrjoust,
     //             mymac[0],
     //             mymac[1],
@@ -436,10 +447,12 @@ void ICACHE_FLASH_ATTR joustInit(void)
 //     os_timer_setfn(&ref.tmr.SinglePlayerRestart, refSinglePlayerRestart, NULL);
 //
 
-    p2pStartConnection(&joust.p2pJoust);
+    // p2pStartConnection(&joust.p2pJoust);
+    joust.gameState = R_MENU;
     joust.p2pJoust.connectionRssi = 10;
     os_timer_arm(&joust.tmr.ConnLed, 1, true);
 }
+
 
 /**
  * Clean up all timers
@@ -567,7 +580,7 @@ void ICACHE_FLASH_ATTR joustStartPlaying(void* arg __attribute__((unused)))
     enableDebounce(false);
 
     // Turn off the LEDs
-    refDisarmAllLedTimers();
+    joustDisarmAllLedTimers();
     ets_memset(joust.led.Leds, 0, sizeof(joust.led.Leds));
     setLeds(joust.led.Leds, sizeof(joust.led.Leds));
 
@@ -659,18 +672,11 @@ void ICACHE_FLASH_ATTR joustUpdateDisplay(void)
 {
     // Clear the display
     clearDisplay();
-
     // Draw a title
     plotText(0, 0, "JOUST", RADIOSTARS);
-
     // Display the acceleration on the display
     char accelStr[32] = {0};
-
-    int mov = (int) sqrt(pow(joust.joustAccel.x,2) + pow(joust.joustAccel.y,2)+ pow(joust.joustAccel.z,2));
-
-    joust.rolling_average = (joust.rolling_average*2 + mov)/3;
     ets_snprintf(accelStr ,sizeof(accelStr), "X:%d" , joust.rolling_average);
-
     plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
 
 }
@@ -680,12 +686,19 @@ void ICACHE_FLASH_ATTR joustUpdateDisplay(void)
  */
 void ICACHE_FLASH_ATTR joustAccelerometerHandler(accel_t* accel)
 {
-    if (joust.gameState == R_PLAYING){
+
     joust.joustAccel.x = accel->x;
     joust.joustAccel.y = accel->y;
     joust.joustAccel.z = accel->z;
-
-    joustUpdateDisplay();
+    int mov = (int) sqrt(pow(joust.joustAccel.x,2) + pow(joust.joustAccel.y,2)+ pow(joust.joustAccel.z,2));
+    joust.rolling_average = (joust.rolling_average*2 + mov)/3;
+    if (joust.gameState == R_PLAYING){
+      if(mov > joust.rolling_average + 30){
+        joustSendRoundLossMsg();
+      }
+      else{
+        joustUpdateDisplay();
+      }
     }
 }
 
@@ -965,163 +978,176 @@ void ICACHE_FLASH_ATTR joustConnLedTimeout(void* arg __attribute__((unused)))
 //     }
 // }
 //
-// /**
-//  * This is called whenever a button is pressed
-//  *
-//  * If a game is being played, check for button down events and either succeed
-//  * or fail the round and pass the result to the other swadge
-//  *
-//  * @param state  A bitmask of all button states
-//  * @param button The button which triggered this action
-//  * @param down   true if the button was pressed, false if it was released
-//  */
-// void ICACHE_FLASH_ATTR refButton(uint8_t state, int button, int down)
-// {
-//     if(!down)
-//     {
-//         // Ignore all button releases
-//         return;
-//     }
-//
-//     if(true == ref.gam.singlePlayer &&
-//             NOT_DISPLAYING != ref.led.singlePlayerDisplayState)
-//     {
-//         // Single player score display, ignore button input
-//         return;
-//     }
-//
-//     // If we're still connecting and no connection has started yet
-//     if(R_CONNECTING == ref.gameState && !ref.cnc.rxGameStartAck && !ref.cnc.rxGameStartMsg)
-//     {
-//         if(1 == button)
-//         {
-//             // Start single player mode
-//             ref.gam.singlePlayer = true;
-//             ref.cnc.playOrder = GOING_FIRST;
-//             joustStartPlaying(NULL);
-//         }
-//         else if(2 == button)
-//         {
-//             // Adjust difficulty
-//             ref.gam.difficulty = (ref.gam.difficulty + 1) % 3;
-//         }
-//     }
-//     // If we're playing the game
-//     else if(R_PLAYING == ref.gameState && true == down)
-//     {
-//         bool success = false;
-//         bool failed = false;
-//
-//         // And the final LED is lit
-//         if(ref.led.Leds[3].r > 0)
-//         {
-//             // If it's the right button for a single button mode
-//             if ((ACT_COUNTERCLOCKWISE == ref.gam.Action && 2 == button) ||
-//                     (ACT_CLOCKWISE == ref.gam.Action && 1 == button))
-//             {
-//                 success = true;
-//             }
-//             // If it's the wrong button for a single button mode
-//             else if ((ACT_COUNTERCLOCKWISE == ref.gam.Action && 1 == button) ||
-//                      (ACT_CLOCKWISE == ref.gam.Action && 2 == button))
-//             {
-//                 failed = true;
-//             }
-//             // Or both buttons for both
-//             else if(ACT_BOTH == ref.gam.Action && ((0b110 & state) == 0b110))
-//             {
-//                 success = true;
-//             }
-//         }
-//         else
-//         {
-//             // If the final LED isn't lit, it's always a failure
-//             failed = true;
-//         }
-//
-//         if(success)
-//         {
-//             joust_printf("Won the round, continue the game\r\n");
-//
-//             char* spdPtr;
-//             // Add information about the timing
-//             if(ref.led.Leds[3].r >= 192)
-//             {
-//                 // Speed up if the button is pressed when the LED is brightest
-//                 spdPtr = spdUp;
-//             }
-//             else if(ref.led.Leds[3].r >= 64)
-//             {
-//                 // No change for the middle range
-//                 spdPtr = spdNc;
-//             }
-//             else
-//             {
-//                 // Slow down if button is pressed when the LED is dimmest
-//                 spdPtr = spdDn;
-//             }
-//
-//             // Single player follows different speed up/down logic
-//             if(ref.gam.singlePlayer)
-//             {
-//                 ref.gam.singlePlayerRounds++;
-//                 if(spdPtr == spdUp)
-//                 {
-//                     // If the hit is in the first 25%, increment the speed every third hit
-//                     // adjust speed up after three consecutive hits
-//                     ref.gam.singlePlayerTopHits++;
-//                     if(3 == ref.gam.singlePlayerTopHits)
-//                     {
-//                         refAdjustledSpeed(false, true);
-//                         ref.gam.singlePlayerTopHits = 0;
-//                     }
-//                 }
-//                 if(spdPtr == spdNc || spdPtr == spdDn)
-//                 {
-//                     // If the hit is in the second 75%, increment the speed immediately
-//                     refAdjustledSpeed(false, true);
-//                     // Reset the top hit count too because it just sped up
-//                     ref.gam.singlePlayerTopHits = 0;
-//                 }
-//                 refStartRound();
-//             }
-//             else
-//             {
-//                 // Now waiting for a result from the other swadge
-//                 ref.gameState = R_WAITING;
-//
-//                 // Clear the LEDs and stop the timer
-//                 refDisarmAllLedTimers();
-//                 ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
-//                 setLeds(ref.led.Leds, sizeof(ref.led.Leds));
-//
-//                 // Send a message to the other swadge that this round was a success
-//                 ets_sprintf(&roundContinueMsg[MAC_IDX], macFmtStr,
-//                             ref.cnc.otherMac[0],
-//                             ref.cnc.otherMac[1],
-//                             ref.cnc.otherMac[2],
-//                             ref.cnc.otherMac[3],
-//                             ref.cnc.otherMac[4],
-//                             ref.cnc.otherMac[5]);
-//                 roundContinueMsg[EXT_IDX - 1] = '_';
-//                 ets_sprintf(&roundContinueMsg[EXT_IDX], "%s", spdPtr);
-//
-//                 // If it's acked, start a timer to reinit if a result is never received
-//                 // If it's not acked, reinit with refRestart()
-//                 refSendMsg(roundContinueMsg, ets_strlen(roundContinueMsg), true, refStartRestartTimer, refRestart);
-//             }
-//         }
-//         else if(failed)
-//         {
-//             // Tell the other swadge
-//             refSendRoundLossMsg();
-//         }
-//         else
-//         {
-//             joust_printf("Neither won nor lost the round\r\n");
-//         }
-//     }
-// }
+/**
+ * This is called whenever a button is pressed
+ *
+ * If a game is being played, check for button down events and either succeed
+ * or fail the round and pass the result to the other swadge
+ *
+ * @param state  A bitmask of all button states
+ * @param button The button which triggered this action
+ * @param down   true if the button was pressed, false if it was released
+ */
+void ICACHE_FLASH_ATTR joustButton( uint8_t state,
+        int button __attribute__((unused)), int down __attribute__((unused)))
+{
+    if(!down)
+    {
+        // Ignore all button releases
+        return;
+    }
+
+    if(joust.gameState ==  R_MENU){
+      if(1 == button || 2 == button){
+        joust.gameState =  R_SEARCHING;
+        p2pStartConnection(&joust.p2pJoust);
+        joust.p2pJoust.connectionRssi = 10;
+        clearDisplay();
+        plotText(0, 0, "Searching", IBM_VGA_8);
+      }
+    }
+
+    // if(true == ref.gam.singlePlayer &&
+    //         NOT_DISPLAYING != ref.led.singlePlayerDisplayState)
+    // {
+    //     // Single player score display, ignore button input
+    //     return;
+    // }
+    //
+    // // If we're still connecting and no connection has started yet
+    // if(R_CONNECTING == ref.gameState && !ref.cnc.rxGameStartAck && !ref.cnc.rxGameStartMsg)
+    // {
+    //     if(1 == button)
+    //     {
+    //         // Start single player mode
+    //         ref.gam.singlePlayer = true;
+    //         ref.cnc.playOrder = GOING_FIRST;
+    //         joustStartPlaying(NULL);
+    //     }
+    //     else if(2 == button)
+    //     {
+    //         // Adjust difficulty
+    //         ref.gam.difficulty = (ref.gam.difficulty + 1) % 3;
+    //     }
+    // }
+    // // If we're playing the game
+    // else if(R_PLAYING == ref.gameState && true == down)
+    // {
+    //     bool success = false;
+    //     bool failed = false;
+    //
+    //     // And the final LED is lit
+    //     if(ref.led.Leds[3].r > 0)
+    //     {
+    //         // If it's the right button for a single button mode
+    //         if ((ACT_COUNTERCLOCKWISE == ref.gam.Action && 2 == button) ||
+    //                 (ACT_CLOCKWISE == ref.gam.Action && 1 == button))
+    //         {
+    //             success = true;
+    //         }
+    //         // If it's the wrong button for a single button mode
+    //         else if ((ACT_COUNTERCLOCKWISE == ref.gam.Action && 1 == button) ||
+    //                  (ACT_CLOCKWISE == ref.gam.Action && 2 == button))
+    //         {
+    //             failed = true;
+    //         }
+    //         // Or both buttons for both
+    //         else if(ACT_BOTH == ref.gam.Action && ((0b110 & state) == 0b110))
+    //         {
+    //             success = true;
+    //         }
+    //     }
+    //     else
+    //     {
+    //         // If the final LED isn't lit, it's always a failure
+    //         failed = true;
+    //     }
+    //
+    //     if(success)
+    //     {
+    //         joust_printf("Won the round, continue the game\r\n");
+    //
+    //         char* spdPtr;
+    //         // Add information about the timing
+    //         if(ref.led.Leds[3].r >= 192)
+    //         {
+    //             // Speed up if the button is pressed when the LED is brightest
+    //             spdPtr = spdUp;
+    //         }
+    //         else if(ref.led.Leds[3].r >= 64)
+    //         {
+    //             // No change for the middle range
+    //             spdPtr = spdNc;
+    //         }
+    //         else
+    //         {
+    //             // Slow down if button is pressed when the LED is dimmest
+    //             spdPtr = spdDn;
+    //         }
+    //
+    //         // Single player follows different speed up/down logic
+    //         if(ref.gam.singlePlayer)
+    //         {
+    //             ref.gam.singlePlayerRounds++;
+    //             if(spdPtr == spdUp)
+    //             {
+    //                 // If the hit is in the first 25%, increment the speed every third hit
+    //                 // adjust speed up after three consecutive hits
+    //                 ref.gam.singlePlayerTopHits++;
+    //                 if(3 == ref.gam.singlePlayerTopHits)
+    //                 {
+    //                     refAdjustledSpeed(false, true);
+    //                     ref.gam.singlePlayerTopHits = 0;
+    //                 }
+    //             }
+    //             if(spdPtr == spdNc || spdPtr == spdDn)
+    //             {
+    //                 // If the hit is in the second 75%, increment the speed immediately
+    //                 refAdjustledSpeed(false, true);
+    //                 // Reset the top hit count too because it just sped up
+    //                 ref.gam.singlePlayerTopHits = 0;
+    //             }
+    //             refStartRound();
+    //         }
+    //         else
+    //         {
+    //             // Now waiting for a result from the other swadge
+    //             ref.gameState = R_WAITING;
+    //
+    //             // Clear the LEDs and stop the timer
+    //             refDisarmAllLedTimers();
+    //             ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+    //             setLeds(ref.led.Leds, sizeof(ref.led.Leds));
+    //
+    //             // Send a message to the other swadge that this round was a success
+    //             ets_sprintf(&roundContinueMsg[MAC_IDX], macFmtStr,
+    //                         ref.cnc.otherMac[0],
+    //                         ref.cnc.otherMac[1],
+    //                         ref.cnc.otherMac[2],
+    //                         ref.cnc.otherMac[3],
+    //                         ref.cnc.otherMac[4],
+    //                         ref.cnc.otherMac[5]);
+    //             roundContinueMsg[EXT_IDX - 1] = '_';
+    //             ets_sprintf(&roundContinueMsg[EXT_IDX], "%s", spdPtr);
+    //
+    //             // If it's acked, start a timer to reinit if a result is never received
+    //             // If it's not acked, reinit with refRestart()
+    //             refSendMsg(roundContinueMsg, ets_strlen(roundContinueMsg), true, refStartRestartTimer, refRestart);
+    //         }
+    //     }
+    //     else if(failed)
+    //     {
+    //         // Tell the other swadge
+    //         refSendRoundLossMsg();
+    //     }
+    //     else
+    //     {
+    //         joust_printf("Neither won nor lost the round\r\n");
+    //     }
+    // }
+}
+
+
 //
 // /**
 //  * This starts a timer to reinit everything, used in case of a failure
@@ -1134,48 +1160,62 @@ void ICACHE_FLASH_ATTR joustConnLedTimeout(void* arg __attribute__((unused)))
 //     os_timer_arm(&ref.tmr.Reinit, FAILURE_RESTART_MS, false);
 // }
 //
-// /**
-//  * This is called when a round is lost. It tallies the loss, calls
-//  * refRoundResultLed() to display the wins/losses and set up the
-//  * potential next round, and sends a message to the other swadge
-//  * that the round was lost and
-//  *
-//  * Send a round loss message to the other swadge
-//  */
-// void ICACHE_FLASH_ATTR refSendRoundLossMsg(void)
-// {
-//     joust_printf("Lost the round\r\n");
-//     if(ref.gam.singlePlayer)
-//     {
-//         if(ref.led.singlePlayerDisplayState == NOT_DISPLAYING)
-//         {
-//             refDisarmAllLedTimers();
-//
-//             ref.led.singlePlayerDisplayState = FAIL_DISPLAY_ON_1;
-//             os_timer_arm(&ref.tmr.SinglePlayerRestart, RESTART_COUNT_PERIOD_MS, true);
-//         }
-//     }
-//     else
-//     {
-//         // Tally the loss
-//         ref.gam.Losses++;
-//
-//         // Show the current wins & losses
-//         refRoundResultLed(false);
-//
-//         // Send a message to that ESP that we lost the round
-//         ets_sprintf(&roundLossMsg[MAC_IDX], macFmtStr,
-//                     ref.cnc.otherMac[0],
-//                     ref.cnc.otherMac[1],
-//                     ref.cnc.otherMac[2],
-//                     ref.cnc.otherMac[3],
-//                     ref.cnc.otherMac[4],
-//                     ref.cnc.otherMac[5]);
-//         // If it's acked, start a timer to reinit if another message is never received
-//         // If it's not acked, reinit with refRestart()
-//         refSendMsg(roundLossMsg, ets_strlen(roundLossMsg), true, refStartRestartTimer, refRestart);
-//     }
-// }
+/**
+ * This is called when a round is lost. It tallies the loss, calls
+ * joustRoundResultLed() to display the wins/losses and set up the
+ * potential next round, and sends a message to the other swadge
+ * that the round was lost and
+ *
+ * Send a round loss message to the other swadge
+ */
+void ICACHE_FLASH_ATTR joustSendRoundLossMsg(void)
+{
+    joust_printf("Lost the round\r\n");
+
+    // ref.gam.Losses++;
+
+    // Show the current wins & losses
+    joustRoundResultLed(false);
+    // Send a message to that ESP that we lost the round
+    // If it's acked, start a timer to reinit if another message is never received
+    // If it's not acked, reinit with refRestart()
+    p2pSendMsg(&joust.p2pJoust, "los", NULL, 0, joustMsgTxCbFn);
+
+
+}
+
+
+
+/**
+ * @brief TODO
+ *
+ * @param p2p
+ * @param status
+ */
+void ICACHE_FLASH_ATTR joustMsgTxCbFn(p2pInfo* p2p __attribute__((unused)),
+                                    messageStatus_t status)
+{
+    switch(status)
+    {
+        case MSG_ACKED:
+        {
+            joust_printf("%s MSG_ACKED\n", __func__);
+            break;
+        }
+        case MSG_FAILED:
+        {
+            joust_printf("%s MSG_FAILED\n", __func__);
+            break;
+        }
+        default:
+        {
+            joust_printf("%s UNKNOWN\n", __func__);
+            break;
+        }
+    }
+}
+
+
 //
 // /**
 //  * This animation displays the single player score by first drawing the tens
@@ -1392,60 +1432,61 @@ void ICACHE_FLASH_ATTR joustConnLedTimeout(void* arg __attribute__((unused)))
 //     setLeds(ref.led.Leds, sizeof(ref.led.Leds));
 // }
 //
-//
-// /**
-//  * Show the wins and losses
-//  *
-//  * @param roundWinner true if this swadge was a winner, false if the other
-//  *                    swadge won
-//  */
-// void ICACHE_FLASH_ATTR refRoundResultLed(bool roundWinner)
-// {
-//     sint8_t i;
-//
-//     // Clear the LEDs
-//     ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
-//
-//     // Light green for wins
-//     for(i = 4; i < 4 + ref.gam.Wins; i++)
-//     {
-//         // Green
-//         ref.led.Leds[i % 6].g = 255;
-//         ref.led.Leds[i % 6].r = 0;
-//         ref.led.Leds[i % 6].b = 0;
-//     }
-//
-//     // Light reds for losses
-//     for(i = 2; i >= (3 - ref.gam.Losses); i--)
-//     {
-//         // Red
-//         ref.led.Leds[i].g = 0;
-//         ref.led.Leds[i].r = 255;
-//         ref.led.Leds[i].b = 0;
-//     }
-//
-//     // Push out LED data
-//     refDisarmAllLedTimers();
-//     setLeds(ref.led.Leds, sizeof(ref.led.Leds));
-//
-//     // Set up the next round based on the winner
-//     if(roundWinner)
-//     {
-//         ref.gameState = R_SHOW_GAME_RESULT;
-//         ref.cnc.playOrder = GOING_FIRST;
-//     }
-//     else
-//     {
-//         // Set ref.gameState here to R_WAITING to make sure a message isn't missed
-//         ref.gameState = R_WAITING;
-//         ref.cnc.playOrder = GOING_SECOND;
-//         ref.gam.receiveFirstMsg = false;
-//     }
-//
-//     // Call joustStartPlaying in 3 seconds
-//     os_timer_arm(&ref.tmr.StartPlaying, 3000, false);
-// }
-//
+
+/**
+ * Show the wins and losses
+ *
+ * @param roundWinner true if this swadge was a winner, false if the other
+ *                    swadge won
+ */
+void ICACHE_FLASH_ATTR joustRoundResultLed(bool roundWinner)
+{
+    joustRestart(NULL);
+    // sint8_t i;
+    //
+    // // Clear the LEDs
+    // ets_memset(ref.led.Leds, 0, sizeof(ref.led.Leds));
+    //
+    // // Light green for wins
+    // for(i = 4; i < 4 + ref.gam.Wins; i++)
+    // {
+    //     // Green
+    //     ref.led.Leds[i % 6].g = 255;
+    //     ref.led.Leds[i % 6].r = 0;
+    //     ref.led.Leds[i % 6].b = 0;
+    // }
+    //
+    // // Light reds for losses
+    // for(i = 2; i >= (3 - ref.gam.Losses); i--)
+    // {
+    //     // Red
+    //     ref.led.Leds[i].g = 0;
+    //     ref.led.Leds[i].r = 255;
+    //     ref.led.Leds[i].b = 0;
+    // }
+    //
+    // // Push out LED data
+    // refDisarmAllLedTimers();
+    // setLeds(ref.led.Leds, sizeof(ref.led.Leds));
+    //
+    // // Set up the next round based on the winner
+    // if(roundWinner)
+    // {
+    //     ref.gameState = R_SHOW_GAME_RESULT;
+    //     ref.cnc.playOrder = GOING_FIRST;
+    // }
+    // else
+    // {
+    //     // Set ref.gameState here to R_WAITING to make sure a message isn't missed
+    //     ref.gameState = R_WAITING;
+    //     ref.cnc.playOrder = GOING_SECOND;
+    //     ref.gam.receiveFirstMsg = false;
+    // }
+    //
+    // // Call joustStartPlaying in 3 seconds
+    // os_timer_arm(&ref.tmr.StartPlaying, 3000, false);
+}
+
 // /**
 //  * Adjust the speed of the game, or reset it to the default value for this
 //  * difficulty
