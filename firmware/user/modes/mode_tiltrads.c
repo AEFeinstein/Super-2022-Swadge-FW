@@ -40,6 +40,9 @@
 #define GRID_WIDTH 10
 #define GRID_HEIGHT 16
 
+#define EMPTY 0
+#define MAX_TETRADS 160
+
 // any enums go here.
 typedef enum
 {
@@ -51,9 +54,154 @@ typedef enum
 
 int tiltradsGrid[GRID_WIDTH][GRID_HEIGHT];
 
+uint8_t iTetradRotations [4][4][4] = 
+{
+    {{0,0,0,0},
+     {1,1,1,1},
+     {0,0,0,0},
+     {0,0,0,0}},
+    {{0,0,1,0},
+     {0,0,1,0},
+     {0,0,1,0},
+     {0,0,1,0}},
+    {{0,0,0,0},
+     {0,0,0,0},
+     {1,1,1,1},
+     {0,0,0,0}},
+    {{0,1,0,0},
+     {0,1,0,0},
+     {0,1,0,0},
+     {0,1,0,0}}
+};
+
+uint8_t oTetradRotations [4][4][4] = 
+{
+    {{0,1,1,0},
+     {0,1,1,0},
+     {0,0,0,0},
+     {0,0,0,0}},
+    {{0,1,1,0},
+     {0,1,1,0},
+     {0,0,0,0},
+     {0,0,0,0}},
+    {{0,1,1,0},
+     {0,1,1,0},
+     {0,0,0,0},
+     {0,0,0,0}},
+    {{0,1,1,0},
+     {0,1,1,0},
+     {0,0,0,0},
+     {0,0,0,0}}
+};
+
+uint8_t tTetradRotations [4][4][4] = 
+{
+    {{0,1,0,0},
+     {1,1,1,0},
+     {0,0,0,0},
+     {0,0,0,0}},
+    {{0,1,0,0},
+     {0,1,1,0},
+     {0,1,0,0},
+     {0,0,0,0}},
+    {{0,0,0,0},
+     {1,1,1,0},
+     {0,1,0,0},
+     {0,0,0,0}},
+    {{0,1,0,0},
+     {1,1,0,0},
+     {0,1,0,0},
+     {0,0,0,0}}
+};
+
+uint8_t jTetradRotations [4][4][4] = 
+{
+    {{1,0,0,0},
+     {1,1,1,0},
+     {0,0,0,0},
+     {0,0,0,0}},
+    {{0,1,1,0},
+     {0,1,0,0},
+     {0,1,0,0},
+     {0,0,0,0}},
+    {{0,0,0,0},
+     {1,1,1,0},
+     {0,0,1,0},
+     {0,0,0,0}},
+    {{0,1,0,0},
+     {0,1,0,0},
+     {1,1,0,0},
+     {0,0,0,0}}
+};
+
+uint8_t lTetradRotations [4][4][4] = 
+{
+    {{0,0,1,0},
+     {1,1,1,0},
+     {0,0,0,0},
+     {0,0,0,0}},
+    {{0,1,0,0},
+     {0,1,0,0},
+     {0,1,1,0},
+     {0,0,0,0}},
+    {{0,0,0,0},
+     {1,1,1,0},
+     {1,0,0,0},
+     {0,0,0,0}},
+    {{1,1,0,0},
+     {0,1,0,0},
+     {0,1,0,0},
+     {0,0,0,0}}
+};
+
+uint8_t sTetradRotations [4][4][4] = 
+{
+    {{0,1,1,0},
+     {1,1,0,0},
+     {0,0,0,0},
+     {0,0,0,0}},
+    {{0,1,0,0},
+     {0,1,1,0},
+     {0,0,1,0},
+     {0,0,0,0}},
+    {{0,0,0,0},
+     {0,1,1,0},
+     {1,1,0,0},
+     {0,0,0,0}},
+    {{1,0,0,0},
+     {1,1,0,0},
+     {0,1,0,0},
+     {0,0,0,0}}
+};
+
+uint8_t zTetradRotations [4][4][4] = 
+{
+    {{1,1,0,0},
+     {0,1,1,0},
+     {0,0,0,0},
+     {0,0,0,0}},
+    {{0,0,1,0},
+     {0,1,1,0},
+     {0,1,0,0},
+     {0,0,0,0}},
+    {{0,0,0,0},
+     {1,1,0,0},
+     {0,1,1,0},
+     {0,0,0,0}},
+    {{0,1,0,0},
+     {1,1,0,0},
+     {1,0,0,0},
+     {0,0,0,0}}
+};
+
+typedef struct
+{
+    int x;
+    int y;
+} coord_t;
+
 typedef enum
 {
-    EMPTY=0,    // for the grid, to render an empty space.
     I_TETRAD=1,	
     O_TETRAD=2,	
     T_TETRAD=3,
@@ -61,7 +209,21 @@ typedef enum
     L_TETRAD=5,
     S_TETRAD=6,
     Z_TETRAD=7
+} tetradType_t;
+
+typedef struct
+{
+    tetradType_t type;
+    int rotation; 
+    coord_t topLeft;
+    int shape[4][4];
 } tetrad_t;
+
+int numLandedTetrads;
+
+tetrad_t fallingTetrad;
+
+tetrad_t landedTetrads[MAX_TETRADS];
 
 /*
 //TODO: this can just be modeled with int and modulus, easier math but is it performant on an ESP?
@@ -93,18 +255,20 @@ void ICACHE_FLASH_ATTR ttScoresDisplay(void);
 // helper functions.
 void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState);
 bool ICACHE_FLASH_ATTR ttIsButtonPressed(uint8_t button);
-void ICACHE_FLASH_ATTR drawTetrad(int x0, int y0, tetrad_t type, int rotation, uint8_t unitSize, bool drawBounds);
-void ICACHE_FLASH_ATTR plotITetrad(int x0, int y0, int rotation, uint8_t unitSize);
+//void ICACHE_FLASH_ATTR drawTetrad(int x0, int y0, tetradType_t type, int rotation, uint8_t unitSize, bool drawBounds);
+void ICACHE_FLASH_ATTR copyGrid(uint8_t srcWidth, uint8_t srcHeight, uint8_t src[][srcHeight], uint8_t dstWidth, uint8_t dstHeight, uint8_t dst[][dstHeight]);
+/*void ICACHE_FLASH_ATTR plotITetrad(int x0, int y0, int rotation, uint8_t unitSize);
 void ICACHE_FLASH_ATTR plotOTetrad(int x0, int y0, int rotation, uint8_t unitSize);
 void ICACHE_FLASH_ATTR plotTTetrad(int x0, int y0, int rotation, uint8_t unitSize);
 void ICACHE_FLASH_ATTR plotJTetrad(int x0, int y0, int rotation, uint8_t unitSize);
 void ICACHE_FLASH_ATTR plotLTetrad(int x0, int y0, int rotation, uint8_t unitSize);
 void ICACHE_FLASH_ATTR plotSTetrad(int x0, int y0, int rotation, uint8_t unitSize);
-void ICACHE_FLASH_ATTR plotZTetrad(int x0, int y0, int rotation, uint8_t unitSize);
+void ICACHE_FLASH_ATTR plotZTetrad(int x0, int y0, int rotation, uint8_t unitSize);*/
 void ICACHE_FLASH_ATTR rotateTetrad(void);
 void ICACHE_FLASH_ATTR dropTetrad(void);
+void ICACHE_FLASH_ATTR spawnTetrad(void);
 void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size);
-void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, int unitSize, int gridWidth, int gridHeight, int grid[][gridHeight]);
+void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWidth, uint8_t gridHeight, uint8_t grid[][gridHeight]);//, bool drawBorder);
 
 swadgeMode tiltradsMode = 
 {
@@ -330,7 +494,8 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
 
     // horizontal screen orientation.
     // draw the grid and existing pieces.
-    plotGrid(GRID_X, GRID_Y, GRID_UNIT_SIZE, GRID_WIDTH, GRID_HEIGHT, tiltradsGrid);
+    //plotGrid(GRID_X, GRID_Y, GRID_UNIT_SIZE, GRID_WIDTH, GRID_HEIGHT, tiltradsGrid);
+    //plotGrid(GRID_X, GRID_Y, GRID_UNIT_SIZE, 4, 4, iTetradRotations[testRotation % 4]);
 
     // next piece area
     //plotGrid(45+40+4*3, 3, 6, 4, 4, (testRotation % 2 == 0));
@@ -347,32 +512,39 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     /*int posX = 5;
     int posY = 20;
     int testUnitSize = 4; 
-    drawTetrad(posX, posY, I_TETRAD, testRotation, testUnitSize, true);
+    //drawTetrad(posX, posY, I_TETRAD, testRotation, testUnitSize, true);
+    plotGrid(posX, posY, GRID_UNIT_SIZE, 4, 4, iTetradRotations[testRotation % 4]);
 
     // square test
     posX += 25;
-    drawTetrad(posX, posY, O_TETRAD, testRotation, testUnitSize, true);
+    //drawTetrad(posX, posY, O_TETRAD, testRotation, testUnitSize, true);
+    plotGrid(posX, posY, GRID_UNIT_SIZE, 4, 4, oTetradRotations[testRotation % 4]);
 
     // J test
     posX += 25;
-    drawTetrad(posX, posY, J_TETRAD, testRotation, testUnitSize, true);
+    //drawTetrad(posX, posY, J_TETRAD, testRotation, testUnitSize, true);
+    plotGrid(posX, posY, GRID_UNIT_SIZE, 4, 4, jTetradRotations[testRotation % 4]);
 
     // L test
     posX += 20;
-    drawTetrad(posX, posY, L_TETRAD, testRotation, testUnitSize, true);
+    //drawTetrad(posX, posY, L_TETRAD, testRotation, testUnitSize, true);
+    plotGrid(posX, posY, GRID_UNIT_SIZE, 4, 4, lTetradRotations[testRotation % 4]);
 
     // T test
     posX += 20;
-    drawTetrad(posX, posY, T_TETRAD, testRotation, testUnitSize, true);
+    //drawTetrad(posX, posY, T_TETRAD, testRotation, testUnitSize, true);
+    plotGrid(posX, posY, GRID_UNIT_SIZE, 4, 4, tTetradRotations[testRotation % 4]);
     
     // S test
     posX = 5;
     posY += 25;
-    drawTetrad(posX, posY, S_TETRAD, testRotation, testUnitSize, true);
+    //drawTetrad(posX, posY, S_TETRAD, testRotation, testUnitSize, true);
+    plotGrid(posX, posY, GRID_UNIT_SIZE, 4, 4, sTetradRotations[testRotation % 4]);
 
     // Z test
     posX += 20;
-    drawTetrad(posX, posY, Z_TETRAD, testRotation, testUnitSize, true);*/
+    //drawTetrad(posX, posY, Z_TETRAD, testRotation, testUnitSize, true);
+    plotGrid(posX, posY, GRID_UNIT_SIZE, 4, 4, zTetradRotations[testRotation % 4]);*/
 }
 
 void ICACHE_FLASH_ATTR ttScoresDisplay(void)
@@ -404,6 +576,7 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
                     tiltradsGrid[x][y] = 0;
                 }
             }
+            numLandedTetrads = 0;
             break;
         case TT_SCORES:
             break;
@@ -418,28 +591,29 @@ bool ICACHE_FLASH_ATTR ttIsButtonPressed(uint8_t button)
     return (ttButtonState & button) && !(ttLastButtonState & button);
 }
 
-void ICACHE_FLASH_ATTR drawTetrad(int x0, int y0, tetrad_t type, int rotation, uint8_t unitSize, bool drawBounds)
+void ICACHE_FLASH_ATTR copyGrid(uint8_t srcWidth, uint8_t srcHeight, uint8_t * src[][srcHeight], uint8_t dstWidth, uint8_t dstHeight, uint8_t * dst[][dstHeight])
+{
+    int copyWidth = srcWidth > dstWidth ? dstWidth : srcWidth;
+    int copyHeight = srcHeight > dstHeight ? dstHeight : srcHeight;
+
+    for (int x = 0; x < copyWidth; x++)
+    {
+        for (int y = 0; y < copyHeight; y++)
+        {
+            (*dst)[x][y] = (*src)[x][y];
+        }
+    }
+}
+
+/*void ICACHE_FLASH_ATTR drawTetrad(int x0, int y0, tetradType_t type, int rotation, uint8_t unitSize, bool drawBounds)
 {
     if(drawBounds)
     {
         plotSquare(x0,y0,unitSize*4);
-        /*switch(type)
-        {
-            case I_TETRAD:
-			    plotSquare(x0,y0,unitSize*4);
-                break;
-            case O_TETRAD:
-			    plotRect(x0,y0,x0+unitSize*4,y0+unitSize*3);
-                break;
-            default: 
-                plotSquare(x0,y0,unitSize*3);
-        }*/
     }
 
     switch(type)
     {
-        case EMPTY:
-            break;
         case I_TETRAD:
 		    plotITetrad(x0,y0,rotation,unitSize);
             break;
@@ -676,7 +850,7 @@ void ICACHE_FLASH_ATTR plotZTetrad(int x0, int y0, int rotation, uint8_t unitSiz
         default:
             break;
     }
-}
+}*/
 
 void ICACHE_FLASH_ATTR rotateTetrad()
 {
@@ -689,14 +863,55 @@ void ICACHE_FLASH_ATTR dropTetrad()
     //TODO: fill in.
 }
 
+void ICACHE_FLASH_ATTR spawnTetrad()
+{
+    //TODO: fill in with a good randomizer.
+    fallingTetrad.type = (tetradType_t)((os_random() % 6) + 1);
+    fallingTetrad.rotation = 0;
+    fallingTetrad.topLeft.x = 0; //TODO: spawn x and y
+    fallingTetrad.topLeft.y = 0; //TODO: spawn x and y
+    switch (fallingTetrad.type)
+    {
+        case I_TETRAD:
+		    fallingTetrad.shape = iTetradRotations[fallingTetrad.rotation];
+            break;
+        case O_TETRAD:
+		    plotOTetrad(x0,y0,rotation,unitSize);
+            break;
+        case T_TETRAD:
+		    plotTTetrad(x0,y0,rotation,unitSize);
+            break;
+        case J_TETRAD:
+		    plotJTetrad(x0,y0,rotation,unitSize);
+            break;
+        case L_TETRAD:
+		    plotLTetrad(x0,y0,rotation,unitSize);
+            break;
+        case S_TETRAD:
+		    plotSTetrad(x0,y0,rotation,unitSize);
+            break;
+        case Z_TETRAD:
+		    plotZTetrad(x0,y0,rotation,unitSize);
+            break;
+        default:
+            break;
+    }
+/*
+    tetradType_t type;
+    int rotation; 
+    coord_t topLeft;
+    int shape[4][4];
+*/
+}
+
 void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size)
 {
     plotRect(x0, y0, x0 + size, y0 + size);
 }
 
-void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, int unitSize, int gridWidth, int gridHeight, int grid[][gridHeight])
+void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWidth, uint8_t gridHeight, uint8_t grid[][gridHeight])//, bool drawBorder)
 {
-    for (int x = 0; x < gridWidth; x++)
+    /*for (int x = 0; x < gridWidth; x++)
     {
         for (int y = 0; y < gridHeight; y++) 
         {
@@ -707,9 +922,44 @@ void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, int unitSize, int gridWidth, int
                 plotSquare(x0+x*unitSize, y0+y*unitSize, unitSize);
             }
         }
+    }*/
+
+    //plotLine(int x0, int y0, int x1, int y1);
+    
+    for (int x = 0; x < gridWidth; x++)
+    {
+        for (int y = 0; y < gridHeight; y++) 
+        {
+            //TODO: different drawings based on value.
+            //TODO: render in tetris cascade border style.
+            if (grid[x][y] != EMPTY) 
+            {
+                //top
+                if (y == 0 || grid[x][y-1] == EMPTY)
+                {
+                    plotLine(x0+x*unitSize, y0+y*unitSize, x0+x*unitSize+unitSize, y0+y*unitSize);   
+                }
+                //bot
+                if (y == gridHeight-1 || grid[x][y+1] == EMPTY)
+                {
+                    plotLine(x0+x*unitSize, y0+y*unitSize+unitSize, x0+x*unitSize+unitSize, y0+y*unitSize+unitSize);   
+                }
+                
+                //left
+                if (x == 0 || grid[x-1][y] == EMPTY)
+                {
+                    plotLine(x0+x*unitSize, y0+y*unitSize, x0+x*unitSize, y0+y*unitSize+unitSize);   
+                }
+                //right
+                if (x == gridWidth-1 || grid[x+1][y] == EMPTY)
+                {
+                    plotLine(x0+x*unitSize+unitSize, y0+y*unitSize, x0+x*unitSize+unitSize, y0+y*unitSize+unitSize);   
+                }
+            }
+        }
     }
     
     // draw border.
-    plotRect(x0, y0, x0 + unitSize * gridWidth, y0 + unitSize * gridHeight);
+    //if (drawBounds) plotRect(x0, y0, x0 + unitSize * gridWidth, y0 + unitSize * gridHeight);
 }
 
