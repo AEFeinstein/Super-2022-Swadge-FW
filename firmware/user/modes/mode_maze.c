@@ -406,11 +406,13 @@ void ICACHE_FLASH_ATTR maze_updateDisplay(void)
     yAccel = 0.9*yAccel + 0.1*mazeAccel.y;
     zAccel = 0.9*zAccel + 0.1*mazeAccel.z;
 
+    // Smoothed accelerometer determines position on screen
+
     // want -63 to 63 to go approx from 0 to 124 for scxc and 60 to 0 for scyc
     scxc = xAccel + 62; //xAccel/63 * 62 + 62
     scxc = min(scxc, 127.);
     scxc = max(scxc, 0.0);
-    scyc = -yAccel/2 + 30; //yAccel/63  + 30
+    scyc = yAccel/2 + 30; //yAccel/63  + 30
     scyc = min(scyc, 63.);
     scyc = max(scyc, 0.0);
 
@@ -563,7 +565,7 @@ void ICACHE_FLASH_ATTR mazeButtonCallback( uint8_t state,
 		if (width == 63)
 		{
 			width = 7;
-			height = 3;
+			height = 7;
 			rballused += 3.0;
 		} else {
 			height = width;

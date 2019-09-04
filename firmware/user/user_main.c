@@ -365,6 +365,14 @@ static void ICACHE_FLASH_ATTR pollAccel(void* arg __attribute__((unused)))
         {
             QMA6981_poll(&accel);
         }
+#ifdef ORIENTATIONFIX
+	int16_t xOled = XLEFTOLED;
+	int16_t yOled = YTOPOLED;
+	int16_t zOled = ZFACEOLED;
+	accel.x = xOled;
+        accel.y = yOled;
+        accel.z = zOled;
+#endif
         swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback(&accel);
     }
 }

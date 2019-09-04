@@ -88,7 +88,7 @@ swadgeMode rollMode =
 };
 
 uint8_t currentMethod = 0;
-uint8_t numMethods = 2;
+uint8_t numMethods = 4;
 accel_t rollAccel = {0};
 uint8_t rollButtonState = 0;
 uint8_t rollBrightnessIdx = 0;
@@ -212,7 +212,7 @@ void ICACHE_FLASH_ATTR dnxdampedpendulum(FLOATING t, FLOATING x[], FLOATING dx[]
    //first order
    dx[0] = x[1];
    // second order
-   FLOATING down = atan2(yAccel, -xAccel);
+   FLOATING down = atan2(-yAccel, -xAccel);
    //os_printf("100down = %d\n", (int)(100*down)); // down 0 is with positve x on accel pointing down
    FLOATING force = 0.0; // later used for button replulsion
    //os_printf("%d\n", (int)(100*zAccel)); //xAccel can exceed 1
@@ -231,7 +231,7 @@ void ICACHE_FLASH_ATTR dnx2dvelocity(FLOATING t, FLOATING x[], FLOATING dx[], in
    (void)x;
    FLOATING force = 0.0;
    //FLOATING friction = 1.0;
-   FLOATING gmult = 2;
+   FLOATING gmult = 200;
    //first order
    dx[0] = force + gmult * xAccel;
    dx[1] = force + gmult * yAccel;
@@ -257,21 +257,28 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
     switch (currentMethod)
     {
         case 0:
-        case 1:
             tf = ti + dt;
             // Do one step of ODE solver assigned to rhs_fun_pointer
             //euler_dn1(dnx, ti, dt, xi, xf, numberoffirstordereqn);
             //rk4_dn1(dnx, ti, dt, xi, xf, numberoffirstordereqn);
             rk4_dn1((*rhs_fun_ptr), ti, dt, xi, xf, numberoffirstordereqn);
-        default:
+	    break;
+        case 1:
+            tf = ti + dt;
+            euler_dn1((*rhs_fun_ptr), ti, dt, xi, xf, numberoffirstordereqn);
+	    break;
+       default:
             (void)0;
     }
-    // prepare for the next step
-    //*adjustment_fun_ptr(xi, xf);
 
-    // possibly prevent hitting walls by stopping or bouncing
+    // prepare for the next step if are solving an ODE and
+    // perform any adjustments such as
+    // prevent hitting walls by stopping or bouncing
+    // torus wrapping
     // simple case 4 walls bounding the screen
+    // migt use *adjustment_fun_ptr(xi, xf);
 
+    int wrap[] = {127, 63};
     switch (currentMethod)
     {
         case 0:
@@ -280,55 +287,66 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
            {
                 xi[i] = xf[i];
            }
+           break;
         case 1:
+           ti = tf;
+           for (uint8_t i = 0; i < numberoffirstordereqn; i++)
+           {
+                if ((xf[i] >=0) && (xf[i] <= wrap[i]))
+                    xi[i] = xf[i];
+		else if (xf[i] < 0)
+		    xi[i] = xf[i] + wrap[i];
+		else
+		    xi[i] = xf[i] - wrap[i];
+           }
+	   break;
         default:
             (void)0;
     }
+
+    // Insure solution coordinates on OLED for the moving ball
+    // OLED xcoord from 0 (left) to 127, ycoord from 0(top) to 63
 
     switch (currentMethod)
     {
         case 0:
-            scxc = 64.0 - 28.0 * cos(xf[0]);
-            scyc = 32.0 - 28.0 * sin(xf[0]);
+            scxc = 64.0 - 28.0 * cos(xi[0]);
+            scyc = 32.0 - 28.0 * sin(xi[0]);
             break;
         case 1:
-        default:
+            scxc = xi[0];
+            scyc = xi[1];
+            break;
+
+        case 2:
+            // Using center of screen as orgin, position ball  proportional to x,y component of rollAccel
+            scxc = 64 + (rollAccel.x>>2);
+            scyc = 32 + (rollAccel.y>>3);
+            break;
+        case 3:
+            // Using center of screen as orgin, position ball on circle of radius 32 with direction x,y component of rollAccel
+            // acts as level with ball at lowest spot
+            scxc = rollAccel.x;
+            scyc = rollAccel.y;
+            len = sqrt(scxc*scxc + scyc*scyc);
+            if (len>0)
+            {
+               // scale normalized vector to length 28 to keep ball within bounds of screen
+               scxc = 64.0 + 28.0 * scxc / len;
+               scyc = 32.0 + 28.0 * scyc / len;
+            }
+            break;
+
+       default:
             (void)0;
     }
 
+    // Draw virtual ball
+    plotCircle(scxc, scyc, 5);
+    plotCircle(scxc, scyc, 3);
+    plotCircle(scxc, scyc, 1);
 
-
-    len = 1;
-
-    // Convert Output of ODE solution to coordinates on OLED for the moving ball
-    // OLED xcoord from 0 (left) to 127, ycoord from 0(top) to 63
-
-/*
-    // Using center of screen as orgin, position ball  proportional to x,y component of rollAccel
-    //plotCircle(64 + (rollAccel.x>>2), 32 - (rollAccel.y>>3), BTN_RAD);
-
-    // Using center of screen as orgin, position ball on circle of radius 32 with direction x,y component of rollAccel
-    //int16_t xc = rollAccel.x;
-    //int16_t yc = rollAccel.y;
-
-
-    len = sqrt(xc*xc + yc*yc);
-    //uint16_t len = sqrt(xc*xc + yc*yc);
-    //uint16_t len = norm(xc, yc);
-*/
-
-    if (len>0) {
-        // scale normalized vector to length 28 to keep ball within bounds of screen
-        //scxc = ((xc*28) / len); // for rolling ball
-        //scyc = ((yc*28) / len); // for rolling ball
-        //scxc = 28.0 * xc / len; // for rolling ball using Floating point
-        //scyc = 28.0 * yc / len; // for rolling ball using Floating point
-	//os_printf("100th %d, 100x %d, 100y %d\n", (int)(100*xf[0]), (int)(100*scxc), (int)(100*scyc));
-	//os_printf("xc %d, yc %d, len %d scxc %d scyc %d\n", xc, yc, len, scxc, scyc);
-        plotCircle(scxc, scyc, 5);
-        plotCircle(scxc, scyc, 3);
-        plotCircle(scxc, scyc, 1);
-    }
+    //os_printf("(%d, %d\n", (int)scxc, (int)scyc);
 
     // Declare some LEDs, all off
     led_t leds[NUM_LIN_LEDS] = {{0}};
@@ -376,7 +394,8 @@ void ICACHE_FLASH_ATTR rollButtonCallback( uint8_t state,
         // Cycle movement methods
 		currentMethod = (currentMethod + 1) % numMethods;
 os_printf("currentMethod = %d\n", currentMethod);
-		// maybe reset init conditions for new method
+		//reset init conditions for new method
+		initializeConditionsForODE(currentMethod);
         }
 	if(3 == button)
         {

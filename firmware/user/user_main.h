@@ -9,6 +9,18 @@
 #define USER_USER_MAIN_H_
 
 /*============================================================================
+ * Defines
+ *==========================================================================*/
+// The accelerometer has two arrows marked x and y and dot in circle marking up
+// can specify how these relate to the landscape view of OLED.
+#define ORIENTATIONFIX
+#ifdef ORIENTATIONFIX
+#define XLEFTOLED accel.x
+#define YTOPOLED (-accel.y)
+#define ZFACEOLED accel.z
+#endif
+
+/*============================================================================
  * Includes
  *==========================================================================*/
 
