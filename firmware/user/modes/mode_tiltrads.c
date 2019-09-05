@@ -52,9 +52,9 @@ typedef enum
 	//TODO: does this need a transition state?
 } tiltradsState_t;
 
-uint8_t tetradsGrid[GRID_WIDTH][GRID_HEIGHT];
+uint8_t tetradsGrid[GRID_HEIGHT][GRID_WIDTH];
 
-uint8_t nextTetradGrid[NEXT_GRID_WIDTH][NEXT_GRID_HEIGHT];
+uint8_t nextTetradGrid[NEXT_GRID_HEIGHT][NEXT_GRID_WIDTH];
 
 uint8_t iTetradRotations [4][4][4] = 
 {
@@ -255,14 +255,14 @@ void ICACHE_FLASH_ATTR ttScoresDisplay(void);
 // helper functions.
 void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState);
 bool ICACHE_FLASH_ATTR ttIsButtonPressed(uint8_t button);
-void ICACHE_FLASH_ATTR copyGrid(coord_t srcOffset, uint8_t srcWidth, uint8_t srcHeight, uint8_t src[][srcHeight], uint8_t dstWidth, uint8_t dstHeight, uint8_t dst[][dstHeight]);
-void ICACHE_FLASH_ATTR clearGrid(uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridHeight]);
+void ICACHE_FLASH_ATTR copyGrid(coord_t srcOffset, uint8_t srcWidth, uint8_t srcHeight, uint8_t src[][srcWidth], uint8_t dstWidth, uint8_t dstHeight, uint8_t dst[][dstWidth]);
+void ICACHE_FLASH_ATTR clearGrid(uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridWidth]);
 void ICACHE_FLASH_ATTR rotateTetrad(void);
 void ICACHE_FLASH_ATTR dropTetrad(void);
 tetrad_t ICACHE_FLASH_ATTR spawnTetrad(tetradType_t type, coord_t gridCoord, int rotation);
 void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size);
-void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridHeight]);
-void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shapeWidth, uint8_t shapeHeight, uint8_t shape[][shapeHeight]);
+void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridWidth]);
+void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shapeWidth, uint8_t shapeHeight, uint8_t shape[][shapeWidth]);
 
 swadgeMode tiltradsMode = 
 {
@@ -518,18 +518,15 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     clearGrid(GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
 
     // Drawing a debug tetrad.
-    /*coord_t testSpawnPoint;
-    testSpawnPoint.x = 3;
-    testSpawnPoint.y = 4;
-    tetrad_t testTetrad = spawnTetrad((tetradType_t)((testTetradType % 7)+ 1), testSpawnPoint, testRotation);
+    coord_t testSpawnPoint;
+    testSpawnPoint.x = 0;
+    testSpawnPoint.y = 0;
+    tetrad_t testTetrad = spawnTetrad((tetradType_t)((testTetradType % 7)+ 1), testSpawnPoint, testRotation % 4);
     plotShape(GRID_X+testSpawnPoint.x*GRID_UNIT_SIZE, GRID_Y+testSpawnPoint.y*GRID_UNIT_SIZE, GRID_UNIT_SIZE, 4, 4, testTetrad.shape);   
-    copyGrid(testTetrad.topLeft, 4, 4, testTetrad.shape, GRID_WIDTH, GRID_HEIGHT, tetradsGrid);*/
+    copyGrid(testTetrad.topLeft, 4, 4, testTetrad.shape, GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
 
     // Draw the base grid (make sure everything that needs to be in tetradsGrid is in there now).
     plotGrid(GRID_X, GRID_Y, GRID_UNIT_SIZE, GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
-
-
-    //TODO: oTetrad not being displayed correctly, and rotations are wrong at spawn, why?
 
     // Display the next tetrad.
     int nextTetradType = (((testTetradType + 1) % 7) + 1); //TODO: pull this from a correct generator
@@ -537,14 +534,19 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     clearGrid(NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
 
     coord_t nextTetradPoint;
-    nextTetradPoint.x = 0;
-    nextTetradPoint.y = 0;
+    nextTetradPoint.x = 1;
+    nextTetradPoint.y = 1;
 
     tetrad_t nextTetrad = spawnTetrad((tetradType_t)nextTetradType, nextTetradPoint, 0);
     plotShape(NEXT_GRID_X + nextTetradPoint.x * GRID_UNIT_SIZE, NEXT_GRID_Y + nextTetradPoint.y * GRID_UNIT_SIZE, GRID_UNIT_SIZE, 4, 4, nextTetrad.shape);   
     copyGrid(nextTetrad.topLeft, 4, 4, nextTetrad.shape, NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
 
     plotGrid(NEXT_GRID_X, NEXT_GRID_Y, GRID_UNIT_SIZE, NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
+
+    // Debug text:
+    char debugStr[32] = {0};
+    ets_snprintf(debugStr, sizeof(debugStr), "ROT:%d", testRotation);
+    plotText(0, 0, debugStr, IBM_VGA_8);
 
     // Display the acceleration on the display
     char accelStr[32] = {0};
@@ -592,7 +594,7 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
         case TT_GAME:
             // TODO: any game restart stuff should go here.
             clearGrid(GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
-            clearGrid(4, 4, nextTetradGrid);
+            clearGrid(NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
             numLandedTetrads = 0;
             break;
         case TT_SCORES:
@@ -608,27 +610,26 @@ bool ICACHE_FLASH_ATTR ttIsButtonPressed(uint8_t button)
     return (ttButtonState & button) && !(ttLastButtonState & button);
 }
 
-//TODO: handle copying tetrad into larger grid at coords
-void ICACHE_FLASH_ATTR copyGrid(coord_t srcOffset, uint8_t srcWidth, uint8_t srcHeight, uint8_t src[][srcHeight], uint8_t dstWidth, uint8_t dstHeight, uint8_t dst[][dstHeight])
+void ICACHE_FLASH_ATTR copyGrid(coord_t srcOffset, uint8_t srcWidth, uint8_t srcHeight, uint8_t src[][srcWidth], uint8_t dstWidth, uint8_t dstHeight, uint8_t dst[][dstWidth])
 {
-    for (int x = 0; x < srcWidth; x++)
+    for (int y = 0; y < srcHeight; y++)
     {
-        for (int y = 0; y < srcHeight; y++)
+        for (int x = 0; x < srcWidth; x++)
         {
             int dstX = x + srcOffset.x;
             int dstY = y + srcOffset.y;
-            if (dstX < dstWidth && dstY < dstHeight) dst[dstX][dstY] = src[x][y];
+            if (dstX < dstWidth && dstY < dstHeight) dst[dstY][dstX] = src[y][x];
         }
     }
 }
 
-void ICACHE_FLASH_ATTR clearGrid(uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridHeight])
+void ICACHE_FLASH_ATTR clearGrid(uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridWidth])
 {
-    for (int x = 0; x < gridWidth; x++)
+    for (int y = 0; y < gridHeight; y++)
     {
-        for (int y = 0; y < gridHeight; y++)
+        for (int x = 0; x < gridWidth; x++)
         {
-            gridData[x][y] = EMPTY;
+            gridData[y][x] = EMPTY;
         }
     }
 }
@@ -657,25 +658,25 @@ tetrad_t ICACHE_FLASH_ATTR spawnTetrad(tetradType_t type, coord_t gridCoord, int
     switch (tetrad.type)
     {
         case I_TETRAD:
-			copyGrid(origin, 4, 4, iTetradRotations[tetrad.rotation % 4], 4, 4, tetrad.shape);
+			copyGrid(origin, 4, 4, iTetradRotations[rotation], 4, 4, tetrad.shape);
             break;
         case O_TETRAD:
-		    copyGrid(origin, 4, 4, oTetradRotations[tetrad.rotation % 4], 4, 4, tetrad.shape);
+		    copyGrid(origin, 4, 4, oTetradRotations[rotation], 4, 4, tetrad.shape);
             break;
         case T_TETRAD:
-		    copyGrid(origin, 4, 4, tTetradRotations[tetrad.rotation % 4], 4, 4, tetrad.shape);
+		    copyGrid(origin, 4, 4, tTetradRotations[rotation], 4, 4, tetrad.shape);
             break;
         case J_TETRAD:
-		    copyGrid(origin, 4, 4, jTetradRotations[tetrad.rotation % 4], 4, 4, tetrad.shape);
+		    copyGrid(origin, 4, 4, jTetradRotations[rotation], 4, 4, tetrad.shape);
             break;
         case L_TETRAD:
-		    copyGrid(origin, 4, 4, lTetradRotations[tetrad.rotation % 4], 4, 4, tetrad.shape);
+		    copyGrid(origin, 4, 4, lTetradRotations[rotation], 4, 4, tetrad.shape);
             break;
         case S_TETRAD:
-		    copyGrid(origin, 4, 4, sTetradRotations[tetrad.rotation % 4], 4, 4, tetrad.shape);
+		    copyGrid(origin, 4, 4, sTetradRotations[rotation], 4, 4, tetrad.shape);
             break;
         case Z_TETRAD:
-		    copyGrid(origin, 4, 4, zTetradRotations[tetrad.rotation % 4], 4, 4, tetrad.shape);
+		    copyGrid(origin, 4, 4, zTetradRotations[rotation], 4, 4, tetrad.shape);
             break;
         default:
             break;
@@ -688,48 +689,49 @@ void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size)
     plotRect(x0, y0, x0 + size, y0 + size);
 }
 
-void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridHeight])
+void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridWidth])
 {
     // Draw the border
     plotRect(x0, y0, x0 + unitSize * gridWidth, y0 + unitSize * gridHeight);
 
     // Draw points for grid (maybe disable when not debugging)
-    for (int x = 0; x < gridWidth; x++)
+    for (int y = 0; y < gridHeight; y++)
     {
-        for (int y = 0; y < gridHeight; y++) 
+        for (int x = 0; x < gridWidth; x++) 
         {
-            if (gridData[x][y] == EMPTY) plotLine(x0+x*unitSize, y0+y*unitSize, x0+x*unitSize, y0+y*unitSize);
+            if (gridData[y][x] == EMPTY) plotLine(x0+x*unitSize, y0+y*unitSize, x0+x*unitSize, y0+y*unitSize);
         }
     }
 }
 
-void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shapeWidth, uint8_t shapeHeight, uint8_t shape[][shapeHeight])
+void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shapeWidth, uint8_t shapeHeight, uint8_t shape[][shapeWidth])
 {   
     //TODO: different fill patterns.
-    for (int x = 0; x < shapeWidth; x++)
+    for (int y = 0; y < shapeHeight; y++)
     {
-        for (int y = 0; y < shapeHeight; y++) 
+        for (int x = 0; x < shapeWidth; x++)
         {
-            if (shape[x][y] != EMPTY) 
+            if (shape[y][x] != EMPTY) 
             {
+                //plotSquare(x0+x*unitSize, y0+y*unitSize, unitSize);
                 //top
-                if (y == 0 || shape[x][y-1] == EMPTY)
+                if (y == 0 || shape[y-1][x] == EMPTY)
                 {
                     plotLine(x0+x*unitSize, y0+y*unitSize, x0+x*unitSize+unitSize, y0+y*unitSize);   
                 }
                 //bot
-                if (y == shapeHeight-1 || shape[x][y+1] == EMPTY)
+                if (y == shapeHeight-1 || shape[y+1][x] == EMPTY)
                 {
                     plotLine(x0+x*unitSize, y0+y*unitSize+unitSize, x0+x*unitSize+unitSize, y0+y*unitSize+unitSize);   
                 }
                 
                 //left
-                if (x == 0 || shape[x-1][y] == EMPTY)
+                if (x == 0 || shape[y][x-1] == EMPTY)
                 {
                     plotLine(x0+x*unitSize, y0+y*unitSize, x0+x*unitSize, y0+y*unitSize+unitSize);   
                 }
                 //right
-                if (x == shapeWidth-1 || shape[x+1][y] == EMPTY)
+                if (x == shapeWidth-1 || shape[y][x+1] == EMPTY)
                 {
                     plotLine(x0+x*unitSize+unitSize, y0+y*unitSize, x0+x*unitSize+unitSize, y0+y*unitSize+unitSize);   
                 }
