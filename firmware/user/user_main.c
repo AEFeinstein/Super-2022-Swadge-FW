@@ -237,6 +237,10 @@ void ICACHE_FLASH_ATTR user_init(void)
     // Start the HPA timer, used for PWMing the buzzer
     StartHPATimer();
 
+    // Initialize the buzzer
+    initBuzzer();
+    setBuzzerNote(SILENCE);
+
     // Turn LEDs off
     led_t leds[NUM_LIN_LEDS] = {{0}};
     setLeds(leds, sizeof(leds));

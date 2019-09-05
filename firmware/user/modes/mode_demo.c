@@ -72,12 +72,21 @@ static int samplesProcessed = 0;
 accel_t demoAccel = {0};
 uint8_t mButtonState = 0;
 
-os_timer_t toggleBuzzerTimer = {0};
-
-uint16_t mBuzzerTimeOn = 1;
-uint8_t mBuzzerOnDemo = 0;
-const uint32_t freqTable[] = {262, 294, 330, 349, 392, 440, 494, 523};
-uint8_t freqIdx = 0;
+const song_t testSong =
+{
+    .shouldLoop = true,
+    .numNotes = 8,
+    .notes = {
+        {.note = C_4, .timeMs = 250},
+        {.note = D_4, .timeMs = 250},
+        {.note = E_4, .timeMs = 250},
+        {.note = F_4, .timeMs = 250},
+        {.note = G_4, .timeMs = 250},
+        {.note = F_4, .timeMs = 250},
+        {.note = E_4, .timeMs = 250},
+        {.note = D_4, .timeMs = 250},
+    }
+};
 
 /*============================================================================
  * Functions
@@ -92,26 +101,7 @@ void ICACHE_FLASH_ATTR demoEnterMode(void)
     samplesProcessed = 0;
     enableDebounce(false);
 
-    setBuzzerOn(mBuzzerOnDemo);
-    os_timer_disarm(&toggleBuzzerTimer);
-    os_timer_setfn(&toggleBuzzerTimer, toggleBuzzer, NULL);
-    os_timer_arm(&toggleBuzzerTimer, 1000, true);
-}
-
-/**
- * @brief TODO
- *
- * @param arg
- */
-void ICACHE_FLASH_ATTR toggleBuzzer(void* arg __attribute__((unused)))
-{
-    setBuzzerOn(mBuzzerOnDemo);
-    if(mBuzzerOnDemo)
-    {
-        setBuzzerFrequency(freqTable[freqIdx] * 2);
-        freqIdx = (freqIdx + 1) % (sizeof(freqTable) / sizeof(freqTable[0]));
-    }
-    mBuzzerOnDemo = !mBuzzerOnDemo;
+    startBuzzerSong(&testSong);
 }
 
 /**

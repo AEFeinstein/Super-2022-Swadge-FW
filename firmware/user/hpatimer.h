@@ -7,12 +7,17 @@
 #ifndef _HPATIMER_H
 #define _HPATIMER_H
 
+#include "buzzer.h"
+
 void ICACHE_FLASH_ATTR StartHPATimer(void);
 void ContinueHPATimer(void);
 void PauseHPATimer(void);
 bool ICACHE_FLASH_ATTR isHpaRunning(void);
-void ICACHE_FLASH_ATTR setBuzzerOn(bool on);
-void ICACHE_FLASH_ATTR setBuzzerFrequency(uint32_t frequency);
+
+void ICACHE_FLASH_ATTR initBuzzer(void);
+void ICACHE_FLASH_ATTR setBuzzerNote(noteFreq_t frequency);
+void ICACHE_FLASH_ATTR stopBuzzerSong(void);
+void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song);
 
 #endif
 
