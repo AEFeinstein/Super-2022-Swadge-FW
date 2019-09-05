@@ -35,6 +35,11 @@
 #define GRID_WIDTH 10
 #define GRID_HEIGHT 16
 
+#define NEXT_GRID_X 97
+#define NEXT_GRID_Y 3
+#define NEXT_GRID_WIDTH 5
+#define NEXT_GRID_HEIGHT 5
+
 #define EMPTY 0
 #define MAX_TETRADS 160
 
@@ -47,7 +52,9 @@ typedef enum
 	//TODO: does this need a transition state?
 } tiltradsState_t;
 
-int tiltradsGrid[GRID_WIDTH][GRID_HEIGHT];
+uint8_t tetradsGrid[GRID_WIDTH][GRID_HEIGHT];
+
+uint8_t nextTetradGrid[NEXT_GRID_WIDTH][NEXT_GRID_HEIGHT];
 
 uint8_t iTetradRotations [4][4][4] = 
 {
@@ -189,6 +196,7 @@ uint8_t zTetradRotations [4][4][4] =
      {0,0,0,0}}
 };
 
+// coordinates on the playfield grid, not the screen.
 typedef struct
 {
     int x;
@@ -211,24 +219,14 @@ typedef struct
     tetradType_t type;
     int rotation; 
     coord_t topLeft;
-    int shape[4][4];
+    uint8_t shape[4][4];
 } tetrad_t;
 
-int numLandedTetrads;
+uint8_t numLandedTetrads;
 
 tetrad_t fallingTetrad;
 
 tetrad_t landedTetrads[MAX_TETRADS];
-
-/*
-//TODO: this can just be modeled with int and modulus, easier math but is it performant on an ESP?
-typedef enum
-{
-    ROT_0, //spawn
-    ROT_1,	
-    ROT_2,
-    ROT_3
-} tetradRotations_t;*/
 
 // function prototypes go here.
 void ICACHE_FLASH_ATTR ttInit(void);
@@ -239,10 +237,17 @@ void ICACHE_FLASH_ATTR ttAccelerometerCallback(accel_t* accel);
 // game loop functions.
 static void ICACHE_FLASH_ATTR ttUpdate(void* arg);
 
+// handle inputs.
 void ICACHE_FLASH_ATTR ttTitleInput(void);
 void ICACHE_FLASH_ATTR ttGameInput(void);
 void ICACHE_FLASH_ATTR ttScoresInput(void);
 
+// update any input-unrelated logic.
+void ICACHE_FLASH_ATTR ttTitleUpdate(void);
+void ICACHE_FLASH_ATTR ttGameUpdate(void);
+void ICACHE_FLASH_ATTR ttScoresUpdate(void);
+
+// draw the frame.
 void ICACHE_FLASH_ATTR ttTitleDisplay(void);
 void ICACHE_FLASH_ATTR ttGameDisplay(void);
 void ICACHE_FLASH_ATTR ttScoresDisplay(void);
@@ -250,20 +255,14 @@ void ICACHE_FLASH_ATTR ttScoresDisplay(void);
 // helper functions.
 void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState);
 bool ICACHE_FLASH_ATTR ttIsButtonPressed(uint8_t button);
-//void ICACHE_FLASH_ATTR drawTetrad(int x0, int y0, tetradType_t type, int rotation, uint8_t unitSize, bool drawBounds);
-void ICACHE_FLASH_ATTR copyGrid(uint8_t srcWidth, uint8_t srcHeight, uint8_t src[][srcHeight], uint8_t dstWidth, uint8_t dstHeight, uint8_t dst[][dstHeight]);
-/*void ICACHE_FLASH_ATTR plotITetrad(int x0, int y0, int rotation, uint8_t unitSize);
-void ICACHE_FLASH_ATTR plotOTetrad(int x0, int y0, int rotation, uint8_t unitSize);
-void ICACHE_FLASH_ATTR plotTTetrad(int x0, int y0, int rotation, uint8_t unitSize);
-void ICACHE_FLASH_ATTR plotJTetrad(int x0, int y0, int rotation, uint8_t unitSize);
-void ICACHE_FLASH_ATTR plotLTetrad(int x0, int y0, int rotation, uint8_t unitSize);
-void ICACHE_FLASH_ATTR plotSTetrad(int x0, int y0, int rotation, uint8_t unitSize);
-void ICACHE_FLASH_ATTR plotZTetrad(int x0, int y0, int rotation, uint8_t unitSize);*/
+void ICACHE_FLASH_ATTR copyGrid(coord_t srcOffset, uint8_t srcWidth, uint8_t srcHeight, uint8_t src[][srcHeight], uint8_t dstWidth, uint8_t dstHeight, uint8_t dst[][dstHeight]);
+void ICACHE_FLASH_ATTR clearGrid(uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridHeight]);
 void ICACHE_FLASH_ATTR rotateTetrad(void);
 void ICACHE_FLASH_ATTR dropTetrad(void);
-void ICACHE_FLASH_ATTR spawnTetrad(void);
+tetrad_t ICACHE_FLASH_ATTR spawnTetrad(tetradType_t type, coord_t gridCoord, int rotation);
 void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size);
-void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWidth, uint8_t gridHeight, uint8_t grid[][gridHeight]);//, bool drawBorder);
+void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridHeight]);
+void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shapeWidth, uint8_t shapeHeight, uint8_t shape[][shapeHeight]);
 
 swadgeMode tiltradsMode = 
 {
@@ -330,7 +329,6 @@ void ICACHE_FLASH_ATTR ttAccelerometerCallback(accel_t* accel)
 	ttAccel.x = accel->x;	// Set the accelerometer values
     ttAccel.y = accel->y;
     ttAccel.z = accel->z;
-    //ttUpdateDisplay();		// Update the display
 }
 
 static void ICACHE_FLASH_ATTR ttUpdate(void* arg __attribute__((unused)))
@@ -366,6 +364,28 @@ static void ICACHE_FLASH_ATTR ttUpdate(void* arg __attribute__((unused)))
 
     // Mark what our inputs were the last time we acted on them.
     ttLastButtonState = ttButtonState;
+
+    // Handle Game Logic (based on the state)
+	switch( currState )
+    {
+        case TT_TITLE:
+        {
+			ttTitleUpdate();
+            break;
+        }
+        case TT_GAME:
+        {
+			ttGameUpdate();
+            break;
+        }
+        case TT_SCORES:
+        {
+			ttScoresUpdate();
+            break;
+        }
+        default:
+            break;
+    };
 
 	// Handle Drawing Frame (based on the state)
 	switch( currState )
@@ -444,6 +464,21 @@ void ICACHE_FLASH_ATTR ttScoresInput(void)
 	//TODO: accel = tilt to scroll through history of scores?
 }
 
+void ICACHE_FLASH_ATTR ttTitleUpdate(void)
+{
+
+}
+
+void ICACHE_FLASH_ATTR ttGameUpdate(void)
+{
+
+}
+
+void ICACHE_FLASH_ATTR ttScoresUpdate(void)
+{
+
+}
+
 void ICACHE_FLASH_ATTR ttTitleDisplay(void)
 {
 	// draw title
@@ -472,25 +507,56 @@ void ICACHE_FLASH_ATTR ttTitleDisplay(void)
 }
 
 int testRotation = 0;
+int testTetradType = 0;
 
 void ICACHE_FLASH_ATTR ttGameDisplay(void)
 {
     // Clear the display
     clearDisplay();
+    
+    // Clear the grid data (may not want to do this every frame)
+    clearGrid(GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
 
-    // Just randomize garbage now to test.
-    /*for (int r = 0; r < GRID_WIDTH; r++) 
-    {
-        for (int c = 0; c < GRID_HEIGHT; c++) 
-        {
-            tiltradsGrid[r][c] = (c % 3 == 0) && (r % 2 == 0) ? 1 : 0;
-        }
-    }*/
+    // Drawing a debug tetrad.
+    /*coord_t testSpawnPoint;
+    testSpawnPoint.x = 3;
+    testSpawnPoint.y = 4;
+    tetrad_t testTetrad = spawnTetrad((tetradType_t)((testTetradType % 7)+ 1), testSpawnPoint, testRotation);
+    plotShape(GRID_X+testSpawnPoint.x*GRID_UNIT_SIZE, GRID_Y+testSpawnPoint.y*GRID_UNIT_SIZE, GRID_UNIT_SIZE, 4, 4, testTetrad.shape);   
+    copyGrid(testTetrad.topLeft, 4, 4, testTetrad.shape, GRID_WIDTH, GRID_HEIGHT, tetradsGrid);*/
 
-    // horizontal screen orientation.
-    // draw the grid and existing pieces.
-    //plotGrid(GRID_X, GRID_Y, GRID_UNIT_SIZE, GRID_WIDTH, GRID_HEIGHT, tiltradsGrid);
-    //plotGrid(GRID_X, GRID_Y, GRID_UNIT_SIZE, 4, 4, iTetradRotations[testRotation % 4]);
+    // Draw the base grid (make sure everything that needs to be in tetradsGrid is in there now).
+    plotGrid(GRID_X, GRID_Y, GRID_UNIT_SIZE, GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
+
+
+    //TODO: oTetrad not being displayed correctly, and rotations are wrong at spawn, why?
+
+    // Display the next tetrad.
+    int nextTetradType = (((testTetradType + 1) % 7) + 1); //TODO: pull this from a correct generator
+
+    clearGrid(NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
+
+    coord_t nextTetradPoint;
+    nextTetradPoint.x = 0;
+    nextTetradPoint.y = 0;
+
+    tetrad_t nextTetrad = spawnTetrad((tetradType_t)nextTetradType, nextTetradPoint, 0);
+    plotShape(NEXT_GRID_X + nextTetradPoint.x * GRID_UNIT_SIZE, NEXT_GRID_Y + nextTetradPoint.y * GRID_UNIT_SIZE, GRID_UNIT_SIZE, 4, 4, nextTetrad.shape);   
+    copyGrid(nextTetrad.topLeft, 4, 4, nextTetrad.shape, NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
+
+    plotGrid(NEXT_GRID_X, NEXT_GRID_Y, GRID_UNIT_SIZE, NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
+
+    // Display the acceleration on the display
+    char accelStr[32] = {0};
+
+    ets_snprintf(accelStr, sizeof(accelStr), "X:%d", ttAccel.x);
+    plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
+
+    ets_snprintf(accelStr, sizeof(accelStr), "Y:%d", ttAccel.y);
+    plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
+
+    ets_snprintf(accelStr, sizeof(accelStr), "Z:%d", ttAccel.z);
+    plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
 
     // next piece area
     //plotGrid(45+40+4*3, 3, 6, 4, 4, (testRotation % 2 == 0));
@@ -501,45 +567,6 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     //TODO: lines
     //TODO: level
     //TODO: the current high score?
-
-    
-    // straight test
-    /*int posX = 5;
-    int posY = 20;
-    int testUnitSize = 4; 
-    //drawTetrad(posX, posY, I_TETRAD, testRotation, testUnitSize, true);
-    plotGrid(posX, posY, GRID_UNIT_SIZE, 4, 4, iTetradRotations[testRotation % 4]);
-
-    // square test
-    posX += 25;
-    //drawTetrad(posX, posY, O_TETRAD, testRotation, testUnitSize, true);
-    plotGrid(posX, posY, GRID_UNIT_SIZE, 4, 4, oTetradRotations[testRotation % 4]);
-
-    // J test
-    posX += 25;
-    //drawTetrad(posX, posY, J_TETRAD, testRotation, testUnitSize, true);
-    plotGrid(posX, posY, GRID_UNIT_SIZE, 4, 4, jTetradRotations[testRotation % 4]);
-
-    // L test
-    posX += 20;
-    //drawTetrad(posX, posY, L_TETRAD, testRotation, testUnitSize, true);
-    plotGrid(posX, posY, GRID_UNIT_SIZE, 4, 4, lTetradRotations[testRotation % 4]);
-
-    // T test
-    posX += 20;
-    //drawTetrad(posX, posY, T_TETRAD, testRotation, testUnitSize, true);
-    plotGrid(posX, posY, GRID_UNIT_SIZE, 4, 4, tTetradRotations[testRotation % 4]);
-    
-    // S test
-    posX = 5;
-    posY += 25;
-    //drawTetrad(posX, posY, S_TETRAD, testRotation, testUnitSize, true);
-    plotGrid(posX, posY, GRID_UNIT_SIZE, 4, 4, sTetradRotations[testRotation % 4]);
-
-    // Z test
-    posX += 20;
-    //drawTetrad(posX, posY, Z_TETRAD, testRotation, testUnitSize, true);
-    plotGrid(posX, posY, GRID_UNIT_SIZE, 4, 4, zTetradRotations[testRotation % 4]);*/
 }
 
 void ICACHE_FLASH_ATTR ttScoresDisplay(void)
@@ -564,13 +591,8 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
             break;
         case TT_GAME:
             // TODO: any game restart stuff should go here.
-            for (int x = 0; x < GRID_WIDTH; x++) 
-            {
-                for (int y = 0; y < GRID_HEIGHT; y++) 
-                {
-                    tiltradsGrid[x][y] = 0;
-                }
-            }
+            clearGrid(GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
+            clearGrid(4, 4, nextTetradGrid);
             numLandedTetrads = 0;
             break;
         case TT_SCORES:
@@ -586,16 +608,27 @@ bool ICACHE_FLASH_ATTR ttIsButtonPressed(uint8_t button)
     return (ttButtonState & button) && !(ttLastButtonState & button);
 }
 
-void ICACHE_FLASH_ATTR copyGrid(uint8_t srcWidth, uint8_t srcHeight, uint8_t * src[][srcHeight], uint8_t dstWidth, uint8_t dstHeight, uint8_t * dst[][dstHeight])
+//TODO: handle copying tetrad into larger grid at coords
+void ICACHE_FLASH_ATTR copyGrid(coord_t srcOffset, uint8_t srcWidth, uint8_t srcHeight, uint8_t src[][srcHeight], uint8_t dstWidth, uint8_t dstHeight, uint8_t dst[][dstHeight])
 {
-    int copyWidth = srcWidth > dstWidth ? dstWidth : srcWidth;
-    int copyHeight = srcHeight > dstHeight ? dstHeight : srcHeight;
-
-    for (int x = 0; x < copyWidth; x++)
+    for (int x = 0; x < srcWidth; x++)
     {
-        for (int y = 0; y < copyHeight; y++)
+        for (int y = 0; y < srcHeight; y++)
         {
-            (*dst)[x][y] = (*src)[x][y];
+            int dstX = x + srcOffset.x;
+            int dstY = y + srcOffset.y;
+            if (dstX < dstWidth && dstY < dstHeight) dst[dstX][dstY] = src[x][y];
+        }
+    }
+}
+
+void ICACHE_FLASH_ATTR clearGrid(uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridHeight])
+{
+    for (int x = 0; x < gridWidth; x++)
+    {
+        for (int y = 0; y < gridHeight; y++)
+        {
+            gridData[x][y] = EMPTY;
         }
     }
 }
@@ -609,41 +642,45 @@ void ICACHE_FLASH_ATTR rotateTetrad()
 void ICACHE_FLASH_ATTR dropTetrad()
 {
     //TODO: fill in.
+    testTetradType++;
 }
 
-void ICACHE_FLASH_ATTR spawnTetrad()
+tetrad_t ICACHE_FLASH_ATTR spawnTetrad(tetradType_t type, coord_t gridCoord, int rotation)
 {
-    //TODO: fill in with a good randomizer.
-    fallingTetrad.type = (tetradType_t)((os_random() % 6) + 1);
-    fallingTetrad.rotation = 0;
-    fallingTetrad.topLeft.x = 0; //TODO: spawn x and y
-    fallingTetrad.topLeft.y = 0; //TODO: spawn x and y
-    switch (fallingTetrad.type)
+    tetrad_t tetrad;
+    tetrad.type = type;
+    tetrad.rotation = rotation;
+    tetrad.topLeft = gridCoord;
+    coord_t origin;
+    origin.x = 0;
+    origin.y = 0;
+    switch (tetrad.type)
     {
         case I_TETRAD:
-			copyGrid(4, 4, &(iTetradRotations[fallingTetrad.rotation]), 4, 4, &(fallingTetrad.shape));
+			copyGrid(origin, 4, 4, iTetradRotations[tetrad.rotation % 4], 4, 4, tetrad.shape);
             break;
         case O_TETRAD:
-		    copyGrid(4, 4, &(oTetradRotations[fallingTetrad.rotation]), 4, 4, &(fallingTetrad.shape));
+		    copyGrid(origin, 4, 4, oTetradRotations[tetrad.rotation % 4], 4, 4, tetrad.shape);
             break;
         case T_TETRAD:
-		    copyGrid(4, 4, &(tTetradRotations[fallingTetrad.rotation]), 4, 4, &(fallingTetrad.shape));
+		    copyGrid(origin, 4, 4, tTetradRotations[tetrad.rotation % 4], 4, 4, tetrad.shape);
             break;
         case J_TETRAD:
-		    copyGrid(4, 4, &(jTetradRotations[fallingTetrad.rotation]), 4, 4, &(fallingTetrad.shape));
+		    copyGrid(origin, 4, 4, jTetradRotations[tetrad.rotation % 4], 4, 4, tetrad.shape);
             break;
         case L_TETRAD:
-		    copyGrid(4, 4, &(lTetradRotations[fallingTetrad.rotation]), 4, 4, &(fallingTetrad.shape));
+		    copyGrid(origin, 4, 4, lTetradRotations[tetrad.rotation % 4], 4, 4, tetrad.shape);
             break;
         case S_TETRAD:
-		    copyGrid(4, 4, &(sTetradRotations[fallingTetrad.rotation]), 4, 4, &(fallingTetrad.shape));
+		    copyGrid(origin, 4, 4, sTetradRotations[tetrad.rotation % 4], 4, 4, tetrad.shape);
             break;
         case Z_TETRAD:
-		    copyGrid(4, 4, &(zTetradRotations[fallingTetrad.rotation]), 4, 4, &(fallingTetrad.shape));
+		    copyGrid(origin, 4, 4, zTetradRotations[tetrad.rotation % 4], 4, 4, tetrad.shape);
             break;
         default:
             break;
     }
+    return tetrad;
 }
 
 void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size)
@@ -651,57 +688,53 @@ void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size)
     plotRect(x0, y0, x0 + size, y0 + size);
 }
 
-void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWidth, uint8_t gridHeight, uint8_t grid[][gridHeight])//, bool drawBorder)
+void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridHeight])
 {
-    /*for (int x = 0; x < gridWidth; x++)
-    {
-        for (int y = 0; y < gridHeight; y++) 
-        {
-            //TODO: different drawings based on value.
-            //TODO: render in tetris cascade border style.
-            if (grid[x][y] > 0) 
-            {
-                plotSquare(x0+x*unitSize, y0+y*unitSize, unitSize);
-            }
-        }
-    }*/
+    // Draw the border
+    plotRect(x0, y0, x0 + unitSize * gridWidth, y0 + unitSize * gridHeight);
 
-    //plotLine(int x0, int y0, int x1, int y1);
-    
+    // Draw points for grid (maybe disable when not debugging)
     for (int x = 0; x < gridWidth; x++)
     {
         for (int y = 0; y < gridHeight; y++) 
         {
-            //TODO: different drawings based on value.
-            //TODO: render in tetris cascade border style.
-            if (grid[x][y] != EMPTY) 
+            if (gridData[x][y] == EMPTY) plotLine(x0+x*unitSize, y0+y*unitSize, x0+x*unitSize, y0+y*unitSize);
+        }
+    }
+}
+
+void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shapeWidth, uint8_t shapeHeight, uint8_t shape[][shapeHeight])
+{   
+    //TODO: different fill patterns.
+    for (int x = 0; x < shapeWidth; x++)
+    {
+        for (int y = 0; y < shapeHeight; y++) 
+        {
+            if (shape[x][y] != EMPTY) 
             {
                 //top
-                if (y == 0 || grid[x][y-1] == EMPTY)
+                if (y == 0 || shape[x][y-1] == EMPTY)
                 {
                     plotLine(x0+x*unitSize, y0+y*unitSize, x0+x*unitSize+unitSize, y0+y*unitSize);   
                 }
                 //bot
-                if (y == gridHeight-1 || grid[x][y+1] == EMPTY)
+                if (y == shapeHeight-1 || shape[x][y+1] == EMPTY)
                 {
                     plotLine(x0+x*unitSize, y0+y*unitSize+unitSize, x0+x*unitSize+unitSize, y0+y*unitSize+unitSize);   
                 }
                 
                 //left
-                if (x == 0 || grid[x-1][y] == EMPTY)
+                if (x == 0 || shape[x-1][y] == EMPTY)
                 {
                     plotLine(x0+x*unitSize, y0+y*unitSize, x0+x*unitSize, y0+y*unitSize+unitSize);   
                 }
                 //right
-                if (x == gridWidth-1 || grid[x+1][y] == EMPTY)
+                if (x == shapeWidth-1 || shape[x+1][y] == EMPTY)
                 {
                     plotLine(x0+x*unitSize+unitSize, y0+y*unitSize, x0+x*unitSize+unitSize, y0+y*unitSize+unitSize);   
                 }
             }
         }
     }
-    
-    // draw border.
-    //if (drawBounds) plotRect(x0, y0, x0 + unitSize * gridWidth, y0 + unitSize * gridHeight);
 }
 
