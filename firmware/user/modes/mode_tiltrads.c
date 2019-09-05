@@ -18,11 +18,6 @@
 // https://simon.lc/the-history-of-tetris-randomizers
 
 // any defines go here.
-// screen location offsets.
-//#define BTN_CTR_X 96
-//#define BTN_CTR_Y 40
-//#define BTN_RAD    8
-//#define BTN_OFF   12
 
 #define BTN_START_GAME RIGHT
 #define BTN_START_SCORES LEFT
@@ -605,253 +600,6 @@ void ICACHE_FLASH_ATTR copyGrid(uint8_t srcWidth, uint8_t srcHeight, uint8_t * s
     }
 }
 
-/*void ICACHE_FLASH_ATTR drawTetrad(int x0, int y0, tetradType_t type, int rotation, uint8_t unitSize, bool drawBounds)
-{
-    if(drawBounds)
-    {
-        plotSquare(x0,y0,unitSize*4);
-    }
-
-    switch(type)
-    {
-        case I_TETRAD:
-		    plotITetrad(x0,y0,rotation,unitSize);
-            break;
-        case O_TETRAD:
-		    plotOTetrad(x0,y0,rotation,unitSize);
-            break;
-        case T_TETRAD:
-		    plotTTetrad(x0,y0,rotation,unitSize);
-            break;
-        case J_TETRAD:
-		    plotJTetrad(x0,y0,rotation,unitSize);
-            break;
-        case L_TETRAD:
-		    plotLTetrad(x0,y0,rotation,unitSize);
-            break;
-        case S_TETRAD:
-		    plotSTetrad(x0,y0,rotation,unitSize);
-            break;
-        case Z_TETRAD:
-		    plotZTetrad(x0,y0,rotation,unitSize);
-            break;
-        default:
-            break;
-    }
-}
-
-void ICACHE_FLASH_ATTR plotITetrad(int x0, int y0, int rotation, uint8_t unitSize)
-{
-    rotation = rotation%4;
-    switch(rotation)
-    {
-        case 0:
-            plotSquare(x0,              y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize*3,   y0+unitSize,    unitSize);
-            break;
-        case 1:
-            plotSquare(x0+unitSize*2,   y0,             unitSize);
-            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize*2,   y0+unitSize*2,  unitSize);
-            plotSquare(x0+unitSize*2,   y0+unitSize*3,  unitSize);
-            break;
-        case 2:
-            plotSquare(x0,              y0+unitSize*2,  unitSize);
-            plotSquare(x0+unitSize,     y0+unitSize*2,  unitSize);
-            plotSquare(x0+unitSize*2,   y0+unitSize*2,  unitSize);
-            plotSquare(x0+unitSize*3,   y0+unitSize*2,  unitSize);
-            break;
-        case 3:
-            plotSquare(x0+unitSize*1,   y0,             unitSize);
-            plotSquare(x0+unitSize*1,   y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize*1,   y0+unitSize*2,  unitSize);
-            plotSquare(x0+unitSize*1,   y0+unitSize*3,  unitSize);
-            break;
-        default:
-            break;
-    }
-}
-
-void ICACHE_FLASH_ATTR plotOTetrad(int x0, int y0, int rotation __attribute__((unused)), uint8_t unitSize)
-{
-    plotSquare(x0+unitSize,     y0,             unitSize);
-    plotSquare(x0+unitSize*2,   y0,             unitSize);
-    plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
-    plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
-}
-
-void ICACHE_FLASH_ATTR plotTTetrad(int x0, int y0, int rotation, uint8_t unitSize)
-{
-    rotation = rotation%4;
-    switch(rotation)
-    {
-        case 0:
-            plotSquare(x0+unitSize,     y0,             unitSize);
-            plotSquare(x0,              y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
-            break;
-        case 1:
-            plotSquare(x0+unitSize,   y0,             unitSize);
-            plotSquare(x0+unitSize,   y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize,   y0+unitSize*2,  unitSize);
-            plotSquare(x0+unitSize*2, y0+unitSize,    unitSize);
-            break;
-        case 2:
-            plotSquare(x0+unitSize,     y0+unitSize*2,  unitSize);
-            plotSquare(x0,              y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
-            break;
-        case 3:
-            plotSquare(x0+unitSize,   y0,             unitSize);
-            plotSquare(x0+unitSize,   y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize,   y0+unitSize*2,  unitSize);
-            plotSquare(x0,            y0+unitSize,    unitSize);
-            break;
-        default:
-            break;
-    }
-}
-
-void ICACHE_FLASH_ATTR plotJTetrad(int x0, int y0, int rotation, uint8_t unitSize)
-{
-    rotation = rotation%4;
-    switch(rotation)
-    {
-        case 0:
-            plotSquare(x0,              y0,             unitSize);
-            plotSquare(x0,              y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
-            break;
-        case 1:
-            plotSquare(x0+unitSize,   y0,             unitSize);
-            plotSquare(x0+unitSize*2, y0,             unitSize);
-            plotSquare(x0+unitSize,   y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize,   y0+unitSize*2,  unitSize);
-            break;
-        case 2:
-            plotSquare(x0,              y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize*2,   y0+unitSize*2,  unitSize);
-            break;
-        case 3:
-            plotSquare(x0+unitSize,   y0,             unitSize);
-            plotSquare(x0+unitSize,   y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize,   y0+unitSize*2,  unitSize);
-            plotSquare(x0,            y0+unitSize*2,  unitSize);
-            break;
-        default:
-            break;
-    }
-}
-
-void ICACHE_FLASH_ATTR plotLTetrad(int x0, int y0, int rotation, uint8_t unitSize)
-{
-    rotation = rotation%4;
-    switch(rotation)
-    {
-        case 0:
-            plotSquare(x0+unitSize*2,   y0,             unitSize);
-            plotSquare(x0,              y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
-            break;
-        case 1:
-            plotSquare(x0+unitSize,     y0,             unitSize);
-            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize,     y0+unitSize*2,  unitSize);
-            plotSquare(x0+unitSize*2,   y0+unitSize*2,  unitSize);
-            break;
-        case 2:
-            plotSquare(x0,              y0+unitSize*2,  unitSize);
-            plotSquare(x0,              y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
-            break;
-        case 3:
-            plotSquare(x0,            y0,             unitSize);
-            plotSquare(x0+unitSize,   y0,             unitSize);
-            plotSquare(x0+unitSize,   y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize,   y0+unitSize*2,  unitSize);
-            break;
-        default:
-            break;
-    }
-}
-
-void ICACHE_FLASH_ATTR plotSTetrad(int x0, int y0, int rotation, uint8_t unitSize)
-{
-    rotation = rotation%4;
-    switch(rotation)
-    {
-        case 0:
-            plotSquare(x0,              y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize,     y0,             unitSize);
-            plotSquare(x0+unitSize*2,   y0,             unitSize);
-            break;
-        case 1:
-            plotSquare(x0+unitSize,     y0,             unitSize);
-            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize*2,   y0+unitSize*2,  unitSize);
-            break;
-        case 2:
-            plotSquare(x0,              y0+unitSize*2,  unitSize);
-            plotSquare(x0+unitSize,     y0+unitSize*2,  unitSize);
-            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
-            break;
-        case 3:
-            plotSquare(x0,              y0,             unitSize);
-            plotSquare(x0,              y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize,     y0+unitSize*2,  unitSize);
-            break;
-        default:
-            break;
-    }
-}
-
-void ICACHE_FLASH_ATTR plotZTetrad(int x0, int y0, int rotation, uint8_t unitSize)
-{
-    rotation = rotation%4;
-    switch(rotation)
-    {
-        case 0:
-            plotSquare(x0,              y0,             unitSize);
-            plotSquare(x0+unitSize,     y0,             unitSize);
-            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
-            break;
-        case 1:
-            plotSquare(x0+unitSize,     y0+unitSize*2,  unitSize);
-            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize*2,   y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize*2,   y0,             unitSize);
-            break;
-        case 2:
-            plotSquare(x0,              y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize,     y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize,     y0+unitSize*2,  unitSize);
-            plotSquare(x0+unitSize*2,   y0+unitSize*2,  unitSize);
-            break;
-        case 3:
-            plotSquare(x0,            y0+unitSize*2,  unitSize);
-            plotSquare(x0,            y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize,   y0+unitSize,    unitSize);
-            plotSquare(x0+unitSize,   y0,             unitSize);
-            break;
-        default:
-            break;
-    }
-}*/
-
 void ICACHE_FLASH_ATTR rotateTetrad()
 {
     //TODO: fill in. does this need a rot direction as parameter?
@@ -873,35 +621,29 @@ void ICACHE_FLASH_ATTR spawnTetrad()
     switch (fallingTetrad.type)
     {
         case I_TETRAD:
-		    fallingTetrad.shape = iTetradRotations[fallingTetrad.rotation];
+			copyGrid(4, 4, &(iTetradRotations[fallingTetrad.rotation]), 4, 4, &(fallingTetrad.shape));
             break;
         case O_TETRAD:
-		    plotOTetrad(x0,y0,rotation,unitSize);
+		    copyGrid(4, 4, &(oTetradRotations[fallingTetrad.rotation]), 4, 4, &(fallingTetrad.shape));
             break;
         case T_TETRAD:
-		    plotTTetrad(x0,y0,rotation,unitSize);
+		    copyGrid(4, 4, &(tTetradRotations[fallingTetrad.rotation]), 4, 4, &(fallingTetrad.shape));
             break;
         case J_TETRAD:
-		    plotJTetrad(x0,y0,rotation,unitSize);
+		    copyGrid(4, 4, &(jTetradRotations[fallingTetrad.rotation]), 4, 4, &(fallingTetrad.shape));
             break;
         case L_TETRAD:
-		    plotLTetrad(x0,y0,rotation,unitSize);
+		    copyGrid(4, 4, &(lTetradRotations[fallingTetrad.rotation]), 4, 4, &(fallingTetrad.shape));
             break;
         case S_TETRAD:
-		    plotSTetrad(x0,y0,rotation,unitSize);
+		    copyGrid(4, 4, &(sTetradRotations[fallingTetrad.rotation]), 4, 4, &(fallingTetrad.shape));
             break;
         case Z_TETRAD:
-		    plotZTetrad(x0,y0,rotation,unitSize);
+		    copyGrid(4, 4, &(zTetradRotations[fallingTetrad.rotation]), 4, 4, &(fallingTetrad.shape));
             break;
         default:
             break;
     }
-/*
-    tetradType_t type;
-    int rotation; 
-    coord_t topLeft;
-    int shape[4][4];
-*/
 }
 
 void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size)
