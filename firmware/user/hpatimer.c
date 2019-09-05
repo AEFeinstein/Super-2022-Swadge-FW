@@ -46,11 +46,14 @@ typedef enum
 
 volatile bool hpaRunning = false;
 
-noteFreq_t mNote = SILENCE;
-const song_t* mSong = NULL;
-uint32_t mNoteTime = 0;
-uint32_t mNoteIdx = 0;
-os_timer_t songTimer = {0};
+struct
+{
+    noteFreq_t note;
+    const song_t* song;
+    uint32_t noteTime;
+    uint32_t noteIdx;
+    os_timer_t songTimer;
+} bzr = {0};
 
 /*============================================================================
  * Prototypes
@@ -76,7 +79,7 @@ void ICACHE_FLASH_ATTR songTimerCb(void* arg __attribute__((unused)));
 static void timerhandle( void* v __attribute__((unused)))
 {
     RTC_CLR_REG_MASK(FRC1_INT_ADDRESS, FRC1_INT_CLR_MASK);
-    if(SILENCE != mNote)
+    if(SILENCE != bzr.note)
     {
         setBuzzerGpio(!getBuzzerGpio());
     }
@@ -90,15 +93,15 @@ static void timerhandle( void* v __attribute__((unused)))
  */
 void ICACHE_FLASH_ATTR StartHPATimer(void)
 {
-    if(SILENCE != mNote)
+    if(SILENCE != bzr.note)
     {
         RTC_REG_WRITE(FRC1_CTRL_ADDRESS,  FRC1_AUTO_RELOAD |
                       DIVDED_BY_16 | //5MHz main clock.
                       FRC1_ENABLE_TIMER |
                       TM_EDGE_INT );
 
-        RTC_REG_WRITE(FRC1_LOAD_ADDRESS,  mNote);
-        RTC_REG_WRITE(FRC1_COUNT_ADDRESS, mNote);
+        RTC_REG_WRITE(FRC1_LOAD_ADDRESS,  bzr.note);
+        RTC_REG_WRITE(FRC1_COUNT_ADDRESS, bzr.note);
 
         ETS_FRC_TIMER1_INTR_ATTACH(timerhandle, NULL);
 
@@ -144,7 +147,7 @@ bool ICACHE_FLASH_ATTR isHpaRunning(void)
 void ICACHE_FLASH_ATTR initBuzzer(void)
 {
     stopBuzzerSong();
-    os_timer_setfn(&songTimer, songTimerCb, NULL);
+    os_timer_setfn(&bzr.songTimer, songTimerCb, NULL);
 }
 
 /**
@@ -156,12 +159,12 @@ void ICACHE_FLASH_ATTR initBuzzer(void)
 void ICACHE_FLASH_ATTR setBuzzerNote(noteFreq_t note)
 {
     // Set the frequency
-    mNote = note;
+    bzr.note = note;
 
     // Stop the timer
     PauseHPATimer();
     // Start the timer if we're not playing silence
-    if(SILENCE != mNote)
+    if(SILENCE != bzr.note)
     {
         StartHPATimer();
     }
@@ -179,13 +182,13 @@ void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song)
     stopBuzzerSong();
 
     // Save the song pointer
-    mSong = song;
+    bzr.song = song;
 
     // Set the timer to call every 1ms
-    os_timer_arm(&songTimer, 1, true);
+    os_timer_arm(&bzr.songTimer, 1, true);
 
     // Start playing the first note
-    setBuzzerNote(mSong->notes[mNoteIdx].note);
+    setBuzzerNote(bzr.song->notes[bzr.noteIdx].note);
 }
 
 /**
@@ -193,11 +196,11 @@ void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song)
  */
 void ICACHE_FLASH_ATTR stopBuzzerSong(void)
 {
-    mNote = SILENCE;
-    mSong = NULL;
-    mNoteTime = 0;
-    mNoteIdx = 0;
-    os_timer_disarm(&songTimer);
+    bzr.note = SILENCE;
+    bzr.song = NULL;
+    bzr.noteTime = 0;
+    bzr.noteIdx = 0;
+    os_timer_disarm(&bzr.songTimer);
     setBuzzerNote(SILENCE);
 }
 
@@ -210,33 +213,33 @@ void ICACHE_FLASH_ATTR stopBuzzerSong(void)
 void ICACHE_FLASH_ATTR songTimerCb(void* arg __attribute__((unused)))
 {
     // Increment the time
-    mNoteTime++;
+    bzr.noteTime++;
 
     // Check if it's time for a new note
-    if(mNoteTime >= mSong->notes[mNoteIdx].timeMs)
+    if(bzr.noteTime >= bzr.song->notes[bzr.noteIdx].timeMs)
     {
         // This note's time elapsed, try playing the next one
-        mNoteIdx++;
-        mNoteTime = 0;
-        if(mNoteIdx < mSong->numNotes)
+        bzr.noteIdx++;
+        bzr.noteTime = 0;
+        if(bzr.noteIdx < bzr.song->numNotes)
         {
             // There's another note to play, so play it
-            setBuzzerNote(mSong->notes[mNoteIdx].note);
+            setBuzzerNote(bzr.song->notes[bzr.noteIdx].note);
         }
         else
         {
             // No more notes
-            if(mSong->shouldLoop)
+            if(bzr.song->shouldLoop)
             {
                 // Song over, but should loop, so start again
-                mNoteIdx = 0;
-                setBuzzerNote(mSong->notes[mNoteIdx].note);
+                bzr.noteIdx = 0;
+                setBuzzerNote(bzr.song->notes[bzr.noteIdx].note);
             }
             else
             {
                 // Song over, not looping, stop the timer and the note
                 setBuzzerNote(SILENCE);
-                os_timer_disarm(&songTimer);
+                os_timer_disarm(&bzr.songTimer);
             }
         }
     }
