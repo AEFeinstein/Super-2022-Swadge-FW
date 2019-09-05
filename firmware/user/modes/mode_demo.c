@@ -88,6 +88,7 @@ const song_t testSong =
         {.note = E_4, .timeMs = 250},
         {.note = D_4, .timeMs = 250},
     }
+};
 
 static os_timer_t timerHandleBanana = {0};
 static uint8_t bananaIdx = 0;

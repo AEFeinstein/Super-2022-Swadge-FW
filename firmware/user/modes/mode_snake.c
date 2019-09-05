@@ -349,7 +349,6 @@ swadgeMode snakeMode =
     .fnEnterMode = snakeInit,
     .fnExitMode = snakeDeinit,
     .fnButtonCallback = snakeButtonCallback,
-    .fnAudioCallback = NULL,
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
