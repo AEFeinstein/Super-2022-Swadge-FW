@@ -43,6 +43,10 @@
 #define EMPTY 0
 #define MAX_TETRADS 160
 
+#define TETRAD_SPAWN_ROT 0
+#define TETRAD_SPAWN_X 3
+#define TETRAD_SPAWN_Y -1
+
 // any enums go here.
 typedef enum
 {
@@ -222,10 +226,11 @@ typedef struct
     uint8_t shape[4][4];
 } tetrad_t;
 
-uint8_t numLandedTetrads;
+tetrad_t activeTetrad;
 
-tetrad_t fallingTetrad;
+tetradType_t nextTetradType;
 
+int numLandedTetrads;
 tetrad_t landedTetrads[MAX_TETRADS];
 
 // function prototypes go here.
@@ -260,9 +265,13 @@ void ICACHE_FLASH_ATTR clearGrid(uint8_t gridWidth, uint8_t gridHeight, uint8_t 
 void ICACHE_FLASH_ATTR rotateTetrad(void);
 void ICACHE_FLASH_ATTR dropTetrad(void);
 tetrad_t ICACHE_FLASH_ATTR spawnTetrad(tetradType_t type, coord_t gridCoord, int rotation);
+void ICACHE_FLASH_ATTR spawnNextTetrad(void);
 void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size);
 void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridWidth]);
 void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shapeWidth, uint8_t shapeHeight, uint8_t shape[][shapeWidth]);
+int ICACHE_FLASH_ATTR getNextTetradType(void);
+
+//bool ICACHE_FLASH_ATTR attemptTetradMove(tetrad_t target, coord_t newPos, uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridWidth]);
 
 swadgeMode tiltradsMode = 
 {
@@ -471,7 +480,8 @@ void ICACHE_FLASH_ATTR ttTitleUpdate(void)
 
 void ICACHE_FLASH_ATTR ttGameUpdate(void)
 {
-
+    // drop the piece if it's time to drop it
+    // if a piece is landed, spawn a new tetrad
 }
 
 void ICACHE_FLASH_ATTR ttScoresUpdate(void)
@@ -506,9 +516,6 @@ void ICACHE_FLASH_ATTR ttTitleDisplay(void)
     plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
 }
 
-int testRotation = 0;
-int testTetradType = 0;
-
 void ICACHE_FLASH_ATTR ttGameDisplay(void)
 {
     // Clear the display
@@ -517,36 +524,38 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     // Clear the grid data (may not want to do this every frame)
     clearGrid(GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
 
-    // Drawing a debug tetrad.
-    coord_t testSpawnPoint;
-    testSpawnPoint.x = 0;
-    testSpawnPoint.y = 0;
-    tetrad_t testTetrad = spawnTetrad((tetradType_t)((testTetradType % 7)+ 1), testSpawnPoint, testRotation % 4);
-    plotShape(GRID_X+testSpawnPoint.x*GRID_UNIT_SIZE, GRID_Y+testSpawnPoint.y*GRID_UNIT_SIZE, GRID_UNIT_SIZE, 4, 4, testTetrad.shape);   
-    copyGrid(testTetrad.topLeft, 4, 4, testTetrad.shape, GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
+    // Draw the active tetrad.
+    plotShape(GRID_X + activeTetrad.topLeft.x * GRID_UNIT_SIZE, GRID_Y + activeTetrad.topLeft.y * GRID_UNIT_SIZE, GRID_UNIT_SIZE, 4, 4, activeTetrad.shape);   
+    copyGrid(activeTetrad.topLeft, 4, 4, activeTetrad.shape, GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
 
-    // Draw the base grid (make sure everything that needs to be in tetradsGrid is in there now).
+    // Draw all the landed tetrads.
+    for (int i = 0; i < numLandedTetrads; i++) 
+    {
+        plotShape(GRID_X + landedTetrads[i].topLeft.x * GRID_UNIT_SIZE, GRID_Y + landedTetrads[i].topLeft.y * GRID_UNIT_SIZE, GRID_UNIT_SIZE, 4, 4, landedTetrads[i].shape);   
+        copyGrid(landedTetrads[i].topLeft, 4, 4, landedTetrads[i].shape, GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
+    }
+
+    // Draw the background grid. NOTE: (make sure everything that needs to be in tetradsGrid is in there now).
     plotGrid(GRID_X, GRID_Y, GRID_UNIT_SIZE, GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
 
-    // Display the next tetrad.
-    int nextTetradType = (((testTetradType + 1) % 7) + 1); //TODO: pull this from a correct generator
-
+    
+    // Draw the next tetrad.
     clearGrid(NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
 
     coord_t nextTetradPoint;
     nextTetradPoint.x = 1;
     nextTetradPoint.y = 1;
 
-    tetrad_t nextTetrad = spawnTetrad((tetradType_t)nextTetradType, nextTetradPoint, 0);
+    tetrad_t nextTetrad = spawnTetrad(nextTetradType, nextTetradPoint, 0);
     plotShape(NEXT_GRID_X + nextTetradPoint.x * GRID_UNIT_SIZE, NEXT_GRID_Y + nextTetradPoint.y * GRID_UNIT_SIZE, GRID_UNIT_SIZE, 4, 4, nextTetrad.shape);   
     copyGrid(nextTetrad.topLeft, 4, 4, nextTetrad.shape, NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
 
     plotGrid(NEXT_GRID_X, NEXT_GRID_Y, GRID_UNIT_SIZE, NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
 
     // Debug text:
-    char debugStr[32] = {0};
+    /*char debugStr[32] = {0};
     ets_snprintf(debugStr, sizeof(debugStr), "ROT:%d", testRotation);
-    plotText(0, 0, debugStr, IBM_VGA_8);
+    plotText(0, 0, debugStr, IBM_VGA_8);*/
 
     // Display the acceleration on the display
     char accelStr[32] = {0};
@@ -559,11 +568,6 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
 
     ets_snprintf(accelStr, sizeof(accelStr), "Z:%d", ttAccel.z);
     plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
-
-    // next piece area
-    //plotGrid(45+40+4*3, 3, 6, 4, 4, (testRotation % 2 == 0));
-    
-    //TODO: the next piece (centered)
 
     //TODO: score
     //TODO: lines
@@ -596,6 +600,9 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
             clearGrid(GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
             clearGrid(NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
             numLandedTetrads = 0;
+            // TODO: reset the piece gen stuff.
+            nextTetradType = (tetradType_t)getNextTetradType();
+            spawnNextTetrad();
             break;
         case TT_SCORES:
             break;
@@ -636,14 +643,42 @@ void ICACHE_FLASH_ATTR clearGrid(uint8_t gridWidth, uint8_t gridHeight, uint8_t 
 
 void ICACHE_FLASH_ATTR rotateTetrad()
 {
-    //TODO: fill in. does this need a rot direction as parameter?
-    testRotation++;
+    activeTetrad.rotation++;
+    coord_t origin;
+    origin.x = 0;
+    origin.y = 0;
+    switch (activeTetrad.type)
+    {
+        case I_TETRAD:
+			copyGrid(origin, 4, 4, iTetradRotations[activeTetrad.rotation % 4], 4, 4, activeTetrad.shape);
+            break;
+        case O_TETRAD:
+		    copyGrid(origin, 4, 4, oTetradRotations[activeTetrad.rotation % 4], 4, 4, activeTetrad.shape);
+            break;
+        case T_TETRAD:
+		    copyGrid(origin, 4, 4, tTetradRotations[activeTetrad.rotation % 4], 4, 4, activeTetrad.shape);
+            break;
+        case J_TETRAD:
+		    copyGrid(origin, 4, 4, jTetradRotations[activeTetrad.rotation % 4], 4, 4, activeTetrad.shape);
+            break;
+        case L_TETRAD:
+		    copyGrid(origin, 4, 4, lTetradRotations[activeTetrad.rotation % 4], 4, 4, activeTetrad.shape);
+            break;
+        case S_TETRAD:
+		    copyGrid(origin, 4, 4, sTetradRotations[activeTetrad.rotation % 4], 4, 4, activeTetrad.shape);
+            break;
+        case Z_TETRAD:
+		    copyGrid(origin, 4, 4, zTetradRotations[activeTetrad.rotation % 4], 4, 4, activeTetrad.shape);
+            break;
+        default:
+            break;
+    }
 }
 
 void ICACHE_FLASH_ATTR dropTetrad()
 {
     //TODO: fill in.
-    testTetradType++;
+    //testTetradType++;
 }
 
 tetrad_t ICACHE_FLASH_ATTR spawnTetrad(tetradType_t type, coord_t gridCoord, int rotation)
@@ -682,6 +717,15 @@ tetrad_t ICACHE_FLASH_ATTR spawnTetrad(tetradType_t type, coord_t gridCoord, int
             break;
     }
     return tetrad;
+}
+
+void ICACHE_FLASH_ATTR spawnNextTetrad()
+{
+    coord_t spawnPos;
+    spawnPos.x = TETRAD_SPAWN_X;
+    spawnPos.y = TETRAD_SPAWN_Y;
+    activeTetrad = spawnTetrad(nextTetradType, spawnPos, TETRAD_SPAWN_ROT);
+    nextTetradType = (tetradType_t)getNextTetradType();
 }
 
 void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size)
@@ -738,5 +782,10 @@ void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shape
             }
         }
     }
+}
+
+int ICACHE_FLASH_ATTR getNextTetradType()
+{
+    return ((os_random() % 7) + 1); //TODO: do this well.
 }
 
