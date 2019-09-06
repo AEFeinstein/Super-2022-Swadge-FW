@@ -565,12 +565,12 @@ void ICACHE_FLASH_ATTR drawSnakeFrame(void* arg __attribute__((unused)))
     {
         drawCritter();
         ets_snprintf(scoreStr, sizeof(scoreStr), "%02d", snake.critterTimerCount);
-        plotText(96, 5, scoreStr, TOM_THUMB);
+        plotText(96, 5, scoreStr, TOM_THUMB, WHITE);
     }
 
     // Draw the score
     ets_snprintf(scoreStr, sizeof(scoreStr), "%04d", snake.score);
-    plotText(24, 5, scoreStr, TOM_THUMB);
+    plotText(24, 5, scoreStr, TOM_THUMB, WHITE);
 }
 
 /**

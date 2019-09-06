@@ -18,16 +18,17 @@
  * @param y The y position where to draw the character
  * @param character The character to print
  * @param table A table of character sprites, in ASCII order
+ * @param col WHITE, BLACK or INVERSE
  * @return The x position of the end of the character drawn
  */
 uint8_t ICACHE_FLASH_ATTR plotChar(uint8_t x, uint8_t y,
-                                   char character, sprite_t* table)
+                                   char character, sprite_t* table, color col)
 {
     if ('a' <= character && character <= 'z')
     {
         character = (char) (character - 'a' + 'A');
     }
-    return plotSprite(x, y, &table[character - ' ']);
+    return plotSprite(x, y, &table[character - ' '], col);
 }
 
 /**
@@ -37,8 +38,9 @@ uint8_t ICACHE_FLASH_ATTR plotChar(uint8_t x, uint8_t y,
  * @param y The y position where to draw the string
  * @param text The string to draw
  * @param font The font to draw the string in
+ * @param col WHITE, BLACK or INVERSE
  */
-void ICACHE_FLASH_ATTR plotText(uint8_t x, uint8_t y, char* text, fonts font)
+void ICACHE_FLASH_ATTR plotText(uint8_t x, uint8_t y, char* text, fonts font, color col)
 {
     while (0 != *text)
     {
@@ -46,17 +48,17 @@ void ICACHE_FLASH_ATTR plotText(uint8_t x, uint8_t y, char* text, fonts font)
         {
             case TOM_THUMB:
             {
-                x = plotChar(x, y, *text, font_TomThumb);
+                x = plotChar(x, y, *text, font_TomThumb, col);
                 break;
             }
             case IBM_VGA_8:
             {
-                x = plotChar(x, y, *text, font_IbmVga8);
+                x = plotChar(x, y, *text, font_IbmVga8, col);
                 break;
             }
             case RADIOSTARS:
             {
-                x = plotChar(x, y, *text, font_Radiostars);
+                x = plotChar(x, y, *text, font_Radiostars, col);
                 break;
             }
             default:

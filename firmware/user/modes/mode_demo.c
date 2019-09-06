@@ -318,39 +318,42 @@ void ICACHE_FLASH_ATTR updateDisplay(void)
     clearDisplay();
 
     // Draw a title
-    plotText(0, 0, "DEMO MODE", RADIOSTARS);
+    plotText(0, 0, "DEMO MODE", RADIOSTARS, WHITE);
+    plotEllipseRect(0, 0, 120, 20, INVERSE);
 
     // Display the acceleration on the display
     char accelStr[32] = {0};
 
     ets_snprintf(accelStr, sizeof(accelStr), "X:%d", demoAccel.x);
-    plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
+    plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8, WHITE);
 
     ets_snprintf(accelStr, sizeof(accelStr), "Y:%d", demoAccel.y);
-    plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
+    plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8, WHITE);
 
     ets_snprintf(accelStr, sizeof(accelStr), "Z:%d", demoAccel.z);
-    plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
+    plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8, WHITE);
 
     if(mButtonState & DOWN)
     {
         // Down
-        plotCircle(BTN_CTR_X, BTN_CTR_Y + BTN_OFF, BTN_RAD);
-        plotCircle(BTN_CTR_X, BTN_CTR_Y - BTN_OFF, BTN_RAD);
+        plotCircle(BTN_CTR_X, BTN_CTR_Y + BTN_OFF, BTN_RAD, WHITE);
+        plotCircle(BTN_CTR_X, BTN_CTR_Y - BTN_OFF, BTN_RAD, WHITE);
+        plotText(0, 0, "DEMO MODE", RADIOSTARS, INVERSE);
+
     }
     if(mButtonState & LEFT)
     {
         // Left
-        plotCircle(BTN_CTR_X - BTN_OFF, BTN_CTR_Y, BTN_RAD);
+        plotCircle(BTN_CTR_X - BTN_OFF, BTN_CTR_Y, BTN_RAD, WHITE);
     }
     if(mButtonState & RIGHT)
     {
         // Right
-        plotCircle(BTN_CTR_X + BTN_OFF, BTN_CTR_Y, BTN_RAD);
+        plotCircle(BTN_CTR_X + BTN_OFF, BTN_CTR_Y, BTN_RAD, WHITE);
     }
 
     // Draw the banana
-    plotSprite(54, 32, &rotating_banana[bananaIdx]);
+    plotSprite(54, 32, &rotating_banana[bananaIdx], WHITE);
 }
 
 /**
