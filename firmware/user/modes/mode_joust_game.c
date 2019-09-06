@@ -1173,13 +1173,13 @@ void ICACHE_FLASH_ATTR joustSendRoundLossMsg(void)
     joust_printf("Lost the round\r\n");
 
     // ref.gam.Losses++;
-
-    // Show the current wins & losses
-    joustRoundResultLed(false);
     // Send a message to that ESP that we lost the round
     // If it's acked, start a timer to reinit if another message is never received
     // If it's not acked, reinit with refRestart()
     p2pSendMsg(&joust.p2pJoust, "los", NULL, 0, joustMsgTxCbFn);
+    // Show the current wins & losses
+    joustRoundResultLed(false);
+
 
 
 }
