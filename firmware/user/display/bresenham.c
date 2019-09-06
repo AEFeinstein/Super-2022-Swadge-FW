@@ -25,7 +25,7 @@
         return; \
     }
 
-void ICACHE_FLASH_ATTR plotLine(int x0, int y0, int x1, int y1)
+void ICACHE_FLASH_ATTR plotLine(int x0, int y0, int x1, int y1, color col)
 {
     int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
     int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
@@ -33,7 +33,7 @@ void ICACHE_FLASH_ATTR plotLine(int x0, int y0, int x1, int y1)
 
     for (;;)   /* loop */
     {
-        drawPixel(x0, y0, WHITE);
+        drawPixel(x0, y0, col);
         e2 = 2 * err;
         if (e2 >= dy)   /* e_xy+e_x > 0 */
         {
@@ -56,27 +56,27 @@ void ICACHE_FLASH_ATTR plotLine(int x0, int y0, int x1, int y1)
     }
 }
 
-void ICACHE_FLASH_ATTR plotRect(int x0, int y0, int x1, int y1)
+void ICACHE_FLASH_ATTR plotRect(int x0, int y0, int x1, int y1, color col)
 {
     // Vertical lines
-    plotLine(x0, y0, x0, y1);
-    plotLine(x1, y0, x1, y1);
+    plotLine(x0, y0, x0, y1, col);
+    plotLine(x1, y0, x1, y1, col);
     // Horizontal lines
-    plotLine(x0, y0, x1, y0);
-    plotLine(x0, y1, x1, y1);
+    plotLine(x0, y0, x1, y0, col);
+    plotLine(x0, y1, x1, y1, col);
 }
 
-void ICACHE_FLASH_ATTR plotEllipse(int xm, int ym, int a, int b)
+void ICACHE_FLASH_ATTR plotEllipse(int xm, int ym, int a, int b, color col)
 {
     int x = -a, y = 0; /* II. quadrant from bottom left to top right */
     long e2 = (long) b * b, err = (long) x * (2 * e2 + x) + e2; /* error of 1.step */
 
     do
     {
-        drawPixel(xm - x, ym + y, WHITE); /*   I. Quadrant */
-        drawPixel(xm + x, ym + y, WHITE); /*  II. Quadrant */
-        drawPixel(xm + x, ym - y, WHITE); /* III. Quadrant */
-        drawPixel(xm - x, ym - y, WHITE); /*  IV. Quadrant */
+        drawPixel(xm - x, ym + y, col); /*   I. Quadrant */
+        drawPixel(xm + x, ym + y, col); /*  II. Quadrant */
+        drawPixel(xm + x, ym - y, col); /* III. Quadrant */
+        drawPixel(xm - x, ym - y, col); /*  IV. Quadrant */
         e2 = 2 * err;
         if (e2 >= (x * 2 + 1) * (long) b * b) /* e_xy+e_x > 0 */
         {
@@ -90,12 +90,12 @@ void ICACHE_FLASH_ATTR plotEllipse(int xm, int ym, int a, int b)
 
     while (y++ < b)   /* too early stop of flat ellipses a=1, */
     {
-        drawPixel(xm, ym + y, WHITE); /* -> finish tip of ellipse */
-        drawPixel(xm, ym - y, WHITE);
+        drawPixel(xm, ym + y, col); /* -> finish tip of ellipse */
+        drawPixel(xm, ym - y, col);
     }
 }
 
-void ICACHE_FLASH_ATTR plotOptimizedEllipse(int xm, int ym, int a, int b)
+void ICACHE_FLASH_ATTR plotOptimizedEllipse(int xm, int ym, int a, int b, color col)
 {
     long x = -a, y = 0; /* II. quadrant from bottom left to top right */
     long e2 = b, dx = (1 + 2 * x) * e2 * e2; /* error increment  */
@@ -103,10 +103,10 @@ void ICACHE_FLASH_ATTR plotOptimizedEllipse(int xm, int ym, int a, int b)
 
     do
     {
-        drawPixel(xm - x, ym + y, WHITE); /*   I. Quadrant */
-        drawPixel(xm + x, ym + y, WHITE); /*  II. Quadrant */
-        drawPixel(xm + x, ym - y, WHITE); /* III. Quadrant */
-        drawPixel(xm - x, ym - y, WHITE); /*  IV. Quadrant */
+        drawPixel(xm - x, ym + y, col); /*   I. Quadrant */
+        drawPixel(xm + x, ym + y, col); /*  II. Quadrant */
+        drawPixel(xm + x, ym - y, col); /* III. Quadrant */
+        drawPixel(xm - x, ym - y, col); /*  IV. Quadrant */
         e2 = 2 * err;
         if (e2 >= dx)
         {
@@ -122,20 +122,20 @@ void ICACHE_FLASH_ATTR plotOptimizedEllipse(int xm, int ym, int a, int b)
 
     while (y++ < b)   /* too early stop for flat ellipses with a=1, */
     {
-        drawPixel(xm, ym + y, WHITE); /* -> finish tip of ellipse */
-        drawPixel(xm, ym - y, WHITE);
+        drawPixel(xm, ym + y, col); /* -> finish tip of ellipse */
+        drawPixel(xm, ym - y, col);
     }
 }
 
-void ICACHE_FLASH_ATTR plotCircle(int xm, int ym, int r)
+void ICACHE_FLASH_ATTR plotCircle(int xm, int ym, int r, color col)
 {
     int x = -r, y = 0, err = 2 - 2 * r; /* bottom left to top right */
     do
     {
-        drawPixel(xm - x, ym + y, WHITE); /*   I. Quadrant +x +y */
-        drawPixel(xm - y, ym - x, WHITE); /*  II. Quadrant -x +y */
-        drawPixel(xm + x, ym - y, WHITE); /* III. Quadrant -x -y */
-        drawPixel(xm + y, ym + x, WHITE); /*  IV. Quadrant +x -y */
+        drawPixel(xm - x, ym + y, col); /*   I. Quadrant +x +y */
+        drawPixel(xm - y, ym - x, col); /*  II. Quadrant -x +y */
+        drawPixel(xm + x, ym - y, col); /* III. Quadrant -x -y */
+        drawPixel(xm + y, ym + x, col); /*  IV. Quadrant +x -y */
         r = err;
         if (r <= y)
         {
@@ -149,7 +149,7 @@ void ICACHE_FLASH_ATTR plotCircle(int xm, int ym, int r)
 }
 
 void ICACHE_FLASH_ATTR plotEllipseRect(int x0, int y0, int x1,
-                                       int y1)   /* rectangular parameter enclosing the ellipse */
+                                       int y1, color col)   /* rectangular parameter enclosing the ellipse */
 {
     long a = abs(x1 - x0), b = abs(y1 - y0), b1 = b & 1; /* diameter */
     double dx = 4 * (1.0 - a) * b * b, dy = 4 * (b1 + 1) * a * a; /* error increment */
@@ -171,10 +171,10 @@ void ICACHE_FLASH_ATTR plotEllipseRect(int x0, int y0, int x1,
 
     do
     {
-        drawPixel(x1, y0, WHITE); /*   I. Quadrant */
-        drawPixel(x0, y0, WHITE); /*  II. Quadrant */
-        drawPixel(x0, y1, WHITE); /* III. Quadrant */
-        drawPixel(x1, y1, WHITE); /*  IV. Quadrant */
+        drawPixel(x1, y0, col); /*   I. Quadrant */
+        drawPixel(x0, y0, col); /*  II. Quadrant */
+        drawPixel(x0, y1, col); /* III. Quadrant */
+        drawPixel(x1, y1, col); /*  IV. Quadrant */
         e2 = 2 * err;
         if (e2 <= dy)
         {
@@ -192,15 +192,15 @@ void ICACHE_FLASH_ATTR plotEllipseRect(int x0, int y0, int x1,
 
     while (y0 - y1 <= b)   /* too early stop of flat ellipses a=1 */
     {
-        drawPixel(x0 - 1, y0, WHITE); /* -> finish tip of ellipse */
-        drawPixel(x1 + 1, y0++, WHITE);
-        drawPixel(x0 - 1, y1, WHITE);
-        drawPixel(x1 + 1, y1--, WHITE);
+        drawPixel(x0 - 1, y0, col); /* -> finish tip of ellipse */
+        drawPixel(x1 + 1, y0++, col);
+        drawPixel(x0 - 1, y1, col);
+        drawPixel(x1 + 1, y1--, col);
     }
 }
 
 void ICACHE_FLASH_ATTR plotQuadBezierSeg(int x0, int y0, int x1, int y1, int x2,
-        int y2)   /* plot a limited quadratic Bezier segment */
+        int y2, color col)   /* plot a limited quadratic Bezier segment */
 {
     int sx = x2 - x1, sy = y2 - y1;
     long xx = x0 - x1, yy = y0 - y1, xy; /* relative values for checks */
@@ -239,7 +239,7 @@ void ICACHE_FLASH_ATTR plotQuadBezierSeg(int x0, int y0, int x1, int y1, int x2,
         err = dx + dy + xy; /* error 1st step */
         do
         {
-            drawPixel(x0, y0, WHITE); /* plot curve */
+            drawPixel(x0, y0, col); /* plot curve */
             if (x0 == x2 && y0 == y2)
             {
                 return;    /* last pixel -> curve finished */
@@ -259,11 +259,11 @@ void ICACHE_FLASH_ATTR plotQuadBezierSeg(int x0, int y0, int x1, int y1, int x2,
             } /* y step */
         } while (dy < 0 && dx > 0); /* gradient negates -> algorithm fails */
     }
-    plotLine(x0, y0, x2, y2); /* plot remaining part to end */
+    plotLine(x0, y0, x2, y2, col); /* plot remaining part to end */
 }
 
 void ICACHE_FLASH_ATTR plotQuadBezier(int x0, int y0, int x1, int y1, int x2,
-                                      int y2)   /* plot any quadratic Bezier curve */
+                                      int y2, color col)   /* plot any quadratic Bezier curve */
 {
     int x = x0 - x1, y = y0 - y1;
     double t = x0 - 2 * x1 + x2, r;
@@ -284,7 +284,7 @@ void ICACHE_FLASH_ATTR plotQuadBezier(int x0, int y0, int x1, int y1, int x2,
         x = floor(t + 0.5);
         y = floor(r + 0.5);
         r = (y1 - y0) * (t - x0) / (x1 - x0) + y0; /* intersect P3 | P0 P1 */
-        plotQuadBezierSeg(x0, y0, x, floor(r + 0.5), x, y);
+        plotQuadBezierSeg(x0, y0, x, floor(r + 0.5), x, y, col);
         r = (y1 - y2) * (t - x2) / (x1 - x2) + y2; /* intersect P4 | P1 P2 */
         x0 = x1 = x;
         y0 = y;
@@ -299,17 +299,17 @@ void ICACHE_FLASH_ATTR plotQuadBezier(int x0, int y0, int x1, int y1, int x2,
         x = floor(r + 0.5);
         y = floor(t + 0.5);
         r = (x1 - x0) * (t - y0) / (y1 - y0) + x0; /* intersect P6 | P0 P1 */
-        plotQuadBezierSeg(x0, y0, floor(r + 0.5), y, x, y);
+        plotQuadBezierSeg(x0, y0, floor(r + 0.5), y, x, y, col);
         r = (x1 - x2) * (t - y2) / (y1 - y2) + x2; /* intersect P7 | P1 P2 */
         x0 = x;
         x1 = floor(r + 0.5);
         y0 = y1 = y; /* P0 = P6, P1 = P7 */
     }
-    plotQuadBezierSeg(x0, y0, x1, y1, x2, y2); /* remaining part */
+    plotQuadBezierSeg(x0, y0, x1, y1, x2, y2, col); /* remaining part */
 }
 
 void ICACHE_FLASH_ATTR plotQuadRationalBezierSeg(int x0, int y0, int x1, int y1, int x2, int y2,
-        float w)   /* plot a limited rational Bezier segment, squared weight */
+        float w, color col)   /* plot a limited rational Bezier segment, squared weight */
 {
     int sx = x2 - x1, sy = y2 - y1; /* relative values for checks */
     double dx = x0 - x2, dy = y0 - y2, xx = x0 - x1, yy = y0 - y1;
@@ -352,16 +352,16 @@ void ICACHE_FLASH_ATTR plotQuadRationalBezierSeg(int x0, int y0, int x1, int y1,
             sy = floor((y0 + 2.0 * w * y1 + y2) * xy / 2.0 + 0.5);
             dx = floor((w * x1 + x0) * xy + 0.5);
             dy = floor((y1 * w + y0) * xy + 0.5);
-            plotQuadRationalBezierSeg(x0, y0, dx, dy, sx, sy, cur);/* plot separately */
+            plotQuadRationalBezierSeg(x0, y0, dx, dy, sx, sy, cur, col);/* plot separately */
             dx = floor((w * x1 + x2) * xy + 0.5);
             dy = floor((y1 * w + y2) * xy + 0.5);
-            plotQuadRationalBezierSeg(sx, sy, dx, dy, x2, y2, cur);
+            plotQuadRationalBezierSeg(sx, sy, dx, dy, x2, y2, cur, col);
             return;
         }
         err = dx + dy - xy; /* error 1.step */
         do
         {
-            drawPixel(x0, y0, WHITE); /* plot curve */
+            drawPixel(x0, y0, col); /* plot curve */
             if (x0 == x2 && y0 == y2)
             {
                 return;    /* last pixel -> curve finished */
@@ -382,11 +382,11 @@ void ICACHE_FLASH_ATTR plotQuadRationalBezierSeg(int x0, int y0, int x1, int y1,
             }/* x step */
         } while (dy <= xy && dx >= xy); /* gradient negates -> algorithm fails */
     }
-    plotLine(x0, y0, x2, y2); /* plot remaining needle to end */
+    plotLine(x0, y0, x2, y2, col); /* plot remaining needle to end */
 }
 
 void ICACHE_FLASH_ATTR plotQuadRationalBezier(int x0, int y0, int x1, int y1, int x2, int y2,
-        float w)   /* plot any quadratic rational Bezier curve */
+        float w, color col)   /* plot any quadratic rational Bezier curve */
 {
     int x = x0 - 2 * x1 + x2, y = y0 - 2 * y1 + y2;
     double xx = x0 - x1, yy = y0 - y1, ww, t, q;
@@ -430,7 +430,7 @@ void ICACHE_FLASH_ATTR plotQuadRationalBezier(int x0, int y0, int x1, int y1, in
         x = floor(xx + 0.5);
         y = floor(yy + 0.5); /* P4 */
         yy = (xx - x0) * (y1 - y0) / (x1 - x0) + y0; /* intersect P3 | P0 P1 */
-        plotQuadRationalBezierSeg(x0, y0, x, floor(yy + 0.5), x, y, ww);
+        plotQuadRationalBezierSeg(x0, y0, x, floor(yy + 0.5), x, y, ww, col);
         yy = (xx - x2) * (y1 - y2) / (x1 - x2) + y2; /* intersect P4 | P1 P2 */
         y1 = floor(yy + 0.5);
         x0 = x1 = x;
@@ -465,17 +465,17 @@ void ICACHE_FLASH_ATTR plotQuadRationalBezier(int x0, int y0, int x1, int y1, in
         x = floor(xx + 0.5);
         y = floor(yy + 0.5); /* P6 */
         xx = (x1 - x0) * (yy - y0) / (y1 - y0) + x0; /* intersect P6 | P0 P1 */
-        plotQuadRationalBezierSeg(x0, y0, floor(xx + 0.5), y, x, y, ww);
+        plotQuadRationalBezierSeg(x0, y0, floor(xx + 0.5), y, x, y, ww, col);
         xx = (x1 - x2) * (yy - y2) / (y1 - y2) + x2; /* intersect P7 | P1 P2 */
         x1 = floor(xx + 0.5);
         x0 = x;
         y0 = y1 = y; /* P0 = P6, P1 = P7 */
     }
-    plotQuadRationalBezierSeg(x0, y0, x1, y1, x2, y2, w * w); /* remaining */
+    plotQuadRationalBezierSeg(x0, y0, x1, y1, x2, y2, w * w, col); /* remaining */
 }
 
 void ICACHE_FLASH_ATTR plotRotatedEllipse(int x, int y, int a, int b,
-        float angle)   /* plot ellipse rotated by angle (radian) */
+        float angle, color col)   /* plot ellipse rotated by angle (radian) */
 {
     float xd = (long) a * a, yd = (long) b * b;
     float s = sin(angle), zd = (xd - yd) * s; /* ellipse rotation */
@@ -484,17 +484,17 @@ void ICACHE_FLASH_ATTR plotRotatedEllipse(int x, int y, int a, int b,
     b = yd + 0.5;
     zd = zd * a * b / (xd * yd); /* scale to integer */
     plotRotatedEllipseRect(x - a, y - b, x + a, y + b,
-                           (long) (4 * zd * cos(angle)));
+                           (long) (4 * zd * cos(angle)), col);
 }
 
 void ICACHE_FLASH_ATTR plotRotatedEllipseRect(int x0, int y0, int x1, int y1,
-        long zd)   /* rectangle enclosing the ellipse, integer rotation angle */
+        long zd, color col)   /* rectangle enclosing the ellipse, integer rotation angle */
 {
     int xd = x1 - x0, yd = y1 - y0;
     float w = xd * (long) yd;
     if (zd == 0)
     {
-        return plotEllipseRect(x0, y0, x1, y1);    /* looks nicer */
+        return plotEllipseRect(x0, y0, x1, y1, col);    /* looks nicer */
     }
     if (w != 0.0)
     {
@@ -503,14 +503,14 @@ void ICACHE_FLASH_ATTR plotRotatedEllipseRect(int x0, int y0, int x1, int y1,
     assert(w <= 1.0 && w >= 0.0); /* limit angle to |zd|<=xd*yd */
     xd = floor(xd * w + 0.5);
     yd = floor(yd * w + 0.5); /* snap xe,ye to int */
-    plotQuadRationalBezierSeg(x0, y0 + yd, x0, y0, x0 + xd, y0, 1.0 - w);
-    plotQuadRationalBezierSeg(x0, y0 + yd, x0, y1, x1 - xd, y1, w);
-    plotQuadRationalBezierSeg(x1, y1 - yd, x1, y1, x1 - xd, y1, 1.0 - w);
-    plotQuadRationalBezierSeg(x1, y1 - yd, x1, y0, x0 + xd, y0, w);
+    plotQuadRationalBezierSeg(x0, y0 + yd, x0, y0, x0 + xd, y0, 1.0 - w, col);
+    plotQuadRationalBezierSeg(x0, y0 + yd, x0, y1, x1 - xd, y1, w, col);
+    plotQuadRationalBezierSeg(x1, y1 - yd, x1, y1, x1 - xd, y1, 1.0 - w, col);
+    plotQuadRationalBezierSeg(x1, y1 - yd, x1, y0, x0 + xd, y0, w, col);
 }
 
 void ICACHE_FLASH_ATTR plotCubicBezierSeg(int x0, int y0, float x1, float y1, float x2, float y2,
-        int x3, int y3)   /* plot limited cubic Bezier segment */
+        int x3, int y3, color col)   /* plot limited cubic Bezier segment */
 {
     int f, fx, fy, leg = 1;
     int sx = x0 < x3 ? 1 : -1, sy = y0 < y3 ? 1 : -1; /* step direction */
@@ -532,7 +532,7 @@ void ICACHE_FLASH_ATTR plotCubicBezierSeg(int x0, int y0, float x1, float y1, fl
     {
         sx = floor((3 * x1 - x0 + 1) / 2);
         sy = floor((3 * y1 - y0 + 1) / 2); /* new midpoint */
-        return plotQuadBezierSeg(x0, y0, sx, sy, x3, y3);
+        return plotQuadBezierSeg(x0, y0, sx, sy, x3, y3, col);
     }
     x1 = (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0) + 1; /* line lengths */
     x2 = (x2 - x3) * (x2 - x3) + (y2 - y3) * (y2 - y3) + 1;
@@ -587,7 +587,7 @@ void ICACHE_FLASH_ATTR plotCubicBezierSeg(int x0, int y0, float x1, float y1, fl
 
         for (pxy = &xy, fx = fy = f; x0 != x3 && y0 != y3;)
         {
-            drawPixel(x0, y0, WHITE); /* plot curve */
+            drawPixel(x0, y0, col); /* plot curve */
             do   /* move sub-steps of one pixel */
             {
                 if (dx > *pxy || dy < *pxy)
@@ -641,11 +641,11 @@ exit:
         yb = -yb;
         x1 = x2;
     } while (leg--); /* try other end */
-    plotLine(x0, y0, x3, y3); /* remaining part in case of cusp or crunode */
+    plotLine(x0, y0, x3, y3, col); /* remaining part in case of cusp or crunode */
 }
 
 void ICACHE_FLASH_ATTR plotCubicBezier(int x0, int y0, int x1, int y1, int x2, int y2, int x3,
-                                       int y3)   /* plot any cubic Bezier curve */
+                                       int y3, color col)   /* plot any cubic Bezier curve */
 {
     int n = 0, i = 0;
     long xc = x0 + x1 - x2 - x3, xa = xc - 4 * (x1 - x2);
@@ -735,7 +735,7 @@ void ICACHE_FLASH_ATTR plotCubicBezier(int x0, int y0, int x1, int y1, int x2, i
         }
         if (x0 != x3 || y0 != y3) /* segment t1 - t2 */
             plotCubicBezierSeg(x0, y0, x0 + fx1, y0 + fy1, x0 + fx2, y0 + fy2,
-                               x3, y3);
+                               x3, y3, col);
         x0 = x3;
         y0 = y3;
         fx0 = fx3;
@@ -744,7 +744,7 @@ void ICACHE_FLASH_ATTR plotCubicBezier(int x0, int y0, int x1, int y1, int x2, i
     }
 }
 
-void ICACHE_FLASH_ATTR plotQuadSpline(int n, int x[], int y[])   /* plot quadratic spline, destroys input arrays x,y */
+void ICACHE_FLASH_ATTR plotQuadSpline(int n, int x[], int y[], color col)   /* plot quadratic spline, destroys input arrays x,y */
 {
 #define M_MAX 6
     float mi = 1, m[M_MAX]; /* diagonal constants of matrix */
@@ -775,16 +775,16 @@ void ICACHE_FLASH_ATTR plotQuadSpline(int n, int x[], int y[])   /* plot quadrat
         }
         x0 = floor((x[i] - x1) * mi + 0.5); /* next corner */
         y0 = floor((y[i] - y1) * mi + 0.5);
-        plotQuadBezier((x0 + x1) / 2, (y0 + y1) / 2, x1, y1, x2, y2);
+        plotQuadBezier((x0 + x1) / 2, (y0 + y1) / 2, x1, y1, x2, y2, col);
         x2 = (x0 + x1) / 2;
         x1 = x0;
         y2 = (y0 + y1) / 2;
         y1 = y0;
     }
-    plotQuadBezier(x[0], y[0], x1, y1, x2, y2);
+    plotQuadBezier(x[0], y[0], x1, y1, x2, y2, col);
 }
 
-void ICACHE_FLASH_ATTR plotCubicSpline(int n, int x[], int y[])   /* plot cubic spline, destroys input arrays x,y */
+void ICACHE_FLASH_ATTR plotCubicSpline(int n, int x[], int y[], color col)   /* plot cubic spline, destroys input arrays x,y */
 {
 #define M_MAX 6
     float mi = 0.25, m[M_MAX]; /* diagonal constants of matrix */
@@ -807,7 +807,7 @@ void ICACHE_FLASH_ATTR plotCubicSpline(int n, int x[], int y[])   /* plot cubic 
     }
     x2 = floor((x0 - 3 * x4) / (7 - 4 * mi) + 0.5); /* correct last row */
     y2 = floor((y0 - 3 * y4) / (7 - 4 * mi) + 0.5);
-    plotCubicBezier(x3, y3, (x2 + x4) / 2, (y2 + y4) / 2, x4, y4, x4, y4);
+    plotCubicBezier(x3, y3, (x2 + x4) / 2, (y2 + y4) / 2, x4, y4, x4, y4, col);
 
     if (n - 3 < M_MAX)
     {
@@ -827,7 +827,7 @@ void ICACHE_FLASH_ATTR plotCubicSpline(int n, int x[], int y[])   /* plot cubic 
         y4 = floor((y0 + 4 * y1 + y2 + 3) / 6.0);
         plotCubicBezier(x4, y4, floor((2 * x1 + x2) / 3 + 0.5),
                         floor((2 * y1 + y2) / 3 + 0.5), floor((x1 + 2 * x2) / 3 + 0.5),
-                        floor((y1 + 2 * y2) / 3 + 0.5), x3, y3);
+                        floor((y1 + 2 * y2) / 3 + 0.5), x3, y3, col);
         x3 = x4;
         y3 = y4;
         x2 = x1;
@@ -841,6 +841,6 @@ void ICACHE_FLASH_ATTR plotCubicSpline(int n, int x[], int y[])   /* plot cubic 
     y4 = floor((3 * y0 + 7 * y1 + 2 * y2 + 6) / 12.0);
     plotCubicBezier(x4, y4, floor((2 * x1 + x2) / 3 + 0.5),
                     floor((2 * y1 + y2) / 3 + 0.5), floor((x1 + 2 * x2) / 3 + 0.5),
-                    floor((y1 + 2 * y2) / 3 + 0.5), x3, y3);
-    plotCubicBezier(x0, y0, x0, y0, (x0 + x1) / 2, (y0 + y1) / 2, x4, y4);
+                    floor((y1 + 2 * y2) / 3 + 0.5), x3, y3, col);
+    plotCubicBezier(x0, y0, x0, y0, (x0 + x1) / 2, (y0 + y1) / 2, x4, y4, col);
 }
