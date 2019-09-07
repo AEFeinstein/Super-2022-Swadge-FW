@@ -7,24 +7,150 @@
 
 #define CLOCK_NUMERATOR 5000000
 
-const song_t testSong = {
-    .numNotes = 9,
+const song_t MetalGear = {
     .notes = {
-        {.note = C_4, .timeMs = 250},
-        {.note = D_4, .timeMs = 250},
-        {.note = E_4, .timeMs = 250},
-        {.note = F_4, .timeMs = 250},
-        {.note = G_4, .timeMs = 250},
-        {.note = F_4, .timeMs = 250},
-        {.note = E_4, .timeMs = 250},
-        {.note = D_4, .timeMs = 250},
-        {.note = C_4, .timeMs = 250},
-    }
+        {.note = E_4, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_4, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_3, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_4, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 719},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_4, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_4, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_4, .timeMs = 719},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_4, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_4, .timeMs = 1919},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_4, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_4, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_4, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_4, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_4, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_4, .timeMs = 719},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_4, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_4, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_SHARP_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_SHARP_5, .timeMs = 719},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_SHARP_5, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 1919},
+        {.note = SILENCE, .timeMs = 1},
+    },
+    .numNotes = 128,
+    .shouldLoop = false
 };
 
 bool isHigh(double period, double time)
 {
+    if(0 == period) {
+        return false;
+    }
     // printf("%s %f > %f\n", __func__, time, period);
+    int numExtraPeriods = time / period;
+    time -= (period * numExtraPeriods);
+
     while(time > period) {
         // printf("%s %f > %f\n", __func__, time, period);
         time -= period;
@@ -38,6 +164,7 @@ bool isHigh(double period, double time)
 int main(int argc __attribute__((unused)), char ** argv __attribute__((unused))) {
     printf("Writing song\n");
 
+    const song_t * toTest = &MetalGear;
     TinyWav tw;
     tinywav_open_write(&tw,
                        NUM_CHANNELS,
@@ -49,11 +176,11 @@ int main(int argc __attribute__((unused)), char ** argv __attribute__((unused)))
                       );
 
     double timeS = 0;
-    for(uint32_t noteIdx = 0; noteIdx < testSong.numNotes; noteIdx++) {
-        printf("f: %d, t: %dms\n", testSong.notes[noteIdx].note, testSong.notes[noteIdx].timeMs);
+    for(uint32_t noteIdx = 0; noteIdx < toTest->numNotes; noteIdx++) {
+        printf("f: %d, t: %dms\n", toTest->notes[noteIdx].note, toTest->notes[noteIdx].timeMs);
         double tStart = timeS;
-        double period = 1 / (CLOCK_NUMERATOR * (1 / (double)testSong.notes[noteIdx].note));
-        double noteTimeS = testSong.notes[noteIdx].timeMs / (double)1000;
+        double period = 1 / (CLOCK_NUMERATOR * (1 / (double)toTest->notes[noteIdx].note));
+        double noteTimeS = toTest->notes[noteIdx].timeMs / (double)1000;
         while(timeS - tStart < noteTimeS) {
             // printf("%f < %f\n", timeS - tStart, noteTimeS);
             timeS += (1/(double)SAMPLE_RATE);
