@@ -130,7 +130,7 @@ void ICACHE_FLASH_ATTR joustAccelerometerHandler(accel_t* accel);
 void ICACHE_FLASH_ATTR joustDisarmAllLedTimers(void);
 void ICACHE_FLASH_ATTR joustConnLedTimeout(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR joustShowConnectionLedTimeout(void* arg __attribute__((unused)));
-void ICACHE_FLASH_ATTR refGameLedTimeout(void* arg __attribute__((unused)));
+void ICACHE_FLASH_ATTR joustGameLedTimeout(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR joustRoundResultLed(bool);
 
 void ICACHE_FLASH_ATTR joustUpdateDisplay(void);
@@ -364,6 +364,9 @@ void ICACHE_FLASH_ATTR joustInit(void)
     os_timer_disarm(&joust.tmr.ConnLed);
     os_timer_setfn(&joust.tmr.ConnLed, joustConnLedTimeout, NULL);
 
+    os_timer_disarm(&joust.tmr.GameLed);
+    os_timer_setfn(&joust.tmr.GameLed, joustGameLedTimeout, NULL);
+
 
     os_timer_disarm(&joust.tmr.RestartJoust);
     os_timer_setfn(&joust.tmr.RestartJoust, joustRestart, NULL);
@@ -406,7 +409,7 @@ void ICACHE_FLASH_ATTR joustDisarmAllLedTimers(void)
 {
        os_timer_disarm(&joust.tmr.ConnLed);
        os_timer_disarm(&joust.tmr.ShowConnectionLed);
-    // os_timer_disarm(&ref.tmr.GameLed);
+       os_timer_disarm(&joust.tmr.GameLed);
     // os_timer_disarm(&ref.tmr.SinglePlayerRestart);
 }
 
@@ -496,6 +499,61 @@ void ICACHE_FLASH_ATTR joustShowConnectionLedTimeout(void* arg __attribute__((un
     setLeds(joust.led.Leds, sizeof(joust.led.Leds));
 }
 
+
+/**
+ * This LED handling timer fades in and fades out white LEDs to indicate
+ * a successful connection. After the animation, the game will start
+ *
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR joustGameLedTimeout(void* arg __attribute__((unused)) )
+{
+    // uint8_t currBrightness = joust.led.Leds[0].r;
+    switch(joust.led.ConnLedState)
+    {
+        case LED_CONNECTED_BRIGHT:
+        {
+            joust.led.currBrightness++;
+            if(joust.led.currBrightness == 80)
+            {
+                joust.led.ConnLedState = LED_CONNECTED_DIM;
+            }
+            break;
+        }
+        case LED_CONNECTED_DIM:
+        {
+            joust.led.currBrightness--;
+            if(joust.led.currBrightness == 0)
+            {
+                joust.led.ConnLedState = LED_CONNECTED_BRIGHT;
+            }
+            break;
+        }
+        case LED_OFF:
+        case LED_ON_1:
+        case LED_DIM_1:
+        case LED_ON_2:
+        case LED_DIM_2:
+        case LED_OFF_WAIT:
+        default:
+        {
+            // No other cases handled
+            break;
+        }
+    }
+    uint8_t i;
+    for(i = 0; i < 6; i++)
+    {
+        joust.led.Leds[i].r = (EHSVtoHEX(joust.con_color, 255  ,  joust.led.currBrightness) >>  0) & 0xFF;
+        joust.led.Leds[i].g = (EHSVtoHEX(joust.con_color, 255,  joust.led.currBrightness) >>  8) & 0xFF;
+        joust.led.Leds[i].b = (EHSVtoHEX(joust.con_color, 255,  joust.led.currBrightness) >> 16) & 0xFF;
+    }
+
+    // ets_memset(joust.led.Leds, currBrightness, sizeof(joust.led.Leds));
+    setLeds(joust.led.Leds, sizeof(joust.led.Leds));
+}
+
+
 /**
  * This is called after connection is all done. Start the game!
  *
@@ -511,8 +569,11 @@ void ICACHE_FLASH_ATTR joustStartPlaying(void* arg __attribute__((unused)))
 
     // Turn off the LEDs
     joustDisarmAllLedTimers();
-    ets_memset(joust.led.Leds, 0, sizeof(joust.led.Leds));
-    setLeds(joust.led.Leds, sizeof(joust.led.Leds));
+    joust.led.currBrightness = 0;
+    joust.led.ConnLedState = LED_CONNECTED_BRIGHT;
+    os_timer_arm(&joust.tmr.GameLed, 3, true);
+    // ets_memset(joust.led.Leds, 0, sizeof(joust.led.Leds));
+    // setLeds(joust.led.Leds, sizeof(joust.led.Leds));
 
 
     // Check for match end
@@ -761,6 +822,7 @@ void ICACHE_FLASH_ATTR joustMsgTxCbFn(p2pInfo* p2p __attribute__((unused)),
  */
 void ICACHE_FLASH_ATTR joustRoundResultLed(bool roundWinner)
 {
+    joustDisarmAllLedTimers();
     uint8_t currBrightness = joust.led.Leds[0].r;
     currBrightness = 0xFF;
     // joust.led.ConnLedState = LED_CONNECTED_DIM;
