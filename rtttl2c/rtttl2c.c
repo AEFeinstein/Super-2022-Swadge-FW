@@ -191,7 +191,7 @@ ALL_DONE:
  */
 char*   parseNote (char* p, int defOctave, int defDuration, int bpm)
 {
-    int octave = defOctave - 1;
+    int octave = defOctave;
     int octaveMod = 0;
     float duration = defDuration;
     char noteName[32] = {0};
@@ -264,7 +264,7 @@ char*   parseNote (char* p, int defOctave, int defDuration, int bpm)
     // Parse octave
     if (*p >= '0' && *p <= '9')
     {
-        octave = (*p++ - '0') - 1;
+        octave = (*p++ - '0');
     }
 
     // Append the octave
