@@ -106,7 +106,7 @@ void ICACHE_FLASH_ATTR refSinglePlayerScoreLed(uint8_t ledToLight, led_t* colorP
 void ICACHE_FLASH_ATTR joustConnectionCallback(p2pInfo* p2p, connectionEvt_t event);
 void ICACHE_FLASH_ATTR joustMsgCallbackFn(p2pInfo* p2p, char* msg, uint8_t* payload, uint8_t len);
 void ICACHE_FLASH_ATTR joustMsgTxCbFn(p2pInfo* p2p, messageStatus_t status);
-
+uint32_t ICACHE_FLASH_ATTR joust_rand(uint32_t upperBound);
 // Transmission Functions
 void ICACHE_FLASH_ATTR joustSendMsg(char* msg, uint16_t len, bool shouldAck, void (*success)(void*),
                                   void (*failure)(void*));
@@ -159,6 +159,7 @@ struct
     joustGameState_t gameState;
     accel_t joustAccel;
     uint16_t rolling_average;
+    uint32_t con_color;
     // Game state variables
     struct
     {
@@ -193,40 +194,35 @@ struct
         uint8_t connectionDim;
         uint8_t digitToDisplay;
         uint8_t ledsLit;
+        uint8_t currBrightness;
     } led;
 
     p2pInfo p2pJoust;
 } joust;
 
-// Colors
-// static led_t digitCountFirstPrimary =
-// {
-//     .r = 0xFE,
-//     .g = 0x87,
-//     .b = 0x1D,
-// };
-// static led_t digitCountFirstSecondary =
-// {
-//     .r = 0x11,
-//     .g = 0x39,
-//     .b = 0xFE,
-// };
-// static led_t digitCountSecondPrimary =
-// {
-//     .r = 0xCB,
-//     .g = 0x1F,
-//     .b = 0xFF,
-// };
-// static led_t digitCountSecondSecondary =
-// {
-//     .r = 0x00,
-//     .g = 0xFC,
-//     .b = 0x0F,
-// };
-
 /*============================================================================
  * Functions
  *==========================================================================*/
+ /**
+  * Get a random number from a range.
+  *
+  * This isn't true-random, unless bound is a power of 2. But it's close enough?
+  * The problem is that os_random() returns a number between [0, 2^64), and the
+  * size of the range may not be even divisible by bound
+  *
+  * For what it's worth, this is what Arduino's random() does. It lies!
+  *
+  * @param bound An upper bound of the random range to return
+  * @return A number in the range [0,bound), which does not include bound
+  */
+ uint32_t ICACHE_FLASH_ATTR joust_rand(uint32_t bound)
+ {
+     if(bound == 0)
+     {
+         return 0;
+     }
+     return os_random() % bound;
+ }
 
  void ICACHE_FLASH_ATTR joustConnectionCallback(p2pInfo* p2p __attribute__((unused)), connectionEvt_t event)
  {
@@ -239,24 +235,32 @@ struct
          }
          case RX_GAME_START_ACK:
          {
+           char color_string[32] = {0};
+           joust.con_color =  joust_rand(255);
+           ets_snprintf(color_string ,sizeof(color_string), "%d" ,joust.con_color);
+           p2pSendMsg(&joust.p2pJoust, "col", color_string, sizeof(color_string), joustMsgTxCbFn);
              break;
          }
          case RX_GAME_START_MSG:
          {
+
              break;
          }
          case CON_ESTABLISHED:
          {
              // Connection was successful, so disarm the failure timer
+
              joust.gameState = R_SHOW_CONNECTION;
              clearDisplay();
              plotText(0, 0, "Found", IBM_VGA_8);
              ets_memset(joust.led.Leds, 0, sizeof(joust.led.Leds));
-             joust.led.ConnLedState = LED_CONNECTED_BRIGHT;
+
 
              joustDisarmAllLedTimers();
              // 6ms * ~500 steps == 3s animation
              //This is the start of the game
+             joust.led.currBrightness = 0;
+             joust.led.ConnLedState = LED_CONNECTED_BRIGHT;
              os_timer_arm(&joust.tmr.ShowConnectionLed, 6, true);
              break;
          }
@@ -287,6 +291,11 @@ struct
          joust_printf("%s %s\n", __func__, msg);
      }
 
+     if(0 == ets_memcmp(msg, "col", 3))
+     {
+         joust.con_color =  atoi(payload);
+     }
+
      switch(joust.gameState)
      {
          case R_CONNECTING:
@@ -300,10 +309,6 @@ struct
          {
              if(0 == ets_memcmp(msg, "los", 3))
              {
-                 // The other swadge lost, so chalk a win!
-                 // ref.gam.Wins++;
-
-                 // Display the win
                  joustRoundResultLed(true);
              }
              // Currently playing a game, if a message is sent, then update score
@@ -446,13 +451,13 @@ void ICACHE_FLASH_ATTR joustRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len
  */
 void ICACHE_FLASH_ATTR joustShowConnectionLedTimeout(void* arg __attribute__((unused)) )
 {
-    uint8_t currBrightness = joust.led.Leds[0].r;
+    // uint8_t currBrightness = joust.led.Leds[0].r;
     switch(joust.led.ConnLedState)
     {
         case LED_CONNECTED_BRIGHT:
         {
-            currBrightness++;
-            if(currBrightness == 0xFF)
+            joust.led.currBrightness++;
+            if(joust.led.currBrightness == 0xFF)
             {
                 joust.led.ConnLedState = LED_CONNECTED_DIM;
             }
@@ -460,8 +465,8 @@ void ICACHE_FLASH_ATTR joustShowConnectionLedTimeout(void* arg __attribute__((un
         }
         case LED_CONNECTED_DIM:
         {
-            currBrightness--;
-            if(currBrightness == 0x00)
+            joust.led.currBrightness--;
+            if(joust.led.currBrightness == 0x00)
             {
                 joustStartPlaying(NULL);
             }
@@ -479,7 +484,15 @@ void ICACHE_FLASH_ATTR joustShowConnectionLedTimeout(void* arg __attribute__((un
             break;
         }
     }
-    ets_memset(joust.led.Leds, currBrightness, sizeof(joust.led.Leds));
+    uint8_t i;
+    for(i = 0; i < 6; i++)
+    {
+        joust.led.Leds[i].r = (EHSVtoHEX(joust.con_color, 255  ,  joust.led.currBrightness) >>  0) & 0xFF;
+        joust.led.Leds[i].g = (EHSVtoHEX(joust.con_color, 255,  joust.led.currBrightness) >>  8) & 0xFF;
+        joust.led.Leds[i].b = (EHSVtoHEX(joust.con_color, 255,  joust.led.currBrightness) >> 16) & 0xFF;
+    }
+
+    // ets_memset(joust.led.Leds, currBrightness, sizeof(joust.led.Leds));
     setLeds(joust.led.Leds, sizeof(joust.led.Leds));
 }
 
@@ -529,7 +542,6 @@ void ICACHE_FLASH_ATTR joustUpdateDisplay(void)
     char accelStr[32] = {0};
     ets_snprintf(accelStr ,sizeof(accelStr), "X:%d" , joust.rolling_average);
     plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
-
 }
 
 /**
@@ -544,7 +556,7 @@ void ICACHE_FLASH_ATTR joustAccelerometerHandler(accel_t* accel)
     int mov = (int) sqrt(pow(joust.joustAccel.x,2) + pow(joust.joustAccel.y,2)+ pow(joust.joustAccel.z,2));
     joust.rolling_average = (joust.rolling_average*2 + mov)/3;
     if (joust.gameState == R_PLAYING){
-      if(mov > joust.rolling_average + 30){
+      if(mov > joust.rolling_average + 40){
         joustSendRoundLossMsg();
       }
       else{
@@ -643,8 +655,8 @@ void ICACHE_FLASH_ATTR joustConnLedTimeout(void* arg __attribute__((unused)))
     for(i = 0; i < 6; i ++)
     {
       joust.led.Leds[i].b = joust.led.connectionDim;
-
     }
+
 
 
     // Physically set the LEDs
