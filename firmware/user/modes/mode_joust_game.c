@@ -223,6 +223,7 @@ struct
         os_timer_t ShowConnectionLed;
         os_timer_t GameLed;
         os_timer_t SinglePlayerRestart;
+        os_timer_t RestartJoust;
     } tmr;
 
     // LED variables
@@ -440,6 +441,10 @@ void ICACHE_FLASH_ATTR joustInit(void)
     // Set up a timer to update LEDs, start it
     os_timer_disarm(&joust.tmr.ConnLed);
     os_timer_setfn(&joust.tmr.ConnLed, joustConnLedTimeout, NULL);
+
+
+    os_timer_disarm(&joust.tmr.RestartJoust);
+    os_timer_setfn(&joust.tmr.RestartJoust, joustRestart, NULL);
 
     //specific to reflector game
 //     // Set up a timer to restart after failure. don't start it
@@ -1441,7 +1446,23 @@ void ICACHE_FLASH_ATTR joustMsgTxCbFn(p2pInfo* p2p __attribute__((unused)),
  */
 void ICACHE_FLASH_ATTR joustRoundResultLed(bool roundWinner)
 {
-    joustRestart(NULL);
+    uint8_t currBrightness = joust.led.Leds[0].r;
+    currBrightness = 0xFF;
+    // joust.led.ConnLedState = LED_CONNECTED_DIM;
+    joust.led.connectionDim = 255;
+    ets_memset(joust.led.Leds, currBrightness, sizeof(joust.led.Leds));
+    setLeds(joust.led.Leds, sizeof(joust.led.Leds));
+    joust.gameState = R_SHOW_GAME_RESULT;
+    if(roundWinner){
+      clearDisplay();
+      plotText(0, 0, "Winner", IBM_VGA_8);
+    }else{
+      clearDisplay();
+      plotText(0, 0, "Loser", IBM_VGA_8);
+    }
+    os_timer_arm(&joust.tmr.RestartJoust, 8000, false);
+
+
     // sint8_t i;
     //
     // // Clear the LEDs
