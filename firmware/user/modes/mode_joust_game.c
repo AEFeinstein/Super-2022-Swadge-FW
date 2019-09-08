@@ -101,8 +101,6 @@ void ICACHE_FLASH_ATTR joustSendCb(uint8_t* mac_addr, mt_tx_status status);
 // Helper function
 void ICACHE_FLASH_ATTR joustRestart(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR refStartRestartTimer(void* arg __attribute__((unused)));
-void ICACHE_FLASH_ATTR refSinglePlayerRestart(void* arg __attribute__((unused)));
-void ICACHE_FLASH_ATTR refSinglePlayerScoreLed(uint8_t ledToLight, led_t* colorPrimary, led_t* colorSecondary);
 void ICACHE_FLASH_ATTR joustConnectionCallback(p2pInfo* p2p, connectionEvt_t event);
 void ICACHE_FLASH_ATTR joustMsgCallbackFn(p2pInfo* p2p, char* msg, uint8_t* payload, uint8_t len);
 void ICACHE_FLASH_ATTR joustMsgTxCbFn(p2pInfo* p2p, messageStatus_t status);
@@ -131,7 +129,8 @@ void ICACHE_FLASH_ATTR joustDisarmAllLedTimers(void);
 void ICACHE_FLASH_ATTR joustConnLedTimeout(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR joustShowConnectionLedTimeout(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR joustGameLedTimeout(void* arg __attribute__((unused)));
-void ICACHE_FLASH_ATTR joustRoundResultLed(bool);
+void ICACHE_FLASH_ATTR joustRoundResultLed(void* arg __attribute__((unused)));
+void ICACHE_FLASH_ATTR joustRoundResult(bool);
 
 void ICACHE_FLASH_ATTR joustUpdateDisplay(void);
 
@@ -168,9 +167,7 @@ struct
         uint8_t Wins;
         uint8_t Losses;
         uint8_t ledPeriodMs;
-        bool singlePlayer;
-        uint16_t singlePlayerRounds;
-        uint8_t singlePlayerTopHits;
+        bool round_winner;
         bool receiveFirstMsg;
     } gam;
 
@@ -181,7 +178,7 @@ struct
         os_timer_t ConnLed;
         os_timer_t ShowConnectionLed;
         os_timer_t GameLed;
-        os_timer_t SinglePlayerRestart;
+        os_timer_t RoundResultLed;
         os_timer_t RestartJoust;
     } tmr;
 
@@ -309,7 +306,7 @@ struct
          {
              if(0 == ets_memcmp(msg, "los", 3))
              {
-                 joustRoundResultLed(true);
+                 joustRoundResult(true);
              }
              // Currently playing a game, if a message is sent, then update score
              break;
@@ -372,6 +369,10 @@ void ICACHE_FLASH_ATTR joustInit(void)
     os_timer_setfn(&joust.tmr.RestartJoust, joustRestart, NULL);
 
 
+    os_timer_disarm(&joust.tmr.RoundResultLed);
+    os_timer_setfn(&joust.tmr.RoundResultLed, joustRoundResultLed, NULL);
+
+
     // p2pStartConnection(&joust.p2pJoust);
     joust.gameState = R_MENU;
     joust.p2pJoust.connectionRssi = 10;
@@ -387,7 +388,7 @@ void ICACHE_FLASH_ATTR joustDeinit(void)
 
     joust_printf("%s\r\n", __func__);
     p2pDeinit(&joust.p2pJoust);
-    // os_timer_disarm(&ref.tmr.StartPlaying);
+    os_timer_disarm(&joust.tmr.StartPlaying);
     joustDisarmAllLedTimers();
 }
 
@@ -410,7 +411,7 @@ void ICACHE_FLASH_ATTR joustDisarmAllLedTimers(void)
        os_timer_disarm(&joust.tmr.ConnLed);
        os_timer_disarm(&joust.tmr.ShowConnectionLed);
        os_timer_disarm(&joust.tmr.GameLed);
-    // os_timer_disarm(&ref.tmr.SinglePlayerRestart);
+       os_timer_disarm(&joust.tmr.RoundResultLed);
 }
 
 
@@ -460,7 +461,7 @@ void ICACHE_FLASH_ATTR joustShowConnectionLedTimeout(void* arg __attribute__((un
         case LED_CONNECTED_BRIGHT:
         {
             joust.led.currBrightness++;
-            if(joust.led.currBrightness == 0xFF)
+            if(joust.led.currBrightness == 255)
             {
                 joust.led.ConnLedState = LED_CONNECTED_DIM;
             }
@@ -514,7 +515,7 @@ void ICACHE_FLASH_ATTR joustGameLedTimeout(void* arg __attribute__((unused)) )
         case LED_CONNECTED_BRIGHT:
         {
             joust.led.currBrightness++;
-            if(joust.led.currBrightness == 80)
+            if(joust.led.currBrightness == 30)
             {
                 joust.led.ConnLedState = LED_CONNECTED_DIM;
             }
@@ -544,7 +545,7 @@ void ICACHE_FLASH_ATTR joustGameLedTimeout(void* arg __attribute__((unused)) )
     uint8_t i;
     for(i = 0; i < 6; i++)
     {
-        joust.led.Leds[i].r = (EHSVtoHEX(joust.con_color, 255  ,  joust.led.currBrightness) >>  0) & 0xFF;
+        joust.led.Leds[i].r = (EHSVtoHEX(joust.con_color, 255,  joust.led.currBrightness) >>  0) & 0xFF;
         joust.led.Leds[i].g = (EHSVtoHEX(joust.con_color, 255,  joust.led.currBrightness) >>  8) & 0xFF;
         joust.led.Leds[i].b = (EHSVtoHEX(joust.con_color, 255,  joust.led.currBrightness) >> 16) & 0xFF;
     }
@@ -571,13 +572,7 @@ void ICACHE_FLASH_ATTR joustStartPlaying(void* arg __attribute__((unused)))
     joustDisarmAllLedTimers();
     joust.led.currBrightness = 0;
     joust.led.ConnLedState = LED_CONNECTED_BRIGHT;
-    os_timer_arm(&joust.tmr.GameLed, 3, true);
-    // ets_memset(joust.led.Leds, 0, sizeof(joust.led.Leds));
-    // setLeds(joust.led.Leds, sizeof(joust.led.Leds));
-
-
-    // Check for match end
-    // joust_printf("wins: %d, losses %d\r\n", ref.gam.Wins, ref.gam.Losses);
+    os_timer_arm(&joust.tmr.GameLed, 6, true);
     joust.gameState = R_PLAYING;
 
 }
@@ -649,7 +644,7 @@ void ICACHE_FLASH_ATTR joustConnLedTimeout(void* arg __attribute__((unused)))
         case LED_ON_1:
         {
             // Turn LEDs on
-            joust.led.connectionDim = 255;
+            joust.led.connectionDim = 50;
 
             // Prepare the first dimming
             joust.led.ConnLedState = LED_DIM_1;
@@ -669,7 +664,7 @@ void ICACHE_FLASH_ATTR joustConnLedTimeout(void* arg __attribute__((unused)))
         case LED_ON_2:
         {
             // Turn LEDs on
-            joust.led.connectionDim = 255;
+            joust.led.connectionDim = 50;
             // Prepare the second dimming
             joust.led.ConnLedState = LED_DIM_2;
             break;
@@ -775,7 +770,7 @@ void ICACHE_FLASH_ATTR joustSendRoundLossMsg(void)
     // If it's not acked, reinit with refRestart()
     p2pSendMsg(&joust.p2pJoust, "los", NULL, 0, joustMsgTxCbFn);
     // Show the current wins & losses
-    joustRoundResultLed(false);
+    joustRoundResult(false);
 
 
 
@@ -812,7 +807,37 @@ void ICACHE_FLASH_ATTR joustMsgTxCbFn(p2pInfo* p2p __attribute__((unused)),
     }
 }
 
+void ICACHE_FLASH_ATTR joustRoundResultLed(void* arg __attribute__((unused)))
+{
 
+  // uint8_t currBrightness = joust.led.Leds[0].r;
+  uint8_t currBrightness = 60;
+  // joust.led.ConnLedState = LED_CONNECTED_DIM;
+  joust.led.connectionDim = 255;
+  uint8_t i;
+  if(joust.gam.round_winner){
+    for(i = 0; i < 6; i++)
+    {
+        joust.led.Leds[i].g = 40;
+        joust.led.Leds[i].r = 0;
+        joust.led.Leds[i].b = 0;
+    }
+
+  }else{
+    for(i = 0; i < 6; i++)
+    {
+        joust.led.Leds[i].r = 40;
+        joust.led.Leds[i].g = 0;
+        joust.led.Leds[i].b = 0;
+    }
+  }
+
+  // ets_memset(joust.led.Leds, currBrightness, sizeof(joust.led.Leds));
+  setLeds(joust.led.Leds, sizeof(joust.led.Leds));
+
+
+
+}
 
 /**
  * Show the wins and losses
@@ -820,33 +845,12 @@ void ICACHE_FLASH_ATTR joustMsgTxCbFn(p2pInfo* p2p __attribute__((unused)),
  * @param roundWinner true if this swadge was a winner, false if the other
  *                    swadge won
  */
-void ICACHE_FLASH_ATTR joustRoundResultLed(bool roundWinner)
+void ICACHE_FLASH_ATTR joustRoundResult(bool roundWinner)
 {
+
     joustDisarmAllLedTimers();
-    // uint8_t currBrightness = joust.led.Leds[0].r;
-    uint8_t currBrightness = 60;
-    // joust.led.ConnLedState = LED_CONNECTED_DIM;
-    joust.led.connectionDim = 255;
-    uint8_t i;
-    if(roundWinner){
-      for(i = 0; i < 6; i++)
-      {
-          joust.led.Leds[i].g = (EHSVtoHEX(joust.con_color, 255,  currBrightness) >>  8) & 0xFF;
-          joust.led.Leds[i].r = 0;
-          joust.led.Leds[i].b = 0;
-      }
-
-    }else{
-      for(i = 0; i < 6; i++)
-      {
-          joust.led.Leds[i].r = (EHSVtoHEX(joust.con_color, 255,  currBrightness) >>  8) & 0xFF;
-          joust.led.Leds[i].g = 0;
-          joust.led.Leds[i].b = 0;
-      }
-    }
-
-    // ets_memset(joust.led.Leds, currBrightness, sizeof(joust.led.Leds));
-    setLeds(joust.led.Leds, sizeof(joust.led.Leds));
+    joust.gam.round_winner = roundWinner;
+    os_timer_arm(&joust.tmr.RoundResultLed, 6, true);
     joust.gameState = R_SHOW_GAME_RESULT;
     if(roundWinner){
       clearDisplay();
