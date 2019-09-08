@@ -617,7 +617,7 @@ void ICACHE_FLASH_ATTR joustAccelerometerHandler(accel_t* accel)
     int mov = (int) sqrt(pow(joust.joustAccel.x,2) + pow(joust.joustAccel.y,2)+ pow(joust.joustAccel.z,2));
     joust.rolling_average = (joust.rolling_average*2 + mov)/3;
     if (joust.gameState == R_PLAYING){
-      if(mov > joust.rolling_average + 40){
+      if(mov > joust.rolling_average + 50){
         joustSendRoundLossMsg();
       }
       else{
@@ -823,11 +823,29 @@ void ICACHE_FLASH_ATTR joustMsgTxCbFn(p2pInfo* p2p __attribute__((unused)),
 void ICACHE_FLASH_ATTR joustRoundResultLed(bool roundWinner)
 {
     joustDisarmAllLedTimers();
-    uint8_t currBrightness = joust.led.Leds[0].r;
-    currBrightness = 0xFF;
+    // uint8_t currBrightness = joust.led.Leds[0].r;
+    uint8_t currBrightness = 60;
     // joust.led.ConnLedState = LED_CONNECTED_DIM;
     joust.led.connectionDim = 255;
-    ets_memset(joust.led.Leds, currBrightness, sizeof(joust.led.Leds));
+    uint8_t i;
+    if(roundWinner){
+      for(i = 0; i < 6; i++)
+      {
+          joust.led.Leds[i].g = (EHSVtoHEX(joust.con_color, 255,  currBrightness) >>  8) & 0xFF;
+          joust.led.Leds[i].r = 0;
+          joust.led.Leds[i].b = 0;
+      }
+
+    }else{
+      for(i = 0; i < 6; i++)
+      {
+          joust.led.Leds[i].r = (EHSVtoHEX(joust.con_color, 255,  currBrightness) >>  8) & 0xFF;
+          joust.led.Leds[i].g = 0;
+          joust.led.Leds[i].b = 0;
+      }
+    }
+
+    // ets_memset(joust.led.Leds, currBrightness, sizeof(joust.led.Leds));
     setLeds(joust.led.Leds, sizeof(joust.led.Leds));
     joust.gameState = R_SHOW_GAME_RESULT;
     if(roundWinner){
@@ -837,7 +855,7 @@ void ICACHE_FLASH_ATTR joustRoundResultLed(bool roundWinner)
       clearDisplay();
       plotText(0, 0, "Loser", IBM_VGA_8);
     }
-    os_timer_arm(&joust.tmr.RestartJoust, 8000, false);
+    os_timer_arm(&joust.tmr.RestartJoust, 6000, false);
 
 
 }
