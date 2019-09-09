@@ -559,6 +559,7 @@ void ICACHE_FLASH_ATTR p2pRecvCb(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data,
 
     if(false == p2p->cnc.isConnected)
     {
+        p2p_printf("cnc.isconnected is false\r\n");
         // Received another broadcast, Check if this RSSI is strong enough
         if(!p2p->cnc.broadcastReceived &&
                 rssi > p2p->connectionRssi &&
@@ -607,9 +608,11 @@ void ICACHE_FLASH_ATTR p2pRecvCb(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data,
     }
     else
     {
+        p2p_printf("cnc.isconnected is true\r\n");
         // Let the mode handle it
         if(NULL != p2p->msgRxCbFn)
         {
+            p2p_printf("letting mode handle message\r\n");
             char msgType[4] = {0};
             memcpy(msgType, &data[CMD_IDX], 3 * sizeof(char));
             p2p->msgRxCbFn(p2p, msgType, &data[EXT_IDX], len - EXT_IDX);

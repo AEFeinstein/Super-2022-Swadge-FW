@@ -140,7 +140,7 @@ void ICACHE_FLASH_ATTR joustUpdateDisplay(void);
 
 swadgeMode joustGameMode =
 {
-    .modeName = "joust",
+    .modeName = "magjoust",
     .fnEnterMode = joustInit,
     .fnExitMode = joustDeinit,
     .fnButtonCallback = joustButton,
@@ -162,13 +162,12 @@ struct
     // Game state variables
     struct
     {
-        //gameAction_t Action;
         bool shouldTurnOnLeds;
-        uint8_t Wins;
-        uint8_t Losses;
-        uint8_t ledPeriodMs;
         bool round_winner;
-        bool receiveFirstMsg;
+        uint32_t joustElo;
+        uint32_t otherJoustElo;
+        uint32_t win_score;
+        uint32_t lose_score;
     } gam;
 
     // Timers
@@ -200,6 +199,7 @@ struct
 /*============================================================================
  * Functions
  *==========================================================================*/
+
  /**
   * Get a random number from a range.
   *
@@ -232,10 +232,7 @@ struct
          }
          case RX_GAME_START_ACK:
          {
-           char color_string[32] = {0};
-           joust.con_color =  joust_rand(255);
-           ets_snprintf(color_string ,sizeof(color_string), "%d" ,joust.con_color);
-           p2pSendMsg(&joust.p2pJoust, "col", color_string, sizeof(color_string), joustMsgTxCbFn);
+
              break;
          }
          case RX_GAME_START_MSG:
@@ -247,9 +244,19 @@ struct
          {
              // Connection was successful, so disarm the failure timer
 
+             if(GOING_FIRST == p2pGetPlayOrder(&joust.p2pJoust)){
+               char color_string[32] = {0};
+               joust.con_color =  joust_rand(255);
+               ets_snprintf(color_string ,sizeof(color_string), "%d" ,joust.con_color);
+               p2pSendMsg(&joust.p2pJoust, "col", color_string, sizeof(color_string), joustMsgTxCbFn);
+             }
+
              joust.gameState = R_SHOW_CONNECTION;
-             clearDisplay();
-             plotText(0, 0, "Found", IBM_VGA_8);
+             // ets_delay_us(50000);
+
+
+
+
              ets_memset(joust.led.Leds, 0, sizeof(joust.led.Leds));
 
 
@@ -259,6 +266,8 @@ struct
              joust.led.currBrightness = 0;
              joust.led.ConnLedState = LED_CONNECTED_BRIGHT;
              os_timer_arm(&joust.tmr.ShowConnectionLed, 6, true);
+
+
              break;
          }
          default:
@@ -288,9 +297,27 @@ struct
          joust_printf("%s %s\n", __func__, msg);
      }
 
+     //send color: col First
+     //then send our elo: elo
+     //then send their elo: elt
      if(0 == ets_memcmp(msg, "col", 3))
      {
          joust.con_color =  atoi(payload);
+         char elo_string[32] = {0};
+         ets_snprintf(elo_string ,sizeof(elo_string), "%d" ,joust.gam.joustElo);
+         p2pSendMsg(&joust.p2pJoust, "elo", elo_string, sizeof(elo_string), joustMsgTxCbFn);
+     }
+
+     if(0 == ets_memcmp(msg, "elo", 3))
+     {
+         joust.gam.otherJoustElo =  atoi(payload);
+         char elo_string[32] = {0};
+         ets_snprintf(elo_string ,sizeof(elo_string), "%d" ,joust.gam.joustElo);
+         p2pSendMsg(&joust.p2pJoust, "elt", elo_string, sizeof(elo_string), joustMsgTxCbFn);
+     }
+     if(0 == ets_memcmp(msg, "elt", 3))
+     {
+         joust.gam.otherJoustElo =  atoi(payload);
      }
 
      switch(joust.gameState)
@@ -331,15 +358,73 @@ struct
  */
 void ICACHE_FLASH_ATTR joustInit(void)
 {
+    uint8_t i;
+    for(i = 0; i < 6; i++)
+    {
+        joust.led.Leds[i].r = 0;
+        joust.led.Leds[i].g = 0;
+        joust.led.Leds[i].b = 0;
+    }
+
+    setLeds(joust.led.Leds, sizeof(joust.led.Leds));
+
+    ets_memset(&joust, 0, sizeof(joust));
     //just print for now
-    joust_printf("\nwe are NOW in the JOUST MODE\n");
     joust_printf("%s\r\n", __func__);
+    // setJoustElo(150);
+    joust.gam.joustElo = getJoustElo();
+    if(joust.gam.joustElo > 10000){
+      setJoustElo(200);
+    }
+
     clearDisplay();
-    plotText(0, 0, "Press button", IBM_VGA_8);
+    plotText(0, 0, "MagJoust", IBM_VGA_8);
+    char menuStr[32] = {0};
+    // plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "ELO:", IBM_VGA_8);
+    ets_snprintf(menuStr, sizeof(menuStr), "level: %d", joust.gam.joustElo);
+    plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)),menuStr , IBM_VGA_8);
+
+    if(joust.gam.joustElo < 250){
+        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Total Beginner", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Next level: 250", IBM_VGA_8);
+    }else if(joust.gam.joustElo < 400){
+        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Beginner", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Next level: 400", IBM_VGA_8);
+    }else if(joust.gam.joustElo < 500){
+        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Advanced", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), "Beginner", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Next level: 500", IBM_VGA_8);
+    }else if(joust.gam.joustElo < 800){
+        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Novice", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Next level: 800", IBM_VGA_8);
+    }else if(joust.gam.joustElo < 1000){
+        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Intermediate", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Next level: 1000", IBM_VGA_8);
+    }else if(joust.gam.joustElo < 1200){
+        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Advanced", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Next level: 1200", IBM_VGA_8);
+    }else if(joust.gam.joustElo < 1600){
+        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Expert", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Next level: 1600", IBM_VGA_8);
+    }else if(joust.gam.joustElo < 2000){
+        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Master", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Next level: 2000", IBM_VGA_8);
+    }else if(joust.gam.joustElo < 2500){
+        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Grandmaster", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Next level: 2500", IBM_VGA_8);
+    }else if(joust.gam.joustElo < 3000){
+        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Supreme", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), "Grandmaster", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Next level: 3000", IBM_VGA_8);
+    }else{
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Joust God", IBM_VGA_8);
+    }
+    //Need to do the differnt difficulties
+
     // Enable button debounce for consistent 1p/2p and difficulty config
     enableDebounce(true);
     // Make sure everything is zero!
-    ets_memset(&joust, 0, sizeof(joust));
+
     p2pInitialize(&joust.p2pJoust, "jou", joustConnectionCallback, joustMsgCallbackFn);
 
 
@@ -376,7 +461,7 @@ void ICACHE_FLASH_ATTR joustInit(void)
     // p2pStartConnection(&joust.p2pJoust);
     joust.gameState = R_MENU;
     joust.p2pJoust.connectionRssi = 10;
-    os_timer_arm(&joust.tmr.ConnLed, 1, true);
+
 }
 
 
@@ -456,6 +541,31 @@ void ICACHE_FLASH_ATTR joustRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len
 void ICACHE_FLASH_ATTR joustShowConnectionLedTimeout(void* arg __attribute__((unused)) )
 {
     // uint8_t currBrightness = joust.led.Leds[0].r;
+    // clearDisplay();
+    char accelStr[32] = {0};
+    clearDisplay();
+    plotText(0, 0, "Found Player", IBM_VGA_8);
+
+    ets_snprintf(accelStr ,sizeof(accelStr), "level: %d" , joust.gam.otherJoustElo);
+    plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
+
+
+    double P1 = ( 1.0f / (1.0f + pow(10.0f, ((double)joust.gam.otherJoustElo - (double)joust.gam.joustElo)/400.0f)));
+
+    // joust_printf("\nthe calculated P1 is %f\n",P1);
+    joust.gam.win_score = (uint32_t)  200.0f *(1.0f - P1);
+    joust.gam.lose_score = (uint32_t) 200.0f *( P1);
+    //P1 = (1.0 / (1.0 + pow(10, ((1000-1200) / 400)))) = 0.76
+    //P2 = (1.0 / (1.0 + pow(10, ((1200-1000) / 400)))) = 0.24
+    // char accelStr[32] = {0};
+    ets_snprintf(accelStr ,sizeof(accelStr), "win :+%d" ,(int)joust.gam.win_score);
+    plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
+
+    ets_snprintf(accelStr ,sizeof(accelStr), "lose: -%d" ,(int)joust.gam.lose_score);
+    plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
+
+
+
     switch(joust.led.ConnLedState)
     {
         case LED_CONNECTED_BRIGHT:
@@ -596,8 +706,9 @@ void ICACHE_FLASH_ATTR joustUpdateDisplay(void)
     plotText(0, 0, "JOUST", RADIOSTARS);
     // Display the acceleration on the display
     char accelStr[32] = {0};
-    ets_snprintf(accelStr ,sizeof(accelStr), "X:%d" , joust.rolling_average);
-    plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
+
+    ets_snprintf(accelStr ,sizeof(accelStr), "Acc: %d" , joust.rolling_average);
+    plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
 }
 
 /**
@@ -742,6 +853,8 @@ void ICACHE_FLASH_ATTR joustButton( uint8_t state,
     if(joust.gameState ==  R_MENU){
       if(1 == button || 2 == button){
         joust.gameState =  R_SEARCHING;
+        joustDisarmAllLedTimers();
+        os_timer_arm(&joust.tmr.ConnLed, 1, true);
         p2pStartConnection(&joust.p2pJoust);
         joust.p2pJoust.connectionRssi = 10;
         clearDisplay();
@@ -855,10 +968,25 @@ void ICACHE_FLASH_ATTR joustRoundResult(bool roundWinner)
     if(roundWinner){
       clearDisplay();
       plotText(0, 0, "Winner", IBM_VGA_8);
+      joust.gam.joustElo = joust.gam.joustElo + joust.gam.win_score;
+      char menuStr[32] = {0};
+      ets_snprintf(menuStr, sizeof(menuStr), "level: +%d", joust.gam.win_score);
+      plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)),menuStr , IBM_VGA_8);
+
+
     }else{
       clearDisplay();
       plotText(0, 0, "Loser", IBM_VGA_8);
+      char menuStr[32] = {0};
+      ets_snprintf(menuStr, sizeof(menuStr), "level: -%d", joust.gam.lose_score);
+      plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)),menuStr , IBM_VGA_8);
+      if(((float)joust.gam.joustElo - (float)joust.gam.lose_score) < 100.0f == 1){
+        joust.gam.joustElo = 100;
+      }else{
+        joust.gam.joustElo = joust.gam.joustElo - joust.gam.lose_score;
+      }
     }
+    setJoustElo(joust.gam.joustElo);
     os_timer_arm(&joust.tmr.RestartJoust, 6000, false);
 
 

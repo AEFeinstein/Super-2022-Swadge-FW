@@ -68,11 +68,11 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 swadgeMode* swadgeModes[] =
 {
     &menuMode, // Menu must be the first
+    &joustGameMode,
     &snakeMode,
     &demoMode,
     &colorchordMode,
     &reflectorGameMode,
-    &joustGameMode,
     &dancesMode,
     &randomD6Mode,
     &flashlightMode,
