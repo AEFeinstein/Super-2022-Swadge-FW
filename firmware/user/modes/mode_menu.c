@@ -159,7 +159,7 @@ void ICACHE_FLASH_ATTR drawMenu(void)
     clearDisplay();
 
     // Draw a cursor
-    plotText(0, cursorPos * (MARGIN + FONT_HEIGHT_IBMVGA8), ">", IBM_VGA_8);
+    plotText(0, cursorPos * (MARGIN + FONT_HEIGHT_IBMVGA8), ">", IBM_VGA_8, WHITE);
 
     // Draw all the mode names
     uint8_t idx;
@@ -167,6 +167,6 @@ void ICACHE_FLASH_ATTR drawMenu(void)
     {
         uint8_t modeToDraw = 1 + ((menuPos + idx) % numModes);
         plotText(MARGIN + 6, idx * (MARGIN + FONT_HEIGHT_IBMVGA8),
-                 modes[modeToDraw]->modeName, IBM_VGA_8);
+                 modes[modeToDraw]->modeName, IBM_VGA_8, WHITE);
     }
 }

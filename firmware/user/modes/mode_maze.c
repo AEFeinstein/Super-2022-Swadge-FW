@@ -415,9 +415,9 @@ void ICACHE_FLASH_ATTR maze_updateDisplay(void)
        // Show score
        char scoreStr[32] = {0};
        ets_snprintf(scoreStr, sizeof(scoreStr), "Time: %d", totalcyclestilldone);
-       plotText(20, OLED_HEIGHT - (5 * (FONT_HEIGHT_IBMVGA8 + 1)), scoreStr, IBM_VGA_8);
+       plotText(20, OLED_HEIGHT - (5 * (FONT_HEIGHT_IBMVGA8 + 1)), scoreStr, IBM_VGA_8, WHITE);
        ets_snprintf(scoreStr, sizeof(scoreStr), "Wall: %d", totalhitstilldone);
-       plotText(20, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), scoreStr, IBM_VGA_8);
+       plotText(20, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), scoreStr, IBM_VGA_8, WHITE);
        return;
     }
 
@@ -426,7 +426,7 @@ void ICACHE_FLASH_ATTR maze_updateDisplay(void)
 
     for (int16_t i = 0; i < numwallstodraw; i++)
     {
-        plotLine(mazescalex*xleft[i], mazescaley*ybot[i], mazescalex*xright[i], mazescaley*ytop[i]);
+        plotLine(mazescalex*xleft[i], mazescaley*ybot[i], mazescalex*xright[i], mazescaley*ytop[i], WHITE);
     }
 
     //NOTE bug in Expressif OS can't print floating point! Must cast as int
@@ -569,17 +569,17 @@ os_printf("Time to complete maze %d, time on walls %d\n",totalcyclestilldone, to
     switch ((int)rballused - 1)
     {
         case 4:
-           plotCircle(scxc + 0.5, scyc + 0.5, 4);
+           plotCircle(scxc + 0.5, scyc + 0.5, 4, WHITE);
         case 3:
-           plotCircle(scxc + 0.5, scyc + 0.5, 3);
+           plotCircle(scxc + 0.5, scyc + 0.5, 3, WHITE);
         case 2:
-           plotCircle(scxc + 0.5, scyc + 0.5, 2);
+           plotCircle(scxc + 0.5, scyc + 0.5, 2, WHITE);
         case 1:
-           if (flashcount < flashmax/2) plotCircle(scxc + 0.5, scyc + 0.5, 1);
+           if (flashcount < flashmax/2) plotCircle(scxc + 0.5, scyc + 0.5, 1, WHITE);
            flashcount++;
            if (flashcount > flashmax) flashcount = 0;
 	default:
-	   plotCircle(scxc + 0.5, scyc + 0.5, 0);
+	   plotCircle(scxc + 0.5, scyc + 0.5, 0, WHITE);
     }
 
 // Light some LEDS

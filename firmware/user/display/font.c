@@ -8,40 +8,39 @@
 #include <osapi.h>
 
 #include "oled.h"
+#include "sprite.h"
 #include "font.h"
 
+/**
+ * @brief Draw a single character to the OLED display
+ *
+ * @param x The x position where to draw the character
+ * @param y The y position where to draw the character
+ * @param character The character to print
+ * @param table A table of character sprites, in ASCII order
+ * @param col WHITE, BLACK or INVERSE
+ * @return The x position of the end of the character drawn
+ */
 uint8_t ICACHE_FLASH_ATTR plotChar(uint8_t x, uint8_t y,
-                                   char character, sprite_t* table, uint8_t height)
+                                   char character, sprite_t* table, color col)
 {
-
     if ('a' <= character && character <= 'z')
     {
         character = (char) (character - 'a' + 'A');
     }
-    const sprite_t* sprite = &table[character - ' '];
-
-    uint8_t charX, charY;
-    for (charX = 0; charX < sprite->width; charX++)
-    {
-        for (charY = 0; charY < height; charY++)
-        {
-            uint8_t xPx = (uint8_t) (x + (sprite->width - charX) - 1);
-            uint8_t yPx = (uint8_t) (y + charY);
-            if (0 != (sprite->data[charY] & (1 << charX)))
-            {
-                drawPixel(xPx, yPx, WHITE);
-            }
-            else
-            {
-                drawPixel(xPx, yPx, BLACK);
-            }
-        }
-    }
-
-    return (uint8_t) (x + sprite->width + 1);
+    return plotSprite(x, y, &table[character - ' '], col);
 }
 
-void ICACHE_FLASH_ATTR plotText(uint8_t x, uint8_t y, char* text, fonts font)
+/**
+ * @brief Draw a string to the display
+ *
+ * @param x The x position where to draw the string
+ * @param y The y position where to draw the string
+ * @param text The string to draw
+ * @param font The font to draw the string in
+ * @param col WHITE, BLACK or INVERSE
+ */
+void ICACHE_FLASH_ATTR plotText(uint8_t x, uint8_t y, char* text, fonts font, color col)
 {
     while (0 != *text)
     {
@@ -49,17 +48,17 @@ void ICACHE_FLASH_ATTR plotText(uint8_t x, uint8_t y, char* text, fonts font)
         {
             case TOM_THUMB:
             {
-                x = plotChar(x, y, *text, font_TomThumb, FONT_HEIGHT_TOMTHUMB);
+                x = plotChar(x, y, *text, font_TomThumb, col);
                 break;
             }
             case IBM_VGA_8:
             {
-                x = plotChar(x, y, *text, font_IbmVga8, FONT_HEIGHT_IBMVGA8);
+                x = plotChar(x, y, *text, font_IbmVga8, col);
                 break;
             }
             case RADIOSTARS:
             {
-                x = plotChar(x, y, *text, font_Radiostars, FONT_HEIGHT_RADIOSTARS);
+                x = plotChar(x, y, *text, font_Radiostars, col);
                 break;
             }
             default:

@@ -341,9 +341,9 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
     }
 
     // Draw virtual ball
-    plotCircle(scxc, scyc, 5);
-    plotCircle(scxc, scyc, 3);
-    plotCircle(scxc, scyc, 1);
+    plotCircle(scxc, scyc, 5, WHITE);
+    plotCircle(scxc, scyc, 3, WHITE);
+    plotCircle(scxc, scyc, 1, WHITE);
 
     //os_printf("(%d, %d\n", (int)scxc, (int)scyc);
 
