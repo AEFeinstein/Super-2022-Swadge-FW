@@ -46,9 +46,6 @@ typedef struct
  * Variables
  *==========================================================================*/
 
-extern volatile uint8_t sounddata[];
-extern volatile uint16_t soundhead;
-
 struct CCSettings CCS = {0};
 
 configurable_t gConfigs[CONFIGURABLES] =

@@ -29,6 +29,7 @@
 #include "MMA8452Q.h"
 #include "bresenham.h"
 #include "buttons.h"
+#include "hpatimer.h"
 
 /*============================================================================
  * Defines
@@ -45,12 +46,12 @@
 
 void ICACHE_FLASH_ATTR demoEnterMode(void);
 void ICACHE_FLASH_ATTR demoExitMode(void);
-void ICACHE_FLASH_ATTR demoSampleHandler(int32_t samp);
 void ICACHE_FLASH_ATTR demoButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down);
 void ICACHE_FLASH_ATTR demoAccelerometerHandler(accel_t* accel);
 
 void ICACHE_FLASH_ATTR updateDisplay(void);
+void ICACHE_FLASH_ATTR toggleBuzzer(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR rotateBanana(void* arg __attribute__((unused)));
 
 /*============================================================================
@@ -63,7 +64,6 @@ swadgeMode demoMode =
     .fnEnterMode = demoEnterMode,
     .fnExitMode = demoExitMode,
     .fnButtonCallback = demoButtonCallback,
-    .fnAudioCallback = demoSampleHandler,
     .wifiMode = SOFT_AP,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
@@ -73,6 +73,22 @@ swadgeMode demoMode =
 static int samplesProcessed = 0;
 accel_t demoAccel = {0};
 uint8_t mButtonState = 0;
+
+const song_t testSong =
+{
+    .shouldLoop = true,
+    .numNotes = 8,
+    .notes = {
+        {.note = C_4, .timeMs = 250},
+        {.note = D_4, .timeMs = 250},
+        {.note = E_4, .timeMs = 250},
+        {.note = F_4, .timeMs = 250},
+        {.note = G_4, .timeMs = 250},
+        {.note = F_4, .timeMs = 250},
+        {.note = E_4, .timeMs = 250},
+        {.note = D_4, .timeMs = 250},
+    }
+};
 
 static os_timer_t timerHandleBanana = {0};
 static uint8_t bananaIdx = 0;
@@ -285,6 +301,8 @@ void ICACHE_FLASH_ATTR demoEnterMode(void)
     samplesProcessed = 0;
     enableDebounce(false);
 
+    startBuzzerSong(&testSong);
+
     // Start a software timer to rotate the banana every 100ms
     os_timer_disarm(&timerHandleBanana);
     os_timer_setfn(&timerHandleBanana, (os_timer_func_t*)rotateBanana, NULL);
@@ -318,64 +336,42 @@ void ICACHE_FLASH_ATTR updateDisplay(void)
     clearDisplay();
 
     // Draw a title
-    plotText(0, 0, "DEMO MODE", RADIOSTARS);
+    plotText(0, 0, "DEMO MODE", RADIOSTARS, WHITE);
+    plotEllipseRect(0, 0, 120, 20, INVERSE);
 
     // Display the acceleration on the display
     char accelStr[32] = {0};
 
     ets_snprintf(accelStr, sizeof(accelStr), "X:%d", demoAccel.x);
-    plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
+    plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8, WHITE);
 
     ets_snprintf(accelStr, sizeof(accelStr), "Y:%d", demoAccel.y);
-    plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
+    plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8, WHITE);
 
     ets_snprintf(accelStr, sizeof(accelStr), "Z:%d", demoAccel.z);
-    plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
+    plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8, WHITE);
 
     if(mButtonState & DOWN)
     {
         // Down
-        plotCircle(BTN_CTR_X, BTN_CTR_Y + BTN_OFF, BTN_RAD);
-        plotCircle(BTN_CTR_X, BTN_CTR_Y - BTN_OFF, BTN_RAD);
+        plotCircle(BTN_CTR_X, BTN_CTR_Y + BTN_OFF, BTN_RAD, WHITE);
+        plotCircle(BTN_CTR_X, BTN_CTR_Y - BTN_OFF, BTN_RAD, WHITE);
+        plotText(0, 0, "DEMO MODE", RADIOSTARS, INVERSE);
+
     }
     if(mButtonState & LEFT)
     {
         // Left
-        plotCircle(BTN_CTR_X - BTN_OFF, BTN_CTR_Y, BTN_RAD);
+        plotCircle(BTN_CTR_X - BTN_OFF, BTN_CTR_Y, BTN_RAD, WHITE);
     }
     if(mButtonState & RIGHT)
     {
         // Right
-        plotCircle(BTN_CTR_X + BTN_OFF, BTN_CTR_Y, BTN_RAD);
+        plotCircle(BTN_CTR_X + BTN_OFF, BTN_CTR_Y, BTN_RAD, WHITE);
     }
 
     // Draw the banana
-    plotSprite(54, 32, &rotating_banana[bananaIdx]);
-}
-
-/**
- * Just run colorchord
- *
- * @param samp A 32 bit audio sample read from the ADC (microphone)
- */
-void ICACHE_FLASH_ATTR demoSampleHandler(int32_t samp)
-{
-    PushSample32( samp );
-    samplesProcessed++;
-
-    // If at least 128 samples have been processed
-    if( samplesProcessed >= 128 )
-    {
-        // Colorchord magic
-        HandleFrameInfo();
-
-        // Set LEDs
-        UpdateLinearLEDs();
-        setLeds( (led_t*)ledOut, NUM_LIN_LEDS * 3 );
-
-        // Reset the sample count
-        samplesProcessed = 0;
-    }
+    plotSprite(54, 32, &rotating_banana[bananaIdx], WHITE);
 }
 
 /**

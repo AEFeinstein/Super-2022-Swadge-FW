@@ -55,6 +55,7 @@
         "osapi.h": "c",
         "qma6981.h": "c",
         "sprite.h": "c",
-        "mem.h": "c"
+        "mem.h": "c",
+        "buzzer.h": "c"
     }
 }
