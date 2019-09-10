@@ -26,8 +26,6 @@
 #include "MMA8452Q.h"
 
 #include "mode_menu.h"
-#include "mode_guitar_tuner.h"
-#include "mode_colorchord.h"
 #include "mode_reflector_game.h"
 #include "mode_random_d6.h"
 #include "mode_dance.h"
@@ -60,7 +58,6 @@ rtcMem_t;
 
 static os_timer_t timerHandlePollAccel = {0};
 static os_timer_t timerHandleUpdateDisplay = {0};
-static os_timer_t timerHandleHpaTimer = {0};
 
 os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
@@ -69,12 +66,10 @@ swadgeMode* swadgeModes[] =
     &menuMode, // Menu must be the first
     &snakeMode,
     &demoMode,
-    &colorchordMode,
     &reflectorGameMode,
     &dancesMode,
     &randomD6Mode,
     &flashlightMode,
-    &guitarTunerMode,
 };
 bool swadgeModeInit = false;
 rtcMem_t rtcMem = {0};
@@ -170,7 +165,7 @@ void ICACHE_FLASH_ATTR user_init(void)
     LoadSettings();
 
     // Initialize GPIOs
-    SetupGPIO(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback);
+    SetupGPIO(false);
 #ifdef PROFILE
     GPIO_OUTPUT_SET(GPIO_ID_PIN(0), 0);
 #endif
@@ -241,16 +236,12 @@ void ICACHE_FLASH_ATTR user_init(void)
         os_printf("OLED initialization failed\n");
     }
 
-    // Only start the HPA timer if there's an audio callback
-    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
-    {
-        StartHPATimer(NULL);
+    // Start the HPA timer, used for PWMing the buzzer
+    StartHPATimer();
 
-        // Start a software timer to run every 100ms
-        os_timer_disarm(&timerHandleHpaTimer);
-        os_timer_setfn(&timerHandleHpaTimer, (os_timer_func_t*)StartHPATimer, NULL);
-        os_timer_arm(&timerHandleHpaTimer, 100, 1);
-    }
+    // Initialize the buzzer
+    initBuzzer();
+    setBuzzerNote(SILENCE);
 
     // Turn LEDs off
     led_t leds[NUM_LIN_LEDS] = {{0}};
@@ -299,25 +290,6 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
 
     // Process queued button presses synchronously
     HandleButtonEventSynchronous();
-
-    // While there are samples available from the ADC
-    while( sampleAvailable() )
-    {
-        // Get the sample
-        int32_t samp = getSample();
-        // Run the sample through an IIR filter
-        static uint32_t samp_iir; // This will persist between function calls
-        samp_iir = samp_iir - (samp_iir >> 10) + samp;
-        samp = (samp - (samp_iir >> 10)) * 16;
-        // Amplify the sample
-        samp = (samp * CCS.gINITIAL_AMP) >> 4;
-
-        // Pass the button to the mode
-        if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
-        {
-            swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback(samp);
-        }
-    }
 
 #ifdef PROFILE
     WRITE_PERI_REG( PERIPHS_GPIO_BASEADDR + GPIO_ID_PIN(0), 0 );

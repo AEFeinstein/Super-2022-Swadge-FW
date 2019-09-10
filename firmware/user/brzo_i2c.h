@@ -26,7 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 // Setting this variable to 1 DISABLES all interrupts during i2c reads and writes
 // Setting this variable to 0 ENABLES all interrupts during i2c reads and writes
-#define BRZO_I2C_DISABLE_INTERRUPTS 1
+#define BRZO_I2C_DISABLE_INTERRUPTS 0
 
 #ifdef ARDUINO
     #include "Arduino.h"

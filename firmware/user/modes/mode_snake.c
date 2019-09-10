@@ -16,6 +16,8 @@
 #include "mode_snake.h"
 #include "oled.h"
 #include "font.h"
+#include "buzzer.h"
+#include "hpatimer.h"
 
 /*============================================================================
  * Defines
@@ -27,6 +29,145 @@
 #define SNAKE_FIELD_WIDTH  SPRITE_DIM * 20
 #define SNAKE_FIELD_HEIGHT SPRITE_DIM * 11
 #define SNAKE_INITIAL_LEN 7
+
+/*============================================================================
+ * BGM
+ *==========================================================================*/
+
+const song_t MetalGear = {
+    .notes = {
+        {.note = E_5, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 719},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_6, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_6, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_5, .timeMs = 719},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_5, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 1919},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_5, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_5, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_5, .timeMs = 719},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_6, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_SHARP_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_6, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_6, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_SHARP_6, .timeMs = 719},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_SHARP_6, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_6, .timeMs = 1919},
+        {.note = SILENCE, .timeMs = 1},
+    },
+    .numNotes = 128,
+    .shouldLoop = true
+};
 
 /*============================================================================
  * Sprites
@@ -404,6 +545,8 @@ void ICACHE_FLASH_ATTR snakeInit(void)
     os_timer_disarm(&snake.timerHandleSnakeLogic);
     os_timer_setfn(&snake.timerHandleSnakeLogic, (os_timer_func_t*)drawSnakeFrame, NULL);
     os_timer_arm(&snake.timerHandleSnakeLogic, 100, 1);
+
+    startBuzzerSong(&MetalGear);
 }
 
 /**
@@ -677,6 +820,7 @@ void ICACHE_FLASH_ATTR moveSnake(void)
     {
         // Collided with self, game over
         os_timer_disarm(&snake.timerHandleSnakeLogic);
+        stopBuzzerSong();
     }
 }
 
