@@ -488,6 +488,17 @@ void ICACHE_FLASH_ATTR drawChangeMenuBar(void)
     }
 }
 
+/**
+ * @brief Set the time between OLED frames being drawn
+ *
+ * @param drawTimeMs
+ */
+void setOledDrawTime(uint32_t drawTimeMs)
+{
+    os_timer_disarm(&timerHandleUpdateDisplay);
+    os_timer_arm(&timerHandleUpdateDisplay, drawTimeMs, true);
+}
+
 /*============================================================================
  * Swadge Mode Callback Functions
  *==========================================================================*/
