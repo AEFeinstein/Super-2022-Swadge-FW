@@ -108,20 +108,16 @@ uint32_t ICACHE_FLASH_ATTR joust_rand(uint32_t upperBound);
 // Transmission Functions
 void ICACHE_FLASH_ATTR joustSendMsg(char* msg, uint16_t len, bool shouldAck, void (*success)(void*),
                                   void (*failure)(void*));
-void ICACHE_FLASH_ATTR refSendAckToMac(uint8_t* mac_addr);
 void ICACHE_FLASH_ATTR joustTxAllRetriesTimeout(void* arg __attribute__((unused)) );
 void ICACHE_FLASH_ATTR joustTxRetryTimeout(void* arg);
 
 // Connection functions
 void ICACHE_FLASH_ATTR joustConnectionTimeout(void* arg __attribute__((unused)));
-void ICACHE_FLASH_ATTR refGameStartAckRecv(void* arg __attribute__((unused)));
-void ICACHE_FLASH_ATTR refProcConnectionEvt(connectionEvt_t event);
 
 // Game functions
 void ICACHE_FLASH_ATTR joustStartPlaying(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR joustStartRound(void);
 void ICACHE_FLASH_ATTR joustSendRoundLossMsg(void);
-void ICACHE_FLASH_ATTR refAdjustledSpeed(bool reset, bool up);
 void ICACHE_FLASH_ATTR joustAccelerometerHandler(accel_t* accel);
 
 // LED Functions
