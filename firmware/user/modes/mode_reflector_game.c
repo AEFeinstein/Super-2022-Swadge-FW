@@ -489,7 +489,7 @@ void ICACHE_FLASH_ATTR refStartPlaying(void* arg __attribute__((unused)))
         // Tally match win in SPI flash
         if(ref.gam.Wins == 3)
         {
-            incrementRefGameWins();
+            // incrementRefGameWins();
         }
 
         // Match over, reset everything

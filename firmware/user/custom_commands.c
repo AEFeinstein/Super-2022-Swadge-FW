@@ -31,7 +31,7 @@ typedef struct __attribute__((aligned(4)))
 {
     uint8_t SaveLoadKey; //Must be SAVE_LOAD_KEY to be valid.
     uint8_t configs[CONFIGURABLES];
-    uint8_t refGameWins;
+    uint32_t snakeHighScores[3];
 }
 settings_t;
 
@@ -142,7 +142,12 @@ configurable_t gConfigs[CONFIGURABLES] =
     }
 };
 
-uint8_t refGameWins = 0;
+settings_t settings =
+{
+    .SaveLoadKey = 0,
+    .configs = {0},
+    .snakeHighScores = {0}
+};
 
 /*============================================================================
  * Prototypes
@@ -162,39 +167,28 @@ void ICACHE_FLASH_ATTR SaveSettings(void);
  */
 void ICACHE_FLASH_ATTR LoadSettings(void)
 {
-    settings_t settings =
-    {
-        .SaveLoadKey = 0,
-        .configs = {0},
-        .refGameWins = 0
-    };
-
-    uint8_t i;
     spi_flash_read( USER_SETTINGS_ADDR, (uint32*)&settings, sizeof( settings ) );
     if( settings.SaveLoadKey == SAVE_LOAD_KEY )
     {
         os_printf("Settings found\r\n");
-        for( i = 0; i < CONFIGURABLES; i++ )
+        for( uint8_t i = 0; i < CONFIGURABLES; i++ )
         {
             if( gConfigs[i].val )
             {
                 *gConfigs[i].val = settings.configs[i];
             }
         }
-
-        refGameWins = settings.refGameWins;
     }
     else
     {
         os_printf("Settings not found\r\n");
-        for( i = 0; i < CONFIGURABLES; i++ )
+        for(uint8_t i = 0; i < CONFIGURABLES; i++ )
         {
             if( gConfigs[i].val )
             {
                 *gConfigs[i].val = gConfigs[i].defaultVal;
             }
         }
-        refGameWins = 0;
         SaveSettings();
     }
 }
@@ -204,13 +198,6 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
  */
 void ICACHE_FLASH_ATTR SaveSettings(void)
 {
-    settings_t settings =
-    {
-        .SaveLoadKey = SAVE_LOAD_KEY,
-        .configs = {0},
-        .refGameWins = refGameWins
-    };
-
     uint8_t i;
     for( i = 0; i < CONFIGURABLES; i++ )
     {
@@ -227,35 +214,27 @@ void ICACHE_FLASH_ATTR SaveSettings(void)
 }
 
 /**
- * Increment the game win count and save it to SPI flash
+ * @brief Save a high score from the snake game
+ *
+ * @param difficulty The 0-indexed difficulty (easy, medium, hard)
+ * @param score      The score to save
  */
-void ICACHE_FLASH_ATTR incrementRefGameWins(void)
+void ICACHE_FLASH_ATTR setSnakeHighScore(uint8_t difficulty, uint32_t score)
 {
-    if(refGameWins != 0xFF)
+    if(score > settings.snakeHighScores[difficulty])
     {
-        refGameWins++;
+        settings.snakeHighScores[difficulty] = score;
         SaveSettings();
     }
 }
 
 /**
- * Set the game wins to max, unlocking all patterns
+ * @return A pointer to the three Snake high scores
  */
-void ICACHE_FLASH_ATTR setGameWinsToMax(void)
+uint32_t* ICACHE_FLASH_ATTR getSnakeHighScores(void)
 {
-    if(refGameWins != 0xFF)
-    {
-        refGameWins = 0xFF;
-        SaveSettings();
-    }
-}
-
-/**
- * @return The number of reflector games this swadge has won
- */
-uint8_t ICACHE_FLASH_ATTR getRefGameWins(void)
-{
-    return refGameWins;
+    // Loaded on boot
+    return settings.snakeHighScores;
 }
 
 /**

@@ -18,6 +18,7 @@
 #include "font.h"
 #include "buzzer.h"
 #include "hpatimer.h"
+#include "custom_commands.h"
 
 /*============================================================================
  * Defines
@@ -761,12 +762,10 @@ void ICACHE_FLASH_ATTR snakeDrawMenu(void)
     }
 
     // Draw the high scores
-    // TODO save and load actual scores
-    uint16_t scores[] = {9999, 999, 99};
     char tmp[8];
-    for(uint8_t i = 0; i < sizeof(scores) / sizeof(scores[0]); i++)
+    for(uint8_t i = 0; i < 3; i++)
     {
-        ets_snprintf(tmp, sizeof(tmp), "%4d", scores[i]);
+        ets_snprintf(tmp, sizeof(tmp), "%4d", getSnakeHighScores()[i]);
         plotText(42 + SNAKE_FIELD_OFFSET_X + 1, SNAKE_FIELD_OFFSET_Y + 3 + i * (FONT_HEIGHT_IBMVGA8 + 3), tmp,
                  IBM_VGA_8,
                  WHITE);
@@ -1036,6 +1035,8 @@ void ICACHE_FLASH_ATTR moveSnake(void)
         // Collided with self, game over
         os_timer_disarm(&snake.timerHandleSnakeLogic);
         stopBuzzerSong();
+
+        setSnakeHighScore(snake.cursorPos, snake.score);
 
         snake.mode = MODE_GAME_OVER_BLINK;
         os_timer_arm(&snake.timerHandeleSnakeBlink, 500, true);
