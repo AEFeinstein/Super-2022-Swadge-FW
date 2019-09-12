@@ -687,7 +687,6 @@ void ICACHE_FLASH_ATTR snakeResetGame(void)
     snake.posCritter.x = -1;
     snake.posCritter.y = -1;
     snake.cSprite = 0;
-    snake.length = 0;
     snake.score = 0;
     snake.foodEaten = 0;
     snake.lastCritterAt = 0;
@@ -778,7 +777,7 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
     newHead->pos.x = newHead->nextSegment->pos.x;
     newHead->pos.y = newHead->nextSegment->pos.y;
     snakeMoveSnakePos(&newHead->pos, newHead->dir);
-    newHead->ttl = snake.length;
+    newHead->ttl = oldHead->ttl + 1;
 
     // Figure out the sprite based on the food location and direction
     newHead->sprite = headTransitionTable[isFoodAheadOfHead()][newHead->dir];
@@ -822,7 +821,6 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
     // If anything was eaten, increment all the ttls, making the snake longer
     if(ateSomething)
     {
-        snake.length++;
         snakeNode_t* snakePtr = snake.snakeList;
         while(NULL != snakePtr)
         {
@@ -985,8 +983,6 @@ void ICACHE_FLASH_ATTR snakePlaceCritter(void)
  */
 void ICACHE_FLASH_ATTR snakeAddNode(uint8_t ttl)
 {
-    snake.length++;
-
     // If snakeList is NULL, start the snake
     if(NULL == snake.snakeList)
     {
