@@ -559,14 +559,12 @@ void ICACHE_FLASH_ATTR p2pRecvCb(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data,
 
     if(false == p2p->cnc.isConnected)
     {
-        p2p_printf("cnc.isconnected is false\r\n");
         // Received another broadcast, Check if this RSSI is strong enough
         if(!p2p->cnc.broadcastReceived &&
                 rssi > p2p->connectionRssi &&
                 ets_strlen(p2p->conMsg) == len &&
                 0 == ets_memcmp(data, p2p->conMsg, len))
         {
-            p2p_printf("Broadcast Received, sending game start message\r\n");
 
             // We received a broadcast, don't allow another
             p2p->cnc.broadcastReceived = true;
