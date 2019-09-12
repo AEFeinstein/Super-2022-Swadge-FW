@@ -14,6 +14,7 @@
 #include "oled.h"		//display functions
 #include "font.h"		//draw text
 #include "bresenham.h"	//draw shapes
+#include "linked_list.h" //custom linked list.
 
 // https://gamedevelopment.tutsplus.com/tutorials/implementing-tetris-collision-detection--gamedev-852
 // https://simon.lc/the-history-of-tetris-randomizers
@@ -22,12 +23,14 @@
 //TODO: For Thursday Demo:
 // 1. Handle cascade piece falling from clears.
 // 2. Better piece randomizer.
-// 3. Drop time decreasing as time goes on to increase difficulty.
 // 4. Refactor landed tetrads to be an array list, have it handle clearing tetrads that are completely empty.
 //TODO: Additional Items:
-// 1.
+// 1. Good UI and background stuff.
+// 2. Polish by adding visual FX with LEDS, sound, OLED effects.
+// 3. Maybe adjust the fall speed to be more forgiving.
 
-#define NO_STRESS_TRIS // Debug mode that when enabled, stops tetrads from dropping automatically, they will only drop when the drop button is pressed. Useful for testing line clears.
+
+//#define NO_STRESS_TRIS // Debug mode that when enabled, stops tetrads from dropping automatically, they will only drop when the drop button is pressed. Useful for testing line clears.
 
 // any defines go here.
 #define BTN_START_GAME RIGHT
@@ -38,6 +41,10 @@
 
 // update task info.
 #define UPDATE_TIME_MS 16 
+
+// time info.
+#define MS_TO_US_FACTOR 1000
+#define US_TO_MS_FACTOR 0.001
 
 // playfield settings.
 #define GRID_X 45
@@ -56,7 +63,7 @@
 
 #define TETRAD_SPAWN_ROT 0
 #define TETRAD_SPAWN_X 3
-#define TETRAD_SPAWN_Y 0//-1
+#define TETRAD_SPAWN_Y 0
 #define TETRAD_GRID_SIZE 4
 
 #define ACCEL_SEG_SIZE 25 // higher vale more or less means less sensetive.
@@ -70,6 +77,17 @@ typedef enum
     TT_SCORES	// high scores / game over screen
 	//TODO: does this need a transition state?
 } tiltradsState_t;
+
+typedef enum
+{
+    I_TETRAD=1,	
+    O_TETRAD=2,	
+    T_TETRAD=3,
+    J_TETRAD=4,
+    L_TETRAD=5,
+    S_TETRAD=6,
+    Z_TETRAD=7
+} tetradType_t;
 
 uint8_t tetradsGrid[GRID_HEIGHT][GRID_WIDTH];
 
@@ -252,17 +270,6 @@ coord_t otjlszTetradRotationTests [4][5] =
     {{0,0},{-1,0},{-1,1},{0,-2},{-1,-2}}
 };
 
-typedef enum
-{
-    I_TETRAD=1,	
-    O_TETRAD=2,	
-    T_TETRAD=3,
-    J_TETRAD=4,
-    L_TETRAD=5,
-    S_TETRAD=6,
-    Z_TETRAD=7
-} tetradType_t;
-
 typedef struct
 {
     tetradType_t type;
@@ -271,17 +278,17 @@ typedef struct
     uint8_t shape[TETRAD_GRID_SIZE][TETRAD_GRID_SIZE];
 } tetrad_t;
 
+// Game state info.
 tetrad_t activeTetrad;
-
 tetradType_t nextTetradType;
-
 int numLandedTetrads;
+uint32_t dropTimer;  // The timer for dropping the current tetrad one level.
+uint32_t dropTime; // The amount of time it takes for a tetrad to drop. Changes based on the level.
+uint32_t linesCleared;
+uint32_t currentLevel;
+uint32_t score;
+
 tetrad_t landedTetrads[MAX_TETRADS];
-
-uint32_t dropTimer = 0;  // The last time a tetrad dropped.
-uint32_t dropTime = 1000000; //was 1000000   // The amount of time it takes for a tetrad to drop.
-
-accel_t ttLastTestAccel = {0};
 
 // function prototypes go here.
 void ICACHE_FLASH_ATTR ttInit(void);
@@ -325,10 +332,12 @@ void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size);
 void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridWidth]);
 void ICACHE_FLASH_ATTR refreshTetradsGrid(bool includeActive);
 void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shapeWidth, uint8_t shapeHeight, uint8_t shape[][shapeWidth]);
-int ICACHE_FLASH_ATTR getNextTetradType(void);
+//void ICACHE_FLASH_ATTR initTetradRandomizer(void);
+int ICACHE_FLASH_ATTR getNextTetradType(int index);
+uint32_t ICACHE_FLASH_ATTR getDropTime(uint32_t level);
 
 bool ICACHE_FLASH_ATTR isLineCleared(int line, uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridWidth]);
-void ICACHE_FLASH_ATTR checkLineClears(uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridWidth]);
+int ICACHE_FLASH_ATTR checkLineClears(uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridWidth]);
 
 bool ICACHE_FLASH_ATTR checkCollision(coord_t newPos, uint8_t shapeWidth, uint8_t shapeHeight, uint8_t shape[][shapeWidth], uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridWidth], uint8_t tetradGridValue);
 
@@ -347,6 +356,8 @@ swadgeMode tiltradsMode =
 
 accel_t ttAccel = {0};
 accel_t ttLastAccel = {0};
+
+accel_t ttLastTestAccel = {0};
 
 uint8_t ttButtonState = 0;
 uint8_t ttLastButtonState = 0;
@@ -399,6 +410,10 @@ void ICACHE_FLASH_ATTR ttAccelerometerCallback(accel_t* accel)
 static void ICACHE_FLASH_ATTR ttUpdate(void* arg __attribute__((unused)))
 {
 	// Update time tracking.
+    //NOTE: delta time is in microseconds.
+    // UPDATE time is in milliseconds.
+    //TODO: convert this into a metric I can use
+
 	uint32_t newModeTime = system_get_time() - modeStartTime;
 	uint32_t newStateTime = system_get_time() - stateStartTime;
 	deltaTime = newModeTime - modeTime;
@@ -565,30 +580,36 @@ void ICACHE_FLASH_ATTR ttGameUpdate(void)
             numLandedTetrads++;
             
             // Check for any clears now that the new tetrad has landed.
-            checkLineClears(GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
+            linesCleared += checkLineClears(GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
+
+            // Update the level if necessary.
+            //TODO: does this formula need to be more complex?
+            currentLevel = linesCleared / 10;
 
             // Spawn the next tetrad.
             spawnNextTetrad();
         }
-    }
 
-    refreshTetradsGrid(false);
+        refreshTetradsGrid(false);
 
-    // Handle cascade from tetrads that can now fall freely.
-    bool possibleCascadeClear = false;
-    for (int t = 0; t < numLandedTetrads; t++) 
-    {
-        // If a tetrad could drop, then more clears might have happened.
-        if (dropTetrad(&(landedTetrads[t]), t+1))
-        {   
-            possibleCascadeClear = true;
+        // TODO: Do I want to actually do this?
+        // Handle cascade from tetrads that can now fall freely.
+        /*bool possibleCascadeClear = false;
+        for (int t = 0; t < numLandedTetrads; t++) 
+        {
+            // If a tetrad could drop, then more clears might have happened.
+            if (dropTetrad(&(landedTetrads[t]), t+1))
+            {   
+                possibleCascadeClear = true;
+            }
         }
-    }
 
-    if (possibleCascadeClear)
-    {
-        // Check for any clears now that this new
-        checkLineClears(GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
+
+        if (possibleCascadeClear)
+        {
+            // Check for any clears now that this new
+            checkLineClears(GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
+        }*/
     }
 }
 
@@ -644,9 +665,7 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     // Draw all the landed tetrads.
     for (int i = 0; i < numLandedTetrads; i++) 
     {
-        plotShape(GRID_X + landedTetrads[i].topLeft.c * (GRID_UNIT_SIZE - 1), GRID_Y + landedTetrads[i].topLeft.r * (GRID_UNIT_SIZE - 1), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, landedTetrads[i].shape);   
-        //copyGrid(landedTetrads[i].topLeft, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, landedTetrads[i].shape, GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
-        //transferGrid(landedTetrads[i].topLeft, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, landedTetrads[i].shape, GRID_WIDTH, GRID_HEIGHT, tetradsGrid, i+1);
+        plotShape(GRID_X + landedTetrads[i].topLeft.c * (GRID_UNIT_SIZE - 1), GRID_Y + landedTetrads[i].topLeft.r * (GRID_UNIT_SIZE - 1), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, landedTetrads[i].shape);
     }
 
     // Draw the background grid. NOTE: (make sure everything that needs to be in tetradsGrid is in there now).
@@ -666,8 +685,27 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
 
     plotGrid(NEXT_GRID_X, NEXT_GRID_Y, GRID_UNIT_SIZE, NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
 
+    //SCORE
+    //99999
+    plotText(0, 0, "SCORE", TOM_THUMB);
+    char uiStr[32] = {0};
+    ets_snprintf(uiStr, sizeof(uiStr), "%d", score);
+    plotText(0, (FONT_HEIGHT_TOMTHUMB + 1), uiStr, TOM_THUMB);
+
+    //LINES
+    // 999
+    plotText(0, 3*(FONT_HEIGHT_TOMTHUMB + 1), "LINES", TOM_THUMB);
+    ets_snprintf(uiStr, sizeof(uiStr), "%d", linesCleared);
+    plotText(0, 4*(FONT_HEIGHT_TOMTHUMB + 1), uiStr, TOM_THUMB);
+
+    //LEVEL
+    // 99
+    plotText(0, 6*(FONT_HEIGHT_TOMTHUMB + 1), "LEVEL", TOM_THUMB);
+    ets_snprintf(uiStr, sizeof(uiStr), "%d", currentLevel);
+    plotText(0, 7*(FONT_HEIGHT_TOMTHUMB + 1), uiStr, TOM_THUMB);
+
     // Debug text:
-    char debugStr[32] = {0};
+    /*char debugStr[32] = {0};
     ets_snprintf(debugStr, sizeof(debugStr), "Y: %d", (ttAccel.y / ACCEL_SEG_SIZE));
     plotText(0, 0, debugStr, IBM_VGA_8);
 
@@ -681,7 +719,7 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
 
     ets_snprintf(accelStr, sizeof(accelStr), "Z:%d", ttAccel.z);
-    plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);
+    plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8);*/
 }
 
 void ICACHE_FLASH_ATTR ttScoresDisplay(void)
@@ -714,9 +752,13 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
             clearGrid(GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
             clearGrid(NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
             numLandedTetrads = 0;
-            dropTimer = 0;
+            //dropTime = getDropTime(currentLevel);
+            //dropTimer = 0;
+            linesCleared = 0;
+            currentLevel = 0;
+            score = 0;
             // TODO: reset the piece gen stuff.
-            nextTetradType = (tetradType_t)getNextTetradType();
+            nextTetradType = (tetradType_t)getNextTetradType(numLandedTetrads);
             spawnNextTetrad();
             break;
         case TT_SCORES:
@@ -1025,7 +1067,11 @@ void ICACHE_FLASH_ATTR spawnNextTetrad()
     spawnPos.c = TETRAD_SPAWN_X;
     spawnPos.r = TETRAD_SPAWN_Y;
     activeTetrad = spawnTetrad(nextTetradType, spawnPos, TETRAD_SPAWN_ROT);
-    nextTetradType = (tetradType_t)getNextTetradType();
+    nextTetradType = (tetradType_t)getNextTetradType(numLandedTetrads);
+
+    // Reset the drop info to whatever is appropriate for the current level.
+    dropTime = getDropTime(currentLevel);
+    dropTimer = 0;
 
     // Check if this is blocked, if it is, the game is over.
     if (checkCollision(activeTetrad.topLeft, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, activeTetrad.shape, GRID_WIDTH, GRID_HEIGHT, tetradsGrid, numLandedTetrads+1))
@@ -1113,9 +1159,187 @@ void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shape
     }
 }
 
-int ICACHE_FLASH_ATTR getNextTetradType()
+/*int typePool[35];
+int typeHistory[4];
+int firstType[4] = {I_TETRAD, J_TETRAD, L_TETRAD, T_TETRAD};
+
+void ICACHE_FLASH_ATTR initTetradRandomizer(void)
 {
-    return ((os_random() % 7) + 1); //TODO: do this well.
+    // Initialize the tetrad piece pool, 5 of each type.
+    for (int i = 0; i < 5; i++)
+    {
+        for (int j = 0; j < 7; j++)
+        {
+            typePool[i * 7 + j] = j+1;
+        }
+    }
+
+    // Clear the history of the tetrad.
+    for (int i = 0; i < 4; i++)
+    {
+        typeHistory[i] = 0;
+    }
+
+    // Populate the history with initial values.
+    typeHistory[0] = S_TETRAD;
+    typeHistory[1] = Z_TETRAD;
+    typeHistory[2] = S_TETRAD;
+
+    //let order = []; What does this do?
+}*/
+
+// The Pure Random
+int ICACHE_FLASH_ATTR getNextTetradType(int index)
+{
+    return (os_random() % 7) + 1;
+}
+
+//The 7-bag
+/*int ICACHE_FLASH_ATTR getNextTetradType(int index)
+{
+    let bag = [];
+
+    while (true) {
+        if (bag.length === 0) {
+            bag = ['I', 'J', 'L', 'O', 'S', 'T', 'Z'];
+            bag = shuffle(bag);
+        }
+        yield bag.pop();
+    }
+}*/
+
+//35 Pool with 6 rolls
+/*int ICACHE_FLASH_ATTR getNextTetradType(int index)
+{
+    int next = EMPTY;
+
+    int nextIndex = 0;
+
+    if (index == 0)
+    {
+        next = firstType[os_random() % 4];
+    }
+    else
+    {
+        for (int r = 0; r < 6; r++) 
+        {
+            int i = os_random() % 35;
+            next = tetradTypePool[i];
+            bool inHistory = false;
+            for (int h = 0; h < 4; h++) 
+            {
+                if (typeHistory[h] == next) inHistory = true;
+            }
+            
+            if (!inHistory || r == 5)
+            {
+                break;
+            }
+
+            //if (order.length) pool[i] = order[0]; What does this do?
+        }
+    }
+
+    // Update piece order
+    //if (order.includes(piece)) {
+    //  order.splice(order.indexOf(piece), 1);
+    //}
+    //order.push(piece);
+
+    //pool[i] = order[0];
+
+
+    //1. If the order has piece, remove it from the array
+    //2. add the piece to the end of the array.
+    //3. replace the index of the piece just selected
+
+    for (int h = 0; h < 4; h++) 
+    {
+        if (h == 3)
+        {
+            typeHistory[h] == next;
+        }
+        else
+        {
+            typeHistory[h] = typeHistory[h+1];
+        }
+    }
+
+    return next;
+}*/
+
+uint32_t ICACHE_FLASH_ATTR getDropTime(uint32_t level)
+{
+    uint32_t dropTimeFrames = 0; 
+    
+    switch (level)
+    {
+        case 0:
+			dropTimeFrames = 48;
+            break;
+        case 1:
+			dropTimeFrames = 43;
+            break;
+        case 2:
+			dropTimeFrames = 38;
+            break;
+        case 3:
+			dropTimeFrames = 33;
+            break;
+        case 4:
+			dropTimeFrames = 28;
+            break;
+        case 5:
+			dropTimeFrames = 23;
+            break;
+        case 6:
+			dropTimeFrames = 18;
+            break;
+        case 7:
+			dropTimeFrames = 13;
+            break;
+        case 8:
+			dropTimeFrames = 8;
+            break;
+        case 9:
+			dropTimeFrames = 6;
+            break;
+        case 10:
+        case 11:
+        case 12:
+			dropTimeFrames = 5;
+            break;
+        case 13:
+        case 14:
+        case 15:
+			dropTimeFrames = 4;
+            break;
+        case 16:
+        case 17:
+        case 18:
+			dropTimeFrames = 3;
+            break;
+        case 19:
+        case 20:
+        case 21:
+        case 22:
+        case 23:
+        case 24:
+        case 25:
+        case 26:
+        case 27:
+        case 28:
+			dropTimeFrames = 2;
+            break;
+        case 29:
+			dropTimeFrames = 1;
+            break;
+        default:
+            break;
+    }
+    
+    // We need the time in microseconds.
+    return dropTimeFrames * UPDATE_TIME_MS * MS_TO_US_FACTOR;
 }
 
 bool ICACHE_FLASH_ATTR isLineCleared(int line, uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridWidth])
@@ -1128,7 +1352,7 @@ bool ICACHE_FLASH_ATTR isLineCleared(int line, uint8_t gridWidth, uint8_t gridHe
     return clear;
 }
 
-void ICACHE_FLASH_ATTR checkLineClears(uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridWidth])
+int ICACHE_FLASH_ATTR checkLineClears(uint8_t gridWidth, uint8_t gridHeight, uint8_t gridData[][gridWidth])
 {
     //Refresh the tetrads grid before checking for any clears.
     refreshTetradsGrid(false);
@@ -1136,6 +1360,7 @@ void ICACHE_FLASH_ATTR checkLineClears(uint8_t gridWidth, uint8_t gridHeight, ui
     int lineClears = 0;
 
     int currRow = gridHeight - 1;
+
     // Go through every row bottom-to-top.
     while (currRow >= 0) 
     {
@@ -1200,6 +1425,8 @@ void ICACHE_FLASH_ATTR checkLineClears(uint8_t gridWidth, uint8_t gridHeight, ui
             currRow--;
         }
     }
+
+    return lineClears;
 }
 
 // what is the best way to handle collisions above the grid space?
