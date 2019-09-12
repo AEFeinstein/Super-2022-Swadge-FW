@@ -40,6 +40,7 @@ typedef struct
  *==========================================================================*/
 
 volatile uint8_t LastGPIOState;
+bool mBuzzerState = false;
 
 // Matches order in button_mask
 static const gpioInfo_t gpioInfoInput[] =
@@ -65,13 +66,6 @@ static const gpioInfo_t gpioInfoInput[] =
         .periph = PERIPHS_IO_MUX_MTDI_U,
         .initialState = 1
     },
-    // Down
-    {
-        .GPID = 5,
-        .func = FUNC_GPIO5,
-        .periph = PERIPHS_IO_MUX_GPIO5_U,
-        .initialState = 1
-    },
 };
 
 static const gpioInfo_t gpioInfoOutput[] =
@@ -89,6 +83,13 @@ static const gpioInfo_t gpioInfoOutput[] =
         .func = FUNC_GPIO14,
         .periph = PERIPHS_IO_MUX_MTMS_U,
         .initialState = 1
+    },
+    // Buzzer
+    {
+        .GPID = 5,
+        .func = FUNC_GPIO5,
+        .periph = PERIPHS_IO_MUX_GPIO5_U,
+        .initialState = 0
     },
 };
 
@@ -191,6 +192,8 @@ void ICACHE_FLASH_ATTR SetupGPIO(bool enableMic)
     WRITE_PERI_REG(RTC_GPIO_ENABLE,
                    READ_PERI_REG(RTC_GPIO_ENABLE) & (uint32)0xfffffffe);
 
+    mBuzzerState = false;
+
     os_printf( "Setup GPIO Complete\n" );
 }
 
@@ -233,6 +236,26 @@ uint8_t ICACHE_FLASH_ATTR getLastGPIOState(void)
 void ICACHE_FLASH_ATTR setOledResetOn(bool on)
 {
     GPIO_OUTPUT_SET(GPIO_ID_PIN(15), on ? 1 : 0 );
+}
+
+/**
+ * Set the buzzer either off or on
+ * @param on true to set it on, false to set it off
+ */
+void ICACHE_FLASH_ATTR setBuzzerGpio(bool on)
+{
+    mBuzzerState = on;
+    GPIO_OUTPUT_SET(GPIO_ID_PIN(5), on ? 1 : 0 );
+}
+
+/**
+ * Get the buzzer state
+ *
+ * @return true if the buzzer is on, false if it is off
+ */
+bool ICACHE_FLASH_ATTR getBuzzerGpio(void)
+{
+    return mBuzzerState;
 }
 
 /**

@@ -92,7 +92,6 @@ swadgeMode flashlightMode =
     .fnEnterMode = flashlightEnterMode,
     .fnExitMode = flashlightExitMode,
     .fnButtonCallback = flashlightButtonCallback,
-    .fnAudioCallback = NULL,
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
