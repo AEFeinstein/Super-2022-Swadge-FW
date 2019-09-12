@@ -877,15 +877,31 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
 /**
  * Randomly place the food somewhere on the field, but not somewhere the snake
  * or critter already are
- *
- * TODO fix this
  */
 void ICACHE_FLASH_ATTR snakePlaceFood(void)
 {
-    uint16_t randPos = os_random() % (((SNAKE_FIELD_HEIGHT / SPRITE_DIM) *
-                                       (SNAKE_FIELD_WIDTH  / SPRITE_DIM)) -
-                                      snake.length);
+    // Clear the food first
+    snake.posFood.x = -1;
+    snake.posFood.y = -1;
+
+    // Look for all the places the food would fit
+    uint16_t possibleSlots = 0;
+    for(uint8_t y = 0; y < SNAKE_FIELD_HEIGHT; y += SPRITE_DIM)
+    {
+        for(uint8_t x = 0; x < SNAKE_FIELD_WIDTH; x += SPRITE_DIM)
+        {
+            if(!isOccupiedBySnake(x, y, snake.snakeList, true))
+            {
+                possibleSlots++;
+            }
+        }
+    }
+
+    // Pick a random location
+    uint16_t randPos = os_random() % possibleSlots;
     uint16_t linearAddr = 0;
+
+    // Place the food at that location
     for(uint8_t y = 0; y < SNAKE_FIELD_HEIGHT; y += SPRITE_DIM)
     {
         for(uint8_t x = 0; x < SNAKE_FIELD_WIDTH; x += SPRITE_DIM)
@@ -911,11 +927,13 @@ void ICACHE_FLASH_ATTR snakePlaceFood(void)
 /**
  * Randomly place the critter somewhere on the field, but not somewhere the
  * snake or food already are
- *
- * TODO fix this
  */
 void ICACHE_FLASH_ATTR snakePlaceCritter(void)
 {
+    // Clear the critter first
+    snake.posCritter.x = -1;
+    snake.posCritter.y = -1;
+
     // Look for all the places a critter would fit
     uint16_t possibleSlots = 0;
     for(uint8_t y = 0; y < SNAKE_FIELD_HEIGHT; y += SPRITE_DIM)
@@ -932,19 +950,24 @@ void ICACHE_FLASH_ATTR snakePlaceCritter(void)
     // Pick a random location
     uint16_t randPos = os_random() % possibleSlots;
     uint16_t linearAddr = 0;
+
+    // Place the critter at that location
     for(uint8_t y = 0; y < SNAKE_FIELD_HEIGHT; y += SPRITE_DIM)
     {
         for(uint8_t x = 0; x < SNAKE_FIELD_WIDTH - SPRITE_DIM; x += SPRITE_DIM)
         {
-            if(randPos == linearAddr)
+            if(!isOccupiedBySnake(x, y, snake.snakeList, true) && !isOccupiedBySnake(x + SPRITE_DIM, y, snake.snakeList, true))
             {
-                snake.posCritter.x = x;
-                snake.posCritter.y = y;
-                return;
-            }
-            else
-            {
-                linearAddr++;
+                if(randPos == linearAddr)
+                {
+                    snake.posCritter.x = x;
+                    snake.posCritter.y = y;
+                    return;
+                }
+                else
+                {
+                    linearAddr++;
+                }
             }
         }
     }
@@ -1226,7 +1249,7 @@ void ICACHE_FLASH_ATTR snakeDrawCritter(void)
 
 /**
  * Draw a sprite somewhere to the OLED
- * 
+ *
  * @param x        The X position to draw the sprite at
  * @param y        The Y position to draw the sprite at
  * @param sprite   The sprite to draw
