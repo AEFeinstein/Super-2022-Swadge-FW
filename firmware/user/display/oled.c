@@ -247,8 +247,13 @@ bool ICACHE_FLASH_ATTR initOLED(bool reset)
     setDisplayOffset(0);
     setDisplayStartLine(0);
     setMemoryAddressingMode(PAGE_ADDRESSING);
+#if defined(BARREL_1_0_0)
+    setSegmentRemap(false);
+    setComOutputScanDirection(true);
+#else
     setSegmentRemap(true);
     setComOutputScanDirection(false);
+#endif
     setComPinsHardwareConfig(true, false);
     setContrastControl(0x7F);
     setPrechargePeriod(1, 15);

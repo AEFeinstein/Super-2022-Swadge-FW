@@ -45,6 +45,29 @@ bool mBuzzerState = false;
 // Matches order in button_mask
 static const gpioInfo_t gpioInfoInput[] =
 {
+#if defined(BARREL_1_0_0)
+    // Menu
+    {
+        .GPID = 12,
+        .func = FUNC_GPIO12,
+        .periph = PERIPHS_IO_MUX_MTDI_U,
+        .initialState = 1
+    },
+    // Left
+    {
+        .GPID = 13,
+        .func = FUNC_GPIO13,
+        .periph = PERIPHS_IO_MUX_MTCK_U,
+        .initialState = 1
+    },
+    // Right
+    {
+        .GPID = 4,
+        .func = FUNC_GPIO4,
+        .periph = PERIPHS_IO_MUX_GPIO4_U,
+        .initialState = 1
+    },
+#else
     // Up
     {
         .GPID = 13,
@@ -66,6 +89,7 @@ static const gpioInfo_t gpioInfoInput[] =
         .periph = PERIPHS_IO_MUX_MTDI_U,
         .initialState = 1
     },
+#endif
 };
 
 static const gpioInfo_t gpioInfoOutput[] =
