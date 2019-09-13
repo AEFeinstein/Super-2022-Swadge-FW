@@ -20,7 +20,7 @@
  *==========================================================================*/
 
 #define CONFIGURABLES sizeof(struct CCSettings) //(plus1)
-#define SAVE_LOAD_KEY 0xAA
+#define SAVE_LOAD_KEY 0xAB
 
 /*============================================================================
  * Structs
@@ -171,25 +171,32 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
     if( settings.SaveLoadKey == SAVE_LOAD_KEY )
     {
         os_printf("Settings found\r\n");
-        for( uint8_t i = 0; i < CONFIGURABLES; i++ )
-        {
-            if( gConfigs[i].val )
-            {
-                *gConfigs[i].val = settings.configs[i];
-            }
-        }
     }
     else
     {
         os_printf("Settings not found\r\n");
+        // Zero everything
+        memset(&settings, 0, sizeof(settings));
+        // Set the key
+        settings.SaveLoadKey = SAVE_LOAD_KEY;
+        // Load in default values
         for(uint8_t i = 0; i < CONFIGURABLES; i++ )
         {
             if( gConfigs[i].val )
             {
-                *gConfigs[i].val = gConfigs[i].defaultVal;
+                settings.configs[i] = gConfigs[i].defaultVal;
             }
         }
         SaveSettings();
+    }
+
+    // load gConfigs from the settings
+    for( uint8_t i = 0; i < CONFIGURABLES; i++ )
+    {
+        if( gConfigs[i].val )
+        {
+            *gConfigs[i].val = settings.configs[i];
+        }
     }
 }
 
