@@ -31,7 +31,7 @@ typedef struct
     myList->length = 0;
 */
 
-//Iterating through the list example.
+// Iterating through the list example.
 /*
     node_t * currentNode = landedTetrads->first;
     while (currentNode != NULL)

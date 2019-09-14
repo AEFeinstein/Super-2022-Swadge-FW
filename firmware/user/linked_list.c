@@ -37,19 +37,29 @@ void * ICACHE_FLASH_ATTR pop(list_t * list)
 {
     void * retval = NULL;
     
+    // Get a direct pointer to the node we're removing.
+    node_t * target = list->last;
+
     // If the list any nodes at all.
-    if (list->last != NULL)
+    if (target != NULL)
     {
-        // If the list has only one node, clear the first pointer.
-        if (list->length == 1) 
+
+        // Adjust the node before the removed node, then adjust the list's last pointer.
+        if (target->prev != NULL) 
+        {
+            target->prev->next = NULL; 
+            list->last = target->prev;
+        }
+        // If the list has only one node, clear the first and last pointers.
+        else        
         {
             list->first = NULL;
+            list->last = NULL;
         }
 
-        // Get the last node val, then free it.
-        retval = list->last->val;
-        free(list->last);
-        list->last = NULL;
+        // Get the last node val, then free it and update length.
+        retval = target->val;
+        free(target);
         list->length--;
     }
 
@@ -82,19 +92,29 @@ void * ICACHE_FLASH_ATTR shift(list_t * list)
 {
     void * retval = NULL;
     
+    // Get a direct pointer to the node we're removing.
+    node_t * target = list->first;
+
     // If the list any nodes at all.
-    if (list->first != NULL)
+    if (target != NULL)
     {
-        // If the list has only one node, clear the last pointer.
-        if (list->length == 1) 
+
+        // Adjust the node after the removed node, then adjust the list's first pointer.
+        if (target->next != NULL) 
         {
+            target->next->prev = NULL; 
+            list->first = target->next;
+        }
+        // If the list has only one node, clear the first and last pointers.
+        else        
+        {
+            list->first = NULL;
             list->last = NULL;
         }
 
-        // Get the last node val, then free it.
-        retval = list->first->val;
-        free(list->first);
-        list->first = NULL;
+        // Get the first node val, then free it and update length.
+        retval = target->val;
+        free(target);
         list->length--;
     }
 
