@@ -14,7 +14,7 @@
 #include <user_interface.h>
 #include <p2pConnection.h>
 #include <math.h>
-// #include <string>
+#include <stdlib.h>
 
 #include "user_main.h"
 #include "mode_joust_game.h"
@@ -22,6 +22,8 @@
 #include "buttons.h"
 #include "oled.h"
 #include "font.h"
+#include "embeddedout.h"
+
 /*============================================================================
  * Defines
  *==========================================================================*/
@@ -32,28 +34,6 @@
 #else
     #define joust_printf(...)
 #endif
-
-// The time we'll spend retrying messages
-#define RETRY_TIME_MS 3000
-
-// Minimum RSSI to accept a connection broadcast
-// #define CONNECTION_RSSI 55
-
-// Degrees between each LED
-#define DEG_PER_LED 60
-
-// Time to wait between connection events and game rounds.
-// Transmission can be 3s (see above), the round @ 12ms period is 3.636s
-// (240 steps of rotation + (252/4) steps of decay) * 12ms
-#define FAILURE_RESTART_MS 8000
-
-// This can't be less than 3ms, it's impossible
-#define LED_TIMER_MS_STARTING_EASY   13
-#define LED_TIMER_MS_STARTING_MEDIUM 11
-#define LED_TIMER_MS_STARTING_HARD    9
-
-#define RESTART_COUNT_PERIOD_MS       250
-#define RESTART_COUNT_BLINK_PERIOD_MS 750
 
 /*============================================================================
  * Enums
@@ -100,7 +80,6 @@ void ICACHE_FLASH_ATTR joustSendCb(uint8_t* mac_addr, mt_tx_status status);
 
 // Helper function
 void ICACHE_FLASH_ATTR joustRestart(void* arg __attribute__((unused)));
-void ICACHE_FLASH_ATTR refStartRestartTimer(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR joustConnectionCallback(p2pInfo* p2p, connectionEvt_t event);
 void ICACHE_FLASH_ATTR joustMsgCallbackFn(p2pInfo* p2p, char* msg, uint8_t* payload, uint8_t len);
 void ICACHE_FLASH_ATTR joustMsgTxCbFn(p2pInfo* p2p, messageStatus_t status);
@@ -293,7 +272,7 @@ struct
      //then send their elo: elt
      if(0 == ets_memcmp(msg, "col", 3))
      {
-         joust.con_color =  atoi(payload);
+         joust.con_color =  atoi((const char*)payload);
          char elo_string[32] = {0};
          ets_snprintf(elo_string ,sizeof(elo_string), "%d" ,joust.gam.joustElo);
          p2pSendMsg(&joust.p2pJoust, "elo", elo_string, sizeof(elo_string), joustMsgTxCbFn);
@@ -301,14 +280,14 @@ struct
 
      if(0 == ets_memcmp(msg, "elo", 3))
      {
-         joust.gam.otherJoustElo =  atoi(payload);
+         joust.gam.otherJoustElo =  atoi((const char*)payload);
          char elo_string[32] = {0};
          ets_snprintf(elo_string ,sizeof(elo_string), "%d" ,joust.gam.joustElo);
          p2pSendMsg(&joust.p2pJoust, "elt", elo_string, sizeof(elo_string), joustMsgTxCbFn);
      }
      if(0 == ets_memcmp(msg, "elt", 3))
      {
-         joust.gam.otherJoustElo =  atoi(payload);
+         joust.gam.otherJoustElo =  atoi((const char*)payload);
      }
 
      switch(joust.gameState)
@@ -329,6 +308,8 @@ struct
              // Currently playing a game, if a message is sent, then update score
              break;
          }
+         case R_MENU:
+         case R_SEARCHING:
          case R_SHOW_CONNECTION:
          case R_SHOW_GAME_RESULT:
          {
@@ -861,7 +842,7 @@ void ICACHE_FLASH_ATTR joustConnLedTimeout(void* arg __attribute__((unused)))
  * @param button The button which triggered this action
  * @param down   true if the button was pressed, false if it was released
  */
-void ICACHE_FLASH_ATTR joustButton( uint8_t state,
+void ICACHE_FLASH_ATTR joustButton( uint8_t state __attribute__((unused)),
         int button __attribute__((unused)), int down __attribute__((unused)))
 {
     if(!down)
@@ -941,8 +922,6 @@ void ICACHE_FLASH_ATTR joustMsgTxCbFn(p2pInfo* p2p __attribute__((unused)),
 
 void ICACHE_FLASH_ATTR joustRoundResultLed(void* arg __attribute__((unused)))
 {
-
-  uint8_t currBrightness = 60;
   joust.led.connectionDim = 255;
   uint8_t i;
   if(joust.gam.round_winner){
@@ -997,7 +976,7 @@ void ICACHE_FLASH_ATTR joustRoundResult(bool roundWinner)
       char menuStr[32] = {0};
       ets_snprintf(menuStr, sizeof(menuStr), "level: -%d", joust.gam.lose_score);
       plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)),menuStr , IBM_VGA_8);
-      if(((float)joust.gam.joustElo - (float)joust.gam.lose_score) < 100.0f == 1){
+      if(((float)joust.gam.joustElo - (float)joust.gam.lose_score) < 100.0f){
         joust.gam.joustElo = 100;
       }else{
         joust.gam.joustElo = joust.gam.joustElo - joust.gam.lose_score;
