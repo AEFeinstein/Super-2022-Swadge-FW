@@ -57,9 +57,6 @@ end
     #define p2p_printf(...)
 #endif
 
-// Minimum RSSI to accept a connection broadcast
-//#define CONNECTION_RSSI 10
-
 // The time we'll spend retrying messages
 #define RETRY_TIME_MS 3000
 
@@ -115,10 +112,13 @@ void ICACHE_FLASH_ATTR p2pModeMsgFailure(void* arg);
  *                      events occur
  * @param msgRxCbFn A function pointer which will be called when a packet
  *                      is received for the swadge mode
+ * @param connectionRssi The strength needed to start a connection with another
+ *                      swadge, 0 is first one to see around 55 the swadges need
+ *                      to be right next to eachother.
  */
 void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId,
                                      p2pConCbFn conCbFn,
-                                     p2pMsgRxCbFn msgRxCbFn)
+                                     p2pMsgRxCbFn msgRxCbFn, uint8_t connectionRssi)
 {
     p2p_printf("%s\r\n", __func__);
     // Make sure everything is zero!
@@ -130,6 +130,10 @@ void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId,
 
     // Set the initial sequence number at 255 so that a 0 received is valid.
     p2p->cnc.lastSeqNum = 255;
+
+    // Set the connection Rssi, the higher the value, the closer the swadges
+    // need to be.
+    p2p->connectionRssi = connectionRssi;
 
     // Set the three character message ID
     ets_strncpy(p2p->msgId, msgId, sizeof(p2p->msgId));
@@ -763,7 +767,7 @@ void ICACHE_FLASH_ATTR p2pRestart(void* arg)
     char msgId[4] = {0};
     ets_strncpy(msgId, p2p->msgId, sizeof(msgId));
     p2pDeinit(p2p);
-    p2pInitialize(p2p, msgId, p2p->conCbFn, p2p->msgRxCbFn);
+    p2pInitialize(p2p, msgId, p2p->conCbFn, p2p->msgRxCbFn, p2p->connectionRssi);
 }
 
 /**

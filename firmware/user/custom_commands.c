@@ -147,7 +147,7 @@ configurable_t gConfigs[CONFIGURABLES] =
 };
 
 uint8_t refGameWins = 0;
-uint32_t joustElo = 200;
+uint32_t joustElo = 1000;
 
 /*============================================================================
  * Prototypes
@@ -172,7 +172,7 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
         .SaveLoadKey = 0,
         .configs = {0},
         .refGameWins = 0,
-        .joustElo = 200
+        .joustElo = 1000
     };
 
     uint8_t i;
@@ -202,7 +202,7 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
             }
         }
         refGameWins = 0;
-        joustElo = 200;
+        joustElo = 1000;
         SaveSettings();
     }
 }
