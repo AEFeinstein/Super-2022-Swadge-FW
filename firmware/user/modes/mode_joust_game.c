@@ -411,39 +411,39 @@ void ICACHE_FLASH_ATTR joustInit(void)
         plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), "Beginner", IBM_VGA_8);
         plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Next level: 1200", IBM_VGA_8);
     }else if(joust.gam.joustElo < 1300){
-        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Intermediate", IBM_VGA_8);
-        plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), "Beginner", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Almost", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), "Intermediate", IBM_VGA_8);
         plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Next level: 1300", IBM_VGA_8);
     }else if(joust.gam.joustElo < 1400){
-        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Near", IBM_VGA_8);
-        plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), "Intermediate", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Intermediate", IBM_VGA_8);
         plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Next level: 1400", IBM_VGA_8);
     }else if(joust.gam.joustElo < 1500){
-        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Intermediate", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Expert", IBM_VGA_8);
         plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Next level: 1500", IBM_VGA_8);
     }else if(joust.gam.joustElo < 1600){
-        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Expert", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Master", IBM_VGA_8);
         plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Next level: 1600", IBM_VGA_8);
     }else if(joust.gam.joustElo < 1700){
-        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Master", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "GrandMaster", IBM_VGA_8);
         plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Next level: 1700", IBM_VGA_8);
     }else if(joust.gam.joustElo < 1800){
-        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "GrandMaster", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Joust Slayer", IBM_VGA_8);
         plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Next level: 1800", IBM_VGA_8);
     }else if(joust.gam.joustElo < 1900){
-        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Joust Slayer", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Joust", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), "NimbleMaster", IBM_VGA_8);
         plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Next level: 1900", IBM_VGA_8);
     }else if(joust.gam.joustElo < 2000){
         plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Joust", IBM_VGA_8);
-        plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), "NimbleMaster", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), "sorcerer", IBM_VGA_8);
         plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Next level: 2000", IBM_VGA_8);
     }else if(joust.gam.joustElo < 2100){
         plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Joust", IBM_VGA_8);
-        plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), "sorcerer", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), "Obliterator", IBM_VGA_8);
         plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Next level: 2100", IBM_VGA_8);
     }else if(joust.gam.joustElo < 2200){
         plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Joust", IBM_VGA_8);
-        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Obliterator", IBM_VGA_8);
+        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "MindBender", IBM_VGA_8);
         plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "Next level: 2200", IBM_VGA_8);
     }else if(joust.gam.joustElo < 2400){
         plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Joust", IBM_VGA_8);
