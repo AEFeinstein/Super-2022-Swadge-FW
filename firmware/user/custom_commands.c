@@ -32,6 +32,8 @@ typedef struct __attribute__((aligned(4)))
     uint8_t SaveLoadKey; //Must be SAVE_LOAD_KEY to be valid.
     uint8_t configs[CONFIGURABLES];
     uint8_t refGameWins;
+    uint32_t ttHighScore;
+    uint32_t ttLastScore;
 }
 settings_t;
 
@@ -144,6 +146,10 @@ configurable_t gConfigs[CONFIGURABLES] =
 
 uint8_t refGameWins = 0;
 
+uint32_t ttHighScore = 0;
+
+uint32_t ttLastScore = 0;
+
 /*============================================================================
  * Prototypes
  *==========================================================================*/
@@ -166,7 +172,9 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
     {
         .SaveLoadKey = 0,
         .configs = {0},
-        .refGameWins = 0
+        .refGameWins = 0,
+        .ttHighScore = 0,
+        .ttLastScore = 0
     };
 
     uint8_t i;
@@ -183,6 +191,8 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
         }
 
         refGameWins = settings.refGameWins;
+        ttHighScore = settings.ttHighScore;
+        ttLastScore = settings.ttLastScore;
     }
     else
     {
@@ -195,6 +205,8 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
             }
         }
         refGameWins = 0;
+        ttHighScore = 0;
+        ttLastScore = 0;
         SaveSettings();
     }
 }
@@ -208,7 +220,9 @@ void ICACHE_FLASH_ATTR SaveSettings(void)
     {
         .SaveLoadKey = SAVE_LOAD_KEY,
         .configs = {0},
-        .refGameWins = refGameWins
+        .refGameWins = refGameWins,
+        .ttHighScore = ttHighScore,
+        .ttLastScore = ttLastScore
     };
 
     uint8_t i;
@@ -256,6 +270,28 @@ void ICACHE_FLASH_ATTR setGameWinsToMax(void)
 uint8_t ICACHE_FLASH_ATTR getRefGameWins(void)
 {
     return refGameWins;
+}
+
+uint32_t ICACHE_FLASH_ATTR ttHighScoreGet(void)
+{
+    return ttHighScore;
+}
+
+void ICACHE_FLASH_ATTR ttHighScoreSet(uint32_t newHighScore)
+{
+    ttHighScore = newHighScore;
+    SaveSettings();
+}
+
+uint32_t ICACHE_FLASH_ATTR ttLastScoreGet(void)
+{
+    return ttLastScore;
+}
+
+void ICACHE_FLASH_ATTR ttLastScoreSet(uint32_t newLastScore)
+{
+    ttLastScore = newLastScore;
+    SaveSettings();
 }
 
 /**

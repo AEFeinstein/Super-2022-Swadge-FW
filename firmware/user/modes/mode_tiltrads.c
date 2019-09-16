@@ -14,15 +14,14 @@
 #include "oled.h"		//display functions
 #include "font.h"		//draw text
 #include "bresenham.h"	//draw shapes
-#include "linked_list.h" //custom linked list.
+#include "linked_list.h" //custom linked list
+#include "custom_commands.h" //saving and loading high scores and last scores
 
 //TODO:
 // Handle cascade clears that result from falling tetrads after clears?
 // Add Better tetrad type randomizer.
-// Add Game Over state separate from score screen state?
 // Refine the placement of UI and background elements in the game screen.
 // Explore adding line clear animations.
-// Add saving and loading high scores. (and add highest score to the game UI)
 // Fully implement the title screen.
 // Fully implement the score screen.
 // Add different block fills for different tetrad types?
@@ -55,8 +54,8 @@
 #define GRID_WIDTH 10
 #define GRID_HEIGHT 17
 
-#define NEXT_GRID_X 97
-#define NEXT_GRID_Y 3
+#define NEXT_GRID_X 100//97
+#define NEXT_GRID_Y 8
 #define NEXT_GRID_WIDTH 5
 #define NEXT_GRID_HEIGHT 5
 
@@ -90,8 +89,8 @@ typedef enum
 {
     TT_TITLE,	// title screen
     TT_GAME,	// play the actual game
-    TT_SCORES	// high scores / game over screen
-	//TODO: does this need a transition state?
+    TT_SCORES,	// high scores
+    TT_GAMEOVER // game over
 } tiltradsState_t;
 
 typedef enum
@@ -304,10 +303,9 @@ uint32_t linesClearedTotal; // The number of lines cleared total.
 uint32_t linesClearedLastDrop; // The number of lines cleared the last time a tetrad landed. (Used for combos)
 uint32_t comboCount; // The combo counter for successive line clears.
 uint32_t currentLevel; // The current difficulty level, increments every 10 line clears.
-uint32_t score;
-
-//tetrad_t landedTetrads[MAX_TETRADS];
+uint32_t score; // The current score this game.
 list_t * landedTetrads;
+bool newHighScore;
 
 // function prototypes go here.
 void ICACHE_FLASH_ATTR ttInit(void);
@@ -322,35 +320,52 @@ static void ICACHE_FLASH_ATTR ttUpdate(void* arg);
 void ICACHE_FLASH_ATTR ttTitleInput(void);
 void ICACHE_FLASH_ATTR ttGameInput(void);
 void ICACHE_FLASH_ATTR ttScoresInput(void);
+void ICACHE_FLASH_ATTR ttGameoverInput(void);
 
 // update any input-unrelated logic.
 void ICACHE_FLASH_ATTR ttTitleUpdate(void);
 void ICACHE_FLASH_ATTR ttGameUpdate(void);
 void ICACHE_FLASH_ATTR ttScoresUpdate(void);
+void ICACHE_FLASH_ATTR ttGameoverUpdate(void);
 
 // draw the frame.
 void ICACHE_FLASH_ATTR ttTitleDisplay(void);
 void ICACHE_FLASH_ATTR ttGameDisplay(void);
 void ICACHE_FLASH_ATTR ttScoresDisplay(void);
+void ICACHE_FLASH_ATTR ttGameoverDisplay(void);
 
 // helper functions.
+
+// mode state management.
 void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState);
+
+// input checking.
 bool ICACHE_FLASH_ATTR ttIsButtonPressed(uint8_t button);
 bool ICACHE_FLASH_ATTR ttIsButtonDown(uint8_t button);
 bool ICACHE_FLASH_ATTR ttIsButtonUp(uint8_t button);
+
+// grid management.
 void ICACHE_FLASH_ATTR copyGrid(coord_t srcOffset, uint8_t srcWidth, uint8_t srcHeight, uint32_t src[][srcWidth], uint8_t dstWidth, uint8_t dstHeight, uint32_t dst[][dstWidth]);
 void ICACHE_FLASH_ATTR transferGrid(coord_t srcOffset, uint8_t srcWidth, uint8_t srcHeight, uint32_t src[][srcWidth], uint8_t dstWidth, uint8_t dstHeight, uint32_t dst[][dstWidth], uint32_t transferVal);
 void ICACHE_FLASH_ATTR clearGrid(uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth]);
+void ICACHE_FLASH_ATTR refreshTetradsGrid(bool includeActive);
+
+// tetrad operations.
 void ICACHE_FLASH_ATTR rotateTetrad(void);
 void ICACHE_FLASH_ATTR softDropTetrad(void);
 void ICACHE_FLASH_ATTR moveTetrad(void);
 bool ICACHE_FLASH_ATTR dropTetrad(tetrad_t * tetrad, uint32_t tetradGridValue);
 tetrad_t ICACHE_FLASH_ATTR spawnTetrad(tetradType_t type, coord_t gridCoord, int rotation);
 void ICACHE_FLASH_ATTR spawnNextTetrad(void);
+
+// drawing functions.
 void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size, color col);
 void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth], color col);
-void ICACHE_FLASH_ATTR refreshTetradsGrid(bool includeActive);
 void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shapeWidth, uint8_t shapeHeight, uint32_t shape[][shapeWidth], color col);
+void ICACHE_FLASH_ATTR plotCenteredText(uint8_t x0, uint8_t y, uint8_t x1, char* text, fonts font, color col);
+uint8_t getTextWidth(char* text, fonts font);
+
+// game logic operations.
 //void ICACHE_FLASH_ATTR initTetradRandomizer(void);
 int ICACHE_FLASH_ATTR getNextTetradType(int index);
 uint32_t ICACHE_FLASH_ATTR getDropTime(uint32_t level);
@@ -436,9 +451,8 @@ void ICACHE_FLASH_ATTR ttAccelerometerCallback(accel_t* accel)
 static void ICACHE_FLASH_ATTR ttUpdate(void* arg __attribute__((unused)))
 {
 	// Update time tracking.
-    //NOTE: delta time is in microseconds.
+    // NOTE: delta time is in microseconds.
     // UPDATE time is in milliseconds.
-    //TODO: convert this into a metric I can use
 
 	uint32_t newModeTime = system_get_time() - modeStartTime;
 	uint32_t newStateTime = system_get_time() - stateStartTime;
@@ -462,6 +476,11 @@ static void ICACHE_FLASH_ATTR ttUpdate(void* arg __attribute__((unused)))
         case TT_SCORES:
         {
 			ttScoresInput();
+            break;
+        }
+        case TT_GAMEOVER:
+        {
+            ttGameoverInput();
             break;
         }
         default:
@@ -490,6 +509,11 @@ static void ICACHE_FLASH_ATTR ttUpdate(void* arg __attribute__((unused)))
 			ttScoresUpdate();
             break;
         }
+        case TT_GAMEOVER:
+        {
+            ttGameoverUpdate();
+            break;
+        }
         default:
             break;
     };
@@ -510,6 +534,11 @@ static void ICACHE_FLASH_ATTR ttUpdate(void* arg __attribute__((unused)))
         case TT_SCORES:
         {
 			ttScoresDisplay();
+            break;
+        }
+        case TT_GAMEOVER:
+        {
+            ttGameoverDisplay();
             break;
         }
         default:
@@ -578,6 +607,20 @@ void ICACHE_FLASH_ATTR ttScoresInput(void)
     }
 
 	//TODO: accel = tilt to scroll through history of scores?
+}
+
+void ICACHE_FLASH_ATTR ttGameoverInput(void)
+{
+    //button a = start game
+    if(ttIsButtonPressed(BTN_START_GAME))
+    {
+        ttChangeState(TT_GAME);
+    }
+    //button b = go to title screen
+    else if(ttIsButtonPressed(BTN_START_TITLE))
+    {
+        ttChangeState(TT_TITLE);
+    }
 }
 
 void ICACHE_FLASH_ATTR ttTitleUpdate(void)
@@ -725,6 +768,11 @@ void ICACHE_FLASH_ATTR ttScoresUpdate(void)
 
 }
 
+void ICACHE_FLASH_ATTR ttGameoverUpdate(void)
+{
+
+}
+
 void ICACHE_FLASH_ATTR ttTitleDisplay(void)
 {
 	// draw title
@@ -782,60 +830,46 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     plotGrid(GRID_X, GRID_Y, GRID_UNIT_SIZE, GRID_WIDTH, GRID_HEIGHT, tetradsGrid, WHITE);
 
     
-    // Draw the next tetrad.
-    clearGrid(NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
+    // NEXT
+    plotCenteredText(GRID_X + (GRID_UNIT_SIZE * GRID_WIDTH), 0, OLED_WIDTH, "NEXT", TOM_THUMB, WHITE);
 
+    // Draw the next tetrad.
     coord_t nextTetradPoint;
     nextTetradPoint.c = 1;
     nextTetradPoint.r = 1;
-
     tetrad_t nextTetrad = spawnTetrad(nextTetradType, nextTetradPoint, 0);
-    plotShape(NEXT_GRID_X + nextTetradPoint.c * (GRID_UNIT_SIZE - 1), NEXT_GRID_Y + nextTetradPoint.r * (GRID_UNIT_SIZE - 1), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, nextTetrad.shape, WHITE);   
-    copyGrid(nextTetrad.topLeft, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, nextTetrad.shape, NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
+    plotShape(NEXT_GRID_X + nextTetradPoint.c * (GRID_UNIT_SIZE - 1), NEXT_GRID_Y + nextTetradPoint.r * (GRID_UNIT_SIZE - 1), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, nextTetrad.shape, WHITE);
 
+    // Draw the grid holding the next tetrad.
+    clearGrid(NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
+    copyGrid(nextTetrad.topLeft, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, nextTetrad.shape, NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
     plotGrid(NEXT_GRID_X, NEXT_GRID_Y, GRID_UNIT_SIZE, NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid, WHITE);
+
+    //HIGH
+    //99999
+    newHighScore = score > ttHighScoreGet();
+    plotCenteredText(0, 0, GRID_X, newHighScore ? "HIGH (NEW!)" : "HIGH", TOM_THUMB, WHITE);
+    char uiStr[32] = {0};
+    ets_snprintf(uiStr, sizeof(uiStr), "%d", newHighScore ? score : ttHighScoreGet());
+    plotCenteredText(0, (FONT_HEIGHT_TOMTHUMB + 1), GRID_X, uiStr, TOM_THUMB, WHITE);
 
     //SCORE
     //99999
-    plotText(0, 0, "SCORE", TOM_THUMB, WHITE);
-    char uiStr[32] = {0};
+    plotCenteredText(0, (3*FONT_HEIGHT_TOMTHUMB), GRID_X, "SCORE", TOM_THUMB, WHITE);
     ets_snprintf(uiStr, sizeof(uiStr), "%d", score);
-    plotText(0, (FONT_HEIGHT_TOMTHUMB + 1), uiStr, TOM_THUMB, WHITE);
+    plotCenteredText(0, (4*FONT_HEIGHT_TOMTHUMB)+1, GRID_X, uiStr, TOM_THUMB, WHITE);
 
     //LINES
     // 999
-    plotText(0, 3*(FONT_HEIGHT_TOMTHUMB + 1), "LINES", TOM_THUMB, WHITE);
+    plotCenteredText(0, (6*FONT_HEIGHT_TOMTHUMB), GRID_X, "LINES", TOM_THUMB, WHITE);
     ets_snprintf(uiStr, sizeof(uiStr), "%d", linesClearedTotal);
-    plotText(0, 4*(FONT_HEIGHT_TOMTHUMB + 1), uiStr, TOM_THUMB, WHITE);
+    plotCenteredText(0, (7*FONT_HEIGHT_TOMTHUMB)+1, GRID_X, uiStr, TOM_THUMB, WHITE);
 
     //LEVEL
     // 99
-    plotText(0, 6*(FONT_HEIGHT_TOMTHUMB + 1), "LEVEL", TOM_THUMB, WHITE);
+    plotCenteredText(0, (9*FONT_HEIGHT_TOMTHUMB), GRID_X, "LEVEL", TOM_THUMB, WHITE);
     ets_snprintf(uiStr, sizeof(uiStr), "%d", (currentLevel+1)); // Levels are displayed with 1 as the base level.
-    plotText(0, 7*(FONT_HEIGHT_TOMTHUMB + 1), uiStr, TOM_THUMB, WHITE);
-
-    
-    /*char debugStr[32] = {0};
-    ets_snprintf(debugStr, sizeof(debugStr), "LEN: %d", landedTetrads->length);
-    plotText(OLED_WIDTH - 30, OLED_HEIGHT - (2 * (FONT_HEIGHT_TOMTHUMB + 1)), debugStr, TOM_THUMB, WHITE);
-    */
-    
-    // Debug text:
-    /*char debugStr[32] = {0};
-    ets_snprintf(debugStr, sizeof(debugStr), "Y: %d", (ttAccel.y / ACCEL_SEG_SIZE));
-    plotText(0, 0, debugStr, IBM_VGA_8, WHITE);
-
-    // Display the acceleration on the display
-    char accelStr[32] = {0};
-
-    ets_snprintf(accelStr, sizeof(accelStr), "X:%d", ttAccel.x);
-    plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8, WHITE);
-
-    ets_snprintf(accelStr, sizeof(accelStr), "Y:%d", ttAccel.y);
-    plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8, WHITE);
-
-    ets_snprintf(accelStr, sizeof(accelStr), "Z:%d", ttAccel.z);
-    plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8, WHITE);*/
+    plotCenteredText(0, (10*FONT_HEIGHT_TOMTHUMB)+1, GRID_X, uiStr, TOM_THUMB, WHITE);
 }
 
 void ICACHE_FLASH_ATTR ttScoresDisplay(void)
@@ -849,6 +883,50 @@ void ICACHE_FLASH_ATTR ttScoresDisplay(void)
     //drawPixel(0, OLED_HEIGHT-15, WHITE);
     plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "TITLE", IBM_VGA_8, WHITE);
     plotText(OLED_WIDTH - ((8 * 5) - 3), OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "START", IBM_VGA_8, WHITE);
+}
+
+void ICACHE_FLASH_ATTR ttGameoverDisplay(void)
+{
+    // We don't clear the display because we want the playfield to appear in the background.
+
+    // Draw a centered bordered window.
+
+    //TODO: #define these instead of variables here?
+    uint8_t windowXMargin = 18;
+    uint8_t windowYMarginTop = 5;
+    uint8_t windowYMarginBot = 5;
+
+    uint8_t titleTextYOffset = 5;
+    uint8_t highScoreTextYOffset = titleTextYOffset + FONT_HEIGHT_IBMVGA8 + 5;
+    uint8_t scoreTextYOffset = highScoreTextYOffset + FONT_HEIGHT_TOMTHUMB + 5;
+    uint8_t controlTextYOffset = OLED_HEIGHT - windowYMarginBot - FONT_HEIGHT_TOMTHUMB - 5;
+    uint8_t controlTextXPadding = 5;
+
+    // Draw a centered bordered window.
+    fillDisplayArea(windowXMargin, windowYMarginTop, OLED_WIDTH - windowXMargin, OLED_HEIGHT - windowYMarginBot, BLACK);
+    plotRect(windowXMargin, windowYMarginTop, OLED_WIDTH - windowXMargin, OLED_HEIGHT - windowYMarginBot, WHITE);
+
+    // GAME OVER
+    plotCenteredText(windowXMargin, windowYMarginTop + titleTextYOffset, OLED_WIDTH - windowXMargin, "GAME OVER", IBM_VGA_8, WHITE);
+
+    // HIGH SCORE! or YOUR SCORE:
+    if (newHighScore)
+    {
+        plotCenteredText(windowXMargin, windowYMarginTop + highScoreTextYOffset, OLED_WIDTH - windowXMargin, "HIGH SCORE!", TOM_THUMB, WHITE);
+    }
+    else
+    {
+        plotCenteredText(windowXMargin, windowYMarginTop + highScoreTextYOffset, OLED_WIDTH - windowXMargin, "YOUR SCORE:", TOM_THUMB, WHITE);
+    }
+
+    // 1230495
+    char scoreStr[32] = {0};
+    ets_snprintf(scoreStr, sizeof(scoreStr), "%d", score);
+    plotCenteredText(windowXMargin, windowYMarginTop + scoreTextYOffset, OLED_WIDTH - windowXMargin, scoreStr, IBM_VGA_8, WHITE);
+
+    // TITLE    RESTART
+    plotText(windowXMargin + controlTextXPadding, controlTextYOffset, "TITLE", TOM_THUMB, WHITE);
+    plotText(OLED_WIDTH - windowXMargin - getTextWidth("RESTART", TOM_THUMB) - controlTextXPadding, controlTextYOffset, "RESTART", TOM_THUMB, WHITE);
 }
 
 // helper functions.
@@ -878,6 +956,14 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
             spawnNextTetrad();
             break;
         case TT_SCORES:
+            break;
+        case TT_GAMEOVER:
+            // Update high score if needed.
+            newHighScore = score > ttHighScoreGet();
+            if (newHighScore) ttHighScoreSet(score);
+            
+            // Save out the last score.
+            ttLastScoreSet(score);
             break;
         default:
             break;
@@ -942,6 +1028,24 @@ void ICACHE_FLASH_ATTR clearGrid(uint8_t gridWidth, uint8_t gridHeight, uint32_t
         {
             gridData[y][x] = EMPTY;
         }
+    }
+}
+
+void ICACHE_FLASH_ATTR refreshTetradsGrid(bool includeActive)
+{
+    clearGrid(GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
+
+    node_t * current = landedTetrads->first;
+    for (int t = 0; t < landedTetrads->length; t++) 
+    {
+        tetrad_t * currentTetrad = (tetrad_t *)current->val;
+        transferGrid(currentTetrad->topLeft, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, currentTetrad->shape, GRID_WIDTH, GRID_HEIGHT, tetradsGrid, t+1);
+        current = current->next;
+    }
+
+    if (includeActive)
+    {
+        transferGrid(activeTetrad.topLeft, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, activeTetrad.shape, GRID_WIDTH, GRID_HEIGHT, tetradsGrid, tetradCounter+1);
     }
 }
 
@@ -1192,7 +1296,7 @@ void ICACHE_FLASH_ATTR spawnNextTetrad()
     // Check if this is blocked, if it is, the game is over.
     if (checkCollision(activeTetrad.topLeft, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, activeTetrad.shape, GRID_WIDTH, GRID_HEIGHT, tetradsGrid, tetradCounter+1))
     {
-        ttChangeState(TT_SCORES);
+        ttChangeState(TT_GAMEOVER);
     }
     // If the game isn't over, move the initial tetrad to where it should be based on the accelerometer.
     else
@@ -1218,24 +1322,6 @@ void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWi
         {
             if (gridData[y][x] == EMPTY) drawPixel(x0 + x * (unitSize - 1) + (unitSize / 2), y0 + y * (unitSize - 1) + (unitSize / 2), WHITE);
         }
-    }
-}
-
-void ICACHE_FLASH_ATTR refreshTetradsGrid(bool includeActive)
-{
-    clearGrid(GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
-
-    node_t * current = landedTetrads->first;
-    for (int t = 0; t < landedTetrads->length; t++) 
-    {
-        tetrad_t * currentTetrad = (tetrad_t *)current->val;
-        transferGrid(currentTetrad->topLeft, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, currentTetrad->shape, GRID_WIDTH, GRID_HEIGHT, tetradsGrid, t+1);
-        current = current->next;
-    }
-
-    if (includeActive)
-    {
-        transferGrid(activeTetrad.topLeft, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, activeTetrad.shape, GRID_WIDTH, GRID_HEIGHT, tetradsGrid, tetradCounter+1);
     }
 }
 
@@ -1277,6 +1363,41 @@ void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shape
             }
         }
     }
+}
+
+// Draw text centered between x0 and x1.
+void ICACHE_FLASH_ATTR plotCenteredText(uint8_t x0, uint8_t y, uint8_t x1, char* text, fonts font, color col)
+{
+    /*// We only get width info once we've drawn.
+    // So we draw the text as inverse to get the width.
+    uint8_t textWidth = plotText(x0, y, text, font, INVERSE) - x0 - 1; // minus one accounts for the return being where the cursor is.
+
+    // Then we draw the inverse back over it to restore it.
+    plotText(x0, y, text, font, INVERSE);*/
+    uint8_t textWidth = getTextWidth(text, font);
+
+    // Calculate the correct x to draw from.
+    uint8_t fullWidth = x1 - x0 + 1;
+    // NOTE: This may result in strange behavior when the width of the drawn text is greater than the distance between x0 and x1.
+    uint8_t widthDiff = fullWidth - textWidth; 
+    uint8_t centeredX = x0 + (widthDiff / 2);
+
+    // Then we draw the correctly centered text.
+    plotText(centeredX, y, text, font, col);
+}
+
+uint8_t getTextWidth(char* text, fonts font)
+{
+    // NOTE: The inverse, inverse is cute, but 2 draw calls, could we draw it outside of the display area but still in bounds of a uint8_t?
+
+    // We only get width info once we've drawn.
+    // So we draw the text as inverse to get the width.
+    uint8_t textWidth = plotText(0, 0, text, font, INVERSE) - 1; // minus one accounts for the return being where the cursor is.
+
+    // Then we draw the inverse back over it to restore it.
+    plotText(0, 0, text, font, INVERSE);
+
+    return textWidth;
 }
 
 /*int typePool[35];
