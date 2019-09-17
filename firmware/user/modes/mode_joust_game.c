@@ -201,12 +201,10 @@ void ICACHE_FLASH_ATTR joustConnectionCallback(p2pInfo* p2p __attribute__((unuse
         }
         case RX_GAME_START_ACK:
         {
-
             break;
         }
         case RX_GAME_START_MSG:
         {
-
             break;
         }
         case CON_ESTABLISHED:
@@ -271,15 +269,14 @@ void ICACHE_FLASH_ATTR joustMsgCallbackFn(p2pInfo* p2p __attribute__((unused)), 
         ets_snprintf(elo_string, sizeof(elo_string), "%d", joust.gam.joustElo);
         p2pSendMsg(&joust.p2pJoust, "elo", elo_string, sizeof(elo_string), joustMsgTxCbFn);
     }
-
-    if(0 == ets_memcmp(msg, "elo", 3))
+    else if(0 == ets_memcmp(msg, "elo", 3))
     {
         joust.gam.otherJoustElo =  atoi((const char*)payload);
         char elo_string[32] = {0};
         ets_snprintf(elo_string, sizeof(elo_string), "%d", joust.gam.joustElo);
         p2pSendMsg(&joust.p2pJoust, "elt", elo_string, sizeof(elo_string), joustMsgTxCbFn);
     }
-    if(0 == ets_memcmp(msg, "elt", 3))
+    else if(0 == ets_memcmp(msg, "elt", 3))
     {
         joust.gam.otherJoustElo =  atoi((const char*)payload);
     }
@@ -287,10 +284,11 @@ void ICACHE_FLASH_ATTR joustMsgCallbackFn(p2pInfo* p2p __attribute__((unused)), 
     switch(joust.gameState)
     {
         case R_CONNECTING:
+        {
             break;
+        }
         case R_WAITING:
         {
-
             break;
         }
         case R_PLAYING:
@@ -502,7 +500,6 @@ void ICACHE_FLASH_ATTR joustInit(void)
     os_timer_setfn(&joust.tmr.RoundResultLed, joustRoundResultLed, NULL);
 
     joust.gameState = R_MENU;
-
 }
 
 /**
@@ -510,7 +507,6 @@ void ICACHE_FLASH_ATTR joustInit(void)
  */
 void ICACHE_FLASH_ATTR joustDeinit(void)
 {
-
     joust_printf("%s\r\n", __func__);
     p2pDeinit(&joust.p2pJoust);
     os_timer_disarm(&joust.tmr.StartPlaying);
@@ -703,7 +699,6 @@ void ICACHE_FLASH_ATTR joustStartPlaying(void* arg __attribute__((unused)))
     joust.led.ConnLedState = LED_CONNECTED_BRIGHT;
     os_timer_arm(&joust.tmr.GameLed, 6, true);
     joust.gameState = R_PLAYING;
-
 }
 
 /**
@@ -713,7 +708,6 @@ void ICACHE_FLASH_ATTR joustStartPlaying(void* arg __attribute__((unused)))
 void ICACHE_FLASH_ATTR joustStartRound(void)
 {
     joust.gameState = R_PLAYING;
-
 }
 
 void ICACHE_FLASH_ATTR joustUpdateDisplay(void)
@@ -734,7 +728,6 @@ void ICACHE_FLASH_ATTR joustUpdateDisplay(void)
  */
 void ICACHE_FLASH_ATTR joustAccelerometerHandler(accel_t* accel)
 {
-
     joust.joustAccel.x = accel->x;
     joust.joustAccel.y = accel->y;
     joust.joustAccel.z = accel->z;
@@ -879,7 +872,6 @@ void ICACHE_FLASH_ATTR joustButton( uint8_t state __attribute__((unused)),
             plotText(0, 0, "Searching", IBM_VGA_8);
         }
     }
-
 }
 
 /**
@@ -900,7 +892,6 @@ void ICACHE_FLASH_ATTR joustSendRoundLossMsg(void)
     p2pSendMsg(&joust.p2pJoust, "los", NULL, 0, joustMsgTxCbFn);
     // Show the current wins & losses
     joustRoundResult(false);
-
 }
 
 /**
@@ -944,7 +935,6 @@ void ICACHE_FLASH_ATTR joustRoundResultLed(void* arg __attribute__((unused)))
             joust.led.Leds[i].r = 0;
             joust.led.Leds[i].b = 0;
         }
-
     }
     else
     {
@@ -958,7 +948,6 @@ void ICACHE_FLASH_ATTR joustRoundResultLed(void* arg __attribute__((unused)))
 
     // ets_memset(joust.led.Leds, currBrightness, sizeof(joust.led.Leds));
     setLeds(joust.led.Leds, sizeof(joust.led.Leds));
-
 }
 
 /**
@@ -982,7 +971,6 @@ void ICACHE_FLASH_ATTR joustRoundResult(bool roundWinner)
         char menuStr[32] = {0};
         ets_snprintf(menuStr, sizeof(menuStr), "level: +%d", joust.gam.win_score);
         plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), menuStr, IBM_VGA_8);
-
     }
     else
     {
@@ -1002,5 +990,4 @@ void ICACHE_FLASH_ATTR joustRoundResult(bool roundWinner)
     }
     setJoustElo(joust.gam.joustElo);
     os_timer_arm(&joust.tmr.RestartJoust, 6000, false);
-
 }
