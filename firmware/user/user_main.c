@@ -278,7 +278,7 @@ void ICACHE_FLASH_ATTR user_init(void)
  *
  * @param events Checked before posting this task again
  */
-static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
+static void ICACHE_FLASH_ATTR procTask(os_event_t* events __attribute__((unused)))
 {
     // Post another task to this thread
     system_os_post(PROC_TASK_PRIO, 0, 0 );
