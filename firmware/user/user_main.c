@@ -294,21 +294,6 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
 #ifdef PROFILE
     WRITE_PERI_REG( PERIPHS_GPIO_BASEADDR + GPIO_ID_PIN(0), 0 );
 #endif
-
-    if( events->sig == 0 && events->par == 0 )
-    {
-        // If colorchord is active and the HPA isn't running, start it
-        if( COLORCHORD_ACTIVE && !isHpaRunning() )
-        {
-            ExitCritical();
-        }
-
-        // If colorchord isn't running and the HPA is running, stop it
-        if( !COLORCHORD_ACTIVE && isHpaRunning() )
-        {
-            EnterCritical();
-        }
-    }
 }
 
 /**
