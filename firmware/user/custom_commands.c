@@ -32,7 +32,7 @@ typedef struct __attribute__((aligned(4)))
     uint8_t SaveLoadKey; //Must be SAVE_LOAD_KEY to be valid.
     uint8_t configs[CONFIGURABLES];
     uint8_t refGameWins;
-    uint32_t ttHighScore;
+    uint32_t ttHighScores[NUM_TT_HIGH_SCORES]; //first,second,third
     uint32_t ttLastScore;
 }
 settings_t;
@@ -146,7 +146,7 @@ configurable_t gConfigs[CONFIGURABLES] =
 
 uint8_t refGameWins = 0;
 
-uint32_t ttHighScore = 0;
+uint32_t ttHighScores[NUM_TT_HIGH_SCORES] = {0};
 
 uint32_t ttLastScore = 0;
 
@@ -173,9 +173,10 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
         .SaveLoadKey = 0,
         .configs = {0},
         .refGameWins = 0,
-        .ttHighScore = 0,
+        //.ttHighScores = {0},
         .ttLastScore = 0
     };
+    memset(settings.ttHighScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
 
     uint8_t i;
     spi_flash_read( USER_SETTINGS_ADDR, (uint32*)&settings, sizeof( settings ) );
@@ -191,7 +192,7 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
         }
 
         refGameWins = settings.refGameWins;
-        ttHighScore = settings.ttHighScore;
+        memcpy(ttHighScores, settings.ttHighScores, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
         ttLastScore = settings.ttLastScore;
     }
     else
@@ -205,7 +206,7 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
             }
         }
         refGameWins = 0;
-        ttHighScore = 0;
+        memset(ttHighScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
         ttLastScore = 0;
         SaveSettings();
     }
@@ -221,9 +222,11 @@ void ICACHE_FLASH_ATTR SaveSettings(void)
         .SaveLoadKey = SAVE_LOAD_KEY,
         .configs = {0},
         .refGameWins = refGameWins,
-        .ttHighScore = ttHighScore,
+        //.ttHighScores = {0},
         .ttLastScore = ttLastScore
     };
+    memset(settings.ttHighScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
+    memcpy(settings.ttHighScores, ttHighScores,  NUM_TT_HIGH_SCORES * sizeof(uint32_t));
 
     uint8_t i;
     for( i = 0; i < CONFIGURABLES; i++ )
@@ -272,23 +275,23 @@ uint8_t ICACHE_FLASH_ATTR getRefGameWins(void)
     return refGameWins;
 }
 
-uint32_t ICACHE_FLASH_ATTR ttHighScoreGet(void)
+uint32_t * ICACHE_FLASH_ATTR ttGetHighScores(void)
 {
-    return ttHighScore;
+    return ttHighScores;
 }
 
-void ICACHE_FLASH_ATTR ttHighScoreSet(uint32_t newHighScore)
+void ICACHE_FLASH_ATTR ttSetHighScores(uint32_t * newHighScores)
 {
-    ttHighScore = newHighScore;
+    memcpy(ttHighScores, newHighScores, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
     SaveSettings();
 }
 
-uint32_t ICACHE_FLASH_ATTR ttLastScoreGet(void)
+uint32_t ICACHE_FLASH_ATTR ttGetLastScore(void)
 {
     return ttLastScore;
 }
 
-void ICACHE_FLASH_ATTR ttLastScoreSet(uint32_t newLastScore)
+void ICACHE_FLASH_ATTR ttSetLastScore(uint32_t newLastScore)
 {
     ttLastScore = newLastScore;
     SaveSettings();
