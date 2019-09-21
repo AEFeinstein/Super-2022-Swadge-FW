@@ -8,8 +8,6 @@
 
 #include <osapi.h>
 #include <user_interface.h>
-#include <stdlib.h>
-
 #include "user_main.h"	//swadge mode
 #include "buttons.h"
 #include "oled.h"		//display functions
@@ -17,8 +15,31 @@
 #include "bresenham.h"	//draw shapes
 #include "linked_list.h" //custom linked list
 #include "custom_commands.h" //saving and loading high scores and last scores
+#include "mazegen.h"
 
-// any defines go here.
+
+/*============================================================================
+ * Defines
+ *==========================================================================*/
+//NOTE in ode_solvers.h is #define of FLOATING float    or double to test
+//#define LEN_PENDULUM 1
+
+#define MAZE_DEBUG_PRINT
+#ifdef MAZE_DEBUG_PRINT
+#include <stdlib.h>
+    #define maze_printf(...) os_printf(__VA_ARGS__)
+#else
+    #define maze_printf(...)
+#endif
+
+#ifndef max
+    #define max(a,b) ((a) > (b) ? (a) : (b))
+#endif
+#ifndef min
+    #define min(a,b) ((a) < (b) ? (a) : (b))
+#endif
+
+#define EMPTY 0
 
 // controls (title)
 #define BTN_TITLE_START_SCORES LEFT
@@ -60,41 +81,50 @@
 // This is (* count * level)
 #define SCORE_COMBO 50
 
-
+#define NUM_MZ_HIGH_SCORES 3
 #define ACCEL_SEG_SIZE 25 // higher value more or less means less sensetive.
 #define ACCEL_JITTER_GUARD 14//7 // higher = less sensetive.
 
 // any enums go here.
+
 typedef enum
 {
-    TT_TITLE,	// title screen
-    TT_GAME,	// play the actual game
-    TT_SCORES,	// high scores
-    TT_GAMEOVER // game over
-} tiltradsState_t;
+    A,	// title screen
+    B,	// play the actual game
+    C,	// high scores
+    D // game over
+} mazeType_t;
+
+typedef enum
+{
+    MZ_TITLE,	// title screen
+    MZ_GAME,	// play the actual game
+    MZ_SCORES,	// high scores
+    MZ_GAMEOVER // game over
+} mazeState_t;
 
 typedef enum
 {
     RANDOM,//Pure random
     BAG,        //7 Bag
     POOL  //35 Pool with 6 rolls
-} tetradRandomizer_t;
+} mazeRandomizer_t;
 
-tetradRandomizer_t randomizer = POOL;//BAG;
+static mazeRandomizer_t randomizer = POOL;//BAG;
 
 //BAG
-int typeBag[NUM_TETRAD_TYPES] = {I_TETRAD, J_TETRAD, L_TETRAD, O_TETRAD, S_TETRAD, T_TETRAD, Z_TETRAD}; 
-int bagIndex;
+static int typeBag[3] = {1,2,3}; 
+static int bagIndex;
 
 //POOL
-int typePool[35];
-int typeHistory[4];
-int firstType[4] = {I_TETRAD, J_TETRAD, L_TETRAD, T_TETRAD};
+static int typePool[35];
+static int typeHistory[4];
+static int firstType[4] = {1,2,3,4};
 list_t * typeOrder;
 
-uint32_t tetradsGrid[GRID_HEIGHT][GRID_WIDTH];
+uint32_t mazesGrid[GRID_HEIGHT][GRID_WIDTH];
 
-uint32_t nextTetradGrid[NEXT_GRID_HEIGHT][NEXT_GRID_WIDTH];
+uint32_t nextMazeGrid[GRID_HEIGHT][GRID_WIDTH];
 
 
 // coordinates on the playfield grid, not the screen.
@@ -103,6 +133,12 @@ typedef struct
     int c;
     int r;
 } coord_t;
+
+typedef struct
+{
+    int c;
+    int r;
+} maze_t;
 
 
 // Title screen info.
@@ -114,112 +150,116 @@ bool holdingClearScore;
 // Game state info.
 uint32_t currentLevel; // The current difficulty level, increments every 10 line clears.
 uint32_t score; // The current score this game.
-uint32_t highScores[NUM_TT_HIGH_SCORES];
+uint32_t highScores[NUM_MZ_HIGH_SCORES];
 bool newHighScore;
 
 // function prototypes go here.
-void ICACHE_FLASH_ATTR ttInit(void);
-void ICACHE_FLASH_ATTR ttDeInit(void);
-void ICACHE_FLASH_ATTR ttButtonCallback(uint8_t state, int button, int down);
-void ICACHE_FLASH_ATTR ttAccelerometerCallback(accel_t* accel);
+/*============================================================================
+ * Prototypes
+ *==========================================================================*/
+
+void ICACHE_FLASH_ATTR mzInit(void);
+void ICACHE_FLASH_ATTR mzDeInit(void);
+void ICACHE_FLASH_ATTR mzButtonCallback(uint8_t state, int button, int down);
+void ICACHE_FLASH_ATTR mzAccelerometerCallback(accel_t* accel);
 
 // game loop functions.
-static void ICACHE_FLASH_ATTR ttUpdate(void* arg);
+static void ICACHE_FLASH_ATTR mzUpdate(void* arg);
 
 // handle inputs.
-void ICACHE_FLASH_ATTR ttTitleInput(void);
-void ICACHE_FLASH_ATTR ttGameInput(void);
-void ICACHE_FLASH_ATTR ttScoresInput(void);
-void ICACHE_FLASH_ATTR ttGameoverInput(void);
+void ICACHE_FLASH_ATTR mzTitleInput(void);
+void ICACHE_FLASH_ATTR mzGameInput(void);
+void ICACHE_FLASH_ATTR mzScoresInput(void);
+void ICACHE_FLASH_ATTR mzGameoverInput(void);
 
 // update any input-unrelated logic.
-void ICACHE_FLASH_ATTR ttTitleUpdate(void);
-void ICACHE_FLASH_ATTR ttGameUpdate(void);
-void ICACHE_FLASH_ATTR ttScoresUpdate(void);
-void ICACHE_FLASH_ATTR ttGameoverUpdate(void);
+void ICACHE_FLASH_ATTR mzTitleUpdate(void);
+void ICACHE_FLASH_ATTR mzGameUpdate(void);
+void ICACHE_FLASH_ATTR mzScoresUpdate(void);
+void ICACHE_FLASH_ATTR mzGameoverUpdate(void);
 
 // draw the frame.
-void ICACHE_FLASH_ATTR ttTitleDisplay(void);
-void ICACHE_FLASH_ATTR ttGameDisplay(void);
-void ICACHE_FLASH_ATTR ttScoresDisplay(void);
-void ICACHE_FLASH_ATTR ttGameoverDisplay(void);
+void ICACHE_FLASH_ATTR mzTitleDisplay(void);
+void ICACHE_FLASH_ATTR mzGameDisplay(void);
+void ICACHE_FLASH_ATTR mzScoresDisplay(void);
+void ICACHE_FLASH_ATTR mzGameoverDisplay(void);
 
 // helper functions.
 
 // mode state management.
-void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState);
+void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState);
 
 // input checking.
-bool ICACHE_FLASH_ATTR ttIsButtonPressed(uint8_t button);
-bool ICACHE_FLASH_ATTR ttIsButtonReleased(uint8_t button);
-bool ICACHE_FLASH_ATTR ttIsButtonDown(uint8_t button);
-bool ICACHE_FLASH_ATTR ttIsButtonUp(uint8_t button);
+bool ICACHE_FLASH_ATTR mzIsButtonPressed(uint8_t button);
+bool ICACHE_FLASH_ATTR mzIsButtonReleased(uint8_t button);
+bool ICACHE_FLASH_ATTR mzIsButtonDown(uint8_t button);
+bool ICACHE_FLASH_ATTR mzIsButtonUp(uint8_t button);
 
 // grid management.
 
 // drawing functions.
-void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size, color col);
-void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth], color col);
-void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shapeWidth, uint8_t shapeHeight, uint32_t shape[][shapeWidth], color col);
-void ICACHE_FLASH_ATTR plotCenteredText(uint8_t x0, uint8_t y, uint8_t x1, char* text, fonts font, color col);
-uint8_t getTextWidth(char* text, fonts font);
+static void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size, color col);
+static void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth], color col);
+static void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shapeWidth, uint8_t shapeHeight, uint32_t shape[][shapeWidth], color col);
+static void ICACHE_FLASH_ATTR plotCenteredText(uint8_t x0, uint8_t y, uint8_t x1, char* text, fonts font, color col);
+static uint8_t getTextWidth(char* text, fonts font);
 
 // randomizer operations.
-void ICACHE_FLASH_ATTR initTypeOrder(void);
-void ICACHE_FLASH_ATTR clearTypeOrder(void);
-void ICACHE_FLASH_ATTR deInitTypeOrder(void);
-void ICACHE_FLASH_ATTR initTetradRandomizer(tetradRandomizer_t randomType);
-int ICACHE_FLASH_ATTR getNextTetradType(tetradRandomizer_t randomType, int index);
-void shuffle(int length, int array[length]);
+static void ICACHE_FLASH_ATTR initTypeOrder(void);
+static void ICACHE_FLASH_ATTR clearTypeOrder(void);
+static void ICACHE_FLASH_ATTR deInitTypeOrder(void);
+static void ICACHE_FLASH_ATTR initMazeRandomizer(mazeRandomizer_t randomType);
+static int ICACHE_FLASH_ATTR getNextMazeType(mazeRandomizer_t randomType, int index);
+static void shuffle(int length, int array[length]);
 
-uint32_t ICACHE_FLASH_ATTR getDropTime(uint32_t level);
+static uint32_t ICACHE_FLASH_ATTR getDropTime(uint32_t level);
 
 // score operations.
-void loadHighScores(void);
-void saveHighScores(void);
-bool updateHighScores(uint32_t newScore);
+static void loadHighScores(void);
+static void saveHighScores(void);
+static bool updateHighScores(uint32_t newScore);
 
 // game logic operations.
-void ICACHE_FLASH_ATTR initLandedTetrads(void);
-void ICACHE_FLASH_ATTR clearLandedTetrads(void);
-void ICACHE_FLASH_ATTR deInitLandedTetrads(void);
+static void ICACHE_FLASH_ATTR initLandedMazes(void);
+static void ICACHE_FLASH_ATTR clearLandedMazes(void);
+static void ICACHE_FLASH_ATTR deInitLandedMazes(void);
 
-bool ICACHE_FLASH_ATTR isLineCleared(int line, uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth]);
-int ICACHE_FLASH_ATTR checkLineClears(uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth]);
+static bool ICACHE_FLASH_ATTR isLineCleared(int line, uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth]);
+static int ICACHE_FLASH_ATTR checkLineClears(uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth]);
 
-bool ICACHE_FLASH_ATTR checkCollision(coord_t newPos, uint8_t shapeWidth, uint8_t shapeHeight, uint32_t shape[][shapeWidth], uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth], uint32_t selfGridValue);
+static bool ICACHE_FLASH_ATTR checkCollision(coord_t newPos, uint8_t shapeWidth, uint8_t shapeHeight, uint32_t shape[][shapeWidth], uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth], uint32_t selfGridValue);
 
 swadgeMode mazerfMode = 
 {
 	.modeName = "Mazerf",
-	.fnEnterMode = ttInit,
-	.fnExitMode = ttDeInit,
-	.fnButtonCallback = ttButtonCallback,
+	.fnEnterMode = mzInit,
+	.fnExitMode = mzDeInit,
+	.fnButtonCallback = mzButtonCallback,
 	.wifiMode = NO_WIFI,
 	.fnEspNowRecvCb = NULL,
 	.fnEspNowSendCb = NULL,
-	.fnAccelerometerCallback = ttAccelerometerCallback
+	.fnAccelerometerCallback = mzAccelerometerCallback
 };
 
-accel_t ttAccel = {0};
-accel_t ttLastAccel = {0};
+accel_t mzAccel = {0};
+accel_t mzLastAccel = {0};
 
-accel_t ttLastTestAccel = {0};
+accel_t mzLastTestAccel = {0};
 
-uint8_t ttButtonState = 0;
-uint8_t ttLastButtonState = 0;
+uint8_t mzButtonState = 0;
+uint8_t mzLastButtonState = 0;
 
 static os_timer_t timerHandleUpdate = {0};
 
-uint32_t modeStartTime = 0; // time mode started in microseconds.
-uint32_t stateStartTime = 0; // time the most recent state started in microseconds.
-uint32_t deltaTime = 0;	// time elapsed since last update.
-uint32_t modeTime = 0;	// total time the mode has been running.
-uint32_t stateTime = 0;	// total time the game has been running.
+static uint32_t modeStartTime = 0; // time mode started in microseconds.
+static uint32_t stateStartTime = 0; // time the most recent state started in microseconds.
+static uint32_t deltaTime = 0;	// time elapsed since last update.
+static uint32_t modeTime = 0;	// total time the mode has been running.
+static uint32_t stateTime = 0;	// total time the game has been running.
 
-tiltradsState_t currState = TT_TITLE;
+static mazeState_t currState = MZ_TITLE;
 
-void ICACHE_FLASH_ATTR ttInit(void)
+void ICACHE_FLASH_ATTR mzInit(void)
 {
     // Give us responsive input.
 	enableDebounce(false);	
@@ -229,38 +269,38 @@ void ICACHE_FLASH_ATTR ttInit(void)
 	modeTime = 0;
 
 	// Reset state stuff.
-	ttChangeState(TT_TITLE);
+	mzChangeState(MZ_TITLE);
 
     // Grab any memory we need.
-    initLandedTetrads();
-    initTypeOrder();
+    //initLandedMazes();
+    //initTypeOrder();
 
 	// Start the update loop.
     os_timer_disarm(&timerHandleUpdate);
-    os_timer_setfn(&timerHandleUpdate, (os_timer_func_t*)ttUpdate, NULL);
+    os_timer_setfn(&timerHandleUpdate, (os_timer_func_t*)mzUpdate, NULL);
     os_timer_arm(&timerHandleUpdate, UPDATE_TIME_MS, 1);
 }
 
-void ICACHE_FLASH_ATTR ttDeInit(void)
+void ICACHE_FLASH_ATTR mzDeInit(void)
 {
 	os_timer_disarm(&timerHandleUpdate);
-    deInitLandedTetrads();
-    deInitTypeOrder();
+    //deInitLandedMazes();
+    //deInitTypeOrder();
 }
 
-void ICACHE_FLASH_ATTR ttButtonCallback(uint8_t state, int button __attribute__((unused)), int down __attribute__((unused)))
+void ICACHE_FLASH_ATTR mzButtonCallback(uint8_t state, int button __attribute__((unused)), int down __attribute__((unused)))
 {
-	ttButtonState = state;	// Set the state of all buttons
+	mzButtonState = state;	// Set the state of all buttons
 }
 
-void ICACHE_FLASH_ATTR ttAccelerometerCallback(accel_t* accel)
+void ICACHE_FLASH_ATTR mzAccelerometerCallback(accel_t* accel)
 {
-    ttAccel.x = accel->x;	// Set the accelerometer values
-    ttAccel.y = accel->y;
-    ttAccel.z = accel->z;
+    mzAccel.x = accel->x;	// Set the accelerometer values
+    mzAccel.y = accel->y;
+    mzAccel.z = accel->z;
 }
 
-static void ICACHE_FLASH_ATTR ttUpdate(void* arg __attribute__((unused)))
+static void ICACHE_FLASH_ATTR mzUpdate(void* arg __attribute__((unused)))
 {
 	// Update time tracking.
     // NOTE: delta time is in microseconds.
@@ -275,24 +315,24 @@ static void ICACHE_FLASH_ATTR ttUpdate(void* arg __attribute__((unused)))
 	// Handle Input (based on the state)
 	switch( currState )
     {
-        case TT_TITLE:
+        case MZ_TITLE:
         {
-			ttTitleInput();
+			mzTitleInput();
             break;
         }
-        case TT_GAME:
+        case MZ_GAME:
         {
-			ttGameInput();
+			mzGameInput();
             break;
         }
-        case TT_SCORES:
+        case MZ_SCORES:
         {
-			ttScoresInput();
+			mzScoresInput();
             break;
         }
-        case TT_GAMEOVER:
+        case MZ_GAMEOVER:
         {
-            ttGameoverInput();
+            mzGameoverInput();
             break;
         }
         default:
@@ -300,30 +340,30 @@ static void ICACHE_FLASH_ATTR ttUpdate(void* arg __attribute__((unused)))
     };
 
     // Mark what our inputs were the last time we acted on them.
-    ttLastButtonState = ttButtonState;
-    ttLastAccel = ttAccel;
+    mzLastButtonState = mzButtonState;
+    mzLastAccel = mzAccel;
 
     // Handle Game Logic (based on the state)
 	switch( currState )
     {
-        case TT_TITLE:
+        case MZ_TITLE:
         {
-			ttTitleUpdate();
+			mzTitleUpdate();
             break;
         }
-        case TT_GAME:
+        case MZ_GAME:
         {
-			ttGameUpdate();
+			mzGameUpdate();
             break;
         }
-        case TT_SCORES:
+        case MZ_SCORES:
         {
-			ttScoresUpdate();
+			mzScoresUpdate();
             break;
         }
-        case TT_GAMEOVER:
+        case MZ_GAMEOVER:
         {
-            ttGameoverUpdate();
+            mzGameoverUpdate();
             break;
         }
         default:
@@ -333,24 +373,24 @@ static void ICACHE_FLASH_ATTR ttUpdate(void* arg __attribute__((unused)))
 	// Handle Drawing Frame (based on the state)
 	switch( currState )
     {
-        case TT_TITLE:
+        case MZ_TITLE:
         {
-			ttTitleDisplay();
+			mzTitleDisplay();
             break;
         }
-        case TT_GAME:
+        case MZ_GAME:
         {
-			ttGameDisplay();
+			mzGameDisplay();
             break;
         }
-        case TT_SCORES:
+        case MZ_SCORES:
         {
-			ttScoresDisplay();
+			mzScoresDisplay();
             break;
         }
-        case TT_GAMEOVER:
+        case MZ_GAMEOVER:
         {
-            ttGameoverDisplay();
+            mzGameoverDisplay();
             break;
         }
         default:
@@ -358,229 +398,114 @@ static void ICACHE_FLASH_ATTR ttUpdate(void* arg __attribute__((unused)))
     };
 }
 
-void ICACHE_FLASH_ATTR ttTitleInput(void)
+void ICACHE_FLASH_ATTR mzTitleInput(void)
 {   
     //button a = start game
-    if(ttIsButtonPressed(BTN_TITLE_START_GAME))
+    if(mzIsButtonPressed(BTN_TITLE_START_GAME))
     {
-        ttChangeState(TT_GAME);
+        mzChangeState(MZ_GAME);
     }
     //button b = go to score screen
-    else if(ttIsButtonPressed(BTN_TITLE_START_SCORES))
+    else if(mzIsButtonPressed(BTN_TITLE_START_SCORES))
     {
-        ttChangeState(TT_SCORES);
+        mzChangeState(MZ_SCORES);
     }
-
-    //accel = tilt something on screen like you would a tetrad.
-    //moveTetrad(&tutorialTetrad, 1);
 }
 
-void ICACHE_FLASH_ATTR ttGameInput(void)
+void ICACHE_FLASH_ATTR mzGameInput(void)
 {
-    //Refresh the tetrads grid.
-    refreshTetradsGrid(false);
+    //Refresh the mazes grid.
+    //refreshMazesGrid(false);
 
 	//button a = rotate piece
-    if(ttIsButtonPressed(BTN_GAME_ROTATE))
-    {
-        rotateTetrad(&activeTetrad);
-    }
+    //if(mzIsButtonPressed(BTN_GAME_ROTATE))
+    //{
+    //}
 
     //button b = soft drop piece
-    if(ttIsButtonDown(BTN_GAME_DROP))
-    {
-        softDropTetrad();
-    }
+    //if(mzIsButtonDown(BTN_GAME_DROP))
+    //{
+    //    softDropMaze();
+    //}
 
-    // Only move tetrads left and right when the fast drop button isn't being held down.
-    if(ttIsButtonUp(BTN_GAME_DROP))
-    {
-        moveTetrad(&activeTetrad);
-    }
+    // Only move mazes left and right when the fast drop button isn't being held down.
+    //if(mzIsButtonUp(BTN_GAME_DROP))
+    //{
+    //}
 }
 
-void ICACHE_FLASH_ATTR ttScoresInput(void)
+void ICACHE_FLASH_ATTR mzScoresInput(void)
 {
 	//button a = hold to clear scores.
-    if(holdingClearScore && ttIsButtonDown(BTN_SCORES_CLEAR_SCORES))
+    if(holdingClearScore && mzIsButtonDown(BTN_SCORES_CLEAR_SCORES))
     {
         clearScoreTimer += deltaTime;
         if (clearScoreTimer >= CLEAR_SCORES_HOLD_TIME)
         {
             clearScoreTimer = 0;
-            memset(highScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
+            memset(highScores, 0, NUM_MZ_HIGH_SCORES * sizeof(uint32_t));
             saveHighScores();
             loadHighScores();
-            ttSetLastScore(0);
+            mzSetLastScore(0);
         }
     }
-    else if(ttIsButtonUp(BTN_SCORES_CLEAR_SCORES))
+    else if(mzIsButtonUp(BTN_SCORES_CLEAR_SCORES))
     {
         clearScoreTimer = 0;
     }
     // This is added to prevent people holding left from the previous screen from accidentally clearing their scores.
-    else if(ttIsButtonPressed(BTN_SCORES_CLEAR_SCORES))
+    else if(mzIsButtonPressed(BTN_SCORES_CLEAR_SCORES))
     {
         holdingClearScore = true;
     }
     
     //button b = go to title screen
-    if(ttIsButtonPressed(BTN_SCORES_START_TITLE))
+    if(mzIsButtonPressed(BTN_SCORES_START_TITLE))
     {
-        ttChangeState(TT_TITLE);
+        mzChangeState(MZ_TITLE);
     }
 }
 
-void ICACHE_FLASH_ATTR ttGameoverInput(void)
+void ICACHE_FLASH_ATTR mzGameoverInput(void)
 {
     //button a = start game
-    if(ttIsButtonPressed(BTN_GAMEOVER_START_GAME))
+    if(mzIsButtonPressed(BTN_GAMEOVER_START_GAME))
     {
-        ttChangeState(TT_GAME);
+        mzChangeState(MZ_GAME);
     }
     //button b = go to title screen
-    else if(ttIsButtonPressed(BTN_GAMEOVER_START_TITLE))
+    else if(mzIsButtonPressed(BTN_GAMEOVER_START_TITLE))
     {
-        ttChangeState(TT_TITLE);
+        mzChangeState(MZ_TITLE);
     }
 }
 
-void ICACHE_FLASH_ATTR ttTitleUpdate(void)
+void ICACHE_FLASH_ATTR mzTitleUpdate(void)
 {
-
 }
 
-void ICACHE_FLASH_ATTR ttGameUpdate(void)
+void ICACHE_FLASH_ATTR mzGameUpdate(void)
 {
-    //Refresh the tetrads grid.
-    refreshTetradsGrid(false);
-
-    if (dropTimer >= dropTime)
-    {
-        dropTimer = 0;
-
-        if (ttIsButtonDown(BTN_GAME_DROP))
-        {
-            score += SCORE_SOFT_DROP;
-        }
-
-        // If we couldn't drop, then we've landed.
-        if (!dropTetrad(&(activeTetrad)))
-        {
-            // Land the current tetrad.
-            tetrad_t * landedTetrad = malloc(sizeof(tetrad_t));
-            landedTetrad->type = activeTetrad.type;
-            landedTetrad->rotation = activeTetrad.rotation;
-            landedTetrad->topLeft = activeTetrad.topLeft;
-
-            coord_t origin;
-            origin.c = 0;
-            origin.r = 0;
-		    copyGrid(origin, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, activeTetrad.shape, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, landedTetrad->shape);
-
-            push(landedTetrads, landedTetrad);
-
-            tetradCounter++;
-            
-            // Check for any clears now that the new tetrad has landed.
-            uint32_t linesClearedThisDrop = checkLineClears(GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
-
-            switch( linesClearedThisDrop )
-            {
-                case 1: 
-                    score += SCORE_SINGLE * (currentLevel+1);
-                    break;
-                case 2:
-                    score += SCORE_DOUBLE * (currentLevel+1);
-                    break;
-                case 3:
-                    score += SCORE_TRIPLE * (currentLevel+1);
-                    break;
-                case 4:
-                    score += SCORE_QUAD * (currentLevel+1);
-                    break;
-                default:    // Are more than 4 line clears possible? I don't think so.
-                    break;
-            }
-
-
-            // This code assumes building combo, and combos are sums of lines cleared.
-            if (linesClearedLastDrop > 0 && linesClearedThisDrop > 0)
-            {
-                comboCount += linesClearedThisDrop;
-                score += SCORE_COMBO * comboCount * (currentLevel+1);
-            }
-            else
-            {
-                comboCount = 0;
-            }
-
-            // Increase total number of lines cleared.
-            linesClearedTotal += linesClearedThisDrop;
-
-            // Update the level if necessary.
-            currentLevel = linesClearedTotal / LINE_CLEARS_PER_LEVEL;
-
-            // Keep track of the last number of line clears.
-            linesClearedLastDrop = linesClearedThisDrop;
-
-            // Spawn the next tetrad.
-            spawnNextTetrad(&activeTetrad, randomizer, tetradCounter+1);
-
-            // Reset the drop info to whatever is appropriate for the current level.
-            dropTime = getDropTime(currentLevel);
-            dropTimer = 0;
-        }
-        
-        // Clear out empty tetrads.
-        node_t * current = landedTetrads->last;
-        for (int t = landedTetrads->length - 1; t >= 0; t--)
-        {
-            tetrad_t * currentTetrad = (tetrad_t *)current->val;
-            bool empty = true;
-
-            // Go from bottom-to-top on each position of the tetrad.
-            for (int tr = TETRAD_GRID_SIZE - 1; tr >= 0; tr--) 
-            {
-                for (int tc = 0; tc < TETRAD_GRID_SIZE; tc++) 
-                {
-                    if (currentTetrad->shape[tr][tc] != EMPTY) empty = false;
-                }
-            }
-
-            // Adjust the current counter.
-            current = current->prev;
-            
-            // Remove the empty tetrad.
-            if (empty)
-            {
-                tetrad_t * emptyTetrad = remove(landedTetrads, t);
-                free(emptyTetrad);
-            }
-        }
-
-        refreshTetradsGrid(false);
-
-    }
+    //Refresh the mazes grid.
+    //refreshMazesGrid(false);
 }
 
-void ICACHE_FLASH_ATTR ttScoresUpdate(void)
+void ICACHE_FLASH_ATTR mzScoresUpdate(void)
 {
     // Do nothing.
 }
 
-void ICACHE_FLASH_ATTR ttGameoverUpdate(void)
+void ICACHE_FLASH_ATTR mzGameoverUpdate(void)
 {
-
 }
 
-void ICACHE_FLASH_ATTR ttTitleDisplay(void)
+void ICACHE_FLASH_ATTR mzTitleDisplay(void)
 {
 	// Clear the display.
     clearDisplay();
 
     // TILTRADS
-    plotText(20, 5, "TILTRADS", RADIOSTARS, WHITE);
+    plotText(20, 5, "MAG MAZE", RADIOSTARS, WHITE);
     
     // SCORES   START
     plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "SCORES", IBM_VGA_8, WHITE);
@@ -589,73 +514,23 @@ void ICACHE_FLASH_ATTR ttTitleDisplay(void)
 
 }
 
-void ICACHE_FLASH_ATTR ttGameDisplay(void)
+void ICACHE_FLASH_ATTR mzGameDisplay(void)
 {
     // Clear the display
     clearDisplay();
 
-    // Draw the active tetrad.
-    plotShape(GRID_X + activeTetrad.topLeft.c * (GRID_UNIT_SIZE - 1), GRID_Y + activeTetrad.topLeft.r * (GRID_UNIT_SIZE - 1), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, activeTetrad.shape, WHITE);   
+    // Draw the active maze.
     
-    // Draw all the landed tetrads.
-    node_t * current = landedTetrads->first;
-    for (int t = 0; t < landedTetrads->length; t++) 
-    {
-        tetrad_t * currentTetrad = (tetrad_t *)current->val;
-        plotShape(GRID_X + currentTetrad->topLeft.c * (GRID_UNIT_SIZE - 1), GRID_Y + currentTetrad->topLeft.r * (GRID_UNIT_SIZE - 1), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, currentTetrad->shape, WHITE);
-        current = current->next;
-    }
-
     // Clear the grid data (may not want to do this every frame)
-    refreshTetradsGrid(true);
+    //refreshMazesGrid(true);
 
-    // Draw the background grid. NOTE: (make sure everything that needs to be in tetradsGrid is in there now).
-    plotGrid(GRID_X, GRID_Y, GRID_UNIT_SIZE, GRID_WIDTH, GRID_HEIGHT, tetradsGrid, WHITE);
-
-    
-    // NEXT
-    plotCenteredText(GRID_X + (GRID_UNIT_SIZE * GRID_WIDTH), 0, OLED_WIDTH, "NEXT", TOM_THUMB, WHITE);
-
-    // Draw the next tetrad.
-    coord_t nextTetradPoint;
-    nextTetradPoint.c = 1;
-    nextTetradPoint.r = 1;
-    tetrad_t nextTetrad = spawnTetrad(nextTetradType, tetradCounter+1, nextTetradPoint, 0);
-    plotShape(NEXT_GRID_X + nextTetradPoint.c * (GRID_UNIT_SIZE - 1), NEXT_GRID_Y + nextTetradPoint.r * (GRID_UNIT_SIZE - 1), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, nextTetrad.shape, WHITE);
-
-    // Draw the grid holding the next tetrad.
-    clearGrid(NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
-    copyGrid(nextTetrad.topLeft, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, nextTetrad.shape, NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
-    plotGrid(NEXT_GRID_X, NEXT_GRID_Y, GRID_UNIT_SIZE, NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid, WHITE);
-
-    //HIGH
-    //99999
+    // Draw the background grid. NOTE: (make sure everything that needs to be in mazesGrid is in there now).
+ 
     newHighScore = score > highScores[0];
-    plotCenteredText(0, 0, GRID_X, newHighScore ? "HIGH (NEW!)" : "HIGH", TOM_THUMB, WHITE);
-    char uiStr[32] = {0};
-    ets_snprintf(uiStr, sizeof(uiStr), "%d", newHighScore ? score : highScores[0]);
-    plotCenteredText(0, (FONT_HEIGHT_TOMTHUMB + 1), GRID_X, uiStr, TOM_THUMB, WHITE);
-
-    //SCORE
-    //99999
-    plotCenteredText(0, (3*FONT_HEIGHT_TOMTHUMB), GRID_X, "SCORE", TOM_THUMB, WHITE);
-    ets_snprintf(uiStr, sizeof(uiStr), "%d", score);
-    plotCenteredText(0, (4*FONT_HEIGHT_TOMTHUMB)+1, GRID_X, uiStr, TOM_THUMB, WHITE);
-
-    //LINES
-    // 999
-    plotCenteredText(0, (6*FONT_HEIGHT_TOMTHUMB), GRID_X, "LINES", TOM_THUMB, WHITE);
-    ets_snprintf(uiStr, sizeof(uiStr), "%d", linesClearedTotal);
-    plotCenteredText(0, (7*FONT_HEIGHT_TOMTHUMB)+1, GRID_X, uiStr, TOM_THUMB, WHITE);
-
-    //LEVEL
-    // 99
-    plotCenteredText(0, (9*FONT_HEIGHT_TOMTHUMB), GRID_X, "LEVEL", TOM_THUMB, WHITE);
-    ets_snprintf(uiStr, sizeof(uiStr), "%d", (currentLevel+1)); // Levels are displayed with 1 as the base level.
-    plotCenteredText(0, (10*FONT_HEIGHT_TOMTHUMB)+1, GRID_X, uiStr, TOM_THUMB, WHITE);
+    plotCenteredText(0, 0, 10, newHighScore ? "HIGH (NEW!)" : "HIGH", TOM_THUMB, WHITE);
 }
 
-void ICACHE_FLASH_ATTR ttScoresDisplay(void)
+void ICACHE_FLASH_ATTR mzScoresDisplay(void)
 {
     // Clear the display
     clearDisplay();
@@ -676,7 +551,7 @@ void ICACHE_FLASH_ATTR ttScoresDisplay(void)
     plotCenteredText(0, (7*FONT_HEIGHT_TOMTHUMB)+1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
 
     // YOUR LAST SCORE:
-    ets_snprintf(uiStr, sizeof(uiStr), "YOUR LAST SCORE: %d", ttGetLastScore());
+    ets_snprintf(uiStr, sizeof(uiStr), "YOUR LAST SCORE: %d", mzGetLastScore());
     plotCenteredText(0, (9*FONT_HEIGHT_TOMTHUMB)+1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
     
 
@@ -695,7 +570,7 @@ void ICACHE_FLASH_ATTR ttScoresDisplay(void)
     plotText(OLED_WIDTH - getTextWidth("TITLE", TOM_THUMB) - 1, OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1)), "TITLE", TOM_THUMB, WHITE);
 }
 
-void ICACHE_FLASH_ATTR ttGameoverDisplay(void)
+void ICACHE_FLASH_ATTR mzGameoverDisplay(void)
 {
     // We don't clear the display because we want the playfield to appear in the background.
 
@@ -741,7 +616,7 @@ void ICACHE_FLASH_ATTR ttGameoverDisplay(void)
 
 // helper functions.
 
-void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
+void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState)
 {
 	currState = newState;
 	stateStartTime = system_get_time();
@@ -749,74 +624,55 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
 
     switch( currState )
     {
-        case TT_TITLE:
-            
+        case MZ_TITLE:          
             break;
-        case TT_GAME:
+        case MZ_GAME:
             // All game restart functions happen here.
-            clearGrid(GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
-            clearGrid(NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
-            tetradCounter = 0;
-            clearLandedTetrads();
-            linesClearedTotal = 0;
-            linesClearedLastDrop = 0;
-            comboCount = 0;
-            currentLevel = 0;
-            score = 0;
+            //clearGrid(GRID_WIDTH, GRID_HEIGHT, mazesGrid);
             loadHighScores();
             // TODO: should I be seeding this, or re-seeding this, and if so, with what?
-            srand((uint32_t)(ttAccel.x + ttAccel.y * 3 + ttAccel.z * 5)); // Seed the random number generator.
-            initTetradRandomizer(randomizer);
-            nextTetradType = (tetradType_t)getNextTetradType(randomizer, tetradCounter);
-            spawnNextTetrad(&activeTetrad, randomizer, tetradCounter+1);
-            // Reset the drop info to whatever is appropriate for the current level.
-            dropTime = getDropTime(currentLevel);
-            dropTimer = 0;
-
+            srand((uint32_t)(mzAccel.x + mzAccel.y * 3 + mzAccel.z * 5)); // Seed the random number generator.
+            initMazeRandomizer(randomizer);        
             break;
-        case TT_SCORES:
+        case MZ_SCORES:
             loadHighScores();
             clearScoreTimer = 0;
             holdingClearScore = false;
             break;
-        case TT_GAMEOVER:
+        case MZ_GAMEOVER:
             // Update high score if needed.
             newHighScore = updateHighScores(score);
             if (newHighScore) saveHighScores();
-            
             // Save out the last score.
-            ttSetLastScore(score);
+            mzSetLastScore(score);
             break;
         default:
             break;
     };
 }
 
-bool ICACHE_FLASH_ATTR ttIsButtonPressed(uint8_t button)
+bool ICACHE_FLASH_ATTR mzIsButtonPressed(uint8_t button)
 {
-    //TODO: can btn events get lost this way?
-    return (ttButtonState & button) && !(ttLastButtonState & button);
+    return (mzButtonState & button) && !(mzLastButtonState & button);
 }
 
-bool ICACHE_FLASH_ATTR ttIsButtonReleased(uint8_t button)
+bool ICACHE_FLASH_ATTR mzIsButtonReleased(uint8_t button)
 {
-    //TODO: can btn events get lost this way?
-    return !(ttButtonState & button) && (ttLastButtonState & button);
+    return !(mzButtonState & button) && (mzLastButtonState & button);
 }
 
-bool ICACHE_FLASH_ATTR ttIsButtonDown(uint8_t button)
+bool ICACHE_FLASH_ATTR mzIsButtonDown(uint8_t button)
 {
-    //TODO: can btn events get lost this way?
-    return ttButtonState & button;
+    return mzButtonState & button;
 }
 
-bool ICACHE_FLASH_ATTR ttIsButtonUp(uint8_t button)
+bool ICACHE_FLASH_ATTR mzIsButtonUp(uint8_t button)
 {
-    //TODO: can btn events get lost this way?
-    return !(ttButtonState & button);
+    return !(mzButtonState & button);
 }
 
-void ICACHE_FLASH_ATTR copyGrid(coord_t srcOffset, uint8_t srcWidth, uint8_t srcHeight, uint32_t src[][srcWidth], uint8_t dstWidth, uint8_t dstHeight, uint32_t dst[][dstWidth])
+/*
+static void ICACHE_FLASH_ATTR copyGrid(coord_t srcOffset, uint8_t srcWidth, uint8_t srcHeight, uint32_t src[][srcWidth], uint8_t dstWidth, uint8_t dstHeight, uint32_t dst[][dstWidth])
 {
     for (int r = 0; r < srcHeight; r++)
     {
@@ -829,7 +685,7 @@ void ICACHE_FLASH_ATTR copyGrid(coord_t srcOffset, uint8_t srcWidth, uint8_t src
     }
 }
 
-void ICACHE_FLASH_ATTR transferGrid(coord_t srcOffset, uint8_t srcWidth, uint8_t srcHeight, uint32_t src[][srcWidth], uint8_t dstWidth, uint8_t dstHeight, uint32_t dst[][dstWidth], uint32_t transferVal)
+static void ICACHE_FLASH_ATTR transferGrid(coord_t srcOffset, uint8_t srcWidth, uint8_t srcHeight, uint32_t src[][srcWidth], uint8_t dstWidth, uint8_t dstHeight, uint32_t dst[][dstWidth], uint32_t transferVal)
 {
     for (int r = 0; r < srcHeight; r++)
     {
@@ -848,7 +704,7 @@ void ICACHE_FLASH_ATTR transferGrid(coord_t srcOffset, uint8_t srcWidth, uint8_t
     }
 }
 
-void ICACHE_FLASH_ATTR clearGrid(uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth])
+static void ICACHE_FLASH_ATTR clearGrid(uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth])
 {
     for (int y = 0; y < gridHeight; y++)
     {
@@ -859,48 +715,39 @@ void ICACHE_FLASH_ATTR clearGrid(uint8_t gridWidth, uint8_t gridHeight, uint32_t
     }
 }
 
-void ICACHE_FLASH_ATTR refreshTetradsGrid(bool includeActive)
-{
-    clearGrid(GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
-
-    node_t * current = landedTetrads->first;
-    for (int t = 0; t < landedTetrads->length; t++) 
-    {
-        tetrad_t * currentTetrad = (tetrad_t *)current->val;
-        transferGrid(currentTetrad->topLeft, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, currentTetrad->shape, GRID_WIDTH, GRID_HEIGHT, tetradsGrid, t+1);
-        current = current->next;
-    }
-
-    if (includeActive)
-    {
-        transferGrid(activeTetrad.topLeft, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, activeTetrad.shape, GRID_WIDTH, GRID_HEIGHT, tetradsGrid, activeTetrad.gridValue);
-    }
-}
-
-// This assumes only complete tetrads can be rotated.
-void ICACHE_FLASH_ATTR rotateTetrad(tetrad_t * tetrad)
+void ICACHE_FLASH_ATTR refreshMazesGrid(bool includeActive)
 {
 }
 
-void ICACHE_FLASH_ATTR softDropTetrad()
+// This assumes only complete mazes can be rotated.
+void ICACHE_FLASH_ATTR rotateMaze(maze_t * maze)
 {
 }
 
-void ICACHE_FLASH_ATTR moveTetrad(tetrad_t * tetrad)
+void ICACHE_FLASH_ATTR softDropMaze()
 {
 }
 
-bool ICACHE_FLASH_ATTR dropTetrad(tetrad_t * tetrad)
+void ICACHE_FLASH_ATTR moveMaze(maze_t * maze)
 {
 }
 
-tetrad_t ICACHE_FLASH_ATTR spawnTetrad(tetradType_t type, uint32_t gridValue, coord_t gridCoord, int rotation)
+bool ICACHE_FLASH_ATTR dropMaze(maze_t * maze)
 {
+    return 1;
 }
+*/
 
-void ICACHE_FLASH_ATTR spawnNextTetrad(tetrad_t * newTetrad, tetradRandomizer_t randomType, uint32_t gridValue)
-{
-}
+
+//maze_t ICACHE_FLASH_ATTR spawnMaze(mazeType_t type, uint32_t gridValue, coord_t gridCoord, int rotation)
+//{
+//    maze_t x;
+//    return x;
+//}
+
+//void ICACHE_FLASH_ATTR spawnNextMaze(maze_t * newMaze, mazeRandomizer_t randomType, uint32_t gridValue)
+//{
+//}
 
 void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size, color col)
 {
@@ -992,7 +839,7 @@ void ICACHE_FLASH_ATTR deInitTypeOrder()
     typeOrder = NULL;
 }
 
-void ICACHE_FLASH_ATTR initTetradRandomizer(tetradRandomizer_t randomType)
+void ICACHE_FLASH_ATTR initMazeRandomizer(mazeRandomizer_t randomType)
 {
     switch (randomType)
     {
@@ -1000,16 +847,16 @@ void ICACHE_FLASH_ATTR initTetradRandomizer(tetradRandomizer_t randomType)
             break;
         case BAG:
             bagIndex = 0;
-            shuffle(NUM_TETRAD_TYPES, typeBag);
+            shuffle(3, typeBag);
             break;
         case POOL:
             {
-                // Initialize the tetrad type pool, 5 of each type.
+                // Initialize the maze type pool, 5 of each type.
                 for (int i = 0; i < 5; i++)
                 {
-                    for (int j = 0; j < NUM_TETRAD_TYPES; j++)
+                    for (int j = 0; j < 3; j++)
                     {
-                        typePool[i * NUM_TETRAD_TYPES + j] = j+1;
+                        typePool[i * 3 + j] = j+1;
                     }
                 }
 
@@ -1020,9 +867,9 @@ void ICACHE_FLASH_ATTR initTetradRandomizer(tetradRandomizer_t randomType)
                 }
 
                 // Populate the history with initial values.
-                typeHistory[0] = S_TETRAD;
-                typeHistory[1] = Z_TETRAD;
-                typeHistory[2] = S_TETRAD;
+                typeHistory[0] = 1;
+                typeHistory[1] = 2;
+                typeHistory[2] = 3;
 
                 // Clear the order list.
                 clearTypeOrder();
@@ -1033,7 +880,7 @@ void ICACHE_FLASH_ATTR initTetradRandomizer(tetradRandomizer_t randomType)
     }
 }
 
-int ICACHE_FLASH_ATTR getNextTetradType(tetradRandomizer_t randomType, int index)
+int ICACHE_FLASH_ATTR getNextMazeType(mazeRandomizer_t randomType, int index)
 {
 }
 
@@ -1052,25 +899,25 @@ void shuffle(int length, int array[length])
     } 
 }
 
-uint32_t ICACHE_FLASH_ATTR getDropTime(uint32_t level)
+//uint32_t ICACHE_FLASH_ATTR getDropTime(uint32_t level)
+//{
+//}
+
+static void loadHighScores(void)
 {
+    memcpy(highScores, mzGetHighScores(),  NUM_MZ_HIGH_SCORES * sizeof(uint32_t));
 }
 
-void loadHighScores(void)
+static void saveHighScores(void)
 {
-    memcpy(highScores, ttGetHighScores(),  NUM_TT_HIGH_SCORES * sizeof(uint32_t));
+    mzSetHighScores(highScores);
 }
 
-void saveHighScores(void)
-{
-    ttSetHighScores(highScores);
-}
-
-bool updateHighScores(uint32_t newScore)
+static bool updateHighScores(uint32_t newScore)
 {
     bool highScore = false;
     uint32_t placeScore = newScore;
-    for (int i = 0; i < NUM_TT_HIGH_SCORES; i++)
+    for (int i = 0; i < NUM_MZ_HIGH_SCORES; i++)
     {
         // Get the current score at this index.
         uint32_t currentScore = highScores[i];
@@ -1084,16 +931,16 @@ bool updateHighScores(uint32_t newScore)
     }
     return highScore;
 }
-
-void ICACHE_FLASH_ATTR initLandedTetrads()
+/*
+void ICACHE_FLASH_ATTR initLandedMazes()
 {
 }
 
-void ICACHE_FLASH_ATTR clearLandedTetrads()
+void ICACHE_FLASH_ATTR clearLandedMazes()
 {
 }
 
-void ICACHE_FLASH_ATTR deInitLandedTetrads()
+void ICACHE_FLASH_ATTR deInitLandedMazes()
 {
 }
 
@@ -1109,4 +956,4 @@ int ICACHE_FLASH_ATTR checkLineClears(uint8_t gridWidth, uint8_t gridHeight, uin
 bool ICACHE_FLASH_ATTR checkCollision(coord_t newPos, uint8_t shapeWidth, uint8_t shapeHeight __attribute__((unused)), uint32_t shape[][shapeWidth], uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth], uint32_t selfGridValue)
 {
 }
-
+*/

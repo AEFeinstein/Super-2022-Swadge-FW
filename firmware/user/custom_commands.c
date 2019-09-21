@@ -34,6 +34,8 @@ typedef struct __attribute__((aligned(4)))
     uint8_t refGameWins;
     uint32_t ttHighScores[NUM_TT_HIGH_SCORES]; //first,second,third
     uint32_t ttLastScore;
+    uint32_t mzHighScores[NUM_MZ_HIGH_SCORES]; //first,second,third
+    uint32_t mzLastScore;
 }
 settings_t;
 
@@ -150,6 +152,10 @@ uint32_t ttHighScores[NUM_TT_HIGH_SCORES] = {0};
 
 uint32_t ttLastScore = 0;
 
+uint32_t mzHighScores[NUM_MZ_HIGH_SCORES] = {0};
+
+uint32_t mzLastScore = 0;
+
 /*============================================================================
  * Prototypes
  *==========================================================================*/
@@ -174,9 +180,11 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
         .configs = {0},
         .refGameWins = 0,
         //.ttHighScores = {0},
-        .ttLastScore = 0
+        .ttLastScore = 0,
+        .mzLastScore = 0
     };
     memset(settings.ttHighScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
+    memset(settings.mzHighScores, 0, NUM_MZ_HIGH_SCORES * sizeof(uint32_t));
 
     uint8_t i;
     spi_flash_read( USER_SETTINGS_ADDR, (uint32*)&settings, sizeof( settings ) );
@@ -194,6 +202,8 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
         refGameWins = settings.refGameWins;
         memcpy(ttHighScores, settings.ttHighScores, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
         ttLastScore = settings.ttLastScore;
+        memcpy(mzHighScores, settings.mzHighScores, NUM_MZ_HIGH_SCORES * sizeof(uint32_t));
+        mzLastScore = settings.mzLastScore;
     }
     else
     {
@@ -208,6 +218,8 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
         refGameWins = 0;
         memset(ttHighScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
         ttLastScore = 0;
+        memset(mzHighScores, 0, NUM_MZ_HIGH_SCORES * sizeof(uint32_t));
+        mzLastScore = 0;
         SaveSettings();
     }
 }
@@ -223,10 +235,13 @@ void ICACHE_FLASH_ATTR SaveSettings(void)
         .configs = {0},
         .refGameWins = refGameWins,
         //.ttHighScores = {0},
-        .ttLastScore = ttLastScore
+        .ttLastScore = ttLastScore,
+        .mzLastScore = mzLastScore
     };
     memset(settings.ttHighScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
     memcpy(settings.ttHighScores, ttHighScores,  NUM_TT_HIGH_SCORES * sizeof(uint32_t));
+    memset(settings.mzHighScores, 0, NUM_MZ_HIGH_SCORES * sizeof(uint32_t));
+    memcpy(settings.mzHighScores, mzHighScores,  NUM_MZ_HIGH_SCORES * sizeof(uint32_t));
 
     uint8_t i;
     for( i = 0; i < CONFIGURABLES; i++ )
@@ -294,6 +309,28 @@ uint32_t ICACHE_FLASH_ATTR ttGetLastScore(void)
 void ICACHE_FLASH_ATTR ttSetLastScore(uint32_t newLastScore)
 {
     ttLastScore = newLastScore;
+    SaveSettings();
+}
+
+uint32_t * ICACHE_FLASH_ATTR mzGetHighScores(void)
+{
+    return mzHighScores;
+}
+
+void ICACHE_FLASH_ATTR mzSetHighScores(uint32_t * newHighScores)
+{
+    memcpy(mzHighScores, newHighScores, NUM_MZ_HIGH_SCORES * sizeof(uint32_t));
+    SaveSettings();
+}
+
+uint32_t ICACHE_FLASH_ATTR mzGetLastScore(void)
+{
+    return mzLastScore;
+}
+
+void ICACHE_FLASH_ATTR mzSetLastScore(uint32_t newLastScore)
+{
+    mzLastScore = newLastScore;
     SaveSettings();
 }
 
