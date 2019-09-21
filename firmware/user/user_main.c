@@ -35,6 +35,7 @@
 #include "mode_tiltrads.h"
 #include "mode_roll.h"
 #include "mode_maze.h"
+#include "mode_mazerf.h"
 
 /*============================================================================
  * Defines
@@ -78,6 +79,7 @@ swadgeMode* swadgeModes[] =
     &flashlightMode,
     &rollMode,
     &mazeMode,
+    &mazerfMode,
 };
 bool swadgeModeInit = false;
 rtcMem_t rtcMem = {0};
@@ -342,12 +344,12 @@ static void ICACHE_FLASH_ATTR pollAccel(void* arg __attribute__((unused)))
             QMA6981_poll(&accel);
         }
 #ifdef ORIENTATIONFIX
-	int16_t xOled = XLEFTOLED;
-	int16_t yOled = YTOPOLED;
-	int16_t zOled = ZFACEOLED;
-	accel.x = xOled;
-        accel.y = yOled;
-        accel.z = zOled;
+	int16_t xarrow = TOPOLED;
+	int16_t yarrow = LEFTOLED;
+	int16_t zarrow = FACEOLED;
+	accel.x = xarrow;
+        accel.y = yarrow;
+        accel.z = zarrow;
 #endif
         swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback(&accel);
     }

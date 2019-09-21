@@ -16,12 +16,13 @@
 #define ORIENTATIONFIX
 #ifdef ORIENTATIONFIX
 //bbkiwi swadge mockup
-//#define XLEFTOLED accel.x
-//#define YTOPOLED (-accel.y)
+#define LEFTOLED accel.x
+#define TOPOLED (-accel.y)
+#define FACEOLED accel.z
 //swadge dev kit
-#define XLEFTOLED accel.y
-#define YTOPOLED  accel.x
-#define ZFACEOLED accel.z
+//#define LEFTOLED accel.y
+//#define TOPOLED  accel.x
+//#define FACEOLED accel.z
 #endif
 
 /*============================================================================

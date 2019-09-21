@@ -79,7 +79,6 @@ swadgeMode rollMode =
     .fnEnterMode = rollEnterMode,
     .fnExitMode = rollExitMode,
     .fnButtonCallback = rollButtonCallback,
-    .fnAudioCallback = NULL,
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
@@ -414,8 +413,8 @@ os_printf("currentMethod = %d\n", currentMethod);
  */
 void ICACHE_FLASH_ATTR rollAccelerometerHandler(accel_t* accel)
 {
-    rollAccel.x = accel->x;
-    rollAccel.y = accel->y;
+    rollAccel.x = accel->y;
+    rollAccel.y = accel->x;
     rollAccel.z = accel->z;
     roll_updateDisplay();
 }

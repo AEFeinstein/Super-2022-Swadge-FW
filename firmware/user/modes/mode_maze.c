@@ -92,7 +92,6 @@ swadgeMode mazeMode =
     .fnEnterMode = mazeEnterMode,
     .fnExitMode = mazeExitMode,
     .fnButtonCallback = mazeButtonCallback,
-    .fnAudioCallback = NULL,
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
@@ -665,8 +664,8 @@ void ICACHE_FLASH_ATTR mazeButtonCallback( uint8_t state,
  */
 void ICACHE_FLASH_ATTR mazeAccelerometerHandler(accel_t* accel)
 {
-    mazeAccel.x = accel->x;
-    mazeAccel.y = accel->y;
+    mazeAccel.x = accel->y;
+    mazeAccel.y = accel->x;
     mazeAccel.z = accel->z;
     maze_updateDisplay();
 }
