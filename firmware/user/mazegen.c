@@ -61,6 +61,7 @@ uint8_t ICACHE_FLASH_ATTR init(uint8_t width, uint8_t height, Node ** nodes )
 	uint8_t i, j;
 	Node *n;
 	//Allocate memory for maze
+	os_printf("width = %d, height = %d, sizeofNode = %d\n", width, height, sizeof(Node));
 	*nodes = calloc( width * height, sizeof( Node ) );
 	if ( *nodes == NULL ) return FAIL;
 

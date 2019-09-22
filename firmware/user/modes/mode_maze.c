@@ -173,6 +173,8 @@ void ICACHE_FLASH_ATTR mazeEnterMode(void)
     yAccel = -2 * (rballused - 30);
 
     enableDebounce(false);
+    system_print_meminfo();
+    os_printf("Free Heap %d\n", system_get_free_heap_size());
     numwalls = get_maze(width, height, xleft, xright, ybot, ytop);
     // xleft, xright, ybot, ytop are lists of boundary intervals making maze
     numwallstodraw = numwalls;
