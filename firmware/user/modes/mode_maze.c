@@ -129,15 +129,11 @@ uint8_t ybot[MAXNUMWALLS];
 uint8_t flashcount = 0;
 uint8_t flashmax = 4;
 
-float wxleft[MAXNUMWALLS];
-float wxright[MAXNUMWALLS];
-float wytop[MAXNUMWALLS];
-float wybot[MAXNUMWALLS];
+float extendedScaledWallxleft[MAXNUMWALLS];
+float extendedScaledWallxright[MAXNUMWALLS];
+float extendedScaledWallYtop[MAXNUMWALLS];
+float extendedScaledWallYbot[MAXNUMWALLS];
 
-float swxleft[MAXNUMWALLS];
-float swxright[MAXNUMWALLS];
-float swytop[MAXNUMWALLS];
-float swybot[MAXNUMWALLS];
 /*============================================================================
  * Functions
  *==========================================================================*/
@@ -180,18 +176,13 @@ void ICACHE_FLASH_ATTR mazeEnterMode(void)
     scycexit = mazescaley * (height - 1) - rballused;
     os_printf("exit (%d, %d)\n", (int)scxcexit, (int)scycexit);
 
-    // produce scaled walls
+    // print scaled walls
     for (i = 0; i < numwalls; i++)
     {
-        swxleft[i]  = mazescalex * xleft[i];
-	    swybot[i]   = mazescaley * ybot[i];
-        swxright[i] = mazescalex * xright[i];
-	    swytop[i]   = mazescaley * ytop[i];
         maze_printf("i %d (%d, %d) to (%d, %d)\n", i, mazescalex*xleft[i], mazescaley*ybot[i], mazescalex*xright[i], mazescaley*ytop[i]);
     }
 
-    // extend the scaled walls (could possibly use same storage for swxleft and wxleft etc, but need to be careful
-    //   that use original scaled values for making wxleft etc)
+    // extend the scaled walls
     // extend walls by 0.99*rball and compute possible extra stopper walls
     // ONLY for horizontal and vertical walls. Could do for arbitrary but
     // would first need to compute perpendicular vectors and use them. 
@@ -199,23 +190,24 @@ void ICACHE_FLASH_ATTR mazeEnterMode(void)
     // causes sticking above T junctions in maze.
     // NOTE using 0.99*rball prevents sticking but has very small probability
     // to telport at corners extend walls
+    const float slightlyLessThanOne = 1.0 - 1.0/128.; // used 0.99 
     for (i = 0; i < numwalls; i++)
     {
-        if (swybot[i] == swytop[i]) // horizontal wall
+        if (mazescaley * ybot[i] == mazescaley * ytop[i]) // horizontal wall
         {
-            wybot[i] = swybot[i];
-            wytop[i] = swytop[i];
-            wxleft[i] = swxleft[i] - 0.99*rballused;
-            wxright[i] = swxright[i] + 0.99*rballused;
+            extendedScaledWallYbot[i] = mazescaley * ybot[i];
+            extendedScaledWallYtop[i] = mazescaley * ytop[i];
+            extendedScaledWallxleft[i] = mazescalex * xleft[i] - slightlyLessThanOne * rballused;
+            extendedScaledWallxright[i] = mazescalex * xright[i] + slightlyLessThanOne * rballused;
         } else {
-            if ((swybot[i] < swytop[i]) && (startvert==0))
+            if ((mazescaley * ybot[i] < mazescaley * ytop[i]) && (startvert==0))
             {
                 startvert = i;
             }
-            wxleft[i] = swxleft[i];
-            wxright[i] = swxright[i];
-            wybot[i] = swybot[i] - 0.99*rballused;
-            wytop[i] = swytop[i] + 0.99*rballused;
+            extendedScaledWallxleft[i] = mazescalex * xleft[i];
+            extendedScaledWallxright[i] = mazescalex * xright[i];
+            extendedScaledWallYbot[i] = mazescaley * ybot[i] - 0.99*rballused;
+            extendedScaledWallYtop[i] = mazescaley * ytop[i] + 0.99*rballused;
         }
     }
     int16_t nwi = numwalls; //new wall index starts here
@@ -224,31 +216,31 @@ void ICACHE_FLASH_ATTR mazeEnterMode(void)
 
     for (i = 0; i < numwalls; i++)
     {
-        if (swybot[i] == swytop[i]) // horizontal wall
+        if (mazescaley * ybot[i] == mazescaley * ytop[i]) // horizontal wall
         {
             // possible extra vertical walls crossing either end
-            wxleft[nwi] = swxleft[i];
-            wybot[nwi] = swybot[i] - 0.99*rballused;
-            wxright[nwi] = swxleft[i];
-            wytop[nwi] = swybot[i] + 0.99*rballused;
-            nwi = incrementifnewvert(nwi, startvert, numwalls); //, wxleft, wybot, wxright, wytop);
-            wxleft[nwi] = swxright[i];
-            wybot[nwi] = swybot[i] - 0.99*rballused;
-            wxright[nwi] =swxright[i];
-            wytop[nwi] = swybot[i] + 0.99*rballused;
-            nwi = incrementifnewvert(nwi, startvert, numwalls); //, wxleft, wybot, wxright, wytop);
+            extendedScaledWallxleft[nwi] = mazescalex * xleft[i];
+            extendedScaledWallYbot[nwi] = mazescaley * ybot[i] - 0.99*rballused;
+            extendedScaledWallxright[nwi] = mazescalex * xleft[i];
+            extendedScaledWallYtop[nwi] = mazescaley * ybot[i] + 0.99*rballused;
+            nwi = incrementifnewvert(nwi, startvert, numwalls); //, extendedScaledWallxleft, extendedScaledWallYbot, extendedScaledWallxright, extendedScaledWallYtop);
+            extendedScaledWallxleft[nwi] = mazescalex * xright[i];
+            extendedScaledWallYbot[nwi] = mazescaley * ybot[i] - 0.99*rballused;
+            extendedScaledWallxright[nwi] =mazescalex * xright[i];
+            extendedScaledWallYtop[nwi] = mazescaley * ybot[i] + 0.99*rballused;
+            nwi = incrementifnewvert(nwi, startvert, numwalls); //, extendedScaledWallxleft, extendedScaledWallYbot, extendedScaledWallxright, extendedScaledWallYtop);
         } else {
             // possible extra horizontal walls crossing either end
-            wxleft[nwi] = swxleft[i]- 0.99*rballused;
-            wybot[nwi] = swybot[i];
-            wxright[nwi] = swxleft[i] + 0.99*rballused;
-            wytop[nwi] = swybot[i];
-            nwi = incrementifnewhoriz(nwi, 0, startvert); //, wxleft, wybot, wxright, wytop);
-            wxleft[nwi] = swxleft[i]- 0.99*rballused;
-            wybot[nwi] = swytop[i];
-            wxright[nwi] = swxleft[i] + 0.99*rballused;
-            wytop[nwi] = swytop[i];
-            nwi = incrementifnewhoriz(nwi, 0, startvert); //, wxleft, wybot, wxright, wytop);
+            extendedScaledWallxleft[nwi] = mazescalex * xleft[i]- 0.99*rballused;
+            extendedScaledWallYbot[nwi] = mazescaley * ybot[i];
+            extendedScaledWallxright[nwi] = mazescalex * xleft[i] + 0.99*rballused;
+            extendedScaledWallYtop[nwi] = mazescaley * ybot[i];
+            nwi = incrementifnewhoriz(nwi, 0, startvert); //, extendedScaledWallxleft, extendedScaledWallYbot, extendedScaledWallxright, extendedScaledWallYtop);
+            extendedScaledWallxleft[nwi] = mazescalex * xleft[i]- 0.99*rballused;
+            extendedScaledWallYbot[nwi] = mazescaley * ytop[i];
+            extendedScaledWallxright[nwi] = mazescalex * xleft[i] + 0.99*rballused;
+            extendedScaledWallYtop[nwi] = mazescaley * ytop[i];
+            nwi = incrementifnewhoriz(nwi, 0, startvert); //, extendedScaledWallxleft, extendedScaledWallYbot, extendedScaledWallxright, extendedScaledWallYtop);
         }
     }
     if (nwi > MAXNUMWALLS) os_printf("nwi = %d exceeds MAXNUMWALLS = %d", nwi, MAXNUMWALLS);
@@ -263,7 +255,7 @@ int16_t ICACHE_FLASH_ATTR  incrementifnewvert(int16_t nwi, int16_t startind, int
 // increment nwi only if no extended vertical walls contain it.
     for (int16_t i = startind; i < endind; i++)
     {
-        if ((wxright[nwi] == wxright[i]) && (wybot[i] <= wybot[nwi]) && (wytop[i] >= wytop[nwi]))
+        if ((extendedScaledWallxright[nwi] == extendedScaledWallxright[i]) && (extendedScaledWallYbot[i] <= extendedScaledWallYbot[nwi]) && (extendedScaledWallYtop[i] >= extendedScaledWallYtop[nwi]))
         {
             // found containing extended vertical wall
             return nwi;
@@ -278,7 +270,7 @@ int16_t ICACHE_FLASH_ATTR  incrementifnewhoriz(int16_t nwi, int16_t startind, in
 // increment nwi only if no extended horizontal walls contain it.
     for (int16_t i = startind; i < endind; i++)
     {
-        if ((wytop[nwi] == wytop[i]) && (wxleft[i] <= wxleft[nwi]) && (wxright[i] >= wxright[nwi]))
+        if ((extendedScaledWallYtop[nwi] == extendedScaledWallYtop[i]) && (extendedScaledWallxleft[i] <= extendedScaledWallxleft[nwi]) && (extendedScaledWallxright[i] >= extendedScaledWallxright[nwi]))
         {
             // found containing extended horizontal wall
             return nwi;
@@ -478,8 +470,8 @@ void ICACHE_FLASH_ATTR maze_updateDisplay(void)
                 continue;
             }
 
-            float p_1[2] = {wxleft[i], wybot[i]};
-            float p_2[2] = {wxright[i], wytop[i]};
+            float p_1[2] = {extendedScaledWallxleft[i], extendedScaledWallYbot[i]};
+            float p_2[2] = {extendedScaledWallxright[i], extendedScaledWallYtop[i]};
             float b_nowadjusted[2];
             if ( gonethru(b_prev, b_now, p_1, p_2, rballused, b_nowadjusted, param) )
             {
