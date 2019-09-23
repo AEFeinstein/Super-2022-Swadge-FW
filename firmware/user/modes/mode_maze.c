@@ -50,6 +50,7 @@
  *==========================================================================*/
 
 void ICACHE_FLASH_ATTR mazeEnterMode(void);
+void ICACHE_FLASH_ATTR mazeFreeMemory(void);
 void ICACHE_FLASH_ATTR mazeExitMode(void);
 void ICACHE_FLASH_ATTR mazeSampleHandler(int32_t samp);
 void ICACHE_FLASH_ATTR mazeButtonCallback(uint8_t state __attribute__((unused)),
@@ -122,17 +123,17 @@ uint8_t mazescalex = 1;
 uint8_t mazescaley = 1;
 int16_t numwalls;
 int16_t numwallstodraw;
-uint8_t xleft[MAXNUMWALLS];
-uint8_t xright[MAXNUMWALLS];
-uint8_t ytop[MAXNUMWALLS];
-uint8_t ybot[MAXNUMWALLS];
+uint8_t * xleft = NULL;
+uint8_t * xright = NULL;
+uint8_t * ytop = NULL;
+uint8_t * ybot = NULL;
 uint8_t flashcount = 0;
 uint8_t flashmax = 4;
 
-float extendedScaledWallxleft[MAXNUMWALLS];
-float extendedScaledWallxright[MAXNUMWALLS];
-float extendedScaledWallYtop[MAXNUMWALLS];
-float extendedScaledWallYbot[MAXNUMWALLS];
+float * extendedScaledWallXleft = NULL;
+float * extendedScaledWallXright = NULL;
+float * extendedScaledWallYtop = NULL;
+float * extendedScaledWallYbot = NULL;
 
 /*============================================================================
  * Functions
@@ -146,6 +147,17 @@ float extendedScaledWallYbot[MAXNUMWALLS];
  */
 void ICACHE_FLASH_ATTR mazeEnterMode(void)
 {
+    //TODO is memory being freed up appropriately?
+    xleft = (uint8_t *)malloc (sizeof (uint8_t) * MAXNUMWALLS);
+    xright = (uint8_t *)malloc (sizeof (uint8_t) * MAXNUMWALLS);
+    ytop = (uint8_t *)malloc (sizeof (uint8_t) * MAXNUMWALLS);
+    ybot = (uint8_t *)malloc (sizeof (uint8_t) * MAXNUMWALLS);
+
+    extendedScaledWallXleft = (float *)malloc (sizeof (float) * MAXNUMWALLS);
+    extendedScaledWallXright = (float *)malloc (sizeof (float) * MAXNUMWALLS);
+    extendedScaledWallYtop = (float *)malloc (sizeof (float) * MAXNUMWALLS);
+    extendedScaledWallYbot = (float *)malloc (sizeof (float) * MAXNUMWALLS);
+
     int16_t i;
     int16_t startvert = 0;
     totalcyclestilldone = 0;
@@ -200,15 +212,15 @@ void ICACHE_FLASH_ATTR mazeEnterMode(void)
         {
             extendedScaledWallYbot[i] = mazescaley * ybot[i];
             extendedScaledWallYtop[i] = mazescaley * ytop[i];
-            extendedScaledWallxleft[i] = mazescalex * xleft[i] - slightlyLessThanOne * rballused;
-            extendedScaledWallxright[i] = mazescalex * xright[i] + slightlyLessThanOne * rballused;
+            extendedScaledWallXleft[i] = mazescalex * xleft[i] - slightlyLessThanOne * rballused;
+            extendedScaledWallXright[i] = mazescalex * xright[i] + slightlyLessThanOne * rballused;
         } else {
             if ((mazescaley * ybot[i] < mazescaley * ytop[i]) && (startvert==0))
             {
                 startvert = i;
             }
-            extendedScaledWallxleft[i] = mazescalex * xleft[i];
-            extendedScaledWallxright[i] = mazescalex * xright[i];
+            extendedScaledWallXleft[i] = mazescalex * xleft[i];
+            extendedScaledWallXright[i] = mazescalex * xright[i];
             extendedScaledWallYbot[i] = mazescaley * ybot[i] - slightlyLessThanOne*rballused;
             extendedScaledWallYtop[i] = mazescaley * ytop[i] + slightlyLessThanOne*rballused;
         }
@@ -224,28 +236,28 @@ void ICACHE_FLASH_ATTR mazeEnterMode(void)
         if (mazescaley * ybot[i] == mazescaley * ytop[i]) // horizontal wall
         {
             // possible extra vertical walls crossing either end
-            extendedScaledWallxleft[nwi] = mazescalex * xleft[i];
+            extendedScaledWallXleft[nwi] = mazescalex * xleft[i];
             extendedScaledWallYbot[nwi] = mazescaley * ybot[i] - slightlyLessThanOne*rballused;
-            extendedScaledWallxright[nwi] = mazescalex * xleft[i];
+            extendedScaledWallXright[nwi] = mazescalex * xleft[i];
             extendedScaledWallYtop[nwi] = mazescaley * ybot[i] + slightlyLessThanOne*rballused;
-            nwi = incrementifnewvert(nwi, startvert, numwalls); //, extendedScaledWallxleft, extendedScaledWallYbot, extendedScaledWallxright, extendedScaledWallYtop);
-            extendedScaledWallxleft[nwi] = mazescalex * xright[i];
+            nwi = incrementifnewvert(nwi, startvert, numwalls); //, extendedScaledWallXleft, extendedScaledWallYbot, extendedScaledWallXright, extendedScaledWallYtop);
+            extendedScaledWallXleft[nwi] = mazescalex * xright[i];
             extendedScaledWallYbot[nwi] = mazescaley * ybot[i] - slightlyLessThanOne*rballused;
-            extendedScaledWallxright[nwi] =mazescalex * xright[i];
+            extendedScaledWallXright[nwi] =mazescalex * xright[i];
             extendedScaledWallYtop[nwi] = mazescaley * ybot[i] + slightlyLessThanOne*rballused;
-            nwi = incrementifnewvert(nwi, startvert, numwalls); //, extendedScaledWallxleft, extendedScaledWallYbot, extendedScaledWallxright, extendedScaledWallYtop);
+            nwi = incrementifnewvert(nwi, startvert, numwalls); //, extendedScaledWallXleft, extendedScaledWallYbot, extendedScaledWallXright, extendedScaledWallYtop);
         } else {
             // possible extra horizontal walls crossing either end
-            extendedScaledWallxleft[nwi] = mazescalex * xleft[i]- slightlyLessThanOne*rballused;
+            extendedScaledWallXleft[nwi] = mazescalex * xleft[i]- slightlyLessThanOne*rballused;
             extendedScaledWallYbot[nwi] = mazescaley * ybot[i];
-            extendedScaledWallxright[nwi] = mazescalex * xleft[i] + slightlyLessThanOne*rballused;
+            extendedScaledWallXright[nwi] = mazescalex * xleft[i] + slightlyLessThanOne*rballused;
             extendedScaledWallYtop[nwi] = mazescaley * ybot[i];
-            nwi = incrementifnewhoriz(nwi, 0, startvert); //, extendedScaledWallxleft, extendedScaledWallYbot, extendedScaledWallxright, extendedScaledWallYtop);
-            extendedScaledWallxleft[nwi] = mazescalex * xleft[i]- slightlyLessThanOne*rballused;
+            nwi = incrementifnewhoriz(nwi, 0, startvert); //, extendedScaledWallXleft, extendedScaledWallYbot, extendedScaledWallXright, extendedScaledWallYtop);
+            extendedScaledWallXleft[nwi] = mazescalex * xleft[i]- slightlyLessThanOne*rballused;
             extendedScaledWallYbot[nwi] = mazescaley * ytop[i];
-            extendedScaledWallxright[nwi] = mazescalex * xleft[i] + slightlyLessThanOne*rballused;
+            extendedScaledWallXright[nwi] = mazescalex * xleft[i] + slightlyLessThanOne*rballused;
             extendedScaledWallYtop[nwi] = mazescaley * ytop[i];
-            nwi = incrementifnewhoriz(nwi, 0, startvert); //, extendedScaledWallxleft, extendedScaledWallYbot, extendedScaledWallxright, extendedScaledWallYtop);
+            nwi = incrementifnewhoriz(nwi, 0, startvert); //, extendedScaledWallXleft, extendedScaledWallYbot, extendedScaledWallXright, extendedScaledWallYtop);
         }
     }
     if (nwi > MAXNUMWALLS) os_printf("nwi = %d exceeds MAXNUMWALLS = %d", nwi, MAXNUMWALLS);
@@ -260,7 +272,7 @@ int16_t ICACHE_FLASH_ATTR  incrementifnewvert(int16_t nwi, int16_t startind, int
 // increment nwi only if no extended vertical walls contain it.
     for (int16_t i = startind; i < endind; i++)
     {
-        if ((extendedScaledWallxright[nwi] == extendedScaledWallxright[i]) && (extendedScaledWallYbot[i] <= extendedScaledWallYbot[nwi]) && (extendedScaledWallYtop[i] >= extendedScaledWallYtop[nwi]))
+        if ((extendedScaledWallXright[nwi] == extendedScaledWallXright[i]) && (extendedScaledWallYbot[i] <= extendedScaledWallYbot[nwi]) && (extendedScaledWallYtop[i] >= extendedScaledWallYtop[nwi]))
         {
             // found containing extended vertical wall
             return nwi;
@@ -275,7 +287,7 @@ int16_t ICACHE_FLASH_ATTR  incrementifnewhoriz(int16_t nwi, int16_t startind, in
 // increment nwi only if no extended horizontal walls contain it.
     for (int16_t i = startind; i < endind; i++)
     {
-        if ((extendedScaledWallYtop[nwi] == extendedScaledWallYtop[i]) && (extendedScaledWallxleft[i] <= extendedScaledWallxleft[nwi]) && (extendedScaledWallxright[i] >= extendedScaledWallxright[nwi]))
+        if ((extendedScaledWallYtop[nwi] == extendedScaledWallYtop[i]) && (extendedScaledWallXleft[i] <= extendedScaledWallXleft[nwi]) && (extendedScaledWallXright[i] >= extendedScaledWallXright[nwi]))
         {
             // found containing extended horizontal wall
             return nwi;
@@ -288,9 +300,25 @@ int16_t ICACHE_FLASH_ATTR  incrementifnewhoriz(int16_t nwi, int16_t startind, in
 /**
  * Called when maze is exited
  */
+void ICACHE_FLASH_ATTR mazeFreeMemory(void)
+{
+    free(xleft);
+    free(xright);
+    free(ytop);
+    free(ybot);
+    free(extendedScaledWallXleft);
+    free(extendedScaledWallXright);
+    free(extendedScaledWallYbot);
+    free(extendedScaledWallYtop);
+}
+
+
+/**
+ * Called when maze is exited
+ */
 void ICACHE_FLASH_ATTR mazeExitMode(void)
 {
-
+    mazeFreeMemory();
 }
 
 /**
@@ -475,8 +503,8 @@ void ICACHE_FLASH_ATTR maze_updateDisplay(void)
                 continue;
             }
 
-            float p_1[2] = {extendedScaledWallxleft[i], extendedScaledWallYbot[i]};
-            float p_2[2] = {extendedScaledWallxright[i], extendedScaledWallYtop[i]};
+            float p_1[2] = {extendedScaledWallXleft[i], extendedScaledWallYbot[i]};
+            float p_2[2] = {extendedScaledWallXright[i], extendedScaledWallYtop[i]};
             float b_nowadjusted[2];
             if ( gonethru(b_prev, b_now, p_1, p_2, rballused, b_nowadjusted, param) )
             {
@@ -618,6 +646,7 @@ void ICACHE_FLASH_ATTR mazeButtonCallback( uint8_t state,
         }
         if(1 == button)
         {
+            mazeFreeMemory();
             // get new maze
             mazeEnterMode( );
         }
@@ -634,6 +663,7 @@ void ICACHE_FLASH_ATTR mazeButtonCallback( uint8_t state,
                 width = 2*height + 1;
                 rballused--;
             }
+            mazeFreeMemory();
             mazeEnterMode( );
         }
     }
