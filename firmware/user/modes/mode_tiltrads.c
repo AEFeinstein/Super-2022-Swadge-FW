@@ -366,7 +366,16 @@ uint32_t score; // The current score this game.
 list_t * landedTetrads;
 uint32_t highScores[NUM_TT_HIGH_SCORES];
 bool newHighScore;
+
+// Score screen ui info.
+uint8_t score0X;
+uint8_t score1X;
+uint8_t score2X;
+uint8_t lastScoreX;
+
+// Gameover ui info.
 bool drawGameoverTetrad;
+uint8_t gameoverScoreX;
 
 // Clear animation info.
 bool inClearAnimation;
@@ -453,7 +462,8 @@ void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size, color col);
 void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth], bool clearLineAnimation, color col);
 void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shapeWidth, uint8_t shapeHeight, uint32_t shape[][shapeWidth], color col);
 uint8_t ICACHE_FLASH_ATTR plotCenteredText(uint8_t x0, uint8_t y, uint8_t x1, char* text, fonts font, color col);
-uint8_t getTextWidth(char* text, fonts font);
+uint8_t ICACHE_FLASH_ATTR getCenteredTextX(uint8_t x0, uint8_t x1, char* text, fonts font);
+uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font);
 
 // randomizer operations.
 void ICACHE_FLASH_ATTR initTypeOrder(void);
@@ -703,6 +713,18 @@ void ICACHE_FLASH_ATTR ttScoresInput(void)
             saveHighScores();
             loadHighScores();
             ttSetLastScore(0);
+
+            char uiStr[32] = {0};
+            uint8_t x0 = 0;
+            uint8_t x1 = OLED_WIDTH - 1;
+            ets_snprintf(uiStr, sizeof(uiStr), "1. %d", highScores[0]);
+            score0X = getCenteredTextX(x0, x1, uiStr, TOM_THUMB);
+            ets_snprintf(uiStr, sizeof(uiStr), "2. %d", highScores[1]);
+            score1X = getCenteredTextX(x0, x1, uiStr, TOM_THUMB);
+            ets_snprintf(uiStr, sizeof(uiStr), "3. %d", highScores[2]);
+            score2X = getCenteredTextX(x0, x1, uiStr, TOM_THUMB);
+            ets_snprintf(uiStr, sizeof(uiStr), "YOUR LAST SCORE: %d", ttGetLastScore());
+            lastScoreX = getCenteredTextX(x0, x1, uiStr, TOM_THUMB);
         }
     }
     else if(ttIsButtonUp(BTN_SCORES_CLEAR_SCORES))
@@ -957,37 +979,37 @@ void ICACHE_FLASH_ATTR ttTitleDisplay(void)
     // Test drawing some demo-scene type lines for effect.
 
     // Vertical Lines
-    int leftLineXStart = GRID_X;
-    int rightLineXStart = GRID_X + (GRID_UNIT_SIZE - 1) * GRID_WIDTH;
+    uint8_t leftLineXStart = GRID_X;
+    uint8_t rightLineXStart = GRID_X + (GRID_UNIT_SIZE - 1) * GRID_WIDTH;
 
     double lineSpeed = 1.0;
     
     int firstLineProgressUS = stateTime % (int)(lineSpeed * S_TO_MS_FACTOR * MS_TO_US_FACTOR);
-    double firstLineprogress = (double)firstLineProgressUS / (double)(lineSpeed * S_TO_MS_FACTOR * MS_TO_US_FACTOR);
+    double firstLineProgress = (double)firstLineProgressUS / (double)(lineSpeed * S_TO_MS_FACTOR * MS_TO_US_FACTOR);
 
     int secondLineProgressUS = (int)(stateTime + ((lineSpeed/2) * S_TO_MS_FACTOR * MS_TO_US_FACTOR)) % (int)(lineSpeed * S_TO_MS_FACTOR * MS_TO_US_FACTOR);
-    double secondLineprogress = (double)secondLineProgressUS / (double)(lineSpeed * S_TO_MS_FACTOR * MS_TO_US_FACTOR);
+    double secondLineProgress = (double)secondLineProgressUS / (double)(lineSpeed * S_TO_MS_FACTOR * MS_TO_US_FACTOR);
 
-    int leftLineXProgress = firstLineprogress * GRID_X;
-    int rightLineXProgress = firstLineprogress * (OLED_WIDTH - rightLineXStart);
+    uint8_t leftLineXProgress = firstLineProgress * GRID_X;
+    uint8_t rightLineXProgress = firstLineProgress * (OLED_WIDTH - rightLineXStart);
     plotLine(leftLineXStart - leftLineXProgress, 0, leftLineXStart - leftLineXProgress, OLED_HEIGHT, WHITE);
     plotLine(rightLineXStart + rightLineXProgress, 0, rightLineXStart + rightLineXProgress, OLED_HEIGHT, WHITE);
 
-    leftLineXProgress = secondLineprogress * GRID_X;
-    rightLineXProgress = secondLineprogress * (OLED_WIDTH - rightLineXStart);
+    leftLineXProgress = secondLineProgress * GRID_X;
+    rightLineXProgress = secondLineProgress * (OLED_WIDTH - rightLineXStart);
     plotLine(leftLineXStart - leftLineXProgress, 0, leftLineXStart - leftLineXProgress, OLED_HEIGHT, WHITE);
     plotLine(rightLineXStart + rightLineXProgress, 0, rightLineXStart + rightLineXProgress, OLED_HEIGHT, WHITE);
 
 
     // Horizontal Lines
 
-    int midY = OLED_HEIGHT / 2;
+    uint8_t midY = OLED_HEIGHT / 2;
     
-    int lineOneStartY = OLED_HEIGHT / 4;
-    int lineOneEndY = 0;
+    uint8_t lineOneStartY = OLED_HEIGHT / 4;
+    uint8_t lineOneEndY = 0;
 
-    int lineTwoStartY = 3 * (OLED_HEIGHT / 4);
-    int lineTwoEndY = OLED_HEIGHT;
+    uint8_t lineTwoStartY = 3 * (OLED_HEIGHT / 4);
+    uint8_t lineTwoEndY = OLED_HEIGHT;
 
     // Left
     plotLine(0, midY, GRID_X, midY, WHITE);
@@ -999,12 +1021,25 @@ void ICACHE_FLASH_ATTR ttTitleDisplay(void)
     plotLine(rightLineXStart, lineOneStartY, OLED_WIDTH, lineOneEndY, WHITE);
     plotLine(rightLineXStart, lineTwoStartY, OLED_WIDTH, lineTwoEndY, WHITE);
 
-
     // SCORES   START
-    fillDisplayArea(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 3)), getTextWidth("SCORES", TOM_THUMB), OLED_HEIGHT, BLACK);
-    plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1)), "SCORES", TOM_THUMB, WHITE);
-    fillDisplayArea(OLED_WIDTH - getTextWidth("START", TOM_THUMB) - 2, OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 3)), OLED_WIDTH, OLED_HEIGHT, BLACK);
-    plotText(OLED_WIDTH - getTextWidth("START", TOM_THUMB), OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1)), "START", TOM_THUMB, WHITE);
+    // TODO: make these #defines
+    uint8_t scoresAreaX0 = 0;
+    uint8_t scoresAreaY0 = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 3);
+    uint8_t scoresAreaX1 = 23;//getTextWidth("SCORES", TOM_THUMB);
+    uint8_t scoresAreaY1 = OLED_HEIGHT - 1; //minus 1 is not here.
+    fillDisplayArea(scoresAreaX0, scoresAreaY0, scoresAreaX1, scoresAreaY1, BLACK);
+    uint8_t scoresTextX = 0;
+    uint8_t scoresTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);
+    plotText(scoresTextX, scoresTextY, "SCORES", TOM_THUMB, WHITE);
+    
+    uint8_t startAreaX0 = OLED_WIDTH - 19 - 2;//getTextWidth("START", TOM_THUMB) - 2;
+    uint8_t startAreaY0 = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 3);
+    uint8_t startAreaX1 = OLED_WIDTH - 1; //minus 1 is not here.
+    uint8_t startAreaY1 = OLED_HEIGHT - 1; //minus 1 is not here.
+    fillDisplayArea(startAreaX0, startAreaY0, startAreaX1, startAreaY1, BLACK);
+    uint8_t startTextX = OLED_WIDTH - 19;//getTextWidth("START", TOM_THUMB);
+    uint8_t startTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);    
+    plotText(startTextX, startTextY, "START", TOM_THUMB, WHITE);
 
     // Clear the grid data (may not want to do this every frame)
     refreshTetradsGrid(TUTORIAL_GRID_WIDTH, TUTORIAL_GRID_HEIGHT, tutorialTetradsGrid, landedTetrads, &(tutorialTetrad), true);
@@ -1016,9 +1051,23 @@ void ICACHE_FLASH_ATTR ttTitleDisplay(void)
     plotGrid(GRID_X, GRID_Y, GRID_UNIT_SIZE, TUTORIAL_GRID_WIDTH, TUTORIAL_GRID_HEIGHT, tutorialTetradsGrid, false, WHITE);
 
     // TILTRADS
-    uint8_t textEnd = plotCenteredText(0, (OLED_HEIGHT / 2) - FONT_HEIGHT_RADIOSTARS - 2, OLED_WIDTH, "TILTRADS", RADIOSTARS, WHITE);
-    fillDisplayArea(textEnd - getTextWidth("TILTRADS", RADIOSTARS) - 2, (OLED_HEIGHT / 2) - FONT_HEIGHT_RADIOSTARS - 3, textEnd - 1, (OLED_HEIGHT / 2) - 1, BLACK);
-    plotCenteredText(0, (OLED_HEIGHT / 2) - FONT_HEIGHT_RADIOSTARS - 2, OLED_WIDTH, "TILTRADS", RADIOSTARS, WHITE);
+
+    // getTextWidth("TILTRADS", RADIOSTARS) = 87
+    // textEnd = 109
+
+    uint8_t titleAreaX0 = 109 - 87 - 2;
+    uint8_t titleAreaY0 = (OLED_HEIGHT / 2) - FONT_HEIGHT_RADIOSTARS - 3;
+    uint8_t titleAreaX1 = 109 - 1; 
+    uint8_t titleAreaY1 = (OLED_HEIGHT / 2) - 1; 
+    fillDisplayArea(titleAreaX0, titleAreaY0, titleAreaX1, titleAreaY1, BLACK);
+    
+    uint8_t titleTextX = 21;
+    uint8_t titleTextY = (OLED_HEIGHT / 2) - FONT_HEIGHT_RADIOSTARS - 2;
+    plotText(titleTextX, titleTextY, "TILTRADS", RADIOSTARS, WHITE);
+
+    /*char accelStr[32] = {0};
+    ets_snprintf(accelStr, sizeof(accelStr), "WT:%d", textEnd);
+    plotText(0, 0, accelStr, IBM_VGA_8, WHITE);*/
 
     // Display the acceleration on the display
     /*char accelStr[32] = {0};
@@ -1117,39 +1166,53 @@ void ICACHE_FLASH_ATTR ttScoresDisplay(void)
     // Clear the display
     clearDisplay();
 
-    plotCenteredText(0, 0, OLED_WIDTH, "HIGH SCORES", IBM_VGA_8, WHITE);
+    // HIGH SCORES
+    uint8_t headerTextX = 22;
+    uint8_t headerTextY = 0;
+    plotText(headerTextX, headerTextY, "HIGH SCORES", IBM_VGA_8, WHITE);
 
     char uiStr[32] = {0};
     // 1. 99999
     ets_snprintf(uiStr, sizeof(uiStr), "1. %d", highScores[0]);
-    plotCenteredText(0, (3*FONT_HEIGHT_TOMTHUMB)+1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
+    plotText(score0X, (3*FONT_HEIGHT_TOMTHUMB)+1, uiStr, TOM_THUMB, WHITE);
+    //plotCenteredText(0, (3*FONT_HEIGHT_TOMTHUMB)+1, OLED_WIDTH - 1, uiStr, TOM_THUMB, WHITE);
 
     // 2. 99999
     ets_snprintf(uiStr, sizeof(uiStr), "2. %d", highScores[1]);
-    plotCenteredText(0, (5*FONT_HEIGHT_TOMTHUMB)+1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
+    plotText(score1X, (5*FONT_HEIGHT_TOMTHUMB)+1, uiStr, TOM_THUMB, WHITE);
+    //plotCenteredText(0, (5*FONT_HEIGHT_TOMTHUMB)+1, OLED_WIDTH - 1, uiStr, TOM_THUMB, WHITE);
 
     // 3. 99999
     ets_snprintf(uiStr, sizeof(uiStr), "3. %d", highScores[2]);
-    plotCenteredText(0, (7*FONT_HEIGHT_TOMTHUMB)+1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
+    plotText(score2X, (7*FONT_HEIGHT_TOMTHUMB)+1, uiStr, TOM_THUMB, WHITE);
+    //plotCenteredText(0, (7*FONT_HEIGHT_TOMTHUMB)+1, OLED_WIDTH - 1, uiStr, TOM_THUMB, WHITE);
 
     // YOUR LAST SCORE:
     ets_snprintf(uiStr, sizeof(uiStr), "YOUR LAST SCORE: %d", ttGetLastScore());
-    plotCenteredText(0, (9*FONT_HEIGHT_TOMTHUMB)+1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
+    plotText(lastScoreX, (9*FONT_HEIGHT_TOMTHUMB)+1, uiStr, TOM_THUMB, WHITE);
+    //plotCenteredText(0, (9*FONT_HEIGHT_TOMTHUMB)+1, OLED_WIDTH - 1, uiStr, TOM_THUMB, WHITE);
     
 
-    //TODO: explicitly add a hold to the text, or is the inverse effect enough.
-    // (HOLD) CLEAR SCORES      TITLE
-    plotText(1, OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1)), "CLEAR SCORES", TOM_THUMB, WHITE);
-    
+    // CLEAR SCORES
+    uint8_t clearScoresTextX = 1;
+    uint8_t clearScoresTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);
+    plotText(clearScoresTextX, clearScoresTextY, "CLEAR SCORES", TOM_THUMB, WHITE);
+
     // fill the clear scores area depending on how long the button's held down.
     if (clearScoreTimer != 0)
     {
         double holdProgress = ((double)clearScoreTimer / (double)CLEAR_SCORES_HOLD_TIME);
-        uint8_t holdFill = (uint8_t)(holdProgress * (getTextWidth("CLEAR SCORES", TOM_THUMB)+2));
-        fillDisplayArea(0, (OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1))) - 1, holdFill, OLED_HEIGHT, INVERSE);
+        uint8_t holdAreaX0 = 0;
+        uint8_t holdAreaY0 = (OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1)) - 1;
+        uint8_t holdAreaX1 = (uint8_t)(holdProgress * (47+2));
+        uint8_t holdAreaY1 = OLED_HEIGHT - 1;
+        fillDisplayArea(holdAreaX0, holdAreaY0, holdAreaX1, holdAreaY1, INVERSE);
     }
 
-    plotText(OLED_WIDTH - getTextWidth("TITLE", TOM_THUMB) - 1, OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1)), "TITLE", TOM_THUMB, WHITE);
+    // TITLE
+    uint8_t titleTextX = OLED_WIDTH - 19 - 1;
+    uint8_t titleTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);
+    plotText(titleTextX, titleTextY, "TITLE", TOM_THUMB, WHITE);
 }
 
 void ICACHE_FLASH_ATTR ttGameoverDisplay(void)
@@ -1183,26 +1246,30 @@ void ICACHE_FLASH_ATTR ttGameoverDisplay(void)
     plotRect(windowXMargin, windowYMarginTop, OLED_WIDTH - windowXMargin, OLED_HEIGHT - windowYMarginBot, WHITE);
 
     // GAME OVER
-    plotCenteredText(windowXMargin, windowYMarginTop + titleTextYOffset, OLED_WIDTH - windowXMargin, "GAME OVER", IBM_VGA_8, WHITE);
+    plotText(29, windowYMarginTop + titleTextYOffset, "GAME OVER", IBM_VGA_8, WHITE);
+    //plotCenteredText(windowXMargin, windowYMarginTop + titleTextYOffset, OLED_WIDTH - windowXMargin, "GAME OVER", IBM_VGA_8, WHITE);
 
     // HIGH SCORE! or YOUR SCORE:
     if (newHighScore)
     {
-        plotCenteredText(windowXMargin, windowYMarginTop + highScoreTextYOffset, OLED_WIDTH - windowXMargin, "HIGH SCORE!", TOM_THUMB, WHITE);
+        plotText(44, windowYMarginTop + highScoreTextYOffset, "HIGH SCORE!", TOM_THUMB, WHITE);
+        //plotCenteredText(windowXMargin, windowYMarginTop + highScoreTextYOffset, OLED_WIDTH - windowXMargin, "HIGH SCORE!", TOM_THUMB, WHITE);
     }
     else
     {
-        plotCenteredText(windowXMargin, windowYMarginTop + highScoreTextYOffset, OLED_WIDTH - windowXMargin, "YOUR SCORE:", TOM_THUMB, WHITE);
+        plotText(44, windowYMarginTop + highScoreTextYOffset, "YOUR SCORE:", TOM_THUMB, WHITE);
+        //plotCenteredText(windowXMargin, windowYMarginTop + highScoreTextYOffset, OLED_WIDTH - windowXMargin, "YOUR SCORE:", TOM_THUMB, WHITE);
     }
 
     // 1230495
     char scoreStr[32] = {0};
     ets_snprintf(scoreStr, sizeof(scoreStr), "%d", score);
-    plotCenteredText(windowXMargin, windowYMarginTop + scoreTextYOffset, OLED_WIDTH - windowXMargin, scoreStr, IBM_VGA_8, WHITE);
+    plotText(gameoverScoreX, windowYMarginTop + scoreTextYOffset, scoreStr, IBM_VGA_8, WHITE);
+    //plotCenteredText(windowXMargin, windowYMarginTop + scoreTextYOffset, OLED_WIDTH - windowXMargin, scoreStr, IBM_VGA_8, WHITE);
 
     // TITLE    RESTART
     plotText(windowXMargin + controlTextXPadding, controlTextYOffset, "TITLE", TOM_THUMB, WHITE);
-    plotText(OLED_WIDTH - windowXMargin - getTextWidth("RESTART", TOM_THUMB) - controlTextXPadding, controlTextYOffset, "RESTART", TOM_THUMB, WHITE);
+    plotText(OLED_WIDTH - windowXMargin - 27 - controlTextXPadding, controlTextYOffset, "RESTART", TOM_THUMB, WHITE);
 }
 
 // helper functions.
@@ -1213,6 +1280,11 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
 	stateStartTime = system_get_time();
 	stateTime = 0;
     stateFrames = 0;
+
+    // Used for cache of ui anchors.
+    uint8_t x0 = 0;
+    uint8_t x1 = 0;
+    char uiStr[32] = {0};
 
     switch( currState )
     {
@@ -1259,6 +1331,18 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
             break;
         case TT_SCORES:
             loadHighScores();
+
+            x0 = 0;
+            x1 = OLED_WIDTH - 1;
+            ets_snprintf(uiStr, sizeof(uiStr), "1. %d", highScores[0]);
+            score0X = getCenteredTextX(x0, x1, uiStr, TOM_THUMB);
+            ets_snprintf(uiStr, sizeof(uiStr), "2. %d", highScores[1]);
+            score1X = getCenteredTextX(x0, x1, uiStr, TOM_THUMB);
+            ets_snprintf(uiStr, sizeof(uiStr), "3. %d", highScores[2]);
+            score2X = getCenteredTextX(x0, x1, uiStr, TOM_THUMB);
+            ets_snprintf(uiStr, sizeof(uiStr), "YOUR LAST SCORE: %d", ttGetLastScore());
+            lastScoreX = getCenteredTextX(x0, x1, uiStr, TOM_THUMB);
+
             clearScoreTimer = 0;
             holdingClearScore = false;
             break;
@@ -1272,6 +1356,12 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
 
             // Set var for gameover tetrad effect.
             drawGameoverTetrad = true;
+
+            // Get the correct offset for the high score.
+            x0 = 18;
+            x1 = OLED_WIDTH - x0;
+            ets_snprintf(uiStr, sizeof(uiStr), "%d", score);
+            gameoverScoreX = getCenteredTextX(x0, x1, uiStr, IBM_VGA_8);
             break;
         default:
             break;
@@ -1690,12 +1780,15 @@ void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shape
 // Draw text centered between x0 and x1.
 uint8_t ICACHE_FLASH_ATTR plotCenteredText(uint8_t x0, uint8_t y, uint8_t x1, char* text, fonts font, color col)
 {
-    /*// We only get width info once we've drawn.
-    // So we draw the text as inverse to get the width.
-    uint8_t textWidth = plotText(x0, y, text, font, INVERSE) - x0 - 1; // minus one accounts for the return being where the cursor is.
+    uint8_t centeredX = getCenteredTextX(x0, x1, text, font);
 
-    // Then we draw the inverse back over it to restore it.
-    plotText(x0, y, text, font, INVERSE);*/
+    // Then we draw the correctly centered text.
+    uint8_t cursorEnd = plotText(centeredX, y, text, font, col);
+    return cursorEnd;
+}
+
+uint8_t ICACHE_FLASH_ATTR getCenteredTextX(uint8_t x0, uint8_t x1, char* text, fonts font)
+{
     uint8_t textWidth = getTextWidth(text, font);
 
     // Calculate the correct x to draw from.
@@ -1703,14 +1796,12 @@ uint8_t ICACHE_FLASH_ATTR plotCenteredText(uint8_t x0, uint8_t y, uint8_t x1, ch
     // NOTE: This may result in strange behavior when the width of the drawn text is greater than the distance between x0 and x1.
     uint8_t widthDiff = fullWidth - textWidth; 
     uint8_t centeredX = x0 + (widthDiff / 2);
-
-    // Then we draw the correctly centered text.
-    return plotText(centeredX, y, text, font, col);
+    return centeredX;
 }
 
-uint8_t getTextWidth(char* text, fonts font)
+uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font)
 {
-    // NOTE: The inverse, inverse is cute, but 2 draw calls, could we draw it outside of the display area but still in bounds of a uint8_t?
+    // NOTE: The inverse, inverse is cute, but 2 draw calls, could we draw it outside of the display area but still in bounds of a uint8_t?  
 
     // We only get width info once we've drawn.
     // So we draw the text as inverse to get the width.

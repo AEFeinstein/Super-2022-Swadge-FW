@@ -1,6 +1,6 @@
 #include "font.h"
 
-sprite_t font_TomThumb[] =
+const sprite_t font_TomThumb[] ICACHE_RODATA_ATTR =
 {
     {
         .width = 3,
