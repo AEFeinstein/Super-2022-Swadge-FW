@@ -183,12 +183,12 @@ void ICACHE_FLASH_ATTR mazeEnterMode(void)
     }
 
     // extend the scaled walls
-    // extend walls by 0.99*rball and compute possible extra stopper walls
+    // extend walls by slightlyLessThanOne*rball and compute possible extra stopper walls
     // ONLY for horizontal and vertical walls. Could do for arbitrary but
     // would first need to compute perpendicular vectors and use them. 
     // extending by rball I think guarantees no passing thru corners, but also
     // causes sticking above T junctions in maze.
-    // NOTE using 0.99*rball prevents sticking but has very small probability
+    // NOTE using slightlyLessThanOne*rball prevents sticking but has very small probability
     // to telport at corners extend walls
     const float slightlyLessThanOne = 1.0 - 1.0/128.; // used 0.99 
     for (i = 0; i < numwalls; i++)
@@ -206,11 +206,13 @@ void ICACHE_FLASH_ATTR mazeEnterMode(void)
             }
             extendedScaledWallxleft[i] = mazescalex * xleft[i];
             extendedScaledWallxright[i] = mazescalex * xright[i];
-            extendedScaledWallYbot[i] = mazescaley * ybot[i] - 0.99*rballused;
-            extendedScaledWallYtop[i] = mazescaley * ytop[i] + 0.99*rballused;
+            extendedScaledWallYbot[i] = mazescaley * ybot[i] - slightlyLessThanOne*rballused;
+            extendedScaledWallYtop[i] = mazescaley * ytop[i] + slightlyLessThanOne*rballused;
         }
     }
     int16_t nwi = numwalls; //new wall index starts here
+    // A wall that extends into the interior and not joined to another wall needs a small
+    // 'stopper' wall to cross it near the end.
     // find and keep only stopper walls that are not contained in any of the extended walls
     maze_printf("startvert = %d\n", startvert);
 
@@ -220,25 +222,25 @@ void ICACHE_FLASH_ATTR mazeEnterMode(void)
         {
             // possible extra vertical walls crossing either end
             extendedScaledWallxleft[nwi] = mazescalex * xleft[i];
-            extendedScaledWallYbot[nwi] = mazescaley * ybot[i] - 0.99*rballused;
+            extendedScaledWallYbot[nwi] = mazescaley * ybot[i] - slightlyLessThanOne*rballused;
             extendedScaledWallxright[nwi] = mazescalex * xleft[i];
-            extendedScaledWallYtop[nwi] = mazescaley * ybot[i] + 0.99*rballused;
+            extendedScaledWallYtop[nwi] = mazescaley * ybot[i] + slightlyLessThanOne*rballused;
             nwi = incrementifnewvert(nwi, startvert, numwalls); //, extendedScaledWallxleft, extendedScaledWallYbot, extendedScaledWallxright, extendedScaledWallYtop);
             extendedScaledWallxleft[nwi] = mazescalex * xright[i];
-            extendedScaledWallYbot[nwi] = mazescaley * ybot[i] - 0.99*rballused;
+            extendedScaledWallYbot[nwi] = mazescaley * ybot[i] - slightlyLessThanOne*rballused;
             extendedScaledWallxright[nwi] =mazescalex * xright[i];
-            extendedScaledWallYtop[nwi] = mazescaley * ybot[i] + 0.99*rballused;
+            extendedScaledWallYtop[nwi] = mazescaley * ybot[i] + slightlyLessThanOne*rballused;
             nwi = incrementifnewvert(nwi, startvert, numwalls); //, extendedScaledWallxleft, extendedScaledWallYbot, extendedScaledWallxright, extendedScaledWallYtop);
         } else {
             // possible extra horizontal walls crossing either end
-            extendedScaledWallxleft[nwi] = mazescalex * xleft[i]- 0.99*rballused;
+            extendedScaledWallxleft[nwi] = mazescalex * xleft[i]- slightlyLessThanOne*rballused;
             extendedScaledWallYbot[nwi] = mazescaley * ybot[i];
-            extendedScaledWallxright[nwi] = mazescalex * xleft[i] + 0.99*rballused;
+            extendedScaledWallxright[nwi] = mazescalex * xleft[i] + slightlyLessThanOne*rballused;
             extendedScaledWallYtop[nwi] = mazescaley * ybot[i];
             nwi = incrementifnewhoriz(nwi, 0, startvert); //, extendedScaledWallxleft, extendedScaledWallYbot, extendedScaledWallxright, extendedScaledWallYtop);
-            extendedScaledWallxleft[nwi] = mazescalex * xleft[i]- 0.99*rballused;
+            extendedScaledWallxleft[nwi] = mazescalex * xleft[i]- slightlyLessThanOne*rballused;
             extendedScaledWallYbot[nwi] = mazescaley * ytop[i];
-            extendedScaledWallxright[nwi] = mazescalex * xleft[i] + 0.99*rballused;
+            extendedScaledWallxright[nwi] = mazescalex * xleft[i] + slightlyLessThanOne*rballused;
             extendedScaledWallYtop[nwi] = mazescaley * ytop[i];
             nwi = incrementifnewhoriz(nwi, 0, startvert); //, extendedScaledWallxleft, extendedScaledWallYbot, extendedScaledWallxright, extendedScaledWallYtop);
         }
