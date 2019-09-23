@@ -69,8 +69,8 @@
 
 // playfield settings.
 
-#define GRID_WIDTH 10
-#define GRID_HEIGHT 17
+#define GRID_WIDTH 2
+#define GRID_HEIGHT 2
 
 // All of these are (* level)
 #define SCORE_SINGLE 100
