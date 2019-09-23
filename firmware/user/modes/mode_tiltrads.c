@@ -1111,7 +1111,9 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     //clearAnimFrame = !clearAnimFrame;
     
     // NEXT
-    plotCenteredText(GRID_X + (GRID_UNIT_SIZE * GRID_WIDTH), 0, OLED_WIDTH, "NEXT", TOM_THUMB, WHITE);
+    uint8_t nextHeaderTextX = 103;
+    plotText(nextHeaderTextX, 0, "NEXT", TOM_THUMB, WHITE);
+    //plotCenteredText(GRID_X + (GRID_UNIT_SIZE * GRID_WIDTH), 0, OLED_WIDTH, "NEXT", TOM_THUMB, WHITE);
 
     // Draw the next tetrad.
     coord_t nextTetradPoint;
@@ -1128,28 +1130,37 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     // Draw the UI.
     char uiStr[32] = {0};
 
-    //HIGH
-    //99999
     newHighScore = score > highScores[0];
-    plotCenteredText(0, 0, GRID_X, newHighScore ? "HIGH (NEW!)" : "HIGH", TOM_THUMB, WHITE);
+    
+    //HIGH
+    uint8_t highScoreHeaderTextX = newHighScore ? 3 : 15;
+    plotText(highScoreHeaderTextX, 0, newHighScore ? "HIGH (NEW!)" : "HIGH", TOM_THUMB, WHITE);
+    //plotCenteredText(0, 0, GRID_X, newHighScore ? "HIGH (NEW!)" : "HIGH", TOM_THUMB, WHITE);
+    //99999    
     ets_snprintf(uiStr, sizeof(uiStr), "%d", newHighScore ? score : highScores[0]);
     plotCenteredText(0, (FONT_HEIGHT_TOMTHUMB + 1), GRID_X, uiStr, TOM_THUMB, WHITE);
 
     //SCORE
+    uint8_t scoreHeaderTextX = 13;
+    plotText(scoreHeaderTextX, (3*FONT_HEIGHT_TOMTHUMB), "SCORE", TOM_THUMB, WHITE);
+    //plotCenteredText(0, (3*FONT_HEIGHT_TOMTHUMB), GRID_X, "SCORE", TOM_THUMB, WHITE);
     //99999
-    plotCenteredText(0, (3*FONT_HEIGHT_TOMTHUMB), GRID_X, "SCORE", TOM_THUMB, WHITE);
     ets_snprintf(uiStr, sizeof(uiStr), "%d", score);
     plotCenteredText(0, (4*FONT_HEIGHT_TOMTHUMB)+1, GRID_X, uiStr, TOM_THUMB, WHITE);
 
     //LINES
+    uint8_t linesHeaderTextX = 13;
+    plotText(linesHeaderTextX, (6*FONT_HEIGHT_TOMTHUMB), "LINES", TOM_THUMB, WHITE);    
+    //plotCenteredText(0, (6*FONT_HEIGHT_TOMTHUMB), GRID_X, "LINES", TOM_THUMB, WHITE);
     // 999
-    plotCenteredText(0, (6*FONT_HEIGHT_TOMTHUMB), GRID_X, "LINES", TOM_THUMB, WHITE);
     ets_snprintf(uiStr, sizeof(uiStr), "%d", linesClearedTotal);
     plotCenteredText(0, (7*FONT_HEIGHT_TOMTHUMB)+1, GRID_X, uiStr, TOM_THUMB, WHITE);
 
     //LEVEL
+    uint8_t levelHeaderTextX = 13;
+    plotText(levelHeaderTextX, (9*FONT_HEIGHT_TOMTHUMB), "LEVEL", TOM_THUMB, WHITE);
+    //plotCenteredText(0, (9*FONT_HEIGHT_TOMTHUMB), GRID_X, "LEVEL", TOM_THUMB, WHITE);
     // 99
-    plotCenteredText(0, (9*FONT_HEIGHT_TOMTHUMB), GRID_X, "LEVEL", TOM_THUMB, WHITE);
     ets_snprintf(uiStr, sizeof(uiStr), "%d", (currentLevel+1)); // Levels are displayed with 1 as the base level.
     plotCenteredText(0, (10*FONT_HEIGHT_TOMTHUMB)+1, GRID_X, uiStr, TOM_THUMB, WHITE);
 
