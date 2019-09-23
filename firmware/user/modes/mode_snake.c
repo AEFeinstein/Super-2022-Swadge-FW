@@ -34,7 +34,8 @@
  * BGM
  *==========================================================================*/
 
-const song_t MetalGear = {
+const song_t MetalGear ICACHE_RODATA_ATTR =
+{
     .notes = {
         {.note = E_5, .timeMs = 479},
         {.note = SILENCE, .timeMs = 1},
@@ -173,7 +174,7 @@ const song_t MetalGear = {
  * Sprites
  *==========================================================================*/
 
-const uint8_t snakeBackground[] =
+const uint8_t snakeBackground[] ICACHE_RODATA_ATTR =
 {
     0x80, 0xfe, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7f, 0x01,
     0x80, 0xfe, 0x00, 0x00, 0x03, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xc0, 0x00, 0x00, 0x7f, 0x01,
@@ -282,7 +283,7 @@ typedef enum
     FOOD                 = 0b0100101001000000,
 } snakeSprite;
 
-const snakeSprite spriteTransitionTable[2][4][4] =
+const snakeSprite spriteTransitionTable[2][4][4] ICACHE_RODATA_ATTR =
 {
     // Snake is skinny
     {
@@ -380,7 +381,7 @@ const snakeSprite spriteTransitionTable[2][4][4] =
     }
 };
 
-const snakeSprite headTransitionTable[2][4] =
+const snakeSprite headTransitionTable[2][4] ICACHE_RODATA_ATTR =
 {
     {
         // Head is UP
@@ -404,7 +405,7 @@ const snakeSprite headTransitionTable[2][4] =
     }
 };
 
-const snakeSprite tailTransitionTable[4] =
+const snakeSprite tailTransitionTable[4] ICACHE_RODATA_ATTR =
 {
     // Tail is UP
     TAIL_UP,
@@ -426,7 +427,14 @@ typedef enum
     bug5 = 0b00001000111101010000000011110101,
 } critterSprite;
 
-const critterSprite critterSprites[5] = {bug1, bug2, bug3, bug4, bug5};
+const critterSprite critterSprites[5] ICACHE_RODATA_ATTR =
+{
+    bug1,
+    bug2,
+    bug3,
+    bug4,
+    bug5
+};
 
 /*============================================================================
  * Typedefs

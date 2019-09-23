@@ -22,7 +22,7 @@
  * @return The x position of the end of the character drawn
  */
 uint8_t ICACHE_FLASH_ATTR plotChar(uint8_t x, uint8_t y,
-                                   char character, sprite_t* table, color col)
+                                   char character, const sprite_t* table, color col)
 {
     if ('a' <= character && character <= 'z')
     {

@@ -92,7 +92,7 @@ const song_t testSong =
 
 static os_timer_t timerHandleBanana = {0};
 static uint8_t bananaIdx = 0;
-const sprite_t rotating_banana[] =
+const sprite_t rotating_banana[] ICACHE_RODATA_ATTR =
 {
     // frame_0_delay-0.07s.png
     {
