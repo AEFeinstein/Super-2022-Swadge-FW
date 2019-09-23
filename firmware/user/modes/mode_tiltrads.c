@@ -960,12 +960,13 @@ void ICACHE_FLASH_ATTR ttTitleDisplay(void)
     int leftLineXStart = GRID_X;
     int rightLineXStart = GRID_X + (GRID_UNIT_SIZE - 1) * GRID_WIDTH;
 
+    double lineSpeed = 1.0;
     
-    int firstLineProgressUS = stateTime % (2 * S_TO_MS_FACTOR * MS_TO_US_FACTOR);
-    double firstLineprogress = (double)firstLineProgressUS / (double)(2 * S_TO_MS_FACTOR * MS_TO_US_FACTOR);
+    int firstLineProgressUS = stateTime % (int)(lineSpeed * S_TO_MS_FACTOR * MS_TO_US_FACTOR);
+    double firstLineprogress = (double)firstLineProgressUS / (double)(lineSpeed * S_TO_MS_FACTOR * MS_TO_US_FACTOR);
 
-    int secondLineProgressUS = (stateTime + (1 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)) % (2 * S_TO_MS_FACTOR * MS_TO_US_FACTOR);
-    double secondLineprogress = (double)secondLineProgressUS / (double)(2 * S_TO_MS_FACTOR * MS_TO_US_FACTOR);
+    int secondLineProgressUS = (int)(stateTime + ((lineSpeed/2) * S_TO_MS_FACTOR * MS_TO_US_FACTOR)) % (int)(lineSpeed * S_TO_MS_FACTOR * MS_TO_US_FACTOR);
+    double secondLineprogress = (double)secondLineProgressUS / (double)(lineSpeed * S_TO_MS_FACTOR * MS_TO_US_FACTOR);
 
     int leftLineXProgress = firstLineprogress * GRID_X;
     int rightLineXProgress = firstLineprogress * (OLED_WIDTH - rightLineXStart);
