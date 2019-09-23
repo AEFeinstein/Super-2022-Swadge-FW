@@ -29,7 +29,6 @@
 #include "mode_reflector_game.h"
 #include "mode_random_d6.h"
 #include "mode_dance.h"
-#include "mode_flashlight.h"
 #include "mode_demo.h"
 #include "mode_snake.h"
 #include "mode_tiltrads.h"
@@ -76,7 +75,6 @@ swadgeMode* swadgeModes[] =
     &reflectorGameMode,
     &dancesMode,
     &randomD6Mode,
-    &flashlightMode,
     &rollMode,
     &mazeMode,
     &mazerfMode,
