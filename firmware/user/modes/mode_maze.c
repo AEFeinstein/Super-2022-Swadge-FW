@@ -139,7 +139,10 @@ float extendedScaledWallYbot[MAXNUMWALLS];
  *==========================================================================*/
 
 /**
- * Initializer for maze
+ * @brief Initializer for maze, allocates memory for work arrays
+ *
+ * @param
+ * @return pointers to the work array???
  */
 void ICACHE_FLASH_ATTR mazeEnterMode(void)
 {
