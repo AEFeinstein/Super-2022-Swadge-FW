@@ -26,7 +26,7 @@
 //NOTE in ode_solvers.h is #define of FLOATING float    or double to test
 //#define LEN_PENDULUM 1
 
-#define MAZE_DEBUG_PRINT
+//#define MAZE_DEBUG_PRINT
 #ifdef MAZE_DEBUG_PRINT
 #include <stdlib.h>
     #define maze_printf(...) os_printf(__VA_ARGS__)
@@ -60,7 +60,7 @@
 #define BTN_GAMEOVER_START_GAME RIGHT
 
 // update task info.
-#define UPDATE_TIME_MS 16 
+#define UPDATE_TIME_MS 100 
 
 // time info.
 #define MS_TO_US_FACTOR 1000
@@ -269,6 +269,8 @@ void ICACHE_FLASH_ATTR mzInit(void)
 	// Reset state stuff.
 	mzChangeState(MZ_TITLE);
 
+   // Construct Random Maze
+    mzNewMazeSetUp();
 
 	// Start the update loop.
     os_timer_disarm(&timerHandleUpdate);
@@ -289,8 +291,8 @@ void ICACHE_FLASH_ATTR mzButtonCallback(uint8_t state, int button __attribute__(
 
 void ICACHE_FLASH_ATTR mzAccelerometerCallback(accel_t* accel)
 {
-    mzAccel.x = accel->x;	// Set the accelerometer values
-    mzAccel.y = accel->y;
+    mzAccel.x = accel->y;	// Set the accelerometer values
+    mzAccel.y = accel->x;
     mzAccel.z = accel->z;
 }
 
@@ -426,8 +428,6 @@ void ICACHE_FLASH_ATTR mzTitleInput(void)
 
 void ICACHE_FLASH_ATTR mzGameInput(void)
 {
-    // Construct Random Maze
-    mzNewMazeSetUp();
 }
 
 void ICACHE_FLASH_ATTR mzScoresInput(void)
@@ -467,6 +467,8 @@ void ICACHE_FLASH_ATTR mzGameoverInput(void)
     //button a = start game
     if(mzIsButtonPressed(BTN_GAMEOVER_START_GAME))
     {
+        mazeFreeMemory();
+        mzNewMazeSetUp();
         mzChangeState(MZ_GAME);
     }
     //button b = go to title screen
@@ -1132,10 +1134,28 @@ uint8_t getTextWidth(char* text, fonts font)
 
     // We only get width info once we've drawn.
     // So we draw the text as inverse to get the width.
-    uint8_t textWidth = plotText(0, 0, text, font, INVERSE) - 1; // minus one accounts for the return being where the cursor is.
+    //uint8_t textWidth = plotText(0, 0, text, font, INVERSE) - 1; // minus one accounts for the return being where the cursor is.
 
     // Then we draw the inverse back over it to restore it.
-    plotText(0, 0, text, font, INVERSE);
+    //plotText(0, 0, text, font, INVERSE);
+
+    // Temp Approx Bug Fix
+    #include <string.h>
+    uint8_t textWidth;
+    switch (font)
+    {
+    case RADIOSTARS:
+        textWidth = 10.5 * strlen(text);
+        break;
+    case IBM_VGA_8:
+        textWidth = 7.4 * strlen(text);
+        break;
+    case TOM_THUMB:
+        textWidth = 3.6 * strlen(text);
+        break;
+    default:
+        break;
+    }
 
     return textWidth;
 }
