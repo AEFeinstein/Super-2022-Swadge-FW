@@ -18,14 +18,12 @@
 #include "mode_maze.h"
 #include "DFT32.h"
 #include "mazegen.h"
-//#include "embeddedout.h"
 #include "oled.h"
 #include "font.h"
 #include "MMA8452Q.h"
 #include "bresenham.h"
 #include "buttons.h"
 #include "math.h"
-#include "ode_solvers.h"
 
 /*============================================================================
  * Defines
@@ -113,6 +111,8 @@ float scycprev = 2.0;
 float scxcexit;
 float scycexit;
 float rballused = 5.0;
+int xadj;
+int yadj;
 uint16_t totalcyclestilldone;
 uint16_t totalhitstilldone;
 bool gameover;
@@ -147,16 +147,12 @@ float * extendedScaledWallYbot = NULL;
  */
 void ICACHE_FLASH_ATTR mazeEnterMode(void)
 {
+    //Allocate some working array memory now
     //TODO is memory being freed up appropriately?
     xleft = (uint8_t *)malloc (sizeof (uint8_t) * MAXNUMWALLS);
     xright = (uint8_t *)malloc (sizeof (uint8_t) * MAXNUMWALLS);
     ytop = (uint8_t *)malloc (sizeof (uint8_t) * MAXNUMWALLS);
     ybot = (uint8_t *)malloc (sizeof (uint8_t) * MAXNUMWALLS);
-
-    extendedScaledWallXleft = (float *)malloc (sizeof (float) * MAXNUMWALLS);
-    extendedScaledWallXright = (float *)malloc (sizeof (float) * MAXNUMWALLS);
-    extendedScaledWallYtop = (float *)malloc (sizeof (float) * MAXNUMWALLS);
-    extendedScaledWallYbot = (float *)malloc (sizeof (float) * MAXNUMWALLS);
 
     int16_t i;
     int16_t startvert = 0;
@@ -173,6 +169,7 @@ void ICACHE_FLASH_ATTR mazeEnterMode(void)
     enableDebounce(true);
     system_print_meminfo();
     os_printf("Free Heap %d\n", system_get_free_heap_size());
+    // get_maze allocates more memory, makes a random maze and then deallocates memory
     numwalls = get_maze(width, height, xleft, xright, ybot, ytop);
     // xleft, xright, ybot, ytop are lists of boundary intervals making maze
     numwallstodraw = numwalls;
@@ -189,6 +186,9 @@ void ICACHE_FLASH_ATTR mazeEnterMode(void)
 
     scxcexit = mazescalex * (width - 1) - rballused;
     scycexit = mazescaley * (height - 1) - rballused;
+    xadj = 0.5 + (127 - scxcexit - rballused)/2;
+    yadj = 0.5 + (63 - scycexit - rballused)/2;
+
     os_printf("exit (%d, %d)\n", (int)scxcexit, (int)scycexit);
 
     // print scaled walls
@@ -197,6 +197,15 @@ void ICACHE_FLASH_ATTR mazeEnterMode(void)
         maze_printf("i %d (%d, %d) to (%d, %d)\n", i, mazescalex*xleft[i], mazescaley*ybot[i], mazescalex*xright[i], mazescaley*ytop[i]);
     }
 
+    //Allocate some more working array memory now
+    //TODO is memory being freed up appropriately?
+
+    extendedScaledWallXleft = (float *)malloc (sizeof (float) * MAXNUMWALLS);
+    extendedScaledWallXright = (float *)malloc (sizeof (float) * MAXNUMWALLS);
+    extendedScaledWallYtop = (float *)malloc (sizeof (float) * MAXNUMWALLS);
+    extendedScaledWallYbot = (float *)malloc (sizeof (float) * MAXNUMWALLS);
+
+    os_printf("After Working Arrays allocated Free Heap %d\n", system_get_free_heap_size());
     // extend the scaled walls
     // extend walls by slightlyLessThanOne*rball and compute possible extra stopper walls
     // ONLY for horizontal and vertical walls. Could do for arbitrary but
@@ -298,7 +307,7 @@ int16_t ICACHE_FLASH_ATTR  incrementifnewhoriz(int16_t nwi, int16_t startind, in
 
 
 /**
- * Called when maze is exited
+ * Called when maze is exited or before making new maze
  */
 void ICACHE_FLASH_ATTR mazeFreeMemory(void)
 {
@@ -435,9 +444,10 @@ void ICACHE_FLASH_ATTR maze_updateDisplay(void)
     // Clear the display
     clearDisplay();
 
+    // Draw all walls of maze adjusted to be centered on screen
     for (int16_t i = 0; i < numwallstodraw; i++)
     {
-        plotLine(mazescalex*xleft[i], mazescaley*ybot[i], mazescalex*xright[i], mazescaley*ytop[i], WHITE);
+        plotLine(mazescalex*xleft[i]+xadj, mazescaley*ybot[i]+yadj, mazescalex*xright[i]+xadj, mazescaley*ytop[i]+yadj, WHITE);
     }
 
     //NOTE bug in Expressif OS can't print floating point! Must cast as int
@@ -468,14 +478,13 @@ void ICACHE_FLASH_ATTR maze_updateDisplay(void)
     scyc = yAccel/2 + 30; //yAccel/63  + 30
 #endif
 
-    // force values within screen range
+    // force values within outer wall
     // boundary walls should handle this
     // but don't seem to always do so this hack
-    // TODO will get different boundarys for various size mazes
-    scxc = min(scxc, 127.);
-    scxc = max(scxc, 0.0);
-    scyc = min(scyc, 63.);
-    scyc = max(scyc, 0.0);
+    //scxc = min(scxc, scxcexit);
+    //scxc = max(scxc, rballused);
+    //scyc = min(scyc, scycexit);
+    //scyc = max(scyc, rballused);
 
 
     /**************************************
@@ -484,9 +493,10 @@ void ICACHE_FLASH_ATTR maze_updateDisplay(void)
 
     //maze_printf("Entry for (%d, %d) to (%d, %d)\n", (int)(100*scxcprev), (int)(100*scycprev), (int)(100*scxc), (int)(100*scyc));
 
-    // Have at most two passes to find first hit of wall and adjust
+    // Take at most two passes to find first hit of wall and adjust if modified directions hits second time
     int16_t iused = -1;
     int16_t imin = -1;
+    bool hitwall = false;
 
     for (uint8_t k = 0; k < 2; k++)
     {
@@ -509,6 +519,7 @@ void ICACHE_FLASH_ATTR maze_updateDisplay(void)
             if ( gonethru(b_prev, b_now, p_1, p_2, rballused, b_nowadjusted, param) )
             {
                 gonethruany = true;
+                hitwall = true;
 
         //DEBUG
                 maze_printf("100x ******* i = %d \np(%d, %d), n(%d, %d)\nw1(%d, %d), w2(%d, %d)\nt=%d, s=%d, a(%d, %d)\n",i,  (int)(100*b_prev[0]), (int)(100*b_prev[1]), (int)(100*b_now[0]), (int)(100*b_now[1]), (int)(100*p_1[0]), (int)(100*p_1[1]), (int)(100*p_2[0]), (int)(100*p_2[1]), (int)(100*param[0]), (int)(100*param[1]), (int)(100*b_nowadjusted[0]), (int)(100*b_nowadjusted[1]));
@@ -556,8 +567,27 @@ void ICACHE_FLASH_ATTR maze_updateDisplay(void)
     // can keep a score of totaltime and totaltimehitting
     // can flash LED when touch
 
+    // TODO fix, only lighting blue when in corners
     totalcyclestilldone++;
-    if (gonethruany) totalhitstilldone++;
+    if (hitwall)
+    {
+        leds[1].g = 255;
+        totalhitstilldone++;
+    }
+
+if (gonethruany) //hit corner!
+    {
+        leds[2].b = 255;
+    }
+
+    // force values within outer wall 
+    // boundary walls should handle this
+    // Get rare teleportation
+    // but don't seem to always do so this hack
+    scxc = min(scxc, scxcexit);
+    scxc = max(scxc, rballused);
+    scyc = min(scyc, scycexit);
+    scyc = max(scyc, rballused);
 
     // Update previous location for next cycle
 
@@ -575,22 +605,22 @@ void ICACHE_FLASH_ATTR maze_updateDisplay(void)
         //TODO How to stop and save score and start new game
     }
 
-    // Draw the ball
+    // Draw the ball ajusted to fit in maze centerd on screen
 
     switch ((int)rballused - 1)
     {
         case 4:
-            plotCircle(scxc + 0.5, scyc + 0.5, 4, WHITE);
+            plotCircle(scxc + xadj, scyc + yadj, 4, WHITE);
         case 3:
-            plotCircle(scxc + 0.5, scyc + 0.5, 3, WHITE);
+            plotCircle(scxc + xadj, scyc + yadj, 3, WHITE);
         case 2:
-            plotCircle(scxc + 0.5, scyc + 0.5, 2, WHITE);
+            plotCircle(scxc + xadj, scyc + yadj, 2, WHITE);
         case 1:
-            if (flashcount < flashmax/2) plotCircle(scxc + 0.5, scyc + 0.5, 1, WHITE);
+            if (flashcount < flashmax/2) plotCircle(scxc + xadj, scyc + yadj, 1, WHITE);
             flashcount++;
             if (flashcount > flashmax) flashcount = 0;
     default:
-        plotCircle(scxc + 0.5, scyc + 0.5, 0, WHITE);
+        plotCircle(scxc + xadj, scyc + yadj, 0, WHITE);
     }
 
     // Light some LEDS
