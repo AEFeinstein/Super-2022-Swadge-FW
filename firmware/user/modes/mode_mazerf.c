@@ -9,6 +9,8 @@
 #include <osapi.h>
 #include <user_interface.h>
 #include "user_main.h"	//swadge mode
+#include "mode_mazerf.h"
+#include "DFT32.h"
 #include "buttons.h"
 #include "oled.h"		//display functions
 #include "font.h"		//draw text
@@ -16,7 +18,7 @@
 #include "linked_list.h" //custom linked list
 #include "custom_commands.h" //saving and loading high scores and last scores
 #include "mazegen.h"
-
+#include "math.h"
 
 /*============================================================================
  * Defines
@@ -46,8 +48,8 @@
 #define BTN_TITLE_START_GAME RIGHT
 
 // controls (game)
-#define BTN_GAME_ROTATE RIGHT
-#define BTN_GAME_DROP LEFT
+#define BTN_GAME_RIGHT RIGHT
+#define BTN_GAME_LEFT LEFT
 
 // controls (scores)
 #define BTN_SCORES_CLEAR_SCORES LEFT
@@ -67,33 +69,12 @@
 
 #define CLEAR_SCORES_HOLD_TIME (5 * MS_TO_US_FACTOR * MS_TO_S_FACTOR)
 
-// playfield settings.
-
-#define GRID_WIDTH 2
-#define GRID_HEIGHT 2
-
-// All of these are (* level)
-#define SCORE_SINGLE 100
-#define SCORE_DOUBLE 300
-
-// This is per cell.
-#define SCORE_SOFT_DROP 1
-// This is (* count * level)
-#define SCORE_COMBO 50
-
 #define NUM_MZ_HIGH_SCORES 3
+
 #define ACCEL_SEG_SIZE 25 // higher value more or less means less sensetive.
 #define ACCEL_JITTER_GUARD 14//7 // higher = less sensetive.
 
 // any enums go here.
-
-typedef enum
-{
-    A,	// title screen
-    B,	// play the actual game
-    C,	// high scores
-    D // game over
-} mazeType_t;
 
 typedef enum
 {
@@ -102,43 +83,6 @@ typedef enum
     MZ_SCORES,	// high scores
     MZ_GAMEOVER // game over
 } mazeState_t;
-
-typedef enum
-{
-    RANDOM,//Pure random
-    BAG,        //7 Bag
-    POOL  //35 Pool with 6 rolls
-} mazeRandomizer_t;
-
-static mazeRandomizer_t randomizer = POOL;//BAG;
-
-//BAG
-static int typeBag[3] = {1,2,3}; 
-static int bagIndex;
-
-//POOL
-static int typePool[35];
-static int typeHistory[4];
-static int firstType[4] = {1,2,3,4};
-list_t * typeOrder;
-
-uint32_t mazesGrid[GRID_HEIGHT][GRID_WIDTH];
-
-uint32_t nextMazeGrid[GRID_HEIGHT][GRID_WIDTH];
-
-
-// coordinates on the playfield grid, not the screen.
-typedef struct
-{
-    int c;
-    int r;
-} coord_t;
-
-typedef struct
-{
-    int c;
-    int r;
-} maze_t;
 
 
 // Title screen info.
@@ -162,6 +106,10 @@ void ICACHE_FLASH_ATTR mzInit(void);
 void ICACHE_FLASH_ATTR mzDeInit(void);
 void ICACHE_FLASH_ATTR mzButtonCallback(uint8_t state, int button, int down);
 void ICACHE_FLASH_ATTR mzAccelerometerCallback(accel_t* accel);
+
+// Set up workspace and make random maze
+void ICACHE_FLASH_ATTR mzNewMazeSetUp(void);
+void ICACHE_FLASH_ATTR mazeFreeMemory(void);
 
 // game loop functions.
 static void ICACHE_FLASH_ATTR mzUpdate(void* arg);
@@ -199,35 +147,45 @@ bool ICACHE_FLASH_ATTR mzIsButtonUp(uint8_t button);
 
 // drawing functions.
 static void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size, color col);
-static void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth], color col);
-static void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shapeWidth, uint8_t shapeHeight, uint32_t shape[][shapeWidth], color col);
+//static void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth], color col);
+//static void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shapeWidth, uint8_t shapeHeight, uint32_t shape[][shapeWidth], color col);
 static void ICACHE_FLASH_ATTR plotCenteredText(uint8_t x0, uint8_t y, uint8_t x1, char* text, fonts font, color col);
 static uint8_t getTextWidth(char* text, fonts font);
 
 // randomizer operations.
-static void ICACHE_FLASH_ATTR initTypeOrder(void);
-static void ICACHE_FLASH_ATTR clearTypeOrder(void);
-static void ICACHE_FLASH_ATTR deInitTypeOrder(void);
-static void ICACHE_FLASH_ATTR initMazeRandomizer(mazeRandomizer_t randomType);
-static int ICACHE_FLASH_ATTR getNextMazeType(mazeRandomizer_t randomType, int index);
-static void shuffle(int length, int array[length]);
-
-static uint32_t ICACHE_FLASH_ATTR getDropTime(uint32_t level);
-
+void mzshuffle(int length, int array[length]);
 // score operations.
 static void loadHighScores(void);
 static void saveHighScores(void);
 static bool updateHighScores(uint32_t newScore);
 
+// Additional Helper
+void ICACHE_FLASH_ATTR setmazeLeds(led_t* ledData, uint8_t ledDataLen);
+int16_t ICACHE_FLASH_ATTR get_maze(uint8_t width, uint8_t height, uint8_t xleft[], uint8_t xright[], uint8_t ybot[], uint8_t ytop[]);
+uint8_t ICACHE_FLASH_ATTR intervalsmeet(float a,float c,float b,float d,float e,float f, float param[]);
+uint8_t ICACHE_FLASH_ATTR  gonethru(float b_prev[], float b_now[], float p_1[], float p_2[], float rball, float b_nowadjusted[], float param[]);
+int16_t ICACHE_FLASH_ATTR  incrementifnewvert(int16_t nwi, int16_t startind, int16_t endind);
+int16_t ICACHE_FLASH_ATTR  incrementifnewhoriz(int16_t nwi, int16_t startind, int16_t endind);
+
+
+/*============================================================================
+ * Static Const Variables
+ *==========================================================================*/
+
+static const uint8_t mazeBrightnesses[] =
+{
+    0x01,
+    0x08,
+    0x40,
+    0x80,
+};
+
+/*============================================================================
+ * Variables
+ *==========================================================================*/
+
+
 // game logic operations.
-static void ICACHE_FLASH_ATTR initLandedMazes(void);
-static void ICACHE_FLASH_ATTR clearLandedMazes(void);
-static void ICACHE_FLASH_ATTR deInitLandedMazes(void);
-
-static bool ICACHE_FLASH_ATTR isLineCleared(int line, uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth]);
-static int ICACHE_FLASH_ATTR checkLineClears(uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth]);
-
-static bool ICACHE_FLASH_ATTR checkCollision(coord_t newPos, uint8_t shapeWidth, uint8_t shapeHeight, uint32_t shape[][shapeWidth], uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth], uint32_t selfGridValue);
 
 swadgeMode mazerfMode = 
 {
@@ -249,6 +207,9 @@ accel_t mzLastTestAccel = {0};
 uint8_t mzButtonState = 0;
 uint8_t mzLastButtonState = 0;
 
+uint8_t mazeBrightnessIdx = 2;
+led_t leds[NUM_LIN_LEDS] = {{0}};
+int maze_ledCount = 0;
 static os_timer_t timerHandleUpdate = {0};
 
 static uint32_t modeStartTime = 0; // time mode started in microseconds.
@@ -259,10 +220,47 @@ static uint32_t stateTime = 0;	// total time the game has been running.
 
 static mazeState_t currState = MZ_TITLE;
 
+
+float xAccel;
+float yAccel;
+float zAccel;
+float len;
+float scxc;
+float scyc;
+float scxcprev = 2.0;
+float scycprev = 2.0;
+float scxcexit;
+float scycexit;
+float rballused = 5.0;
+int xadj;
+int yadj;
+uint16_t totalcyclestilldone;
+uint16_t totalhitstilldone;
+bool gameover;
+
+uint8_t width = 7;
+uint8_t height = 3; //Maze dimensions must be odd>1 probably for OLED use 31 15
+uint8_t mazescalex = 1;
+uint8_t mazescaley = 1;
+int16_t numwalls;
+int16_t numwallstodraw;
+uint8_t * xleft = NULL;
+uint8_t * xright = NULL;
+uint8_t * ytop = NULL;
+uint8_t * ybot = NULL;
+uint8_t flashcount = 0;
+uint8_t flashmax = 4;
+
+float * extendedScaledWallXleft = NULL;
+float * extendedScaledWallXright = NULL;
+float * extendedScaledWallYtop = NULL;
+float * extendedScaledWallYbot = NULL;
+
+
 void ICACHE_FLASH_ATTR mzInit(void)
 {
-    // Give us responsive input.
-	enableDebounce(false);	
+    // Give us reliable button input.
+	enableDebounce(true);
 	
 	// Reset mode time tracking.
 	modeStartTime = system_get_time();
@@ -271,9 +269,6 @@ void ICACHE_FLASH_ATTR mzInit(void)
 	// Reset state stuff.
 	mzChangeState(MZ_TITLE);
 
-    // Grab any memory we need.
-    //initLandedMazes();
-    //initTypeOrder();
 
 	// Start the update loop.
     os_timer_disarm(&timerHandleUpdate);
@@ -283,9 +278,8 @@ void ICACHE_FLASH_ATTR mzInit(void)
 
 void ICACHE_FLASH_ATTR mzDeInit(void)
 {
+    mazeFreeMemory();
 	os_timer_disarm(&timerHandleUpdate);
-    //deInitLandedMazes();
-    //deInitTypeOrder();
 }
 
 void ICACHE_FLASH_ATTR mzButtonCallback(uint8_t state, int button __attribute__((unused)), int down __attribute__((unused)))
@@ -298,6 +292,24 @@ void ICACHE_FLASH_ATTR mzAccelerometerCallback(accel_t* accel)
     mzAccel.x = accel->x;	// Set the accelerometer values
     mzAccel.y = accel->y;
     mzAccel.z = accel->z;
+}
+
+/**
+ * Intermediate function which adjusts brightness and sets the LEDs
+ *
+ * @param ledData    The LEDs to be scaled, then set
+ * @param ledDataLen The length of the LEDs to set
+ */
+void ICACHE_FLASH_ATTR setmazeLeds(led_t* ledData, uint8_t ledDataLen)
+{
+    uint8_t i;
+    for(i = 0; i < ledDataLen / sizeof(led_t); i++)
+    {
+        ledData[i].r = ledData[i].r / mazeBrightnesses[mazeBrightnessIdx];
+        ledData[i].g = ledData[i].g / mazeBrightnesses[mazeBrightnessIdx];
+        ledData[i].b = ledData[i].b / mazeBrightnesses[mazeBrightnessIdx];
+    }
+    setLeds(ledData, ledDataLen);
 }
 
 static void ICACHE_FLASH_ATTR mzUpdate(void* arg __attribute__((unused)))
@@ -414,24 +426,8 @@ void ICACHE_FLASH_ATTR mzTitleInput(void)
 
 void ICACHE_FLASH_ATTR mzGameInput(void)
 {
-    //Refresh the mazes grid.
-    //refreshMazesGrid(false);
-
-	//button a = rotate piece
-    //if(mzIsButtonPressed(BTN_GAME_ROTATE))
-    //{
-    //}
-
-    //button b = soft drop piece
-    //if(mzIsButtonDown(BTN_GAME_DROP))
-    //{
-    //    softDropMaze();
-    //}
-
-    // Only move mazes left and right when the fast drop button isn't being held down.
-    //if(mzIsButtonUp(BTN_GAME_DROP))
-    //{
-    //}
+    // Construct Random Maze
+    mzNewMazeSetUp();
 }
 
 void ICACHE_FLASH_ATTR mzScoresInput(void)
@@ -486,8 +482,145 @@ void ICACHE_FLASH_ATTR mzTitleUpdate(void)
 
 void ICACHE_FLASH_ATTR mzGameUpdate(void)
 {
-    //Refresh the mazes grid.
-    //refreshMazesGrid(false);
+    float param[2];
+    bool gonethruany;
+    // Smooth accelerometer readings
+    xAccel = 0.9*xAccel + 0.1*mzAccel.x;
+    yAccel = 0.9*yAccel + 0.1*mzAccel.y;
+    zAccel = 0.9*zAccel + 0.1*mzAccel.z;
+
+    #define GETVELOCITY
+    #ifdef GETVELOCITY
+    // Accelerometer determines velocity and does one euler step with dt = .1
+    scxc = scxcprev + 0.1 * mzAccel.x;
+    scyc = scycprev + 0.1 * mzAccel.y;
+    // Smoothed accelerometer determining velocity puts inertia makes bit harder to control
+    //scxc = scxcprev + 0.1 * xAccel;
+    //scyc = scycprev + 0.1 * yAccel;
+    #else
+    // Smoothed accelerometer determines position on screen
+    // want -63 to 63 to go approx from 0 to 124 for scxc and 60 to 0 for scyc
+    scxc = xAccel + 62; //xAccel/63 * 62 + 62
+    scyc = yAccel/2 + 30; //yAccel/63  + 30
+    #endif
+
+    /**************************************
+    //Keep ball within maze boundaries.
+    **************************************/
+
+    //maze_printf("Entry for (%d, %d) to (%d, %d)\n", (int)(100*scxcprev), (int)(100*scycprev), (int)(100*scxc), (int)(100*scyc));
+
+    // Take at most two passes to find first hit of wall and adjust if modified directions hits second time
+    int16_t iused = -1;
+    int16_t imin = -1;
+    bool hitwall = false;
+
+    for (uint8_t k = 0; k < 2; k++)
+    {
+        float b_prev[2] = {scxcprev, scycprev};
+        float b_now[2] = {scxc, scyc};
+        float b_nowadjusteduse[2] = {scxc, scyc};
+        float closestintersection[] = {0, 0};
+        gonethruany = false;
+        float smin = 2;
+        for (int16_t i = 0; i < numwalls; i++)
+        {
+            if (i == iused)
+            {
+                continue;
+            }
+
+            float p_1[2] = {extendedScaledWallXleft[i], extendedScaledWallYbot[i]};
+            float p_2[2] = {extendedScaledWallXright[i], extendedScaledWallYtop[i]};
+            float b_nowadjusted[2];
+            if ( gonethru(b_prev, b_now, p_1, p_2, rballused, b_nowadjusted, param) )
+            {
+                gonethruany = true;
+                hitwall = true;
+
+        //DEBUG
+                maze_printf("100x ******* i = %d \np(%d, %d), n(%d, %d)\nw1(%d, %d), w2(%d, %d)\nt=%d, s=%d, a(%d, %d)\n",i,  (int)(100*b_prev[0]), (int)(100*b_prev[1]), (int)(100*b_now[0]), (int)(100*b_now[1]), (int)(100*p_1[0]), (int)(100*p_1[1]), (int)(100*p_2[0]), (int)(100*p_2[1]), (int)(100*param[0]), (int)(100*param[1]), (int)(100*b_nowadjusted[0]), (int)(100*b_nowadjusted[1]));
+        #ifdef MAZE_DEBUG_PRINT
+                int xmeet1, xmeet2, ymeet1, ymeet2;
+                xmeet1 = 100*(b_prev[0] + param[1] * (b_now[0] - b_prev[0]));
+                ymeet1 = 100*(b_prev[1] + param[1] * (b_now[1] - b_prev[1]));
+                xmeet2 = 100*(p_1[0] + param[0] * (p_2[0] - p_1[0]));
+                ymeet2 = 100*(p_1[1] + param[0] * (p_2[1] - p_1[1]));
+                maze_printf("on motion vector meet (%d, %d) =? (%d, %d) on boundary\n\n", xmeet1, ymeet1, xmeet2, ymeet2);
+        #endif
+                if (param[1] < smin)
+                {
+                    smin = param[1];
+                    b_nowadjusteduse[0] = b_nowadjusted[0];
+                    b_nowadjusteduse[1] = b_nowadjusted[1];
+                    closestintersection[0] = b_prev[0] + param[1] * (b_now[0] - b_prev[0]);
+                    closestintersection[1] = b_prev[1] + param[1] * (b_now[1] - b_prev[1]);
+                    imin = i;
+                }
+            }
+        } // end loop in i going thru walls checking to find closest intersection
+        iused = imin;
+        if (gonethruany)
+        {
+            //if (k==1)
+            if (true)
+            {
+                scxc = b_nowadjusteduse[0];
+                scyc = b_nowadjusteduse[1];
+                scxcprev = closestintersection[0];
+                scycprev = closestintersection[1];
+            } else {
+                scxc = closestintersection[0];
+                scyc = closestintersection[1];
+            }
+        } else {
+            break;
+        }
+        maze_printf("pass %d end at (%d, %d)\n", k, (int)(100*scxc), (int)(100*scyc));
+        maze_printf("    closest intersection at wall %d with s = %d at (%d, %d)\n", iused, (int)(100*smin), (int)(100*closestintersection[0]), (int)(100*closestintersection[1]));
+
+    } // end two try loop
+
+    // balls new coordinates scxc, scyc were adjusted if gonethruany is true
+    // can keep a score of totaltime and totaltimehitting
+    // can flash LED when touch
+
+    totalcyclestilldone++;
+    if (hitwall)
+    {
+        leds[1].g = 255;
+        totalhitstilldone++;
+    }
+
+    if (gonethruany) //hit corner!
+    {
+            leds[2].b = 255;
+    }
+
+    // force values within outer wall
+    // boundary walls should handle this
+    // Get rare teleportation
+    // but don't seem to always do so this hack
+    scxc = min(scxc, scxcexit);
+    scxc = max(scxc, rballused);
+    scyc = min(scyc, scycexit);
+    scyc = max(scyc, rballused);
+
+    // Update previous location for next cycle
+
+    scxcprev = scxc;
+    scycprev = scyc;
+
+    // Test if at exit (bottom right corner) thus finished
+
+    if ((scxc == scxcexit) && (scyc == scycexit))
+    {
+        leds[0].r = 255;
+        // Compute score
+        os_printf("Time to complete maze %d, time on walls %d\n",totalcyclestilldone, totalhitstilldone);
+        gameover = true;
+        mzChangeState(MZ_GAMEOVER);
+    }
 }
 
 void ICACHE_FLASH_ATTR mzScoresUpdate(void)
@@ -519,13 +652,32 @@ void ICACHE_FLASH_ATTR mzGameDisplay(void)
     // Clear the display
     clearDisplay();
 
-    // Draw the active maze.
-    
-    // Clear the grid data (may not want to do this every frame)
-    //refreshMazesGrid(true);
+    // Draw all walls of maze adjusted to be centered on screen
+    for (int16_t i = 0; i < numwallstodraw; i++)
+    {
+        plotLine(mazescalex*xleft[i]+xadj, mazescaley*ybot[i]+yadj, mazescalex*xright[i]+xadj, mazescaley*ytop[i]+yadj, WHITE);
+    }
 
-    // Draw the background grid. NOTE: (make sure everything that needs to be in mazesGrid is in there now).
- 
+    // Draw the ball ajusted to fit in maze centerd on screen
+
+    switch ((int)rballused - 1)
+    {
+        case 4:
+            plotCircle(scxc + xadj, scyc + yadj, 4, WHITE);
+        case 3:
+            plotCircle(scxc + xadj, scyc + yadj, 3, WHITE);
+        case 2:
+            plotCircle(scxc + xadj, scyc + yadj, 2, WHITE);
+        case 1:
+            if (flashcount < flashmax/2) plotCircle(scxc + xadj, scyc + yadj, 1, WHITE);
+            flashcount++;
+            if (flashcount > flashmax) flashcount = 0;
+    default:
+        plotCircle(scxc + xadj, scyc + yadj, 0, WHITE);
+    }
+
+    setmazeLeds(leds, sizeof(leds));
+
     newHighScore = score > highScores[0];
     plotCenteredText(0, 0, 10, newHighScore ? "HIGH (NEW!)" : "HIGH", TOM_THUMB, WHITE);
 }
@@ -616,6 +768,158 @@ void ICACHE_FLASH_ATTR mzGameoverDisplay(void)
 
 // helper functions.
 
+/**
+ * @brief Initializer for maze, allocates memory for work arrays
+ *
+ * @param
+ * @return pointers to the work array???
+ */
+void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
+{
+    //Allocate some working array memory now
+    //TODO is memory being freed up appropriately?
+    xleft = (uint8_t *)malloc (sizeof (uint8_t) * MAXNUMWALLS);
+    xright = (uint8_t *)malloc (sizeof (uint8_t) * MAXNUMWALLS);
+    ytop = (uint8_t *)malloc (sizeof (uint8_t) * MAXNUMWALLS);
+    ybot = (uint8_t *)malloc (sizeof (uint8_t) * MAXNUMWALLS);
+
+    int16_t i;
+    int16_t startvert = 0;
+    totalcyclestilldone = 0;
+    totalhitstilldone = 0;
+    gameover = false;
+    // initial position upper left corner
+    scxcprev = rballused;
+    scycprev = rballused;
+    // set these accelerometer readings consistant with starting at scxcprev and scycprev
+    xAccel = rballused - 64;
+    yAccel = -2 * (rballused - 30);
+
+    enableDebounce(true);
+    system_print_meminfo();
+    os_printf("Free Heap %d\n", system_get_free_heap_size());
+    // get_maze allocates more memory, makes a random maze and then deallocates memory
+    numwalls = get_maze(width, height, xleft, xright, ybot, ytop);
+    // xleft, xright, ybot, ytop are lists of boundary intervals making maze
+    numwallstodraw = numwalls;
+    mazescalex = 127/width; //63,31,15,7
+    mazescaley = 63/height; //31,15,7,3
+    // for width 63 height 31 wx vary from 0, 4, 8, ..., 124  and wy vary from 0, 4, ... 60   radius 1 ball
+    //           31        15         from 0, 8, 16, ..., 120                  0, 8, ..., 56  radius 2 ball
+    //           15         7 wx      from 0, 16, ... , 112       wy           0, 16, ..., 48 radius 3 ball
+    //            7         3         from 0, 32, ..., 96                      0, 32, ...  radius 4 ball
+    maze_printf("width:%d, height:%d mscx:%d mscy:%d\n", width, height, mazescalex, mazescaley);
+    if (numwalls > MAXNUMWALLS) os_printf("numwalls = %d exceeds MAXNUMWALLS = %d", numwalls, MAXNUMWALLS);
+
+    // exit is bottom right corner
+
+    scxcexit = mazescalex * (width - 1) - rballused;
+    scycexit = mazescaley * (height - 1) - rballused;
+    xadj = 0.5 + (127 - scxcexit - rballused)/2;
+    yadj = 0.5 + (63 - scycexit - rballused)/2;
+
+    os_printf("exit (%d, %d)\n", (int)scxcexit, (int)scycexit);
+
+    // print scaled walls
+    for (i = 0; i < numwalls; i++)
+    {
+        maze_printf("i %d (%d, %d) to (%d, %d)\n", i, mazescalex*xleft[i], mazescaley*ybot[i], mazescalex*xright[i], mazescaley*ytop[i]);
+    }
+
+    //Allocate some more working array memory now
+    //TODO is memory being freed up appropriately?
+
+    extendedScaledWallXleft = (float *)malloc (sizeof (float) * MAXNUMWALLS);
+    extendedScaledWallXright = (float *)malloc (sizeof (float) * MAXNUMWALLS);
+    extendedScaledWallYtop = (float *)malloc (sizeof (float) * MAXNUMWALLS);
+    extendedScaledWallYbot = (float *)malloc (sizeof (float) * MAXNUMWALLS);
+
+    os_printf("After Working Arrays allocated Free Heap %d\n", system_get_free_heap_size());
+    // extend the scaled walls
+    // extend walls by slightlyLessThanOne*rball and compute possible extra stopper walls
+    // ONLY for horizontal and vertical walls. Could do for arbitrary but
+    // would first need to compute perpendicular vectors and use them. 
+    // extending by rball I think guarantees no passing thru corners, but also
+    // causes sticking above T junctions in maze.
+    // NOTE using slightlyLessThanOne*rball prevents sticking but has very small probability
+    // to telport at corners extend walls
+    const float slightlyLessThanOne = 1.0 - 1.0/128.; // used 0.99
+    for (i = 0; i < numwalls; i++)
+    {
+        if (mazescaley * ybot[i] == mazescaley * ytop[i]) // horizontal wall
+        {
+            extendedScaledWallYbot[i] = mazescaley * ybot[i];
+            extendedScaledWallYtop[i] = mazescaley * ytop[i];
+            extendedScaledWallXleft[i] = mazescalex * xleft[i] - slightlyLessThanOne * rballused;
+            extendedScaledWallXright[i] = mazescalex * xright[i] + slightlyLessThanOne * rballused;
+        } else {
+            if ((mazescaley * ybot[i] < mazescaley * ytop[i]) && (startvert==0))
+            {
+                startvert = i;
+            }
+            extendedScaledWallXleft[i] = mazescalex * xleft[i];
+            extendedScaledWallXright[i] = mazescalex * xright[i];
+            extendedScaledWallYbot[i] = mazescaley * ybot[i] - slightlyLessThanOne*rballused;
+            extendedScaledWallYtop[i] = mazescaley * ytop[i] + slightlyLessThanOne*rballused;
+        }
+    }
+    int16_t nwi = numwalls; //new wall index starts here
+    // A wall that extends into the interior and not joined to another wall needs a small
+    // 'stopper' wall to cross it near the end.
+    // find and keep only stopper walls that are not contained in any of the extended walls
+    maze_printf("startvert = %d\n", startvert);
+
+    for (i = 0; i < numwalls; i++)
+    {
+        if (mazescaley * ybot[i] == mazescaley * ytop[i]) // horizontal wall
+        {
+            // possible extra vertical walls crossing either end
+            extendedScaledWallXleft[nwi] = mazescalex * xleft[i];
+            extendedScaledWallYbot[nwi] = mazescaley * ybot[i] - slightlyLessThanOne*rballused;
+            extendedScaledWallXright[nwi] = mazescalex * xleft[i];
+            extendedScaledWallYtop[nwi] = mazescaley * ybot[i] + slightlyLessThanOne*rballused;
+            nwi = incrementifnewvert(nwi, startvert, numwalls); //, extendedScaledWallXleft, extendedScaledWallYbot, extendedScaledWallXright, extendedScaledWallYtop);
+            extendedScaledWallXleft[nwi] = mazescalex * xright[i];
+            extendedScaledWallYbot[nwi] = mazescaley * ybot[i] - slightlyLessThanOne*rballused;
+            extendedScaledWallXright[nwi] =mazescalex * xright[i];
+            extendedScaledWallYtop[nwi] = mazescaley * ybot[i] + slightlyLessThanOne*rballused;
+            nwi = incrementifnewvert(nwi, startvert, numwalls); //, extendedScaledWallXleft, extendedScaledWallYbot, extendedScaledWallXright, extendedScaledWallYtop);
+        } else {
+            // possible extra horizontal walls crossing either end
+            extendedScaledWallXleft[nwi] = mazescalex * xleft[i]- slightlyLessThanOne*rballused;
+            extendedScaledWallYbot[nwi] = mazescaley * ybot[i];
+            extendedScaledWallXright[nwi] = mazescalex * xleft[i] + slightlyLessThanOne*rballused;
+            extendedScaledWallYtop[nwi] = mazescaley * ybot[i];
+            nwi = incrementifnewhoriz(nwi, 0, startvert); //, extendedScaledWallXleft, extendedScaledWallYbot, extendedScaledWallXright, extendedScaledWallYtop);
+            extendedScaledWallXleft[nwi] = mazescalex * xleft[i]- slightlyLessThanOne*rballused;
+            extendedScaledWallYbot[nwi] = mazescaley * ytop[i];
+            extendedScaledWallXright[nwi] = mazescalex * xleft[i] + slightlyLessThanOne*rballused;
+            extendedScaledWallYtop[nwi] = mazescaley * ytop[i];
+            nwi = incrementifnewhoriz(nwi, 0, startvert); //, extendedScaledWallXleft, extendedScaledWallYbot, extendedScaledWallXright, extendedScaledWallYtop);
+        }
+    }
+    if (nwi > MAXNUMWALLS) os_printf("nwi = %d exceeds MAXNUMWALLS = %d", nwi, MAXNUMWALLS);
+    maze_printf("orginal numwalls = %d, with stoppers have %d\n", numwalls, nwi);
+    // update numwalls
+    numwalls = nwi;
+}
+
+/**
+ * Called when maze is exited or before making new maze
+ */
+void ICACHE_FLASH_ATTR mazeFreeMemory(void)
+{
+    free(xleft);
+    free(xright);
+    free(ytop);
+    free(ybot);
+    free(extendedScaledWallXleft);
+    free(extendedScaledWallXright);
+    free(extendedScaledWallYbot);
+    free(extendedScaledWallYtop);
+}
+
+
 void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState)
 {
 	currState = newState;
@@ -632,7 +936,6 @@ void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState)
             loadHighScores();
             // TODO: should I be seeding this, or re-seeding this, and if so, with what?
             srand((uint32_t)(mzAccel.x + mzAccel.y * 3 + mzAccel.z * 5)); // Seed the random number generator.
-            initMazeRandomizer(randomizer);        
             break;
         case MZ_SCORES:
             loadHighScores();
@@ -671,106 +974,135 @@ bool ICACHE_FLASH_ATTR mzIsButtonUp(uint8_t button)
     return !(mzButtonState & button);
 }
 
-/*
-static void ICACHE_FLASH_ATTR copyGrid(coord_t srcOffset, uint8_t srcWidth, uint8_t srcHeight, uint32_t src[][srcWidth], uint8_t dstWidth, uint8_t dstHeight, uint32_t dst[][dstWidth])
+
+int16_t ICACHE_FLASH_ATTR  incrementifnewvert(int16_t nwi, int16_t startind, int16_t endind)
 {
-    for (int r = 0; r < srcHeight; r++)
+// nwi is new vertical wall index
+// increment nwi only if no extended vertical walls contain it.
+    for (int16_t i = startind; i < endind; i++)
     {
-        for (int c = 0; c < srcWidth; c++)
+        if ((extendedScaledWallXright[nwi] == extendedScaledWallXright[i]) && (extendedScaledWallYbot[i] <= extendedScaledWallYbot[nwi]) && (extendedScaledWallYtop[i] >= extendedScaledWallYtop[nwi]))
         {
-            int dstC = c + srcOffset.c;
-            int dstR = r + srcOffset.r;
-            if (dstC < dstWidth && dstR < dstHeight) dst[dstR][dstC] = src[r][c];
+            // found containing extended vertical wall
+            return nwi;
         }
     }
+    return nwi + 1;
 }
 
-static void ICACHE_FLASH_ATTR transferGrid(coord_t srcOffset, uint8_t srcWidth, uint8_t srcHeight, uint32_t src[][srcWidth], uint8_t dstWidth, uint8_t dstHeight, uint32_t dst[][dstWidth], uint32_t transferVal)
+int16_t ICACHE_FLASH_ATTR  incrementifnewhoriz(int16_t nwi, int16_t startind, int16_t endind)
 {
-    for (int r = 0; r < srcHeight; r++)
+// nwi is  new horizontal wall index
+// increment nwi only if no extended horizontal walls contain it.
+    for (int16_t i = startind; i < endind; i++)
     {
-        for (int c = 0; c < srcWidth; c++)
+        if ((extendedScaledWallYtop[nwi] == extendedScaledWallYtop[i]) && (extendedScaledWallXleft[i] <= extendedScaledWallXleft[nwi]) && (extendedScaledWallXright[i] >= extendedScaledWallXright[nwi]))
         {
-            int dstC = c + srcOffset.c;
-            int dstR = r + srcOffset.r;
-            if (dstC < dstWidth && dstR < dstHeight) 
-            {
-                if (src[r][c] != EMPTY)
-                {
-                    dst[dstR][dstC] = transferVal;
-                }
-            }
+            // found containing extended horizontal wall
+            return nwi;
         }
     }
+    return nwi + 1;
 }
 
-static void ICACHE_FLASH_ATTR clearGrid(uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth])
-{
-    for (int y = 0; y < gridHeight; y++)
-    {
-        for (int x = 0; x < gridWidth; x++)
-        {
-            gridData[y][x] = EMPTY;
-        }
-    }
-}
-
-void ICACHE_FLASH_ATTR refreshMazesGrid(bool includeActive)
-{
-}
-
-// This assumes only complete mazes can be rotated.
-void ICACHE_FLASH_ATTR rotateMaze(maze_t * maze)
-{
-}
-
-void ICACHE_FLASH_ATTR softDropMaze()
-{
-}
-
-void ICACHE_FLASH_ATTR moveMaze(maze_t * maze)
-{
-}
-
-bool ICACHE_FLASH_ATTR dropMaze(maze_t * maze)
-{
-    return 1;
-}
-*/
-
-
-//maze_t ICACHE_FLASH_ATTR spawnMaze(mazeType_t type, uint32_t gridValue, coord_t gridCoord, int rotation)
-//{
-//    maze_t x;
-//    return x;
-//}
-
-//void ICACHE_FLASH_ATTR spawnNextMaze(maze_t * newMaze, mazeRandomizer_t randomType, uint32_t gridValue)
-//{
-//}
 
 void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size, color col)
 {
     plotRect(x0, y0, x0 + (size - 1), y0 + (size - 1), col);
 }
 
-void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth], color col)
-{
-    // Draw the border
-    plotRect(x0, y0, x0 + (unitSize - 1) * gridWidth, y0 + (unitSize - 1) * gridHeight, col);
 
-    // Draw points for grid (maybe disable when not debugging)
-    for (int y = 0; y < gridHeight; y++)
-    {
-        for (int x = 0; x < gridWidth; x++) 
-        {
-            //if (gridData[y][x] == EMPTY) drawPixel(x0 + x * (unitSize - 1) + (unitSize / 2), y0 + y * (unitSize - 1) + (unitSize / 2), WHITE);
-        }
-    }
+/**
+ * Linear Alg Find Intersection of line segments
+ */
+
+uint8_t ICACHE_FLASH_ATTR intervalsmeet(float a,float c,float b,float d,float e,float f, float param[])
+{
+    // given two points p_1, p_2 in the (x,y) plane specifying a line interval from p_1 to p_2
+    //.    parameterized by t
+    // a moving object which was at b_prev and is currently at b_now
+    // returns true if the object crossed the line interval
+    // this can also be useful if want the line interval to be a barrier by
+    //    reverting to b_prev
+    // the column vector [a,c] is p_2 - p_1
+    // the column vector [b,d] is b_now - b_prev
+    // the column vector [e,f] is vector from p_1 to b_prev =  b_prev - p_1
+    // looking for parametric solution to
+    // p_1 + t(p_2 - p_1) = b_prev + s(b_now - b_prev) with 0<= t,s <= 1
+    // if (a -b)(t)  (e)
+    //    (c -d)(s)  (f) has unique solution with 0<= t,s <= 1
+    // param = [t, s]
+    // returns True
+
+    float det = -a*d + b*c;
+    if (det == 0) return false;
+    float t = (-e*d + f*b) / det; // t is param of interval
+    float s = (a*f - c*e) / det; //s is param of interval from b_prev to b_now
+    param[0] = t;
+    param[1] = s;
+    //if ((t < -0.05) || (t > 1.05)) return false;
+    //if ((s < -0.05) || (s > 1.05)) return false;
+    if ((t < 0) || (t > 1)) return false;
+    if ((s < 0) || (s > 1)) return false;
+    //maze_printf("t = %d, s = %d\n", (int8_t) (100*t), (int8_t) (100*s));
+    return true;
 }
 
-void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shapeWidth, uint8_t shapeHeight, uint32_t shape[][shapeWidth], color col)
-{   
+uint8_t ICACHE_FLASH_ATTR  gonethru(float b_prev[], float b_now[], float p_1[], float p_2[], float rball, float b_nowadjusted[], float param[])
+{
+    // given two points p_1, p_2 in the (x,y) plane specifying a line interval from p_1 to p_2
+    // a moving object (ball of radius rball, or point if rball is None)
+    // whos center was at b_prev and is currently at b_now
+    // returns true if the balls leading (in direction of travel) boundary crossed the line interval
+    // this can also be useful if want the line interval to be a barrier by
+    //    reverting to b_prev
+    // b_nowadjusted is mutable list which is the point moved back to inside boundary
+    float pperp[2];
+    // param vector if an intersection {t, s} where t parameterizes from p_1 to p_2 and s b_prev to b_now
+    //float param[2];
+    uint8_t didgothru;
+
+    b_nowadjusted[0] = b_now[0];
+    b_nowadjusted[1] = b_now[1];
+    //TODO could compute ppperp in mazeEnterMode to save time but take more space
+    pperp[0] = p_2[1]-p_1[1];
+    pperp[1] = p_1[0]-p_2[0];
+
+    float pperplen = sqrt(pperp[0] * pperp[0] + pperp[1] * pperp[1]);
+
+    if (pperplen == 0.0) return false;
+    //if (pperplen == 0.0) {os_printf("P"); return false;} // should never happen here as using walls which all have pos length
+
+    pperp[0] = pperp[0] / pperplen; // make unit vector
+    pperp[1] = pperp[1] / pperplen; // make unit vector
+
+
+    float testdir = pperp[0] * (b_now[0] - b_prev[0]) + pperp[1] * (b_now[1] - b_prev[1]);
+    if (testdir == 0.0) return false;
+    //if (testdir == 0.0) {os_printf("T"); return false;} // happens when touching boundary but not for largest maze
+
+    //b_nowadjusted[0] = b_now[0] - testdir * pperp[0];
+    //b_nowadjusted[1] = b_now[1] - testdir * pperp[1];
+
+    //os_printf("%d ", (int)(1000*testdir));
+
+    if (testdir > 0) // > for leading edge , < for trailing edge
+        didgothru =  intervalsmeet(p_2[0]-p_1[0], p_2[1]-p_1[1], b_now[0]-b_prev[0], b_now[1]-b_prev[1], b_prev[0] + rball*pperp[0] - p_1[0], b_prev[1] + rball*pperp[1] - p_1[1], param);
+    else
+        didgothru = intervalsmeet(p_2[0]-p_1[0], p_2[1]-p_1[1], b_now[0]-b_prev[0], b_now[1]-b_prev[1], b_prev[0] - rball*pperp[0] - p_1[0], b_prev[1] - rball*pperp[1] - p_1[1], param);
+
+    if (didgothru)
+    {
+         // Adjust back to previous point ie ignore movement - TOO choppy
+         //b_nowadjusted[0] = b_prev[0];
+         //b_nowadjusted[1] = b_prev[1];
+         // Could adjust to point of contact with interval but still choppy
+
+         // Adjust to roll along interval is would have gone thru
+         b_nowadjusted[0] = b_now[0] + (1.0 - param[1]) * (- testdir * pperp[0]);
+         b_nowadjusted[1] = b_now[1] + (1.0 - param[1]) * (- testdir * pperp[1]);
+   }
+    return didgothru;
 }
 
 // Draw text centered between x0 and x1.
@@ -808,84 +1140,11 @@ uint8_t getTextWidth(char* text, fonts font)
     return textWidth;
 }
 
-void ICACHE_FLASH_ATTR initTypeOrder()
-{
-    typeOrder = malloc(sizeof(list_t));
-    typeOrder->first = NULL;
-    typeOrder->last = NULL;
-    typeOrder->length = 0;
-}
 
-void ICACHE_FLASH_ATTR clearTypeOrder()
-{
-    // Free all ints in the list.
-    node_t * current = typeOrder->first;
-    while (current != NULL)
-    {
-        free(current->val);
-        current->val = NULL;
-        current = current->next;
-    }
-    // Free the node containers for the list.
-    clear(typeOrder);
-}
 
-void ICACHE_FLASH_ATTR deInitTypeOrder()
-{
-    clearTypeOrder();
-
-    // Finally free the list itself.
-    free(typeOrder);
-    typeOrder = NULL;
-}
-
-void ICACHE_FLASH_ATTR initMazeRandomizer(mazeRandomizer_t randomType)
-{
-    switch (randomType)
-    {
-        case RANDOM:
-            break;
-        case BAG:
-            bagIndex = 0;
-            shuffle(3, typeBag);
-            break;
-        case POOL:
-            {
-                // Initialize the maze type pool, 5 of each type.
-                for (int i = 0; i < 5; i++)
-                {
-                    for (int j = 0; j < 3; j++)
-                    {
-                        typePool[i * 3 + j] = j+1;
-                    }
-                }
-
-                // Clear the history.
-                for (int i = 0; i < 4; i++)
-                {
-                    typeHistory[i] = 0;
-                }
-
-                // Populate the history with initial values.
-                typeHistory[0] = 1;
-                typeHistory[1] = 2;
-                typeHistory[2] = 3;
-
-                // Clear the order list.
-                clearTypeOrder();
-            }
-            break;
-        default:
-            break;
-    }
-}
-
-int ICACHE_FLASH_ATTR getNextMazeType(mazeRandomizer_t randomType, int index)
-{
-}
 
 // Fisher–Yates Shuffle
-void shuffle(int length, int array[length])
+void mzshuffle(int length, int array[length])
 {
     for (int i = length-1; i > 0; i--) 
     { 
@@ -899,9 +1158,6 @@ void shuffle(int length, int array[length])
     } 
 }
 
-//uint32_t ICACHE_FLASH_ATTR getDropTime(uint32_t level)
-//{
-//}
 
 static void loadHighScores(void)
 {
@@ -931,29 +1187,3 @@ static bool updateHighScores(uint32_t newScore)
     }
     return highScore;
 }
-/*
-void ICACHE_FLASH_ATTR initLandedMazes()
-{
-}
-
-void ICACHE_FLASH_ATTR clearLandedMazes()
-{
-}
-
-void ICACHE_FLASH_ATTR deInitLandedMazes()
-{
-}
-
-bool ICACHE_FLASH_ATTR isLineCleared(int line, uint8_t gridWidth, uint8_t gridHeight __attribute__((unused)), uint32_t gridData[][gridWidth])
-{
-}
-
-int ICACHE_FLASH_ATTR checkLineClears(uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth])
-{
-}
-
-// what is the best way to handle collisions above the grid space?
-bool ICACHE_FLASH_ATTR checkCollision(coord_t newPos, uint8_t shapeWidth, uint8_t shapeHeight __attribute__((unused)), uint32_t shape[][shapeWidth], uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth], uint32_t selfGridValue)
-{
-}
-*/

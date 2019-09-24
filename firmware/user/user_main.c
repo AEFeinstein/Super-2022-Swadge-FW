@@ -33,7 +33,7 @@
 #include "mode_snake.h"
 #include "mode_tiltrads.h"
 #include "mode_roll.h"
-#include "mode_maze.h"
+//#include "mode_maze.h"
 #include "mode_mazerf.h"
 
 /*============================================================================
@@ -76,7 +76,7 @@ swadgeMode* swadgeModes[] =
     &dancesMode,
     &randomD6Mode,
     &rollMode,
-    &mazeMode,
+    //&mazeMode,
     &mazerfMode,
 };
 bool swadgeModeInit = false;
