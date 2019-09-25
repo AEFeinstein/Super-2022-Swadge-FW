@@ -1575,6 +1575,7 @@ uint8_t getTextWidth(char* text, fonts font)
         textWidth = 3.6 * strlen(text);
         break;
     default:
+        textWidth = 0;
         break;
     }
 

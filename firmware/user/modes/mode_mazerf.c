@@ -8,6 +8,7 @@
 
 #include <osapi.h>
 #include <user_interface.h>
+#include <stdlib.h>
 #include "user_main.h"	//swadge mode
 #include "mode_mazerf.h"
 #include "DFT32.h"
@@ -41,15 +42,13 @@
     #define min(a,b) ((a) < (b) ? (a) : (b))
 #endif
 
-#define EMPTY 0
-
 // controls (title)
 #define BTN_TITLE_START_SCORES LEFT
 #define BTN_TITLE_START_GAME RIGHT
 
 // controls (game)
-#define BTN_GAME_RIGHT RIGHT
-#define BTN_GAME_LEFT LEFT
+//#define BTN_GAME_RIGHT RIGHT
+//#define BTN_GAME_LEFT LEFT
 
 // controls (scores)
 #define BTN_SCORES_CLEAR_SCORES LEFT
@@ -60,7 +59,7 @@
 #define BTN_GAMEOVER_START_GAME RIGHT
 
 // update task info.
-#define UPDATE_TIME_MS 100 
+#define UPDATE_TIME_MS 100
 
 // time info.
 #define MS_TO_US_FACTOR 1000
@@ -70,9 +69,6 @@
 #define CLEAR_SCORES_HOLD_TIME (5 * MS_TO_US_FACTOR * MS_TO_S_FACTOR)
 
 #define NUM_MZ_HIGH_SCORES 3
-
-#define ACCEL_SEG_SIZE 25 // higher value more or less means less sensetive.
-#define ACCEL_JITTER_GUARD 14//7 // higher = less sensetive.
 
 // any enums go here.
 
@@ -260,13 +256,13 @@ float * extendedScaledWallYbot = NULL;
 void ICACHE_FLASH_ATTR mzInit(void)
 {
     // Give us reliable button input.
-	enableDebounce(true);
+	enableDebounce(false);
 	
 	// Reset mode time tracking.
 	modeStartTime = system_get_time();
 	modeTime = 0;
 
-	// Reset state stuff.
+    // Reset state stuff.
 	mzChangeState(MZ_TITLE);
 
    // Construct Random Maze
@@ -291,7 +287,10 @@ void ICACHE_FLASH_ATTR mzButtonCallback(uint8_t state, int button __attribute__(
 
 void ICACHE_FLASH_ATTR mzAccelerometerCallback(accel_t* accel)
 {
-    mzAccel.x = accel->y;	// Set the accelerometer values
+    // Set the accelerometer values
+    // x coor relates to left right on OLED
+    // y coor relates to up down on OLED
+    mzAccel.x = accel->y;
     mzAccel.y = accel->x;
     mzAccel.z = accel->z;
 }
@@ -474,6 +473,19 @@ void ICACHE_FLASH_ATTR mzGameoverInput(void)
     //button b = go to title screen
     else if(mzIsButtonPressed(BTN_GAMEOVER_START_TITLE))
     {
+        // get new maze cycling thru size
+        if (width == 63)
+        {
+            width = 7;
+            height = 7;
+            rballused += 3.0;
+        } else {
+            height = width;
+            width = 2*height + 1;
+            rballused--;
+        }
+        mazeFreeMemory();
+        mzNewMazeSetUp();
         mzChangeState(MZ_TITLE);
     }
 }
@@ -764,7 +776,7 @@ void ICACHE_FLASH_ATTR mzGameoverDisplay(void)
     plotCenteredText(windowXMargin, windowYMarginTop + scoreTextYOffset, OLED_WIDTH - windowXMargin, scoreStr, IBM_VGA_8, WHITE);
 
     // TITLE    RESTART
-    plotText(windowXMargin + controlTextXPadding, controlTextYOffset, "TITLE", TOM_THUMB, WHITE);
+    plotText(windowXMargin + controlTextXPadding, controlTextYOffset, "NEW LEVEL", TOM_THUMB, WHITE);
     plotText(OLED_WIDTH - windowXMargin - getTextWidth("RESTART", TOM_THUMB) - controlTextXPadding, controlTextYOffset, "RESTART", TOM_THUMB, WHITE);
 }
 
@@ -797,7 +809,6 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     xAccel = rballused - 64;
     yAccel = -2 * (rballused - 30);
 
-    enableDebounce(true);
     system_print_meminfo();
     os_printf("Free Heap %d\n", system_get_free_heap_size());
     // get_maze allocates more memory, makes a random maze and then deallocates memory
@@ -1007,13 +1018,6 @@ int16_t ICACHE_FLASH_ATTR  incrementifnewhoriz(int16_t nwi, int16_t startind, in
     return nwi + 1;
 }
 
-
-void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size, color col)
-{
-    plotRect(x0, y0, x0 + (size - 1), y0 + (size - 1), col);
-}
-
-
 /**
  * Linear Alg Find Intersection of line segments
  */
@@ -1154,6 +1158,7 @@ uint8_t getTextWidth(char* text, fonts font)
         textWidth = 3.6 * strlen(text);
         break;
     default:
+        textWidth = 0;
         break;
     }
 
