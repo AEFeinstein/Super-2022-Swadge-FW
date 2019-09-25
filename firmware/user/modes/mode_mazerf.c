@@ -108,7 +108,7 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void);
 void ICACHE_FLASH_ATTR mazeFreeMemory(void);
 
 // game loop functions.
-static void ICACHE_FLASH_ATTR mzUpdate(void* arg);
+void ICACHE_FLASH_ATTR mzUpdate(void* arg);
 
 // handle inputs.
 void ICACHE_FLASH_ATTR mzTitleInput(void);
@@ -142,9 +142,6 @@ bool ICACHE_FLASH_ATTR mzIsButtonUp(uint8_t button);
 // grid management.
 
 // drawing functions.
-static void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size, color col);
-//static void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth], color col);
-//static void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shapeWidth, uint8_t shapeHeight, uint32_t shape[][shapeWidth], color col);
 static void ICACHE_FLASH_ATTR plotCenteredText(uint8_t x0, uint8_t y, uint8_t x1, char* text, fonts font, color col);
 static uint8_t getTextWidth(char* text, fonts font);
 
@@ -313,7 +310,7 @@ void ICACHE_FLASH_ATTR setmazeLeds(led_t* ledData, uint8_t ledDataLen)
     setLeds(ledData, ledDataLen);
 }
 
-static void ICACHE_FLASH_ATTR mzUpdate(void* arg __attribute__((unused)))
+void ICACHE_FLASH_ATTR mzUpdate(void* arg __attribute__((unused)))
 {
 	// Update time tracking.
     // NOTE: delta time is in microseconds.
