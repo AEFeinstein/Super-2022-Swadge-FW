@@ -21,16 +21,13 @@
 // Decided not to handle cascade clears that result from falling tetrads after clears. Closer to target behavior.
 
 //TODO:
-// Fix mode 7 effect for screen sides.
 // Add visual or audio FX for a tetrad locking in-place.
 // Add VFX that use Swadge LEDs.
 // Add SFX and / or Music.
 
 // Suppress warnings related to consting of some parameters in function declarations.
 // Do second pass on accelerometer code.
-// Fully const or #define any UI data that it makes sense to do to.
 
-// Refine the placement of UI and background elements in the game screen.
 // Balance all gameplay and control variables based on feedback. (3-4 minute playtime, t99 round target)
 // Test to make sure mode is not a battery killer.
 // Test to make sure there are no bugs.
@@ -65,55 +62,61 @@
 #define US_TO_MS_FACTOR 0.001
 #define MS_TO_S_FACTOR 0.001
 
-#define CLEAR_LINES_ANIM_TIME (0.25 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
+// useful display.
+#define OLED_HALF_HEIGHT 32 // (OLED_HEIGHT / 2)
 
-#define CLEAR_SCORES_HOLD_TIME (5 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
-
-// playfield settings.
-#define GRID_X 44
-#define GRID_Y -5
-#define GRID_UNIT_SIZE 5
-#define GRID_WIDTH 10
-#define GRID_HEIGHT 17
-
-#define NEXT_GRID_X 100
-#define NEXT_GRID_Y 8
-#define NEXT_GRID_WIDTH 5
-#define NEXT_GRID_HEIGHT 5
-
+// title screen
 #define TUTORIAL_GRID_WIDTH 10
 #define TUTORIAL_GRID_HEIGHT 18
 
+#define TITLE_LEVEL 5 // The level used for calculating drop speed on the title screen.
+
+// score screen
+#define CLEAR_SCORES_HOLD_TIME (5 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
+
+// game screen
 #define EMPTY 0
 #define ROTATE_DIR 1 //1 for clockwise, -1 for anti-clockwise.
 #define NUM_ROTATIONS 4
+#define NUM_TETRAD_TYPES 7
 
 #define TETRAD_SPAWN_ROT 0
 #define TETRAD_SPAWN_X 3
 #define TETRAD_SPAWN_Y 0
 #define TETRAD_GRID_SIZE 4
 
-#define NUM_TETRAD_TYPES 7
+#define CLEAR_LINES_ANIM_TIME (0.25 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
 
-// All of these are (* level)
+// game input
+#define ACCEL_SEG_SIZE 25 // higher value more or less means less sensetive.
+#define ACCEL_JITTER_GUARD 14 // higher = less sensetive.
+#define SOFT_DROP_FACTOR 8
+#define SOFT_DROP_FX_FACTOR 2
+
+// playfield
+#define GRID_X 44
+#define GRID_Y -5 // NOTE: This works, which is surpising, and potentially concerning.
+#define GRID_UNIT_SIZE 5
+#define GRID_WIDTH 10
+#define GRID_HEIGHT 17
+
+#define NEXT_GRID_X 100
+#define NEXT_GRID_Y 10
+#define NEXT_GRID_WIDTH 5
+#define NEXT_GRID_HEIGHT 5
+
+// scoring, all of these are (* level)
 #define SCORE_SINGLE 100
 #define SCORE_DOUBLE 300
 #define SCORE_TRIPLE 500
 #define SCORE_QUAD 800
-// This is per cell.
+// this is per cell
 #define SCORE_SOFT_DROP 1
-// This is (* count * level)
+// this is (* count * level)
 #define SCORE_COMBO 50
 
-//TODO: spin scoring, multipliers for consecutive difficult line clears?
-
-#define ACCEL_SEG_SIZE 25 // higher value more or less means less sensetive.
-#define ACCEL_JITTER_GUARD 14//7 // higher = less sensetive.
-
-#define SOFT_DROP_FACTOR 8
+// difficulty scaling
 #define LINE_CLEARS_PER_LEVEL 5
-
-#define TITLE_LEVEL 5 // The level used for calculating drop speed on the title screen.
 
 // any typedefs go here.
 
@@ -354,6 +357,7 @@ bool activeTetradChange; // Tracks if the active tetrad changed in some way betw
 uint32_t tetradCounter; // Used for distinguishing tetrads on the full grid, and for counting how many total tetrads have landed.
 uint32_t dropTimer;  // The timer for dropping the current tetrad one level.
 uint32_t dropTime; // The amount of time it takes for a tetrad to drop. Changes based on the level.
+uint32_t dropFXTime; // This is specifically used for handling the perspective effect correctly with regards to increasing dropSpeed.
 
 // Score related vars.
 uint32_t linesClearedTotal; // The number of lines cleared total.
@@ -456,7 +460,7 @@ void ICACHE_FLASH_ATTR spawnNextTetrad(tetrad_t * newTetrad, tetradRandomizer_t 
 void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size, color col);
 void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth], bool clearLineAnimation, color col);
 void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shapeWidth, uint8_t shapeHeight, uint32_t shape[][shapeWidth], uint8_t shapeFill, int fillRotation, color col);
-void ICACHE_FLASH_ATTR plotPerspectiveEffect(uint8_t leftSrc, uint8_t leftDst, uint8_t rightSrc, uint8_t rightDst, uint8_t y0, uint8_t y1, int numVerticalLines, int numHorizontalLines, double lineSpeed, color col);
+void ICACHE_FLASH_ATTR plotPerspectiveEffect(uint8_t leftSrc, uint8_t leftDst, uint8_t rightSrc, uint8_t rightDst, uint8_t y0, uint8_t y1, int numVerticalLines, int numHorizontalLines, double lineTweenTimeS, uint32_t currentTimeUS, color col);
 uint8_t ICACHE_FLASH_ATTR plotCenteredText(uint8_t x0, uint8_t y, uint8_t x1, char* text, fonts font, color col);
 uint8_t ICACHE_FLASH_ATTR getCenteredTextX(uint8_t x0, uint8_t x1, char* text, fonts font);
 uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font);
@@ -485,6 +489,7 @@ void ICACHE_FLASH_ATTR startClearAnimation(int numLineClears);
 void ICACHE_FLASH_ATTR stopClearAnimation(void);
 
 uint32_t ICACHE_FLASH_ATTR getDropTime(uint32_t level);
+double ICACHE_FLASH_ATTR getDropFXTimeFactor(uint32_t level);
 
 bool ICACHE_FLASH_ATTR isLineCleared(int line, uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth]);
 int ICACHE_FLASH_ATTR checkLineClears(uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth], list_t * fieldTetrads);
@@ -769,7 +774,7 @@ void ICACHE_FLASH_ATTR ttGameoverInput(void)
 
 void ICACHE_FLASH_ATTR ttTitleUpdate(void)
 {
-    //Refresh the tetrads grid.
+    // Refresh the tetrads grid.
     refreshTetradsGrid(TUTORIAL_GRID_WIDTH, TUTORIAL_GRID_HEIGHT, tutorialTetradsGrid, landedTetrads, &(tutorialTetrad), false);
     
     dropTimer += deltaTime;
@@ -968,6 +973,13 @@ void ICACHE_FLASH_ATTR ttGameUpdate(void)
         }
     }
 
+    // Drop FX time advances by the normal amount.
+    dropFXTime += deltaTime;
+    // Drop FX time advances by deltaTime * SOFT_DROP_FX_FACTOR(2) when the soft drop button is being held down. (Happens in softDropTetrad)
+
+    // Drop FX time advances a little bit more according to the currentLevel.
+    dropFXTime += (deltaTime * getDropFXTimeFactor(currentLevel));
+
     // Check if we have a new high score.
     newHighScore = score > highScores[0];
 }
@@ -988,25 +1000,26 @@ void ICACHE_FLASH_ATTR ttTitleDisplay(void)
     clearDisplay();
     
     // Draw demo-scene title FX.
-    plotPerspectiveEffect(GRID_X, 0, GRID_X + (GRID_UNIT_SIZE - 1) * GRID_WIDTH, OLED_WIDTH - 1, 0, OLED_HEIGHT, 3, 3, 1.0, WHITE);
+    //double dropTimeS = (double)(getDropTime(TITLE_LEVEL)) * US_TO_MS_FACTOR * MS_TO_S_FACTOR * 5.0;
+    
+    plotPerspectiveEffect(GRID_X, 0, GRID_X + (GRID_UNIT_SIZE - 1) * GRID_WIDTH, OLED_WIDTH - 1, 0, OLED_HEIGHT, 3, 3, 2.0, stateTime, WHITE);
 
     // SCORES   START
-    // TODO: make these #defines
     uint8_t scoresAreaX0 = 0;
     uint8_t scoresAreaY0 = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 3);
-    uint8_t scoresAreaX1 = 23;//getTextWidth("SCORES", TOM_THUMB);
-    uint8_t scoresAreaY1 = OLED_HEIGHT - 1; //minus 1 is not here.
+    uint8_t scoresAreaX1 = 23;
+    uint8_t scoresAreaY1 = OLED_HEIGHT - 1;
     fillDisplayArea(scoresAreaX0, scoresAreaY0, scoresAreaX1, scoresAreaY1, BLACK);
     uint8_t scoresTextX = 0;
     uint8_t scoresTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);
     plotText(scoresTextX, scoresTextY, "SCORES", TOM_THUMB, WHITE);
     
-    uint8_t startAreaX0 = OLED_WIDTH - 19 - 1;//getTextWidth("START", TOM_THUMB) - 2;
+    uint8_t startAreaX0 = OLED_WIDTH - 18;
     uint8_t startAreaY0 = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 3);
-    uint8_t startAreaX1 = OLED_WIDTH - 1; //minus 1 is not here.
-    uint8_t startAreaY1 = OLED_HEIGHT - 1; //minus 1 is not here.
+    uint8_t startAreaX1 = OLED_WIDTH - 1;
+    uint8_t startAreaY1 = OLED_HEIGHT - 1;
     fillDisplayArea(startAreaX0, startAreaY0, startAreaX1, startAreaY1, BLACK);
-    uint8_t startTextX = OLED_WIDTH - 19;//getTextWidth("START", TOM_THUMB);
+    uint8_t startTextX = OLED_WIDTH - 19;
     uint8_t startTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);    
     plotText(startTextX, startTextY, "START", TOM_THUMB, WHITE);
 
@@ -1021,166 +1034,138 @@ void ICACHE_FLASH_ATTR ttTitleDisplay(void)
 
     // TILTRADS
 
-    // getTextWidth("TILTRADS", RADIOSTARS) = 87
-    // textEnd = 109
-
-    uint8_t titleAreaX0 = 109 - 87 - 2;
-    uint8_t titleAreaY0 = (OLED_HEIGHT / 2) - FONT_HEIGHT_RADIOSTARS - 3;
-    uint8_t titleAreaX1 = 109 - 1; 
-    uint8_t titleAreaY1 = (OLED_HEIGHT / 2) - 1; 
+    uint8_t titleAreaX0 = 20;
+    uint8_t titleAreaY0 = OLED_HALF_HEIGHT - FONT_HEIGHT_RADIOSTARS - 3;
+    uint8_t titleAreaX1 = 108;
+    uint8_t titleAreaY1 = OLED_HALF_HEIGHT - 1; 
     fillDisplayArea(titleAreaX0, titleAreaY0, titleAreaX1, titleAreaY1, BLACK);
     
     uint8_t titleTextX = 21;
-    uint8_t titleTextY = (OLED_HEIGHT / 2) - FONT_HEIGHT_RADIOSTARS - 2;
+    uint8_t titleTextY = OLED_HALF_HEIGHT - FONT_HEIGHT_RADIOSTARS - 2;
     plotText(titleTextX, titleTextY, "TILTRADS", RADIOSTARS, WHITE);
 
     //Fill in the floor of the grid on-screen for visual consistency.
     plotLine(GRID_X, OLED_HEIGHT - 1, GRID_X + (TUTORIAL_GRID_WIDTH * (GRID_UNIT_SIZE - 1)), OLED_HEIGHT - 1, WHITE);
-
-    /*char accelStr[32] = {0};
-    ets_snprintf(accelStr, sizeof(accelStr), "WT:%d", textEnd);
-    plotText(0, 0, accelStr, IBM_VGA_8, WHITE);*/
-
-    // Display the acceleration on the display
-    /*char accelStr[32] = {0};
-
-    ets_snprintf(accelStr, sizeof(accelStr), "L:%d", leftLineXProgress);
-    plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8, WHITE);
-
-    ets_snprintf(accelStr, sizeof(accelStr), "R:%d", rightLineXProgress);
-    plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8, WHITE);*/
-
-    /*ets_snprintf(accelStr, sizeof(accelStr), "Z:%d", ttAccel.z);
-    plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8, WHITE);*/
-
-    // Draw text in the bottom corners to direct which buttons will do what.
-    //drawPixel(OLED_WIDTH - 1, OLED_HEIGHT-15, WHITE);
-    //drawPixel(0, OLED_HEIGHT-15, WHITE);
 }
 
 void ICACHE_FLASH_ATTR ttGameDisplay(void)
 {
-    // Redraw if:
-    // 1. It's the first frame.
-    // 2. Active tetrad changed position, rotation, or landed.
-    // 2. The clear animation is happening.
-    bool redraw = true;// activeTetradChange || inClearAnimation || stateFrames == 0;
+    // Clear the display
+    clearDisplay();
 
-    if (redraw)
+    // Draw the BG FX.
+    // Goal: noticeable speed-ups when level increases and when soft drop is being held or released.
+    plotPerspectiveEffect(GRID_X, 0, GRID_X + (GRID_UNIT_SIZE - 1) * GRID_WIDTH, OLED_WIDTH - 1, 0, OLED_HEIGHT, 3, 3, 5.0, dropFXTime, WHITE);
+
+    // Draw the active tetrad.
+    plotShape(GRID_X + activeTetrad.topLeft.c * (GRID_UNIT_SIZE - 1), GRID_Y + activeTetrad.topLeft.r * (GRID_UNIT_SIZE - 1), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, activeTetrad.shape, activeTetrad.type, activeTetrad.rotation, WHITE);   
+    
+    // Draw all the landed tetrads.
+    node_t * current = landedTetrads->first;
+    for (int t = 0; t < landedTetrads->length; t++) 
     {
-        // Clear the display
-        clearDisplay();
-
-        // Draw the BG FX.
-        plotPerspectiveEffect(GRID_X, 0, GRID_X + (GRID_UNIT_SIZE - 1) * GRID_WIDTH, OLED_WIDTH - 1, 0, OLED_HEIGHT, 3, 3, 10.0, WHITE);
-
-        // Draw the active tetrad.
-        plotShape(GRID_X + activeTetrad.topLeft.c * (GRID_UNIT_SIZE - 1), GRID_Y + activeTetrad.topLeft.r * (GRID_UNIT_SIZE - 1), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, activeTetrad.shape, activeTetrad.type, activeTetrad.rotation, WHITE);   
-        
-        // Draw all the landed tetrads.
-        node_t * current = landedTetrads->first;
-        for (int t = 0; t < landedTetrads->length; t++) 
-        {
-            tetrad_t * currentTetrad = (tetrad_t *)current->val;
-            plotShape(GRID_X + currentTetrad->topLeft.c * (GRID_UNIT_SIZE - 1), GRID_Y + currentTetrad->topLeft.r * (GRID_UNIT_SIZE - 1), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, currentTetrad->shape, currentTetrad->type, currentTetrad->rotation, WHITE);
-            current = current->next;
-        }
-
-        // Clear the grid data (may not want to do this every frame)
-        refreshTetradsGrid(GRID_WIDTH, GRID_HEIGHT, tetradsGrid, landedTetrads, &(activeTetrad), true);
-
-        // Draw the background grid. NOTE: (make sure everything that needs to be in tetradsGrid is in there now).
-        plotGrid(GRID_X, GRID_Y, GRID_UNIT_SIZE, GRID_WIDTH, GRID_HEIGHT, tetradsGrid, inClearAnimation, WHITE);
-        
-        // Draw the UI.
-
-        // Black fill behind ui fields.
-        fillDisplayArea(NEXT_GRID_X + 2, 0, NEXT_GRID_X + (NEXT_GRID_WIDTH * (GRID_UNIT_SIZE - 1)) - 2, NEXT_GRID_Y - 3, BLACK);
-        fillDisplayArea(NEXT_GRID_X, NEXT_GRID_Y, NEXT_GRID_X + (NEXT_GRID_WIDTH * (GRID_UNIT_SIZE - 1)), NEXT_GRID_Y + (NEXT_GRID_HEIGHT * (GRID_UNIT_SIZE - 1)), BLACK);
-
-        // NEXT
-        uint8_t nextHeaderTextX = 103;
-        plotText(nextHeaderTextX, 0, "NEXT", TOM_THUMB, WHITE);
-
-        // Draw the next tetrad.
-        coord_t nextTetradPoint;
-        nextTetradPoint.c = 1;
-        nextTetradPoint.r = 1;
-        tetrad_t nextTetrad = spawnTetrad(nextTetradType, tetradCounter+1, nextTetradPoint, TETRAD_SPAWN_ROT);
-        plotShape(NEXT_GRID_X + nextTetradPoint.c * (GRID_UNIT_SIZE - 1), NEXT_GRID_Y + nextTetradPoint.r * (GRID_UNIT_SIZE - 1), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, nextTetrad.shape, nextTetrad.type, nextTetrad.rotation, WHITE);
-
-        // Draw the grid holding the next tetrad.
-        clearGrid(NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
-        copyGrid(nextTetrad.topLeft, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, nextTetrad.shape, NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
-        plotGrid(NEXT_GRID_X, NEXT_GRID_Y, GRID_UNIT_SIZE, NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid, false, WHITE);
-
-        // Draw the score UI.
-
-        char uiStr[32] = {0};
-
-        uint8_t numFieldStart = 0;
-        uint8_t numFieldEnd = 0;
-        uint8_t currY = 0;
-
-        uint8_t xPad = 1;
-        uint8_t yPad = 1;
-                
-        //HIGH
-        currY = 0;
-        uint8_t highScoreHeaderTextStart = newHighScore ? 3 : 15;
-        uint8_t highScoreHeaderTextEnd = newHighScore ? highScoreHeaderTextStart + 38 : highScoreHeaderTextStart + 14; //TODO: measure both
-        fillDisplayArea(highScoreHeaderTextStart - xPad, currY, highScoreHeaderTextEnd + yPad, currY + FONT_HEIGHT_TOMTHUMB, BLACK);
-        plotText(highScoreHeaderTextStart, currY, newHighScore ? "HIGH (NEW!)" : "HIGH", TOM_THUMB, WHITE);
-
-        //99999    
-        currY = (FONT_HEIGHT_TOMTHUMB + 1);
-        ets_snprintf(uiStr, sizeof(uiStr), "%d", newHighScore ? score : highScores[0]);
-        getNumCentering(uiStr, 0, GRID_X, &numFieldStart, &numFieldEnd);
-        fillDisplayArea(numFieldStart - xPad, currY - yPad, numFieldEnd + xPad, currY + FONT_HEIGHT_TOMTHUMB, BLACK);
-        plotText(numFieldStart, currY, uiStr, TOM_THUMB, WHITE);
-
-        //SCORE
-        currY = (3 * FONT_HEIGHT_TOMTHUMB);
-        uint8_t scoreHeaderTextStart = 13;
-        uint8_t scoreHeaderTextEnd = scoreHeaderTextStart + 18;
-        fillDisplayArea(scoreHeaderTextStart - xPad, currY - yPad, scoreHeaderTextEnd + xPad, currY + FONT_HEIGHT_TOMTHUMB, BLACK);
-        plotText(scoreHeaderTextStart, currY, "SCORE", TOM_THUMB, WHITE);
-
-        //99999
-        currY = (4 * FONT_HEIGHT_TOMTHUMB) + 1;
-        ets_snprintf(uiStr, sizeof(uiStr), "%d", score);
-        getNumCentering(uiStr, 0, GRID_X, &numFieldStart, &numFieldEnd);
-        fillDisplayArea(numFieldStart - xPad, currY - yPad, numFieldEnd + xPad, currY + FONT_HEIGHT_TOMTHUMB, BLACK);
-        plotText(numFieldStart, currY, uiStr, TOM_THUMB, WHITE);
-
-        //LINES
-        currY = (6 * FONT_HEIGHT_TOMTHUMB);
-        uint8_t linesHeaderTextStart = 13;
-        uint8_t linesHeaderTextEnd = linesHeaderTextStart + 18;
-        fillDisplayArea(linesHeaderTextStart - xPad, currY - yPad, linesHeaderTextEnd + xPad, currY + FONT_HEIGHT_TOMTHUMB, BLACK);
-        plotText(linesHeaderTextStart, currY, "LINES", TOM_THUMB, WHITE);   
- 
-        // 999
-        currY = (7 * FONT_HEIGHT_TOMTHUMB) + 1;
-        ets_snprintf(uiStr, sizeof(uiStr), "%d", linesClearedTotal);
-        getNumCentering(uiStr, 0, GRID_X, &numFieldStart, &numFieldEnd);
-        fillDisplayArea(numFieldStart - xPad, currY - yPad, numFieldEnd + xPad, currY + FONT_HEIGHT_TOMTHUMB, BLACK);
-        plotText(numFieldStart, currY, uiStr, TOM_THUMB, WHITE);
-
-        //LEVEL
-        currY = (9 * FONT_HEIGHT_TOMTHUMB);
-        uint8_t levelHeaderTextStart = 13;
-        uint8_t levelHeaderTextEnd = levelHeaderTextStart + 18;
-        fillDisplayArea(levelHeaderTextStart - xPad, currY - yPad, levelHeaderTextEnd + xPad, currY + FONT_HEIGHT_TOMTHUMB, BLACK);
-        plotText(levelHeaderTextStart, currY, "LEVEL", TOM_THUMB, WHITE);
-
-        // 99
-        currY = (10 * FONT_HEIGHT_TOMTHUMB) + 1;
-        ets_snprintf(uiStr, sizeof(uiStr), "%d", (currentLevel+1)); // Levels are displayed with 1 as the base level.
-        getNumCentering(uiStr, 0, GRID_X, &numFieldStart, &numFieldEnd);
-        fillDisplayArea(numFieldStart - xPad, currY - yPad, numFieldEnd + xPad, currY + FONT_HEIGHT_TOMTHUMB, BLACK);
-        plotText(numFieldStart, currY, uiStr, TOM_THUMB, WHITE);
+        tetrad_t * currentTetrad = (tetrad_t *)current->val;
+        plotShape(GRID_X + currentTetrad->topLeft.c * (GRID_UNIT_SIZE - 1), GRID_Y + currentTetrad->topLeft.r * (GRID_UNIT_SIZE - 1), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, currentTetrad->shape, currentTetrad->type, currentTetrad->rotation, WHITE);
+        current = current->next;
     }
+
+    // Clear the grid data (may not want to do this every frame)
+    refreshTetradsGrid(GRID_WIDTH, GRID_HEIGHT, tetradsGrid, landedTetrads, &(activeTetrad), true);
+
+    // Draw the background grid. NOTE: (make sure everything that needs to be in tetradsGrid is in there now).
+    plotGrid(GRID_X, GRID_Y, GRID_UNIT_SIZE, GRID_WIDTH, GRID_HEIGHT, tetradsGrid, inClearAnimation, WHITE);
+    
+    // Draw the UI.
+
+    uint8_t currY = 0;
+
+    uint8_t xPad = 2;
+    uint8_t yPad = 1;
+
+    // NEXT
+    currY = 4;
+    uint8_t nextHeaderTextStart = 103;
+    uint8_t nextHeaderTextEnd = nextHeaderTextStart + 14;
+    fillDisplayArea(nextHeaderTextStart - xPad, currY - yPad, nextHeaderTextEnd + xPad, currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
+    plotText(nextHeaderTextStart, currY, "NEXT", TOM_THUMB, WHITE);
+
+    // Fill area of grid background.
+    fillDisplayArea(NEXT_GRID_X, NEXT_GRID_Y, NEXT_GRID_X + (NEXT_GRID_WIDTH * (GRID_UNIT_SIZE - 1)), NEXT_GRID_Y + (NEXT_GRID_HEIGHT * (GRID_UNIT_SIZE - 1)), BLACK);
+
+    // Draw the next tetrad.
+    coord_t nextTetradPoint;
+    nextTetradPoint.c = 1;
+    nextTetradPoint.r = 1;
+    tetrad_t nextTetrad = spawnTetrad(nextTetradType, tetradCounter+1, nextTetradPoint, TETRAD_SPAWN_ROT);
+    plotShape(NEXT_GRID_X + nextTetradPoint.c * (GRID_UNIT_SIZE - 1), NEXT_GRID_Y + nextTetradPoint.r * (GRID_UNIT_SIZE - 1), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, nextTetrad.shape, nextTetrad.type, nextTetrad.rotation, WHITE);
+
+    // Draw the grid holding the next tetrad.
+    clearGrid(NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
+    copyGrid(nextTetrad.topLeft, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, nextTetrad.shape, NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid);
+    plotGrid(NEXT_GRID_X, NEXT_GRID_Y, GRID_UNIT_SIZE, NEXT_GRID_WIDTH, NEXT_GRID_HEIGHT, nextTetradGrid, false, WHITE);
+
+    // Draw the left-side score UI.
+
+    char uiStr[32] = {0};
+
+    uint8_t numFieldStart = 0;
+    uint8_t numFieldEnd = 0;
+            
+    //HIGH
+    currY = 4;
+    uint8_t highScoreHeaderTextStart = newHighScore ? 3 : 15;
+    uint8_t highScoreHeaderTextEnd = newHighScore ? highScoreHeaderTextStart + 38 : highScoreHeaderTextStart + 14;
+    fillDisplayArea(highScoreHeaderTextStart - xPad, currY - yPad, highScoreHeaderTextEnd + yPad, currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
+    plotText(highScoreHeaderTextStart, currY, newHighScore ? "HIGH (NEW!)" : "HIGH", TOM_THUMB, WHITE);
+
+    //99999    
+    currY += (FONT_HEIGHT_TOMTHUMB + 1);
+    ets_snprintf(uiStr, sizeof(uiStr), "%d", newHighScore ? score : highScores[0]);
+    getNumCentering(uiStr, 0, GRID_X, &numFieldStart, &numFieldEnd);
+    fillDisplayArea(numFieldStart - xPad, currY, numFieldEnd + xPad, currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
+    plotText(numFieldStart, currY, uiStr, TOM_THUMB, WHITE);
+
+    //SCORE
+    currY += FONT_HEIGHT_TOMTHUMB + (FONT_HEIGHT_TOMTHUMB - 1);
+    uint8_t scoreHeaderTextStart = 13;
+    uint8_t scoreHeaderTextEnd = scoreHeaderTextStart + 18;
+    fillDisplayArea(scoreHeaderTextStart - xPad, currY - yPad, scoreHeaderTextEnd + xPad, currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
+    plotText(scoreHeaderTextStart, currY, "SCORE", TOM_THUMB, WHITE);
+
+    //99999
+    currY += (FONT_HEIGHT_TOMTHUMB + 1);
+    ets_snprintf(uiStr, sizeof(uiStr), "%d", score);
+    getNumCentering(uiStr, 0, GRID_X, &numFieldStart, &numFieldEnd);
+    fillDisplayArea(numFieldStart - xPad, currY, numFieldEnd + xPad, currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
+    plotText(numFieldStart, currY, uiStr, TOM_THUMB, WHITE);
+
+    //LINES
+    currY += FONT_HEIGHT_TOMTHUMB + (FONT_HEIGHT_TOMTHUMB - 1) + 1;
+    uint8_t linesHeaderTextStart = 13;
+    uint8_t linesHeaderTextEnd = linesHeaderTextStart + 18;
+    fillDisplayArea(linesHeaderTextStart - xPad, currY - yPad, linesHeaderTextEnd + xPad, currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
+    plotText(linesHeaderTextStart, currY, "LINES", TOM_THUMB, WHITE);   
+
+    // 999
+    currY += (FONT_HEIGHT_TOMTHUMB + 1);
+    ets_snprintf(uiStr, sizeof(uiStr), "%d", linesClearedTotal);
+    getNumCentering(uiStr, 0, GRID_X, &numFieldStart, &numFieldEnd);
+    fillDisplayArea(numFieldStart - xPad, currY, numFieldEnd + xPad, currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
+    plotText(numFieldStart, currY, uiStr, TOM_THUMB, WHITE);
+
+    //LEVEL
+    currY += FONT_HEIGHT_TOMTHUMB + (FONT_HEIGHT_TOMTHUMB - 1);
+    uint8_t levelHeaderTextStart = 13;
+    uint8_t levelHeaderTextEnd = levelHeaderTextStart + 18;
+    fillDisplayArea(levelHeaderTextStart - xPad, currY - yPad, levelHeaderTextEnd + xPad, currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
+    plotText(levelHeaderTextStart, currY, "LEVEL", TOM_THUMB, WHITE);
+
+    // 99
+    currY += (FONT_HEIGHT_TOMTHUMB + 1);
+    ets_snprintf(uiStr, sizeof(uiStr), "%d", (currentLevel+1)); // Levels are displayed with 1 as the base level.
+    getNumCentering(uiStr, 0, GRID_X, &numFieldStart, &numFieldEnd);
+    fillDisplayArea(numFieldStart - xPad, currY, numFieldEnd + xPad, currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
+    plotText(numFieldStart, currY, uiStr, TOM_THUMB, WHITE);
 }
 
 void ICACHE_FLASH_ATTR ttScoresDisplay(void)
@@ -1225,13 +1210,13 @@ void ICACHE_FLASH_ATTR ttScoresDisplay(void)
             double holdProgress = ((double)clearScoreTimer / (double)CLEAR_SCORES_HOLD_TIME);
             uint8_t holdAreaX0 = 0;
             uint8_t holdAreaY0 = (OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1)) - 1;
-            uint8_t holdAreaX1 = (uint8_t)(holdProgress * (47+2));
+            uint8_t holdAreaX1 = (uint8_t)(holdProgress * 49);
             uint8_t holdAreaY1 = OLED_HEIGHT - 1;
             fillDisplayArea(holdAreaX0, holdAreaY0, holdAreaX1, holdAreaY1, INVERSE);
         }
 
         // TITLE
-        uint8_t titleTextX = OLED_WIDTH - 19 - 1;
+        uint8_t titleTextX = OLED_WIDTH - 20;
         uint8_t titleTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);
         plotText(titleTextX, titleTextY, "TITLE", TOM_THUMB, WHITE);
     }
@@ -1250,8 +1235,6 @@ void ICACHE_FLASH_ATTR ttGameoverDisplay(void)
         plotShape(GRID_X + activeTetrad.topLeft.c * (GRID_UNIT_SIZE - 1), GRID_Y + activeTetrad.topLeft.r * (GRID_UNIT_SIZE - 1), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, activeTetrad.shape, activeTetrad.type, activeTetrad.rotation, WHITE);
 
         // Draw a centered bordered window.
-
-        //TODO: #define these instead of variables here?
         uint8_t windowXMargin = 18;
         uint8_t windowYMarginTop = 5;
         uint8_t windowYMarginBot = 5;
@@ -1322,7 +1305,6 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
             // Reset the drop info to whatever is appropriate for the current level.
             dropTime = getDropTime(TITLE_LEVEL);
             dropTimer = 0;
-
             
             break;
         case TT_GAME:
@@ -1337,7 +1319,6 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
             currentLevel = 0;
             score = 0;
             loadHighScores();
-            // TODO: should I be seeding this, or re-seeding this, and if so, with what?
             srand((uint32_t)(ttAccel.x + ttAccel.y * 3 + ttAccel.z * 5)); // Seed the random number generator.
             initTetradRandomizer(randomizer);
             nextTetradType = (tetradType_t)getNextTetradType(randomizer, tetradCounter);
@@ -1345,6 +1326,7 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
             // Reset the drop info to whatever is appropriate for the current level.
             dropTime = getDropTime(currentLevel);
             dropTimer = 0;
+            dropFXTime = 0;
 
             // Reset animation info.
             stopClearAnimation();
@@ -1388,25 +1370,21 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
 
 bool ICACHE_FLASH_ATTR ttIsButtonPressed(uint8_t button)
 {
-    //TODO: can btn events get lost this way?
     return (ttButtonState & button) && !(ttLastButtonState & button);
 }
 
 bool ICACHE_FLASH_ATTR ttIsButtonReleased(uint8_t button)
 {
-    //TODO: can btn events get lost this way?
     return !(ttButtonState & button) && (ttLastButtonState & button);
 }
 
 bool ICACHE_FLASH_ATTR ttIsButtonDown(uint8_t button)
 {
-    //TODO: can btn events get lost this way?
     return ttButtonState & button;
 }
 
 bool ICACHE_FLASH_ATTR ttIsButtonUp(uint8_t button)
 {
-    //TODO: can btn events get lost this way?
     return !(ttButtonState & button);
 }
 
@@ -1462,14 +1440,12 @@ void ICACHE_FLASH_ATTR refreshTetradsGrid(uint8_t gridWidth, uint8_t gridHeight,
     for (int t = 0; t < fieldTetrads->length; t++) 
     {
         tetrad_t * currentTetrad = (tetrad_t *)current->val;
-        //currentTetrad->gridValue = t+1;
         transferGrid(currentTetrad->topLeft, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, currentTetrad->shape, gridWidth, gridHeight, gridData, currentTetrad->gridValue); 
         current = current->next;
     }
 
     if (includeMovingTetrad)
     {
-        //movingTetrad->gridValue = fieldTetrads->length+1;
         transferGrid(movingTetrad->topLeft, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, movingTetrad->shape, gridWidth, gridHeight, gridData, movingTetrad->gridValue);
     }
 }
@@ -1607,8 +1583,8 @@ bool ICACHE_FLASH_ATTR rotateTetrad(tetrad_t * tetrad, int newRotation, uint8_t 
 
 void ICACHE_FLASH_ATTR softDropTetrad()
 {
-    //TODO: is this the best way to handle this? 2*normal is reference
     dropTimer += deltaTime * SOFT_DROP_FACTOR;
+    dropFXTime += deltaTime * SOFT_DROP_FX_FACTOR;
 }
 
 bool ICACHE_FLASH_ATTR moveTetrad(tetrad_t * tetrad, uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth])
@@ -1760,9 +1736,6 @@ void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWi
 
 void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shapeWidth, uint8_t shapeHeight, uint32_t shape[][shapeWidth], uint8_t shapeFill, int fillRotation, color col)
 {   
-    //TODO: for fill, just assume the pixels at walls need to be drawn.
-    //TODO: how many of these patterns actually look good?
-
     bool patternRotated = fillRotation % 2 != 0;
     for (int y = 0; y < shapeHeight; y++)
     {
@@ -1896,7 +1869,7 @@ void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shape
     }
 }
 
-void ICACHE_FLASH_ATTR plotPerspectiveEffect(uint8_t leftSrc, uint8_t leftDst, uint8_t rightSrc, uint8_t rightDst, uint8_t y0, uint8_t y1, int numVerticalLines, int numHorizontalLines, double lineSpeed, color col)
+void ICACHE_FLASH_ATTR plotPerspectiveEffect(uint8_t leftSrc, uint8_t leftDst, uint8_t rightSrc, uint8_t rightDst, uint8_t y0, uint8_t y1, int numVerticalLines, int numHorizontalLines, double lineTweenTimeS, uint32_t currentTimeUS, color col)
 {
     // Drawing some fake 3D demo-scene like lines for effect.
 
@@ -1904,9 +1877,9 @@ void ICACHE_FLASH_ATTR plotPerspectiveEffect(uint8_t leftSrc, uint8_t leftDst, u
     for (int i = 0; i < numVerticalLines; i++)
     {
         // TODO: Use Bill's equation.
-        int lineOffset = ((lineSpeed * i) / numVerticalLines) * S_TO_MS_FACTOR * MS_TO_US_FACTOR;
-        int lineProgressUS = (stateTime + lineOffset) % (int)(lineSpeed * S_TO_MS_FACTOR * MS_TO_US_FACTOR);
-        double lineProgress = (double)lineProgressUS / (double)(lineSpeed * S_TO_MS_FACTOR * MS_TO_US_FACTOR);
+        int lineOffset = ((lineTweenTimeS * i) / numVerticalLines) * S_TO_MS_FACTOR * MS_TO_US_FACTOR;
+        int lineProgressUS = (currentTimeUS + lineOffset) % (int)(lineTweenTimeS * S_TO_MS_FACTOR * MS_TO_US_FACTOR);
+        double lineProgress = (double)lineProgressUS / (double)(lineTweenTimeS * S_TO_MS_FACTOR * MS_TO_US_FACTOR);
         lineProgress *= lineProgress;
 
         uint8_t leftLineXProgress = lineProgress * (leftSrc - leftDst);
@@ -2328,6 +2301,79 @@ uint32_t ICACHE_FLASH_ATTR getDropTime(uint32_t level)
     return dropTimeFrames * UPDATE_TIME_MS * MS_TO_US_FACTOR;
 }
 
+double ICACHE_FLASH_ATTR getDropFXTimeFactor(uint32_t level)
+{
+    double dropFXTimeFactor = 0; 
+    
+    switch (level)
+    {
+        case 0:
+			dropFXTimeFactor = 0;
+            break;
+        case 1:
+			dropFXTimeFactor = 0.25;
+            break;
+        case 2:
+			dropFXTimeFactor = 0.5;
+            break;
+        case 3:
+			dropFXTimeFactor = 0.75;
+            break;
+        case 4:
+			dropFXTimeFactor = 1;
+            break;
+        case 5:
+			dropFXTimeFactor = 1.25;
+            break;
+        case 6:
+			dropFXTimeFactor = 1.5;
+            break;
+        case 7:
+			dropFXTimeFactor = 1.75;
+            break;
+        case 8:
+			dropFXTimeFactor = 2;
+            break;
+        case 9:
+			dropFXTimeFactor = 2.25;
+            break;
+        case 10:
+        case 11:
+        case 12:
+			dropFXTimeFactor = 2.75;
+            break;
+        case 13:
+        case 14:
+        case 15:
+			dropFXTimeFactor = 3.25;
+            break;
+        case 16:
+        case 17:
+        case 18:
+			dropFXTimeFactor = 3.75;
+            break;
+        case 19:
+        case 20:
+        case 21:
+        case 22:
+        case 23:
+        case 24:
+        case 25:
+        case 26:
+        case 27:
+        case 28:
+			dropFXTimeFactor = 4.75;
+            break;
+        case 29:
+			dropFXTimeFactor = 5;
+            break;
+        default:
+            break;
+    }
+    
+    return dropFXTimeFactor;
+}
+
 bool ICACHE_FLASH_ATTR isLineCleared(int line, uint8_t gridWidth, uint8_t gridHeight __attribute__((unused)), uint32_t gridData[][gridWidth])
 {
     bool clear = true;
@@ -2407,7 +2453,7 @@ int ICACHE_FLASH_ATTR clearLines(uint8_t gridWidth, uint8_t gridHeight, uint32_t
                             // Move all the pieces of tetrads that are above the cleared row down by one.
                             else if (gridPos.r < currRow)
                             {
-                                //TODO: What if it cannot be moved down anymore in its local grid? Can this happen?
+                                //NOTE: What if it cannot be moved down anymore in its local grid? Can this happen? I don't think that's possible.
                                 if (tr < TETRAD_GRID_SIZE - 1)
                                 {
                                     // Copy the current space into the space below it.                                        
