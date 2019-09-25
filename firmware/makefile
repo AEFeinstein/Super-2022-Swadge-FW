@@ -1,5 +1,6 @@
 # Makefile by Adam, 2019
-
+# Remove or add a '#' from the line below to compile in or out the extensa esp_gdb
+ESP_GDB = TRUE 
 ################################################################################
 # This tells the makefile to use the xtensa binaries to build
 ################################################################################
@@ -27,9 +28,16 @@ FLASH_WRITE_FLAGS = # --verify
 ################################################################################
 
 # This is a list of directories to scan for c files recursively
+ifdef ESP_GDB
+SRC_DIRS_RECURSIVE = \
+    gdbstub \
+	user \
+	embeddedcommon
+else
 SRC_DIRS_RECURSIVE = \
 	user \
 	embeddedcommon
+endif
 
 # This is a list of directories to scan for c files not recursively
 SRC_DIRS_FLAT =
@@ -41,13 +49,12 @@ SRC_FILES = $(SDK)/driver_lib/driver/uart.c
 SRC_DIRS = $(shell find $(SRC_DIRS_RECURSIVE) -type d) $(SRC_DIRS_FLAT)
 
 # This is a list of all source c files 
-SOURCES  = $(shell find $(SRC_DIRS) -maxdepth 1 -name "*.c") $(SRC_FILES)
+SOURCES  = $(shell find $(SRC_DIRS) -maxdepth 1 -name "*.[c]") $(SRC_FILES)
 
 # These are flags for the compiler, all files
 CFLAGS = \
 	-c \
 	-mlongcalls \
-	-Os \
 	-flto \
 	-Wl,--relax \
 	-Wl,--gc-sections \
@@ -57,6 +64,13 @@ CFLAGS = \
 	-g \
 	-std=gnu99 \
 	-MD
+ifdef ESP_GDB
+# Would prefer -O0 to -Os, but brz_i2c.c generates errors
+  CFLAGS += -ggdb -Os
+else
+  CFLAGS += -Os
+endif
+
 
 # These are warning flags for the compiler, all files
 CFLAGS_WARNINGS = \
@@ -114,6 +128,9 @@ OBJ_DIR = obj
 
 # This is a list of objects to build
 OBJECTS=$(patsubst %.c, $(OBJ_DIR)/%.o, $(SOURCES))
+ifdef ESP_GDB
+OBJECTS += obj/gdbstub/gdbstub-entry.o
+endif
 
 ################################################################################
 # Linker options
@@ -182,6 +199,13 @@ $(FW_FILE1) $(FW_FILE2) : $(FW_FILE0)
 # To build the main file, you have to compile the objects and create the stripped libgcc
 $(FW_FILE0): $(OBJECTS) $(LIBGCC_STRIPPED)
 	$(LD) $(OBJECTS) $(EXTRA_LDFLAGS) $(LIBRARY_FLAGS) $(LINKER_SCRIPT_FLAGS) -o $@ 
+
+# This assmbles each .S file into an o file
+# ./$(OBJ_DIR)/%.o: ./%.S
+obj/gdbstub/gdbstub-entry.o:	./gdbstub/gdbstub-entry.S
+	@echo "****** This is inside making of gdbstub-entry.o *******"
+	@mkdir -p $(@D) # This creates a directory before building an object in it.
+	$(CC) $(CFLAGS) $(CFLAGS_WARNINGS) $(CFLAGS_WARNINGS_EXTRA) $(DEFINES) $(INC) $< -o $@
 
 # This compiles each c file into an o file
 ./$(OBJ_DIR)/%.o: ./%.c

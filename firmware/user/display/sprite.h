@@ -5,9 +5,10 @@
 
 typedef struct
 {
-    const uint8_t  width;
-    const uint8_t  height;
-    const uint16_t data[16];
+    uint8_t  width;
+    uint8_t  height;
+    uint16_t data[16];
+    uint16_t dummy; // round size to multiple of 32 bits
 } sprite_t;
 
 uint8_t ICACHE_FLASH_ATTR plotSprite(uint8_t x, uint8_t y, const sprite_t* sprite, color col);

@@ -8,6 +8,7 @@
 #include <osapi.h>
 #include <user_interface.h>
 #include <driver/uart.h>
+#include <../gdbstub/gdbstub.h> // Comment out this line to disable esp_gdb
 
 #include "embeddedout.h"
 
@@ -125,7 +126,14 @@ void ICACHE_FLASH_ATTR user_pre_init(void)
 void ICACHE_FLASH_ATTR user_init(void)
 {
     // Initialize the UART
+#ifdef GDBSTUB_H
+    // Only standard baud rates seem to be supported by xtensa gdb!
+    // $ xtensa-lx106-elf-gdb -x gdbstub/gdbcmds -b 115200
+    uart_init(BIT_RATE_115200, BIT_RATE_115200);
+    gdbstub_init();
+#else
     uart_init(BIT_RATE_74880, BIT_RATE_74880);
+#endif
     os_printf("\nSwadge 2020\n");
 
     // Read data fom RTC memory if we're waking from deep sleep
@@ -185,8 +193,10 @@ void ICACHE_FLASH_ATTR user_init(void)
 #endif
 
     // Initialize LEDs
+#ifndef GDBSTUB_H
     ws2812_init();
     os_printf("LEDs initialized\n");
+#endif
 
     // Initialize i2c
     brzo_i2c_setup(100);
