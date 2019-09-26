@@ -1551,14 +1551,33 @@ void ICACHE_FLASH_ATTR plotCenteredText(uint8_t x0, uint8_t y, uint8_t x1, char*
 
 uint8_t getTextWidth(char* text, fonts font)
 {
-    // NOTE: The inverse, inverse is cute, but 2 draw calls, could we draw it outside of the display area but still in bounds of a uint8_t?
+ // NOTE: The inverse, inverse is cute, but 2 draw calls, could we draw it outside of the display area but still in bounds of a uint8_t?
 
     // We only get width info once we've drawn.
     // So we draw the text as inverse to get the width.
-    uint8_t textWidth = plotText(0, 0, text, font, INVERSE) - 1; // minus one accounts for the return being where the cursor is.
+    //uint8_t textWidth = plotText(0, 0, text, font, INVERSE) - 1; // minus one accounts for the return being where the cursor is.
 
     // Then we draw the inverse back over it to restore it.
-    plotText(0, 0, text, font, INVERSE);
+    //plotText(0, 0, text, font, INVERSE);
+
+    // Temp Approx Bug Fix
+    #include <string.h>
+    uint8_t textWidth;
+    switch (font)
+    {
+    case RADIOSTARS:
+        textWidth = 10.5 * strlen(text);
+        break;
+    case IBM_VGA_8:
+        textWidth = 7.4 * strlen(text);
+        break;
+    case TOM_THUMB:
+        textWidth = 3.6 * strlen(text);
+        break;
+    default:
+        textWidth = 0;
+        break;
+    }
 
     return textWidth;
 }

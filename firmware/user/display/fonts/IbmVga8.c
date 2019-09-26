@@ -1,6 +1,6 @@
 #include "font.h"
 
-const sprite_t RODATA_ATTR  __attribute__((aligned(4))) font_IbmVga8[] =
+const sprite_t font_IbmVga8[] ICACHE_RODATA_ATTR =
 {
     {
         .width = 7,

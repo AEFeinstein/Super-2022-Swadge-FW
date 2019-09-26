@@ -1,6 +1,6 @@
 #include "font.h"
 
-const sprite_t RODATA_ATTR  __attribute__((aligned(4)))  font_TomThumb[] =
+const sprite_t font_TomThumb[] ICACHE_RODATA_ATTR =
 {
     {
         .width = 3,

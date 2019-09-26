@@ -1,6 +1,6 @@
 #include "font.h"
 
-const sprite_t  RODATA_ATTR  __attribute__((aligned(4))) font_Radiostars[] =
+const sprite_t font_Radiostars[] ICACHE_RODATA_ATTR =
 {
     {
         .width = 8,
