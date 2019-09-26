@@ -6,6 +6,21 @@
 *		Refactor of maze using Jonathan Moriarty basic set up
 */
 
+//TODO
+// Changing to next level not intuitive and happens only after goes
+// back to title screen.
+// A way to jump out of maze if too hard (e.g. hardest to very hard)
+//    hardest cant be done without touching the walls
+// Improve Score ?
+// HIGH appearing in window overlaps maze - remove?
+// Maybe flash special pattern when get max score
+// Sound
+// Maybe have lights in 4 corner of screen light to
+//  indicate where to aim for.
+//  Maybe have to hit all 3 corners?
+
+// BUG Teleport sometimes. stop this
+
 #include <osapi.h>
 #include <user_interface.h>
 #include <stdlib.h>
@@ -24,8 +39,6 @@
 /*============================================================================
  * Defines
  *==========================================================================*/
-//NOTE in ode_solvers.h is #define of FLOATING float    or double to test
-//#define LEN_PENDULUM 1
 
 //#define MAZE_DEBUG_PRINT
 #ifdef MAZE_DEBUG_PRINT
@@ -58,8 +71,8 @@
 #define BTN_GAMEOVER_START_TITLE LEFT
 #define BTN_GAMEOVER_START_GAME RIGHT
 
-// update task info.
-#define UPDATE_TIME_MS 100
+// update task info 16 works, originally 100, if large maybe will cause teleport
+#define UPDATE_TIME_MS 200
 
 // time info.
 #define MS_TO_US_FACTOR 1000
@@ -495,21 +508,29 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
 {
     float param[2];
     bool gonethruany;
+
+    //#define USE_SMOOTHED_ACCEL
+    #ifdef USE_SMOOTHED_ACCEL
     // Smooth accelerometer readings
     xAccel = 0.9*xAccel + 0.1*mzAccel.x;
     yAccel = 0.9*yAccel + 0.1*mzAccel.y;
     zAccel = 0.9*zAccel + 0.1*mzAccel.z;
+    #else
+    xAccel = mzAccel.x;
+    yAccel = mzAccel.y;
+    zAccel = mzAccel.z;
+    #endif
 
     #define GETVELOCITY
     #ifdef GETVELOCITY
-    // Accelerometer determines velocity and does one euler step with dt = .1
-    scxc = scxcprev + 0.1 * mzAccel.x;
-    scyc = scycprev + 0.1 * mzAccel.y;
-    // Smoothed accelerometer determining velocity puts inertia makes bit harder to control
-    //scxc = scxcprev + 0.1 * xAccel;
-    //scyc = scycprev + 0.1 * yAccel;
+    // (Smoothed) Accelerometer determines velocity and does one euler step with dt = 1000.0 / UPDATE_TIME_MS
+    const float dt = (float)UPDATE_TIME_MS / MS_TO_S_FACTOR;
+    // Note smoothed accelerometer causes inertia making bit harder to control
+    scxc = scxcprev + dt * xAccel;
+    scyc = scycprev + dt * yAccel;
     #else
-    // Smoothed accelerometer determines position on screen
+    // (Smoothed) accelerometer determines position on screen
+    // NOTE is not smoothed very rough motions
     // want -63 to 63 to go approx from 0 to 124 for scxc and 60 to 0 for scyc
     scxc = xAccel + 62; //xAccel/63 * 62 + 62
     scyc = yAccel/2 + 30; //yAccel/63  + 30
@@ -593,7 +614,8 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
     } // end two try loop
 
     // balls new coordinates scxc, scyc were adjusted if gonethruany is true
-    // can keep a score of totaltime and totaltimehitting
+    // can keep a score of time to complete totalcyclestilldone
+    // and time in contact with walls, totalhitstilldone
     // can flash LED when touch
 
     totalcyclestilldone++;
@@ -628,9 +650,16 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
     {
         leds[0].r = 255;
         // Compute score
-        os_printf("Time to complete maze %d, time on walls %d\n",totalcyclestilldone, totalhitstilldone);
+        // Best performance is fast but not rolling along walls
+        // So time rolling is totalhitstilldone, while time
+        // moving in corridor without touching is totalcyclestilldone - totalhitstilldone
+        // Adjusted time is (totalcyclestilldone - totalhitstilldone) + PENALTY_FAC * totalhitstilldone
+        //   = totalcyclestilldone + (PENALTY_FAC - 1) * totalhitstilldone
+        #define PENALTY_FAC 2
+        // score proportional to square of number of wall and inversely proportional adjusted time
+        score = 100.0 * numwallstodraw * numwallstodraw / (totalcyclestilldone + (PENALTY_FAC - 1) * totalhitstilldone);
+        os_printf("Score %d, Time to complete maze %d, time on walls %d\n",score, totalcyclestilldone, totalhitstilldone);
         gameover = true;
-        mzChangeState(MZ_GAMEOVER);
     }
 }
 
@@ -691,6 +720,11 @@ void ICACHE_FLASH_ATTR mzGameDisplay(void)
 
     newHighScore = score > highScores[0];
     plotCenteredText(0, 0, 10, newHighScore ? "HIGH (NEW!)" : "HIGH", TOM_THUMB, WHITE);
+
+    if (gameover)
+    {
+        mzChangeState(MZ_GAMEOVER);
+    }
 }
 
 void ICACHE_FLASH_ATTR mzScoresDisplay(void)
