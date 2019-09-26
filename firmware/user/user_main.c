@@ -8,8 +8,7 @@
 #include <osapi.h>
 #include <user_interface.h>
 #include <driver/uart.h>
-#include <../gdbstub/gdbstub.h> // Comment out this line to disable esp_gdb
-
+//#include <../gdbstub/gdbstub.h> // Comment out this line to disable esp_gdb
 #include "embeddedout.h"
 
 #include "ws2812_i2s.h"

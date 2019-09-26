@@ -1,6 +1,6 @@
 # Makefile by Adam, 2019
 # Remove or add a '#' from the line below to compile in or out the extensa esp_gdb
-ESP_GDB = TRUE 
+# ESP_GDB = TRUE 
 ################################################################################
 # This tells the makefile to use the xtensa binaries to build
 ################################################################################

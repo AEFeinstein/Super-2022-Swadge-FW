@@ -13,7 +13,7 @@
  *==========================================================================*/
 // The accelerometer has two arrows marked x and y and dot in circle marking up
 // can specify how these relate to the landscape view of OLED.
-// #define ORIENTATIONFIX
+#define ORIENTATIONFIX
 #ifdef ORIENTATIONFIX
 //bbkiwi swadge mockup
 #define LEFTOLED accel.x
