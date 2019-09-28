@@ -7,12 +7,15 @@
 */
 
 //TODO
+// UI advice - nice to be able to retry the same maze
+//    abort out of too hard level
 // Changing to next level not intuitive and happens only after goes
+// Maybe in end of game have re try same maze or new maze
 // back to title screen.
 // A way to jump out of maze if too hard (e.g. hardest to very hard)
 //    hardest cant be done without touching the walls
 // Improve Score ?
-// HIGH appearing in window overlaps maze - remove?
+// DONE HIGH appearing in window overlaps maze - remove?
 // Maybe flash special pattern when get max score
 // Sound
 // Maybe have lights in 4 corner of screen light to
@@ -20,6 +23,11 @@
 //  Maybe have to hit all 3 corners?
 
 // BUG Teleport sometimes. stop this
+// DONE see code comment labeled TELPORT FIX
+// but when removed would get in constant teleporting
+// if safety stop was off. Differs from matlab test
+// would be nice to find reason
+// will try running with gdb
 
 #include <osapi.h>
 #include <user_interface.h>
@@ -663,6 +671,7 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
     // boundary walls should handle this
     // Get rare teleportation
     // but don't seem to always do so this hack
+    // with TELEPORT FIX dont need this hack
 /* DEBUG try to observe telportation
     scxc = min(scxc, scxcexit);
     scxc = max(scxc, rballused);
@@ -1112,9 +1121,13 @@ uint8_t ICACHE_FLASH_ATTR intervalsmeet(float a,float c,float b,float d,float e,
     param[1] = s;
     //if ((t < -0.05) || (t > 1.05)) return false;
     //if ((s < -0.05) || (s > 1.05)) return false;
-    if ((t < 0) || (t > 1)) return false;
-    if ((s < 0) || (s > 1)) return false;
+    if ((t < 0) || (t > 1)) return false; // wall parameter out of bounds
+
+    //if ((s < 0) || (s > 1)) return false; // cause teleportation
+    //TELEPORT FIX
+    if ((s < -0.001) || (s > 1)) return false; // motion parameter out of bounds
     //maze_printf("t = %d, s = %d\n", (int8_t) (100*t), (int8_t) (100*s));
+    if (s < 0) os_printf("very small NEGATIVE motion parameter s so said goes thru");
     return true;
 }
 
@@ -1154,6 +1167,7 @@ uint8_t ICACHE_FLASH_ATTR  gonethru(float b_prev[], float b_now[], float p_1[], 
     // dot product with pperp gives component of motion at right angles to wall
     float testdir = pperp[0] * (b_now[0] - b_prev[0]) + pperp[1] * (b_now[1] - b_prev[1]);
     // Originally had if (testdir == 0.00) return false; // cause of teleportation
+    //TELEPORT FIX
     if (fabs(testdir) < 0.001) return false;
 
     //os_printf("%d ", (int)(1000*testdir));
