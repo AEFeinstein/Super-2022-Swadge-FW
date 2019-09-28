@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include "user_main.h"	//swadge mode
 #include "mode_mazerf.h"
+#include "ccconfig.h"
 #include "DFT32.h"
 #include "buttons.h"
 #include "oled.h"		//display functions
@@ -60,8 +61,8 @@
 #define BTN_TITLE_START_GAME RIGHT
 
 // controls (game)
-//#define BTN_GAME_RIGHT RIGHT
-//#define BTN_GAME_LEFT LEFT
+#define BTN_GAME_RIGHT RIGHT
+#define BTN_GAME_LEFT LEFT
 
 // controls (scores)
 #define BTN_SCORES_CLEAR_SCORES LEFT
@@ -72,7 +73,7 @@
 #define BTN_GAMEOVER_START_GAME RIGHT
 
 // update task info 16 works, originally 100, if large maybe will cause teleport
-#define UPDATE_TIME_MS 200
+#define UPDATE_TIME_MS 100
 
 // time info.
 #define MS_TO_US_FACTOR 1000
@@ -437,6 +438,31 @@ void ICACHE_FLASH_ATTR mzTitleInput(void)
 
 void ICACHE_FLASH_ATTR mzGameInput(void)
 {
+    //button a = abort but change level and restart
+    if(mzIsButtonPressed(BTN_GAME_RIGHT))
+    {
+        mazeFreeMemory();
+        mzNewMazeSetUp();
+        mzChangeState(MZ_GAME);
+    }
+    //button b = abort and restart at same level
+    else if(mzIsButtonPressed(BTN_GAME_LEFT))
+    {
+        // get new maze cycling thru size
+        if (width == 63)
+        {
+            width = 7;
+            height = 7;
+            rballused += 3.0;
+        } else {
+            height = width;
+            width = 2*height + 1;
+            rballused--;
+        }
+        mazeFreeMemory();
+        mzNewMazeSetUp();
+        mzChangeState(MZ_GAME);
+    }
 }
 
 void ICACHE_FLASH_ATTR mzScoresInput(void)
@@ -530,7 +556,7 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
     scyc = scycprev + dt * yAccel;
     #else
     // (Smoothed) accelerometer determines position on screen
-    // NOTE is not smoothed very rough motions
+    // NOTE if not smoothed very rough motions
     // want -63 to 63 to go approx from 0 to 124 for scxc and 60 to 0 for scyc
     scxc = xAccel + 62; //xAccel/63 * 62 + 62
     scyc = yAccel/2 + 30; //yAccel/63  + 30
@@ -540,7 +566,7 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
     //Keep ball within maze boundaries.
     **************************************/
 
-    //maze_printf("Entry for (%d, %d) to (%d, %d)\n", (int)(100*scxcprev), (int)(100*scycprev), (int)(100*scxc), (int)(100*scyc));
+    maze_printf("ENTRY\n from (%d, %d) to (%d, %d)\n", (int)(100*scxcprev), (int)(100*scycprev), (int)(100*scxc), (int)(100*scyc));
 
     // Take at most two passes to find first hit of wall and adjust if modified directions hits second time
     int16_t iused = -1;
@@ -571,7 +597,10 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
                 hitwall = true;
 
         //DEBUG
-                maze_printf("100x ******* i = %d \np(%d, %d), n(%d, %d)\nw1(%d, %d), w2(%d, %d)\nt=%d, s=%d, a(%d, %d)\n",i,  (int)(100*b_prev[0]), (int)(100*b_prev[1]), (int)(100*b_now[0]), (int)(100*b_now[1]), (int)(100*p_1[0]), (int)(100*p_1[1]), (int)(100*p_2[0]), (int)(100*p_2[1]), (int)(100*param[0]), (int)(100*param[1]), (int)(100*b_nowadjusted[0]), (int)(100*b_nowadjusted[1]));
+                maze_printf(" Pass %d Wall %d: (%d, %d) to (%d, %d)\n from prev:(%d, %d) to now: (%d, %d)\n t=%d, s=%d, new now:(%d, %d)\n",
+                k, i,  (int)(100*p_1[0]), (int)(100*p_1[1]), (int)(100*p_2[0]), (int)(100*p_2[1]),
+                (int)(100*b_prev[0]), (int)(100*b_prev[1]), (int)(100*b_now[0]), (int)(100*b_now[1]),
+                (int)(100*param[0]), (int)(100*param[1]), (int)(100*b_nowadjusted[0]), (int)(100*b_nowadjusted[1]));
         #ifdef MAZE_DEBUG_PRINT
                 int xmeet1, xmeet2, ymeet1, ymeet2;
                 xmeet1 = 100*(b_prev[0] + param[1] * (b_now[0] - b_prev[0]));
@@ -634,11 +663,12 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
     // boundary walls should handle this
     // Get rare teleportation
     // but don't seem to always do so this hack
+/* DEBUG try to observe telportation
     scxc = min(scxc, scxcexit);
     scxc = max(scxc, rballused);
     scyc = min(scyc, scycexit);
     scyc = max(scyc, rballused);
-
+*/
     // Update previous location for next cycle
 
     scxcprev = scxc;
@@ -719,7 +749,10 @@ void ICACHE_FLASH_ATTR mzGameDisplay(void)
     setmazeLeds(leds, sizeof(leds));
 
     newHighScore = score > highScores[0];
-    plotCenteredText(0, 0, 10, newHighScore ? "HIGH (NEW!)" : "HIGH", TOM_THUMB, WHITE);
+    //plotCenteredText(0, 0, 10, newHighScore ? "HIGH (NEW!)" : "HIGH", TOM_THUMB, WHITE);
+    plotText(0,59, "NEW LEVEL", TOM_THUMB, WHITE);
+    plotText(OLED_WIDTH - getTextWidth("RESTART", TOM_THUMB), 59, "RESTART", TOM_THUMB, WHITE);
+
 
     if (gameover)
     {
@@ -1101,25 +1134,27 @@ uint8_t ICACHE_FLASH_ATTR  gonethru(float b_prev[], float b_now[], float p_1[], 
 
     b_nowadjusted[0] = b_now[0];
     b_nowadjusted[1] = b_now[1];
+    //Find vector perpendicular to the wall
     //TODO could compute ppperp in mazeEnterMode to save time but take more space
     pperp[0] = p_2[1]-p_1[1];
     pperp[1] = p_1[0]-p_2[0];
 
     float pperplen = sqrt(pperp[0] * pperp[0] + pperp[1] * pperp[1]);
 
-    if (pperplen == 0.0) return false;
-    //if (pperplen == 0.0) {os_printf("P"); return false;} // should never happen here as using walls which all have pos length
+    if (pperplen == 0.0)
+    {
+        // should never happen here as using walls which all have pos length
+        maze_printf("Zero length wall!\n");
+        return false;
+    }
 
     pperp[0] = pperp[0] / pperplen; // make unit vector
     pperp[1] = pperp[1] / pperplen; // make unit vector
 
-
+    // dot product with pperp gives component of motion at right angles to wall
     float testdir = pperp[0] * (b_now[0] - b_prev[0]) + pperp[1] * (b_now[1] - b_prev[1]);
-    if (testdir == 0.0) return false;
-    //if (testdir == 0.0) {os_printf("T"); return false;} // happens when touching boundary but not for largest maze
-
-    //b_nowadjusted[0] = b_now[0] - testdir * pperp[0];
-    //b_nowadjusted[1] = b_now[1] - testdir * pperp[1];
+    // Originally had if (testdir == 0.00) return false; // cause of teleportation
+    if (fabs(testdir) < 0.001) return false;
 
     //os_printf("%d ", (int)(1000*testdir));
 
@@ -1130,14 +1165,26 @@ uint8_t ICACHE_FLASH_ATTR  gonethru(float b_prev[], float b_now[], float p_1[], 
 
     if (didgothru)
     {
-         // Adjust back to previous point ie ignore movement - TOO choppy
-         //b_nowadjusted[0] = b_prev[0];
-         //b_nowadjusted[1] = b_prev[1];
-         // Could adjust to point of contact with interval but still choppy
+        // Adjust back to previous point ie ignore movement - TOO choppy
+        //b_nowadjusted[0] = b_prev[0];
+        //b_nowadjusted[1] = b_prev[1];
+        // Could adjust to point of contact with interval but still choppy
 
-         // Adjust to roll along interval is would have gone thru
-         b_nowadjusted[0] = b_now[0] + (1.0 - param[1]) * (- testdir * pperp[0]);
-         b_nowadjusted[1] = b_now[1] + (1.0 - param[1]) * (- testdir * pperp[1]);
+        // Adjust to roll along interval if would have gone thru
+        // gives b_now projected onto line parallel to wall shifted by rball
+        b_nowadjusted[0] = b_now[0] + (1.0 - param[1]) * (- testdir * pperp[0]);
+        b_nowadjusted[1] = b_now[1] + (1.0 - param[1]) * (- testdir * pperp[1]);
+
+        //This adjustment gives b_now  projected onto line parallel to wall
+        //thru b_now
+        //May have gone thru (many) other walls
+        //Keeps away from wall
+        //b_nowadjusted[0] = b_now[0] - testdir * pperp[0];
+        //b_nowadjusted[1] = b_now[1] - testdir * pperp[1];
+
+
+
+
    }
     return didgothru;
 }
