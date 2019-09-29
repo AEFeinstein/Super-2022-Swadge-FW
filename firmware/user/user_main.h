@@ -12,9 +12,10 @@
  * Defines
  *==========================================================================*/
 // The accelerometer has two arrows marked x and y and dot in circle marking up
-// can specify how these relate to the landscape view of OLED.
-#define ORIENTATIONFIX
-#ifdef ORIENTATIONFIX
+// can specify how these relate to the landscape view of OLED. In .bashrc put
+// export SWADGE_DEV_KIT_ORIENTATION_FIX=1
+// makefile has been changed to create -DSWADGE_ORIENTATION_FIX=1 or 0
+#if SWADGE_ORIENTATION_FIX == 1
 //bbkiwi swadge mockup
 #define LEFTOLED accel.x
 #define TOPOLED (-accel.y)

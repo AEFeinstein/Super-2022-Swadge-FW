@@ -8,7 +8,9 @@
 #include <osapi.h>
 #include <user_interface.h>
 #include <driver/uart.h>
-//#include <../gdbstub/gdbstub.h> // Comment out this line to disable esp_gdb
+// To invoke gdb enter: xtensa-lx106-elf-gdb -x gdbstub/gdbcmds -b 115200
+// #include <../gdbstub/gdbstub.h> // Comment out this line to disable esp_gdb
+
 #include "embeddedout.h"
 
 #include "ws2812_i2s.h"
@@ -350,7 +352,7 @@ static void ICACHE_FLASH_ATTR pollAccel(void* arg __attribute__((unused)))
         {
             QMA6981_poll(&accel);
         }
-#ifdef ORIENTATIONFIX
+#if SWADGE_ORIENTATION_FIX == 1
 	int16_t xarrow = TOPOLED;
 	int16_t yarrow = LEFTOLED;
 	int16_t zarrow = FACEOLED;

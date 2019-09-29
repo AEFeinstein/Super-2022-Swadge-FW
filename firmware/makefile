@@ -107,13 +107,21 @@ CFLAGS_WARNINGS_EXTRA = \
 	# -Wsign-conversion \
 	# -Wdouble-promotion \
 
+
+swagedevkitfix != if [ X"$(SWADGE_DEV_KIT_ORIENTATION_FIX)" = X"1" ]; then \
+        echo 1; \
+    else \
+        echo 0; \
+    fi
+
 # These are a list of #define symbols in the makefile
 DEFINES_LIST = \
 	SOFTAP_CHANNEL=11 \
 	WS2812_FOUR_SAMPLE=1 \
 	DISABLE_CHARRX=1 \
 	USE_OPTIMIZE_PRINTF=1 \
-	ICACHE_FLASH=1
+	ICACHE_FLASH=1 \
+	SWADGE_ORIENTATION_FIX=$(swagedevkitfix)
 
 DEFINES = $(patsubst %, -D%, $(DEFINES_LIST))
 
