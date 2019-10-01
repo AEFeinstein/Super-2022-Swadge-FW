@@ -15,13 +15,15 @@
 // A way to jump out of maze if too hard (e.g. hardest to very hard)
 //    hardest cant be done without touching the walls
 // Improve Score ?
-// DONE HIGH appearing in window overlaps maze - remove?
+// DONE HIGH appearing in window overlaps maze - removed
 // Maybe flash special pattern when get max score
 // Sound
 // Maybe have lights in 4 corner of screen light to
 //  indicate where to aim for.
-//  Maybe have to hit all 3 corners?
-
+//  PARTIALLY DONE - must traverse corner anti clockwise
+//      starting upper left. RED light when hit them
+// WHY to leds zero on each game cycle? where is the code?
+// BUG in setmazeLeds effectively erases leds if game callback
 // BUG Teleport sometimes. stop this
 // DONE see code comment labeled TELPORT FIX
 // but when removed would get in constant teleporting
@@ -97,6 +99,13 @@
 #define MIDDLE_LEVEL 2
 #define HARD_LEVEL 3
 
+// LEDs at 4 corners of screen 
+#define LED_UPPER_LEFT 15
+#define LED_LOWER_LEFT 2
+#define LED_LOWER_RIGHT 7
+#define LED_UPPER_RIGHT 10
+
+
 
 // any enums go here.
 
@@ -107,6 +116,15 @@ typedef enum
     MZ_SCORES,	// high scores
     MZ_GAMEOVER // game over
 } mazeState_t;
+
+typedef enum
+{
+    UPPER_LEFT,
+    LOWER_LEFT,
+    LOWER_RIGHT,
+    UPPER_RIGHT
+} exitSpot_t;
+
 
 
 // Title screen info.
@@ -254,6 +272,9 @@ float scxcexit;
 float scycexit;
 float scxcexits[4];
 float scycexits[4];
+exitSpot_t exitInd;
+bool exitHit[4];
+uint8_t ledExitInd[] = {LED_UPPER_LEFT, LED_LOWER_LEFT, LED_LOWER_RIGHT, LED_UPPER_RIGHT};
 float rballused = 5;
 int xadj;
 int yadj;
@@ -331,6 +352,7 @@ void ICACHE_FLASH_ATTR mzAccelerometerCallback(accel_t* accel)
  */
 void ICACHE_FLASH_ATTR setmazeLeds(led_t* ledData, uint8_t ledDataLen)
 {
+    //BUG if called in callback reduces value each cycle
     uint8_t i;
     for(i = 0; i < ledDataLen / sizeof(led_t); i++)
     {
@@ -707,13 +729,13 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
 
     if (hitwall)
     {
-        leds[1].g = 255;
+        leds[4].g = 255;
         totalhitstilldone++;
     }
 
     if (gonethruany) //hit corner!
     {
-            leds[2].b = 255;
+            leds[5].b = 255;
     }
 
     // force values within outer wall
@@ -734,21 +756,34 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
 
     // Test if at exit (bottom right corner) thus finished
 
-    if ((scxc == scxcexit) && (scyc == scycexit))
+    if ((scxc == scxcexits[exitInd]) && (scyc == scycexits[exitInd]))
     {
-        leds[0].r = 255;
-        // Compute score
-        // Best performance is fast but not rolling along walls
-        // So time rolling is totalhitstilldone, while time
-        // moving in corridor without touching is totalcyclestilldone - totalhitstilldone
-        // Adjusted time is (totalcyclestilldone - totalhitstilldone) + PENALTY_FAC * totalhitstilldone
-        //   = totalcyclestilldone + (PENALTY_FAC - 1) * totalhitstilldone
-        #define PENALTY_FAC 2
-        // score proportional to square of number of wall and inversely proportional adjusted time
-        score = 100.0 * numwallstodraw * numwallstodraw / (totalcyclestilldone + (PENALTY_FAC - 1) * totalhitstilldone);
-        os_printf("Score %d, Time to complete maze %d, time on walls %d\n",score, totalcyclestilldone, totalhitstilldone);
-        gameover = true;
+        leds[ledExitInd[exitInd]].r = 255;
+        //exitHit[exitInd] = true;
+        exitInd += 1;
+        if (exitInd > UPPER_RIGHT)
+        {
+            // Compute score
+            // Best performance is fast but not rolling along walls
+            // So time rolling is totalhitstilldone, while time
+            // moving in corridor without touching is totalcyclestilldone - totalhitstilldone
+            // Adjusted time is (totalcyclestilldone - totalhitstilldone) + PENALTY_FAC * totalhitstilldone
+            //   = totalcyclestilldone + (PENALTY_FAC - 1) * totalhitstilldone
+            #define PENALTY_FAC 2
+            // score proportional to square of number of wall and inversely proportional adjusted time
+            score = 100.0 * numwallstodraw * numwallstodraw / (totalcyclestilldone + (PENALTY_FAC - 1) * totalhitstilldone);
+            os_printf("Score %d, Time to complete maze %d, time on walls %d\n",score, totalcyclestilldone, totalhitstilldone);
+            gameover = true;
+        }
     }
+    for (exitSpot_t i = 0; i<4;i++)
+    {
+        if (exitHit[i])
+        {
+            leds[ledExitInd[i]].r = 255;
+        }
+    }
+
     maxTimeEnd(&maze_updatedisplay_timer);
 }
 
@@ -967,22 +1002,23 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     // TODO will require touch each corner
     // exit is bottom right corner
 
+    exitInd = UPPER_LEFT;
+    for (exitSpot_t i = 0; i<4;i++)
+    {
+        exitHit[i] = false;
+    }
+    // compute exits
+    scxcexits[UPPER_LEFT] = rballused;
+    scycexits[UPPER_LEFT] = rballused;
+    scxcexits[LOWER_LEFT]  = rballused;
+    scycexits[LOWER_LEFT] = mazescaley * (height - 1) - rballused;
+    scxcexits[LOWER_RIGHT] = mazescalex * (width - 1) - rballused;
+    scycexits[LOWER_RIGHT] = mazescaley * (height - 1) - rballused;
+    scxcexits[UPPER_RIGHT] = mazescalex * (width - 1) - rballused;
+    scycexits[UPPER_RIGHT] = rballused;
 
-    scxcexits[0] = mazescalex * (width - 1) - rballused;
-    scycexits[0] = mazescaley * (height - 1) - rballused;
-    scxcexits[1]  = rballused;
-    scycexits[1] = mazescaley * (height - 1) - rballused;
-    scxcexits[2] = rballused;
-    scycexits[2] = rballused;
-    scxcexits[3] = mazescalex * (width - 1) - rballused;
-    scycexits[3] = rballused;
-
-    scxcexit = scxcexits[0];
-    scycexit = scycexits[0];
-
-
-    xadj = 0.5 + (127 - scxcexit - rballused)/2;
-    //yadj = 0.5 + (63 - scycexit - rballused)/2;
+    xadj = 0.5 + (127 - scxcexits[LOWER_RIGHT] - rballused)/2;
+    //yadj = 0.5 + (63 - scycexits[LOWER_RIGHT] - rballused)/2;
     yadj = 0;
     maze_printf("initpt (%d, %d) exit corner (%d, %d)\n", (int)scxcprev, (int)scycprev, (int)scxcexit, (int)scycexit);
 
