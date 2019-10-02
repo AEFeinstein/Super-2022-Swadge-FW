@@ -11,7 +11,7 @@
 
 //#define UBUNTU
 #ifdef UBUNTU
-#define ICACHE_FLASH_ATTR 
+#define ICACHE_FLASH_ATTR
 #include <stdio.h>
 #include <stdbool.h>
 typedef unsigned char       uint8_t;
