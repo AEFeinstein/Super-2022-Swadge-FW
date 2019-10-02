@@ -9,22 +9,22 @@
 //TODO
 // UI advice - nice to be able to retry the same maze
 //    abort out of too hard level
+// Put level name on home screen (make up appropriate names)
 // Changing to next level not intuitive and happens only after goes
 // Maybe in end of game have re try same maze or new maze
 // back to title screen.
 // A way to jump out of maze if too hard (e.g. hardest to very hard)
 //    hardest cant be done without touching the walls
-// Improve Score ?
+// DONE mostly - Improve Score
 // DONE HIGH appearing in window overlaps maze - removed
 // Maybe flash special pattern when get max score
 // Sound
-// Maybe have lights in 4 corner of screen light to
+// DONE Maybe have lights in 4 corner of screen light to
 //  indicate where to aim for.
-//  PARTIALLY DONE - must traverse corner anti clockwise
+// DONE - must traverse corner anti clockwise
 //      starting upper left. RED light when hit them
-// WHY to leds zero on each game cycle? where is the code?
-// BUG in setmazeLeds effectively erases leds if game callback
-// BUG Teleport sometimes. stop this
+// FIXED BUG in setmazeLeds effectively erases leds if game callback
+// PROBABLY FIXED BUG Teleport sometimes. stop this
 // DONE see code comment labeled TELPORT FIX
 // but when removed would get in constant teleporting
 // if safety stop was off. Differs from matlab test
