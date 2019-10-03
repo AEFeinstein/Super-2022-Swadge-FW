@@ -1,6 +1,7 @@
 # Makefile by Adam, 2019
-# Remove or add a '#' from the line below to compile in or out the extensa esp_gdb
-# ESP_GDB = TRUE 
+include user.cfg
+# Add ESP_GDB = TRUE to user.cfg to compile in or out the extensa esp_gdb
+#
 ################################################################################
 # This tells the makefile to use the xtensa binaries to build
 ################################################################################
@@ -48,7 +49,7 @@ SRC_FILES = $(SDK)/driver_lib/driver/uart.c
 # This is a list of all source directories
 SRC_DIRS = $(shell find $(SRC_DIRS_RECURSIVE) -type d) $(SRC_DIRS_FLAT)
 
-# This is a list of all source c files 
+# This is a list of all source c files
 SOURCES  = $(shell find $(SRC_DIRS) -maxdepth 1 -name "*.[c]") $(SRC_FILES)
 
 # These are flags for the compiler, all files
@@ -108,20 +109,23 @@ CFLAGS_WARNINGS_EXTRA = \
 	# -Wdouble-promotion \
 
 
-swagedevkitfix != if [ X"$(SWADGE_DEV_KIT_ORIENTATION_FIX)" = X"1" ]; then \
+swageversion != if [ X"$(SET_SWADGE_VERSION)" = X"1" ]; then \
         echo 1; \
     else \
         echo 0; \
     fi
 
-# These are a list of #define symbols in the makefile
 DEFINES_LIST = \
 	SOFTAP_CHANNEL=11 \
 	WS2812_FOUR_SAMPLE=1 \
 	DISABLE_CHARRX=1 \
 	USE_OPTIMIZE_PRINTF=1 \
 	ICACHE_FLASH=1 \
-	SWADGE_ORIENTATION_FIX=$(swagedevkitfix)
+	SWADGE_VERSION=$(swageversion)
+
+ifdef ESP_GDB
+  DEFINES_LIST += USE_ESP_GDB
+endif
 
 DEFINES = $(patsubst %, -D%, $(DEFINES_LIST))
 
@@ -206,7 +210,7 @@ $(FW_FILE1) $(FW_FILE2) : $(FW_FILE0)
 
 # To build the main file, you have to compile the objects and create the stripped libgcc
 $(FW_FILE0): $(OBJECTS) $(LIBGCC_STRIPPED)
-	$(LD) $(OBJECTS) $(EXTRA_LDFLAGS) $(LIBRARY_FLAGS) $(LINKER_SCRIPT_FLAGS) -o $@ 
+	$(LD) $(OBJECTS) $(EXTRA_LDFLAGS) $(LIBRARY_FLAGS) $(LINKER_SCRIPT_FLAGS) -o $@
 
 # This assmbles each .S file into an o file
 # ./$(OBJ_DIR)/%.o: ./%.S
@@ -328,7 +332,7 @@ burnitall : all
 # Erase the ESP8266
 erase :
 	$(ESPTOOL_PY) -b $(ESP_FLASH_BITRATE) --port $(ESP_PORT) erase_flash
-	
+
 # Write zeros to the ESP8266, more aggressive than erase
 wipechip :
 	dd if=/dev/zero of=/tmp/zeroes bs=1M count=1
@@ -354,7 +358,7 @@ burn_cutecom :
 	-killall cutecom
 	make burn
 	-cutecom &
-	
+
 docs :
 	doxygen swadge2019.doxyfile
 

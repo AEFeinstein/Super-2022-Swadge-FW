@@ -8,9 +8,13 @@
 #include <osapi.h>
 #include <user_interface.h>
 #include <driver/uart.h>
+#ifdef USE_ESP_GDB
 // To invoke gdb enter: xtensa-lx106-elf-gdb -x gdbstub/gdbcmds -b 115200
-// #include <../gdbstub/gdbstub.h> // Comment out this line to disable esp_gdb
-
+// LEDs are disabled when debuging
+// Note to change mode, must first close term running the above, then push
+// button, then start up xtensa-lx106-elf-gdb -x gdbstub/gdbcmds -b 115200
+#include <../gdbstub/gdbstub.h> // Comment out this line to disable esp_gdb
+#endif
 #include "embeddedout.h"
 
 #include "ws2812_i2s.h"
@@ -352,7 +356,7 @@ static void ICACHE_FLASH_ATTR pollAccel(void* arg __attribute__((unused)))
         {
             QMA6981_poll(&accel);
         }
-#if SWADGE_ORIENTATION_FIX == 1
+#if SWADGE_VERSION == 1
 	int16_t xarrow = TOPOLED;
 	int16_t yarrow = LEFTOLED;
 	int16_t zarrow = FACEOLED;

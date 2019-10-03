@@ -60,9 +60,9 @@
     #define maze_printf(...)
 #endif
 
-#ifndef max
-    #define max(a,b) ((a) > (b) ? (a) : (b))
-#endif
+//#ifndef max
+//    #define max(a,b) ((a) > (b) ? (a) : (b))
+//#endif
 #ifndef min
     #define min(a,b) ((a) < (b) ? (a) : (b))
 #endif
@@ -103,14 +103,12 @@
 #define IMPOSSIBLE_LEVEL 6
 
 // LEDs relation to screen
-#define LED_UPPER_LEFT 15
-#define LED_LOWER_LEFT 2
-#define LED_LOWER_MID 4
-#define LED_LOWER_RIGHT 7
-#define LED_UPPER_RIGHT 10
-#define LED_UPPER_MID 12
-
-
+#define LED_UPPER_LEFT LED_1
+#define LED_UPPER_MID LED_2
+#define LED_UPPER_RIGHT LED_3
+#define LED_LOWER_RIGHT LED_4
+#define LED_LOWER_MID LED_5
+#define LED_LOWER_LEFT LED_6
 
 // any enums go here.
 
@@ -179,8 +177,6 @@ void ICACHE_FLASH_ATTR mzGameDisplay(void);
 void ICACHE_FLASH_ATTR mzScoresDisplay(void);
 void ICACHE_FLASH_ATTR mzGameoverDisplay(void);
 
-// helper functions.
-
 // mode state management.
 void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState);
 
@@ -189,8 +185,6 @@ bool ICACHE_FLASH_ATTR mzIsButtonPressed(uint8_t button);
 bool ICACHE_FLASH_ATTR mzIsButtonReleased(uint8_t button);
 bool ICACHE_FLASH_ATTR mzIsButtonDown(uint8_t button);
 bool ICACHE_FLASH_ATTR mzIsButtonUp(uint8_t button);
-
-// grid management.
 
 // drawing functions.
 static void ICACHE_FLASH_ATTR plotCenteredText(uint8_t x0, uint8_t y, uint8_t x1, char* text, fonts font, color col);
@@ -210,7 +204,7 @@ uint8_t ICACHE_FLASH_ATTR intervalsmeet(float a,float c,float b,float d,float e,
 uint8_t ICACHE_FLASH_ATTR  gonethru(float b_prev[], float b_now[], float p_1[], float p_2[], float rball, float b_nowadjusted[], float param[]);
 int16_t ICACHE_FLASH_ATTR  incrementifnewvert(int16_t nwi, int16_t startind, int16_t endind);
 int16_t ICACHE_FLASH_ATTR  incrementifnewhoriz(int16_t nwi, int16_t startind, int16_t endind);
-
+void ICACHE_FLASH_ATTR changeLevel(void);
 
 /*============================================================================
  * Static Const Variables
@@ -1036,9 +1030,9 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     // exit is bottom right corner
 
     exitInd = UPPER_LEFT;
-    for (exitSpot_t i = 0; i<4;i++)
+    for (exitSpot_t ix = 0; ix<4;ix++)
     {
-        exitHit[i] = false;
+        exitHit[ix] = false;
     }
 
 
