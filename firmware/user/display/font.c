@@ -69,5 +69,6 @@ uint8_t ICACHE_FLASH_ATTR plotText(uint8_t x, uint8_t y, char* text, fonts font,
         }
         text++;
     }
-    return x;
+    uint8_t cursorEnd = x;
+    return cursorEnd;
 }
