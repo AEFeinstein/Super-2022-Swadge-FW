@@ -104,7 +104,7 @@
 #define TETRAD_SPAWN_Y 0
 #define TETRAD_GRID_SIZE 4
 
-#define CLEAR_LINES_ANIM_TIME (0.25 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
+#define CLEAR_LINES_ANIM_TIME (0.5 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
 
 // game input
 #define ACCEL_SEG_SIZE 25 // higher value more or less means less sensetive.
@@ -424,30 +424,6 @@ const song_t quadLineClearSFX ICACHE_RODATA_ATTR = {
     .shouldLoop = false
 };
 
-// TODO: is this useful?
-const song_t menuPressSFX ICACHE_RODATA_ATTR = {
-    .notes = {
-        {.note = C_5, .timeMs = 66},
-        {.note = SILENCE, .timeMs = 1},
-        {.note = G_5, .timeMs = 66},
-        {.note = SILENCE, .timeMs = 1},
-    },
-    .numNotes = 4,
-    .shouldLoop = false
-};
-
-// TODO: is this useful?
-const song_t menuBackSFX ICACHE_RODATA_ATTR = {
-    .notes = {
-        {.note = C_5, .timeMs = 66},
-        {.note = SILENCE, .timeMs = 1},
-        {.note = G_4, .timeMs = 66},
-        {.note = SILENCE, .timeMs = 1},
-    },
-    .numNotes = 4,
-    .shouldLoop = false
-};
-
 const song_t lineOneSFX ICACHE_RODATA_ATTR = {
     .notes = {
         {.note = C_4, .timeMs = 66},
@@ -614,10 +590,10 @@ const song_t * landSFX[NUM_LAND_FX] = {
     &lineOneSFX
 };
 
-const led_t gameoverColor ICACHE_RODATA_ATTR = {
-    .r = 0xFF,
-    .g = 0x00,
-    .b = 0x00
+const led_t titleColor ICACHE_RODATA_ATTR = {
+    .r = 0x00,
+    .g = 0xFF,
+    .b = 0xFF
 };
 
 const led_t highScoreColor ICACHE_RODATA_ATTR = {
@@ -626,8 +602,59 @@ const led_t highScoreColor ICACHE_RODATA_ATTR = {
     .b = 0x00
 };
 
-const led_t titleColor ICACHE_RODATA_ATTR = {
-    .r = 0x00,
+const led_t tetradColors[NUM_TETRAD_TYPES] ICACHE_RODATA_ATTR = {
+    // I_TETRAD    
+    {
+        .r = 0x00,
+        .g = 0xFF,
+        .b = 0xFF   
+    },
+    // O_TETRAD    
+    {
+        .r = 0xFF,
+        .g = 0xFF,
+        .b = 0x00   
+    },
+    // T_TETRAD    
+    {
+        .r = 0xFF,
+        .g = 0x00,
+        .b = 0xFF   
+    },
+    // J_TETRAD    
+    {
+        .r = 0x00,
+        .g = 0x00,
+        .b = 0xFF   
+    },
+    // L_TETRAD    
+    {
+        .r = 0xFF,
+        .g = 0xA5,
+        .b = 0x00   
+    },
+    // S_TETRAD    
+    {
+        .r = 0x00,
+        .g = 0xFF,
+        .b = 0x00   
+    },
+    // Z_TETRAD    
+    {
+        .r = 0xFF,
+        .g = 0x00,
+        .b = 0x00   
+    },
+};
+
+const led_t gameoverColor ICACHE_RODATA_ATTR = {
+    .r = 0xFF,
+    .g = 0x00,
+    .b = 0x00
+};
+
+const led_t clearColor ICACHE_RODATA_ATTR = {
+    .r = 0xFF,
     .g = 0xFF,
     .b = 0xFF
 };
@@ -713,8 +740,6 @@ uint32_t stateFrames = 0; // total number of frames elapsed in this state.
 tiltradsState_t currState = TT_TITLE;
 
 // LED FX vars.
-uint8_t animLineClears;
-uint8_t animNumLEDs;
 led_t leds[NUM_LEDS];
 
 // function prototypes go here.
@@ -768,7 +793,8 @@ bool ICACHE_FLASH_ATTR moveTetrad(tetrad_t * tetrad, uint8_t gridWidth, uint8_t 
 bool ICACHE_FLASH_ATTR dropTetrad(tetrad_t * tetrad, uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth]);
 tetrad_t ICACHE_FLASH_ATTR spawnTetrad(tetradType_t type, uint32_t gridValue, coord_t gridCoord, int rotation);
 void ICACHE_FLASH_ATTR spawnNextTetrad(tetrad_t * newTetrad, tetradRandomizer_t randomType, uint32_t gridValue, uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth]);
-int ICACHE_FLASH_ATTR getLandingRow(tetrad_t * tetrad);
+int ICACHE_FLASH_ATTR getLowestActiveRow(tetrad_t * tetrad);
+int ICACHE_FLASH_ATTR getHighestActiveRow(tetrad_t * tetrad);
 
 // drawing functions.
 void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size, color col);
@@ -811,11 +837,12 @@ int ICACHE_FLASH_ATTR clearLines(uint8_t gridWidth, uint8_t gridHeight, uint32_t
 
 bool ICACHE_FLASH_ATTR checkCollision(coord_t newPos, uint8_t shapeWidth, uint8_t shapeHeight, const uint32_t shape[][shapeWidth], uint8_t gridWidth, uint8_t gridHeight, const uint32_t gridData[][gridWidth], uint32_t selfGridValue);
 
-// LED FX
-void ICACHE_FLASH_ATTR clearAnimationLEDs(uint8_t numLEDs, uint8_t color, double progress);
-void ICACHE_FLASH_ATTR gameoverAnimationLEDs(uint8_t numLEDs, led_t color, uint32_t time);
-void ICACHE_FLASH_ATTR highScoreAnimationLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time);
-void ICACHE_FLASH_ATTR titleAnimationLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time);
+// LED FX functions.
+void ICACHE_FLASH_ATTR singlePulseLEDs(uint8_t numLEDs, led_t fxColor, double progress);
+void ICACHE_FLASH_ATTR blinkLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time);
+void ICACHE_FLASH_ATTR alternatingPulseLEDS(uint8_t numLEDs, led_t fxColor, uint32_t time);
+void ICACHE_FLASH_ATTR dancingLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time);
+void ICACHE_FLASH_ATTR countdownLEDs(uint8_t numLEDs, led_t fxColor, double progress);
 void ICACHE_FLASH_ATTR clearLEDs(uint8_t numLEDs);
 
 // Mode struct hook.
@@ -1116,7 +1143,7 @@ void ICACHE_FLASH_ATTR ttTitleUpdate(void)
         }
     }
 
-    titleAnimationLEDs(NUM_LEDS, titleColor, stateTime);
+    dancingLEDs(NUM_LEDS, titleColor, stateTime);
 }
 
 void ICACHE_FLASH_ATTR ttGameUpdate(void)
@@ -1136,7 +1163,7 @@ void ICACHE_FLASH_ATTR ttGameUpdate(void)
         clearTimer += deltaTime;
 
         double clearProgress = (double)clearTimer / (double)clearTime;
-        clearAnimationLEDs(animNumLEDs, animLineClears, clearProgress);
+        singlePulseLEDs(NUM_LEDS, clearColor, clearProgress);
 
         if (clearTimer >= clearTime)
         {
@@ -1161,6 +1188,18 @@ void ICACHE_FLASH_ATTR ttGameUpdate(void)
     #ifndef NO_STRESS_TRIS
         dropTimer += deltaTime;
     #endif
+
+        // Update the LED FX.
+        // Progress is the drop time for this row. (Too fast)
+        //double dropProgress = (double)dropTimer / (double)dropTime;
+
+        // Progress is how close it is to landing on the floor (Too nebulous or unhelpful?)
+        double totalDropTime = GRID_HEIGHT * dropTime;
+        double totalDropProgress = (getLowestActiveRow(&(activeTetrad)) * dropTime) + (double)dropTimer;
+        double dropProgress = (double)totalDropProgress / (double)totalDropTime;
+
+        //TODO: update this countdown with the correct progress to the actual landing point.
+        countdownLEDs(NUM_LEDS, tetradColors[activeTetrad.type-1], dropProgress);
 
         if (dropTimer >= dropTime)
         {
@@ -1219,7 +1258,7 @@ void ICACHE_FLASH_ATTR ttGameUpdate(void)
                     case 0:
                         //TODO: handle LED FX for regular tetrad land?
                         // Full grid height is 17, we have 16 sfx, offset results by 1 so that sfx[15] correctly plays at the playfield floor.
-                        landingSFX = getLandingRow(landedTetrad) - 1;
+                        landingSFX = getLowestActiveRow(landedTetrad) - 1;
                         if (landingSFX < 0) landingSFX = 0;
                         if (landingSFX > NUM_LAND_FX - 1) landingSFX = NUM_LAND_FX - 1;                        
                         startBuzzerSong(landSFX[landingSFX]);
@@ -1327,13 +1366,13 @@ void ICACHE_FLASH_ATTR ttGameUpdate(void)
 void ICACHE_FLASH_ATTR ttScoresUpdate(void)
 {
     // Update the LED FX.
-    highScoreAnimationLEDs(NUM_LEDS, highScoreColor, modeTime);
+    alternatingPulseLEDS(NUM_LEDS, highScoreColor, modeTime);
 }
 
 void ICACHE_FLASH_ATTR ttGameoverUpdate(void)
 {
     // Update the LED FX.
-    gameoverAnimationLEDs(NUM_LEDS, gameoverColor, stateTime);
+    blinkLEDs(NUM_LEDS, gameoverColor, stateTime);
 }
 
 void ICACHE_FLASH_ATTR ttTitleDisplay(void)
@@ -1647,7 +1686,7 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
             dropTimer = 0;
 
             clearLEDs(NUM_LEDS);
-            titleAnimationLEDs(NUM_LEDS, titleColor, stateTime);
+            dancingLEDs(NUM_LEDS, titleColor, stateTime);
             
             break;
         case TT_GAME:
@@ -1696,7 +1735,7 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
 
             clearLEDs(NUM_LEDS);
 
-            highScoreAnimationLEDs(NUM_LEDS, highScoreColor, modeTime);
+            alternatingPulseLEDS(NUM_LEDS, highScoreColor, modeTime);
 
             break;
         case TT_GAMEOVER:
@@ -1716,7 +1755,7 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
             clearLEDs(NUM_LEDS);
 
             //TODO: Game Over SFX.
-            gameoverAnimationLEDs(NUM_LEDS, gameoverColor, stateTime);
+            blinkLEDs(NUM_LEDS, gameoverColor, stateTime);
             
             break;
         default:
@@ -2063,16 +2102,10 @@ void ICACHE_FLASH_ATTR spawnNextTetrad(tetrad_t * newTetrad, tetradRandomizer_t 
     }
 }
 
-int ICACHE_FLASH_ATTR getLandingRow(tetrad_t * tetrad)
+// Lowest row on screen. (greatest value of r)
+int ICACHE_FLASH_ATTR getLowestActiveRow(tetrad_t * tetrad)
 {
-    //TODO: what is the best definition from a user perspective?
-    //Options:
-    //1. The topLeft r.
-    //2. The lowest occupied r.
-    //3. The highest occupied r. (Currently Selected)
-    //4. The approximate center r.
-
-    int landingRow = tetrad->topLeft.r;
+    int lowestRow = tetrad->topLeft.r;
     
     for (int r = 0; r < TETRAD_GRID_SIZE; r++)
     {
@@ -2080,13 +2113,33 @@ int ICACHE_FLASH_ATTR getLandingRow(tetrad_t * tetrad)
         {
             if (tetrad->shape[r][c] != EMPTY)
             {
-                landingRow = tetrad->topLeft.r + r;
+                lowestRow = tetrad->topLeft.r + r;
             }
         }
     }
 
-    return landingRow;
+    return lowestRow;
 }
+
+// Highest row on screen. (greatest value of r)
+int ICACHE_FLASH_ATTR getHighestActiveRow(tetrad_t * tetrad)
+{
+    int highestRow = tetrad->topLeft.r;
+    
+    for (int r = TETRAD_GRID_SIZE - 1; r <= 0; r--)
+    {
+        for (int c = 0; c < TETRAD_GRID_SIZE; c++)
+        {
+            if (tetrad->shape[r][c] != EMPTY)
+            {
+                highestRow = tetrad->topLeft.r + r;
+            }
+        }
+    }
+
+    return highestRow;
+}
+
 
 void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size, color col)
 {
@@ -2600,10 +2653,7 @@ void ICACHE_FLASH_ATTR startClearAnimation(int numLineClears)
     clearTimer = 0;
     clearTime = CLEAR_LINES_ANIM_TIME;
 
-    animLineClears = numLineClears;
-    animNumLEDs = NUM_LEDS;
-
-    clearAnimationLEDs(animNumLEDs, animLineClears, 0.0);
+    singlePulseLEDs(NUM_LEDS, clearColor, 0.0);
 }
 
 void ICACHE_FLASH_ATTR stopClearAnimation()
@@ -2612,7 +2662,7 @@ void ICACHE_FLASH_ATTR stopClearAnimation()
     clearTimer = 0;
     clearTime = 0;
 
-    clearAnimationLEDs(animNumLEDs, animLineClears, 1.0);
+    singlePulseLEDs(NUM_LEDS, clearColor, 1.0);
 }
 
 uint32_t ICACHE_FLASH_ATTR getDropTime(uint32_t level)
@@ -2901,16 +2951,22 @@ bool ICACHE_FLASH_ATTR checkCollision(coord_t newPos, uint8_t shapeWidth, uint8_
 }
 
 // a color is puled all leds according to the type of clear.
-void ICACHE_FLASH_ATTR clearAnimationLEDs(uint8_t numLEDs, uint8_t fxColor, double progress)
+void ICACHE_FLASH_ATTR singlePulseLEDs(uint8_t numLEDs, led_t fxColor, double progress)
 {   
-    progress *= progress;
-    uint8_t lightness = 0xFF - (uint8_t)((double)0xFF * progress);
-    uint32_t colorLED = getLedColorPerNumber(fxColor, lightness);
-    showLedCount(numLEDs, colorLED);
+    double lightness = 1.0 - (progress * progress);
+
+    for (int i = 0; i < numLEDs; i++) 
+    {
+        leds[i].r = (uint8_t)((double)fxColor.r * lightness);
+        leds[i].g = (uint8_t)((double)fxColor.g * lightness);
+        leds[i].b = (uint8_t)((double)fxColor.b * lightness);
+    }
+        
+    setLeds(leds, sizeof(leds));
 }
 
-// flash red in sync with OLED gameover FX.
-void ICACHE_FLASH_ATTR gameoverAnimationLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time)
+// blink red in sync with OLED gameover FX.
+void ICACHE_FLASH_ATTR blinkLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time)
 {
     //TODO: there are instances where the red flashes on the opposite of the fill draw, how to ensure this does not happen?
     uint32_t animCycle = ((double)time * US_TO_MS_FACTOR) / DISPLAY_REFRESH_MS;
@@ -2927,7 +2983,7 @@ void ICACHE_FLASH_ATTR gameoverAnimationLEDs(uint8_t numLEDs, led_t fxColor, uin
 }
 
 // alternate lit up like a bulb sign
-void ICACHE_FLASH_ATTR highScoreAnimationLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time)
+void ICACHE_FLASH_ATTR alternatingPulseLEDS(uint8_t numLEDs, led_t fxColor, uint32_t time)
 {
     double timeS = (double)time * US_TO_MS_FACTOR * MS_TO_S_FACTOR;
     double risingProgress = (sin(timeS * 4.0) + 1.0) / 2.0;
@@ -2955,26 +3011,13 @@ void ICACHE_FLASH_ATTR highScoreAnimationLEDs(uint8_t numLEDs, led_t fxColor, ui
 }
 
 // radial wanderers.
-void ICACHE_FLASH_ATTR titleAnimationLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time)
-{   
-    //TODO: check that this math works on a full swadge.
-    /*
-    0-3
-    1-4
-    2-5
-    */
-
+void ICACHE_FLASH_ATTR dancingLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time)
+{  
     uint32_t animCycle = ((double)time * US_TO_MS_FACTOR * 2.0) / DISPLAY_REFRESH_MS;
     int firstIndex = animCycle % numLEDs;
     int secondIndex = (firstIndex + (numLEDs / 2)) % numLEDs;
-    /*double timeS = (double)time * US_TO_MS_FACTOR * MS_TO_S_FACTOR;
-    double progress = (sin(timeS * 10.0) + 1.0) / 2.0;
 
-    double adjustedR = progress * (double)fxColor.r;
-    double adjustedG = progress * (double)fxColor.g;
-    double adjustedB = progress * (double)fxColor.b;*/
-
-    uint8_t timeMS = ((double)time * US_TO_MS_FACTOR)/400;
+    //uint8_t timeMS = ((double)time * US_TO_MS_FACTOR)/400;
 
     for (int i = 0; i < numLEDs; i++) 
     {
@@ -2986,11 +3029,50 @@ void ICACHE_FLASH_ATTR titleAnimationLEDs(uint8_t numLEDs, led_t fxColor, uint32
     setLeds(leds, sizeof(leds));
 }
 
+void ICACHE_FLASH_ATTR countdownLEDs(uint8_t numLEDs, led_t fxColor, double progress)
+{
+    // Reverse the direction of progress.
+    progress = 1.0 - progress;
+
+    // How many LEDs will be fully lit.
+    uint8_t numLitLEDs = progress * numLEDs;
+
+    // Get the length of each segment of progress. 
+    double segment = 1.0 / numLEDs;
+    double segmentProgress = numLitLEDs * segment;
+    // Find the amount that the leading LED should be partially lit.
+    double modProgress = (progress - segmentProgress) / segment;
+
+    for (int i = 0; i < numLEDs; i++) 
+    {
+        if (i < numLitLEDs)
+        {
+            leds[i].r = fxColor.r;
+            leds[i].g = fxColor.g;
+            leds[i].b = fxColor.b;
+        }
+        else if (i == numLitLEDs)
+        {
+            leds[i].r = (uint8_t)((double)fxColor.r * modProgress);
+            leds[i].g = (uint8_t)((double)fxColor.g * modProgress);
+            leds[i].b = (uint8_t)((double)fxColor.b * modProgress);
+        }
+        else
+        {
+            leds[i].r = 0x00;
+            leds[i].g = 0x00;
+            leds[i].b = 0x00;
+        }
+    }
+        
+    setLeds(leds, sizeof(leds));
+}
+
 void ICACHE_FLASH_ATTR clearLEDs(uint8_t numLEDs)
 {
     for (int i = 0; i < numLEDs; i++) 
     {
-        leds[i].r = 0x00;//(uint8_t)adjustedR;
+        leds[i].r = 0x00;
         leds[i].g = 0x00;
         leds[i].b = 0x00;
     }
