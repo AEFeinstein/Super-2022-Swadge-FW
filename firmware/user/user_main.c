@@ -13,7 +13,7 @@
 // LEDs are disabled when debuging
 // Note to change mode, must first close term running the above, then push
 // button, then start up xtensa-lx106-elf-gdb -x gdbstub/gdbcmds -b 115200
-#include <../gdbstub/gdbstub.h> // Comment out this line to disable esp_gdb
+#include <../gdbstub/gdbstub.h>
 #endif
 #include "embeddedout.h"
 
