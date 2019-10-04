@@ -138,7 +138,7 @@
 #define LINE_CLEARS_PER_LEVEL 5
 
 // LED FX
-#define NUM_LEDS 6 // TODO: 6 for retail, 8 for dev kit, confirm this.
+#define NUM_LEDS 8//6 // TODO: 6 for retail, 8 for dev kit, confirm this.
 
 // Music and SFX
 #define NUM_LAND_FX 16
@@ -795,6 +795,7 @@ tetrad_t ICACHE_FLASH_ATTR spawnTetrad(tetradType_t type, uint32_t gridValue, co
 void ICACHE_FLASH_ATTR spawnNextTetrad(tetrad_t * newTetrad, tetradRandomizer_t randomType, uint32_t gridValue, uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth]);
 int ICACHE_FLASH_ATTR getLowestActiveRow(tetrad_t * tetrad);
 int ICACHE_FLASH_ATTR getHighestActiveRow(tetrad_t * tetrad);
+int ICACHE_FLASH_ATTR getFallDistance(tetrad_t * tetrad, uint8_t gridWidth, uint8_t gridHeight, const uint32_t gridData[][gridWidth]);
 
 // drawing functions.
 void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size, color col);
@@ -1194,12 +1195,15 @@ void ICACHE_FLASH_ATTR ttGameUpdate(void)
         //double dropProgress = (double)dropTimer / (double)dropTime;
 
         // Progress is how close it is to landing on the floor (Too nebulous or unhelpful?)
-        double totalDropTime = GRID_HEIGHT * dropTime;
-        double totalDropProgress = (getLowestActiveRow(&(activeTetrad)) * dropTime) + (double)dropTimer;
-        double dropProgress = (double)totalDropProgress / (double)totalDropTime;
+        double totalFallTime = (GRID_HEIGHT - 1) * dropTime;
+        int fallDistance = getFallDistance(&(activeTetrad), GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
+        
+        double totalFallProgress = totalFallTime - (((fallDistance + 1) * dropTime) - dropTimer);
+        //(getLowestActiveRow(&(activeTetrad)) * dropTime) + (double)dropTimer;
+        double countdownProgress = totalFallProgress / totalFallTime;
 
         //TODO: update this countdown with the correct progress to the actual landing point.
-        countdownLEDs(NUM_LEDS, tetradColors[activeTetrad.type-1], dropProgress);
+        countdownLEDs(NUM_LEDS, tetradColors[activeTetrad.type-1], countdownProgress);
 
         if (dropTimer >= dropTime)
         {
@@ -1497,9 +1501,12 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     fillDisplayArea(highScoreHeaderTextStart - xPad, currY - yPad, highScoreHeaderTextEnd + yPad, currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
     plotText(highScoreHeaderTextStart, currY, newHighScore ? "HIGH (NEW!)" : "HIGH", TOM_THUMB, WHITE);
 
+    //int fallDistance = getFallDistance(&(activeTetrad), GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
+
     //99999    
     currY += (FONT_HEIGHT_TOMTHUMB + 1);
     ets_snprintf(uiStr, sizeof(uiStr), "%d", newHighScore ? score : highScores[0]);
+    //ets_snprintf(uiStr, sizeof(uiStr), "%d", fallDistance);
     getNumCentering(uiStr, 0, GRID_X, &numFieldStart, &numFieldEnd);
     fillDisplayArea(numFieldStart - xPad, currY, numFieldEnd + xPad, currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
     plotText(numFieldStart, currY, uiStr, TOM_THUMB, WHITE);
@@ -2138,6 +2145,57 @@ int ICACHE_FLASH_ATTR getHighestActiveRow(tetrad_t * tetrad)
     }
 
     return highestRow;
+}
+
+int ICACHE_FLASH_ATTR getFallDistance(tetrad_t * tetrad, uint8_t gridWidth, uint8_t gridHeight, const uint32_t gridData[][gridWidth])
+{
+    int fallDistance = gridHeight;
+    int currFallDistance;
+    int searchCol;
+    int lowestActiveRowInCol;
+
+    // Search through every column the tetrad can occupy space in.
+    for (int c = 0; c < TETRAD_GRID_SIZE; c++)
+    {
+        // Find the lowest (closest to the floor of the playfield) occupied row in this column for the tetrad.
+        lowestActiveRowInCol = -1;
+        for (int r = 0; r < TETRAD_GRID_SIZE; r++)
+        {
+            if (tetrad->shape[r][c] != EMPTY)
+            {
+                lowestActiveRowInCol = tetrad->topLeft.r + r;
+            }
+        }
+
+        // If any space in that tetrad was occupied.
+        if (lowestActiveRowInCol != -1)
+        {
+            searchCol = tetrad->topLeft.c + c;
+
+            currFallDistance = gridHeight - lowestActiveRowInCol - 1;
+
+            // If no occupied spaces still reassign fall distance if closer than full fall height
+            if (currFallDistance < fallDistance)
+            {
+                fallDistance = currFallDistance;
+            }
+
+            // Check grid spaces on rows below tetrad.
+            for (int gr = lowestActiveRowInCol + 1; gr < gridHeight; gr++)
+            {
+                currFallDistance = (gr - lowestActiveRowInCol - 1);
+
+                // If occupied by other tetrad, this is where
+                if (gridData[gr][searchCol] != EMPTY && 
+                    gridData[gr][searchCol] != tetrad->gridValue && 
+                    currFallDistance < fallDistance)
+                {
+                    fallDistance = currFallDistance;
+                }
+            }
+        }
+    }
+    return fallDistance;
 }
 
 
