@@ -9,12 +9,12 @@
 #include "mazegen.h"
 
 
-//#define UBUNTU
+#define UBUNTU
 #ifdef UBUNTU
 #define ICACHE_FLASH_ATTR
 #include <stdio.h>
 #include <stdbool.h>
-typedef unsigned char       uint8_t;
+typedef unsigned char uint8_t;
 #define os_printf printf
 #define os_random rand
 #else
@@ -104,6 +104,22 @@ void ICACHE_FLASH_ATTR draw(uint8_t width, uint8_t height, Node * nodes)
 		}
 		os_printf( "\n" );
 	}
+	#ifdef UBUNTU
+	Node * n;
+	Node * n11;
+	// for i or j even not part of tree
+	n11 = nodes + 1 + width;
+	for ( i = 1; i < height-1; i+=2 )
+	{
+		for ( j = 1; j < width-1; j+=2 )
+		{
+			n = nodes + j + i * width;
+			//os_printf("(%d, %d) %c %x %x \n",j, i, n->c, n - nodes, (int)(n->parent) - (int)nodes);
+		    os_printf("(%d, %d) %c %d %d \n",j, i, n->c, n - n11, (Node*)(n->parent) - n11);
+		}
+		os_printf( "\n" );
+	}
+	#endif
 }
 #endif
 
@@ -300,8 +316,9 @@ int16_t ICACHE_FLASH_ATTR get_maze(uint8_t width, uint8_t height, uint8_t xleft[
 
 	Node * nodes; // used to make maze and then dealocated
 	//Seed random generator
-	//srand( time( NULL ) );
-
+	#ifdef UBUNTU
+	srand( time( NULL ) );
+	#endif
 
 	//Allocate memory and set up nodes
 	if ( init(width, height, &nodes ) )
