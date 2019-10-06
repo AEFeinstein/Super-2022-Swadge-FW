@@ -116,6 +116,7 @@ typedef enum
 {
     MZ_TITLE,	// title screen
     MZ_GAME,	// play the actual game
+    MZ_AUTO,	// automataically play the actual game
     MZ_SCORES,	// high scores
     MZ_GAMEOVER // game over
 } mazeState_t;
@@ -137,7 +138,7 @@ uint32_t clearScoreTimer;
 bool holdingClearScore;
 
 // Game state info.
-uint32_t currentLevel; // The current difficulty level, increments every 10 line clears.
+//uint8_t currentLevel; // The current difficulty level
 uint32_t score; // The current score this game.
 uint32_t highScores[NUM_MZ_HIGH_SCORES];
 bool newHighScore;
@@ -168,6 +169,7 @@ void ICACHE_FLASH_ATTR mzGameoverInput(void);
 // update any input-unrelated logic.
 void ICACHE_FLASH_ATTR mzTitleUpdate(void);
 void ICACHE_FLASH_ATTR mzGameUpdate(void);
+void ICACHE_FLASH_ATTR mzAutoGameUpdate(void);
 void ICACHE_FLASH_ATTR mzScoresUpdate(void);
 void ICACHE_FLASH_ATTR mzGameoverUpdate(void);
 
@@ -199,7 +201,7 @@ static bool updateHighScores(uint32_t newScore);
 
 // Additional Helper
 void ICACHE_FLASH_ATTR setmazeLeds(led_t* ledData, uint8_t ledDataLen);
-int16_t ICACHE_FLASH_ATTR get_maze(uint8_t width, uint8_t height, uint8_t xleft[], uint8_t xright[], uint8_t ybot[], uint8_t ytop[]);
+get_maze_output_t ICACHE_FLASH_ATTR get_maze(uint8_t width, uint8_t height, uint8_t xleft[], uint8_t xright[], uint8_t ybot[], uint8_t ytop[], uint8_t xsol[], uint8_t ysol[], float scxcexits[], float scycexits[], uint8_t mazescalex, uint8_t mazescaley);
 uint8_t ICACHE_FLASH_ATTR intervalsmeet(float a,float c,float b,float d,float e,float f, float param[]);
 uint8_t ICACHE_FLASH_ATTR  gonethru(float b_prev[], float b_now[], float p_1[], float p_2[], float rball, float b_nowadjusted[], float param[]);
 int16_t ICACHE_FLASH_ATTR  incrementifnewvert(int16_t nwi, int16_t startind, int16_t endind);
@@ -217,6 +219,9 @@ static const uint8_t mazeBrightnesses[] =
     0x40,
     0x80,
 };
+
+
+const char * levelName[] = {"BOX", "PRACTICE", "EASY", "MIDDLE", "HARD", "KILLER", "IMPOSSIBLE"};
 
 /*============================================================================
  * Variables
@@ -257,6 +262,7 @@ static uint32_t modeTime = 0;	// total time the mode has been running.
 static uint32_t stateTime = 0;	// total time the game has been running.
 
 static mazeState_t currState = MZ_TITLE;
+static mazeState_t prevState;
 
 
 float xAccel;
@@ -286,11 +292,15 @@ uint8_t height; //Maze dimensions must be 1 less than multiples of 4
 uint8_t mazescalex = 1;
 uint8_t mazescaley = 1;
 int16_t numwalls;
+int16_t indSolution;
+int16_t indSolutionStep;
 int16_t numwallstodraw;
 uint8_t * xleft = NULL;
 uint8_t * xright = NULL;
 uint8_t * ytop = NULL;
 uint8_t * ybot = NULL;
+uint8_t * xsol = NULL;
+uint8_t * ysol = NULL;
 uint8_t flashcount = 0;
 uint8_t flashmax = 2;
 
@@ -398,6 +408,7 @@ void ICACHE_FLASH_ATTR mzUpdate(void* arg __attribute__((unused)))
             mzGameoverInput();
             break;
         }
+        case MZ_AUTO:
         default:
             break;
     };
@@ -417,6 +428,11 @@ void ICACHE_FLASH_ATTR mzUpdate(void* arg __attribute__((unused)))
         case MZ_GAME:
         {
 			mzGameUpdate();
+            break;
+        }
+        case MZ_AUTO:
+        {
+			mzAutoGameUpdate();
             break;
         }
         case MZ_SCORES:
@@ -442,6 +458,7 @@ void ICACHE_FLASH_ATTR mzUpdate(void* arg __attribute__((unused)))
             break;
         }
         case MZ_GAME:
+        case MZ_AUTO:
         {
 			mzGameDisplay();
             break;
@@ -527,20 +544,17 @@ void ICACHE_FLASH_ATTR changeLevel(void)
 }
 void ICACHE_FLASH_ATTR mzGameInput(void)
 {
-    //button b = abort but change level and restart
+    //button b = abort and restart at same level
     if(mzIsButtonPressed(BTN_GAME_RIGHT))
     {
         mazeFreeMemory();
         mzNewMazeSetUp();
         mzChangeState(MZ_GAME);
     }
-    //button a = abort and restart at same level
+    //button a = abort and automatically do maze
     else if(mzIsButtonPressed(BTN_GAME_LEFT))
     {
-        changeLevel();
-        mazeFreeMemory();
-        mzNewMazeSetUp();
-        mzChangeState(MZ_GAME);
+        mzChangeState(MZ_AUTO);
     }
 }
 
@@ -583,7 +597,7 @@ void ICACHE_FLASH_ATTR mzGameoverInput(void)
     {
         mazeFreeMemory();
         mzNewMazeSetUp();
-        mzChangeState(MZ_GAME);
+        mzChangeState(MZ_TITLE);
     }
     //button b = go to title screen
     else if(mzIsButtonPressed(BTN_GAMEOVER_START_TITLE))
@@ -809,6 +823,73 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
     maxTimeEnd(&maze_updatedisplay_timer);
 }
 
+void ICACHE_FLASH_ATTR mzAutoGameUpdate(void)
+{
+    //bool gonethruany;
+    
+    scxc = xsol[indSolutionStep];
+    scyc = ysol[indSolutionStep];
+
+
+    // increment count and don't start moving till becomes zero
+    totalcyclestilldone++;
+
+    if (totalcyclestilldone < 0)
+    {
+        scxc = scxcprev;
+        scyc = scycprev;
+    } else {
+        scxc = xsol[indSolutionStep];
+        scyc = ysol[indSolutionStep];
+        indSolutionStep++;
+        if (indSolutionStep > indSolution) gameover = true;
+    }
+
+    maze_printf("ENTRY\n from (%d, %d) to (%d, %d)\n", (int)(100*scxcprev), (int)(100*scycprev), (int)(100*scxc), (int)(100*scyc));
+
+    // Update previous location for next cycle
+
+    scxcprev = scxc;
+    scycprev = scyc;
+    // Show green LED in corner heading towards
+    leds[ledExitInd[exitInd]].g = 127;
+
+    // Test if at exit (bottom right corner) thus finished
+    if ((round(scxc) == round(scxcexits[exitInd])) && (round(scyc) == round(scycexits[exitInd])))
+    {
+        leds[ledExitInd[exitInd]].r = 255;
+        leds[ledExitInd[exitInd]].g = 0;
+        exitInd += 1;
+        if (exitInd > UPPER_RIGHT)
+        {
+            // Compute score
+            // Best performance is fast but not rolling along walls
+            // So time rolling is totalhitstilldone, while time
+            // moving in corridor without touching is totalcyclestilldone - totalhitstilldone
+            // Adjusted time is (totalcyclestilldone - totalhitstilldone) + penaltyFactor * totalhitstilldone
+            //   = totalcyclestilldone + (penaltyFactor - 1) * totalhitstilldone
+            // wiggleroom + 1 is used for penaltyFactor (more room to wiggle the greater the factor)
+            // score proportional to square of number of walls and inversely proportional adjusted time
+            float totalTime = UPDATE_TIME_MS  * (float)totalcyclestilldone / MS_TO_S_FACTOR;
+            float rollingTime = 0; //UPDATE_TIME_MS  * (float)totalhitstilldone / MS_TO_S_FACTOR;
+            float incorridorTime = totalTime - rollingTime;
+            float adjustedTime = incorridorTime + wiggleroom * rollingTime;
+            os_printf("Time to auto complete maze %d, in corridor %d on walls %d adj %d \n", (int)(100*totalTime), (int)(100*incorridorTime), (int)(100*rollingTime), (int)(100*adjustedTime));
+
+            score = 100.0 * numwallstodraw * numwallstodraw / adjustedTime;
+            os_printf("Score %d, Cycles to complete maze %d, time on walls %d\n",score, totalcyclestilldone, totalhitstilldone);
+            gameover = true;
+            // Clear Wall and Corner Hit Indicators
+            leds[LED_UPPER_MID].g = 0;
+            leds[LED_UPPER_MID].r = 0;
+            leds[LED_LOWER_MID].g = 0;
+            leds[LED_LOWER_MID].r = 0;
+
+        }
+    }
+}
+
+
 void ICACHE_FLASH_ATTR mzScoresUpdate(void)
 {
     // Do nothing.
@@ -823,8 +904,10 @@ void ICACHE_FLASH_ATTR mzTitleDisplay(void)
 	// Clear the display.
     clearDisplay();
 
-    // TILTRADS
+    // MAG MAZE
     plotText(20, 5, "MAG MAZE", RADIOSTARS, WHITE);
+
+    plotCenteredText(0, OLED_HEIGHT/2, 127, levelName[mazeLevel], IBM_VGA_8, WHITE);
 
     // SCORES   START
     plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "SCORES", IBM_VGA_8, WHITE);
@@ -878,7 +961,7 @@ void ICACHE_FLASH_ATTR mzGameDisplay(void)
 
     newHighScore = score > highScores[0];
     //plotCenteredText(0, 0, 10, newHighScore ? "HIGH (NEW!)" : "HIGH", TOM_THUMB, WHITE);
-    plotText(0,59, "NEW LEVEL", TOM_THUMB, WHITE);
+    plotText(0,59, "AUTO", TOM_THUMB, WHITE);
     plotText(OLED_WIDTH - getTextWidth("RESTART", TOM_THUMB), 59, "RESTART", TOM_THUMB, WHITE);
     ets_snprintf(uiStr, sizeof(uiStr), "%d secs", totalcyclestilldone * UPDATE_TIME_MS / MS_TO_S_FACTOR);
     plotCenteredText(0, 59, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
@@ -971,7 +1054,7 @@ void ICACHE_FLASH_ATTR mzGameoverDisplay(void)
 
     // TITLE    RESTART
     plotText(windowXMargin + controlTextXPadding, controlTextYOffset, "NEW LEVEL", TOM_THUMB, WHITE);
-    plotText(OLED_WIDTH - windowXMargin - getTextWidth("RESTART", TOM_THUMB) - controlTextXPadding, controlTextYOffset, "RESTART", TOM_THUMB, WHITE);
+    plotText(OLED_WIDTH - windowXMargin - getTextWidth("SAME LEVEL", TOM_THUMB) - controlTextXPadding, controlTextYOffset, "SAME LEVEL", TOM_THUMB, WHITE);
 }
 
 // helper functions.
@@ -990,9 +1073,12 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     xright = (uint8_t *)malloc (sizeof (uint8_t) * MAXNUMWALLS);
     ytop = (uint8_t *)malloc (sizeof (uint8_t) * MAXNUMWALLS);
     ybot = (uint8_t *)malloc (sizeof (uint8_t) * MAXNUMWALLS);
-
+    xsol = (uint8_t *)malloc (sizeof (uint8_t) * width * (height+1) / 2);
+    ysol = (uint8_t *)malloc (sizeof (uint8_t) * width * (height+1) / 2);
     int16_t i;
     int16_t startvert = 0;
+    get_maze_output_t out;
+
     totalcyclestilldone = -4 * MS_TO_S_FACTOR / UPDATE_TIME_MS;
     totalhitstilldone = 0;
     gameover = false;
@@ -1001,12 +1087,9 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
 
     system_print_meminfo();
     os_printf("Free Heap %d\n", system_get_free_heap_size());
-    // get_maze allocates more memory, makes a random maze and then deallocates memory
-    numwalls = get_maze(width, height, xleft, xright, ybot, ytop);
-    // xleft, xright, ybot, ytop are lists of boundary intervals making maze
-    numwallstodraw = numwalls;
-    mazescalex = 127/width; //63,31,15,7
-    mazescaley = 63/height; //31,15,7,3
+
+    mazescalex = 127/width;
+    mazescaley = 63/height;
 
     // This is the biggest rballused could be and then the ball will completely fill some corridors
     //    so for such a maze, it would be impossible to avoid touch walls.
@@ -1014,8 +1097,7 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     wiggleroom = 2*(min(mazescalex, mazescaley) - rballused);
 
     os_printf("width:%d, height:%d mscx:%d mscy:%d rball:%d wiggleroom %d\n", width, height, mazescalex, mazescaley, (int)rballused, (int)wiggleroom);
-    if (numwalls > MAXNUMWALLS) os_printf("numwalls = %d exceeds MAXNUMWALLS = %d", numwalls, MAXNUMWALLS);
-
+ 
 
     // initial position in center
     scxcprev = (float)mazescalex * (width - 1) / 2.0;
@@ -1035,7 +1117,6 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
         exitHit[ix] = false;
     }
 
-
     // compute exits
     scxcexits[UPPER_LEFT] = rballused;
     scycexits[UPPER_LEFT] = rballused;
@@ -1049,16 +1130,34 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     xadj = 0.5 + (127 - scxcexits[LOWER_RIGHT] - rballused)/2;
     //yadj = 0.5 + (63 - scycexits[LOWER_RIGHT] - rballused)/2;
     yadj = 0;
-    maze_printf("initpt (%d, %d)\n", (int)scxcprev, (int)scycprev);
+    os_printf("initpt (%d, %d)\n", (int)scxcprev, (int)scycprev);
     for (i = 0; i < 4; i++)
     {
-        maze_printf("exit corner %d (%d, %d)\n",i, (int)scxcexits[i], (int)scycexits[i]);
+        os_printf("exit corner %d (%d, %d)\n",i, (int)scxcexits[i], (int)scycexits[i]);
     }
 
+
+
+    // get_maze allocates more memory, makes a random maze giving walls and solution to maze
+    // and then deallocates memory
+    out = get_maze(width, height, xleft, xright, ybot, ytop, xsol, ysol, scxcexits, scycexits, mazescalex, mazescaley);
+    numwalls = out.indwall;
+    indSolution = out.indSolution;
+    // xleft, xright, ybot, ytop are lists of boundary intervals making maze
+    if (numwalls > MAXNUMWALLS) os_printf("numwalls = %d exceeds MAXNUMWALLS = %d", numwalls, MAXNUMWALLS);
+    numwallstodraw = numwalls;
+    
     // print scaled walls
     for (i = 0; i < numwalls; i++)
     {
         maze_printf("i %d (%d, %d) to (%d, %d)\n", i, mazescalex*xleft[i], mazescaley*ybot[i], mazescalex*xright[i], mazescaley*ytop[i]);
+    }
+
+    // print solutions 
+    os_printf("Solution ________________\n");
+    for (i = 0; i < indSolution; i++)
+    {
+        os_printf("(%d, %d) -> ", xsol[i], ysol[i]);
     }
 
     //Allocate some more working array memory now
@@ -1150,6 +1249,8 @@ void ICACHE_FLASH_ATTR mazeFreeMemory(void)
     free(xright);
     free(ytop);
     free(ybot);
+    free(xsol);
+    free(ysol);
     free(extendedScaledWallXleft);
     free(extendedScaledWallXright);
     free(extendedScaledWallYbot);
@@ -1159,7 +1260,8 @@ void ICACHE_FLASH_ATTR mazeFreeMemory(void)
 
 void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState)
 {
-	currState = newState;
+	prevState = currState;
+    currState = newState;
 	stateStartTime = system_get_time();
 	stateTime = 0;
 
@@ -1169,10 +1271,14 @@ void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState)
             break;
         case MZ_GAME:
             // All game restart functions happen here.
-            //clearGrid(GRID_WIDTH, GRID_HEIGHT, mazesGrid);
             loadHighScores();
             // TODO: should I be seeding this, or re-seeding this, and if so, with what?
             srand((uint32_t)(mzAccel.x + mzAccel.y * 3 + mzAccel.z * 5)); // Seed the random number generator.
+            break;
+        case MZ_AUTO:
+            loadHighScores();
+            indSolutionStep = 0;
+            exitInd = UPPER_LEFT;
             break;
         case MZ_SCORES:
             loadHighScores();
@@ -1181,10 +1287,13 @@ void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState)
             break;
         case MZ_GAMEOVER:
             // Update high score if needed.
-            newHighScore = updateHighScores(score);
-            if (newHighScore) saveHighScores();
-            // Save out the last score.
-            mzSetLastScore(score);
+            if (prevState != MZ_AUTO)
+            {
+                newHighScore = updateHighScores(score);
+                if (newHighScore) saveHighScores();
+                // Save out the last score.
+                mzSetLastScore(score);
+            }
             break;
         default:
             break;
