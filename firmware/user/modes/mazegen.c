@@ -222,7 +222,7 @@ Node ICACHE_FLASH_ATTR *link(uint8_t width, uint8_t height, Node * nodes,  Node 
 	char dir;
 	char dirofparent;
 	Node *dest;
-	
+
 	#if DEBUG > 2
 	Node * n11;
 	n11 = nodes + 1 + width;
@@ -333,7 +333,7 @@ Node ICACHE_FLASH_ATTR *relink(uint8_t width, uint8_t __attribute__((unused))hei
 	uint8_t y = 0;
 	char dir;
 	Node * dest;
-	
+
 	#if DEBUG > 2
 	Node * n11;
 	n11 = nodes + 1 + width;
@@ -440,7 +440,7 @@ void ICACHE_FLASH_ATTR rerootMazeNodes(uint8_t width, uint8_t height, uint8_t xr
 }
 
 // Find shortest path from an arbitrary point to the root
-//    path returns scaled coordinates and inserts exits
+//    returns scaled coordinates
 uint16_t ICACHE_FLASH_ATTR getPathToRoot(uint8_t xsol[], uint8_t ysol[],  uint8_t width, uint8_t __attribute__((unused))height, uint8_t xpoint, uint8_t ypoint, Node * nodes,  uint8_t mazescalex, uint8_t mazescaley )
 {
 	//xpoint odd from 1 to width-2, ypoint odd from 1 to height-2
@@ -487,9 +487,11 @@ get_maze_output_t ICACHE_FLASH_ATTR get_maze(uint8_t width, uint8_t height, uint
 // Input width, height, scxcexits[], scycexits[], mazescalex, mazescaley);
 
 // Output arrays xleft, xright, ybot and ytop of dim MAXNUMWALLS
-//               will contain coordinates of endpoints of walls
-//  returns number of walls N so i=0; i< N will index them all.
-//  Note if returns N means failed due to not being able to allocate
+//                     will contain coordinates of endpoints of walls
+//  returns out where out.indwall = number of walls
+//	      so i=0; i< out.indwall will index them all.
+//  and 	out.indSolution indexes xsol and ysol
+//  Note if returns out.indwall = 0 means failed due to not being able to allocate
 //        working memory or exceeding MAXNUMWALLS
 
 	Node * nodes; // used to make maze and then dealocated
@@ -528,7 +530,10 @@ get_maze_output_t ICACHE_FLASH_ATTR get_maze(uint8_t width, uint8_t height, uint
 	{
 		// Show Maze as printed characters
 		if (i==0) draw(width, height, nodes );
+		// Make complete solution starting at center and going to each exit in turn
+		// Get partial solution path to ith exit
 		indSolution +=  getPathToRoot(&xsol[indSolution], &ysol[indSolution], width, height, xpoint, ypoint, nodes, mazescalex, mazescaley);
+		// Insert ith exit
 		xsol[indSolution] = scxcexits[i];
 		ysol[indSolution] = scycexits[i];
 		indSolution++;
@@ -593,7 +598,7 @@ void ICACHE_FLASH_ATTR main( uint8_t argc, char **argv )
 	uint8_t xsol[2*MAXNUMWALLS];
 	uint8_t ysol[2*MAXNUMWALLS];
 	float scxcexits[4] = {55, 56, 57, 58};
-	float scycexits[4] = {65, 66, 67, 68}; 
+	float scycexits[4] = {65, 66, 67, 68};
 
 	//Check argument count
 	if ( argc < 3 )

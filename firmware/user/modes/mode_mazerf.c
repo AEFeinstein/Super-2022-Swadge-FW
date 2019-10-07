@@ -37,6 +37,7 @@
 #include "maxtime.h"
 #include "user_main.h"	//swadge mode
 #include "mode_mazerf.h"
+#include "mode_dance.h"
 #include "ccconfig.h"
 #include "DFT32.h"
 #include "buttons.h"
@@ -138,7 +139,6 @@ uint32_t clearScoreTimer;
 bool holdingClearScore;
 
 // Game state info.
-//uint8_t currentLevel; // The current difficulty level
 uint32_t score; // The current score this game.
 uint32_t highScores[NUM_MZ_HIGH_SCORES];
 bool newHighScore;
@@ -147,6 +147,18 @@ bool newHighScore;
 /*============================================================================
  * Prototypes
  *==========================================================================*/
+
+// Led patterns borrowed from mode_dance.c
+void ICACHE_FLASH_ATTR danceTimerMode1(void);
+void ICACHE_FLASH_ATTR danceTimerMode2(void);
+void ICACHE_FLASH_ATTR danceTimerMode3(void);
+void ICACHE_FLASH_ATTR danceTimerMode4(void);
+void ICACHE_FLASH_ATTR danceTimerMode6(void);
+void ICACHE_FLASH_ATTR danceTimerMode13(void);
+void ICACHE_FLASH_ATTR danceTimerMode16(void);
+void ICACHE_FLASH_ATTR danceTimerMode17(void);
+//void ICACHE_FLASH_ATTR random_dance_mode(void);
+
 
 void ICACHE_FLASH_ATTR mzInit(void);
 void ICACHE_FLASH_ATTR mzDeInit(void);
@@ -312,6 +324,8 @@ float * extendedScaledWallYbot = NULL;
 
 void ICACHE_FLASH_ATTR mzInit(void)
 {
+    // External from mode_dance to set brightness when using dance mode display
+    danceBrightnessIdx = 2;
     // Give us reliable button input.
 	enableDebounce(false);
 
@@ -394,6 +408,7 @@ void ICACHE_FLASH_ATTR mzUpdate(void* arg __attribute__((unused)))
             break;
         }
         case MZ_GAME:
+        case MZ_AUTO:
         {
 			mzGameInput();
             break;
@@ -408,7 +423,6 @@ void ICACHE_FLASH_ATTR mzUpdate(void* arg __attribute__((unused)))
             mzGameoverInput();
             break;
         }
-        case MZ_AUTO:
         default:
             break;
     };
@@ -826,7 +840,7 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
 void ICACHE_FLASH_ATTR mzAutoGameUpdate(void)
 {
     //bool gonethruany;
-    
+
     scxc = xsol[indSolutionStep];
     scyc = ysol[indSolutionStep];
 
@@ -935,10 +949,10 @@ void ICACHE_FLASH_ATTR mzGameDisplay(void)
         plotCircle(round(scxcexits[i]) + xadj, round(scycexits[i]) + yadj, 2, WHITE);
     }
     // Blink exit currently heading for
-    if (flashcount < flashmax/2) plotCircle(round(scxcexits[exitInd]) + xadj, round(scycexits[exitInd]) + yadj, 2, INVERSE);
+    if (flashcount >= flashmax/2) plotCircle(round(scxcexits[exitInd]) + xadj, round(scycexits[exitInd]) + yadj, 2, INVERSE);
 
 
-    // Draw the ball ajusted to fit in maze centerd on screen
+    // Draw the ball ajusted to fit in maze centered on screen
     // And just touch boundaries
 
     for (uint8_t rad = 2; rad < (int)rballused; rad++)
@@ -950,9 +964,13 @@ void ICACHE_FLASH_ATTR mzGameDisplay(void)
 
     if (rballused > 0)
     {
-        //if (flashcount >= flashmax/2) plotCircle(round(scxc) + xadj, round(scyc) + yadj, 1, WHITE);
-        if (flashcount >= flashmax/2) plotRect(round(scxc) + xadj - 1, round(scyc) + yadj - 1, round(scxc) + xadj + 1, round(scyc) + yadj + 1, WHITE);
-     }
+        if (mazeLevel >= KILLER_LEVEL)
+        {
+            if (flashcount < flashmax/2) plotRect(round(scxc) + xadj - 1, round(scyc) + yadj - 1, round(scxc) + xadj + 1, round(scyc) + yadj + 1, WHITE);
+        } else {
+            if (flashcount >= flashmax/2) plotRect(round(scxc) + xadj - 1, round(scyc) + yadj - 1, round(scxc) + xadj + 1, round(scyc) + yadj + 1, WHITE);
+        }
+    }
     if (flashcount < flashmax/2) plotCircle(round(scxc) + xadj, round(scyc) + yadj, 0, WHITE);
     flashcount++;
     if (flashcount > flashmax) flashcount = 0;
@@ -1015,8 +1033,37 @@ void ICACHE_FLASH_ATTR mzScoresDisplay(void)
 
 void ICACHE_FLASH_ATTR mzGameoverDisplay(void)
 {
-    // We don't clear the display because we want the playfield to appear in the background.
+    switch (mazeLevel)
+    {
+    case BOX_LEVEL:
+        danceTimerMode1();
+        break;
+    case PRACTICE_LEVEL:
+        danceTimerMode2();
+        break;
+    case EASY_LEVEL:
+        danceTimerMode3();
+        break;
+    case MIDDLE_LEVEL:
+        danceTimerMode4();
+        break;
+    case HARD_LEVEL:
+        danceTimerMode13();
+        break;
+    case KILLER_LEVEL:
+        danceTimerMode16();
+        break;
+    case IMPOSSIBLE_LEVEL:
+        danceTimerMode17();
+        break;
+    default:
+        break;
+    }
+    //random_dance_mode(); //didn't work
 
+
+
+    // We don't clear the display because we want the playfield to appear in the background.
     // Draw a centered bordered window.
 
     //TODO: #define these instead of variables here?
@@ -1097,7 +1144,7 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     wiggleroom = 2*(min(mazescalex, mazescaley) - rballused);
 
     os_printf("width:%d, height:%d mscx:%d mscy:%d rball:%d wiggleroom %d\n", width, height, mazescalex, mazescaley, (int)rballused, (int)wiggleroom);
- 
+
 
     // initial position in center
     scxcprev = (float)mazescalex * (width - 1) / 2.0;
@@ -1146,14 +1193,14 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     // xleft, xright, ybot, ytop are lists of boundary intervals making maze
     if (numwalls > MAXNUMWALLS) os_printf("numwalls = %d exceeds MAXNUMWALLS = %d", numwalls, MAXNUMWALLS);
     numwallstodraw = numwalls;
-    
+
     // print scaled walls
     for (i = 0; i < numwalls; i++)
     {
         maze_printf("i %d (%d, %d) to (%d, %d)\n", i, mazescalex*xleft[i], mazescaley*ybot[i], mazescalex*xright[i], mazescaley*ytop[i]);
     }
 
-    // print solutions 
+    // print solutions
     os_printf("Solution ________________\n");
     for (i = 0; i < indSolution; i++)
     {
@@ -1268,6 +1315,9 @@ void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState)
     switch( currState )
     {
         case MZ_TITLE:
+            // Clear leds
+            memset(leds, 0, sizeof(leds));
+            setmazeLeds(leds, sizeof(leds));
             break;
         case MZ_GAME:
             // All game restart functions happen here.
@@ -1278,6 +1328,7 @@ void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState)
         case MZ_AUTO:
             loadHighScores();
             indSolutionStep = 0;
+            totalcyclestilldone = 0;
             exitInd = UPPER_LEFT;
             break;
         case MZ_SCORES:
