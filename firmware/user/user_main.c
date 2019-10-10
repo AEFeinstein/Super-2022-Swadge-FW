@@ -41,6 +41,7 @@
 #include "mode_roll.h"
 //#include "mode_maze.h"
 #include "mode_mazerf.h"
+#include "mode_color_movement.h"
 
 /*============================================================================
  * Defines
@@ -84,6 +85,7 @@ swadgeMode* swadgeModes[] =
     &rollMode,
     //&mazeMode,
     &mazerfMode,
+    &colorMoveMode,
 };
 bool swadgeModeInit = false;
 rtcMem_t rtcMem = {0};
