@@ -227,7 +227,7 @@ void ICACHE_FLASH_ATTR joustConnectionCallback(p2pInfo* p2p __attribute__((unuse
             //This is the start of the game
             joust.led.currBrightness = 0;
             joust.led.ConnLedState = LED_CONNECTED_BRIGHT;
-            os_timer_arm(&joust.tmr.ShowConnectionLed, 6, true);
+            os_timer_arm(&joust.tmr.ShowConnectionLed, 24, true);
 
             break;
         }
@@ -591,8 +591,8 @@ void ICACHE_FLASH_ATTR joustShowConnectionLedTimeout(void* arg __attribute__((un
     {
         case LED_CONNECTED_BRIGHT:
         {
-            joust.led.currBrightness;
-            if(joust.led.currBrightness == 255)
+            joust.led.currBrightness = joust.led.currBrightness +5;
+            if(joust.led.currBrightness > 200)
             {
                 joust.led.ConnLedState = LED_CONNECTED_DIM;
             }
@@ -600,8 +600,8 @@ void ICACHE_FLASH_ATTR joustShowConnectionLedTimeout(void* arg __attribute__((un
         }
         case LED_CONNECTED_DIM:
         {
-            joust.led.currBrightness--;
-            if(joust.led.currBrightness == 0x00)
+            joust.led.currBrightness = joust.led.currBrightness -5;
+            if(joust.led.currBrightness <10 )
             {
                 joustStartPlaying(NULL);
             }
