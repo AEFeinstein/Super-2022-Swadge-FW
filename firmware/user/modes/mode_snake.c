@@ -16,6 +16,8 @@
 #include "mode_snake.h"
 #include "oled.h"
 #include "font.h"
+#include "buzzer.h"
+#include "hpatimer.h"
 
 /*============================================================================
  * Defines
@@ -29,10 +31,150 @@
 #define SNAKE_INITIAL_LEN 7
 
 /*============================================================================
+ * BGM
+ *==========================================================================*/
+
+const song_t MetalGear ICACHE_RODATA_ATTR =
+{
+    .notes = {
+        {.note = E_5, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_4, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 719},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_6, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_6, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_5, .timeMs = 719},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_5, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 1919},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_5, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_5, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_5, .timeMs = 719},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_5, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = B_5, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_6, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_SHARP_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_6, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_6, .timeMs = 959},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_SHARP_6, .timeMs = 719},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_SHARP_6, .timeMs = 479},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_6, .timeMs = 239},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_6, .timeMs = 1919},
+        {.note = SILENCE, .timeMs = 1},
+    },
+    .numNotes = 128,
+    .shouldLoop = true
+};
+
+/*============================================================================
  * Sprites
  *==========================================================================*/
 
-const uint8_t snakeBackground[] =
+const uint8_t snakeBackground[] ICACHE_RODATA_ATTR =
 {
     0x80, 0xfe, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7f, 0x01,
     0x80, 0xfe, 0x00, 0x00, 0x03, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xc0, 0x00, 0x00, 0x7f, 0x01,
@@ -141,7 +283,7 @@ typedef enum
     FOOD                 = 0b0100101001000000,
 } snakeSprite;
 
-const snakeSprite spriteTransitionTable[2][4][4] =
+const snakeSprite spriteTransitionTable[2][4][4] ICACHE_RODATA_ATTR =
 {
     // Snake is skinny
     {
@@ -239,7 +381,7 @@ const snakeSprite spriteTransitionTable[2][4][4] =
     }
 };
 
-const snakeSprite headTransitionTable[2][4] =
+const snakeSprite headTransitionTable[2][4] ICACHE_RODATA_ATTR =
 {
     {
         // Head is UP
@@ -263,7 +405,7 @@ const snakeSprite headTransitionTable[2][4] =
     }
 };
 
-const snakeSprite tailTransitionTable[4] =
+const snakeSprite tailTransitionTable[4] ICACHE_RODATA_ATTR =
 {
     // Tail is UP
     TAIL_UP,
@@ -285,7 +427,14 @@ typedef enum
     bug5 = 0b00001000111101010000000011110101,
 } critterSprite;
 
-const critterSprite critterSprites[5] = {bug1, bug2, bug3, bug4, bug5};
+const critterSprite critterSprites[5] ICACHE_RODATA_ATTR =
+{
+    bug1,
+    bug2,
+    bug3,
+    bug4,
+    bug5
+};
 
 /*============================================================================
  * Typedefs
@@ -349,7 +498,6 @@ swadgeMode snakeMode =
     .fnEnterMode = snakeInit,
     .fnExitMode = snakeDeinit,
     .fnButtonCallback = snakeButtonCallback,
-    .fnAudioCallback = NULL,
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
@@ -405,6 +553,8 @@ void ICACHE_FLASH_ATTR snakeInit(void)
     os_timer_disarm(&snake.timerHandleSnakeLogic);
     os_timer_setfn(&snake.timerHandleSnakeLogic, (os_timer_func_t*)drawSnakeFrame, NULL);
     os_timer_arm(&snake.timerHandleSnakeLogic, 100, 1);
+
+    startBuzzerSong(&MetalGear);
 }
 
 /**
@@ -565,12 +715,12 @@ void ICACHE_FLASH_ATTR drawSnakeFrame(void* arg __attribute__((unused)))
     {
         drawCritter();
         ets_snprintf(scoreStr, sizeof(scoreStr), "%02d", snake.critterTimerCount);
-        plotText(96, 5, scoreStr, TOM_THUMB);
+        plotText(96, 5, scoreStr, TOM_THUMB, WHITE);
     }
 
     // Draw the score
     ets_snprintf(scoreStr, sizeof(scoreStr), "%04d", snake.score);
-    plotText(24, 5, scoreStr, TOM_THUMB);
+    plotText(24, 5, scoreStr, TOM_THUMB, WHITE);
 }
 
 /**
@@ -678,6 +828,7 @@ void ICACHE_FLASH_ATTR moveSnake(void)
     {
         // Collided with self, game over
         os_timer_disarm(&snake.timerHandleSnakeLogic);
+        stopBuzzerSong();
     }
 }
 

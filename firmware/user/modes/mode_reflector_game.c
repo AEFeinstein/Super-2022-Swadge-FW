@@ -140,7 +140,6 @@ swadgeMode reflectorGameMode =
     .fnEnterMode = refInit,
     .fnExitMode = refDeinit,
     .fnButtonCallback = refButton,
-    .fnAudioCallback = NULL,
     .wifiMode = ESP_NOW,
     .fnEspNowRecvCb = refRecvCb,
     .fnEspNowSendCb = refSendCb,

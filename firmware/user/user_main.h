@@ -16,9 +16,9 @@
 #include <stdint.h>
 #include <stddef.h>
 
- /*============================================================================
- * Enums
- *==========================================================================*/
+/*============================================================================
+* Enums
+*==========================================================================*/
 
 typedef enum
 {
@@ -88,13 +88,6 @@ typedef struct _swadgeMode
      */
     void (*fnButtonCallback)(uint8_t state, int button, int down);
     /**
-     * This function is called whenever an audio sample is read from the
-     * microphone (ADC), is filtered, and is ready for processing
-     *
-     * @param audoSample A 32 bit audio sample
-     */
-    void (*fnAudioCallback)(int32_t audoSample);
-    /**
      * This is a setting, not a function pointer. Set it to one of these
      * values to have the system configure the swadge's WiFi
      * NO_WIFI - Don't use WiFi at all. This saves power.
@@ -163,7 +156,7 @@ void ICACHE_FLASH_ATTR swadgeModeEspNowSendCb(uint8_t* mac_addr, mt_tx_status st
 void EnterCritical(void);
 void ExitCritical(void);
 
-uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode *** modePtr);
+uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr);
 void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode);
 
 #endif /* USER_USER_MAIN_H_ */

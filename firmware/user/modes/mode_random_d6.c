@@ -45,7 +45,6 @@ swadgeMode randomD6Mode =
     .fnEnterMode = randInit,
     .fnExitMode = randDeinit,
     .fnButtonCallback = randButtonCallback,
-    .fnAudioCallback = NULL,
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,

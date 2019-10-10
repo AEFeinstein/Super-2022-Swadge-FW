@@ -10,6 +10,7 @@
 
 #include <osapi.h>
 #include "sprite.h"
+#include "oled.h"
 
 typedef enum
 {
@@ -19,15 +20,15 @@ typedef enum
 } fonts;
 
 #define FONT_HEIGHT_RADIOSTARS 12
-extern sprite_t font_Radiostars[];
+extern const sprite_t font_Radiostars[] ICACHE_RODATA_ATTR;
 
 #define FONT_HEIGHT_IBMVGA8 10
-extern sprite_t font_IbmVga8[];
+extern const sprite_t font_IbmVga8[] ICACHE_RODATA_ATTR;
 
 #define FONT_HEIGHT_TOMTHUMB 5
-extern sprite_t font_TomThumb[];
+extern const sprite_t font_TomThumb[] ICACHE_RODATA_ATTR;
 
-uint8_t plotChar(uint8_t x, uint8_t y, char character, sprite_t* table);
-void plotText(uint8_t x, uint8_t y, char* text, fonts font);
+uint8_t plotChar(uint8_t x, uint8_t y, char character, const sprite_t* table, color col);
+void plotText(uint8_t x, uint8_t y, char* text, fonts font, color col);
 
 #endif /* SRC_FONT_H_ */

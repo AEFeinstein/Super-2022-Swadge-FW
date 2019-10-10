@@ -8,11 +8,36 @@
  * @param x The x position where to draw the sprite
  * @param y The y position where to draw the sprite
  * @param sprite The sprite to draw
+ * @param col WHITE, BLACK or INVERSE
  * @return The x position of the end of the sprite drawn
  */
-uint8_t ICACHE_FLASH_ATTR plotSprite(uint8_t x, uint8_t y, const sprite_t* sprite)
+uint8_t ICACHE_FLASH_ATTR plotSprite(uint8_t x, uint8_t y, const sprite_t* sprite, color col)
 {
     uint8_t xIdx, yIdx;
+    color foreground, background;
+    switch (col)
+    {
+        default:
+        case WHITE:
+        {
+            foreground = WHITE;
+            background = BLACK;
+            break;
+        }
+        case BLACK:
+        {
+            foreground = BLACK;
+            background = WHITE;
+            break;
+        }
+        case INVERSE:
+        {
+            foreground = INVERSE;
+            background = INVERSE;
+            break;
+        }
+    }
+
     for (xIdx = 0; xIdx < sprite->width; xIdx++)
     {
         for (yIdx = 0; yIdx < sprite->height; yIdx++)
@@ -21,11 +46,11 @@ uint8_t ICACHE_FLASH_ATTR plotSprite(uint8_t x, uint8_t y, const sprite_t* sprit
             uint8_t yPx = (uint8_t) (y + yIdx);
             if (0 != (sprite->data[yIdx] & (1 << xIdx)))
             {
-                drawPixel(xPx, yPx, WHITE);
+                drawPixel(xPx, yPx, foreground);
             }
             else
             {
-                drawPixel(xPx, yPx, BLACK);
+                drawPixel(xPx, yPx, background);
             }
         }
     }

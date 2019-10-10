@@ -1,6 +1,6 @@
 #include "font.h"
 
-sprite_t font_Radiostars[] =
+const sprite_t font_Radiostars[] ICACHE_RODATA_ATTR =
 {
     {
         .width = 8,
