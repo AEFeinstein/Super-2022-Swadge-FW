@@ -214,11 +214,11 @@ void ICACHE_FLASH_ATTR joustConnectionCallback(p2pInfo* p2p __attribute__((unuse
             {
                 char color_string[32] = {0};
                 joust.con_color =  joust_rand(255);
-                ets_snprintf(color_string, sizeof(color_string), "%d", joust.con_color);
+                ets_snprintf(color_string, sizeof(color_string), "%d_%d_", joust.con_color,joust.gam.joustElo);
                 p2pSendMsg(&joust.p2pJoust, "col", color_string, sizeof(color_string), joustMsgTxCbFn);
             }
             joust_printf("connection established\n");
-            joust.gameState = R_SHOW_CONNECTION;
+            //joust.gameState = R_SHOW_CONNECTION;
 
             // ets_memset(joust.led.Leds, 0, sizeof(joust.led.Leds));
 
@@ -227,7 +227,7 @@ void ICACHE_FLASH_ATTR joustConnectionCallback(p2pInfo* p2p __attribute__((unuse
             //This is the start of the game
             joust.led.currBrightness = 0;
             joust.led.ConnLedState = LED_CONNECTED_BRIGHT;
-            os_timer_arm(&joust.tmr.ShowConnectionLed, 24, true);
+            os_timer_arm(&joust.tmr.ShowConnectionLed, 50, true);
 
             break;
         }
@@ -259,27 +259,7 @@ void ICACHE_FLASH_ATTR joustMsgCallbackFn(p2pInfo* p2p __attribute__((unused)), 
     }
 
 
-    //send color: col First
-    //then send our elo: elo
-    //then send their elo: elt
-    if(0 == ets_memcmp(msg, "col", 3))
-    {
-        joust.con_color =  atoi((const char*)payload);
-        char elo_string[32] = {0};
-        ets_snprintf(elo_string, sizeof(elo_string), "%d", joust.gam.joustElo);
-        p2pSendMsg(&joust.p2pJoust, "elo", elo_string, sizeof(elo_string), joustMsgTxCbFn);
-    }
-    else if(0 == ets_memcmp(msg, "elo", 3))
-    {
-        joust.gam.otherJoustElo =  atoi((const char*)payload);
-        char elo_string[32] = {0};
-        ets_snprintf(elo_string, sizeof(elo_string), "%d", joust.gam.joustElo);
-        p2pSendMsg(&joust.p2pJoust, "elt", elo_string, sizeof(elo_string), joustMsgTxCbFn);
-    }
-    else if(0 == ets_memcmp(msg, "elt", 3))
-    {
-        joust.gam.otherJoustElo =  atoi((const char*)payload);
-    }
+
 
     switch(joust.gameState)
     {
@@ -302,6 +282,48 @@ void ICACHE_FLASH_ATTR joustMsgCallbackFn(p2pInfo* p2p __attribute__((unused)), 
         }
         case R_MENU:
         case R_SEARCHING:
+        {
+          //other sends color and elo first
+          //then send our elo
+          if(0 == ets_memcmp(msg, "col", 3))
+          {
+
+              char col_str[32] = {0};
+              uint16_t i = 0;
+              for (i = 0; i < sizeof(payload); i++) {
+                if((const char*)payload[i] == '_'){
+                  break;
+                }
+                col_str[i]=(const char*)payload[i];
+              }
+              joust.con_color = atoi((const char*)col_str);
+
+              i++;
+              char elo_str[32] = {0};
+              for (int j = 0; j < sizeof(payload); j++) {
+                if((const char*)payload[j+i] == '_'){
+                  break;
+                }
+                elo_str[j]=(const char*)payload[j+i];
+              }
+               joust.gam.otherJoustElo = atoi((const char*)elo_str);
+               double P1 = ( 1.0f / (1.0f + pow(10.0f, ((double)joust.gam.otherJoustElo - (double)joust.gam.joustElo) / 400.0f)));
+               joust.gam.win_score = (uint32_t)  200.0f * (1.0f - P1);
+               joust.gam.lose_score = (uint32_t) 200.0f * ( P1);
+               char elo_string[32] = {0};
+               ets_snprintf(elo_string, sizeof(elo_string), "%d", joust.gam.joustElo);
+               p2pSendMsg(&joust.p2pJoust, "elo", elo_string, sizeof(elo_string), joustMsgTxCbFn);
+          }
+          else if(0 == ets_memcmp(msg, "elo", 3))
+          {
+              joust.gam.otherJoustElo =  atoi((const char*)payload);
+              double P1 = ( 1.0f / (1.0f + pow(10.0f, ((double)joust.gam.otherJoustElo - (double)joust.gam.joustElo) / 400.0f)));
+              joust.gam.win_score = (uint32_t)  200.0f * (1.0f - P1);
+              joust.gam.lose_score = (uint32_t) 200.0f * ( P1);
+
+          }
+
+        }
         case R_SHOW_CONNECTION:
         case R_SHOW_GAME_RESULT:
         {
@@ -336,7 +358,7 @@ void ICACHE_FLASH_ATTR joustInit(void)
     joust_printf("%s\r\n", __func__);
     // setJoustElo(150);
     joust.gam.joustElo = getJoustElo();
-    if(joust.gam.joustElo > 10000)
+    if(joust.gam.joustElo > 10000 || joust.gam.joustElo < 0)
     {
         setJoustElo(1000);
     }
@@ -510,6 +532,7 @@ void ICACHE_FLASH_ATTR joustDeinit(void)
     joust_printf("%s\r\n", __func__);
     p2pDeinit(&joust.p2pJoust);
     os_timer_disarm(&joust.tmr.StartPlaying);
+    os_timer_disarm(&joust.tmr.RestartJoust);
     joustDisarmAllLedTimers();
 }
 
@@ -570,17 +593,16 @@ void ICACHE_FLASH_ATTR joustRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len
 void ICACHE_FLASH_ATTR joustShowConnectionLedTimeout(void* arg __attribute__((unused)) )
 {
 
+
+
+
     clearDisplay();
     char accelStr[32] = {0};
     plotText(0, 0, "Found Player", IBM_VGA_8, WHITE);
 
-    ets_snprintf(accelStr, sizeof(accelStr), "level: %d", joust.gam.otherJoustElo);
+    ets_snprintf(accelStr, sizeof(accelStr), "their level: %d", joust.gam.otherJoustElo);
     plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8, WHITE);
 
-    double P1 = ( 1.0f / (1.0f + pow(10.0f, ((double)joust.gam.otherJoustElo - (double)joust.gam.joustElo) / 400.0f)));
-
-    joust.gam.win_score = (uint32_t)  200.0f * (1.0f - P1);
-    joust.gam.lose_score = (uint32_t) 200.0f * ( P1);
     ets_snprintf(accelStr, sizeof(accelStr), "win :+%d", (int)joust.gam.win_score);
     plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8,WHITE);
 
@@ -732,11 +754,11 @@ void ICACHE_FLASH_ATTR joustAccelerometerHandler(accel_t* accel)
     joust.joustAccel.x = accel->x;
     joust.joustAccel.y = accel->y;
     joust.joustAccel.z = accel->z;
-    int mov = (int) sqrt(pow(joust.joustAccel.x, 2) + pow(joust.joustAccel.y, 2) + pow(joust.joustAccel.z, 2));
+    uint16_t mov = (uint16_t) sqrt(pow(joust.joustAccel.x, 2) + pow(joust.joustAccel.y, 2) + pow(joust.joustAccel.z, 2));
     joust.rolling_average = (joust.rolling_average * 2 + mov) / 3;
     if (joust.gameState == R_PLAYING)
     {
-        if(mov > joust.rolling_average + 50)
+        if(mov > joust.rolling_average + 60)
         {
             joustSendRoundLossMsg();
         }
