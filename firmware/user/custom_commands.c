@@ -32,6 +32,7 @@ typedef struct __attribute__((aligned(4)))
     uint8_t SaveLoadKey; //Must be SAVE_LOAD_KEY to be valid.
     uint8_t configs[CONFIGURABLES];
     uint8_t refGameWins;
+    uint32_t joustElo;
 }
 settings_t;
 
@@ -143,6 +144,7 @@ configurable_t gConfigs[CONFIGURABLES] =
 };
 
 uint8_t refGameWins = 0;
+uint32_t joustElo = 1000;
 
 /*============================================================================
  * Prototypes
@@ -166,7 +168,8 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
     {
         .SaveLoadKey = 0,
         .configs = {0},
-        .refGameWins = 0
+        .refGameWins = 0,
+        .joustElo = 1000
     };
 
     uint8_t i;
@@ -183,6 +186,7 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
         }
 
         refGameWins = settings.refGameWins;
+        joustElo = settings.joustElo;
     }
     else
     {
@@ -195,6 +199,7 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
             }
         }
         refGameWins = 0;
+        joustElo = 1000;
         SaveSettings();
     }
 }
@@ -208,7 +213,8 @@ void ICACHE_FLASH_ATTR SaveSettings(void)
     {
         .SaveLoadKey = SAVE_LOAD_KEY,
         .configs = {0},
-        .refGameWins = refGameWins
+        .refGameWins = refGameWins,
+        .joustElo = joustElo
     };
 
     uint8_t i;
@@ -250,12 +256,31 @@ void ICACHE_FLASH_ATTR setGameWinsToMax(void)
     }
 }
 
+
+/**
+ * Increment the game win count and save it to SPI flash
+ */
+void ICACHE_FLASH_ATTR setJoustElo(uint32_t elo)
+{
+    joustElo = elo;
+    SaveSettings();
+}
+
+
 /**
  * @return The number of reflector games this swadge has won
  */
 uint8_t ICACHE_FLASH_ATTR getRefGameWins(void)
 {
     return refGameWins;
+}
+
+/**
+ * @return The number of reflector games this swadge has won
+ */
+uint32_t ICACHE_FLASH_ATTR getJoustElo(void)
+{
+    return joustElo;
 }
 
 /**
