@@ -23,25 +23,6 @@
 //NOTES:
 // Decided not to handle cascade clears that result from falling tetrads after clears. Closer to target behavior.
 
-//TODO:
-//FX events:
-// tetrad lands
-// tetrad drops
-// the current highest occupied point of the grid
-// WIP line clear (single, double, triple, quadruple)
-// game start
-// game over
-// level increase
-// title / idle
-// title button press
-// scores button press / hold
-// holding or not holding down soft drop
-// rotate tetrad
-
-
-// Add visual or audio FX for a tetrad locking in-place.
-// Add VFX that use Swadge LEDs.
-// Add SFX and / or Music.
 
 // Suppress warnings related to consting of some parameters in function declarations.
 // Do second pass on accelerometer code.
@@ -138,7 +119,8 @@
 #define LINE_CLEARS_PER_LEVEL 5
 
 // LED FX
-#define NUM_LEDS 8//6 // TODO: 6 for retail, 8 for dev kit, confirm this.
+#define NUM_LEDS 6
+#define MODE_LED_BRIGHTNESS 0.25 // Factor that decreases overall brightness of LEDs since they are a little distracting at full brightness.
 
 // Music and SFX
 #define NUM_LAND_FX 16
@@ -590,6 +572,307 @@ const song_t * landSFX[NUM_LAND_FX] = {
     &lineOneSFX
 };
 
+const song_t titleMusic ICACHE_RODATA_ATTR = {
+    .notes = {
+        {.note = G_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_6, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_6, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_6, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_6, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+    },
+    .numNotes = 256,
+    .shouldLoop = true
+};
+
+const song_t gameStartSting ICACHE_RODATA_ATTR = {
+    .notes = {
+        {.note = C_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+    },
+    .numNotes = 8,
+    .shouldLoop = false
+};
+
+const song_t gameOverSting ICACHE_RODATA_ATTR = {
+    .notes = {
+        {.note = C_7, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_6, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_6, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+    },
+    .numNotes = 16,
+    .shouldLoop = false
+};
+
 const led_t titleColor ICACHE_RODATA_ATTR = {
     .r = 0x00,
     .g = 0xFF,
@@ -845,6 +1128,7 @@ void ICACHE_FLASH_ATTR alternatingPulseLEDS(uint8_t numLEDs, led_t fxColor, uint
 void ICACHE_FLASH_ATTR dancingLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time);
 void ICACHE_FLASH_ATTR countdownLEDs(uint8_t numLEDs, led_t fxColor, double progress);
 void ICACHE_FLASH_ATTR clearLEDs(uint8_t numLEDs);
+void ICACHE_FLASH_ATTR applyLEDBrightness(uint8_t numLEDs, double brightness);
 
 // Mode struct hook.
 swadgeMode tiltradsMode = 
@@ -1199,11 +1483,14 @@ void ICACHE_FLASH_ATTR ttGameUpdate(void)
         int fallDistance = getFallDistance(&(activeTetrad), GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
         
         double totalFallProgress = totalFallTime - (((fallDistance + 1) * dropTime) - dropTimer);
-        //(getLowestActiveRow(&(activeTetrad)) * dropTime) + (double)dropTimer;
         double countdownProgress = totalFallProgress / totalFallTime;
 
-        //TODO: update this countdown with the correct progress to the actual landing point.
-        countdownLEDs(NUM_LEDS, tetradColors[activeTetrad.type-1], countdownProgress);
+        //NOTE: this check is here because under unknown circumstances the math above can produce bad countdownProgress values, causing a slight flicker when a tetrad lands.
+        // Ideally the math above should be fixed, but this is an acceptable fix for now.
+        if (countdownProgress >= 0.0 && countdownProgress <= 1.0)
+        {
+            countdownLEDs(NUM_LEDS, tetradColors[activeTetrad.type-1], countdownProgress);
+        }
 
         if (dropTimer >= dropTime)
         {
@@ -1260,7 +1547,6 @@ void ICACHE_FLASH_ATTR ttGameUpdate(void)
                         startBuzzerSong(&quadLineClearSFX);
                         break;
                     case 0:
-                        //TODO: handle LED FX for regular tetrad land?
                         // Full grid height is 17, we have 16 sfx, offset results by 1 so that sfx[15] correctly plays at the playfield floor.
                         landingSFX = getLowestActiveRow(landedTetrad) - 1;
                         if (landingSFX < 0) landingSFX = 0;
@@ -1666,6 +1952,7 @@ void ICACHE_FLASH_ATTR ttGameoverDisplay(void)
 
 void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
 {
+    tiltradsState_t prevState = currState;
 	currState = newState;
 	stateStartTime = system_get_time();
 	stateTime = 0;
@@ -1679,7 +1966,6 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
     switch( currState )
     {
         case TT_TITLE:
-            
             clearLandedTetrads();
 
             // Get a random tutorial tetrad.
@@ -1694,6 +1980,13 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
 
             clearLEDs(NUM_LEDS);
             dancingLEDs(NUM_LEDS, titleColor, stateTime);
+
+            // If we've come to the title from the game, stop all sound and restart title theme.
+            if (prevState != TT_SCORES) 
+            {
+                stopBuzzerSong();
+                startBuzzerSong(&titleMusic);
+            }
             
             break;
         case TT_GAME:
@@ -1721,6 +2014,9 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
             stopClearAnimation();
 
             clearLEDs(NUM_LEDS);
+
+            stopBuzzerSong();
+            startBuzzerSong(&gameStartSting);
 
             break;
         case TT_SCORES:
@@ -1761,8 +2057,10 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
 
             clearLEDs(NUM_LEDS);
 
-            //TODO: Game Over SFX.
             blinkLEDs(NUM_LEDS, gameoverColor, stateTime);
+
+            stopBuzzerSong();
+            startBuzzerSong(&gameOverSting);
             
             break;
         default:
@@ -2705,7 +3003,7 @@ void ICACHE_FLASH_ATTR deInitLandedTetrads()
     landedTetrads = NULL;
 }
 
-void ICACHE_FLASH_ATTR startClearAnimation(int numLineClears)
+void ICACHE_FLASH_ATTR startClearAnimation(int numLineClears __attribute__((unused)))
 {
     inClearAnimation = true;
     clearTimer = 0;
@@ -3020,6 +3318,7 @@ void ICACHE_FLASH_ATTR singlePulseLEDs(uint8_t numLEDs, led_t fxColor, double pr
         leds[i].b = (uint8_t)((double)fxColor.b * lightness);
     }
         
+    applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
     setLeds(leds, sizeof(leds));
 }
 
@@ -3037,6 +3336,7 @@ void ICACHE_FLASH_ATTR blinkLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time)
         leds[i].b = lightActive ? fxColor.b : 0x00;
     }
         
+    applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
     setLeds(leds, sizeof(leds));
 }
 
@@ -3065,6 +3365,7 @@ void ICACHE_FLASH_ATTR alternatingPulseLEDS(uint8_t numLEDs, led_t fxColor, uint
         leds[i].b = risingLED ? (uint8_t)risingB : (uint8_t)fallingB;
     }
         
+    applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
     setLeds(leds, sizeof(leds));
 }
 
@@ -3084,6 +3385,7 @@ void ICACHE_FLASH_ATTR dancingLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time
         leds[i].b = i == firstIndex || i == secondIndex ? fxColor.b : 0x00;
     }
         
+    applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
     setLeds(leds, sizeof(leds));
 }
 
@@ -3123,6 +3425,7 @@ void ICACHE_FLASH_ATTR countdownLEDs(uint8_t numLEDs, led_t fxColor, double prog
         }
     }
         
+    applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
     setLeds(leds, sizeof(leds));
 }
 
@@ -3136,5 +3439,17 @@ void ICACHE_FLASH_ATTR clearLEDs(uint8_t numLEDs)
     }
         
     setLeds(leds, sizeof(leds));
+}
+
+void ICACHE_FLASH_ATTR applyLEDBrightness(uint8_t numLEDs, double brightness)
+{
+    // Best way would be to convert to HSV and then set, is this factor method ok?
+    
+    for (int i = 0; i < numLEDs; i++) 
+    {
+        leds[i].r = (uint8_t)((double)leds[i].r * brightness);
+        leds[i].g = (uint8_t)((double)leds[i].g * brightness);
+        leds[i].b = (uint8_t)((double)leds[i].b * brightness);
+    }
 }
 
