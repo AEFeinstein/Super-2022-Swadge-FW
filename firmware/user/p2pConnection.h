@@ -2,6 +2,7 @@
 #define _P2P_CONNECTION_H_
 
 #include <osapi.h>
+#include "user_main.h"
 
 typedef enum
 {
@@ -45,6 +46,8 @@ typedef struct _p2pInfo
     p2pMsgRxCbFn msgRxCbFn;
     p2pMsgTxCbFn msgTxCbFn;
 
+    uint8_t connectionRssi;
+
     // Variables used for acking and retrying messages
     struct
     {
@@ -83,7 +86,7 @@ typedef struct _p2pInfo
 
 void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId,
                                      p2pConCbFn conCbFn,
-                                     p2pMsgRxCbFn msgRxCbFn);
+                                     p2pMsgRxCbFn msgRxCbFn, uint8_t connectionRssi);
 void ICACHE_FLASH_ATTR p2pDeinit(p2pInfo* p2p);
 
 void ICACHE_FLASH_ATTR p2pStartConnection(p2pInfo* p2p);

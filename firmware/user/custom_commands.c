@@ -34,6 +34,7 @@ typedef struct __attribute__((aligned(4)))
     uint8_t refGameWins;
     uint32_t ttHighScores[NUM_TT_HIGH_SCORES]; //first,second,third
     uint32_t ttLastScore;
+    uint32_t joustElo;
 }
 settings_t;
 
@@ -145,6 +146,7 @@ configurable_t gConfigs[CONFIGURABLES] =
 };
 
 uint8_t refGameWins = 0;
+uint32_t joustElo = 1000;
 
 uint32_t ttHighScores[NUM_TT_HIGH_SCORES] = {0};
 
@@ -173,8 +175,8 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
         .SaveLoadKey = 0,
         .configs = {0},
         .refGameWins = 0,
-        //.ttHighScores = {0},
-        .ttLastScore = 0
+        .ttLastScore = 0,
+        .joustElo = 1000
     };
     memset(settings.ttHighScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
 
@@ -194,6 +196,7 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
         refGameWins = settings.refGameWins;
         memcpy(ttHighScores, settings.ttHighScores, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
         ttLastScore = settings.ttLastScore;
+        joustElo = settings.joustElo;
     }
     else
     {
@@ -208,6 +211,7 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
         refGameWins = 0;
         memset(ttHighScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
         ttLastScore = 0;
+        joustElo = 1000;
         SaveSettings();
     }
 }
@@ -222,8 +226,8 @@ void ICACHE_FLASH_ATTR SaveSettings(void)
         .SaveLoadKey = SAVE_LOAD_KEY,
         .configs = {0},
         .refGameWins = refGameWins,
-        //.ttHighScores = {0},
-        .ttLastScore = ttLastScore
+        .ttLastScore = ttLastScore,
+        .joustElo = joustElo
     };
     memset(settings.ttHighScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
     memcpy(settings.ttHighScores, ttHighScores,  NUM_TT_HIGH_SCORES * sizeof(uint32_t));
@@ -267,6 +271,17 @@ void ICACHE_FLASH_ATTR setGameWinsToMax(void)
     }
 }
 
+
+/**
+ * Increment the game win count and save it to SPI flash
+ */
+void ICACHE_FLASH_ATTR setJoustElo(uint32_t elo)
+{
+    joustElo = elo;
+    SaveSettings();
+}
+
+
 /**
  * @return The number of reflector games this swadge has won
  */
@@ -295,6 +310,14 @@ void ICACHE_FLASH_ATTR ttSetLastScore(uint32_t newLastScore)
 {
     ttLastScore = newLastScore;
     SaveSettings();
+}
+
+/**
+ * @return The number of reflector games this swadge has won
+ */
+uint32_t ICACHE_FLASH_ATTR getJoustElo(void)
+{
+    return joustElo;
 }
 
 /**

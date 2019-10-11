@@ -18,5 +18,7 @@ uint32_t * ICACHE_FLASH_ATTR ttGetHighScores(void);
 void ICACHE_FLASH_ATTR ttSetHighScores(uint32_t * newHighScores);
 uint32_t ICACHE_FLASH_ATTR ttGetLastScore(void);
 void ICACHE_FLASH_ATTR ttSetLastScore(uint32_t newLastScore);
+void ICACHE_FLASH_ATTR setJoustElo(uint32_t);
+uint32_t ICACHE_FLASH_ATTR getJoustElo(void);
 
 #endif /* USER_CUSTOM_COMMANDS_H_ */

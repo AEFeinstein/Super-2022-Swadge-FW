@@ -30,6 +30,7 @@
 #include "mode_random_d6.h"
 #include "mode_dance.h"
 #include "mode_demo.h"
+#include "mode_joust_game.h"
 #include "mode_snake.h"
 #include "mode_tiltrads.h"
 
@@ -64,6 +65,7 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 swadgeMode* swadgeModes[] =
 {
     &menuMode, // Menu must be the first
+    &joustGameMode,
     &snakeMode,
     &tiltradsMode,
     &demoMode,
