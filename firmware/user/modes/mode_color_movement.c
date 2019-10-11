@@ -58,8 +58,8 @@
 #define BTN_GAMEOVER_START_TITLE LEFT
 #define BTN_GAMEOVER_START_GAME RIGHT
 
-// update task (16 would give 60 fps like idad, need read accel that fast too?)
-#define UPDATE_TIME_MS 100
+// update task (16 would give 60 fps like ipad, need read accel that fast too?)
+#define UPDATE_TIME_MS 16
 
 // time info.
 #define MS_TO_US_FACTOR 1000
@@ -244,7 +244,7 @@ uint8_t cmButtonState = 0;
 uint8_t cmLastButtonState = 0;
 
 uint8_t cmLevel = IMPOSSIBLE_LEVEL;
-uint8_t cmBrightnessIdx = 2;
+uint8_t cmBrightnessIdx = 0;
 uint8_t ledOrderInd[] = {LED_UPPER_LEFT, LED_LOWER_LEFT, LED_LOWER_MID, LED_LOWER_RIGHT, LED_UPPER_RIGHT, LED_UPPER_MID};
 static led_t leds[NUM_LIN_LEDS] = {{0}};
 int CM_ledCount = 0;
@@ -366,9 +366,9 @@ void ICACHE_FLASH_ATTR AdjustPlotDots(int16_t buffer1[], uint16_t insert1, int16
     {
         i1 = (i1 < NUM_DOTS) ? i1 : 0;
         i2 = (i2 < NUM_DOTS) ? i2 : 0;
-        //drawPixel(i, buffer1[i1] - buffer2[i2] + PLOT_SHIFT, WHITE);
+        drawPixel(i, buffer1[i1] - buffer2[i2] + PLOT_SHIFT, WHITE);
     }
-    plotCircle(64,32,10,WHITE);
+    //plotCircle(64,32,10,WHITE);
     // pos[1] = PLOT_SCALE * buffer[i] + PLOT_SHIFT
    
 }
@@ -380,7 +380,7 @@ void ICACHE_FLASH_ATTR AdjustPlotDotsSingle(int16_t buffer1[], uint16_t insert1)
     for (i = 0; i < NUM_DOTS; i++ , i1++)
     {
         i1 = (i1 < NUM_DOTS) ? i1 : 0;
-        //drawPixel(i, buffer1[i1] + PLOT_SHIFT, WHITE);
+        drawPixel(i, buffer1[i1] + PLOT_SHIFT, WHITE);
         //os_printf("(%d, %d) ", i, buffer1[i1] + PLOT_SHIFT);
     }
     //os_printf("\n");
@@ -828,7 +828,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         //sound.play_effect('game:Beep', volume = 300*smoothActivity/500, pitch=pitch)
     }
 
-    CM_printf('bpm %d, activity %d\n'.format(bpm, smoothActivity));
+    //os_printf("bpm %d, activity %d\n", bpm, smoothActivity);
 
     uint8_t ledr;
     uint8_t ledg;
@@ -923,7 +923,7 @@ void ICACHE_FLASH_ATTR cmGameDisplay(void)
 {
     char uiStr[32] = {0};
     // Clear the display
-    clearDisplay();
+    //clearDisplay();
 
 
     if (gameover)
