@@ -18,6 +18,7 @@
 #include "oled.h"		//display functions
 #include "font.h"		//draw text
 #include "bresenham.h"	//draw shapes
+#include "hpatimer.h"   //for sound
 #include "linked_list.h" //custom linked list
 #include "custom_commands.h" //saving and loading high scores and last scores
 #include "math.h"
@@ -62,13 +63,20 @@
 
 // time info.
 #define MS_TO_US_FACTOR 1000
-#define MS_TO_S_FACTOR 1000
+#define S_TO_MS_FACTOR 1000
 //#define US_TO_MS_FACTOR 0.001
 
-#define CLEAR_SCORES_HOLD_TIME (5 * MS_TO_US_FACTOR * MS_TO_S_FACTOR)
+#define CLEAR_SCORES_HOLD_TIME (5 * MS_TO_US_FACTOR * S_TO_MS_FACTOR)
 
 #define NUM_CM_HIGH_SCORES 3
-#define NUM_DOTS 128
+#define NUM_DOTS 120
+#define SOUND_ON true
+#define ALPHA_FAST 0.3
+#define ALPHA_SLOW 0.05
+#define ALPHA_CROSS 0.1
+#define ALPHA_ACTIVE 0.03
+#define CROSS_TOL 0.06
+#define SPECIAL_EFFECT true
 
 #define BOX_LEVEL 0
 #define PRACTICE_LEVEL 1
@@ -85,6 +93,8 @@
 #define LED_LOWER_RIGHT LED_4
 #define LED_LOWER_MID LED_5
 #define LED_LOWER_LEFT LED_6
+
+#define SCREEN_BORDER 0
 
 // any enums go here.
 
@@ -177,9 +187,9 @@ static uint8_t getTextWidth(char* text, fonts font);
 
 
 // score operations.
-static void loadHighScores(void);
-static void saveHighScores(void);
-static bool updateHighScores(uint32_t newScore);
+//static void loadHighScores(void);
+//static void saveHighScores(void);
+//static bool updateHighScores(uint32_t newScore);
 
 // Additional Helper
 void ICACHE_FLASH_ATTR setCMLeds(led_t* ledData, uint8_t ledDataLen);
@@ -187,6 +197,10 @@ void ICACHE_FLASH_ATTR cmChangeLevel(void);
 
 void ICACHE_FLASH_ATTR cmNewSetup(void);
 
+uint16_t ICACHE_FLASH_ATTR circularPush(int16_t value, uint16_t insertInd, int16_t buffer[]);
+int16_t ICACHE_FLASH_ATTR IIRFilter(float alpha, int16_t input, int16_t output);
+void ICACHE_FLASH_ATTR AdjustPlotDots(int16_t buffer1[], uint16_t insert1, int16_t buffer2[], uint16_t insert2);
+void ICACHE_FLASH_ATTR AdjustPlotDotsSingle(int16_t buffer[], uint16_t insert);
 /*============================================================================
  * Static Const Variables
  *==========================================================================*/
@@ -231,6 +245,7 @@ uint8_t cmLastButtonState = 0;
 
 uint8_t cmLevel = IMPOSSIBLE_LEVEL;
 uint8_t cmBrightnessIdx = 2;
+uint8_t ledOrderInd[] = {LED_UPPER_LEFT, LED_LOWER_LEFT, LED_LOWER_MID, LED_LOWER_RIGHT, LED_UPPER_RIGHT, LED_UPPER_MID};
 static led_t leds[NUM_LIN_LEDS] = {{0}};
 int CM_ledCount = 0;
 static os_timer_t timerHandleUpdate = {0};
@@ -245,20 +260,132 @@ static cmState_t currState = CM_TITLE;
 static cmState_t prevState;
 
 
-float xAccel;
-float yAccel;
-float zAccel;
+int16_t xAccel;
+int16_t yAccel;
+int16_t zAccel;
 
 bool gameover;
 
-uint8_t * bufNormAccel = NULL;
-uint8_t * bufHighPassNormAccel = NULL;
-uint8_t * bufXaccel = NULL;
-uint8_t * bufLowPassXaccel = NULL;
-uint8_t * bufYaccel = NULL;
-uint8_t * bufLowPassYaccel = NULL;
-uint8_t * bufZaccel = NULL;
-uint8_t * bufLowPassZaccel = NULL;
+//TODO wanted circular buffer to be a structure
+//And implement handling of it by helper function
+//Can't see how now, so will do by brute force in the mean time
+// typedef struct
+// {
+//     uint16_t length;
+//     uint16_t insertInd;
+//     int16_t * data;
+// } circularBuffer_t;
+
+
+// circularBuffer_t  bufNormAccel;
+// circularBuffer_t  bufHighPassNormAccel;
+// circularBuffer_t  bufXaccel;
+// circularBuffer_t  bufLowPassXaccel;
+// circularBuffer_t  bufYaccel;
+// circularBuffer_t  bufLowPassYaccel;
+// circularBuffer_t  bufZaccel;
+// circularBuffer_t  bufLowPassZaccel;
+
+int16_t * bufNormAccel;
+int16_t * bufHighPassNormAccel;
+int16_t * bufXaccel;
+int16_t * bufLowPassXaccel;
+int16_t * bufYaccel;
+int16_t * bufLowPassYaccel;
+int16_t * bufZaccel;
+int16_t * bufLowPassZaccel;
+
+// Point (index) to insertion point
+uint16_t  bufNormAccelInsert;
+uint16_t  bufHighPassNormAccelInsert;
+uint16_t  bufXaccelInsert;
+uint16_t  bufLowPassXaccelInsert;
+uint16_t  bufYaccelInsert;
+uint16_t  bufLowPassYaccelInsert;
+uint16_t  bufZaccelInsert;
+uint16_t  bufLowPassZaccelInsert;
+
+float REVOLUTIONS_PER_ZERO_CROSSING = 0.5;
+uint8_t PLOT_SCALE = 32;
+uint8_t PLOT_SHIFT = 32;
+// do via timer now 10 fps FRAME_RESET = 0 // 0 for 60 fps, 1 for 30 fps, 2 for 20 fps, k for 60/(k+1) fps
+uint8_t FRAME_RESET = 0;
+
+int16_t showcount = 0; // used for skipping frames
+int16_t adj = SCREEN_BORDER;
+int16_t wid = 128 - 2 * SCREEN_BORDER;
+
+uint8_t ledcycle = 0;
+
+int16_t lowPassNormAccel = 0;
+int16_t lowPassXaccel = 0;
+int16_t lowPassYaccel = 0;
+int16_t lowPassZaccel = 0;
+int16_t smoothNormAccel = 0;
+int16_t smoothXaccel = 0;
+int16_t smoothYaccel = 0;
+int16_t smoothZaccel = 0;
+int16_t prevHighPassNormAccel = 0;
+int16_t smoothActivity = 0;
+
+// times float? or use cycles?
+int16_t lastzerocrosst = 0;
+int16_t ledPrevIncTime = 0;
+int16_t aveZeroCrossInterval = 5;
+int16_t crossinterval = 5;
+
+bool pause = false;
+bool skipNextCross = true;
+bool still = true;
+
+// Helpers
+uint16_t ICACHE_FLASH_ATTR circularPush(int16_t value, uint16_t insertInd, int16_t * buffer)
+{
+    buffer[insertInd] = value;
+    if (insertInd >= NUM_DOTS)
+    {
+        return 0;
+    } else {
+        return insertInd + 1;
+    }
+}
+
+int16_t ICACHE_FLASH_ATTR IIRFilter(float alpha, int16_t  input, int16_t output)
+{
+    // return updated output and returns it
+    return  (1 - alpha) * output + alpha * input;
+}
+
+void ICACHE_FLASH_ATTR AdjustPlotDots(int16_t buffer1[], uint16_t insert1, int16_t buffer2[], uint16_t insert2)
+{
+    // Plots a graph with x from 0 to 119 and y from buffer1 - buffer2
+    uint8_t i;
+    uint8_t i1 = insert1 + 1; // oldest
+    uint8_t i2 = insert2 + 1;
+    for (i = 0; i < NUM_DOTS; i++ , i1++, i2++)
+    {
+        i1 = (i1 < NUM_DOTS) ? i1 : 0;
+        i2 = (i2 < NUM_DOTS) ? i2 : 0;
+        //drawPixel(i, buffer1[i1] - buffer2[i2] + PLOT_SHIFT, WHITE);
+    }
+    plotCircle(64,32,10,WHITE);
+    // pos[1] = PLOT_SCALE * buffer[i] + PLOT_SHIFT
+   
+}
+void ICACHE_FLASH_ATTR AdjustPlotDotsSingle(int16_t buffer1[], uint16_t insert1)
+{
+    // Plots a graph with x from 0 to 119 and y from buffer1
+    uint8_t i;
+    uint8_t i1 = insert1 + 1; // oldest
+    for (i = 0; i < NUM_DOTS; i++ , i1++)
+    {
+        i1 = (i1 < NUM_DOTS) ? i1 : 0;
+        //drawPixel(i, buffer1[i1] + PLOT_SHIFT, WHITE);
+        //os_printf("(%d, %d) ", i, buffer1[i1] + PLOT_SHIFT);
+    }
+    //os_printf("\n");
+}
+
 
 void ICACHE_FLASH_ATTR cmInit(void)
 {
@@ -273,6 +400,9 @@ void ICACHE_FLASH_ATTR cmInit(void)
 
     // Reset state stuff.
 	cmChangeState(CM_TITLE);
+
+    // Set up all initialization and allocation of memory
+    cmNewSetup();
 
 	// Start the update loop.
     os_timer_disarm(&timerHandleUpdate);
@@ -494,8 +624,8 @@ void ICACHE_FLASH_ATTR cmScoresInput(void)
         {
             clearScoreTimer = 0;
             memset(highScores, 0, NUM_CM_HIGH_SCORES * sizeof(uint32_t));
-            saveHighScores();
-            loadHighScores();
+            //saveHighScores();
+            //loadHighScores();
             //cmSetLastScore(0);
         }
     }
@@ -543,34 +673,229 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
 {
     bool gonethruany;
     static struct maxtime_t CM_updatedisplay_timer = { .name="CM_updateDisplay"};
-
-
     maxTimeBegin(&CM_updatedisplay_timer);
+
+    clearDisplay();
+
+ 
+    showcount += 1;
+    if (showcount > FRAME_RESET) showcount = 0;
+    if (showcount > 0) return;
+    if (pause) return;
 
     xAccel = cmAccel.x;
     yAccel = cmAccel.y;
     zAccel = cmAccel.z;
-    
 
-    
+    // IPAD accel = list(map(lambda x, y : x + y, motion.get_gravity(),  motion.get_user_acceleration()))
+    int16_t normAccel = sqrt((((int32_t)xAccel)^2) + (((int32_t)yAccel)^2) + (((int32_t)zAccel)^2)  );
+    // empirical adjustment
+    //normAccel *= 3;
+
+    if (SPECIAL_EFFECT)
+    {
+        // intertwine raw signal with smoothed
+        // only need these buffers if want special effect
+        bufXaccelInsert = circularPush(xAccel, bufXaccelInsert, bufXaccel);
+        bufYaccelInsert = circularPush(yAccel, bufYaccelInsert, bufYaccel);
+        bufZaccelInsert = circularPush(zAccel, bufZaccelInsert, bufZaccel);
+    }
+    // slightly smoothed signal
+    float alphaFast = ALPHA_FAST;
+
+    smoothNormAccel = IIRFilter(alphaFast, normAccel, smoothNormAccel);
+    bufNormAccelInsert = circularPush(smoothNormAccel, bufNormAccelInsert, bufNormAccel);
+
+    smoothXaccel = IIRFilter(alphaFast, xAccel, smoothXaccel);
+    bufXaccelInsert = circularPush(smoothXaccel, bufXaccelInsert, bufXaccel);
+
+    smoothYaccel = IIRFilter(alphaFast, yAccel, smoothYaccel);
+    bufYaccelInsert = circularPush(smoothYaccel, bufYaccelInsert, bufYaccel);
+
+    smoothZaccel = IIRFilter(alphaFast, zAccel, smoothZaccel);
+    bufZaccelInsert = circularPush(smoothZaccel, bufZaccelInsert, bufZaccel);
+
+
+    // high pass by removing highly smoothed low pass (dc bias)
+    float alphaSlow = ALPHA_SLOW;
+
+    lowPassNormAccel = IIRFilter(alphaSlow, normAccel, lowPassNormAccel);
+    bufHighPassNormAccelInsert= circularPush(smoothNormAccel - lowPassNormAccel, bufHighPassNormAccelInsert, bufHighPassNormAccel);
+
+    // low pass for the three axes
+
+    lowPassXaccel = IIRFilter(alphaSlow, xAccel, lowPassXaccel);
+    bufLowPassXaccelInsert = circularPush(lowPassXaccel, bufLowPassXaccelInsert, bufLowPassXaccel);
+
+    lowPassYaccel = IIRFilter(alphaSlow, yAccel, lowPassYaccel);
+    bufLowPassYaccelInsert = circularPush(lowPassYaccel, bufLowPassYaccelInsert, bufLowPassYaccel);
+
+    lowPassZaccel = IIRFilter(alphaSlow, zAccel, lowPassZaccel);
+    bufLowPassZaccelInsert = circularPush(lowPassZaccel, bufLowPassZaccelInsert, bufLowPassZaccel);
+
+    // Plot slightly smoothed less dc bias by adjusting the dots
+    AdjustPlotDotsSingle(bufHighPassNormAccel, bufHighPassNormAccel);
+    AdjustPlotDots(bufXaccel,bufXaccelInsert, bufLowPassXaccel, bufLowPassXaccelInsert);
+    AdjustPlotDots(bufYaccel,bufYaccelInsert, bufLowPassYaccel, bufLowPassYaccelInsert);
+    AdjustPlotDots(bufZaccel, bufZaccelInsert, bufLowPassZaccel, bufLowPassZaccelInsert);
+
+    // Identify stillness
+    float alphaActive = ALPHA_ACTIVE; // smoothing of deviaton from mean
+    smoothActivity = IIRFilter(alphaActive, abs(bufHighPassNormAccel[-1]), smoothActivity);
+
+    CM_printf("smoothActivity = %d", smoothActivity);
+    // Estimate bpm when movement activity
+
+    // Might not need checking for stillness if use tolerance for cross checking (see below)
+    float alphaCross = ALPHA_CROSS; // for smoothing gaps between zero crossing
+
+    // if very still stop updateing period estimation
+    if (smoothActivity < 1/30.0)
+    {
+        if (!still)
+        {
+            still = true;
+            //if (SOUND_ON) //sound.stop_all_effects()}
+        }
+    } else { // estimate bpm
+        if (still)
+        {
+            skipNextCross = true;
+            still = false;
+        }
+    }
+//#define USE_ZERO_CROSSING
+#ifdef USE_ZERO_CROSSING
+    // zero crossing NO tolerance check
+    if bufHighPassNormAccel[-1] * bufHighPassNormAccel[-2] < 0:
+#else
+    // downward zero crossing with tolerance
+    if ((bufHighPassNormAccel[-1] > 0) & (bufHighPassNormAccel[-2] < 0) & ((bufHighPassNormAccel[-1] - bufHighPassNormAccel[-2]) > CROSS_TOL))
+#endif
+    {
+        if (skipNextCross)
+        {
+            skipNextCross = false;
+        } else {
+            crossinterval = modeTime - lastzerocrosst;
+        }
+        lastzerocrosst = modeTime;
+    }
+
+    // period for downward crossing
+    aveZeroCrossInterval = (1 - alphaCross) * aveZeroCrossInterval + alphaCross * crossinterval;
+    //prevHighPassNormAccel = bufHighPassNormAccel[-1];
+    //bpm = 30/aveZeroCrossInterval; // if using 1/2 period estimate for crossing
+    int16_t bpm = 60 * MS_TO_US_FACTOR * S_TO_MS_FACTOR / aveZeroCrossInterval;
+
+    //TODO should be in cmGameDisplay()
+    // graphical view of bpm could be here
+
+    // graphical view of amp could be here
+
+
+
+    //TODO pitch could simple be computed by tilt
+    //   as dac suggestd, button to actuate sound so
+    //   make a musical instrument
+    if (SOUND_ON)
+    {
+
+        // TODO choose nice range of bpm and map to nice pitch range
+        // could be from 110 to 880 say if buzzer can accept changing
+        // freq. Or could be discrete jumps to pentatonic scale
+        //  from buzzer.h to play freq f need  compute period (5,000,000 / (2 * f))
+        //  to set up a noteFreq_t (NOTE should be notePeriod_t)
+        //  then set up musicalNote_t with this and a duration
+
+        //pitch = (min( max(bpm, 75), 150) - 75) / 75;
+
+
+        // song_t testSong =
+        // {
+        //     .shouldLoop = true,
+        //     .numNotes = 1,
+        //     .notes = FIX to take period
+
+        // };
+
+        // Play this song continous and stop then change to another freq
+        // or use button to start and stop
+
+        // Is it possible to play bufHighPassNormAccel at 160 times faster?
+        // this would convert 30 to 300 bpm to 80 to 800 Hz
+        // audible indication of bpm
+        //sound.play_effect('game:Beep', volume = 300*smoothActivity/500, pitch=pitch)
+    }
+
+    CM_printf('bpm %d, activity %d\n'.format(bpm, smoothActivity));
+
+    uint8_t ledr;
+    uint8_t ledg;
+    uint8_t ledb;
+
+    // Various led options
+    // colors via 3 axes strength
+    //scaleLed = 8;
+    //ledr = scaleLed * math.fabs(graphRed[-1].position[1]-384)/384;
+    //ledg = scaleLed * math.fabs(graphGreen[-1].position[1]-384)/384;
+    //ledb = scaleLed * math.fabs(graphBlue[-1].position[1]-384)/384;
+
+    // TODO related to bpm - map nice range to 0 to 255 for angle
+    int16_t angle = 0; // replace with nice formula
+    uint32_t color = EHSVtoHEX(angle, 0xFF, 0xFF);
+
+    ledr = (color >>  0) & 0xFF;
+    ledg = (color >>  8) & 0xFF;
+    ledb = (color >> 16) & 0xFF;
+
+
+    // allcolored the same
+    for (uint8_t i=0; i < NUM_LIN_LEDS; i++)
+    {
+        //use axis colors or hue colors computed above
+        leds[ledOrderInd[i]].r = ledr;
+        leds[ledOrderInd[i]].g = ledg;
+        leds[ledOrderInd[i]].b = ledb;
+        //clear if going to cycle lights
+        leds[ledOrderInd[i]].r  = 0;
+        leds[ledOrderInd[i]].g  = 0;
+        leds[ledOrderInd[i]].b  = 0;
+    }
+
+    // Spin the leds
+    if (modeTime - ledPrevIncTime > aveZeroCrossInterval / NUM_LIN_LEDS / REVOLUTIONS_PER_ZERO_CROSSING)
+    {
+        ledPrevIncTime = modeTime;
+        ledcycle += 1;
+        if (ledcycle >= NUM_LIN_LEDS) ledcycle = 0;
+    }
+
+    // Put color from above in the one LED that should go
+    leds[ledOrderInd[ledcycle]].r = ledr;
+    leds[ledOrderInd[ledcycle]].g = ledg;
+    leds[ledOrderInd[ledcycle]].b = ledb;
+
+    setCMLeds(leds, sizeof(leds));
     // Test if  finished
-     if (false)
+    if (false)
     {
         // Compute score
         score = 100.0;
-        gameover = true;  
+        gameover = true;
     }
     maxTimeEnd(&CM_updatedisplay_timer);
 }
 
-void ICACHE_FLASH_ATTR cmAutoGameUpdate(void)
-{
-}
-
-
 void ICACHE_FLASH_ATTR cmScoresUpdate(void)
 {
     // Do nothing.
+}
+
+
+void ICACHE_FLASH_ATTR cmAutoGameUpdate(void)
+{
+
 }
 
 void ICACHE_FLASH_ATTR cmGameoverUpdate(void)
@@ -600,7 +925,7 @@ void ICACHE_FLASH_ATTR cmGameDisplay(void)
     // Clear the display
     clearDisplay();
 
-    
+
     if (gameover)
     {
         cmChangeState(CM_GAMEOVER);
@@ -675,7 +1000,7 @@ void ICACHE_FLASH_ATTR cmGameoverDisplay(void)
     default:
         break;
     }
-   
+
     // We don't clear the display because we want the playfield to appear in the background.
     // Draw a centered bordered window.
 
@@ -729,23 +1054,68 @@ void ICACHE_FLASH_ATTR cmNewSetup(void)
 {
     //Allocate some working array memory now
     //TODO is memory being freed up appropriately?
-    bufNormAccel = (uint8_t *)malloc (sizeof (uint8_t) * NUM_DOTS);
-    bufHighPassNormAccel = (uint8_t *)malloc (sizeof (uint8_t) * NUM_DOTS);
-    bufXaccel = (uint8_t *)malloc (sizeof (uint8_t) * NUM_DOTS);
-    bufLowPassXaccel = (uint8_t *)malloc (sizeof (uint8_t) * NUM_DOTS);
-    bufYaccel = (uint8_t *)malloc (sizeof (uint8_t) * NUM_DOTS);
-    bufLowPassYaccel = (uint8_t *)malloc (sizeof (uint8_t) * NUM_DOTS);
+    bufNormAccel = (int16_t  *)malloc (sizeof (int16_t ) * NUM_DOTS);
+    bufHighPassNormAccel = (int16_t  *)malloc (sizeof (int16_t ) * NUM_DOTS);
+    bufXaccel = (int16_t  *)malloc (sizeof (int16_t ) * NUM_DOTS);
+    bufLowPassXaccel = (int16_t  *)malloc (sizeof (int16_t ) * NUM_DOTS);
+    bufYaccel = (int16_t  *)malloc (sizeof (int16_t ) * NUM_DOTS);
+    bufLowPassYaccel = (int16_t  *)malloc (sizeof (int16_t ) * NUM_DOTS);
+    bufZaccel = (int16_t  *)malloc (sizeof (int16_t ) * NUM_DOTS);
+    bufLowPassZaccel = (int16_t  *)malloc (sizeof (int16_t ) * NUM_DOTS);
+
+    bufNormAccelInsert = 0;
+    bufHighPassNormAccelInsert = 0;
+    bufXaccelInsert = 0;
+    bufLowPassXaccelInsert = 0;
+    bufYaccelInsert = 0;
+    bufLowPassYaccelInsert = 0;
+    bufZaccelInsert = 0;
+    bufLowPassZaccelInsert = 0;
     int16_t i;
     int16_t startvert = 0;
-    
-    gameover = false;
     memset(leds, 0, sizeof(leds));
+
+    gameover = false;
+
+
+    REVOLUTIONS_PER_ZERO_CROSSING = 0.5;
+    PLOT_SCALE = 32;
+    PLOT_SHIFT = 32;
+    // do via timer now 10 fps FRAME_RESET = 0 // 0 for 60 fps, 1 for 30 fps, 2 for 20 fps, k for 60/(k+1) fps
+
+    showcount = 0; // used for skipping frames
+    adj = SCREEN_BORDER;
+    wid = 128 - 2 * SCREEN_BORDER;
+
+    ledcycle = 0;
+
+    lowPassNormAccel = 0;
+    lowPassXaccel = 0;
+    lowPassYaccel = 0;
+    lowPassZaccel = 0;
+    smoothNormAccel = 0;
+    smoothXaccel = 0;
+    smoothYaccel = 0;
+    smoothZaccel = 0;
+    prevHighPassNormAccel = 0;
+    smoothActivity = 0;
+
+    // times float? or use cycles?
+    lastzerocrosst = 0;
+    ledPrevIncTime = 0;
+    aveZeroCrossInterval = 5;
+    crossinterval = 5;
+
+    pause = false;
+    skipNextCross = true;
+    still = true;
+
 
 
     system_print_meminfo();
     os_printf("Free Heap %d\n", system_get_free_heap_size());
 
-    
+
 }
 
 /**
@@ -759,6 +1129,8 @@ void ICACHE_FLASH_ATTR cmFreeMemory(void)
     free(bufLowPassXaccel);
     free(bufYaccel);
     free(bufLowPassYaccel);
+    free(bufZaccel);
+    free(bufLowPassZaccel);
 }
 
 
@@ -778,15 +1150,15 @@ void ICACHE_FLASH_ATTR cmChangeState(cmState_t newState)
             break;
         case CM_GAME:
             // All game restart functions happen here.
-            loadHighScores();
+            //loadHighScores();
             // TODO: should I be seeding this, or re-seeding this, and if so, with what?
             srand((uint32_t)(cmAccel.x + cmAccel.y * 3 + cmAccel.z * 5)); // Seed the random number generator.
             break;
         case CM_AUTO:
-            loadHighScores();
+            //loadHighScores();
             break;
         case CM_SCORES:
-            loadHighScores();
+            //loadHighScores();
             clearScoreTimer = 0;
             holdingClearScore = false;
             break;
@@ -794,8 +1166,8 @@ void ICACHE_FLASH_ATTR cmChangeState(cmState_t newState)
             // Update high score if needed.
             if (prevState != CM_AUTO)
             {
-                newHighScore = updateHighScores(score);
-                if (newHighScore) saveHighScores();
+                //newHighScore = updateHighScores(score);
+                //if (newHighScore) saveHighScores();
                 // Save out the last score.
                 //cmSetLastScore(score);
             }
@@ -860,6 +1232,7 @@ uint8_t getTextWidth(char* text, fonts font)
     return textWidth;
 }
 
+/*
 static void loadHighScores(void)
 {
     //memcpy(highScores, cmGetHighScores(),  NUM_CM_HIGH_SCORES * sizeof(uint32_t));
@@ -888,3 +1261,4 @@ static bool updateHighScores(uint32_t newScore)
     }
     return highScore;
 }
+*/
