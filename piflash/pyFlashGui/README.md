@@ -3,7 +3,9 @@ This Python script should be compatible with Python 2 & 3. I have tested it on W
 
 # Summary
 This Python script will automatically open all USB serial ports which match the VID & PID of a CP2012N.
+
 For all open ports, it will continuously attempt to flash a Swadge using esptool.
+
 The UI will flash green for four seconds when a Swadge is successfully flashed.
 
 # Dependencies
