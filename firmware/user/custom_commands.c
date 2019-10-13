@@ -246,7 +246,7 @@ void ICACHE_FLASH_ATTR setSnakeHighScore(uint8_t difficulty, uint32_t score)
  */
 void ICACHE_FLASH_ATTR setJoustElo(uint32_t elo)
 {
-    joustElo = elo;
+    settings.joustElo = elo;
     SaveSettings();
 }
 
@@ -265,7 +265,7 @@ uint32_t* ICACHE_FLASH_ATTR getSnakeHighScores(void)
  */
 uint32_t ICACHE_FLASH_ATTR getJoustElo(void)
 {
-    return joustElo;
+    return settings.joustElo;
 }
 
 /**
