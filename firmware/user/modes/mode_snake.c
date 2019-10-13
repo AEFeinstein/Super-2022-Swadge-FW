@@ -66,72 +66,7 @@ typedef enum
     NUM_DIFFICULTIES
 } snakeDifficulty_t;
 
-typedef enum
-{
-    HEAD_UP              = 0b0000011001101010,
-    HEAD_RIGHT           = 0b1000011011100000,
-    HEAD_DOWN            = 0b1010011001100000,
-    HEAD_LEFT            = 0b0001011001110000,
-    EATH_UP              = 0b0000100101101010,
-    EATH_RIGHT           = 0b1010010011000010,
-    EATH_DOWN            = 0b1010011010010000,
-    EATH_LEFT            = 0b0101001000110100,
-    BODY_UP              = 0b0110001001000110,
-    BODY_RIGHT           = 0b0000110110110000,
-    BODY_DOWN            = 0b0110010000100110,
-    BODY_LEFT            = 0b0000101111010000,
-    TAIL_UP              = 0b0110011000100010,
-    TAIL_RIGHT           = 0b0000001111110000,
-    TAIL_DOWN            = 0b0010001001100110,
-    TAIL_LEFT            = 0b0000110011110000,
-    BODY_UP_FAT          = 0b0110101111010110,
-    BODY_RIGHT_FAT       = 0b0110110110110110,
-    BODY_DOWN_FAT        = 0b0110110110110110,
-    BODY_LEFT_FAT        = 0b0110101111010110,
-    CORNER_UPRIGHT       = 0b0000001101010110,
-    CORNER_UPLEFT        = 0b0000110010100110,
-    CORNER_DOWNRIGHT     = 0b0110010100110000,
-    CORNER_DOWNLEFT      = 0b0110101011000000,
-    CORNER_RIGHTUP       = 0b0110101011000000,
-    CORNER_RIGHTDOWN     = 0b0000110010100110,
-    CORNER_LEFTUP        = 0b0110010100110000,
-    CORNER_LEFTDOWN      = 0b0000001101010110,
-    CORNER_UPRIGHT_FAT   = 0b0000001101010111,
-    CORNER_UPLEFT_FAT    = 0b0000110010101110,
-    CORNER_DOWNRIGHT_FAT = 0b0111010100110000,
-    CORNER_DOWNLEFT_FAT  = 0b1110101011000000,
-    CORNER_RIGHTUP_FAT   = 0b1110101011000000,
-    CORNER_RIGHTDOWN_FAT = 0b0000110010101110,
-    CORNER_LEFTUP_FAT    = 0b0111010100110000,
-    CORNER_LEFTDOWN_FAT  = 0b0000001101010111,
-    FOOD                 = 0b0100101001000000,
-} snakeSprite;
-
-typedef enum
-{
-    bug1 = 0b00111111101110101100111111010101,
-    bug2 = 0b11001100001100000100111011111010,
-    bug4 = 0b01011011111100100100111011110100,
-    bug3 = 0b00001001101101111100101011101111,
-    bug5 = 0b00001000111101010000000011110101,
-} critterSprite;
-
-typedef struct _snakeNode_t
-{
-    snakeSprite sprite;
-    pos_t pos;
-    dir_t dir;
-    uint8_t ttl;
-    uint8_t isFat;
-    struct _snakeNode_t* prevSegment;
-    struct _snakeNode_t* nextSegment;
-} snakeNode_t;
-
-/*==============================================================================
- * Const data
- *============================================================================*/
-
-const song_t MetalGear =
+const song_t MetalGear ICACHE_RODATA_ATTR =
 {
     .notes = {
         {.note = E_5, .timeMs = 480},
@@ -203,7 +138,11 @@ const song_t MetalGear =
     .shouldLoop = true
 };
 
-const uint8_t snakeBackground[] =
+/*============================================================================
+ * Sprites
+ *==========================================================================*/
+
+const uint8_t snakeBackground[] ICACHE_RODATA_ATTR =
 {
     0x80, 0xfe, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7f, 0x01,
     0x80, 0xfe, 0x00, 0x00, 0x03, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xc0, 0x00, 0x00, 0x7f, 0x01,
@@ -271,7 +210,48 @@ const uint8_t snakeBackground[] =
     0xc0, 0x0f, 0xfc, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3f, 0xf0, 0x03,
 };
 
-const snakeSprite spriteTransitionTable[2][4][4] =
+typedef enum
+{
+    HEAD_UP              = 0b0000011001101010,
+    HEAD_RIGHT           = 0b1000011011100000,
+    HEAD_DOWN            = 0b1010011001100000,
+    HEAD_LEFT            = 0b0001011001110000,
+    EATH_UP              = 0b0000100101101010,
+    EATH_RIGHT           = 0b1010010011000010,
+    EATH_DOWN            = 0b1010011010010000,
+    EATH_LEFT            = 0b0101001000110100,
+    BODY_UP              = 0b0110001001000110,
+    BODY_RIGHT           = 0b0000110110110000,
+    BODY_DOWN            = 0b0110010000100110,
+    BODY_LEFT            = 0b0000101111010000,
+    TAIL_UP              = 0b0110011000100010,
+    TAIL_RIGHT           = 0b0000001111110000,
+    TAIL_DOWN            = 0b0010001001100110,
+    TAIL_LEFT            = 0b0000110011110000,
+    BODY_UP_FAT          = 0b0110101111010110,
+    BODY_RIGHT_FAT       = 0b0110110110110110,
+    BODY_DOWN_FAT        = 0b0110110110110110,
+    BODY_LEFT_FAT        = 0b0110101111010110,
+    CORNER_UPRIGHT       = 0b0000001101010110,
+    CORNER_UPLEFT        = 0b0000110010100110,
+    CORNER_DOWNRIGHT     = 0b0110010100110000,
+    CORNER_DOWNLEFT      = 0b0110101011000000,
+    CORNER_RIGHTUP       = 0b0110101011000000,
+    CORNER_RIGHTDOWN     = 0b0000110010100110,
+    CORNER_LEFTUP        = 0b0110010100110000,
+    CORNER_LEFTDOWN      = 0b0000001101010110,
+    CORNER_UPRIGHT_FAT   = 0b0000001101010111,
+    CORNER_UPLEFT_FAT    = 0b0000110010101110,
+    CORNER_DOWNRIGHT_FAT = 0b0111010100110000,
+    CORNER_DOWNLEFT_FAT  = 0b1110101011000000,
+    CORNER_RIGHTUP_FAT   = 0b1110101011000000,
+    CORNER_RIGHTDOWN_FAT = 0b0000110010101110,
+    CORNER_LEFTUP_FAT    = 0b0111010100110000,
+    CORNER_LEFTDOWN_FAT  = 0b0000001101010111,
+    FOOD                 = 0b0100101001000000,
+} snakeSprite;
+
+const snakeSprite spriteTransitionTable[2][4][4] ICACHE_RODATA_ATTR =
 {
     // Snake is skinny
     {
@@ -369,7 +349,7 @@ const snakeSprite spriteTransitionTable[2][4][4] =
     }
 };
 
-const snakeSprite headTransitionTable[2][4] =
+const snakeSprite headTransitionTable[2][4] ICACHE_RODATA_ATTR =
 {
     {
         // Head is UP
@@ -393,7 +373,7 @@ const snakeSprite headTransitionTable[2][4] =
     }
 };
 
-const snakeSprite tailTransitionTable[4] =
+const snakeSprite tailTransitionTable[4] ICACHE_RODATA_ATTR =
 {
     // Tail is UP
     TAIL_UP,
@@ -405,7 +385,23 @@ const snakeSprite tailTransitionTable[4] =
     TAIL_LEFT,
 };
 
-const critterSprite critterSprites[5] = {bug1, bug2, bug3, bug4, bug5};
+typedef enum
+{
+    bug1 = 0b00111111101110101100111111010101,
+    bug2 = 0b11001100001100000100111011111010,
+    bug4 = 0b01011011111100100100111011110100,
+    bug3 = 0b00001001101101111100101011101111,
+    bug5 = 0b00001000111101010000000011110101,
+} critterSprite;
+
+const critterSprite critterSprites[5] ICACHE_RODATA_ATTR =
+{
+    bug1,
+    bug2,
+    bug3,
+    bug4,
+    bug5
+};
 
 const char* snakeDifficultyNames[NUM_DIFFICULTIES] = {"Easy", "Med", "Hard"};
 

@@ -31,6 +31,8 @@ typedef struct __attribute__((aligned(4)))
 {
     uint8_t SaveLoadKey; //Must be SAVE_LOAD_KEY to be valid.
     uint8_t configs[CONFIGURABLES];
+    uint8_t refGameWins;
+    uint32_t joustElo;
     uint32_t snakeHighScores[3];
 }
 settings_t;
@@ -146,6 +148,8 @@ settings_t settings =
 {
     .SaveLoadKey = 0,
     .configs = {0},
+    .refGameWins = 0,
+    .joustElo = 0,
     .snakeHighScores = {0}
 };
 
@@ -187,6 +191,7 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
                 settings.configs[i] = gConfigs[i].defaultVal;
             }
         }
+        settings.joustElo = 1000;
         SaveSettings();
     }
 
@@ -235,6 +240,17 @@ void ICACHE_FLASH_ATTR setSnakeHighScore(uint8_t difficulty, uint32_t score)
     }
 }
 
+
+/**
+ * Increment the game win count and save it to SPI flash
+ */
+void ICACHE_FLASH_ATTR setJoustElo(uint32_t elo)
+{
+    joustElo = elo;
+    SaveSettings();
+}
+
+
 /**
  * @return A pointer to the three Snake high scores
  */
@@ -242,6 +258,14 @@ uint32_t* ICACHE_FLASH_ATTR getSnakeHighScores(void)
 {
     // Loaded on boot
     return settings.snakeHighScores;
+}
+
+/**
+ * @return The number of reflector games this swadge has won
+ */
+uint32_t ICACHE_FLASH_ATTR getJoustElo(void)
+{
+    return joustElo;
 }
 
 /**

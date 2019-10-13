@@ -29,8 +29,8 @@
 #include "mode_reflector_game.h"
 #include "mode_random_d6.h"
 #include "mode_dance.h"
-#include "mode_flashlight.h"
 #include "mode_demo.h"
+#include "mode_joust_game.h"
 #include "mode_snake.h"
 
 /*============================================================================
@@ -64,12 +64,12 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 swadgeMode* swadgeModes[] =
 {
     &menuMode, // Menu must be the first
+    &joustGameMode,
     &snakeMode,
     &demoMode,
     &reflectorGameMode,
     &dancesMode,
     &randomD6Mode,
-    &flashlightMode,
 };
 bool swadgeModeInit = false;
 rtcMem_t rtcMem = {0};
