@@ -31,7 +31,6 @@ typedef struct __attribute__((aligned(4)))
 {
     uint8_t SaveLoadKey; //Must be SAVE_LOAD_KEY to be valid.
     uint8_t configs[CONFIGURABLES];
-    uint8_t refGameWins;
     uint32_t joustElo;
     uint32_t snakeHighScores[3];
 }
@@ -148,7 +147,6 @@ settings_t settings =
 {
     .SaveLoadKey = 0,
     .configs = {0},
-    .refGameWins = 0,
     .joustElo = 0,
     .snakeHighScores = {0}
 };
