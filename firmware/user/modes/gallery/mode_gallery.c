@@ -23,7 +23,7 @@
  *============================================================================*/
 
 #define MAX_DECOMPRESSED_SIZE 0x8440
-#define METADATA_LEN 6
+#define METADATA_LEN 8
 
 #define DBG_GAL(...) do { \
         os_printf("%s::%d ", __func__, __LINE__); \
@@ -66,6 +66,7 @@ struct
     uint16_t height;
     uint16_t nFrames;
     uint16_t cFrame;
+    uint16_t duration;
     os_timer_t timerAnimate;
     os_timer_t timerPan;
     uint16_t cImage;
@@ -103,21 +104,20 @@ const struct
  */
 void ICACHE_FLASH_ATTR galEnterMode(void)
 {
+    // Clear everything out, for safety
     memset(&gal, 0, sizeof(gal));
 
+    // Allocate a bunch of memory for decompresed images
     gal.imageData = os_malloc(MAX_DECOMPRESSED_SIZE);
 
-    galLoadFirstImage();
-
-    // Start a software timer to rotate the banana every 100ms
+    //Set up software timers for animation and panning
     os_timer_disarm(&gal.timerAnimate);
     os_timer_setfn(&gal.timerAnimate, (os_timer_func_t*)galDrawNextFrame, NULL);
-    os_timer_arm(&gal.timerAnimate, 500, 1);
-
-    // Start a software timer to rotate the banana every 100ms
     os_timer_disarm(&gal.timerPan);
     os_timer_setfn(&gal.timerPan, (os_timer_func_t*)galTimerPan, NULL);
-    os_timer_arm(&gal.timerPan, 500, 1);
+
+    // Load the image
+    galLoadFirstImage();
 }
 
 /**
@@ -144,7 +144,8 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
         {
             case 1:
                 galClearImage();
-                gal.cImage = (gal.cImage + 1) % (sizeof(galImages) / sizeof(galImages[0]));
+                gal.cImage = (gal.cImage + 1) %
+                             (sizeof(galImages) / sizeof(galImages[0]));
                 galLoadFirstImage();
                 break;
             case 2:
@@ -182,10 +183,16 @@ void ICACHE_FLASH_ATTR galLoadFirstImage(void)
     gal.width = (gal.imageData[0] << 8) | gal.imageData[1];
     gal.height = (gal.imageData[2] << 8) | gal.imageData[3];
     gal.nFrames = (gal.imageData[4] << 8) | gal.imageData[5];
-    DBG_GAL("w=%d, h=%d, nfr=%d\n", gal.width, gal.height, gal.nFrames);
+    gal.duration = (gal.imageData[6] << 8) | gal.imageData[7];
+    DBG_GAL("w=%d, h=%d, nfr=%d, dur=%d\n", gal.width, gal.height, gal.nFrames,
+            gal.duration);
 
     // Set the current frame to 0
     gal.cFrame = 0;
+
+    // Adjust the animation timer to this image's speed
+    os_timer_disarm(&gal.timerAnimate);
+    os_timer_arm(&gal.timerAnimate, gal.duration, 1);
 
     // Draw the first frame in it's entirety to the OLED
     galDrawFirstFrame();
@@ -252,7 +259,8 @@ void ICACHE_FLASH_ATTR galDrawNextFrame(void* arg __attribute__((unused)))
         {
             for (int h = 0; h < OLED_HEIGHT; h++)
             {
-                uint32_t linearIdx = ((OLED_HEIGHT * w) + h) + (gal.width * gal.height * gal.cFrame);
+                uint32_t linearIdx = ((OLED_HEIGHT * w) + h) +
+                                     (gal.width * gal.height * gal.cFrame);
                 uint16_t byteIdx = linearIdx / 8;
                 uint8_t bitIdx = linearIdx % 8;
 

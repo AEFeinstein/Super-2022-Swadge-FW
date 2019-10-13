@@ -56,7 +56,8 @@ def processGifFile(file):
     currentFrame = []
     prevFrame = []
     for frame in ImageSequence.Iterator(Image.open(file)):
-        print("  Frame " + str(index))
+        print("  Frame " + str(index) + ", duration = " +
+              str(frame.info.get("duration")))
         # Get the bits from this image
         currentFrame = frameToBits(frame.convert('RGB'))
 
@@ -66,10 +67,21 @@ def processGifFile(file):
             metadata = bytearray()
             metadata.append((frame.width >> 8) & 0xFF)
             metadata.append((frame.width >> 0) & 0xFF)
+
             metadata.append((frame.height >> 8) & 0xFF)
             metadata.append((frame.height >> 0) & 0xFF)
+
             metadata.append((frame.n_frames >> 8) & 0xFF)
             metadata.append((frame.n_frames >> 0) & 0xFF)
+
+            duration = frame.info.get("duration")
+            if None is duration:
+                duration = 0
+            elif 0 == duration:
+                duration = 100
+            metadata.append((duration >> 8) & 0xFF)
+            metadata.append((duration >> 0) & 0xFF)
+
             outFile.write(metadata)
 
             # Print out the first frame
