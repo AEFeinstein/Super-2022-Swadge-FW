@@ -20,7 +20,7 @@
  *==========================================================================*/
 
 #define CONFIGURABLES sizeof(struct CCSettings) //(plus1)
-#define SAVE_LOAD_KEY 0xAA
+#define SAVE_LOAD_KEY 0xAB
 
 /*============================================================================
  * Structs
@@ -33,6 +33,7 @@ typedef struct __attribute__((aligned(4)))
     uint8_t configs[CONFIGURABLES];
     uint8_t refGameWins;
     uint32_t joustElo;
+    uint32_t snakeHighScores[3];
 }
 settings_t;
 
@@ -143,8 +144,14 @@ configurable_t gConfigs[CONFIGURABLES] =
     }
 };
 
-uint8_t refGameWins = 0;
-uint32_t joustElo = 1000;
+settings_t settings =
+{
+    .SaveLoadKey = 0,
+    .configs = {0},
+    .refGameWins = 0,
+    .joustElo = 0,
+    .snakeHighScores = {0}
+};
 
 /*============================================================================
  * Prototypes
@@ -164,43 +171,37 @@ void ICACHE_FLASH_ATTR SaveSettings(void);
  */
 void ICACHE_FLASH_ATTR LoadSettings(void)
 {
-    settings_t settings =
-    {
-        .SaveLoadKey = 0,
-        .configs = {0},
-        .refGameWins = 0,
-        .joustElo = 1000
-    };
-
-    uint8_t i;
     spi_flash_read( USER_SETTINGS_ADDR, (uint32*)&settings, sizeof( settings ) );
     if( settings.SaveLoadKey == SAVE_LOAD_KEY )
     {
         os_printf("Settings found\r\n");
-        for( i = 0; i < CONFIGURABLES; i++ )
-        {
-            if( gConfigs[i].val )
-            {
-                *gConfigs[i].val = settings.configs[i];
-            }
-        }
-
-        refGameWins = settings.refGameWins;
-        joustElo = settings.joustElo;
     }
     else
     {
         os_printf("Settings not found\r\n");
-        for( i = 0; i < CONFIGURABLES; i++ )
+        // Zero everything
+        memset(&settings, 0, sizeof(settings));
+        // Set the key
+        settings.SaveLoadKey = SAVE_LOAD_KEY;
+        // Load in default values
+        for(uint8_t i = 0; i < CONFIGURABLES; i++ )
         {
             if( gConfigs[i].val )
             {
-                *gConfigs[i].val = gConfigs[i].defaultVal;
+                settings.configs[i] = gConfigs[i].defaultVal;
             }
         }
-        refGameWins = 0;
-        joustElo = 1000;
+        settings.joustElo = 1000;
         SaveSettings();
+    }
+
+    // load gConfigs from the settings
+    for( uint8_t i = 0; i < CONFIGURABLES; i++ )
+    {
+        if( gConfigs[i].val )
+        {
+            *gConfigs[i].val = settings.configs[i];
+        }
     }
 }
 
@@ -209,14 +210,6 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
  */
 void ICACHE_FLASH_ATTR SaveSettings(void)
 {
-    settings_t settings =
-    {
-        .SaveLoadKey = SAVE_LOAD_KEY,
-        .configs = {0},
-        .refGameWins = refGameWins,
-        .joustElo = joustElo
-    };
-
     uint8_t i;
     for( i = 0; i < CONFIGURABLES; i++ )
     {
@@ -233,25 +226,16 @@ void ICACHE_FLASH_ATTR SaveSettings(void)
 }
 
 /**
- * Increment the game win count and save it to SPI flash
+ * @brief Save a high score from the snake game
+ *
+ * @param difficulty The 0-indexed difficulty (easy, medium, hard)
+ * @param score      The score to save
  */
-void ICACHE_FLASH_ATTR incrementRefGameWins(void)
+void ICACHE_FLASH_ATTR setSnakeHighScore(uint8_t difficulty, uint32_t score)
 {
-    if(refGameWins != 0xFF)
+    if(score > settings.snakeHighScores[difficulty])
     {
-        refGameWins++;
-        SaveSettings();
-    }
-}
-
-/**
- * Set the game wins to max, unlocking all patterns
- */
-void ICACHE_FLASH_ATTR setGameWinsToMax(void)
-{
-    if(refGameWins != 0xFF)
-    {
-        refGameWins = 0xFF;
+        settings.snakeHighScores[difficulty] = score;
         SaveSettings();
     }
 }
@@ -268,11 +252,12 @@ void ICACHE_FLASH_ATTR setJoustElo(uint32_t elo)
 
 
 /**
- * @return The number of reflector games this swadge has won
+ * @return A pointer to the three Snake high scores
  */
-uint8_t ICACHE_FLASH_ATTR getRefGameWins(void)
+uint32_t* ICACHE_FLASH_ATTR getSnakeHighScores(void)
 {
-    return refGameWins;
+    // Loaded on boot
+    return settings.snakeHighScores;
 }
 
 /**

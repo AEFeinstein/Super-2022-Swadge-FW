@@ -12,7 +12,7 @@
  *==========================================================================*/
 
 #define SILENCE_STR "SILENCE"
-#define INTER_NOTE_SILENCE_MS 1
+#define INTER_NOTE_SILENCE_MS 0
 
 /*============================================================================
  * Enums
@@ -289,6 +289,9 @@ char*   parseNote (char* p, int defOctave, int defDuration, int bpm)
     // Print note
     int noteMs = round(240000 / (float)(bpm * duration)) - INTER_NOTE_SILENCE_MS;
     printf("        {.note = %s, .timeMs = %d},\n", noteName, noteMs);
-    printf("        {.note = %s, .timeMs = %d},\n", SILENCE_STR, INTER_NOTE_SILENCE_MS);
+    if(INTER_NOTE_SILENCE_MS > 0)
+    {
+        printf("        {.note = %s, .timeMs = %d},\n", SILENCE_STR, INTER_NOTE_SILENCE_MS);
+    }
     return p;
 }
