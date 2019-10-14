@@ -36,6 +36,7 @@
 #include "mode_random_d6.h"
 #include "mode_dance.h"
 #include "mode_demo.h"
+#include "mode_joust_game.h"
 #include "mode_snake.h"
 #include "mode_tiltrads.h"
 #include "mode_roll.h"
@@ -76,14 +77,14 @@ swadgeMode* swadgeModes[] =
 #ifndef USE_2019_SWADGE
     &menuMode, // Menu must be the first
 #endif
-    &demoMode,
+    &joustGameMode,
     &snakeMode,
+    &demoMode,
     &tiltradsMode,
     &reflectorGameMode,
     &dancesMode,
     &randomD6Mode,
     &rollMode,
-    //&mazeMode,
     &mazerfMode,
     &colorMoveMode,
 };
@@ -307,7 +308,7 @@ void ICACHE_FLASH_ATTR user_init(void)
  *
  * @param events Checked before posting this task again
  */
-static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
+static void ICACHE_FLASH_ATTR procTask(os_event_t* events __attribute__((unused)))
 {
     // Post another task to this thread
     system_os_post(PROC_TASK_PRIO, 0, 0 );
@@ -323,21 +324,6 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
 #ifdef PROFILE
     WRITE_PERI_REG( PERIPHS_GPIO_BASEADDR + GPIO_ID_PIN(0), 0 );
 #endif
-
-    if( events->sig == 0 && events->par == 0 )
-    {
-        // If colorchord is active and the HPA isn't running, start it
-        if( COLORCHORD_ACTIVE && !isHpaRunning() )
-        {
-            ExitCritical();
-        }
-
-        // If colorchord isn't running and the HPA is running, stop it
-        if( !COLORCHORD_ACTIVE && isHpaRunning() )
-        {
-            EnterCritical();
-        }
-    }
 }
 
 /**
@@ -545,7 +531,20 @@ void ICACHE_FLASH_ATTR drawChangeMenuBar(void)
         }
     }
 }
+
+/**
+ * @brief Set the time between OLED frames being drawn
+ *
+ * @param drawTimeMs
+ */
+void setOledDrawTime(uint32_t drawTimeMs)
+{
+    os_timer_disarm(&timerHandleUpdateDisplay);
+    os_timer_arm(&timerHandleUpdateDisplay, drawTimeMs, true);
+}
+
 #endif
+
 /*============================================================================
  * Swadge Mode Callback Functions
  *==========================================================================*/

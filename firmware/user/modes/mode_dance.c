@@ -330,7 +330,7 @@ void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state __attribute__((unused))
         if(SECRET_UNLOCK_CODE == (SECRET_UNLOCK_MASK & buttonHistory))
         {
             // If it was, unlock all the patterns
-            setGameWinsToMax();
+            // setGameWinsToMax();
             // Disarm the current animation, it will get rearmed after the pattern
             os_timer_disarm(&danceTimers[currentDance].timer);
             // Show a little thing
@@ -347,7 +347,7 @@ void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state __attribute__((unused))
 
             // Iterate to the next animation. Winning a reflector game unlocks
             // another dance
-            uint8_t numUnlockedDances = getRefGameWins();
+            uint8_t numUnlockedDances = 255;
 
             // If numUnlockedDances is 252 or less
             if(numUnlockedDances < 253)
