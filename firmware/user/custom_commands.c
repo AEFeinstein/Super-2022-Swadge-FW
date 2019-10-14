@@ -197,10 +197,10 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
                 settings.configs[i] = gConfigs[i].defaultVal;
             }
         }
-        memset(ttHighScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
-        ttLastScore = 0;
-        memset(mzHighScores, 0, NUM_MZ_HIGH_SCORES * sizeof(uint32_t));
-        mzLastScore = 0;
+        memset(settings.ttHighScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
+        settings.ttLastScore = 0;
+        memset(settings.mzHighScores, 0, NUM_MZ_HIGH_SCORES * sizeof(uint32_t));
+        settings.mzLastScore = 0;
         settings.joustElo = 1000;
         SaveSettings();
     }
