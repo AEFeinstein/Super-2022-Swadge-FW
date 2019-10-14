@@ -39,8 +39,9 @@ uint8_t ICACHE_FLASH_ATTR plotChar(uint8_t x, uint8_t y,
  * @param text The string to draw
  * @param font The font to draw the string in
  * @param col WHITE, BLACK or INVERSE
+ * @return The x position of the end of the string drawn
  */
-void ICACHE_FLASH_ATTR plotText(uint8_t x, uint8_t y, char* text, fonts font, color col)
+uint8_t ICACHE_FLASH_ATTR plotText(uint8_t x, uint8_t y, char* text, fonts font, color col)
 {
     while (0 != *text)
     {
@@ -68,4 +69,6 @@ void ICACHE_FLASH_ATTR plotText(uint8_t x, uint8_t y, char* text, fonts font, co
         }
         text++;
     }
+    uint8_t cursorEnd = x;
+    return cursorEnd;
 }

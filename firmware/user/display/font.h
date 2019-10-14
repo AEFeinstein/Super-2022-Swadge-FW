@@ -12,6 +12,10 @@
 #include "sprite.h"
 #include "oled.h"
 
+// Ref: http://marrin.org/2017/01/16/putting-data-in-esp8266-flash-memory/
+#define RODATA_ATTR  __attribute__((section(".irom.text"))) __attribute__((aligned(4)))
+#define ROMSTR_ATTR  __attribute__((section(".irom.text.romstr"))) __attribute__((aligned(4)))
+
 typedef enum
 {
     TOM_THUMB,
@@ -29,6 +33,6 @@ extern const sprite_t font_IbmVga8[] ICACHE_RODATA_ATTR;
 extern const sprite_t font_TomThumb[] ICACHE_RODATA_ATTR;
 
 uint8_t plotChar(uint8_t x, uint8_t y, char character, const sprite_t* table, color col);
-void plotText(uint8_t x, uint8_t y, char* text, fonts font, color col);
+uint8_t plotText(uint8_t x, uint8_t y, char* text, fonts font, color col);
 
 #endif /* SRC_FONT_H_ */

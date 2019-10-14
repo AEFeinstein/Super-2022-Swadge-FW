@@ -23,8 +23,9 @@
  * Defines
  *==========================================================================*/
 
-// #define REF_DEBUG_PRINT
+#define REF_DEBUG_PRINT
 #ifdef REF_DEBUG_PRINT
+#include <stdlib.h>
     #define ref_printf(...) os_printf(__VA_ARGS__)
 #else
     #define ref_printf(...)
@@ -561,6 +562,7 @@ void ICACHE_FLASH_ATTR refStartRound(void)
 }
 
 /**
+
  * Called every 4ms, this updates the LEDs during connection
  */
 void ICACHE_FLASH_ATTR refConnLedTimeout(void* arg __attribute__((unused)))
