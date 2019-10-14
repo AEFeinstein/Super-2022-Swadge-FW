@@ -2647,7 +2647,7 @@ void ICACHE_FLASH_ATTR deInitLandedTetrads()
     landedTetrads = NULL;
 }
 
-void ICACHE_FLASH_ATTR startClearAnimation(int numLineClears)
+void ICACHE_FLASH_ATTR startClearAnimation(int numLineClears __attribute__((unused)))
 {
     inClearAnimation = true;
     clearTimer = 0;

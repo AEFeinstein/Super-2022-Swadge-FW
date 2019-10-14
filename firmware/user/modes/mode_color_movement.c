@@ -22,6 +22,7 @@
 #include "linked_list.h" //custom linked list
 #include "custom_commands.h" //saving and loading high scores and last scores
 #include "math.h"
+#include "embeddedout.h"
 
 /*============================================================================
  * Defines
@@ -38,9 +39,9 @@
 //#ifndef max
 //    #define max(a,b) ((a) > (b) ? (a) : (b))
 //#endif
-#ifndef min
-    #define min(a,b) ((a) < (b) ? (a) : (b))
-#endif
+// #ifndef min
+//     #define min(a,b) ((a) < (b) ? (a) : (b))
+// #endif
 
 // controls (title)
 #define BTN_TITLE_START_SCORES LEFT
@@ -671,7 +672,7 @@ void ICACHE_FLASH_ATTR cmTitleUpdate(void)
 
 void ICACHE_FLASH_ATTR cmGameUpdate(void)
 {
-    bool gonethruany;
+    // bool gonethruany;
     static struct maxtime_t CM_updatedisplay_timer = { .name="CM_updateDisplay"};
     maxTimeBegin(&CM_updatedisplay_timer);
 
@@ -734,7 +735,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     bufLowPassZaccelInsert = circularPush(lowPassZaccel, bufLowPassZaccelInsert, bufLowPassZaccel);
 
     // Plot slightly smoothed less dc bias by adjusting the dots
-    AdjustPlotDotsSingle(bufHighPassNormAccel, bufHighPassNormAccel);
+    // AdjustPlotDotsSingle(bufHighPassNormAccel, bufHighPassNormAccel);
     AdjustPlotDots(bufXaccel,bufXaccelInsert, bufLowPassXaccel, bufLowPassXaccelInsert);
     AdjustPlotDots(bufYaccel,bufYaccelInsert, bufLowPassYaccel, bufLowPassYaccelInsert);
     AdjustPlotDots(bufZaccel, bufZaccelInsert, bufLowPassZaccel, bufLowPassZaccelInsert);
@@ -786,7 +787,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     aveZeroCrossInterval = (1 - alphaCross) * aveZeroCrossInterval + alphaCross * crossinterval;
     //prevHighPassNormAccel = bufHighPassNormAccel[-1];
     //bpm = 30/aveZeroCrossInterval; // if using 1/2 period estimate for crossing
-    int16_t bpm = 60 * MS_TO_US_FACTOR * S_TO_MS_FACTOR / aveZeroCrossInterval;
+    // int16_t bpm = 60 * MS_TO_US_FACTOR * S_TO_MS_FACTOR / aveZeroCrossInterval;
 
     //TODO should be in cmGameDisplay()
     // graphical view of bpm could be here
@@ -843,11 +844,11 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
 
     // TODO related to bpm - map nice range to 0 to 255 for angle
     int16_t angle = 0; // replace with nice formula
-    uint32_t color = EHSVtoHEX(angle, 0xFF, 0xFF);
+    uint32_t colorToShow = EHSVtoHEX(angle, 0xFF, 0xFF);
 
-    ledr = (color >>  0) & 0xFF;
-    ledg = (color >>  8) & 0xFF;
-    ledb = (color >> 16) & 0xFF;
+    ledr = (colorToShow >>  0) & 0xFF;
+    ledg = (colorToShow >>  8) & 0xFF;
+    ledb = (colorToShow >> 16) & 0xFF;
 
 
     // allcolored the same
@@ -910,7 +911,7 @@ void ICACHE_FLASH_ATTR cmTitleDisplay(void)
     // Shake It
     plotCenteredText(0, 5, 127, "SHAKE-COLOR", RADIOSTARS, WHITE);
 
-    plotCenteredText(0, OLED_HEIGHT/2, 127, levelName[cmLevel], IBM_VGA_8, WHITE);
+    plotCenteredText(0, OLED_HEIGHT/2, 127, (char*)levelName[cmLevel], IBM_VGA_8, WHITE);
 
     // SCORES   START
     plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "SCORES", IBM_VGA_8, WHITE);
@@ -921,7 +922,7 @@ void ICACHE_FLASH_ATTR cmTitleDisplay(void)
 
 void ICACHE_FLASH_ATTR cmGameDisplay(void)
 {
-    char uiStr[32] = {0};
+    // char uiStr[32] = {0};
     // Clear the display
     //clearDisplay();
 
@@ -1071,8 +1072,8 @@ void ICACHE_FLASH_ATTR cmNewSetup(void)
     bufLowPassYaccelInsert = 0;
     bufZaccelInsert = 0;
     bufLowPassZaccelInsert = 0;
-    int16_t i;
-    int16_t startvert = 0;
+    // int16_t i;
+    // int16_t startvert = 0;
     memset(leds, 0, sizeof(leds));
 
     gameover = false;
