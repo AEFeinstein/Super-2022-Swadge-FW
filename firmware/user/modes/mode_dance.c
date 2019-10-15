@@ -18,13 +18,7 @@
 #include "user_main.h"
 #include "embeddedout.h"
 #include "custom_commands.h"
-
-/*============================================================================
- * Defines
- *==========================================================================*/
-
-#define SECRET_UNLOCK_MASK 0b11111111
-#define SECRET_UNLOCK_CODE 0b10011001
+#include "mode_dance.h"
 
 /*============================================================================
  * Structs
@@ -49,24 +43,7 @@ void ICACHE_FLASH_ATTR setDanceLeds(led_t* ledData, uint8_t ledDataLen);
 uint32_t ICACHE_FLASH_ATTR dance_rand(uint32_t upperBound);
 
 void ICACHE_FLASH_ATTR unlockAnimation(void* arg);
-void ICACHE_FLASH_ATTR danceTimerMode1(void* arg);
-void ICACHE_FLASH_ATTR danceTimerMode2(void* arg);
-void ICACHE_FLASH_ATTR danceTimerMode3(void* arg);
-void ICACHE_FLASH_ATTR danceTimerMode4(void* arg);
-void ICACHE_FLASH_ATTR danceTimerMode5(void* arg);
-void ICACHE_FLASH_ATTR danceTimerMode6(void* arg);
-void ICACHE_FLASH_ATTR danceTimerMode7(void* arg);
-void ICACHE_FLASH_ATTR danceTimerMode8(void* arg);
-void ICACHE_FLASH_ATTR danceTimerMode9(void* arg);
-void ICACHE_FLASH_ATTR danceTimerMode10(void* arg);
-void ICACHE_FLASH_ATTR danceTimerMode11(void* arg);
-void ICACHE_FLASH_ATTR danceTimerMode12(void* arg);
-void ICACHE_FLASH_ATTR danceTimerMode13(void* arg);
-void ICACHE_FLASH_ATTR danceTimerMode14(void* arg);
-void ICACHE_FLASH_ATTR danceTimerMode15(void* arg);
-void ICACHE_FLASH_ATTR danceTimerMode16(void* arg);
-void ICACHE_FLASH_ATTR danceTimerMode17(void* arg);
-void ICACHE_FLASH_ATTR danceTimerMode18(void* arg);
+
 void ICACHE_FLASH_ATTR freeze_color(void* arg);
 void ICACHE_FLASH_ATTR random_dance_mode(void* arg);
 
@@ -84,21 +61,6 @@ static const uint8_t danceBrightnesses[] =
 /*============================================================================
  * Variables
  *==========================================================================*/
-
-/**
- * This is the mode struct of callback pointers so the swadge knows how to
- * interact with this mode
- */
-swadgeMode dancesMode =
-{
-    .modeName = "dances",
-    .fnEnterMode = danceEnterMode,
-    .fnExitMode = danceExitMode,
-    .fnButtonCallback = danceButtonCallback,
-    .wifiMode = NO_WIFI,
-    .fnEspNowRecvCb = NULL,
-    .fnEspNowSendCb = NULL,
-};
 
 uint8_t danceBrightnessIdx = 0;
 
@@ -211,14 +173,6 @@ timerWithPeriod danceTimers[] =
     }
 };
 
-/// Stuff for the secret unlock code
-os_timer_t unlockAnimationTimer = {0};
-uint8_t unlockBlinks = 0;
-uint16_t buttonHistory = 0;
-
-/// This is the current dance being animated
-uint8_t currentDance = 0;
-
 /// This is a state variable used in animations
 int ledCount = 0;
 int ledCount2 = 0;
@@ -242,36 +196,10 @@ bool led_bool = true;
  *==========================================================================*/
 
 /**
- * This initializer is called whenever dance mode is entered
- */
-void ICACHE_FLASH_ATTR danceEnterMode(void)
-{
-    currentDance = 0;
-    buttonHistory = 0;
-    danceClearVars();
-
-    // Loop through danceTimers[] and attach each function to each timer
-    uint8_t i;
-    for (i = 0; i < sizeof(danceTimers) / sizeof(danceTimers[0]); i++)
-    {
-        os_timer_disarm(&danceTimers[i].timer);
-        os_timer_setfn(&danceTimers[i].timer, danceTimers[i].timerFn, NULL);
-    }
-
-    os_timer_disarm(&unlockAnimationTimer);
-    os_timer_setfn(&unlockAnimationTimer, unlockAnimation, NULL);
-
-    // Start the first timer in danceTimers[]
-    os_timer_arm(&danceTimers[0].timer, danceTimers[0].period, true);
-}
-
-/**
  * This is called to clear all dance variables
  */
 void ICACHE_FLASH_ATTR danceClearVars(void)
 {
-    unlockBlinks = 0;
-
     // This is a state variable used in animations
     ledCount = 0;
     ledCount2 = 0;
@@ -296,117 +224,17 @@ void ICACHE_FLASH_ATTR danceClearVars(void)
 }
 
 /**
- * This is called whenever dance mode is exited
- */
-void ICACHE_FLASH_ATTR danceExitMode(void)
-{
-    // Loop through danceTimers[] and disarm timer
-    uint8_t i;
-    for (i = 0; i < sizeof(danceTimers) / sizeof(danceTimers[0]); i++)
-    {
-        os_timer_disarm(&danceTimers[i].timer);
-    }
-    os_timer_disarm(&unlockAnimationTimer);
-}
-
-/**
- * This is called whenever a button is pressed or released
- * Button 1 will cycle through animations when pressed
- * Button 2 is currently unused
+ * Set the brightness index
  *
- * @param state  A bitmask of all button states
- * @param button The button which caused this event
- * @param down   true if the button was pressed, false if it was released
+ * @param brightness index into danceBrightnesses[]
  */
-void ICACHE_FLASH_ATTR danceButtonCallback(uint8_t state __attribute__((unused)),
-        int button, int down)
+void ICACHE_FLASH_ATTR setDanceBrightness(uint8_t brightness)
 {
-    // If a button was pressed, not released
-    if(down)
+    if(brightness > 2)
     {
-        // Check if the secret code was entered
-        buttonHistory <<= 1;
-        buttonHistory  |= (button == 1 ? 1 : 0);
-        if(SECRET_UNLOCK_CODE == (SECRET_UNLOCK_MASK & buttonHistory))
-        {
-            // If it was, unlock all the patterns
-            // setGameWinsToMax();
-            // Disarm the current animation, it will get rearmed after the pattern
-            os_timer_disarm(&danceTimers[currentDance].timer);
-            // Show a little thing
-            unlockBlinks = 0;
-            os_timer_arm(&unlockAnimationTimer, 200, true);
-            return;
-        }
-
-        // Button 2 pressed
-        if(2 == button)
-        {
-            // Stop the current animation
-            os_timer_disarm(&danceTimers[currentDance].timer);
-
-            // Iterate to the next animation. Winning a reflector game unlocks
-            // another dance
-            uint8_t numUnlockedDances = 255;
-
-            // If numUnlockedDances is 252 or less
-            if(numUnlockedDances < 253)
-            {
-                // Add 3 to start with 3 dances unlocked, but don't overflow!
-                numUnlockedDances += 3;
-            }
-            uint8_t numDances = sizeof(danceTimers) / sizeof(danceTimers[0]);
-            if(numUnlockedDances > numDances)
-            {
-                numUnlockedDances = numDances;
-            }
-
-            currentDance = (currentDance + 1) % numUnlockedDances;
-
-            // Clear variables
-            uint32_t colorSaveOld = color_save;
-            danceClearVars();
-            if(danceTimers[currentDance].timerFn == &freeze_color)
-            {
-                // Restore color_save, but only for freeze_color
-                color_save = colorSaveOld;
-            }
-
-            // Start the next animation
-            os_timer_arm(&danceTimers[currentDance].timer, danceTimers[currentDance].period, true);
-        }
-        else if(1 == button)
-        {
-            // Cycle brightnesses
-            danceBrightnessIdx = (danceBrightnessIdx + 1) %
-                                 (sizeof(danceBrightnesses) / sizeof(danceBrightnesses[0]));
-        }
+        brightness = 2;
     }
-}
-
-/**
- * This animation is shown when the unlock code is entered
- *
- * @param arg unused
- */
-void ICACHE_FLASH_ATTR unlockAnimation(void* arg __attribute__((unused)))
-{
-    // Set the LEDs to either on (white) or off
-    led_t leds[NUM_LIN_LEDS] = {{0}};
-    if(unlockBlinks % 2 == 0)
-    {
-        ets_memset(leds, 0x80, sizeof(leds));
-    }
-    setDanceLeds(leds, sizeof(leds));
-    unlockBlinks++;
-
-    // All done
-    if(unlockBlinks == 8)
-    {
-        // Resume normal animation
-        os_timer_disarm(&unlockAnimationTimer);
-        os_timer_arm(&danceTimers[currentDance].timer, danceTimers[currentDance].period, true);
-    }
+    danceBrightnessIdx = brightness;
 }
 
 /**
@@ -490,7 +318,7 @@ void ICACHE_FLASH_ATTR danceTimerMode2(void* arg __attribute__((unused)))
     if(ledCount < 5)
     {
         // full bright red
-        for (int i=0; i < NUM_LIN_LEDS; i++)
+        for (int i = 0; i < NUM_LIN_LEDS; i++)
         {
             leds[i].r = 200;
         }
@@ -498,7 +326,7 @@ void ICACHE_FLASH_ATTR danceTimerMode2(void* arg __attribute__((unused)))
     else
     {
         // off
-        for (int i=0; i < NUM_LIN_LEDS; i++)
+        for (int i = 0; i < NUM_LIN_LEDS; i++)
         {
             leds[i].r = 0;
         }
@@ -1028,10 +856,10 @@ void ICACHE_FLASH_ATTR danceTimerMode16(void* arg __attribute__((unused)))
     //70 is orange-ish
     uint8_t i;
     // Turn the current LED on, full bright white
-    if(ledCount < (NUM_LIN_LEDS>>1))
+    if(ledCount < (NUM_LIN_LEDS >> 1))
     {
         uint32_t red = EHSVtoHEX(85, 0xFF, 0xFF);
-        for(i = 0; i < (NUM_LIN_LEDS>>1); i++)
+        for(i = 0; i < (NUM_LIN_LEDS >> 1); i++)
         {
             leds[i].r = (red >>  0) & 0xFF;
             leds[i].g = (red >>  8) & 0xFF;
@@ -1041,7 +869,7 @@ void ICACHE_FLASH_ATTR danceTimerMode16(void* arg __attribute__((unused)))
     else
     {
         uint32_t blue = EHSVtoHEX(170, 0xFF, 0xFF);
-        for(i = (NUM_LIN_LEDS>>1); i < NUM_LIN_LEDS; i++)
+        for(i = (NUM_LIN_LEDS >> 1); i < NUM_LIN_LEDS; i++)
         {
             leds[i].r = (blue >>  0) & 0xFF;
             leds[i].g = (blue >>  8) & 0xFF;

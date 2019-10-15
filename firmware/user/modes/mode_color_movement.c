@@ -133,15 +133,6 @@ bool newHighScore;
 /*============================================================================
  * Prototypes
  *==========================================================================*/
-// Led patterns borrowed from mode_dance.c
-void ICACHE_FLASH_ATTR danceTimerMode1(void);
-void ICACHE_FLASH_ATTR danceTimerMode2(void);
-void ICACHE_FLASH_ATTR danceTimerMode3(void);
-void ICACHE_FLASH_ATTR danceTimerMode4(void);
-void ICACHE_FLASH_ATTR danceTimerMode6(void);
-void ICACHE_FLASH_ATTR danceTimerMode13(void);
-void ICACHE_FLASH_ATTR danceTimerMode16(void);
-void ICACHE_FLASH_ATTR danceTimerMode17(void);
 
 void ICACHE_FLASH_ATTR cmInit(void);
 void ICACHE_FLASH_ATTR cmDeInit(void);
@@ -391,7 +382,7 @@ void ICACHE_FLASH_ATTR AdjustPlotDotsSingle(int16_t buffer1[], uint16_t insert1)
 void ICACHE_FLASH_ATTR cmInit(void)
 {
     // External from mode_dance to set brightness when using dance mode display
-    danceBrightnessIdx = 2;
+    setDanceBrightness(2);
     // Give us reliable button input.
 	enableDebounce(false);
 
@@ -978,25 +969,25 @@ void ICACHE_FLASH_ATTR cmGameoverDisplay(void)
     switch (cmLevel)
     {
     case BOX_LEVEL:
-        danceTimerMode1();
+        danceTimerMode1(NULL);
         break;
     case PRACTICE_LEVEL:
-        danceTimerMode2();
+        danceTimerMode2(NULL);
         break;
     case EASY_LEVEL:
-        danceTimerMode3();
+        danceTimerMode3(NULL);
         break;
     case MIDDLE_LEVEL:
-        danceTimerMode4();
+        danceTimerMode4(NULL);
         break;
     case HARD_LEVEL:
-        danceTimerMode13();
+        danceTimerMode13(NULL);
         break;
     case KILLER_LEVEL:
-        danceTimerMode16();
+        danceTimerMode16(NULL);
         break;
     case IMPOSSIBLE_LEVEL:
-        danceTimerMode17();
+        danceTimerMode17(NULL);
         break;
     default:
         break;
