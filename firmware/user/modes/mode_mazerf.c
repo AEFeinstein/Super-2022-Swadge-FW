@@ -69,20 +69,20 @@
 #endif
 
 // controls (title)
-#define BTN_TITLE_START_SCORES LEFT
-#define BTN_TITLE_START_GAME RIGHT
+#define BTN_TITLE_START_SCORES 1
+#define BTN_TITLE_START_GAME 2
 
 // controls (game)
-#define BTN_GAME_RIGHT RIGHT
-#define BTN_GAME_LEFT LEFT
+#define BTN_GAME_RIGHT 2
+#define BTN_GAME_LEFT 1
 
 // controls (scores)
-#define BTN_SCORES_CLEAR_SCORES LEFT
-#define BTN_SCORES_START_TITLE RIGHT
+#define BTN_SCORES_CLEAR_SCORES 1
+#define BTN_SCORES_START_TITLE 2
 
 // controls (gameover)
-#define BTN_GAMEOVER_START_TITLE LEFT
-#define BTN_GAMEOVER_START_GAME RIGHT
+#define BTN_GAMEOVER_START_TITLE 1
+#define BTN_GAMEOVER_START_GAME 2
 
 // update task (Richard maxTime has 28 ms for most complicated maze)
 #define UPDATE_TIME_MS 100
@@ -160,12 +160,6 @@ void ICACHE_FLASH_ATTR mazeFreeMemory(void);
 // game loop functions.
 void ICACHE_FLASH_ATTR mzUpdate(void* arg);
 
-// handle inputs.
-void ICACHE_FLASH_ATTR mzTitleInput(void);
-void ICACHE_FLASH_ATTR mzGameInput(void);
-void ICACHE_FLASH_ATTR mzScoresInput(void);
-void ICACHE_FLASH_ATTR mzGameoverInput(void);
-
 // update any input-unrelated logic.
 void ICACHE_FLASH_ATTR mzTitleUpdate(void);
 void ICACHE_FLASH_ATTR mzGameUpdate(void);
@@ -181,12 +175,6 @@ void ICACHE_FLASH_ATTR mzGameoverDisplay(void);
 
 // mode state management.
 void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState);
-
-// input checking.
-bool ICACHE_FLASH_ATTR mzIsButtonPressed(uint8_t button);
-bool ICACHE_FLASH_ATTR mzIsButtonReleased(uint8_t button);
-bool ICACHE_FLASH_ATTR mzIsButtonDown(uint8_t button);
-bool ICACHE_FLASH_ATTR mzIsButtonUp(uint8_t button);
 
 // drawing functions.
 static void ICACHE_FLASH_ATTR plotCenteredText(uint8_t x0, uint8_t y, uint8_t x1, char* text, fonts font, color col);
@@ -246,9 +234,6 @@ accel_t mzAccel = {0};
 accel_t mzLastAccel = {0};
 
 accel_t mzLastTestAccel = {0};
-
-uint8_t mzButtonState = 0;
-uint8_t mzLastButtonState = 0;
 
 uint8_t mazeBrightnessIdx = 2;
 led_t leds[NUM_LIN_LEDS] = {{0}};
@@ -341,9 +326,137 @@ void ICACHE_FLASH_ATTR mzDeInit(void)
 	os_timer_disarm(&timerHandleUpdate);
 }
 
-void ICACHE_FLASH_ATTR mzButtonCallback(uint8_t state, int button __attribute__((unused)), int down __attribute__((unused)))
+void ICACHE_FLASH_ATTR mzButtonCallback(uint8_t state __attribute__((unused)), int button, int down __attribute__((unused)))
 {
-	mzButtonState = state;	// Set the state of all buttons
+    switch(currState)
+    {
+        case MZ_TITLE:
+        {
+            if(down)
+            {
+                switch (button)
+                {
+                    case BTN_TITLE_START_SCORES:
+                    {
+                        //button b = go to score screen
+                        mzChangeState(MZ_SCORES);
+                        break;
+                    }
+                    case BTN_TITLE_START_GAME:
+                    {
+                        //button a = start game
+                        mzChangeState(MZ_GAME);
+                        break;
+                    }
+                    default:
+                    {
+                        break;
+                    }
+                }
+            }
+            break;
+        }
+        case MZ_GAME:
+        {
+            if(down)
+            {
+                switch(button)
+                {
+                    case BTN_GAME_RIGHT:
+                    {
+                        //button b = abort and restart at same level
+                        mazeFreeMemory();
+                        mzNewMazeSetUp();
+                        mzChangeState(MZ_GAME);
+                        break;
+                    }
+                    case BTN_GAME_LEFT:
+                    {
+                        //button a = abort and automatically do maze
+                        mzChangeState(MZ_AUTO);
+                        break;
+                    }
+                    default:
+                    {
+                        break;
+                    }
+                }
+            }
+            break;
+        }
+        case MZ_AUTO:
+        {
+            // Don't handle buttons
+            break;
+        }
+        case MZ_SCORES:
+        {
+            switch (button)
+            {
+                case BTN_SCORES_CLEAR_SCORES:
+                {
+                    if(down)
+                    {
+                        holdingClearScore = true;
+                    }
+                    else
+                    {
+                        holdingClearScore = false;
+                    }
+                    break;
+                }
+                case BTN_SCORES_START_TITLE:
+                {
+                    //button b = go to title screen
+                    if(down)
+                    {
+                        mzChangeState(MZ_TITLE);
+                    }
+                    break;
+                }
+                default:
+                {
+                    break;
+                }
+            }
+            break;
+        }
+        case MZ_GAMEOVER:
+        {
+            if(down)
+            {
+                switch(button)
+                {
+                    case BTN_GAMEOVER_START_GAME:
+                    {
+                        //button a = start game
+                        mazeFreeMemory();
+                        mzNewMazeSetUp();
+                        mzChangeState(MZ_TITLE);
+                        break;
+                    }
+                    case BTN_GAMEOVER_START_TITLE:
+                    {
+                        //button b = go to title screen
+                        changeLevel();
+                        mazeFreeMemory();
+                        mzNewMazeSetUp();
+                        mzChangeState(MZ_TITLE);
+                        break;
+                    }
+                    default:
+                    {
+                        break;
+                    }
+                }
+            }
+            break;
+        }
+        default:
+        {
+            break;
+        }        
+    }
 }
 
 void ICACHE_FLASH_ATTR mzAccelerometerCallback(accel_t* accel)
@@ -387,36 +500,7 @@ void ICACHE_FLASH_ATTR mzUpdate(void* arg __attribute__((unused)))
 	modeTime = newModeTime;
 	stateTime = newStateTime;
 
-	// Handle Input (based on the state)
-	switch( currState )
-    {
-        case MZ_TITLE:
-        {
-			mzTitleInput();
-            break;
-        }
-        case MZ_GAME:
-        case MZ_AUTO:
-        {
-			mzGameInput();
-            break;
-        }
-        case MZ_SCORES:
-        {
-			mzScoresInput();
-            break;
-        }
-        case MZ_GAMEOVER:
-        {
-            mzGameoverInput();
-            break;
-        }
-        default:
-            break;
-    };
-
     // Mark what our inputs were the last time we acted on them.
-    mzLastButtonState = mzButtonState;
     mzLastAccel = mzAccel;
 
     // Handle Game Logic (based on the state)
@@ -480,19 +564,7 @@ void ICACHE_FLASH_ATTR mzUpdate(void* arg __attribute__((unused)))
     };
 }
 
-void ICACHE_FLASH_ATTR mzTitleInput(void)
-{
-    //button a = start game
-    if(mzIsButtonPressed(BTN_TITLE_START_GAME))
-    {
-        mzChangeState(MZ_GAME);
-    }
-    //button b = go to score screen
-    else if(mzIsButtonPressed(BTN_TITLE_START_SCORES))
-    {
-        mzChangeState(MZ_SCORES);
-    }
-}
+
 
 void ICACHE_FLASH_ATTR changeLevel(void)
 {
@@ -544,72 +616,8 @@ void ICACHE_FLASH_ATTR changeLevel(void)
             break;
         }
 }
-void ICACHE_FLASH_ATTR mzGameInput(void)
-{
-    //button b = abort and restart at same level
-    if(mzIsButtonPressed(BTN_GAME_RIGHT))
-    {
-        mazeFreeMemory();
-        mzNewMazeSetUp();
-        mzChangeState(MZ_GAME);
-    }
-    //button a = abort and automatically do maze
-    else if(mzIsButtonPressed(BTN_GAME_LEFT))
-    {
-        mzChangeState(MZ_AUTO);
-    }
-}
 
-void ICACHE_FLASH_ATTR mzScoresInput(void)
-{
-	//button a = hold to clear scores.
-    if(holdingClearScore && mzIsButtonDown(BTN_SCORES_CLEAR_SCORES))
-    {
-        clearScoreTimer += deltaTime;
-        if (clearScoreTimer >= CLEAR_SCORES_HOLD_TIME)
-        {
-            clearScoreTimer = 0;
-            memset(highScores, 0, NUM_MZ_HIGH_SCORES * sizeof(uint32_t));
-            saveHighScores();
-            loadHighScores();
-            mzSetLastScore(0);
-        }
-    }
-    else if(mzIsButtonUp(BTN_SCORES_CLEAR_SCORES))
-    {
-        clearScoreTimer = 0;
-    }
-    // This is added to prevent people holding left from the previous screen from accidentally clearing their scores.
-    else if(mzIsButtonPressed(BTN_SCORES_CLEAR_SCORES))
-    {
-        holdingClearScore = true;
-    }
 
-    //button b = go to title screen
-    if(mzIsButtonPressed(BTN_SCORES_START_TITLE))
-    {
-        mzChangeState(MZ_TITLE);
-    }
-}
-
-void ICACHE_FLASH_ATTR mzGameoverInput(void)
-{
-    //button a = start game
-    if(mzIsButtonPressed(BTN_GAMEOVER_START_GAME))
-    {
-        mazeFreeMemory();
-        mzNewMazeSetUp();
-        mzChangeState(MZ_TITLE);
-    }
-    //button b = go to title screen
-    else if(mzIsButtonPressed(BTN_GAMEOVER_START_TITLE))
-    {
-        changeLevel();
-        mazeFreeMemory();
-        mzNewMazeSetUp();
-        mzChangeState(MZ_TITLE);
-    }
-}
 
 void ICACHE_FLASH_ATTR mzTitleUpdate(void)
 {
@@ -894,7 +902,22 @@ void ICACHE_FLASH_ATTR mzAutoGameUpdate(void)
 
 void ICACHE_FLASH_ATTR mzScoresUpdate(void)
 {
-    // Do nothing.
+    if(holdingClearScore)
+    {
+        clearScoreTimer += deltaTime;
+        if (clearScoreTimer >= CLEAR_SCORES_HOLD_TIME)
+        {
+            clearScoreTimer = 0;
+            memset(highScores, 0, NUM_MZ_HIGH_SCORES * sizeof(uint32_t));
+            saveHighScores();
+            loadHighScores();
+            mzSetLastScore(0);
+        }
+    }
+    else
+    {
+        clearScoreTimer = 0;
+    }
 }
 
 void ICACHE_FLASH_ATTR mzGameoverUpdate(void)
@@ -1048,8 +1071,6 @@ void ICACHE_FLASH_ATTR mzGameoverDisplay(void)
         break;
     }
     //random_dance_mode(); //didn't work
-
-
 
     // We don't clear the display because we want the playfield to appear in the background.
     // Draw a centered bordered window.
@@ -1338,27 +1359,6 @@ void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState)
             break;
     };
 }
-
-bool ICACHE_FLASH_ATTR mzIsButtonPressed(uint8_t button)
-{
-    return (mzButtonState & button) && !(mzLastButtonState & button);
-}
-
-bool ICACHE_FLASH_ATTR mzIsButtonReleased(uint8_t button)
-{
-    return !(mzButtonState & button) && (mzLastButtonState & button);
-}
-
-bool ICACHE_FLASH_ATTR mzIsButtonDown(uint8_t button)
-{
-    return mzButtonState & button;
-}
-
-bool ICACHE_FLASH_ATTR mzIsButtonUp(uint8_t button)
-{
-    return !(mzButtonState & button);
-}
-
 
 int16_t ICACHE_FLASH_ATTR  incrementifnewvert(int16_t nwi, int16_t startind, int16_t endind)
 {
