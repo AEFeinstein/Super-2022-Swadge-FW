@@ -274,28 +274,6 @@ uint32_t* ICACHE_FLASH_ATTR getSnakeHighScores(void)
     return settings.snakeHighScores;
 }
 
-uint32_t * ICACHE_FLASH_ATTR ttGetHighScores(void)
-{
-    return ttHighScores;
-}
-
-void ICACHE_FLASH_ATTR ttSetHighScores(uint32_t * newHighScores)
-{
-    memcpy(ttHighScores, newHighScores, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
-    SaveSettings();
-}
-
-uint32_t ICACHE_FLASH_ATTR ttGetLastScore(void)
-{
-    return ttLastScore;
-}
-
-void ICACHE_FLASH_ATTR ttSetLastScore(uint32_t newLastScore)
-{
-    ttLastScore = newLastScore;
-    SaveSettings();
-}
-
 /**
  * @return The number of reflector games this swadge has won
  */
