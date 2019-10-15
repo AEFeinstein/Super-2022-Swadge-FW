@@ -23,25 +23,6 @@
 //NOTES:
 // Decided not to handle cascade clears that result from falling tetrads after clears. Closer to target behavior.
 
-//TODO:
-//FX events:
-// tetrad lands
-// tetrad drops
-// the current highest occupied point of the grid
-// WIP line clear (single, double, triple, quadruple)
-// game start
-// game over
-// level increase
-// title / idle
-// title button press
-// scores button press / hold
-// holding or not holding down soft drop
-// rotate tetrad
-
-
-// Add visual or audio FX for a tetrad locking in-place.
-// Add VFX that use Swadge LEDs.
-// Add SFX and / or Music.
 
 // Suppress warnings related to consting of some parameters in function declarations.
 // Do second pass on accelerometer code.
@@ -50,7 +31,7 @@
 // Test to make sure mode is not a battery killer.
 // Test to make sure there are no bugs.
 
-
+ 
 //#define NO_STRESS_TRIS // Debug mode that when enabled, stops tetrads from dropping automatically, they will only drop when the drop button is pressed. Useful for testing line clears.
 
 // any defines go here.
@@ -72,7 +53,7 @@
 #define BTN_GAMEOVER_START_GAME RIGHT
 
 // update task info.
-#define UPDATE_TIME_MS 16
+#define UPDATE_TIME_MS 16 
 #define DISPLAY_REFRESH_MS 400 // This is a best guess for syncing LED FX with OLED FX.
 
 // time info.
@@ -138,7 +119,8 @@
 #define LINE_CLEARS_PER_LEVEL 5
 
 // LED FX
-#define NUM_LEDS 6 // TODO: 6 for retail, 8 for dev kit, confirm this.
+#define NUM_LEDS 6
+#define MODE_LED_BRIGHTNESS 0.25 // Factor that decreases overall brightness of LEDs since they are a little distracting at full brightness.
 
 // Music and SFX
 #define NUM_LAND_FX 16
@@ -165,8 +147,8 @@ typedef enum
 // type of tetrad
 typedef enum
 {
-    I_TETRAD=1,
-    O_TETRAD=2,
+    I_TETRAD=1,	
+    O_TETRAD=2,	
     T_TETRAD=3,
     J_TETRAD=4,
     L_TETRAD=5,
@@ -186,12 +168,12 @@ typedef struct
 {
     tetradType_t type;
     uint32_t gridValue; // When taking up space on a larger grid of multiple tetrads, used to distinguish tetrads from each other.
-    int rotation;
+    int rotation; 
     coord_t topLeft;
     uint32_t shape[TETRAD_GRID_SIZE][TETRAD_GRID_SIZE];
 } tetrad_t;
 
-const uint32_t iTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_RODATA_ATTR =
+const uint32_t iTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_RODATA_ATTR = 
 {
     {{0,0,0,0},
      {1,1,1,1},
@@ -211,7 +193,7 @@ const uint32_t iTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_R
      {0,1,0,0}}
 };
 
-const uint32_t oTetradRotations [1][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_RODATA_ATTR =
+const uint32_t oTetradRotations [1][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_RODATA_ATTR = 
 {
     {{0,1,1,0},
      {0,1,1,0},
@@ -219,7 +201,7 @@ const uint32_t oTetradRotations [1][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_R
      {0,0,0,0}}
 };
 
-const uint32_t tTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_RODATA_ATTR =
+const uint32_t tTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_RODATA_ATTR = 
 {
     {{0,1,0,0},
      {1,1,1,0},
@@ -239,7 +221,7 @@ const uint32_t tTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_R
      {0,0,0,0}}
 };
 
-const uint32_t jTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_RODATA_ATTR =
+const uint32_t jTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_RODATA_ATTR = 
 {
     {{1,0,0,0},
      {1,1,1,0},
@@ -259,7 +241,7 @@ const uint32_t jTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_R
      {0,0,0,0}}
 };
 
-const uint32_t lTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_RODATA_ATTR =
+const uint32_t lTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_RODATA_ATTR = 
 {
     {{0,0,1,0},
      {1,1,1,0},
@@ -279,7 +261,7 @@ const uint32_t lTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_R
      {0,0,0,0}}
 };
 
-const uint32_t sTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_RODATA_ATTR =
+const uint32_t sTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_RODATA_ATTR = 
 {
     {{0,1,1,0},
      {1,1,0,0},
@@ -299,7 +281,7 @@ const uint32_t sTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_R
      {0,0,0,0}}
 };
 
-const uint32_t zTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_RODATA_ATTR =
+const uint32_t zTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_RODATA_ATTR = 
 {
     {{1,1,0,0},
      {0,1,1,0},
@@ -590,6 +572,307 @@ const song_t * landSFX[NUM_LAND_FX] = {
     &lineOneSFX
 };
 
+const song_t titleMusic ICACHE_RODATA_ATTR = {
+    .notes = {
+        {.note = G_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_6, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_6, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_6, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_6, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+    },
+    .numNotes = 256,
+    .shouldLoop = true
+};
+
+const song_t gameStartSting ICACHE_RODATA_ATTR = {
+    .notes = {
+        {.note = C_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+    },
+    .numNotes = 8,
+    .shouldLoop = false
+};
+
+const song_t gameOverSting ICACHE_RODATA_ATTR = {
+    .notes = {
+        {.note = C_7, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_6, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_6, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = A_SHARP_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 1},
+    },
+    .numNotes = 16,
+    .shouldLoop = false
+};
+
 const led_t titleColor ICACHE_RODATA_ATTR = {
     .r = 0x00,
     .g = 0xFF,
@@ -603,47 +886,47 @@ const led_t highScoreColor ICACHE_RODATA_ATTR = {
 };
 
 const led_t tetradColors[NUM_TETRAD_TYPES] ICACHE_RODATA_ATTR = {
-    // I_TETRAD
+    // I_TETRAD    
     {
         .r = 0x00,
         .g = 0xFF,
-        .b = 0xFF
+        .b = 0xFF   
     },
-    // O_TETRAD
+    // O_TETRAD    
     {
         .r = 0xFF,
         .g = 0xFF,
-        .b = 0x00
+        .b = 0x00   
     },
-    // T_TETRAD
+    // T_TETRAD    
     {
         .r = 0xFF,
         .g = 0x00,
-        .b = 0xFF
+        .b = 0xFF   
     },
-    // J_TETRAD
+    // J_TETRAD    
     {
         .r = 0x00,
         .g = 0x00,
-        .b = 0xFF
+        .b = 0xFF   
     },
-    // L_TETRAD
+    // L_TETRAD    
     {
         .r = 0xFF,
         .g = 0xA5,
-        .b = 0x00
+        .b = 0x00   
     },
-    // S_TETRAD
+    // S_TETRAD    
     {
         .r = 0x00,
         .g = 0xFF,
-        .b = 0x00
+        .b = 0x00   
     },
-    // Z_TETRAD
+    // Z_TETRAD    
     {
         .r = 0xFF,
         .g = 0x00,
-        .b = 0x00
+        .b = 0x00   
     },
 };
 
@@ -663,7 +946,7 @@ const led_t clearColor ICACHE_RODATA_ATTR = {
 tetradRandomizer_t randomizer = POOL;
 
 //BAG
-int typeBag[NUM_TETRAD_TYPES] = {I_TETRAD, J_TETRAD, L_TETRAD, O_TETRAD, S_TETRAD, T_TETRAD, Z_TETRAD};
+int typeBag[NUM_TETRAD_TYPES] = {I_TETRAD, J_TETRAD, L_TETRAD, O_TETRAD, S_TETRAD, T_TETRAD, Z_TETRAD}; 
 int bagIndex;
 
 //POOL
@@ -795,6 +1078,7 @@ tetrad_t ICACHE_FLASH_ATTR spawnTetrad(tetradType_t type, uint32_t gridValue, co
 void ICACHE_FLASH_ATTR spawnNextTetrad(tetrad_t * newTetrad, tetradRandomizer_t randomType, uint32_t gridValue, uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth]);
 int ICACHE_FLASH_ATTR getLowestActiveRow(tetrad_t * tetrad);
 int ICACHE_FLASH_ATTR getHighestActiveRow(tetrad_t * tetrad);
+int ICACHE_FLASH_ATTR getFallDistance(tetrad_t * tetrad, uint8_t gridWidth, uint8_t gridHeight, const uint32_t gridData[][gridWidth]);
 
 // drawing functions.
 void ICACHE_FLASH_ATTR plotSquare(int x0, int y0, int size, color col);
@@ -844,9 +1128,10 @@ void ICACHE_FLASH_ATTR alternatingPulseLEDS(uint8_t numLEDs, led_t fxColor, uint
 void ICACHE_FLASH_ATTR dancingLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time);
 void ICACHE_FLASH_ATTR countdownLEDs(uint8_t numLEDs, led_t fxColor, double progress);
 void ICACHE_FLASH_ATTR clearLEDs(uint8_t numLEDs);
+void ICACHE_FLASH_ATTR applyLEDBrightness(uint8_t numLEDs, double brightness);
 
 // Mode struct hook.
-swadgeMode tiltradsMode =
+swadgeMode tiltradsMode = 
 {
 	.modeName = "Tiltrads",
 	.fnEnterMode = ttInit,
@@ -861,8 +1146,8 @@ swadgeMode tiltradsMode =
 void ICACHE_FLASH_ATTR ttInit(void)
 {
     // Give us responsive input.
-	enableDebounce(false);
-
+	enableDebounce(false);	
+	
 	// Reset mode time tracking.
 	modeStartTime = system_get_time();
 	modeTime = 0;
@@ -1007,7 +1292,7 @@ static void ICACHE_FLASH_ATTR ttUpdate(void* arg __attribute__((unused)))
 }
 
 void ICACHE_FLASH_ATTR ttTitleInput(void)
-{
+{   
     //button a = start game
     if(ttIsButtonPressed(BTN_TITLE_START_GAME))
     {
@@ -1098,7 +1383,7 @@ void ICACHE_FLASH_ATTR ttScoresInput(void)
     {
         holdingClearScore = true;
     }
-
+    
     //button b = go to title screen
     if(ttIsButtonPressed(BTN_SCORES_START_TITLE))
     {
@@ -1124,12 +1409,12 @@ void ICACHE_FLASH_ATTR ttTitleUpdate(void)
 {
     // Refresh the tetrads grid.
     refreshTetradsGrid(TUTORIAL_GRID_WIDTH, TUTORIAL_GRID_HEIGHT, tutorialTetradsGrid, landedTetrads, &(tutorialTetrad), false);
-
+    
     dropTimer += deltaTime;
 
     if (dropTimer >= dropTime)
     {
-        dropTimer = 0;
+        dropTimer = 0;        
 
         // If we couldn't drop, then we've landed.
         if (!dropTetrad(&tutorialTetrad, TUTORIAL_GRID_WIDTH, TUTORIAL_GRID_HEIGHT, tutorialTetradsGrid))
@@ -1158,7 +1443,7 @@ void ICACHE_FLASH_ATTR ttGameUpdate(void)
     // clear lines
     // spawn new active tetrad.
 
-    if (inClearAnimation)
+    if (inClearAnimation) 
     {
         clearTimer += deltaTime;
 
@@ -1194,12 +1479,18 @@ void ICACHE_FLASH_ATTR ttGameUpdate(void)
         //double dropProgress = (double)dropTimer / (double)dropTime;
 
         // Progress is how close it is to landing on the floor (Too nebulous or unhelpful?)
-        double totalDropTime = GRID_HEIGHT * dropTime;
-        double totalDropProgress = (getLowestActiveRow(&(activeTetrad)) * dropTime) + (double)dropTimer;
-        double dropProgress = (double)totalDropProgress / (double)totalDropTime;
+        double totalFallTime = (GRID_HEIGHT - 1) * dropTime;
+        int fallDistance = getFallDistance(&(activeTetrad), GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
+        
+        double totalFallProgress = totalFallTime - (((fallDistance + 1) * dropTime) - dropTimer);
+        double countdownProgress = totalFallProgress / totalFallTime;
 
-        //TODO: update this countdown with the correct progress to the actual landing point.
-        countdownLEDs(NUM_LEDS, tetradColors[activeTetrad.type-1], dropProgress);
+        //NOTE: this check is here because under unknown circumstances the math above can produce bad countdownProgress values, causing a slight flicker when a tetrad lands.
+        // Ideally the math above should be fixed, but this is an acceptable fix for now.
+        if (countdownProgress >= 0.0 && countdownProgress <= 1.0)
+        {
+            countdownLEDs(NUM_LEDS, tetradColors[activeTetrad.type-1], countdownProgress);
+        }
 
         if (dropTimer >= dropTime)
         {
@@ -1231,7 +1522,7 @@ void ICACHE_FLASH_ATTR ttGameUpdate(void)
                 push(landedTetrads, landedTetrad);
 
                 tetradCounter++;
-
+                
                 // Check for any clears now that the new tetrad has landed.
                 uint32_t linesClearedThisDrop = checkLineClears(GRID_WIDTH, GRID_HEIGHT, tetradsGrid, landedTetrads);
 
@@ -1239,7 +1530,7 @@ void ICACHE_FLASH_ATTR ttGameUpdate(void)
 
                 switch( linesClearedThisDrop )
                 {
-                    case 1:
+                    case 1: 
                         score += SCORE_SINGLE * (currentLevel+1);
                         startBuzzerSong(&singleLineClearSFX);
                         break;
@@ -1256,11 +1547,10 @@ void ICACHE_FLASH_ATTR ttGameUpdate(void)
                         startBuzzerSong(&quadLineClearSFX);
                         break;
                     case 0:
-                        //TODO: handle LED FX for regular tetrad land?
                         // Full grid height is 17, we have 16 sfx, offset results by 1 so that sfx[15] correctly plays at the playfield floor.
                         landingSFX = getLowestActiveRow(landedTetrad) - 1;
                         if (landingSFX < 0) landingSFX = 0;
-                        if (landingSFX > NUM_LAND_FX - 1) landingSFX = NUM_LAND_FX - 1;
+                        if (landingSFX > NUM_LAND_FX - 1) landingSFX = NUM_LAND_FX - 1;                        
                         startBuzzerSong(landSFX[landingSFX]);
                         break;
                     default:    // Are more than 4 line clears possible? I don't think so.
@@ -1302,7 +1592,7 @@ void ICACHE_FLASH_ATTR ttGameUpdate(void)
                     dropTimer = 0;
                 }
             }
-
+            
             // Clear out empty tetrads.
             node_t * current = landedTetrads->last;
             for (int t = landedTetrads->length - 1; t >= 0; t--)
@@ -1311,9 +1601,9 @@ void ICACHE_FLASH_ATTR ttGameUpdate(void)
                 bool empty = true;
 
                 // Go from bottom-to-top on each position of the tetrad.
-                for (int tr = TETRAD_GRID_SIZE - 1; tr >= 0; tr--)
+                for (int tr = TETRAD_GRID_SIZE - 1; tr >= 0; tr--) 
                 {
-                    for (int tc = 0; tc < TETRAD_GRID_SIZE; tc++)
+                    for (int tc = 0; tc < TETRAD_GRID_SIZE; tc++) 
                     {
                         if (currentTetrad->shape[tr][tc] != EMPTY) empty = false;
                     }
@@ -1321,7 +1611,7 @@ void ICACHE_FLASH_ATTR ttGameUpdate(void)
 
                 // Adjust the current counter.
                 current = current->prev;
-
+                
                 // Remove the empty tetrad.
                 if (empty)
                 {
@@ -1334,11 +1624,11 @@ void ICACHE_FLASH_ATTR ttGameUpdate(void)
 
             // Handle cascade from tetrads that can now fall freely.
             /*bool possibleCascadeClear = false;
-            for (int t = 0; t < numLandedTetrads; t++)
+            for (int t = 0; t < numLandedTetrads; t++) 
             {
                 // If a tetrad could drop, then more clears might have happened.
                 if (dropTetrad(&(landedTetrads[t]), GRID_WIDTH, GRID_HEIGHT, tetradsGrid))
-                {
+                {   
                     possibleCascadeClear = true;
                 }
             }
@@ -1379,7 +1669,7 @@ void ICACHE_FLASH_ATTR ttTitleDisplay(void)
 {
 	// Clear the display.
     clearDisplay();
-
+    
     // Draw demo-scene title FX.
     plotPerspectiveEffect(GRID_X, 0, GRID_X + (GRID_UNIT_SIZE - 1) * GRID_WIDTH, OLED_WIDTH - 1, 0, OLED_HEIGHT, 3, 3, 2.0, stateTime, WHITE);
 
@@ -1392,14 +1682,14 @@ void ICACHE_FLASH_ATTR ttTitleDisplay(void)
     uint8_t scoresTextX = 0;
     uint8_t scoresTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);
     plotText(scoresTextX, scoresTextY, "SCORES", TOM_THUMB, WHITE);
-
+    
     uint8_t startAreaX0 = OLED_WIDTH - 18;
     uint8_t startAreaY0 = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 3);
     uint8_t startAreaX1 = OLED_WIDTH - 1;
     uint8_t startAreaY1 = OLED_HEIGHT - 1;
     fillDisplayArea(startAreaX0, startAreaY0, startAreaX1, startAreaY1, BLACK);
     uint8_t startTextX = OLED_WIDTH - 19;
-    uint8_t startTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);
+    uint8_t startTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);    
     plotText(startTextX, startTextY, "START", TOM_THUMB, WHITE);
 
     // Clear the grid data (may not want to do this every frame)
@@ -1416,9 +1706,9 @@ void ICACHE_FLASH_ATTR ttTitleDisplay(void)
     uint8_t titleAreaX0 = 20;
     uint8_t titleAreaY0 = OLED_HALF_HEIGHT - FONT_HEIGHT_RADIOSTARS - 3;
     uint8_t titleAreaX1 = 108;
-    uint8_t titleAreaY1 = OLED_HALF_HEIGHT - 1;
+    uint8_t titleAreaY1 = OLED_HALF_HEIGHT - 1; 
     fillDisplayArea(titleAreaX0, titleAreaY0, titleAreaX1, titleAreaY1, BLACK);
-
+    
     uint8_t titleTextX = 21;
     uint8_t titleTextY = OLED_HALF_HEIGHT - FONT_HEIGHT_RADIOSTARS - 2;
     plotText(titleTextX, titleTextY, "TILTRADS", RADIOSTARS, WHITE);
@@ -1437,11 +1727,11 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     plotPerspectiveEffect(GRID_X, 0, GRID_X + (GRID_UNIT_SIZE - 1) * GRID_WIDTH, OLED_WIDTH - 1, 0, OLED_HEIGHT, 3, 3, 5.0, dropFXTime, WHITE);
 
     // Draw the active tetrad.
-    plotShape(GRID_X + activeTetrad.topLeft.c * (GRID_UNIT_SIZE - 1), GRID_Y + activeTetrad.topLeft.r * (GRID_UNIT_SIZE - 1), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, activeTetrad.shape, activeTetrad.type, activeTetrad.rotation, WHITE);
-
+    plotShape(GRID_X + activeTetrad.topLeft.c * (GRID_UNIT_SIZE - 1), GRID_Y + activeTetrad.topLeft.r * (GRID_UNIT_SIZE - 1), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, activeTetrad.shape, activeTetrad.type, activeTetrad.rotation, WHITE);   
+    
     // Draw all the landed tetrads.
     node_t * current = landedTetrads->first;
-    for (int t = 0; t < landedTetrads->length; t++)
+    for (int t = 0; t < landedTetrads->length; t++) 
     {
         tetrad_t * currentTetrad = (tetrad_t *)current->val;
         plotShape(GRID_X + currentTetrad->topLeft.c * (GRID_UNIT_SIZE - 1), GRID_Y + currentTetrad->topLeft.r * (GRID_UNIT_SIZE - 1), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, currentTetrad->shape, currentTetrad->type, currentTetrad->rotation, WHITE);
@@ -1453,7 +1743,7 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
 
     // Draw the background grid. NOTE: (make sure everything that needs to be in tetradsGrid is in there now).
     plotGrid(GRID_X, GRID_Y, GRID_UNIT_SIZE, GRID_WIDTH, GRID_HEIGHT, tetradsGrid, inClearAnimation, WHITE);
-
+    
     // Draw the UI.
 
     uint8_t currY = 0;
@@ -1489,7 +1779,7 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
 
     uint8_t numFieldStart = 0;
     uint8_t numFieldEnd = 0;
-
+            
     //HIGH
     currY = 4;
     uint8_t highScoreHeaderTextStart = newHighScore ? 3 : 15;
@@ -1497,9 +1787,12 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     fillDisplayArea(highScoreHeaderTextStart - xPad, currY - yPad, highScoreHeaderTextEnd + yPad, currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
     plotText(highScoreHeaderTextStart, currY, newHighScore ? "HIGH (NEW!)" : "HIGH", TOM_THUMB, WHITE);
 
-    //99999
+    //int fallDistance = getFallDistance(&(activeTetrad), GRID_WIDTH, GRID_HEIGHT, tetradsGrid);
+
+    //99999    
     currY += (FONT_HEIGHT_TOMTHUMB + 1);
     ets_snprintf(uiStr, sizeof(uiStr), "%d", newHighScore ? score : highScores[0]);
+    //ets_snprintf(uiStr, sizeof(uiStr), "%d", fallDistance);
     getNumCentering(uiStr, 0, GRID_X, &numFieldStart, &numFieldEnd);
     fillDisplayArea(numFieldStart - xPad, currY, numFieldEnd + xPad, currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
     plotText(numFieldStart, currY, uiStr, TOM_THUMB, WHITE);
@@ -1523,7 +1816,7 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     uint8_t linesHeaderTextStart = 13;
     uint8_t linesHeaderTextEnd = linesHeaderTextStart + 18;
     fillDisplayArea(linesHeaderTextStart - xPad, currY - yPad, linesHeaderTextEnd + xPad, currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
-    plotText(linesHeaderTextStart, currY, "LINES", TOM_THUMB, WHITE);
+    plotText(linesHeaderTextStart, currY, "LINES", TOM_THUMB, WHITE);   
 
     // 999
     currY += (FONT_HEIGHT_TOMTHUMB + 1);
@@ -1659,6 +1952,7 @@ void ICACHE_FLASH_ATTR ttGameoverDisplay(void)
 
 void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
 {
+    tiltradsState_t prevState = currState;
 	currState = newState;
 	stateStartTime = system_get_time();
 	stateTime = 0;
@@ -1672,7 +1966,6 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
     switch( currState )
     {
         case TT_TITLE:
-
             clearLandedTetrads();
 
             // Get a random tutorial tetrad.
@@ -1688,6 +1981,13 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
             clearLEDs(NUM_LEDS);
             dancingLEDs(NUM_LEDS, titleColor, stateTime);
 
+            // If we've come to the title from the game, stop all sound and restart title theme.
+            if (prevState != TT_SCORES) 
+            {
+                stopBuzzerSong();
+                startBuzzerSong(&titleMusic);
+            }
+            
             break;
         case TT_GAME:
             // All game restart functions happen here.
@@ -1714,6 +2014,9 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
             stopClearAnimation();
 
             clearLEDs(NUM_LEDS);
+
+            stopBuzzerSong();
+            startBuzzerSong(&gameStartSting);
 
             break;
         case TT_SCORES:
@@ -1742,7 +2045,7 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
             // Update high score if needed.
             newHighScore = updateHighScores(score);
             if (newHighScore) saveHighScores();
-
+            
             // Save out the last score.
             ttSetLastScore(score);
 
@@ -1754,9 +2057,11 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
 
             clearLEDs(NUM_LEDS);
 
-            //TODO: Game Over SFX.
             blinkLEDs(NUM_LEDS, gameoverColor, stateTime);
 
+            stopBuzzerSong();
+            startBuzzerSong(&gameOverSting);
+            
             break;
         default:
             break;
@@ -1804,7 +2109,7 @@ void ICACHE_FLASH_ATTR transferGrid(coord_t srcOffset, uint8_t srcWidth, uint8_t
         {
             int dstC = c + srcOffset.c;
             int dstR = r + srcOffset.r;
-            if (dstC < dstWidth && dstR < dstHeight)
+            if (dstC < dstWidth && dstR < dstHeight) 
             {
                 if (src[r][c] != EMPTY)
                 {
@@ -1832,10 +2137,10 @@ void ICACHE_FLASH_ATTR refreshTetradsGrid(uint8_t gridWidth, uint8_t gridHeight,
     clearGrid(gridWidth, gridHeight, gridData);
 
     node_t * current = fieldTetrads->first;
-    for (int t = 0; t < fieldTetrads->length; t++)
+    for (int t = 0; t < fieldTetrads->length; t++) 
     {
         tetrad_t * currentTetrad = (tetrad_t *)current->val;
-        transferGrid(currentTetrad->topLeft, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, currentTetrad->shape, gridWidth, gridHeight, gridData, currentTetrad->gridValue);
+        transferGrid(currentTetrad->topLeft, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, currentTetrad->shape, gridWidth, gridHeight, gridData, currentTetrad->gridValue); 
         current = current->next;
     }
 
@@ -1864,7 +2169,7 @@ bool ICACHE_FLASH_ATTR rotateTetrad(tetrad_t * tetrad, int newRotation, uint8_t 
                     rotationClear = !checkCollision(testPoint, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, iTetradRotations[newRotation], gridWidth, gridHeight, gridData, tetrad->gridValue);
                     if (rotationClear) tetrad->topLeft = testPoint;
                 }
-            }
+            }            
             break;
         // The behavior here is such that an O tetrad can always be rotated, but that rotation does not effect anything, possibly only a semantic disctinction.
         case O_TETRAD:
@@ -1985,20 +2290,20 @@ void ICACHE_FLASH_ATTR softDropTetrad()
 bool ICACHE_FLASH_ATTR moveTetrad(tetrad_t * tetrad, uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth])
 {
     // 0 = min top left
-    // 9 = max top left
+    // 9 = max top left    
     // 3 is the center of top left in normal tetris
 
     bool moved = false;
 
     int yMod = ttAccel.y / ACCEL_SEG_SIZE;
-
+    
     coord_t targetPos;
     targetPos.r = tetrad->topLeft.r;
     targetPos.c = yMod + TETRAD_SPAWN_X;
 
-    // Save the last accel, and if didn't change by a certain threshold, then don't recaculate the value.
+    // Save the last accel, and if didn't change by a certain threshold, then don't recaculate the value.    
     // Attempt to prevent jittering for gradual movements.
-    if ((targetPos.c == tetrad->topLeft.c + 1 ||
+    if ((targetPos.c == tetrad->topLeft.c + 1 || 
         targetPos.c == tetrad->topLeft.c - 1) &&
         abs(ttAccel.y - ttLastTestAccel.y) <= ACCEL_JITTER_GUARD)
     {
@@ -2010,12 +2315,12 @@ bool ICACHE_FLASH_ATTR moveTetrad(tetrad_t * tetrad, uint8_t gridWidth, uint8_t 
     }
 
     bool moveClear = true;
-    while (targetPos.c != tetrad->topLeft.c && moveClear)
+    while (targetPos.c != tetrad->topLeft.c && moveClear) 
     {
         coord_t movePos = tetrad->topLeft;
 
         movePos.c = targetPos.c > movePos.c ? movePos.c + 1 : movePos.c - 1;
-
+        
         if (checkCollision(movePos, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE, tetrad->shape, gridWidth, gridHeight, gridData, tetrad->gridValue))
         {
             moveClear = false;
@@ -2106,7 +2411,7 @@ void ICACHE_FLASH_ATTR spawnNextTetrad(tetrad_t * newTetrad, tetradRandomizer_t 
 int ICACHE_FLASH_ATTR getLowestActiveRow(tetrad_t * tetrad)
 {
     int lowestRow = tetrad->topLeft.r;
-
+    
     for (int r = 0; r < TETRAD_GRID_SIZE; r++)
     {
         for (int c = 0; c < TETRAD_GRID_SIZE; c++)
@@ -2125,7 +2430,7 @@ int ICACHE_FLASH_ATTR getLowestActiveRow(tetrad_t * tetrad)
 int ICACHE_FLASH_ATTR getHighestActiveRow(tetrad_t * tetrad)
 {
     int highestRow = tetrad->topLeft.r;
-
+    
     for (int r = TETRAD_GRID_SIZE - 1; r <= 0; r--)
     {
         for (int c = 0; c < TETRAD_GRID_SIZE; c++)
@@ -2138,6 +2443,57 @@ int ICACHE_FLASH_ATTR getHighestActiveRow(tetrad_t * tetrad)
     }
 
     return highestRow;
+}
+
+int ICACHE_FLASH_ATTR getFallDistance(tetrad_t * tetrad, uint8_t gridWidth, uint8_t gridHeight, const uint32_t gridData[][gridWidth])
+{
+    int fallDistance = gridHeight;
+    int currFallDistance;
+    int searchCol;
+    int lowestActiveRowInCol;
+
+    // Search through every column the tetrad can occupy space in.
+    for (int c = 0; c < TETRAD_GRID_SIZE; c++)
+    {
+        // Find the lowest (closest to the floor of the playfield) occupied row in this column for the tetrad.
+        lowestActiveRowInCol = -1;
+        for (int r = 0; r < TETRAD_GRID_SIZE; r++)
+        {
+            if (tetrad->shape[r][c] != EMPTY)
+            {
+                lowestActiveRowInCol = tetrad->topLeft.r + r;
+            }
+        }
+
+        // If any space in that tetrad was occupied.
+        if (lowestActiveRowInCol != -1)
+        {
+            searchCol = tetrad->topLeft.c + c;
+
+            currFallDistance = gridHeight - lowestActiveRowInCol - 1;
+
+            // If no occupied spaces still reassign fall distance if closer than full fall height
+            if (currFallDistance < fallDistance)
+            {
+                fallDistance = currFallDistance;
+            }
+
+            // Check grid spaces on rows below tetrad.
+            for (int gr = lowestActiveRowInCol + 1; gr < gridHeight; gr++)
+            {
+                currFallDistance = (gr - lowestActiveRowInCol - 1);
+
+                // If occupied by other tetrad, this is where
+                if (gridData[gr][searchCol] != EMPTY && 
+                    gridData[gr][searchCol] != tetrad->gridValue && 
+                    currFallDistance < fallDistance)
+                {
+                    fallDistance = currFallDistance;
+                }
+            }
+        }
+    }
+    return fallDistance;
 }
 
 
@@ -2155,12 +2511,12 @@ void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWi
     for (int y = 0; y < gridHeight; y++)
     {
         // Draw lines that are cleared.
-        if (clearLineAnimation && isLineCleared(y, gridWidth, gridHeight, gridData))
+        if (clearLineAnimation && isLineCleared(y, gridWidth, gridHeight, gridData)) 
         {
             fillDisplayArea(x0, y0 + ((unitSize - 1) * y), x0 + ((unitSize - 1) * gridWidth), y0 + ((unitSize - 1) * (y+1)), WHITE);
         }
 
-        for (int x = 0; x < gridWidth; x++)
+        for (int x = 0; x < gridWidth; x++) 
         {
             // Draw a centered pixel on empty grid units.
             //if (gridData[y][x] == EMPTY) drawPixel(x0 + x * (unitSize - 1) + (unitSize / 2), y0 + y * (unitSize - 1) + (unitSize / 2), WHITE);
@@ -2169,17 +2525,17 @@ void ICACHE_FLASH_ATTR plotGrid(int x0, int y0, uint8_t unitSize, uint8_t gridWi
 }
 
 void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shapeWidth, uint8_t shapeHeight, uint32_t shape[][shapeWidth], uint8_t shapeFill, int fillRotation, color col)
-{
+{   
     bool patternRotated = fillRotation % 2 != 0;
     for (int y = 0; y < shapeHeight; y++)
     {
         for (int x = 0; x < shapeWidth; x++)
         {
-            if (shape[y][x] != EMPTY)
+            if (shape[y][x] != EMPTY) 
             {
                 // The top left of this unit.
                 uint8_t px = x0 + x * (unitSize - 1);
-                uint8_t py = y0 + y * (unitSize - 1);
+                uint8_t py = y0 + y * (unitSize - 1); 
                 switch (shapeFill)
                 {
                     case I_TETRAD:
@@ -2189,7 +2545,7 @@ void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shape
                         drawPixel(px + 1, py + (unitSize - 2), col);
                         drawPixel(px + (unitSize - 2), py + (unitSize - 2), col);
                         break;
-                    case O_TETRAD:
+                    case O_TETRAD: 
                         // full walls and center dots.
                         drawPixel(px + (unitSize / 2), py + (unitSize / 2), col);
                         plotSquare(px, py, unitSize, col);
@@ -2202,7 +2558,7 @@ void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shape
                         //top
                         if (y == 0 || shape[y-1][x] == EMPTY)
                         {
-                            plotLine(px, py + 1, px + (unitSize-1), py + 1, col);
+                            plotLine(px, py + 1, px + (unitSize-1), py + 1, col);   
                         }
                         else
                         {
@@ -2212,18 +2568,18 @@ void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shape
                         //bot
                         if (y == shapeHeight-1 || shape[y+1][x] == EMPTY)
                         {
-                            plotLine(px, py + (unitSize-1) - 1, px + (unitSize-1), py + (unitSize-1) - 1, col);
+                            plotLine(px, py + (unitSize-1) - 1, px + (unitSize-1), py + (unitSize-1) - 1, col);   
                         }
                         else
                         {
                             drawPixel(px + 1, py + (unitSize-1) - 1, col);
                             drawPixel(px + (unitSize-1) - 1, py + (unitSize-1) - 1, col);
                         }
-
+                        
                         //left
                         if (x == 0 || shape[y][x-1] == EMPTY)
                         {
-                            plotLine(px + 1, py, px + 1, py + (unitSize-1), col);
+                            plotLine(px + 1, py, px + 1, py + (unitSize-1), col);   
                         }
                         else
                         {
@@ -2234,7 +2590,7 @@ void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shape
                         //right
                         if (x == shapeWidth-1 || shape[y][x+1] == EMPTY)
                         {
-                            plotLine(px + (unitSize-1) - 1, py, px + (unitSize-1) - 1, py + (unitSize-1), col);
+                            plotLine(px + (unitSize-1) - 1, py, px + (unitSize-1) - 1, py + (unitSize-1), col);   
                         }
                         else
                         {
@@ -2274,29 +2630,29 @@ void ICACHE_FLASH_ATTR plotShape(int x0, int y0, uint8_t unitSize, uint8_t shape
                     // If empty or unrecognized fill, do nothing.
                     case EMPTY:
                     default:
-                        break;
+                        break; 
                 }
 
                 //top
                 if (y == 0 || shape[y-1][x] == EMPTY)
                 {
-                    plotLine(px, py, px + (unitSize-1), py, col);
+                    plotLine(px, py, px + (unitSize-1), py, col);   
                 }
                 //bot
                 if (y == shapeHeight-1 || shape[y+1][x] == EMPTY)
                 {
-                    plotLine(px, py + (unitSize-1), px + (unitSize-1), py + (unitSize-1), col);
+                    plotLine(px, py + (unitSize-1), px + (unitSize-1), py + (unitSize-1), col);   
                 }
-
+                
                 //left
                 if (x == 0 || shape[y][x-1] == EMPTY)
                 {
-                    plotLine(px, py, px, py + (unitSize-1), col);
+                    plotLine(px, py, px, py + (unitSize-1), col);   
                 }
                 //right
                 if (x == shapeWidth-1 || shape[y][x+1] == EMPTY)
                 {
-                    plotLine(px + (unitSize-1), py, px + (unitSize-1), py + (unitSize-1), col);
+                    plotLine(px + (unitSize-1), py, px + (unitSize-1), py + (unitSize-1), col);   
                 }
             }
         }
@@ -2323,14 +2679,14 @@ void ICACHE_FLASH_ATTR plotPerspectiveEffect(uint8_t leftSrc, uint8_t leftDst, u
     }
 
     // Horizontal static lines.
-    // TODO: this placement code doesn't handle the dst ys correctly for values of numHorizontalLines that aren't 3
+    // TODO: this placement code doesn't handle the dst ys correctly for values of numHorizontalLines that aren't 3 
     uint8_t lineSpace = (y1 - y0) / (numHorizontalLines + 1);
     bool oddLines = numHorizontalLines % 2 != 0;
     for (int i = 0; i < numHorizontalLines; i++)
     {
         uint8_t lineSrcY = y0 + (lineSpace * (i+1));
         uint8_t lineDstY = lineSrcY >= ((y1 - y0)/2) ? lineSrcY + lineSpace : lineSrcY - lineSpace;
-        if (oddLines && i == numHorizontalLines/2)
+        if (oddLines && i == numHorizontalLines/2)  
             lineDstY = lineSrcY;
 
         plotLine(leftSrc, lineSrcY, leftDst, lineDstY, col);
@@ -2355,14 +2711,14 @@ uint8_t ICACHE_FLASH_ATTR getCenteredTextX(uint8_t x0, uint8_t x1, char* text, f
     // Calculate the correct x to draw from.
     uint8_t fullWidth = x1 - x0 + 1;
     // NOTE: This may result in strange behavior when the width of the drawn text is greater than the distance between x0 and x1.
-    uint8_t widthDiff = fullWidth - textWidth;
+    uint8_t widthDiff = fullWidth - textWidth; 
     uint8_t centeredX = x0 + (widthDiff / 2);
     return centeredX;
 }
 
 uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font)
 {
-    // NOTE: The inverse, inverse is cute, but 2 draw calls, could we draw it outside of the display area but still in bounds of a uint8_t?
+    // NOTE: The inverse, inverse is cute, but 2 draw calls, could we draw it outside of the display area but still in bounds of a uint8_t?  
 
     // We only get width info once we've drawn.
     // So we draw the text as inverse to get the width.
@@ -2399,11 +2755,11 @@ uint8_t ICACHE_FLASH_ATTR getNumTextWidth(char* text)
 void ICACHE_FLASH_ATTR getNumCentering(char* text, uint8_t achorX0, uint8_t anchorX1, uint8_t * textX0, uint8_t * textX1)
 {
     uint8_t textWidth = getNumTextWidth(text);
-
+    
     // Calculate the correct x to draw from.
     uint8_t fullWidth = anchorX1 - achorX0 + 1;
     // NOTE: This may result in strange / undefined behavior when the width of the drawn text is greater than the distance between achorX0 and anchorX1.
-    uint8_t widthDiff = fullWidth - textWidth;
+    uint8_t widthDiff = fullWidth - textWidth; 
     *textX0 = achorX0 + (widthDiff / 2);
     *textX1 = *textX0 + (textWidth - 1);
 }
@@ -2491,7 +2847,7 @@ int ICACHE_FLASH_ATTR getNextTetradType(tetradRandomizer_t randomType, int index
         case BAG:
             nextType = typeBag[bagIndex];
             bagIndex++;
-            if (bagIndex >= NUM_TETRAD_TYPES)
+            if (bagIndex >= NUM_TETRAD_TYPES) 
             {
                 initTetradRandomizer(randomType);
             }
@@ -2510,17 +2866,17 @@ int ICACHE_FLASH_ATTR getNextTetradType(tetradRandomizer_t randomType, int index
                     int i;
 
                     // Roll for piece.
-                    for (int r = 0; r < 6; r++)
+                    for (int r = 0; r < 6; r++) 
                     {
                         i = rand() % 35;
                         nextType = typePool[i];
-
+                        
                         bool inHistory = false;
-                        for (int h = 0; h < 4; h++)
+                        for (int h = 0; h < 4; h++) 
                         {
                             if (typeHistory[h] == nextType) inHistory = true;
                         }
-
+                        
                         if (!inHistory || r == 5)
                         {
                             break;
@@ -2531,16 +2887,16 @@ int ICACHE_FLASH_ATTR getNextTetradType(tetradRandomizer_t randomType, int index
 
                     // Update piece order.
                     node_t * current = typeOrder->last;
-                    for (int j = typeOrder->length - 1; j >= 0; j--)
+                    for (int j = typeOrder->length - 1; j >= 0; j--) 
                     {
                         // Get the current value.
                         int * currentType = (int *)current->val;
-
+                        
                         // Update current in case we remove this node.
                         current = current->prev;
 
                         // Remove this node and free its value if it matches.
-                        if (*currentType == nextType)
+                        if (*currentType == nextType) 
                         {
                             free(remove(typeOrder, j));
                         }
@@ -2552,7 +2908,7 @@ int ICACHE_FLASH_ATTR getNextTetradType(tetradRandomizer_t randomType, int index
                     typePool[i] = *((int *)typeOrder->first->val);
 
                     // Update history.
-                    for (int h = 0; h < 4; h++)
+                    for (int h = 0; h < 4; h++) 
                     {
                         if (h == 3)
                         {
@@ -2575,16 +2931,16 @@ int ICACHE_FLASH_ATTR getNextTetradType(tetradRandomizer_t randomType, int index
 // Fisher–Yates Shuffle
 void ICACHE_FLASH_ATTR shuffle(int length, int array[length])
 {
-    for (int i = length-1; i > 0; i--)
-    {
-        // Pick a random index from 0 to i
-        int j = rand() % (i+1);
-
-        // Swap array[i] with the element at random index
-        int temp = array[i];
-        array[i] = array[j];
-        array[j] = temp;
-    }
+    for (int i = length-1; i > 0; i--) 
+    { 
+        // Pick a random index from 0 to i 
+        int j = rand() % (i+1); 
+  
+        // Swap array[i] with the element at random index 
+        int temp = array[i]; 
+        array[i] = array[j]; 
+        array[j] = temp; 
+    } 
 }
 
 void ICACHE_FLASH_ATTR loadHighScores(void)
@@ -2605,7 +2961,7 @@ bool ICACHE_FLASH_ATTR updateHighScores(uint32_t newScore)
     {
         // Get the current score at this index.
         uint32_t currentScore = highScores[i];
-
+        
         if (placeScore >= currentScore)
         {
             highScores[i] = placeScore;
@@ -2667,8 +3023,8 @@ void ICACHE_FLASH_ATTR stopClearAnimation()
 
 uint32_t ICACHE_FLASH_ATTR getDropTime(uint32_t level)
 {
-    uint32_t dropTimeFrames = 0;
-
+    uint32_t dropTimeFrames = 0; 
+    
     switch (level)
     {
         case 0:
@@ -2734,15 +3090,15 @@ uint32_t ICACHE_FLASH_ATTR getDropTime(uint32_t level)
         default:
             break;
     }
-
+    
     // We need the time in microseconds.
     return dropTimeFrames * UPDATE_TIME_MS * MS_TO_US_FACTOR;
 }
 
 double ICACHE_FLASH_ATTR getDropFXTimeFactor(uint32_t level)
 {
-    double dropFXTimeFactor = 0;
-
+    double dropFXTimeFactor = 0; 
+    
     switch (level)
     {
         case 0:
@@ -2808,14 +3164,14 @@ double ICACHE_FLASH_ATTR getDropFXTimeFactor(uint32_t level)
         default:
             break;
     }
-
+    
     return dropFXTimeFactor;
 }
 
 bool ICACHE_FLASH_ATTR isLineCleared(int line, uint8_t gridWidth, uint8_t gridHeight __attribute__((unused)), uint32_t gridData[][gridWidth])
 {
     bool clear = true;
-    for (int c = 0; c < gridWidth; c++)
+    for (int c = 0; c < gridWidth; c++) 
     {
         if (gridData[line][c] == EMPTY) clear = false;
     }
@@ -2832,7 +3188,7 @@ int ICACHE_FLASH_ATTR checkLineClears(uint8_t gridWidth, uint8_t gridHeight, uin
     int currRow = gridHeight - 1;
 
     // Go through every row bottom-to-top.
-    while (currRow >= 0)
+    while (currRow >= 0) 
     {
         if (isLineCleared(currRow, gridWidth, gridHeight, gridData))
         {
@@ -2854,34 +3210,34 @@ int ICACHE_FLASH_ATTR clearLines(uint8_t gridWidth, uint8_t gridHeight, uint32_t
     int currRow = gridHeight - 1;
 
     // Go through every row bottom-to-top.
-    while (currRow >= 0)
+    while (currRow >= 0) 
     {
         if (isLineCleared(currRow, gridWidth, gridHeight, gridData))
         {
             lineClears++;
-
+            
             node_t * current = fieldTetrads->last;
-            // Update the positions of compositions of any effected tetrads.
+            // Update the positions of compositions of any effected tetrads.       
             for (int t = fieldTetrads->length - 1; t >= 0; t--)
             {
                 tetrad_t * currentTetrad = (tetrad_t *)current->val;
                 bool aboveClear = true;
 
                 // Go from bottom-to-top on each position of the tetrad.
-                for (int tr = TETRAD_GRID_SIZE - 1; tr >= 0; tr--)
+                for (int tr = TETRAD_GRID_SIZE - 1; tr >= 0; tr--) 
                 {
-                    for (int tc = 0; tc < TETRAD_GRID_SIZE; tc++)
+                    for (int tc = 0; tc < TETRAD_GRID_SIZE; tc++) 
                     {
                         // Check where we are on the grid.
                         coord_t gridPos;
                         gridPos.r = currentTetrad->topLeft.r + tr;
                         gridPos.c = currentTetrad->topLeft.c + tc;
-
+                        
                         // If any part of the tetrad (even empty) exists at the clear line, don't adjust its position downward.
                         if (gridPos.r >= currRow) aboveClear = false;
 
                         // If something exists at that position...
-                        if (!aboveClear && currentTetrad->shape[tr][tc] != EMPTY)
+                        if (!aboveClear && currentTetrad->shape[tr][tc] != EMPTY) 
                         {
                             // Completely remove tetrad pieces on the cleared row.
                             if (gridPos.r == currRow)
@@ -2894,9 +3250,9 @@ int ICACHE_FLASH_ATTR clearLines(uint8_t gridWidth, uint8_t gridHeight, uint32_t
                                 //NOTE: What if it cannot be moved down anymore in its local grid? Can this happen? I don't think that's possible.
                                 if (tr < TETRAD_GRID_SIZE - 1)
                                 {
-                                    // Copy the current space into the space below it.
+                                    // Copy the current space into the space below it.                                        
                                     currentTetrad->shape[tr+1][tc] = currentTetrad->shape[tr][tc];
-
+                                    
                                     // Empty the current space.
                                     currentTetrad->shape[tr][tc] = EMPTY;
                                 }
@@ -2914,7 +3270,7 @@ int ICACHE_FLASH_ATTR clearLines(uint8_t gridWidth, uint8_t gridHeight, uint32_t
                 // Adjust the current counter.
                 current = current->prev;
             }
-
+            
             // Before we check against the gridData of all tetrads again, we need to rebuilt an accurate version.
             refreshTetradsGrid(gridWidth, gridHeight, gridData, fieldTetrads, NULL, false);
         }
@@ -2936,9 +3292,9 @@ bool ICACHE_FLASH_ATTR checkCollision(coord_t newPos, uint8_t shapeWidth, uint8_
         {
             if (shape[r][c] != EMPTY)
             {
-                if (newPos.r + r >= gridHeight ||
-                    newPos.c + c >= gridWidth ||
-                    newPos.c + c < 0 ||
+                if (newPos.r + r >= gridHeight || 
+                    newPos.c + c >= gridWidth || 
+                    newPos.c + c < 0 || 
                     (gridData[newPos.r + r][newPos.c + c] != EMPTY &&
                      gridData[newPos.r + r][newPos.c + c] != selfGridValue)) // Don't check collision with yourself.
                 {
@@ -2952,16 +3308,17 @@ bool ICACHE_FLASH_ATTR checkCollision(coord_t newPos, uint8_t shapeWidth, uint8_
 
 // a color is puled all leds according to the type of clear.
 void ICACHE_FLASH_ATTR singlePulseLEDs(uint8_t numLEDs, led_t fxColor, double progress)
-{
+{   
     double lightness = 1.0 - (progress * progress);
 
-    for (int i = 0; i < numLEDs; i++)
+    for (int i = 0; i < numLEDs; i++) 
     {
         leds[i].r = (uint8_t)((double)fxColor.r * lightness);
         leds[i].g = (uint8_t)((double)fxColor.g * lightness);
         leds[i].b = (uint8_t)((double)fxColor.b * lightness);
     }
-
+        
+    applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
     setLeds(leds, sizeof(leds));
 }
 
@@ -2972,13 +3329,14 @@ void ICACHE_FLASH_ATTR blinkLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time)
     uint32_t animCycle = ((double)time * US_TO_MS_FACTOR) / DISPLAY_REFRESH_MS;
     bool lightActive = animCycle % 2 == 0;
 
-    for (int i = 0; i < numLEDs; i++)
+    for (int i = 0; i < numLEDs; i++) 
     {
         leds[i].r = lightActive ? fxColor.r : 0x00;
         leds[i].g = lightActive ? fxColor.g : 0x00;
         leds[i].b = lightActive ? fxColor.b : 0x00;
     }
-
+        
+    applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
     setLeds(leds, sizeof(leds));
 }
 
@@ -2999,33 +3357,35 @@ void ICACHE_FLASH_ATTR alternatingPulseLEDS(uint8_t numLEDs, led_t fxColor, uint
 
     bool risingLED;
 
-    for (int i = 0; i < numLEDs; i++)
+    for (int i = 0; i < numLEDs; i++) 
     {
         risingLED = i % 2 == 0;
         leds[i].r = risingLED ? (uint8_t)risingR : (uint8_t)fallingR;
         leds[i].g = risingLED ? (uint8_t)risingG : (uint8_t)fallingG;
         leds[i].b = risingLED ? (uint8_t)risingB : (uint8_t)fallingB;
     }
-
+        
+    applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
     setLeds(leds, sizeof(leds));
 }
 
 // radial wanderers.
 void ICACHE_FLASH_ATTR dancingLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time)
-{
+{  
     uint32_t animCycle = ((double)time * US_TO_MS_FACTOR * 2.0) / DISPLAY_REFRESH_MS;
     int firstIndex = animCycle % numLEDs;
     int secondIndex = (firstIndex + (numLEDs / 2)) % numLEDs;
 
     //uint8_t timeMS = ((double)time * US_TO_MS_FACTOR)/400;
 
-    for (int i = 0; i < numLEDs; i++)
+    for (int i = 0; i < numLEDs; i++) 
     {
         leds[i].r = i == firstIndex || i == secondIndex ? fxColor.r : 0x00;
         leds[i].g = i == firstIndex || i == secondIndex ? fxColor.g : 0x00;
         leds[i].b = i == firstIndex || i == secondIndex ? fxColor.b : 0x00;
     }
-
+        
+    applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
     setLeds(leds, sizeof(leds));
 }
 
@@ -3037,13 +3397,13 @@ void ICACHE_FLASH_ATTR countdownLEDs(uint8_t numLEDs, led_t fxColor, double prog
     // How many LEDs will be fully lit.
     uint8_t numLitLEDs = progress * numLEDs;
 
-    // Get the length of each segment of progress.
+    // Get the length of each segment of progress. 
     double segment = 1.0 / numLEDs;
     double segmentProgress = numLitLEDs * segment;
     // Find the amount that the leading LED should be partially lit.
     double modProgress = (progress - segmentProgress) / segment;
 
-    for (int i = 0; i < numLEDs; i++)
+    for (int i = 0; i < numLEDs; i++) 
     {
         if (i < numLitLEDs)
         {
@@ -3064,18 +3424,31 @@ void ICACHE_FLASH_ATTR countdownLEDs(uint8_t numLEDs, led_t fxColor, double prog
             leds[i].b = 0x00;
         }
     }
-
+        
+    applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
     setLeds(leds, sizeof(leds));
 }
 
 void ICACHE_FLASH_ATTR clearLEDs(uint8_t numLEDs)
 {
-    for (int i = 0; i < numLEDs; i++)
+    for (int i = 0; i < numLEDs; i++) 
     {
         leds[i].r = 0x00;
         leds[i].g = 0x00;
         leds[i].b = 0x00;
     }
-
+        
     setLeds(leds, sizeof(leds));
+}
+
+void ICACHE_FLASH_ATTR applyLEDBrightness(uint8_t numLEDs, double brightness)
+{
+    // Best way would be to convert to HSV and then set, is this factor method ok?
+    
+    for (int i = 0; i < numLEDs; i++) 
+    {
+        leds[i].r = (uint8_t)((double)leds[i].r * brightness);
+        leds[i].g = (uint8_t)((double)leds[i].g * brightness);
+        leds[i].b = (uint8_t)((double)leds[i].b * brightness);
+    }
 }

@@ -159,6 +159,10 @@ settings_t settings =
     .mzLastScore = 0,
 };
 
+uint32_t ttHighScores[NUM_TT_HIGH_SCORES] = {0};
+
+uint32_t ttLastScore = 0;
+
 /*============================================================================
  * Prototypes
  *==========================================================================*/
@@ -268,6 +272,28 @@ uint32_t* ICACHE_FLASH_ATTR getSnakeHighScores(void)
 {
     // Loaded on boot
     return settings.snakeHighScores;
+}
+
+uint32_t * ICACHE_FLASH_ATTR ttGetHighScores(void)
+{
+    return ttHighScores;
+}
+
+void ICACHE_FLASH_ATTR ttSetHighScores(uint32_t * newHighScores)
+{
+    memcpy(ttHighScores, newHighScores, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
+    SaveSettings();
+}
+
+uint32_t ICACHE_FLASH_ATTR ttGetLastScore(void)
+{
+    return ttLastScore;
+}
+
+void ICACHE_FLASH_ATTR ttSetLastScore(uint32_t newLastScore)
+{
+    ttLastScore = newLastScore;
+    SaveSettings();
 }
 
 /**
