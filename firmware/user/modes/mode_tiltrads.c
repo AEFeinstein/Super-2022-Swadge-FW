@@ -3452,4 +3452,3 @@ void ICACHE_FLASH_ATTR applyLEDBrightness(uint8_t numLEDs, double brightness)
         leds[i].b = (uint8_t)((double)leds[i].b * brightness);
     }
 }
-

@@ -8,7 +8,13 @@
 #include <osapi.h>
 #include <user_interface.h>
 #include <driver/uart.h>
-
+#ifdef USE_ESP_GDB
+// To invoke gdb enter: xtensa-lx106-elf-gdb -x gdbstub/gdbcmds -b 115200
+// LEDs are disabled when debuging
+// Note to change mode, must first close term running the above, then push
+// button, then start up xtensa-lx106-elf-gdb -x gdbstub/gdbcmds -b 115200
+#include <../gdbstub/gdbstub.h>
+#endif
 #include "embeddedout.h"
 
 #include "ws2812_i2s.h"
@@ -26,13 +32,11 @@
 #include "MMA8452Q.h"
 
 #include "mode_menu.h"
-#include "mode_reflector_game.h"
-#include "mode_random_d6.h"
-#include "mode_dance.h"
-#include "mode_demo.h"
 #include "mode_joust_game.h"
 #include "mode_snake.h"
 #include "mode_tiltrads.h"
+#include "mode_mazerf.h"
+#include "mode_color_movement.h"
 
 /*============================================================================
  * Defines
@@ -64,14 +68,14 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
 {
+#ifndef USE_2019_SWADGE
     &menuMode, // Menu must be the first
+#endif
     &joustGameMode,
     &snakeMode,
     &tiltradsMode,
-    &demoMode,
-    &reflectorGameMode,
-    &dancesMode,
-    &randomD6Mode,
+    &mazerfMode,
+    &colorMoveMode,
 };
 bool swadgeModeInit = false;
 rtcMem_t rtcMem = {0};
@@ -92,8 +96,12 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events);
 static void ICACHE_FLASH_ATTR updateDisplay(void* arg);
 static void ICACHE_FLASH_ATTR pollAccel(void* arg);
 
+#ifndef USE_2019_SWADGE
 static void ICACHE_FLASH_ATTR drawChangeMenuBar(void);
-
+#endif
+#ifdef USE_2019_SWADGE
+void ICACHE_FLASH_ATTR incrementSwadgeMode(void);
+#endif
 /*============================================================================
  * Initialization Functions
  *==========================================================================*/
@@ -113,7 +121,14 @@ void ICACHE_FLASH_ATTR user_pre_init(void)
 void ICACHE_FLASH_ATTR user_init(void)
 {
     // Initialize the UART
+#ifdef GDBSTUB_H
+    // Only standard baud rates seem to be supported by xtensa gdb!
+    // $ xtensa-lx106-elf-gdb -x gdbstub/gdbcmds -b 115200
+    uart_init(BIT_RATE_115200, BIT_RATE_115200);
+    gdbstub_init();
+#else
     uart_init(BIT_RATE_74880, BIT_RATE_74880);
+#endif
     os_printf("\nSwadge 2020\n");
 
     // Read data fom RTC memory if we're waking from deep sleep
@@ -173,8 +188,10 @@ void ICACHE_FLASH_ATTR user_init(void)
 #endif
 
     // Initialize LEDs
+#ifndef GDBSTUB_H
     ws2812_init();
     os_printf("LEDs initialized\n");
+#endif
 
     // Initialize i2c
     brzo_i2c_setup(100);
@@ -280,7 +297,7 @@ void ICACHE_FLASH_ATTR user_init(void)
  *
  * @param events Checked before posting this task again
  */
-static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
+static void ICACHE_FLASH_ATTR procTask(os_event_t* events __attribute__((unused)))
 {
     // Post another task to this thread
     system_os_post(PROC_TASK_PRIO, 0, 0 );
@@ -296,21 +313,6 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events)
 #ifdef PROFILE
     WRITE_PERI_REG( PERIPHS_GPIO_BASEADDR + GPIO_ID_PIN(0), 0 );
 #endif
-
-    if( events->sig == 0 && events->par == 0 )
-    {
-        // If colorchord is active and the HPA isn't running, start it
-        if( COLORCHORD_ACTIVE && !isHpaRunning() )
-        {
-            ExitCritical();
-        }
-
-        // If colorchord isn't running and the HPA is running, stop it
-        if( !COLORCHORD_ACTIVE && isHpaRunning() )
-        {
-            EnterCritical();
-        }
-    }
 }
 
 /**
@@ -331,6 +333,14 @@ static void ICACHE_FLASH_ATTR pollAccel(void* arg __attribute__((unused)))
         {
             QMA6981_poll(&accel);
         }
+#if SWADGE_VERSION == 1
+	int16_t xarrow = TOPOLED;
+	int16_t yarrow = LEFTOLED;
+	int16_t zarrow = FACEOLED;
+	accel.x = xarrow;
+        accel.y = yarrow;
+        accel.z = zarrow;
+#endif
         swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback(&accel);
     }
 }
@@ -342,8 +352,11 @@ static void ICACHE_FLASH_ATTR pollAccel(void* arg __attribute__((unused)))
  */
 static void ICACHE_FLASH_ATTR updateDisplay(void* arg __attribute__((unused)))
 {
-    // Draw the menu change bar if necessary
+
+#ifndef USE_2019_SWADGE
+    // Draw the menu change bar if necessary and possibly restart in menu mode
     drawChangeMenuBar();
+#endif
 
     // Update the display
     updateOLED();
@@ -376,19 +389,32 @@ void ExitCritical(void)
 /*============================================================================
  * Swadge Mode Utility Functions
  *==========================================================================*/
+#ifdef USE_2019_SWADGE
+void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
+{
+	(void) newMode;
+}
+#endif
 
 /**
  * This deinitializes the current mode if it is initialized, displays the next
  * mode's LED pattern, and starts a timer to reboot into the next mode.
  * If the reboot timer is running, it will be reset
  *
- * @param newMode The index of the new mode
  */
+#ifndef USE_2019_SWADGE
 void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
+#endif
+#ifdef USE_2019_SWADGE
+void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
+#endif
 {
     // If the mode is initialized, tear it down
     if(swadgeModeInit)
     {
+        // Turn LEDs off
+        led_t leds[NUM_LIN_LEDS] = {{0}};
+        setLeds(leds, sizeof(leds));
         // Call the exit callback for the current mode
         if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode)
         {
@@ -414,8 +440,12 @@ void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
     }
 
     // Switch to the next mode, or start from the beginning if we're at the end
+#ifndef USE_2019_SWADGE
     rtcMem.currentSwadgeMode = newMode;
-
+#endif
+#ifdef USE_2019_SWADGE
+    rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
+#endif
     // Write the RTC memory so it knows what mode to be in when waking up
     system_rtc_mem_write(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem));
     os_printf("rtc mem written\n");
@@ -463,6 +493,7 @@ uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr)
     return (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
 }
 
+#ifndef USE_2019_SWADGE
 /**
  * Draw a progress bar on the bottom of the display if the menu button is being held.
  * When the bar fills the display, reset the mode back to the menu
@@ -490,6 +521,19 @@ void ICACHE_FLASH_ATTR drawChangeMenuBar(void)
     }
 }
 
+/**
+ * @brief Set the time between OLED frames being drawn
+ *
+ * @param drawTimeMs
+ */
+void setOledDrawTime(uint32_t drawTimeMs)
+{
+    os_timer_disarm(&timerHandleUpdateDisplay);
+    os_timer_arm(&timerHandleUpdateDisplay, drawTimeMs, true);
+}
+
+#endif
+
 /*============================================================================
  * Swadge Mode Callback Functions
  *==========================================================================*/
@@ -506,6 +550,7 @@ void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int d
 {
     if(0 == button)
     {
+#ifndef USE_2019_SWADGE
         // If the menu button was pressed
         if(0 == rtcMem.currentSwadgeMode)
         {
@@ -523,12 +568,20 @@ void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int d
             fillDisplayArea(0, OLED_HEIGHT - 1, menuChangeBarProgress, OLED_HEIGHT - 1, BLACK);
             menuChangeBarProgress = 0;
         }
+#endif
+#ifdef USE_2019_SWADGE
+	// Switch the mode
+	incrementSwadgeMode();
+#endif
     }
+    //NOTE for 2020 button 0 can only be used for menu, if want to be able to use momentary press in other modes
+    //     change 'else if' to 'if'
     else if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
     {
         // Pass the button event to the mode
         swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(state, button, down);
     }
+
 }
 
 /**

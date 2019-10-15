@@ -30,6 +30,10 @@ FLASH_WRITE_FLAGS = # --verify
 SRC_DIRS_RECURSIVE = \
 	user \
 	embeddedcommon
+# Add the gdbstub directory if applicable
+ifneq ($(ESP_GDB),)
+  SRC_DIRS_RECURSIVE += gdbstub
+endif
 
 # This is a list of directories to scan for c files not recursively
 SRC_DIRS_FLAT =
@@ -40,14 +44,14 @@ SRC_FILES = $(SDK)/driver_lib/driver/uart.c
 # This is a list of all source directories
 SRC_DIRS = $(shell find $(SRC_DIRS_RECURSIVE) -type d) $(SRC_DIRS_FLAT)
 
-# This is a list of all source c files 
-SOURCES  = $(shell find $(SRC_DIRS) -maxdepth 1 -name "*.c") $(SRC_FILES)
+# This is a list of all source c files
+SOURCES   = $(shell find $(SRC_DIRS) -maxdepth 1 -iname "*.[c]") $(SRC_FILES)
+S_SOURCES = $(shell find $(SRC_DIRS) -maxdepth 1 -iname "*.[s]")
 
 # These are flags for the compiler, all files
 CFLAGS = \
 	-c \
 	-mlongcalls \
-	-Os \
 	-flto \
 	-Wl,--relax \
 	-Wl,--gc-sections \
@@ -56,7 +60,13 @@ CFLAGS = \
 	-B$(SDK)/lib \
 	-g \
 	-std=gnu99 \
-	-MD
+	-MD \
+	-Os
+ifneq ($(ESP_GDB),)
+# Would prefer -O0 to -Os, but brz_i2c.c generates errors
+  CFLAGS += -ggdb
+endif
+
 
 # These are warning flags for the compiler, all files
 CFLAGS_WARNINGS = \
@@ -93,13 +103,23 @@ CFLAGS_WARNINGS_EXTRA = \
 	# -Wsign-conversion \
 	# -Wdouble-promotion \
 
-# These are a list of #define symbols in the makefile
+swageversion != if [ X"$(SET_SWADGE_VERSION)" = X"1" ]; then \
+        echo 1; \
+    else \
+        echo 0; \
+    fi
+
 DEFINES_LIST = \
 	SOFTAP_CHANNEL=11 \
 	WS2812_FOUR_SAMPLE=1 \
 	DISABLE_CHARRX=1 \
 	USE_OPTIMIZE_PRINTF=1 \
-	ICACHE_FLASH=1
+	ICACHE_FLASH=1 \
+	SWADGE_VERSION=$(swageversion)
+
+ifneq ($(ESP_GDB),)
+  DEFINES_LIST += USE_ESP_GDB
+endif
 
 DEFINES = $(patsubst %, -D%, $(DEFINES_LIST))
 
@@ -113,7 +133,8 @@ INC = $(patsubst %, -I%, \
 OBJ_DIR = obj
 
 # This is a list of objects to build
-OBJECTS=$(patsubst %.c, $(OBJ_DIR)/%.o, $(SOURCES))
+OBJECTS =$(patsubst %.c, $(OBJ_DIR)/%.o, $(SOURCES))
+OBJECTS+=$(patsubst %.S, $(OBJ_DIR)/%.o, $(S_SOURCES))
 
 ################################################################################
 # Linker options
@@ -181,7 +202,12 @@ $(FW_FILE1) $(FW_FILE2) : $(FW_FILE0)
 
 # To build the main file, you have to compile the objects and create the stripped libgcc
 $(FW_FILE0): $(OBJECTS) $(LIBGCC_STRIPPED)
-	$(LD) $(OBJECTS) $(EXTRA_LDFLAGS) $(LIBRARY_FLAGS) $(LINKER_SCRIPT_FLAGS) -o $@ 
+	$(LD) $(OBJECTS) $(EXTRA_LDFLAGS) $(LIBRARY_FLAGS) $(LINKER_SCRIPT_FLAGS) -o $@
+
+# This assmbles each .S file into an o file
+./$(OBJ_DIR)/%.o: ./%.S
+	@mkdir -p $(@D) # This creates a directory before building an object in it.
+	$(CC) $(CFLAGS) $(CFLAGS_WARNINGS) $(CFLAGS_WARNINGS_EXTRA) $(DEFINES) $(INC) $< -o $@
 
 # This compiles each c file into an o file
 ./$(OBJ_DIR)/%.o: ./%.c
@@ -296,7 +322,7 @@ burnitall : all
 # Erase the ESP8266
 erase :
 	$(ESPTOOL_PY) -b $(ESP_FLASH_BITRATE) --port $(ESP_PORT) erase_flash
-	
+
 # Write zeros to the ESP8266, more aggressive than erase
 wipechip :
 	dd if=/dev/zero of=/tmp/zeroes bs=1M count=1
@@ -322,7 +348,7 @@ burn_cutecom :
 	-killall cutecom
 	make burn
 	-cutecom &
-	
+
 docs :
 	doxygen swadge2019.doxyfile
 

@@ -9,6 +9,11 @@
 #define USER_USER_MAIN_H_
 
 /*============================================================================
+ * Defines
+ *==========================================================================*/
+
+
+/*============================================================================
  * Includes
  *==========================================================================*/
 
@@ -158,5 +163,7 @@ void ExitCritical(void);
 
 uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr);
 void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode);
+
+void setOledDrawTime(uint32_t drawTimeMs);
 
 #endif /* USER_USER_MAIN_H_ */

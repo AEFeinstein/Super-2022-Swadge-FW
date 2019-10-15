@@ -20,7 +20,7 @@
  *==========================================================================*/
 
 #define CONFIGURABLES sizeof(struct CCSettings) //(plus1)
-#define SAVE_LOAD_KEY 0xAA
+#define SAVE_LOAD_KEY 0xAB
 
 /*============================================================================
  * Structs
@@ -31,10 +31,12 @@ typedef struct __attribute__((aligned(4)))
 {
     uint8_t SaveLoadKey; //Must be SAVE_LOAD_KEY to be valid.
     uint8_t configs[CONFIGURABLES];
-    uint8_t refGameWins;
     uint32_t ttHighScores[NUM_TT_HIGH_SCORES]; //first,second,third
     uint32_t ttLastScore;
+    uint32_t mzHighScores[NUM_MZ_HIGH_SCORES]; //first,second,third
+    uint32_t mzLastScore;
     uint32_t joustElo;
+    uint32_t snakeHighScores[3];
 }
 settings_t;
 
@@ -145,8 +147,17 @@ configurable_t gConfigs[CONFIGURABLES] =
     }
 };
 
-uint8_t refGameWins = 0;
-uint32_t joustElo = 1000;
+settings_t settings =
+{
+    .SaveLoadKey = 0,
+    .configs = {0},
+    .joustElo = 0,
+    .snakeHighScores = {0},
+    .ttHighScores = {0},
+    .ttLastScore = 0,
+    .mzHighScores = {0},
+    .mzLastScore = 0,
+};
 
 uint32_t ttHighScores[NUM_TT_HIGH_SCORES] = {0};
 
@@ -170,49 +181,41 @@ void ICACHE_FLASH_ATTR SaveSettings(void);
  */
 void ICACHE_FLASH_ATTR LoadSettings(void)
 {
-    settings_t settings =
-    {
-        .SaveLoadKey = 0,
-        .configs = {0},
-        .refGameWins = 0,
-        .ttLastScore = 0,
-        .joustElo = 1000
-    };
-    memset(settings.ttHighScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
-
-    uint8_t i;
     spi_flash_read( USER_SETTINGS_ADDR, (uint32*)&settings, sizeof( settings ) );
     if( settings.SaveLoadKey == SAVE_LOAD_KEY )
     {
         os_printf("Settings found\r\n");
-        for( i = 0; i < CONFIGURABLES; i++ )
-        {
-            if( gConfigs[i].val )
-            {
-                *gConfigs[i].val = settings.configs[i];
-            }
-        }
-
-        refGameWins = settings.refGameWins;
-        memcpy(ttHighScores, settings.ttHighScores, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
-        ttLastScore = settings.ttLastScore;
-        joustElo = settings.joustElo;
     }
     else
     {
         os_printf("Settings not found\r\n");
-        for( i = 0; i < CONFIGURABLES; i++ )
+        // Zero everything
+        memset(&settings, 0, sizeof(settings));
+        // Set the key
+        settings.SaveLoadKey = SAVE_LOAD_KEY;
+        // Load in default values
+        for(uint8_t i = 0; i < CONFIGURABLES; i++ )
         {
             if( gConfigs[i].val )
             {
-                *gConfigs[i].val = gConfigs[i].defaultVal;
+                settings.configs[i] = gConfigs[i].defaultVal;
             }
         }
-        refGameWins = 0;
-        memset(ttHighScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
-        ttLastScore = 0;
-        joustElo = 1000;
+        memset(settings.ttHighScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
+        settings.ttLastScore = 0;
+        memset(settings.mzHighScores, 0, NUM_MZ_HIGH_SCORES * sizeof(uint32_t));
+        settings.mzLastScore = 0;
+        settings.joustElo = 1000;
         SaveSettings();
+    }
+
+    // load gConfigs from the settings
+    for( uint8_t i = 0; i < CONFIGURABLES; i++ )
+    {
+        if( gConfigs[i].val )
+        {
+            *gConfigs[i].val = settings.configs[i];
+        }
     }
 }
 
@@ -221,17 +224,6 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
  */
 void ICACHE_FLASH_ATTR SaveSettings(void)
 {
-    settings_t settings =
-    {
-        .SaveLoadKey = SAVE_LOAD_KEY,
-        .configs = {0},
-        .refGameWins = refGameWins,
-        .ttLastScore = ttLastScore,
-        .joustElo = joustElo
-    };
-    memset(settings.ttHighScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
-    memcpy(settings.ttHighScores, ttHighScores,  NUM_TT_HIGH_SCORES * sizeof(uint32_t));
-
     uint8_t i;
     for( i = 0; i < CONFIGURABLES; i++ )
     {
@@ -248,25 +240,16 @@ void ICACHE_FLASH_ATTR SaveSettings(void)
 }
 
 /**
- * Increment the game win count and save it to SPI flash
+ * @brief Save a high score from the snake game
+ *
+ * @param difficulty The 0-indexed difficulty (easy, medium, hard)
+ * @param score      The score to save
  */
-void ICACHE_FLASH_ATTR incrementRefGameWins(void)
+void ICACHE_FLASH_ATTR setSnakeHighScore(uint8_t difficulty, uint32_t score)
 {
-    if(refGameWins != 0xFF)
+    if(score > settings.snakeHighScores[difficulty])
     {
-        refGameWins++;
-        SaveSettings();
-    }
-}
-
-/**
- * Set the game wins to max, unlocking all patterns
- */
-void ICACHE_FLASH_ATTR setGameWinsToMax(void)
-{
-    if(refGameWins != 0xFF)
-    {
-        refGameWins = 0xFF;
+        settings.snakeHighScores[difficulty] = score;
         SaveSettings();
     }
 }
@@ -277,17 +260,18 @@ void ICACHE_FLASH_ATTR setGameWinsToMax(void)
  */
 void ICACHE_FLASH_ATTR setJoustElo(uint32_t elo)
 {
-    joustElo = elo;
+    settings.joustElo = elo;
     SaveSettings();
 }
 
 
 /**
- * @return The number of reflector games this swadge has won
+ * @return A pointer to the three Snake high scores
  */
-uint8_t ICACHE_FLASH_ATTR getRefGameWins(void)
+uint32_t* ICACHE_FLASH_ATTR getSnakeHighScores(void)
 {
-    return refGameWins;
+    // Loaded on boot
+    return settings.snakeHighScores;
 }
 
 uint32_t * ICACHE_FLASH_ATTR ttGetHighScores(void)
@@ -317,7 +301,51 @@ void ICACHE_FLASH_ATTR ttSetLastScore(uint32_t newLastScore)
  */
 uint32_t ICACHE_FLASH_ATTR getJoustElo(void)
 {
-    return joustElo;
+    return settings.joustElo;
+}
+
+uint32_t * ICACHE_FLASH_ATTR ttGetHighScores(void)
+{
+    return settings.ttHighScores;
+}
+
+void ICACHE_FLASH_ATTR ttSetHighScores(uint32_t * newHighScores)
+{
+    memcpy(settings.ttHighScores, newHighScores, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
+    SaveSettings();
+}
+
+uint32_t ICACHE_FLASH_ATTR ttGetLastScore(void)
+{
+    return settings.ttLastScore;
+}
+
+void ICACHE_FLASH_ATTR ttSetLastScore(uint32_t newLastScore)
+{
+    settings.ttLastScore = newLastScore;
+    SaveSettings();
+}
+
+uint32_t * ICACHE_FLASH_ATTR mzGetHighScores(void)
+{
+    return settings.mzHighScores;
+}
+
+void ICACHE_FLASH_ATTR mzSetHighScores(uint32_t * newHighScores)
+{
+    memcpy(settings.mzHighScores, newHighScores, NUM_MZ_HIGH_SCORES * sizeof(uint32_t));
+    SaveSettings();
+}
+
+uint32_t ICACHE_FLASH_ATTR mzGetLastScore(void)
+{
+    return settings.mzLastScore;
+}
+
+void ICACHE_FLASH_ATTR mzSetLastScore(uint32_t newLastScore)
+{
+    settings.mzLastScore = newLastScore;
+    SaveSettings();
 }
 
 /**
