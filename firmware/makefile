@@ -1,7 +1,5 @@
 # Makefile by Adam, 2019
-include user.cfg
-# Add ESP_GDB = TRUE to user.cfg to compile in or out the extensa esp_gdb
-#
+
 ################################################################################
 # This tells the makefile to use the xtensa binaries to build
 ################################################################################
@@ -29,15 +27,12 @@ FLASH_WRITE_FLAGS = # --verify
 ################################################################################
 
 # This is a list of directories to scan for c files recursively
-ifdef ESP_GDB
-SRC_DIRS_RECURSIVE = \
-    gdbstub \
-	user \
-	embeddedcommon
-else
 SRC_DIRS_RECURSIVE = \
 	user \
 	embeddedcommon
+# Add the gdbstub directory if applicable
+ifneq ($(ESP_GDB),)
+  SRC_DIRS_RECURSIVE += gdbstub
 endif
 
 # This is a list of directories to scan for c files not recursively
@@ -50,7 +45,8 @@ SRC_FILES = $(SDK)/driver_lib/driver/uart.c
 SRC_DIRS = $(shell find $(SRC_DIRS_RECURSIVE) -type d) $(SRC_DIRS_FLAT)
 
 # This is a list of all source c files
-SOURCES  = $(shell find $(SRC_DIRS) -maxdepth 1 -name "*.[c]") $(SRC_FILES)
+SOURCES   = $(shell find $(SRC_DIRS) -maxdepth 1 -iname "*.[c]") $(SRC_FILES)
+S_SOURCES = $(shell find $(SRC_DIRS) -maxdepth 1 -iname "*.[s]")
 
 # These are flags for the compiler, all files
 CFLAGS = \
@@ -64,12 +60,11 @@ CFLAGS = \
 	-B$(SDK)/lib \
 	-g \
 	-std=gnu99 \
-	-MD
-ifdef ESP_GDB
+	-MD \
+	-Os
+ifneq ($(ESP_GDB),)
 # Would prefer -O0 to -Os, but brz_i2c.c generates errors
-  CFLAGS += -ggdb -Os
-else
-  CFLAGS += -Os
+  CFLAGS += -ggdb
 endif
 
 
@@ -108,7 +103,6 @@ CFLAGS_WARNINGS_EXTRA = \
 	# -Wsign-conversion \
 	# -Wdouble-promotion \
 
-
 swageversion != if [ X"$(SET_SWADGE_VERSION)" = X"1" ]; then \
         echo 1; \
     else \
@@ -123,7 +117,7 @@ DEFINES_LIST = \
 	ICACHE_FLASH=1 \
 	SWADGE_VERSION=$(swageversion)
 
-ifdef ESP_GDB
+ifneq ($(ESP_GDB),)
   DEFINES_LIST += USE_ESP_GDB
 endif
 
@@ -139,10 +133,8 @@ INC = $(patsubst %, -I%, \
 OBJ_DIR = obj
 
 # This is a list of objects to build
-OBJECTS=$(patsubst %.c, $(OBJ_DIR)/%.o, $(SOURCES))
-ifdef ESP_GDB
-OBJECTS += obj/gdbstub/gdbstub-entry.o
-endif
+OBJECTS =$(patsubst %.c, $(OBJ_DIR)/%.o, $(SOURCES))
+OBJECTS+=$(patsubst %.S, $(OBJ_DIR)/%.o, $(S_SOURCES))
 
 ################################################################################
 # Linker options
@@ -213,9 +205,7 @@ $(FW_FILE0): $(OBJECTS) $(LIBGCC_STRIPPED)
 	$(LD) $(OBJECTS) $(EXTRA_LDFLAGS) $(LIBRARY_FLAGS) $(LINKER_SCRIPT_FLAGS) -o $@
 
 # This assmbles each .S file into an o file
-# ./$(OBJ_DIR)/%.o: ./%.S
-obj/gdbstub/gdbstub-entry.o:	./gdbstub/gdbstub-entry.S
-	@echo "****** This is inside making of gdbstub-entry.o *******"
+./$(OBJ_DIR)/%.o: ./%.S
 	@mkdir -p $(@D) # This creates a directory before building an object in it.
 	$(CC) $(CFLAGS) $(CFLAGS_WARNINGS) $(CFLAGS_WARNINGS_EXTRA) $(DEFINES) $(INC) $< -o $@
 
