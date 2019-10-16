@@ -58,6 +58,8 @@
         "mem.h": "c",
         "buzzer.h": "c",
         "mode_snake.h": "c",
-        "gdbstub-entry.C": "cpp"
+        "gdbstub-entry.C": "cpp",
+        "mode_tiltrads.h": "c",
+        "mode_gallery.h": "c"
     }
 }
