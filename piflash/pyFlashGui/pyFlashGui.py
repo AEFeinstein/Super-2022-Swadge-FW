@@ -61,8 +61,13 @@ class ProgrammerApplication:
         comPortsStr = ""
         for comPort in comList:
             # Build a list of all com ports, vids, and pids to print if no programmers are found
-            comPortsStr = comPortsStr + str(comPort.device) + " (" + "0x{:04x}".format(
-                comPort.vid) + ":" + "0x{:04x}".format(comPort.pid) + ")\n"
+            comPortsStr = comPortsStr + str(comPort.device)
+            if(comPort.vid is None):
+                comPortsStr = comPortsStr + " (no vid:pid)\n"
+            else:
+                comPortsStr = comPortsStr + " (" + \
+                    "0x{:04x}".format(comPort.vid) + ":" + \
+                    "0x{:04x}".format(comPort.pid) + ")\n"
             # If the VID and PID match the CP2012N's values, use it
             if(comPort.vid == 0x10C4 and comPort.pid == 0xEA60):
                 programmerComPorts.append(str(comPort.device))
