@@ -135,7 +135,7 @@ typedef struct _snakeNode_t
  * Constant Data
  *============================================================================*/
 
-const song_t MetalGear ICACHE_RODATA_ATTR =
+const song_t MetalGear RODATA_ATTR =
 {
     .notes = {
         {.note = E_5, .timeMs = 480},
@@ -207,7 +207,7 @@ const song_t MetalGear ICACHE_RODATA_ATTR =
     .shouldLoop = true
 };
 
-const uint8_t snakeBackground[] ICACHE_RODATA_ATTR =
+const uint8_t snakeBackground[] RODATA_ATTR =
 {
     0x80, 0xfe, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7f, 0x01,
     0x80, 0xfe, 0x00, 0x00, 0x03, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xc0, 0x00, 0x00, 0x7f, 0x01,
@@ -275,7 +275,7 @@ const uint8_t snakeBackground[] ICACHE_RODATA_ATTR =
     0xc0, 0x0f, 0xfc, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3f, 0xf0, 0x03,
 };
 
-const snakeSprite spriteTransitionTable[2][4][4] ICACHE_RODATA_ATTR =
+const snakeSprite spriteTransitionTable[2][4][4] RODATA_ATTR =
 {
     // Snake is skinny
     {
@@ -373,7 +373,7 @@ const snakeSprite spriteTransitionTable[2][4][4] ICACHE_RODATA_ATTR =
     }
 };
 
-const snakeSprite headTransitionTable[2][4] ICACHE_RODATA_ATTR =
+const snakeSprite headTransitionTable[2][4] RODATA_ATTR =
 {
     {
         // Head is UP
@@ -397,7 +397,7 @@ const snakeSprite headTransitionTable[2][4] ICACHE_RODATA_ATTR =
     }
 };
 
-const snakeSprite tailTransitionTable[4] ICACHE_RODATA_ATTR =
+const snakeSprite tailTransitionTable[4] RODATA_ATTR =
 {
     // Tail is UP
     TAIL_UP,
@@ -409,7 +409,7 @@ const snakeSprite tailTransitionTable[4] ICACHE_RODATA_ATTR =
     TAIL_LEFT,
 };
 
-const critterSprite critterSprites[5] ICACHE_RODATA_ATTR =
+const critterSprite critterSprites[5] RODATA_ATTR =
 {
     bug1,
     bug2,
@@ -418,14 +418,14 @@ const critterSprite critterSprites[5] ICACHE_RODATA_ATTR =
     bug5
 };
 
-const char snakeDifficultyNames[NUM_DIFFICULTIES][5] ICACHE_RODATA_ATTR =
+const char snakeDifficultyNames[NUM_DIFFICULTIES][5] RODATA_ATTR =
 {
     "Easy",
     "Med",
     "Hard"
 };
 
-const uint16_t snakeDifficulties[3][2] ICACHE_RODATA_ATTR =
+const uint16_t snakeDifficulties[3][2] RODATA_ATTR =
 {
     // ms per frame, score multiplier
     {130, 5}, // Easy
@@ -433,8 +433,8 @@ const uint16_t snakeDifficulties[3][2] ICACHE_RODATA_ATTR =
     {60, 13},  // Hard
 };
 
-const char snakeTitle[] ICACHE_RODATA_ATTR = "Snake!!";
-const char snakeGameOver[] ICACHE_RODATA_ATTR = "Game Over %d";
+const char snakeTitle[] RODATA_ATTR = "Snake!!";
+const char snakeGameOver[] RODATA_ATTR = "Game Over %d";
 
 /*==============================================================================
  * Function prototypes
