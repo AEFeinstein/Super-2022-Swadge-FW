@@ -31,6 +31,10 @@ typedef struct __attribute__((aligned(4)))
 {
     uint8_t SaveLoadKey; //Must be SAVE_LOAD_KEY to be valid.
     uint8_t configs[CONFIGURABLES];
+    uint32_t ttHighScores[NUM_TT_HIGH_SCORES]; //first,second,third
+    uint32_t ttLastScore;
+    uint32_t mzHighScores[NUM_MZ_HIGH_SCORES]; //first,second,third
+    uint32_t mzLastScore;
     uint32_t joustElo;
     uint32_t snakeHighScores[3];
 }
@@ -148,8 +152,16 @@ settings_t settings =
     .SaveLoadKey = 0,
     .configs = {0},
     .joustElo = 0,
-    .snakeHighScores = {0}
+    .snakeHighScores = {0},
+    .ttHighScores = {0},
+    .ttLastScore = 0,
+    .mzHighScores = {0},
+    .mzLastScore = 0,
 };
+
+uint32_t ttHighScores[NUM_TT_HIGH_SCORES] = {0};
+
+uint32_t ttLastScore = 0;
 
 /*============================================================================
  * Prototypes
@@ -189,6 +201,10 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
                 settings.configs[i] = gConfigs[i].defaultVal;
             }
         }
+        memset(settings.ttHighScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
+        settings.ttLastScore = 0;
+        memset(settings.mzHighScores, 0, NUM_MZ_HIGH_SCORES * sizeof(uint32_t));
+        settings.mzLastScore = 0;
         settings.joustElo = 1000;
         SaveSettings();
     }
@@ -264,6 +280,50 @@ uint32_t* ICACHE_FLASH_ATTR getSnakeHighScores(void)
 uint32_t ICACHE_FLASH_ATTR getJoustElo(void)
 {
     return settings.joustElo;
+}
+
+uint32_t* ICACHE_FLASH_ATTR ttGetHighScores(void)
+{
+    return settings.ttHighScores;
+}
+
+void ICACHE_FLASH_ATTR ttSetHighScores(uint32_t* newHighScores)
+{
+    memcpy(settings.ttHighScores, newHighScores, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
+    SaveSettings();
+}
+
+uint32_t ICACHE_FLASH_ATTR ttGetLastScore(void)
+{
+    return settings.ttLastScore;
+}
+
+void ICACHE_FLASH_ATTR ttSetLastScore(uint32_t newLastScore)
+{
+    settings.ttLastScore = newLastScore;
+    SaveSettings();
+}
+
+uint32_t* ICACHE_FLASH_ATTR mzGetHighScores(void)
+{
+    return settings.mzHighScores;
+}
+
+void ICACHE_FLASH_ATTR mzSetHighScores(uint32_t* newHighScores)
+{
+    memcpy(settings.mzHighScores, newHighScores, NUM_MZ_HIGH_SCORES * sizeof(uint32_t));
+    SaveSettings();
+}
+
+uint32_t ICACHE_FLASH_ATTR mzGetLastScore(void)
+{
+    return settings.mzLastScore;
+}
+
+void ICACHE_FLASH_ATTR mzSetLastScore(uint32_t newLastScore)
+{
+    settings.mzLastScore = newLastScore;
+    SaveSettings();
 }
 
 /**

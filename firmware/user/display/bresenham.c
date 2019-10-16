@@ -744,7 +744,8 @@ void ICACHE_FLASH_ATTR plotCubicBezier(int x0, int y0, int x1, int y1, int x2, i
     }
 }
 
-void ICACHE_FLASH_ATTR plotQuadSpline(int n, int x[], int y[], color col)   /* plot quadratic spline, destroys input arrays x,y */
+void ICACHE_FLASH_ATTR plotQuadSpline(int n, int x[], int y[],
+                                      color col)   /* plot quadratic spline, destroys input arrays x,y */
 {
 #define M_MAX 6
     float mi = 1, m[M_MAX]; /* diagonal constants of matrix */
@@ -784,7 +785,8 @@ void ICACHE_FLASH_ATTR plotQuadSpline(int n, int x[], int y[], color col)   /* p
     plotQuadBezier(x[0], y[0], x1, y1, x2, y2, col);
 }
 
-void ICACHE_FLASH_ATTR plotCubicSpline(int n, int x[], int y[], color col)   /* plot cubic spline, destroys input arrays x,y */
+void ICACHE_FLASH_ATTR plotCubicSpline(int n, int x[], int y[],
+                                       color col)   /* plot cubic spline, destroys input arrays x,y */
 {
 #define M_MAX 6
     float mi = 0.25, m[M_MAX]; /* diagonal constants of matrix */

@@ -29,6 +29,6 @@ extern const sprite_t font_IbmVga8[] ICACHE_RODATA_ATTR;
 extern const sprite_t font_TomThumb[] ICACHE_RODATA_ATTR;
 
 uint8_t plotChar(uint8_t x, uint8_t y, char character, const sprite_t* table, color col);
-void plotText(uint8_t x, uint8_t y, char* text, fonts font, color col);
+uint8_t plotText(uint8_t x, uint8_t y, char* text, fonts font, color col);
 
 #endif /* SRC_FONT_H_ */
