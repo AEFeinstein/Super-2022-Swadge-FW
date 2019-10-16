@@ -34,6 +34,7 @@
 #include "mode_menu.h"
 #include "mode_joust_game.h"
 #include "mode_snake.h"
+#include "mode_gallery.h"
 #include "mode_tiltrads.h"
 #include "mode_mazerf.h"
 #include "mode_color_movement.h"
@@ -76,6 +77,7 @@ swadgeMode* swadgeModes[] =
     &tiltradsMode,
     &mazerfMode,
     &colorMoveMode,
+    &galleryMode,
 };
 bool swadgeModeInit = false;
 rtcMem_t rtcMem = {0};

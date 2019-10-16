@@ -57,6 +57,7 @@
         "sprite.h": "c",
         "mem.h": "c",
         "buzzer.h": "c",
+        "mode_snake.h": "c"
         "gdbstub-entry.C": "cpp"
     }
 }
