@@ -1,9 +1,9 @@
 /*
-*	mode_mazerf.h
+*   mode_mazerf.h
 *
-*	Created on: 21 Sept 2019
+*   Created on: 21 Sept 2019
 *               Author: bbkiw
-*		Refactor of maze using Jonathan Moriarty basic set up
+*       Refactor of maze using Jonathan Moriarty basic set up
 */
 
 #ifndef _MODE_MAZERF_H

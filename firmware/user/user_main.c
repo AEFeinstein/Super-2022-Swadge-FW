@@ -9,11 +9,11 @@
 #include <user_interface.h>
 #include <driver/uart.h>
 #ifdef USE_ESP_GDB
-// To invoke gdb enter: xtensa-lx106-elf-gdb -x gdbstub/gdbcmds -b 115200
-// LEDs are disabled when debuging
-// Note to change mode, must first close term running the above, then push
-// button, then start up xtensa-lx106-elf-gdb -x gdbstub/gdbcmds -b 115200
-#include <../gdbstub/gdbstub.h>
+    // To invoke gdb enter: xtensa-lx106-elf-gdb -x gdbstub/gdbcmds -b 115200
+    // LEDs are disabled when debuging
+    // Note to change mode, must first close term running the above, then push
+    // button, then start up xtensa-lx106-elf-gdb -x gdbstub/gdbcmds -b 115200
+    #include <../gdbstub/gdbstub.h>
 #endif
 #include "embeddedout.h"
 
@@ -97,9 +97,9 @@ static void ICACHE_FLASH_ATTR updateDisplay(void* arg);
 static void ICACHE_FLASH_ATTR pollAccel(void* arg);
 
 #ifndef USE_2019_SWADGE
-static void ICACHE_FLASH_ATTR drawChangeMenuBar(void);
+    static void ICACHE_FLASH_ATTR drawChangeMenuBar(void);
 #else
-void ICACHE_FLASH_ATTR incrementSwadgeMode(void);
+    void ICACHE_FLASH_ATTR incrementSwadgeMode(void);
 #endif
 /*============================================================================
  * Initialization Functions
@@ -333,10 +333,10 @@ static void ICACHE_FLASH_ATTR pollAccel(void* arg __attribute__((unused)))
             QMA6981_poll(&accel);
         }
 #if SWADGE_VERSION == SWADGE_BBKIWI
-	int16_t xarrow = TOPOLED;
-	int16_t yarrow = LEFTOLED;
-	int16_t zarrow = FACEOLED;
-	accel.x = xarrow;
+        int16_t xarrow = TOPOLED;
+        int16_t yarrow = LEFTOLED;
+        int16_t zarrow = FACEOLED;
+        accel.x = xarrow;
         accel.y = yarrow;
         accel.z = zarrow;
 #endif
@@ -391,7 +391,7 @@ void ExitCritical(void)
 #ifdef USE_2019_SWADGE
 void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
 {
-	(void) newMode;
+    (void) newMode;
 }
 #endif
 
@@ -402,9 +402,9 @@ void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
  *
  */
 #ifndef USE_2019_SWADGE
-void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
+    void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
 #else
-void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
+    void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
 #endif
 {
     // If the mode is initialized, tear it down
@@ -566,8 +566,8 @@ void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int d
             menuChangeBarProgress = 0;
         }
 #else
-	// Switch the mode
-	incrementSwadgeMode();
+        // Switch the mode
+        incrementSwadgeMode();
 #endif
     }
     //NOTE for 2020 button 0 can only be used for menu, if want to be able to use momentary press in other modes

@@ -1,8 +1,8 @@
 /*
-*	linked_list.h
+*   linked_list.h
 *
-*	Created on: Sept 12, 2019
-*		Author: Jonathan Moriarty
+*   Created on: Sept 12, 2019
+*       Author: Jonathan Moriarty
 */
 
 #ifndef _LINKED_LIST_H
@@ -11,20 +11,20 @@
 // Doubly-linked list.
 typedef struct node
 {
-    void * val;
-    struct node * next;
-    struct node * prev;
+    void* val;
+    struct node* next;
+    struct node* prev;
 } node_t;
 
-typedef struct 
+typedef struct
 {
-    node_t * first;
-    node_t * last;
+    node_t* first;
+    node_t* last;
     int length;
 } list_t;
 
 // Creating an empty list example.
-/*  
+/*
     list_t * myList = malloc(sizeof(list_t));
     myList->first = NULL;
     myList->last = NULL;
@@ -42,25 +42,25 @@ typedef struct
 */
 
 // Add to the end of the list.
-void ICACHE_FLASH_ATTR push(list_t * list, void * val);
+void ICACHE_FLASH_ATTR push(list_t* list, void* val);
 
 // Remove from the end of the list.
-void * ICACHE_FLASH_ATTR pop(list_t * list);
+void* ICACHE_FLASH_ATTR pop(list_t* list);
 
 // Add to the front of the list.
-void ICACHE_FLASH_ATTR unshift(list_t * list, void * val);
+void ICACHE_FLASH_ATTR unshift(list_t* list, void* val);
 
 // Remove from the front of the list.
-void * ICACHE_FLASH_ATTR shift(list_t * list);
+void* ICACHE_FLASH_ATTR shift(list_t* list);
 
 // Add at an index in the list.
-void ICACHE_FLASH_ATTR add(list_t * list, void * val, int index);
+void ICACHE_FLASH_ATTR add(list_t* list, void* val, int index);
 
 // Remove at an index in the list.
-void * ICACHE_FLASH_ATTR remove(list_t * list, int index);
+void* ICACHE_FLASH_ATTR remove(list_t* list, int index);
 
-// Remove all items from the list. 
+// Remove all items from the list.
 // NOTE: This frees nodes but does not free anything pointed to by the vals of nodes.
-void ICACHE_FLASH_ATTR clear(list_t * list);
+void ICACHE_FLASH_ATTR clear(list_t* list);
 
 #endif

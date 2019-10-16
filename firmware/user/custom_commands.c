@@ -282,12 +282,12 @@ uint32_t ICACHE_FLASH_ATTR getJoustElo(void)
     return settings.joustElo;
 }
 
-uint32_t * ICACHE_FLASH_ATTR ttGetHighScores(void)
+uint32_t* ICACHE_FLASH_ATTR ttGetHighScores(void)
 {
     return settings.ttHighScores;
 }
 
-void ICACHE_FLASH_ATTR ttSetHighScores(uint32_t * newHighScores)
+void ICACHE_FLASH_ATTR ttSetHighScores(uint32_t* newHighScores)
 {
     memcpy(settings.ttHighScores, newHighScores, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
     SaveSettings();
@@ -304,12 +304,12 @@ void ICACHE_FLASH_ATTR ttSetLastScore(uint32_t newLastScore)
     SaveSettings();
 }
 
-uint32_t * ICACHE_FLASH_ATTR mzGetHighScores(void)
+uint32_t* ICACHE_FLASH_ATTR mzGetHighScores(void)
 {
     return settings.mzHighScores;
 }
 
-void ICACHE_FLASH_ATTR mzSetHighScores(uint32_t * newHighScores)
+void ICACHE_FLASH_ATTR mzSetHighScores(uint32_t* newHighScores)
 {
     memcpy(settings.mzHighScores, newHighScores, NUM_MZ_HIGH_SCORES * sizeof(uint32_t));
     SaveSettings();

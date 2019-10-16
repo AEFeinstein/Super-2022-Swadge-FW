@@ -13,13 +13,13 @@
 
 void ICACHE_FLASH_ATTR LoadSettings( void );
 
-uint32_t * ICACHE_FLASH_ATTR ttGetHighScores(void);
-void ICACHE_FLASH_ATTR ttSetHighScores(uint32_t * newHighScores);
+uint32_t* ICACHE_FLASH_ATTR ttGetHighScores(void);
+void ICACHE_FLASH_ATTR ttSetHighScores(uint32_t* newHighScores);
 uint32_t ICACHE_FLASH_ATTR ttGetLastScore(void);
 void ICACHE_FLASH_ATTR ttSetLastScore(uint32_t newLastScore);
 
-uint32_t * ICACHE_FLASH_ATTR mzGetHighScores(void);
-void ICACHE_FLASH_ATTR mzSetHighScores(uint32_t * newHighScores);
+uint32_t* ICACHE_FLASH_ATTR mzGetHighScores(void);
+void ICACHE_FLASH_ATTR mzSetHighScores(uint32_t* newHighScores);
 uint32_t ICACHE_FLASH_ATTR mzGetLastScore(void);
 void ICACHE_FLASH_ATTR mzSetLastScore(uint32_t newLastScore);
 

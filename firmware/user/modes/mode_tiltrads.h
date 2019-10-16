@@ -1,8 +1,8 @@
 /*
-*	mode_tiltrads.h
+*   mode_tiltrads.h
 *
-*	Created on: Aug 2, 2019
-*		Author: Jonathan Moriarty
+*   Created on: Aug 2, 2019
+*       Author: Jonathan Moriarty
 */
 
 #ifndef _MODE_TILTRADS_H

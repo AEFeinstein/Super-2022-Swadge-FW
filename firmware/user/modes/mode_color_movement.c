@@ -1,7 +1,7 @@
 /*
-*	mode_color_movement.c
+*   mode_color_movement.c
 *
-*	Created on: 10 Oct 2019
+*   Created on: 10 Oct 2019
 *               Author: bbkiw
 */
 
@@ -9,15 +9,15 @@
 #include <user_interface.h>
 #include <stdlib.h>
 #include "maxtime.h"
-#include "user_main.h"	//swadge mode
+#include "user_main.h"  //swadge mode
 #include "mode_color_movement.h"
 #include "mode_dance.h"
 #include "ccconfig.h"
 #include "DFT32.h"
 #include "buttons.h"
-#include "oled.h"		//display functions
-#include "font.h"		//draw text
-#include "bresenham.h"	//draw shapes
+#include "oled.h"       //display functions
+#include "font.h"       //draw text
+#include "bresenham.h"  //draw shapes
 #include "hpatimer.h"   //for sound
 #include "linked_list.h" //custom linked list
 #include "custom_commands.h" //saving and loading high scores and last scores
@@ -30,7 +30,7 @@
 
 //#define CM_DEBUG_PRINT
 #ifdef CM_DEBUG_PRINT
-#include <stdlib.h>
+    #include <stdlib.h>
     #define CM_printf(...) os_printf(__VA_ARGS__)
 #else
     #define CM_printf(...)
@@ -101,10 +101,10 @@
 
 typedef enum
 {
-    CM_TITLE,	// title screen
-    CM_GAME,	// play the actual game
-    CM_AUTO,	// automataically play the actual game
-    CM_SCORES,	// high scores
+    CM_TITLE,   // title screen
+    CM_GAME,    // play the actual game
+    CM_AUTO,    // automataically play the actual game
+    CM_SCORES,  // high scores
     CM_GAMEOVER // game over
 } cmState_t;
 
@@ -206,7 +206,7 @@ static const uint8_t cmBrightnesses[] =
 };
 
 
-static const char * levelName[] = {"BOX", "PRACTICE", "EASY", "MIDDLE", "HARD", "KILLER", "IMPOSSIBLE"};
+static const char* levelName[] = {"BOX", "PRACTICE", "EASY", "MIDDLE", "HARD", "KILLER", "IMPOSSIBLE"};
 
 /*============================================================================
  * Variables
@@ -217,14 +217,14 @@ static const char * levelName[] = {"BOX", "PRACTICE", "EASY", "MIDDLE", "HARD", 
 
 swadgeMode colorMoveMode =
 {
-	.modeName = "ColorShake",
-	.fnEnterMode = cmInit,
-	.fnExitMode = cmDeInit,
-	.fnButtonCallback = cmButtonCallback,
-	.wifiMode = NO_WIFI,
-	.fnEspNowRecvCb = NULL,
-	.fnEspNowSendCb = NULL,
-	.fnAccelerometerCallback = cmAccelerometerCallback
+    .modeName = "ColorShake",
+    .fnEnterMode = cmInit,
+    .fnExitMode = cmDeInit,
+    .fnButtonCallback = cmButtonCallback,
+    .wifiMode = NO_WIFI,
+    .fnEspNowRecvCb = NULL,
+    .fnEspNowSendCb = NULL,
+    .fnAccelerometerCallback = cmAccelerometerCallback
 };
 
 accel_t cmAccel = {0};
@@ -244,9 +244,9 @@ static os_timer_t timerHandleUpdate = {0};
 
 static uint32_t modeStartTime = 0; // time mode started in microseconds.
 static uint32_t stateStartTime = 0; // time the most recent state started in microseconds.
-static uint32_t deltaTime = 0;	// time elapsed since last update.
-static uint32_t modeTime = 0;	// total time the mode has been running.
-static uint32_t stateTime = 0;	// total time the game has been running.
+static uint32_t deltaTime = 0;  // time elapsed since last update.
+static uint32_t modeTime = 0;   // total time the mode has been running.
+static uint32_t stateTime = 0;  // total time the game has been running.
 
 static cmState_t currState = CM_TITLE;
 static cmState_t prevState;
@@ -278,14 +278,14 @@ bool gameover;
 // circularBuffer_t  bufZaccel;
 // circularBuffer_t  bufLowPassZaccel;
 
-int16_t * bufNormAccel;
-int16_t * bufHighPassNormAccel;
-int16_t * bufXaccel;
-int16_t * bufLowPassXaccel;
-int16_t * bufYaccel;
-int16_t * bufLowPassYaccel;
-int16_t * bufZaccel;
-int16_t * bufLowPassZaccel;
+int16_t* bufNormAccel;
+int16_t* bufHighPassNormAccel;
+int16_t* bufXaccel;
+int16_t* bufLowPassXaccel;
+int16_t* bufYaccel;
+int16_t* bufLowPassYaccel;
+int16_t* bufZaccel;
+int16_t* bufLowPassZaccel;
 
 // Point (index) to insertion point
 uint16_t  bufNormAccelInsert;
@@ -331,13 +331,15 @@ bool skipNextCross = true;
 bool still = true;
 
 // Helpers
-uint16_t ICACHE_FLASH_ATTR circularPush(int16_t value, uint16_t insertInd, int16_t * buffer)
+uint16_t ICACHE_FLASH_ATTR circularPush(int16_t value, uint16_t insertInd, int16_t* buffer)
 {
     buffer[insertInd] = value;
     if (insertInd >= NUM_DOTS)
     {
         return 0;
-    } else {
+    }
+    else
+    {
         return insertInd + 1;
     }
 }
@@ -354,7 +356,7 @@ void ICACHE_FLASH_ATTR AdjustPlotDots(int16_t buffer1[], uint16_t insert1, int16
     uint8_t i;
     uint8_t i1 = insert1 + 1; // oldest
     uint8_t i2 = insert2 + 1;
-    for (i = 0; i < NUM_DOTS; i++ , i1++, i2++)
+    for (i = 0; i < NUM_DOTS; i++, i1++, i2++)
     {
         i1 = (i1 < NUM_DOTS) ? i1 : 0;
         i2 = (i2 < NUM_DOTS) ? i2 : 0;
@@ -362,14 +364,14 @@ void ICACHE_FLASH_ATTR AdjustPlotDots(int16_t buffer1[], uint16_t insert1, int16
     }
     //plotCircle(64,32,10,WHITE);
     // pos[1] = PLOT_SCALE * buffer[i] + PLOT_SHIFT
-   
+
 }
 void ICACHE_FLASH_ATTR AdjustPlotDotsSingle(int16_t buffer1[], uint16_t insert1)
 {
     // Plots a graph with x from 0 to 119 and y from buffer1
     uint8_t i;
     uint8_t i1 = insert1 + 1; // oldest
-    for (i = 0; i < NUM_DOTS; i++ , i1++)
+    for (i = 0; i < NUM_DOTS; i++, i1++)
     {
         i1 = (i1 < NUM_DOTS) ? i1 : 0;
         drawPixel(i, buffer1[i1] + PLOT_SHIFT, WHITE);
@@ -384,19 +386,19 @@ void ICACHE_FLASH_ATTR cmInit(void)
     // External from mode_dance to set brightness when using dance mode display
     setDanceBrightness(2);
     // Give us reliable button input.
-	enableDebounce(false);
+    enableDebounce(false);
 
-	// Reset mode time tracking.
-	modeStartTime = system_get_time();
-	modeTime = 0;
+    // Reset mode time tracking.
+    modeStartTime = system_get_time();
+    modeTime = 0;
 
     // Reset state stuff.
-	cmChangeState(CM_TITLE);
+    cmChangeState(CM_TITLE);
 
     // Set up all initialization and allocation of memory
     cmNewSetup();
 
-	// Start the update loop.
+    // Start the update loop.
     os_timer_disarm(&timerHandleUpdate);
     os_timer_setfn(&timerHandleUpdate, (os_timer_func_t*)cmUpdate, NULL);
     os_timer_arm(&timerHandleUpdate, UPDATE_TIME_MS, 1);
@@ -405,12 +407,13 @@ void ICACHE_FLASH_ATTR cmInit(void)
 void ICACHE_FLASH_ATTR cmDeInit(void)
 {
     cmFreeMemory();
-	os_timer_disarm(&timerHandleUpdate);
+    os_timer_disarm(&timerHandleUpdate);
 }
 
-void ICACHE_FLASH_ATTR cmButtonCallback(uint8_t state, int button __attribute__((unused)), int down __attribute__((unused)))
+void ICACHE_FLASH_ATTR cmButtonCallback(uint8_t state, int button __attribute__((unused)),
+                                        int down __attribute__((unused)))
 {
-	cmButtonState = state;	// Set the state of all buttons
+    cmButtonState = state;  // Set the state of all buttons
 }
 
 void ICACHE_FLASH_ATTR cmAccelerometerCallback(accel_t* accel)
@@ -444,33 +447,33 @@ void ICACHE_FLASH_ATTR setCMLeds(led_t* ledData, uint8_t ledDataLen)
 
 void ICACHE_FLASH_ATTR cmUpdate(void* arg __attribute__((unused)))
 {
-	// Update time tracking.
+    // Update time tracking.
     // NOTE: delta time is in microseconds.
     // UPDATE time is in milliseconds.
 
-	uint32_t newModeTime = system_get_time() - modeStartTime;
-	uint32_t newStateTime = system_get_time() - stateStartTime;
-	deltaTime = newModeTime - modeTime;
-	modeTime = newModeTime;
-	stateTime = newStateTime;
+    uint32_t newModeTime = system_get_time() - modeStartTime;
+    uint32_t newStateTime = system_get_time() - stateStartTime;
+    deltaTime = newModeTime - modeTime;
+    modeTime = newModeTime;
+    stateTime = newStateTime;
 
-	// Handle Input (based on the state)
-	switch( currState )
+    // Handle Input (based on the state)
+    switch( currState )
     {
         case CM_TITLE:
         {
-			cmTitleInput();
+            cmTitleInput();
             break;
         }
         case CM_GAME:
         case CM_AUTO:
         {
-			cmGameInput();
+            cmGameInput();
             break;
         }
         case CM_SCORES:
         {
-			cmScoresInput();
+            cmScoresInput();
             break;
         }
         case CM_GAMEOVER:
@@ -487,26 +490,26 @@ void ICACHE_FLASH_ATTR cmUpdate(void* arg __attribute__((unused)))
     cmLastAccel = cmAccel;
 
     // Handle Game Logic (based on the state)
-	switch( currState )
+    switch( currState )
     {
         case CM_TITLE:
         {
-			cmTitleUpdate();
+            cmTitleUpdate();
             break;
         }
         case CM_GAME:
         {
-			cmGameUpdate();
+            cmGameUpdate();
             break;
         }
         case CM_AUTO:
         {
-			cmAutoGameUpdate();
+            cmAutoGameUpdate();
             break;
         }
         case CM_SCORES:
         {
-			cmScoresUpdate();
+            cmScoresUpdate();
             break;
         }
         case CM_GAMEOVER:
@@ -518,23 +521,23 @@ void ICACHE_FLASH_ATTR cmUpdate(void* arg __attribute__((unused)))
             break;
     };
 
-	// Handle Drawing Frame (based on the state)
-	switch( currState )
+    // Handle Drawing Frame (based on the state)
+    switch( currState )
     {
         case CM_TITLE:
         {
-			cmTitleDisplay();
+            cmTitleDisplay();
             break;
         }
         case CM_GAME:
         case CM_AUTO:
         {
-			cmGameDisplay();
+            cmGameDisplay();
             break;
         }
         case CM_SCORES:
         {
-			cmScoresDisplay();
+            cmScoresDisplay();
             break;
         }
         case CM_GAMEOVER:
@@ -564,7 +567,7 @@ void ICACHE_FLASH_ATTR cmTitleInput(void)
 void ICACHE_FLASH_ATTR cmChangeLevel(void)
 {
     switch (cmLevel)
-        {
+    {
         case BOX_LEVEL:
             cmLevel = PRACTICE_LEVEL;
             break;
@@ -588,7 +591,7 @@ void ICACHE_FLASH_ATTR cmChangeLevel(void)
             break;
         default:
             break;
-        }
+    }
 }
 void ICACHE_FLASH_ATTR cmGameInput(void)
 {
@@ -608,7 +611,7 @@ void ICACHE_FLASH_ATTR cmGameInput(void)
 
 void ICACHE_FLASH_ATTR cmScoresInput(void)
 {
-	//button a = hold to clear scores.
+    //button a = hold to clear scores.
     if(holdingClearScore && cmIsButtonDown(BTN_SCORES_CLEAR_SCORES))
     {
         clearScoreTimer += deltaTime;
@@ -664,23 +667,32 @@ void ICACHE_FLASH_ATTR cmTitleUpdate(void)
 void ICACHE_FLASH_ATTR cmGameUpdate(void)
 {
     // bool gonethruany;
-    static struct maxtime_t CM_updatedisplay_timer = { .name="CM_updateDisplay"};
+    static struct maxtime_t CM_updatedisplay_timer = { .name = "CM_updateDisplay"};
     maxTimeBegin(&CM_updatedisplay_timer);
 
     clearDisplay();
 
- 
+
     showcount += 1;
-    if (showcount > FRAME_RESET) showcount = 0;
-    if (showcount > 0) return;
-    if (pause) return;
+    if (showcount > FRAME_RESET)
+    {
+        showcount = 0;
+    }
+    if (showcount > 0)
+    {
+        return;
+    }
+    if (pause)
+    {
+        return;
+    }
 
     xAccel = cmAccel.x;
     yAccel = cmAccel.y;
     zAccel = cmAccel.z;
 
     // IPAD accel = list(map(lambda x, y : x + y, motion.get_gravity(),  motion.get_user_acceleration()))
-    int16_t normAccel = sqrt((((int32_t)xAccel)^2) + (((int32_t)yAccel)^2) + (((int32_t)zAccel)^2)  );
+    int16_t normAccel = sqrt((((int32_t)xAccel) ^ 2) + (((int32_t)yAccel) ^ 2) + (((int32_t)zAccel) ^ 2)  );
     // empirical adjustment
     //normAccel *= 3;
 
@@ -712,7 +724,8 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     float alphaSlow = ALPHA_SLOW;
 
     lowPassNormAccel = IIRFilter(alphaSlow, normAccel, lowPassNormAccel);
-    bufHighPassNormAccelInsert= circularPush(smoothNormAccel - lowPassNormAccel, bufHighPassNormAccelInsert, bufHighPassNormAccel);
+    bufHighPassNormAccelInsert = circularPush(smoothNormAccel - lowPassNormAccel, bufHighPassNormAccelInsert,
+                                 bufHighPassNormAccel);
 
     // low pass for the three axes
 
@@ -727,8 +740,8 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
 
     // Plot slightly smoothed less dc bias by adjusting the dots
     // AdjustPlotDotsSingle(bufHighPassNormAccel, bufHighPassNormAccel);
-    AdjustPlotDots(bufXaccel,bufXaccelInsert, bufLowPassXaccel, bufLowPassXaccelInsert);
-    AdjustPlotDots(bufYaccel,bufYaccelInsert, bufLowPassYaccel, bufLowPassYaccelInsert);
+    AdjustPlotDots(bufXaccel, bufXaccelInsert, bufLowPassXaccel, bufLowPassXaccelInsert);
+    AdjustPlotDots(bufYaccel, bufYaccelInsert, bufLowPassYaccel, bufLowPassYaccelInsert);
     AdjustPlotDots(bufZaccel, bufZaccelInsert, bufLowPassZaccel, bufLowPassZaccelInsert);
 
     // Identify stillness
@@ -742,33 +755,39 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     float alphaCross = ALPHA_CROSS; // for smoothing gaps between zero crossing
 
     // if very still stop updateing period estimation
-    if (smoothActivity < 1/30.0)
+    if (smoothActivity < 1 / 30.0)
     {
         if (!still)
         {
             still = true;
             //if (SOUND_ON) //sound.stop_all_effects()}
         }
-    } else { // estimate bpm
+    }
+    else     // estimate bpm
+    {
         if (still)
         {
             skipNextCross = true;
             still = false;
         }
     }
-//#define USE_ZERO_CROSSING
+    //#define USE_ZERO_CROSSING
 #ifdef USE_ZERO_CROSSING
     // zero crossing NO tolerance check
-    if bufHighPassNormAccel[-1] * bufHighPassNormAccel[-2] < 0:
+    if bufHighPassNormAccel[-1]
+* bufHighPassNormAccel[-2] < 0:
 #else
     // downward zero crossing with tolerance
-    if ((bufHighPassNormAccel[-1] > 0) & (bufHighPassNormAccel[-2] < 0) & ((bufHighPassNormAccel[-1] - bufHighPassNormAccel[-2]) > CROSS_TOL))
+    if ((bufHighPassNormAccel[-1] > 0) & (bufHighPassNormAccel[-2] < 0) & ((bufHighPassNormAccel[-1] -
+            bufHighPassNormAccel[-2]) > CROSS_TOL))
 #endif
     {
         if (skipNextCross)
         {
             skipNextCross = false;
-        } else {
+        }
+        else
+        {
             crossinterval = modeTime - lastzerocrosst;
         }
         lastzerocrosst = modeTime;
@@ -843,7 +862,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
 
 
     // allcolored the same
-    for (uint8_t i=0; i < NUM_LIN_LEDS; i++)
+    for (uint8_t i = 0; i < NUM_LIN_LEDS; i++)
     {
         //use axis colors or hue colors computed above
         leds[ledOrderInd[i]].r = ledr;
@@ -860,7 +879,10 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     {
         ledPrevIncTime = modeTime;
         ledcycle += 1;
-        if (ledcycle >= NUM_LIN_LEDS) ledcycle = 0;
+        if (ledcycle >= NUM_LIN_LEDS)
+        {
+            ledcycle = 0;
+        }
     }
 
     // Put color from above in the one LED that should go
@@ -896,17 +918,18 @@ void ICACHE_FLASH_ATTR cmGameoverUpdate(void)
 
 void ICACHE_FLASH_ATTR cmTitleDisplay(void)
 {
-	// Clear the display.
+    // Clear the display.
     clearDisplay();
 
     // Shake It
     plotCenteredText(0, 5, 127, "SHAKE-COLOR", RADIOSTARS, WHITE);
 
-    plotCenteredText(0, OLED_HEIGHT/2, 127, (char*)levelName[cmLevel], IBM_VGA_8, WHITE);
+    plotCenteredText(0, OLED_HEIGHT / 2, 127, (char*)levelName[cmLevel], IBM_VGA_8, WHITE);
 
     // SCORES   START
     plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "SCORES", IBM_VGA_8, WHITE);
-    plotText(OLED_WIDTH - getTextWidth("START", IBM_VGA_8), OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "START", IBM_VGA_8, WHITE);
+    plotText(OLED_WIDTH - getTextWidth("START", IBM_VGA_8), OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "START",
+             IBM_VGA_8, WHITE);
 
 
 }
@@ -934,19 +957,19 @@ void ICACHE_FLASH_ATTR cmScoresDisplay(void)
     char uiStr[32] = {0};
     // 1. 99999
     ets_snprintf(uiStr, sizeof(uiStr), "1. %d", highScores[0]);
-    plotCenteredText(0, (3*FONT_HEIGHT_TOMTHUMB)+1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
+    plotCenteredText(0, (3 * FONT_HEIGHT_TOMTHUMB) + 1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
 
     // 2. 99999
     ets_snprintf(uiStr, sizeof(uiStr), "2. %d", highScores[1]);
-    plotCenteredText(0, (5*FONT_HEIGHT_TOMTHUMB)+1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
+    plotCenteredText(0, (5 * FONT_HEIGHT_TOMTHUMB) + 1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
 
     // 3. 99999
     ets_snprintf(uiStr, sizeof(uiStr), "3. %d", highScores[2]);
-    plotCenteredText(0, (7*FONT_HEIGHT_TOMTHUMB)+1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
+    plotCenteredText(0, (7 * FONT_HEIGHT_TOMTHUMB) + 1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
 
     // YOUR LAST SCORE:
     ets_snprintf(uiStr, sizeof(uiStr), "YOUR LAST SCORE: %d", 31415926);
-    plotCenteredText(0, (9*FONT_HEIGHT_TOMTHUMB)+1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
+    plotCenteredText(0, (9 * FONT_HEIGHT_TOMTHUMB) + 1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
 
 
     //TODO: explicitly add a hold to the text, or is the inverse effect enough.
@@ -957,40 +980,41 @@ void ICACHE_FLASH_ATTR cmScoresDisplay(void)
     if (clearScoreTimer != 0)
     {
         double holdProgress = ((double)clearScoreTimer / (double)CLEAR_SCORES_HOLD_TIME);
-        uint8_t holdFill = (uint8_t)(holdProgress * (getTextWidth("CLEAR SCORES", TOM_THUMB)+2));
+        uint8_t holdFill = (uint8_t)(holdProgress * (getTextWidth("CLEAR SCORES", TOM_THUMB) + 2));
         fillDisplayArea(0, (OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1))) - 1, holdFill, OLED_HEIGHT, INVERSE);
     }
 
-    plotText(OLED_WIDTH - getTextWidth("TITLE", TOM_THUMB) - 1, OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1)), "TITLE", TOM_THUMB, WHITE);
+    plotText(OLED_WIDTH - getTextWidth("TITLE", TOM_THUMB) - 1, OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1)), "TITLE",
+             TOM_THUMB, WHITE);
 }
 
 void ICACHE_FLASH_ATTR cmGameoverDisplay(void)
 {
     switch (cmLevel)
     {
-    case BOX_LEVEL:
-        danceTimerMode1(NULL);
-        break;
-    case PRACTICE_LEVEL:
-        danceTimerMode2(NULL);
-        break;
-    case EASY_LEVEL:
-        danceTimerMode3(NULL);
-        break;
-    case MIDDLE_LEVEL:
-        danceTimerMode4(NULL);
-        break;
-    case HARD_LEVEL:
-        danceTimerMode13(NULL);
-        break;
-    case KILLER_LEVEL:
-        danceTimerMode16(NULL);
-        break;
-    case IMPOSSIBLE_LEVEL:
-        danceTimerMode17(NULL);
-        break;
-    default:
-        break;
+        case BOX_LEVEL:
+            danceTimerMode1(NULL);
+            break;
+        case PRACTICE_LEVEL:
+            danceTimerMode2(NULL);
+            break;
+        case EASY_LEVEL:
+            danceTimerMode3(NULL);
+            break;
+        case MIDDLE_LEVEL:
+            danceTimerMode4(NULL);
+            break;
+        case HARD_LEVEL:
+            danceTimerMode13(NULL);
+            break;
+        case KILLER_LEVEL:
+            danceTimerMode16(NULL);
+            break;
+        case IMPOSSIBLE_LEVEL:
+            danceTimerMode17(NULL);
+            break;
+        default:
+            break;
     }
 
     // We don't clear the display because we want the playfield to appear in the background.
@@ -1012,26 +1036,31 @@ void ICACHE_FLASH_ATTR cmGameoverDisplay(void)
     plotRect(windowXMargin, windowYMarginTop, OLED_WIDTH - windowXMargin, OLED_HEIGHT - windowYMarginBot, WHITE);
 
     // GAME OVER
-    plotCenteredText(windowXMargin, windowYMarginTop + titleTextYOffset, OLED_WIDTH - windowXMargin, "GAME OVER", IBM_VGA_8, WHITE);
+    plotCenteredText(windowXMargin, windowYMarginTop + titleTextYOffset, OLED_WIDTH - windowXMargin, "GAME OVER", IBM_VGA_8,
+                     WHITE);
 
     // HIGH SCORE! or YOUR SCORE:
     if (newHighScore)
     {
-        plotCenteredText(windowXMargin, windowYMarginTop + highScoreTextYOffset, OLED_WIDTH - windowXMargin, "HIGH SCORE!", TOM_THUMB, WHITE);
+        plotCenteredText(windowXMargin, windowYMarginTop + highScoreTextYOffset, OLED_WIDTH - windowXMargin, "HIGH SCORE!",
+                         TOM_THUMB, WHITE);
     }
     else
     {
-        plotCenteredText(windowXMargin, windowYMarginTop + highScoreTextYOffset, OLED_WIDTH - windowXMargin, "YOUR SCORE:", TOM_THUMB, WHITE);
+        plotCenteredText(windowXMargin, windowYMarginTop + highScoreTextYOffset, OLED_WIDTH - windowXMargin, "YOUR SCORE:",
+                         TOM_THUMB, WHITE);
     }
 
     // 1230495
     char scoreStr[32] = {0};
     ets_snprintf(scoreStr, sizeof(scoreStr), "%d", score);
-    plotCenteredText(windowXMargin, windowYMarginTop + scoreTextYOffset, OLED_WIDTH - windowXMargin, scoreStr, IBM_VGA_8, WHITE);
+    plotCenteredText(windowXMargin, windowYMarginTop + scoreTextYOffset, OLED_WIDTH - windowXMargin, scoreStr, IBM_VGA_8,
+                     WHITE);
 
     // TITLE    RESTART
     plotText(windowXMargin + controlTextXPadding, controlTextYOffset, "NEW LEVEL", TOM_THUMB, WHITE);
-    plotText(OLED_WIDTH - windowXMargin - getTextWidth("SAME LEVEL", TOM_THUMB) - controlTextXPadding, controlTextYOffset, "SAME LEVEL", TOM_THUMB, WHITE);
+    plotText(OLED_WIDTH - windowXMargin - getTextWidth("SAME LEVEL", TOM_THUMB) - controlTextXPadding, controlTextYOffset,
+             "SAME LEVEL", TOM_THUMB, WHITE);
 }
 
 // helper functions.
@@ -1046,14 +1075,14 @@ void ICACHE_FLASH_ATTR cmNewSetup(void)
 {
     //Allocate some working array memory now
     //TODO is memory being freed up appropriately?
-    bufNormAccel = (int16_t  *)malloc (sizeof (int16_t ) * NUM_DOTS);
-    bufHighPassNormAccel = (int16_t  *)malloc (sizeof (int16_t ) * NUM_DOTS);
-    bufXaccel = (int16_t  *)malloc (sizeof (int16_t ) * NUM_DOTS);
-    bufLowPassXaccel = (int16_t  *)malloc (sizeof (int16_t ) * NUM_DOTS);
-    bufYaccel = (int16_t  *)malloc (sizeof (int16_t ) * NUM_DOTS);
-    bufLowPassYaccel = (int16_t  *)malloc (sizeof (int16_t ) * NUM_DOTS);
-    bufZaccel = (int16_t  *)malloc (sizeof (int16_t ) * NUM_DOTS);
-    bufLowPassZaccel = (int16_t  *)malloc (sizeof (int16_t ) * NUM_DOTS);
+    bufNormAccel = (int16_t*)malloc (sizeof (int16_t ) * NUM_DOTS);
+    bufHighPassNormAccel = (int16_t*)malloc (sizeof (int16_t ) * NUM_DOTS);
+    bufXaccel = (int16_t*)malloc (sizeof (int16_t ) * NUM_DOTS);
+    bufLowPassXaccel = (int16_t*)malloc (sizeof (int16_t ) * NUM_DOTS);
+    bufYaccel = (int16_t*)malloc (sizeof (int16_t ) * NUM_DOTS);
+    bufLowPassYaccel = (int16_t*)malloc (sizeof (int16_t ) * NUM_DOTS);
+    bufZaccel = (int16_t*)malloc (sizeof (int16_t ) * NUM_DOTS);
+    bufLowPassZaccel = (int16_t*)malloc (sizeof (int16_t ) * NUM_DOTS);
 
     bufNormAccelInsert = 0;
     bufHighPassNormAccelInsert = 0;
@@ -1128,10 +1157,10 @@ void ICACHE_FLASH_ATTR cmFreeMemory(void)
 
 void ICACHE_FLASH_ATTR cmChangeState(cmState_t newState)
 {
-	prevState = currState;
+    prevState = currState;
     currState = newState;
-	stateStartTime = system_get_time();
-	stateTime = 0;
+    stateStartTime = system_get_time();
+    stateTime = 0;
 
     switch( currState )
     {
@@ -1217,7 +1246,8 @@ uint8_t getTextWidth(char* text, fonts font)
 
     // We only get width info once we've drawn.
     // So we draw the text as inverse to get the width.
-    uint8_t textWidth = plotText(0, 0, text, font, INVERSE) - 1; // minus one accounts for the return being where the cursor is.
+    uint8_t textWidth = plotText(0, 0, text, font,
+                                 INVERSE) - 1; // minus one accounts for the return being where the cursor is.
 
     // Then we draw the inverse back over it to restore it.
     plotText(0, 0, text, font, INVERSE);

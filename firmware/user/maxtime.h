@@ -6,9 +6,9 @@
 //
 // Created 28 September 2019 Author Richard Jones
 //
-// A utility to measure and print to os_printf() the maximum duration in 
+// A utility to measure and print to os_printf() the maximum duration in
 // microseconds spent in monitored functions.
-// Many functions may be monitored simultaneously declaring multiple 
+// Many functions may be monitored simultaneously declaring multiple
 // instances of the data structure maxtime_t.
 //
 // eg myFunc()
@@ -19,9 +19,15 @@
 //      maxTimeEnd( &myfunctime );
 // }
 //
-struct maxtime_t { char *name ; uint32_t start_us; uint32_t period_us; uint32_t max_us; } ;
+struct maxtime_t
+{
+    char* name ;
+    uint32_t start_us;
+    uint32_t period_us;
+    uint32_t max_us;
+} ;
 
-void maxTimeBegin( struct maxtime_t *mymaxtime );
-void maxTimeEnd  ( struct maxtime_t *mymaxtime );
+void maxTimeBegin( struct maxtime_t* mymaxtime );
+void maxTimeEnd  ( struct maxtime_t* mymaxtime );
 
 #endif

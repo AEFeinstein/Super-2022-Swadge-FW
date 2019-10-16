@@ -11,7 +11,7 @@
 #define SWADGE_BBKIWI  1
 #define SWADGE_BARREL  2
 #if SWADGE_VERSION == SWADGE_BBKIWI
-//bbkiwi swadge mockup
+    //bbkiwi swadge mockup
     #define NUM_LIN_LEDS 16
     #define LED_1 15
     #define LED_2 12

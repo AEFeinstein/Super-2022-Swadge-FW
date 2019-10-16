@@ -1,8 +1,8 @@
 /*
-*	linked_list.c
+*   linked_list.c
 *
-*	Created on: Sept 12, 2019
-*		Author: Jonathan Moriarty
+*   Created on: Sept 12, 2019
+*       Author: Jonathan Moriarty
 */
 
 #include <osapi.h>
@@ -12,13 +12,13 @@
 #include "linked_list.h"
 
 // Add to the end of the list.
-void ICACHE_FLASH_ATTR push(list_t * list, void * val)
+void ICACHE_FLASH_ATTR push(list_t* list, void* val)
 {
-    node_t * newLast = malloc(sizeof(node_t));
+    node_t* newLast = malloc(sizeof(node_t));
     newLast->val = val;
     newLast->next = NULL;
     newLast->prev = list->last;
-    
+
     if (list->length == 0)
     {
         list->first = newLast;
@@ -33,25 +33,25 @@ void ICACHE_FLASH_ATTR push(list_t * list, void * val)
 }
 
 // Remove from the end of the list.
-void * ICACHE_FLASH_ATTR pop(list_t * list)
+void* ICACHE_FLASH_ATTR pop(list_t* list)
 {
-    void * retval = NULL;
-    
+    void* retval = NULL;
+
     // Get a direct pointer to the node we're removing.
-    node_t * target = list->last;
+    node_t* target = list->last;
 
     // If the list any nodes at all.
     if (target != NULL)
     {
 
         // Adjust the node before the removed node, then adjust the list's last pointer.
-        if (target->prev != NULL) 
+        if (target->prev != NULL)
         {
-            target->prev->next = NULL; 
+            target->prev->next = NULL;
             list->last = target->prev;
         }
         // If the list has only one node, clear the first and last pointers.
-        else        
+        else
         {
             list->first = NULL;
             list->last = NULL;
@@ -67,13 +67,13 @@ void * ICACHE_FLASH_ATTR pop(list_t * list)
 }
 
 // Add to the front of the list.
-void ICACHE_FLASH_ATTR unshift(list_t * list, void * val)
+void ICACHE_FLASH_ATTR unshift(list_t* list, void* val)
 {
-    node_t * newFirst = malloc(sizeof(node_t));
+    node_t* newFirst = malloc(sizeof(node_t));
     newFirst->val = val;
     newFirst->next = list->first;
     newFirst->prev = NULL;
-    
+
     if (list->length == 0)
     {
         list->first = newFirst;
@@ -88,25 +88,25 @@ void ICACHE_FLASH_ATTR unshift(list_t * list, void * val)
 }
 
 // Remove from the front of the list.
-void * ICACHE_FLASH_ATTR shift(list_t * list)
+void* ICACHE_FLASH_ATTR shift(list_t* list)
 {
-    void * retval = NULL;
-    
+    void* retval = NULL;
+
     // Get a direct pointer to the node we're removing.
-    node_t * target = list->first;
+    node_t* target = list->first;
 
     // If the list any nodes at all.
     if (target != NULL)
     {
 
         // Adjust the node after the removed node, then adjust the list's first pointer.
-        if (target->next != NULL) 
+        if (target->next != NULL)
         {
-            target->next->prev = NULL; 
+            target->next->prev = NULL;
             list->first = target->next;
         }
         // If the list has only one node, clear the first and last pointers.
-        else        
+        else
         {
             list->first = NULL;
             list->last = NULL;
@@ -123,27 +123,27 @@ void * ICACHE_FLASH_ATTR shift(list_t * list)
 
 //TODO: bool return to check if index is valid?
 // Add at an index in the list.
-void ICACHE_FLASH_ATTR add(list_t * list, void * val, int index)
-{   
+void ICACHE_FLASH_ATTR add(list_t* list, void* val, int index)
+{
     // If the index we're trying to add to the start of the list.
     if (index == 0)
     {
-         unshift(list, val);
+        unshift(list, val);
     }
     // Else if the index we're trying to add to is before the end of the list.
-    else if (index < list->length - 1) 
+    else if (index < list->length - 1)
     {
-        node_t * newNode = malloc(sizeof(node_t));
+        node_t* newNode = malloc(sizeof(node_t));
         newNode->val = val;
         newNode->next = NULL;
         newNode->prev = NULL;
 
-        node_t * current = NULL;
-        for (int i = 0; i < index; i++) 
+        node_t* current = NULL;
+        for (int i = 0; i < index; i++)
         {
             current = current == NULL ? list->first : current->next;
         }
-        
+
         // We need to adjust the newNode, and the nodes before and after it.
         // current is set to the node before it.
 
@@ -163,28 +163,28 @@ void ICACHE_FLASH_ATTR add(list_t * list, void * val, int index)
 }
 
 // Remove at an index in the list.
-void * ICACHE_FLASH_ATTR remove(list_t * list, int index)
+void* ICACHE_FLASH_ATTR remove(list_t* list, int index)
 {
     // If the index we're trying to remove from is the start of the list.
     if (index == 0)
     {
-         return shift(list);
+        return shift(list);
     }
     // Else if the index we're trying to remove from is before the end of the list.
-    else if (index < list->length - 1) 
+    else if (index < list->length - 1)
     {
-        void * retval = NULL;
-        
-        node_t * current = NULL;
+        void* retval = NULL;
+
+        node_t* current = NULL;
         for (int i = 0; i < index; i++)
         {
             current = current == NULL ? list->first : current->next;
         }
-        
+
         // We need to free the removed node, and adjust the nodes before and after it.
         // current is set to the node before it.
-        
-        node_t * target = current->next;
+
+        node_t* target = current->next;
         retval = target->val;
 
         current->next = target->next;
@@ -204,7 +204,7 @@ void * ICACHE_FLASH_ATTR remove(list_t * list, int index)
 }
 
 // Remove all items from the list.
-void ICACHE_FLASH_ATTR clear(list_t * list)
+void ICACHE_FLASH_ATTR clear(list_t* list)
 {
     while (list->first != NULL)
     {

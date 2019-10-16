@@ -1,9 +1,9 @@
 /*
-*	mode_mazerf.c
+*   mode_mazerf.c
 *
-*	Created on: 21 Sept 2019
+*   Created on: 21 Sept 2019
 *               Author: bbkiw
-*		Refactor of maze using Jonathan Moriarty basic set up
+*       Refactor of maze using Jonathan Moriarty basic set up
 */
 
 //TODO
@@ -35,15 +35,15 @@
 #include <user_interface.h>
 #include <stdlib.h>
 #include "maxtime.h"
-#include "user_main.h"	//swadge mode
+#include "user_main.h"  //swadge mode
 #include "mode_mazerf.h"
 #include "mode_dance.h"
 #include "ccconfig.h"
 #include "DFT32.h"
 #include "buttons.h"
-#include "oled.h"		//display functions
-#include "font.h"		//draw text
-#include "bresenham.h"	//draw shapes
+#include "oled.h"       //display functions
+#include "font.h"       //draw text
+#include "bresenham.h"  //draw shapes
 #include "linked_list.h" //custom linked list
 #include "custom_commands.h" //saving and loading high scores and last scores
 #include "mazegen.h"
@@ -55,7 +55,7 @@
 
 //#define MAZE_DEBUG_PRINT
 #ifdef MAZE_DEBUG_PRINT
-#include <stdlib.h>
+    #include <stdlib.h>
     #define maze_printf(...) os_printf(__VA_ARGS__)
 #else
     #define maze_printf(...)
@@ -115,10 +115,10 @@
 
 typedef enum
 {
-    MZ_TITLE,	// title screen
-    MZ_GAME,	// play the actual game
-    MZ_AUTO,	// automataically play the actual game
-    MZ_SCORES,	// high scores
+    MZ_TITLE,   // title screen
+    MZ_GAME,    // play the actual game
+    MZ_AUTO,    // automataically play the actual game
+    MZ_SCORES,  // high scores
     MZ_GAMEOVER // game over
 } mazeState_t;
 
@@ -189,9 +189,12 @@ static bool updateHighScores(uint32_t newScore);
 
 // Additional Helper
 void ICACHE_FLASH_ATTR setmazeLeds(led_t* ledData, uint8_t ledDataLen);
-get_maze_output_t ICACHE_FLASH_ATTR get_maze(uint8_t width, uint8_t height, uint8_t xleft[], uint8_t xright[], uint8_t ybot[], uint8_t ytop[], uint8_t xsol[], uint8_t ysol[], float scxcexits[], float scycexits[], uint8_t mazescalex, uint8_t mazescaley);
-uint8_t ICACHE_FLASH_ATTR intervalsmeet(float a,float c,float b,float d,float e,float f, float param[]);
-uint8_t ICACHE_FLASH_ATTR  gonethru(float b_prev[], float b_now[], float p_1[], float p_2[], float rball, float b_nowadjusted[], float param[]);
+get_maze_output_t ICACHE_FLASH_ATTR get_maze(uint8_t width, uint8_t height, uint8_t xleft[], uint8_t xright[],
+        uint8_t ybot[], uint8_t ytop[], uint8_t xsol[], uint8_t ysol[], float scxcexits[], float scycexits[],
+        uint8_t mazescalex, uint8_t mazescaley);
+uint8_t ICACHE_FLASH_ATTR intervalsmeet(float a, float c, float b, float d, float e, float f, float param[]);
+uint8_t ICACHE_FLASH_ATTR  gonethru(float b_prev[], float b_now[], float p_1[], float p_2[], float rball,
+                                    float b_nowadjusted[], float param[]);
 int16_t ICACHE_FLASH_ATTR  incrementifnewvert(int16_t nwi, int16_t startind, int16_t endind);
 int16_t ICACHE_FLASH_ATTR  incrementifnewhoriz(int16_t nwi, int16_t startind, int16_t endind);
 void ICACHE_FLASH_ATTR changeLevel(void);
@@ -209,7 +212,7 @@ static const uint8_t mazeBrightnesses[] =
 };
 
 
-const char * levelName[] = {"BOX", "PRACTICE", "EASY", "MIDDLE", "HARD", "KILLER", "IMPOSSIBLE"};
+const char* levelName[] = {"BOX", "PRACTICE", "EASY", "MIDDLE", "HARD", "KILLER", "IMPOSSIBLE"};
 
 /*============================================================================
  * Variables
@@ -220,14 +223,14 @@ const char * levelName[] = {"BOX", "PRACTICE", "EASY", "MIDDLE", "HARD", "KILLER
 
 swadgeMode mazerfMode =
 {
-	.modeName = "Maze",
-	.fnEnterMode = mzInit,
-	.fnExitMode = mzDeInit,
-	.fnButtonCallback = mzButtonCallback,
-	.wifiMode = NO_WIFI,
-	.fnEspNowRecvCb = NULL,
-	.fnEspNowSendCb = NULL,
-	.fnAccelerometerCallback = mzAccelerometerCallback
+    .modeName = "Maze",
+    .fnEnterMode = mzInit,
+    .fnExitMode = mzDeInit,
+    .fnButtonCallback = mzButtonCallback,
+    .wifiMode = NO_WIFI,
+    .fnEspNowRecvCb = NULL,
+    .fnEspNowSendCb = NULL,
+    .fnAccelerometerCallback = mzAccelerometerCallback
 };
 
 accel_t mzAccel = {0};
@@ -242,9 +245,9 @@ static os_timer_t timerHandleUpdate = {0};
 
 static uint32_t modeStartTime = 0; // time mode started in microseconds.
 static uint32_t stateStartTime = 0; // time the most recent state started in microseconds.
-static uint32_t deltaTime = 0;	// time elapsed since last update.
-static uint32_t modeTime = 0;	// total time the mode has been running.
-static uint32_t stateTime = 0;	// total time the game has been running.
+static uint32_t deltaTime = 0;  // time elapsed since last update.
+static uint32_t modeTime = 0;   // total time the mode has been running.
+static uint32_t stateTime = 0;  // total time the game has been running.
 
 static mazeState_t currState = MZ_TITLE;
 static mazeState_t prevState;
@@ -280,19 +283,19 @@ int16_t numwalls;
 int16_t indSolution;
 int16_t indSolutionStep;
 int16_t numwallstodraw;
-uint8_t * xleft = NULL;
-uint8_t * xright = NULL;
-uint8_t * ytop = NULL;
-uint8_t * ybot = NULL;
-uint8_t * xsol = NULL;
-uint8_t * ysol = NULL;
+uint8_t* xleft = NULL;
+uint8_t* xright = NULL;
+uint8_t* ytop = NULL;
+uint8_t* ybot = NULL;
+uint8_t* xsol = NULL;
+uint8_t* ysol = NULL;
 uint8_t flashcount = 0;
 uint8_t flashmax = 2;
 
-float * extendedScaledWallXleft = NULL;
-float * extendedScaledWallXright = NULL;
-float * extendedScaledWallYtop = NULL;
-float * extendedScaledWallYbot = NULL;
+float* extendedScaledWallXleft = NULL;
+float* extendedScaledWallXright = NULL;
+float* extendedScaledWallYtop = NULL;
+float* extendedScaledWallYbot = NULL;
 
 
 void ICACHE_FLASH_ATTR mzInit(void)
@@ -300,21 +303,21 @@ void ICACHE_FLASH_ATTR mzInit(void)
     // External from mode_dance to set brightness when using dance mode display
     setDanceBrightness(2);
     // Give us reliable button input.
-	enableDebounce(false);
+    enableDebounce(false);
 
-	// Reset mode time tracking.
-	modeStartTime = system_get_time();
-	modeTime = 0;
+    // Reset mode time tracking.
+    modeStartTime = system_get_time();
+    modeTime = 0;
 
     // Reset state stuff.
-	mzChangeState(MZ_TITLE);
+    mzChangeState(MZ_TITLE);
 
 
-   // Construct Random Maze
+    // Construct Random Maze
     changeLevel(); // will bring in PRACTICE_LEVEL
     mzNewMazeSetUp();
 
-	// Start the update loop.
+    // Start the update loop.
     os_timer_disarm(&timerHandleUpdate);
     os_timer_setfn(&timerHandleUpdate, (os_timer_func_t*)mzUpdate, NULL);
     os_timer_arm(&timerHandleUpdate, UPDATE_TIME_MS, 1);
@@ -323,10 +326,11 @@ void ICACHE_FLASH_ATTR mzInit(void)
 void ICACHE_FLASH_ATTR mzDeInit(void)
 {
     mazeFreeMemory();
-	os_timer_disarm(&timerHandleUpdate);
+    os_timer_disarm(&timerHandleUpdate);
 }
 
-void ICACHE_FLASH_ATTR mzButtonCallback(uint8_t state __attribute__((unused)), int button, int down __attribute__((unused)))
+void ICACHE_FLASH_ATTR mzButtonCallback(uint8_t state __attribute__((unused)), int button,
+                                        int down __attribute__((unused)))
 {
     switch(currState)
     {
@@ -455,7 +459,7 @@ void ICACHE_FLASH_ATTR mzButtonCallback(uint8_t state __attribute__((unused)), i
         default:
         {
             break;
-        }        
+        }
     }
 }
 
@@ -490,40 +494,40 @@ void ICACHE_FLASH_ATTR setmazeLeds(led_t* ledData, uint8_t ledDataLen)
 
 void ICACHE_FLASH_ATTR mzUpdate(void* arg __attribute__((unused)))
 {
-	// Update time tracking.
+    // Update time tracking.
     // NOTE: delta time is in microseconds.
     // UPDATE time is in milliseconds.
 
-	uint32_t newModeTime = system_get_time() - modeStartTime;
-	uint32_t newStateTime = system_get_time() - stateStartTime;
-	deltaTime = newModeTime - modeTime;
-	modeTime = newModeTime;
-	stateTime = newStateTime;
+    uint32_t newModeTime = system_get_time() - modeStartTime;
+    uint32_t newStateTime = system_get_time() - stateStartTime;
+    deltaTime = newModeTime - modeTime;
+    modeTime = newModeTime;
+    stateTime = newStateTime;
 
     // Mark what our inputs were the last time we acted on them.
     mzLastAccel = mzAccel;
 
     // Handle Game Logic (based on the state)
-	switch( currState )
+    switch( currState )
     {
         case MZ_TITLE:
         {
-			mzTitleUpdate();
+            mzTitleUpdate();
             break;
         }
         case MZ_GAME:
         {
-			mzGameUpdate();
+            mzGameUpdate();
             break;
         }
         case MZ_AUTO:
         {
-			mzAutoGameUpdate();
+            mzAutoGameUpdate();
             break;
         }
         case MZ_SCORES:
         {
-			mzScoresUpdate();
+            mzScoresUpdate();
             break;
         }
         case MZ_GAMEOVER:
@@ -535,23 +539,23 @@ void ICACHE_FLASH_ATTR mzUpdate(void* arg __attribute__((unused)))
             break;
     };
 
-	// Handle Drawing Frame (based on the state)
-	switch( currState )
+    // Handle Drawing Frame (based on the state)
+    switch( currState )
     {
         case MZ_TITLE:
         {
-			mzTitleDisplay();
+            mzTitleDisplay();
             break;
         }
         case MZ_GAME:
         case MZ_AUTO:
         {
-			mzGameDisplay();
+            mzGameDisplay();
             break;
         }
         case MZ_SCORES:
         {
-			mzScoresDisplay();
+            mzScoresDisplay();
             break;
         }
         case MZ_GAMEOVER:
@@ -569,7 +573,7 @@ void ICACHE_FLASH_ATTR mzUpdate(void* arg __attribute__((unused)))
 void ICACHE_FLASH_ATTR changeLevel(void)
 {
     switch (mazeLevel)
-        {
+    {
         case BOX_LEVEL:
             mazeLevel = PRACTICE_LEVEL;
             width = 15;
@@ -614,7 +618,7 @@ void ICACHE_FLASH_ATTR changeLevel(void)
             break;
         default:
             break;
-        }
+    }
 }
 
 
@@ -627,38 +631,38 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
 {
     float param[2];
     bool gonethruany;
-    static struct maxtime_t maze_updatedisplay_timer = { .name="maze_updateDisplay"};
+    static struct maxtime_t maze_updatedisplay_timer = { .name = "maze_updateDisplay"};
 
 
     maxTimeBegin(&maze_updatedisplay_timer);
     //#define USE_SMOOTHED_ACCEL
-    #ifdef USE_SMOOTHED_ACCEL
+#ifdef USE_SMOOTHED_ACCEL
     // Smooth accelerometer readings
-    xAccel = 0.9*xAccel + 0.1*mzAccel.x;
-    yAccel = 0.9*yAccel + 0.1*mzAccel.y;
-    zAccel = 0.9*zAccel + 0.1*mzAccel.z;
-    #else
+    xAccel = 0.9 * xAccel + 0.1 * mzAccel.x;
+    yAccel = 0.9 * yAccel + 0.1 * mzAccel.y;
+    zAccel = 0.9 * zAccel + 0.1 * mzAccel.z;
+#else
     xAccel = mzAccel.x;
     yAccel = mzAccel.y;
     zAccel = mzAccel.z;
-    #endif
+#endif
 
 
 
-    #define GETVELOCITY
-    #ifdef GETVELOCITY
+#define GETVELOCITY
+#ifdef GETVELOCITY
     // (Smoothed) Accelerometer determines velocity and does one euler step with dt = 1000.0 / UPDATE_TIME_MS
     const float dt = (float)UPDATE_TIME_MS / MS_TO_S_FACTOR;
     // Note smoothed accelerometer causes inertia making bit harder to control
     scxc = scxcprev + dt * xAccel;
     scyc = scycprev + dt * yAccel;
-    #else
+#else
     // (Smoothed) accelerometer determines position on screen
     // NOTE if not smoothed very rough motions
     // want -63 to 63 to go approx from 0 to 124 for scxc and 60 to 0 for scyc
     scxc = xAccel + 62; //xAccel/63 * 62 + 62
-    scyc = yAccel/2 + 30; //yAccel/63  + 30
-    #endif
+    scyc = yAccel / 2 + 30; //yAccel/63  + 30
+#endif
 
 
     // increment count and don't start moving till becomes zero
@@ -675,7 +679,8 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
     //Keep ball within maze boundaries.
     **************************************/
 
-    maze_printf("ENTRY\n from (%d, %d) to (%d, %d)\n", (int)(100*scxcprev), (int)(100*scycprev), (int)(100*scxc), (int)(100*scyc));
+    maze_printf("ENTRY\n from (%d, %d) to (%d, %d)\n", (int)(100 * scxcprev), (int)(100 * scycprev), (int)(100 * scxc),
+                (int)(100 * scyc));
 
     // Take at most two passes to find first hit of wall and adjust if modified directions hits second time
     int16_t iused = -1;
@@ -705,19 +710,19 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
                 gonethruany = true;
                 hitwall = true;
 
-        //DEBUG
+                //DEBUG
                 maze_printf(" Pass %d Wall %d: (%d, %d) to (%d, %d)\n from prev:(%d, %d) to now: (%d, %d)\n t=%d, s=%d, new now:(%d, %d)\n",
-                k, i,  (int)(100*p_1[0]), (int)(100*p_1[1]), (int)(100*p_2[0]), (int)(100*p_2[1]),
-                (int)(100*b_prev[0]), (int)(100*b_prev[1]), (int)(100*b_now[0]), (int)(100*b_now[1]),
-                (int)(100*param[0]), (int)(100*param[1]), (int)(100*b_nowadjusted[0]), (int)(100*b_nowadjusted[1]));
-        #ifdef MAZE_DEBUG_PRINT
+                            k, i,  (int)(100 * p_1[0]), (int)(100 * p_1[1]), (int)(100 * p_2[0]), (int)(100 * p_2[1]),
+                            (int)(100 * b_prev[0]), (int)(100 * b_prev[1]), (int)(100 * b_now[0]), (int)(100 * b_now[1]),
+                            (int)(100 * param[0]), (int)(100 * param[1]), (int)(100 * b_nowadjusted[0]), (int)(100 * b_nowadjusted[1]));
+#ifdef MAZE_DEBUG_PRINT
                 int xmeet1, xmeet2, ymeet1, ymeet2;
-                xmeet1 = 100*(b_prev[0] + param[1] * (b_now[0] - b_prev[0]));
-                ymeet1 = 100*(b_prev[1] + param[1] * (b_now[1] - b_prev[1]));
-                xmeet2 = 100*(p_1[0] + param[0] * (p_2[0] - p_1[0]));
-                ymeet2 = 100*(p_1[1] + param[0] * (p_2[1] - p_1[1]));
+                xmeet1 = 100 * (b_prev[0] + param[1] * (b_now[0] - b_prev[0]));
+                ymeet1 = 100 * (b_prev[1] + param[1] * (b_now[1] - b_prev[1]));
+                xmeet2 = 100 * (p_1[0] + param[0] * (p_2[0] - p_1[0]));
+                ymeet2 = 100 * (p_1[1] + param[0] * (p_2[1] - p_1[1]));
                 maze_printf("on motion vector meet (%d, %d) =? (%d, %d) on boundary\n\n", xmeet1, ymeet1, xmeet2, ymeet2);
-        #endif
+#endif
                 if (param[1] < smin)
                 {
                     smin = param[1];
@@ -739,15 +744,20 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
                 scyc = b_nowadjusteduse[1];
                 scxcprev = closestintersection[0];
                 scycprev = closestintersection[1];
-            } else {
+            }
+            else
+            {
                 scxc = closestintersection[0];
                 scyc = closestintersection[1];
             }
-        } else {
+        }
+        else
+        {
             break;
         }
-        maze_printf("pass %d end at (%d, %d)\n", k, (int)(100*scxc), (int)(100*scyc));
-        maze_printf("    closest intersection at wall %d with s = %d at (%d, %d)\n", iused, (int)(100*smin), (int)(100*closestintersection[0]), (int)(100*closestintersection[1]));
+        maze_printf("pass %d end at (%d, %d)\n", k, (int)(100 * scxc), (int)(100 * scyc));
+        maze_printf("    closest intersection at wall %d with s = %d at (%d, %d)\n", iused, (int)(100 * smin),
+                    (int)(100 * closestintersection[0]), (int)(100 * closestintersection[1]));
 
     } // end two try loop
 
@@ -762,7 +772,9 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
         leds[LED_UPPER_MID].g = 127;
         leds[LED_UPPER_MID].r = 127;
         totalhitstilldone++;
-    } else {
+    }
+    else
+    {
         leds[LED_UPPER_MID].g = 0;
         leds[LED_UPPER_MID].r = 0;
     }
@@ -771,7 +783,8 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
     {
         leds[LED_LOWER_MID].g = 32;
         leds[LED_LOWER_MID].r = 90;
-    } else
+    }
+    else
     {
         leds[LED_LOWER_MID].g = 0;
         leds[LED_LOWER_MID].r = 0;
@@ -783,12 +796,12 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
     // Get rare teleportation
     // but don't seem to always do so this hack
     // with TELEPORT FIX dont need this hack
-/* DEBUG try to observe telportation
-    scxc = min(scxc, scxcexit);
-    scxc = max(scxc, rballused);
-    scyc = min(scyc, scycexit);
-    scyc = max(scyc, rballused);
-*/
+    /* DEBUG try to observe telportation
+        scxc = min(scxc, scxcexit);
+        scxc = max(scxc, rballused);
+        scyc = min(scyc, scycexit);
+        scyc = max(scyc, rballused);
+    */
     // Update previous location for next cycle
 
     scxcprev = scxc;
@@ -797,7 +810,7 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
     leds[ledExitInd[exitInd]].g = 127;
 
     // Test if at exit (bottom right corner) thus finished
-     if ((round(scxc) == round(scxcexits[exitInd])) && (round(scyc) == round(scycexits[exitInd])))
+    if ((round(scxc) == round(scxcexits[exitInd])) && (round(scyc) == round(scycexits[exitInd])))
     {
         leds[ledExitInd[exitInd]].r = 255;
         leds[ledExitInd[exitInd]].g = 0;
@@ -816,10 +829,11 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
             float rollingTime = UPDATE_TIME_MS  * (float)totalhitstilldone / MS_TO_S_FACTOR;
             float incorridorTime = totalTime - rollingTime;
             float adjustedTime = incorridorTime + wiggleroom * rollingTime;
-            os_printf("Time to complete maze %d, in corridor %d on walls %d adj %d \n", (int)(100*totalTime), (int)(100*incorridorTime), (int)(100*rollingTime), (int)(100*adjustedTime));
+            os_printf("Time to complete maze %d, in corridor %d on walls %d adj %d \n", (int)(100 * totalTime),
+                      (int)(100 * incorridorTime), (int)(100 * rollingTime), (int)(100 * adjustedTime));
 
             score = 100.0 * numwallstodraw * numwallstodraw / adjustedTime;
-            os_printf("Score %d, Cycles to complete maze %d, time on walls %d\n",score, totalcyclestilldone, totalhitstilldone);
+            os_printf("Score %d, Cycles to complete maze %d, time on walls %d\n", score, totalcyclestilldone, totalhitstilldone);
             gameover = true;
             // Clear Wall and Corner Hit Indicators
             leds[LED_UPPER_MID].g = 0;
@@ -848,14 +862,20 @@ void ICACHE_FLASH_ATTR mzAutoGameUpdate(void)
     {
         scxc = scxcprev;
         scyc = scycprev;
-    } else {
+    }
+    else
+    {
         scxc = xsol[indSolutionStep];
         scyc = ysol[indSolutionStep];
         indSolutionStep++;
-        if (indSolutionStep > indSolution) gameover = true;
+        if (indSolutionStep > indSolution)
+        {
+            gameover = true;
+        }
     }
 
-    maze_printf("ENTRY\n from (%d, %d) to (%d, %d)\n", (int)(100*scxcprev), (int)(100*scycprev), (int)(100*scxc), (int)(100*scyc));
+    maze_printf("ENTRY\n from (%d, %d) to (%d, %d)\n", (int)(100 * scxcprev), (int)(100 * scycprev), (int)(100 * scxc),
+                (int)(100 * scyc));
 
     // Update previous location for next cycle
 
@@ -884,10 +904,11 @@ void ICACHE_FLASH_ATTR mzAutoGameUpdate(void)
             float rollingTime = 0; //UPDATE_TIME_MS  * (float)totalhitstilldone / MS_TO_S_FACTOR;
             float incorridorTime = totalTime - rollingTime;
             float adjustedTime = incorridorTime + wiggleroom * rollingTime;
-            os_printf("Time to auto complete maze %d, in corridor %d on walls %d adj %d \n", (int)(100*totalTime), (int)(100*incorridorTime), (int)(100*rollingTime), (int)(100*adjustedTime));
+            os_printf("Time to auto complete maze %d, in corridor %d on walls %d adj %d \n", (int)(100 * totalTime),
+                      (int)(100 * incorridorTime), (int)(100 * rollingTime), (int)(100 * adjustedTime));
 
             score = 100.0 * numwallstodraw * numwallstodraw / adjustedTime;
-            os_printf("Score %d, Cycles to complete maze %d, time on walls %d\n",score, totalcyclestilldone, totalhitstilldone);
+            os_printf("Score %d, Cycles to complete maze %d, time on walls %d\n", score, totalcyclestilldone, totalhitstilldone);
             gameover = true;
             // Clear Wall and Corner Hit Indicators
             leds[LED_UPPER_MID].g = 0;
@@ -926,17 +947,18 @@ void ICACHE_FLASH_ATTR mzGameoverUpdate(void)
 
 void ICACHE_FLASH_ATTR mzTitleDisplay(void)
 {
-	// Clear the display.
+    // Clear the display.
     clearDisplay();
 
     // MAG MAZE
     plotText(20, 5, "MAG MAZE", RADIOSTARS, WHITE);
 
-    plotCenteredText(0, OLED_HEIGHT/2, 127, (char*)levelName[mazeLevel], IBM_VGA_8, WHITE);
+    plotCenteredText(0, OLED_HEIGHT / 2, 127, (char*)levelName[mazeLevel], IBM_VGA_8, WHITE);
 
     // SCORES   START
     plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "SCORES", IBM_VGA_8, WHITE);
-    plotText(OLED_WIDTH - getTextWidth("START", IBM_VGA_8), OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "START", IBM_VGA_8, WHITE);
+    plotText(OLED_WIDTH - getTextWidth("START", IBM_VGA_8), OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "START",
+             IBM_VGA_8, WHITE);
 
 
 }
@@ -950,17 +972,21 @@ void ICACHE_FLASH_ATTR mzGameDisplay(void)
     // Draw all walls of maze adjusted to be centered on screen
     for (int16_t i = 0; i < numwallstodraw; i++)
     {
-        plotLine(mazescalex*xleft[i]+xadj, mazescaley*ybot[i]+yadj, mazescalex*xright[i]+xadj, mazescaley*ytop[i]+yadj, WHITE);
+        plotLine(mazescalex * xleft[i] + xadj, mazescaley * ybot[i] + yadj, mazescalex * xright[i] + xadj,
+                 mazescaley * ytop[i] + yadj, WHITE);
     }
 
 
     // Show all exits
-    for (uint8_t i = 0; i<4; i++)
+    for (uint8_t i = 0; i < 4; i++)
     {
         plotCircle(round(scxcexits[i]) + xadj, round(scycexits[i]) + yadj, 2, WHITE);
     }
     // Blink exit currently heading for
-    if (flashcount >= flashmax/2) plotCircle(round(scxcexits[exitInd]) + xadj, round(scycexits[exitInd]) + yadj, 2, INVERSE);
+    if (flashcount >= flashmax / 2)
+    {
+        plotCircle(round(scxcexits[exitInd]) + xadj, round(scycexits[exitInd]) + yadj, 2, INVERSE);
+    }
 
 
     // Draw the ball ajusted to fit in maze centered on screen
@@ -977,20 +1003,34 @@ void ICACHE_FLASH_ATTR mzGameDisplay(void)
     {
         if (mazeLevel >= KILLER_LEVEL)
         {
-            if (flashcount < flashmax/2) plotRect(round(scxc) + xadj - 1, round(scyc) + yadj - 1, round(scxc) + xadj + 1, round(scyc) + yadj + 1, WHITE);
-        } else {
-            if (flashcount >= flashmax/2) plotRect(round(scxc) + xadj - 1, round(scyc) + yadj - 1, round(scxc) + xadj + 1, round(scyc) + yadj + 1, WHITE);
+            if (flashcount < flashmax / 2)
+            {
+                plotRect(round(scxc) + xadj - 1, round(scyc) + yadj - 1, round(scxc) + xadj + 1, round(scyc) + yadj + 1, WHITE);
+            }
+        }
+        else
+        {
+            if (flashcount >= flashmax / 2)
+            {
+                plotRect(round(scxc) + xadj - 1, round(scyc) + yadj - 1, round(scxc) + xadj + 1, round(scyc) + yadj + 1, WHITE);
+            }
         }
     }
-    if (flashcount < flashmax/2) plotCircle(round(scxc) + xadj, round(scyc) + yadj, 0, WHITE);
+    if (flashcount < flashmax / 2)
+    {
+        plotCircle(round(scxc) + xadj, round(scyc) + yadj, 0, WHITE);
+    }
     flashcount++;
-    if (flashcount > flashmax) flashcount = 0;
+    if (flashcount > flashmax)
+    {
+        flashcount = 0;
+    }
 
     setmazeLeds(leds, sizeof(leds));
 
     newHighScore = score > highScores[0];
     //plotCenteredText(0, 0, 10, newHighScore ? "HIGH (NEW!)" : "HIGH", TOM_THUMB, WHITE);
-    plotText(0,59, "AUTO", TOM_THUMB, WHITE);
+    plotText(0, 59, "AUTO", TOM_THUMB, WHITE);
     plotText(OLED_WIDTH - getTextWidth("RESTART", TOM_THUMB), 59, "RESTART", TOM_THUMB, WHITE);
     ets_snprintf(uiStr, sizeof(uiStr), "%d secs", totalcyclestilldone * UPDATE_TIME_MS / MS_TO_S_FACTOR);
     plotCenteredText(0, 59, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
@@ -1012,19 +1052,19 @@ void ICACHE_FLASH_ATTR mzScoresDisplay(void)
     char uiStr[32] = {0};
     // 1. 99999
     ets_snprintf(uiStr, sizeof(uiStr), "1. %d", highScores[0]);
-    plotCenteredText(0, (3*FONT_HEIGHT_TOMTHUMB)+1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
+    plotCenteredText(0, (3 * FONT_HEIGHT_TOMTHUMB) + 1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
 
     // 2. 99999
     ets_snprintf(uiStr, sizeof(uiStr), "2. %d", highScores[1]);
-    plotCenteredText(0, (5*FONT_HEIGHT_TOMTHUMB)+1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
+    plotCenteredText(0, (5 * FONT_HEIGHT_TOMTHUMB) + 1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
 
     // 3. 99999
     ets_snprintf(uiStr, sizeof(uiStr), "3. %d", highScores[2]);
-    plotCenteredText(0, (7*FONT_HEIGHT_TOMTHUMB)+1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
+    plotCenteredText(0, (7 * FONT_HEIGHT_TOMTHUMB) + 1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
 
     // YOUR LAST SCORE:
     ets_snprintf(uiStr, sizeof(uiStr), "YOUR LAST SCORE: %d", mzGetLastScore());
-    plotCenteredText(0, (9*FONT_HEIGHT_TOMTHUMB)+1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
+    plotCenteredText(0, (9 * FONT_HEIGHT_TOMTHUMB) + 1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
 
 
     //TODO: explicitly add a hold to the text, or is the inverse effect enough.
@@ -1035,40 +1075,41 @@ void ICACHE_FLASH_ATTR mzScoresDisplay(void)
     if (clearScoreTimer != 0)
     {
         double holdProgress = ((double)clearScoreTimer / (double)CLEAR_SCORES_HOLD_TIME);
-        uint8_t holdFill = (uint8_t)(holdProgress * (getTextWidth("CLEAR SCORES", TOM_THUMB)+2));
+        uint8_t holdFill = (uint8_t)(holdProgress * (getTextWidth("CLEAR SCORES", TOM_THUMB) + 2));
         fillDisplayArea(0, (OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1))) - 1, holdFill, OLED_HEIGHT, INVERSE);
     }
 
-    plotText(OLED_WIDTH - getTextWidth("TITLE", TOM_THUMB) - 1, OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1)), "TITLE", TOM_THUMB, WHITE);
+    plotText(OLED_WIDTH - getTextWidth("TITLE", TOM_THUMB) - 1, OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1)), "TITLE",
+             TOM_THUMB, WHITE);
 }
 
 void ICACHE_FLASH_ATTR mzGameoverDisplay(void)
 {
     switch (mazeLevel)
     {
-    case BOX_LEVEL:
-        danceTimerMode1(NULL);
-        break;
-    case PRACTICE_LEVEL:
-        danceTimerMode2(NULL);
-        break;
-    case EASY_LEVEL:
-        danceTimerMode3(NULL);
-        break;
-    case MIDDLE_LEVEL:
-        danceTimerMode4(NULL);
-        break;
-    case HARD_LEVEL:
-        danceTimerMode13(NULL);
-        break;
-    case KILLER_LEVEL:
-        danceTimerMode16(NULL);
-        break;
-    case IMPOSSIBLE_LEVEL:
-        danceTimerMode17(NULL);
-        break;
-    default:
-        break;
+        case BOX_LEVEL:
+            danceTimerMode1(NULL);
+            break;
+        case PRACTICE_LEVEL:
+            danceTimerMode2(NULL);
+            break;
+        case EASY_LEVEL:
+            danceTimerMode3(NULL);
+            break;
+        case MIDDLE_LEVEL:
+            danceTimerMode4(NULL);
+            break;
+        case HARD_LEVEL:
+            danceTimerMode13(NULL);
+            break;
+        case KILLER_LEVEL:
+            danceTimerMode16(NULL);
+            break;
+        case IMPOSSIBLE_LEVEL:
+            danceTimerMode17(NULL);
+            break;
+        default:
+            break;
     }
     //random_dance_mode(); //didn't work
 
@@ -1091,26 +1132,31 @@ void ICACHE_FLASH_ATTR mzGameoverDisplay(void)
     plotRect(windowXMargin, windowYMarginTop, OLED_WIDTH - windowXMargin, OLED_HEIGHT - windowYMarginBot, WHITE);
 
     // GAME OVER
-    plotCenteredText(windowXMargin, windowYMarginTop + titleTextYOffset, OLED_WIDTH - windowXMargin, "GAME OVER", IBM_VGA_8, WHITE);
+    plotCenteredText(windowXMargin, windowYMarginTop + titleTextYOffset, OLED_WIDTH - windowXMargin, "GAME OVER", IBM_VGA_8,
+                     WHITE);
 
     // HIGH SCORE! or YOUR SCORE:
     if (newHighScore)
     {
-        plotCenteredText(windowXMargin, windowYMarginTop + highScoreTextYOffset, OLED_WIDTH - windowXMargin, "HIGH SCORE!", TOM_THUMB, WHITE);
+        plotCenteredText(windowXMargin, windowYMarginTop + highScoreTextYOffset, OLED_WIDTH - windowXMargin, "HIGH SCORE!",
+                         TOM_THUMB, WHITE);
     }
     else
     {
-        plotCenteredText(windowXMargin, windowYMarginTop + highScoreTextYOffset, OLED_WIDTH - windowXMargin, "YOUR SCORE:", TOM_THUMB, WHITE);
+        plotCenteredText(windowXMargin, windowYMarginTop + highScoreTextYOffset, OLED_WIDTH - windowXMargin, "YOUR SCORE:",
+                         TOM_THUMB, WHITE);
     }
 
     // 1230495
     char scoreStr[32] = {0};
     ets_snprintf(scoreStr, sizeof(scoreStr), "%d", score);
-    plotCenteredText(windowXMargin, windowYMarginTop + scoreTextYOffset, OLED_WIDTH - windowXMargin, scoreStr, IBM_VGA_8, WHITE);
+    plotCenteredText(windowXMargin, windowYMarginTop + scoreTextYOffset, OLED_WIDTH - windowXMargin, scoreStr, IBM_VGA_8,
+                     WHITE);
 
     // TITLE    RESTART
     plotText(windowXMargin + controlTextXPadding, controlTextYOffset, "NEW LEVEL", TOM_THUMB, WHITE);
-    plotText(OLED_WIDTH - windowXMargin - getTextWidth("SAME LEVEL", TOM_THUMB) - controlTextXPadding, controlTextYOffset, "SAME LEVEL", TOM_THUMB, WHITE);
+    plotText(OLED_WIDTH - windowXMargin - getTextWidth("SAME LEVEL", TOM_THUMB) - controlTextXPadding, controlTextYOffset,
+             "SAME LEVEL", TOM_THUMB, WHITE);
 }
 
 // helper functions.
@@ -1125,12 +1171,12 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
 {
     //Allocate some working array memory now
     //TODO is memory being freed up appropriately?
-    xleft = (uint8_t *)malloc (sizeof (uint8_t) * MAXNUMWALLS);
-    xright = (uint8_t *)malloc (sizeof (uint8_t) * MAXNUMWALLS);
-    ytop = (uint8_t *)malloc (sizeof (uint8_t) * MAXNUMWALLS);
-    ybot = (uint8_t *)malloc (sizeof (uint8_t) * MAXNUMWALLS);
-    xsol = (uint8_t *)malloc (sizeof (uint8_t) * width * (height+1) / 2);
-    ysol = (uint8_t *)malloc (sizeof (uint8_t) * width * (height+1) / 2);
+    xleft = (uint8_t*)malloc (sizeof (uint8_t) * MAXNUMWALLS);
+    xright = (uint8_t*)malloc (sizeof (uint8_t) * MAXNUMWALLS);
+    ytop = (uint8_t*)malloc (sizeof (uint8_t) * MAXNUMWALLS);
+    ybot = (uint8_t*)malloc (sizeof (uint8_t) * MAXNUMWALLS);
+    xsol = (uint8_t*)malloc (sizeof (uint8_t) * width * (height + 1) / 2);
+    ysol = (uint8_t*)malloc (sizeof (uint8_t) * width * (height + 1) / 2);
     int16_t i;
     int16_t startvert = 0;
     get_maze_output_t out;
@@ -1144,15 +1190,16 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     system_print_meminfo();
     os_printf("Free Heap %d\n", system_get_free_heap_size());
 
-    mazescalex = 127/width;
-    mazescaley = 63/height;
+    mazescalex = 127 / width;
+    mazescaley = 63 / height;
 
     // This is the biggest rballused could be and then the ball will completely fill some corridors
     //    so for such a maze, it would be impossible to avoid touch walls.
     // Compute number of maximum pixels between ball and wall.
-    wiggleroom = 2*(min(mazescalex, mazescaley) - rballused);
+    wiggleroom = 2 * (min(mazescalex, mazescaley) - rballused);
 
-    os_printf("width:%d, height:%d mscx:%d mscy:%d rball:%d wiggleroom %d\n", width, height, mazescalex, mazescaley, (int)rballused, (int)wiggleroom);
+    os_printf("width:%d, height:%d mscx:%d mscy:%d rball:%d wiggleroom %d\n", width, height, mazescalex, mazescaley,
+              (int)rballused, (int)wiggleroom);
 
 
     // initial position in center
@@ -1168,7 +1215,7 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     // exit is bottom right corner
 
     exitInd = UPPER_LEFT;
-    for (exitSpot_t ix = 0; ix<4;ix++)
+    for (exitSpot_t ix = 0; ix < 4; ix++)
     {
         exitHit[ix] = false;
     }
@@ -1183,13 +1230,13 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     scxcexits[UPPER_RIGHT] = mazescalex * (width - 1) - rballused;
     scycexits[UPPER_RIGHT] = rballused;
 
-    xadj = 0.5 + (127 - scxcexits[LOWER_RIGHT] - rballused)/2;
+    xadj = 0.5 + (127 - scxcexits[LOWER_RIGHT] - rballused) / 2;
     //yadj = 0.5 + (63 - scycexits[LOWER_RIGHT] - rballused)/2;
     yadj = 0;
     os_printf("initpt (%d, %d)\n", (int)scxcprev, (int)scycprev);
     for (i = 0; i < 4; i++)
     {
-        os_printf("exit corner %d (%d, %d)\n",i, (int)scxcexits[i], (int)scycexits[i]);
+        os_printf("exit corner %d (%d, %d)\n", i, (int)scxcexits[i], (int)scycexits[i]);
     }
 
 
@@ -1200,13 +1247,17 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     numwalls = out.indwall;
     indSolution = out.indSolution;
     // xleft, xright, ybot, ytop are lists of boundary intervals making maze
-    if (numwalls > MAXNUMWALLS) os_printf("numwalls = %d exceeds MAXNUMWALLS = %d", numwalls, MAXNUMWALLS);
+    if (numwalls > MAXNUMWALLS)
+    {
+        os_printf("numwalls = %d exceeds MAXNUMWALLS = %d", numwalls, MAXNUMWALLS);
+    }
     numwallstodraw = numwalls;
 
     // print scaled walls
     for (i = 0; i < numwalls; i++)
     {
-        maze_printf("i %d (%d, %d) to (%d, %d)\n", i, mazescalex*xleft[i], mazescaley*ybot[i], mazescalex*xright[i], mazescaley*ytop[i]);
+        maze_printf("i %d (%d, %d) to (%d, %d)\n", i, mazescalex * xleft[i], mazescaley * ybot[i], mazescalex * xright[i],
+                    mazescaley * ytop[i]);
     }
 
     // print solutions
@@ -1219,10 +1270,10 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     //Allocate some more working array memory now
     //TODO is memory being freed up appropriately?
 
-    extendedScaledWallXleft = (float *)malloc (sizeof (float) * MAXNUMWALLS);
-    extendedScaledWallXright = (float *)malloc (sizeof (float) * MAXNUMWALLS);
-    extendedScaledWallYtop = (float *)malloc (sizeof (float) * MAXNUMWALLS);
-    extendedScaledWallYbot = (float *)malloc (sizeof (float) * MAXNUMWALLS);
+    extendedScaledWallXleft = (float*)malloc (sizeof (float) * MAXNUMWALLS);
+    extendedScaledWallXright = (float*)malloc (sizeof (float) * MAXNUMWALLS);
+    extendedScaledWallYtop = (float*)malloc (sizeof (float) * MAXNUMWALLS);
+    extendedScaledWallYbot = (float*)malloc (sizeof (float) * MAXNUMWALLS);
 
     os_printf("After Working Arrays allocated Free Heap %d\n", system_get_free_heap_size());
     // extend the scaled walls
@@ -1235,7 +1286,7 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     // to telport at corners extend walls
     // Also if rball is such that it fits tightly in corridors, this also makes it hard to get thru gaps
     //    and could be relaxed to 0.75 maybe
-    const float slightlyLessThanOne = 1.0 - 1.0/128.; // used 0.99
+    const float slightlyLessThanOne = 1.0 - 1.0 / 128.; // used 0.99
     for (i = 0; i < numwalls; i++)
     {
         if (mazescaley * ybot[i] == mazescaley * ytop[i]) // horizontal wall
@@ -1244,15 +1295,17 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
             extendedScaledWallYtop[i] = mazescaley * ytop[i];
             extendedScaledWallXleft[i] = mazescalex * xleft[i] - slightlyLessThanOne * rballused;
             extendedScaledWallXright[i] = mazescalex * xright[i] + slightlyLessThanOne * rballused;
-        } else {
-            if ((mazescaley * ybot[i] < mazescaley * ytop[i]) && (startvert==0))
+        }
+        else
+        {
+            if ((mazescaley * ybot[i] < mazescaley * ytop[i]) && (startvert == 0))
             {
                 startvert = i;
             }
             extendedScaledWallXleft[i] = mazescalex * xleft[i];
             extendedScaledWallXright[i] = mazescalex * xright[i];
-            extendedScaledWallYbot[i] = mazescaley * ybot[i] - slightlyLessThanOne*rballused;
-            extendedScaledWallYtop[i] = mazescaley * ytop[i] + slightlyLessThanOne*rballused;
+            extendedScaledWallYbot[i] = mazescaley * ybot[i] - slightlyLessThanOne * rballused;
+            extendedScaledWallYtop[i] = mazescaley * ytop[i] + slightlyLessThanOne * rballused;
         }
     }
     int16_t nwi = numwalls; //new wall index starts here
@@ -1267,30 +1320,39 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
         {
             // possible extra vertical walls crossing either end
             extendedScaledWallXleft[nwi] = mazescalex * xleft[i];
-            extendedScaledWallYbot[nwi] = mazescaley * ybot[i] - slightlyLessThanOne*rballused;
+            extendedScaledWallYbot[nwi] = mazescaley * ybot[i] - slightlyLessThanOne * rballused;
             extendedScaledWallXright[nwi] = mazescalex * xleft[i];
-            extendedScaledWallYtop[nwi] = mazescaley * ybot[i] + slightlyLessThanOne*rballused;
-            nwi = incrementifnewvert(nwi, startvert, numwalls); //, extendedScaledWallXleft, extendedScaledWallYbot, extendedScaledWallXright, extendedScaledWallYtop);
+            extendedScaledWallYtop[nwi] = mazescaley * ybot[i] + slightlyLessThanOne * rballused;
+            nwi = incrementifnewvert(nwi, startvert,
+                                     numwalls); //, extendedScaledWallXleft, extendedScaledWallYbot, extendedScaledWallXright, extendedScaledWallYtop);
             extendedScaledWallXleft[nwi] = mazescalex * xright[i];
-            extendedScaledWallYbot[nwi] = mazescaley * ybot[i] - slightlyLessThanOne*rballused;
-            extendedScaledWallXright[nwi] =mazescalex * xright[i];
-            extendedScaledWallYtop[nwi] = mazescaley * ybot[i] + slightlyLessThanOne*rballused;
-            nwi = incrementifnewvert(nwi, startvert, numwalls); //, extendedScaledWallXleft, extendedScaledWallYbot, extendedScaledWallXright, extendedScaledWallYtop);
-        } else {
+            extendedScaledWallYbot[nwi] = mazescaley * ybot[i] - slightlyLessThanOne * rballused;
+            extendedScaledWallXright[nwi] = mazescalex * xright[i];
+            extendedScaledWallYtop[nwi] = mazescaley * ybot[i] + slightlyLessThanOne * rballused;
+            nwi = incrementifnewvert(nwi, startvert,
+                                     numwalls); //, extendedScaledWallXleft, extendedScaledWallYbot, extendedScaledWallXright, extendedScaledWallYtop);
+        }
+        else
+        {
             // possible extra horizontal walls crossing either end
-            extendedScaledWallXleft[nwi] = mazescalex * xleft[i]- slightlyLessThanOne*rballused;
+            extendedScaledWallXleft[nwi] = mazescalex * xleft[i] - slightlyLessThanOne * rballused;
             extendedScaledWallYbot[nwi] = mazescaley * ybot[i];
-            extendedScaledWallXright[nwi] = mazescalex * xleft[i] + slightlyLessThanOne*rballused;
+            extendedScaledWallXright[nwi] = mazescalex * xleft[i] + slightlyLessThanOne * rballused;
             extendedScaledWallYtop[nwi] = mazescaley * ybot[i];
-            nwi = incrementifnewhoriz(nwi, 0, startvert); //, extendedScaledWallXleft, extendedScaledWallYbot, extendedScaledWallXright, extendedScaledWallYtop);
-            extendedScaledWallXleft[nwi] = mazescalex * xleft[i]- slightlyLessThanOne*rballused;
+            nwi = incrementifnewhoriz(nwi, 0,
+                                      startvert); //, extendedScaledWallXleft, extendedScaledWallYbot, extendedScaledWallXright, extendedScaledWallYtop);
+            extendedScaledWallXleft[nwi] = mazescalex * xleft[i] - slightlyLessThanOne * rballused;
             extendedScaledWallYbot[nwi] = mazescaley * ytop[i];
-            extendedScaledWallXright[nwi] = mazescalex * xleft[i] + slightlyLessThanOne*rballused;
+            extendedScaledWallXright[nwi] = mazescalex * xleft[i] + slightlyLessThanOne * rballused;
             extendedScaledWallYtop[nwi] = mazescaley * ytop[i];
-            nwi = incrementifnewhoriz(nwi, 0, startvert); //, extendedScaledWallXleft, extendedScaledWallYbot, extendedScaledWallXright, extendedScaledWallYtop);
+            nwi = incrementifnewhoriz(nwi, 0,
+                                      startvert); //, extendedScaledWallXleft, extendedScaledWallYbot, extendedScaledWallXright, extendedScaledWallYtop);
         }
     }
-    if (nwi > MAXNUMWALLS) os_printf("nwi = %d exceeds MAXNUMWALLS = %d", nwi, MAXNUMWALLS);
+    if (nwi > MAXNUMWALLS)
+    {
+        os_printf("nwi = %d exceeds MAXNUMWALLS = %d", nwi, MAXNUMWALLS);
+    }
     maze_printf("orginal numwalls = %d, with stoppers have %d\n", numwalls, nwi);
     // update numwalls
     numwalls = nwi;
@@ -1316,10 +1378,10 @@ void ICACHE_FLASH_ATTR mazeFreeMemory(void)
 
 void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState)
 {
-	prevState = currState;
+    prevState = currState;
     currState = newState;
-	stateStartTime = system_get_time();
-	stateTime = 0;
+    stateStartTime = system_get_time();
+    stateTime = 0;
 
     switch( currState )
     {
@@ -1350,7 +1412,10 @@ void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState)
             if (prevState != MZ_AUTO)
             {
                 newHighScore = updateHighScores(score);
-                if (newHighScore) saveHighScores();
+                if (newHighScore)
+                {
+                    saveHighScores();
+                }
                 // Save out the last score.
                 mzSetLastScore(score);
             }
@@ -1362,11 +1427,13 @@ void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState)
 
 int16_t ICACHE_FLASH_ATTR  incrementifnewvert(int16_t nwi, int16_t startind, int16_t endind)
 {
-// nwi is new vertical wall index
-// increment nwi only if no extended vertical walls contain it.
+    // nwi is new vertical wall index
+    // increment nwi only if no extended vertical walls contain it.
     for (int16_t i = startind; i < endind; i++)
     {
-        if ((extendedScaledWallXright[nwi] == extendedScaledWallXright[i]) && (extendedScaledWallYbot[i] <= extendedScaledWallYbot[nwi]) && (extendedScaledWallYtop[i] >= extendedScaledWallYtop[nwi]))
+        if ((extendedScaledWallXright[nwi] == extendedScaledWallXright[i])
+                && (extendedScaledWallYbot[i] <= extendedScaledWallYbot[nwi])
+                && (extendedScaledWallYtop[i] >= extendedScaledWallYtop[nwi]))
         {
             // found containing extended vertical wall
             return nwi;
@@ -1377,11 +1444,13 @@ int16_t ICACHE_FLASH_ATTR  incrementifnewvert(int16_t nwi, int16_t startind, int
 
 int16_t ICACHE_FLASH_ATTR  incrementifnewhoriz(int16_t nwi, int16_t startind, int16_t endind)
 {
-// nwi is  new horizontal wall index
-// increment nwi only if no extended horizontal walls contain it.
+    // nwi is  new horizontal wall index
+    // increment nwi only if no extended horizontal walls contain it.
     for (int16_t i = startind; i < endind; i++)
     {
-        if ((extendedScaledWallYtop[nwi] == extendedScaledWallYtop[i]) && (extendedScaledWallXleft[i] <= extendedScaledWallXleft[nwi]) && (extendedScaledWallXright[i] >= extendedScaledWallXright[nwi]))
+        if ((extendedScaledWallYtop[nwi] == extendedScaledWallYtop[i])
+                && (extendedScaledWallXleft[i] <= extendedScaledWallXleft[nwi])
+                && (extendedScaledWallXright[i] >= extendedScaledWallXright[nwi]))
         {
             // found containing extended horizontal wall
             return nwi;
@@ -1394,7 +1463,7 @@ int16_t ICACHE_FLASH_ATTR  incrementifnewhoriz(int16_t nwi, int16_t startind, in
  * Linear Alg Find Intersection of line segments
  */
 
-uint8_t ICACHE_FLASH_ATTR intervalsmeet(float a,float c,float b,float d,float e,float f, float param[])
+uint8_t ICACHE_FLASH_ATTR intervalsmeet(float a, float c, float b, float d, float e, float f, float param[])
 {
     // given two points p_1, p_2 in the (x,y) plane specifying a line interval from p_1 to p_2
     //.    parameterized by t
@@ -1412,25 +1481,38 @@ uint8_t ICACHE_FLASH_ATTR intervalsmeet(float a,float c,float b,float d,float e,
     // param = [t, s]
     // returns True
 
-    float det = -a*d + b*c;
-    if (det == 0) return false;
-    float t = (-e*d + f*b) / det; // t is param of interval
-    float s = (a*f - c*e) / det; //s is param of interval from b_prev to b_now
+    float det = -a * d + b * c;
+    if (det == 0)
+    {
+        return false;
+    }
+    float t = (-e * d + f * b) / det; // t is param of interval
+    float s = (a * f - c * e) / det; //s is param of interval from b_prev to b_now
     param[0] = t;
     param[1] = s;
     //if ((t < -0.05) || (t > 1.05)) return false;
     //if ((s < -0.05) || (s > 1.05)) return false;
-    if ((t < 0) || (t > 1)) return false; // wall parameter out of bounds
+    if ((t < 0) || (t > 1))
+    {
+        return false;    // wall parameter out of bounds
+    }
 
     //if ((s < 0) || (s > 1)) return false; // cause teleportation
     //TELEPORT FIX
-    if ((s < -0.001) || (s > 1)) return false; // motion parameter out of bounds
+    if ((s < -0.001) || (s > 1))
+    {
+        return false;    // motion parameter out of bounds
+    }
     //maze_printf("t = %d, s = %d\n", (int8_t) (100*t), (int8_t) (100*s));
-    if (s < 0) os_printf("very small NEGATIVE motion parameter s = %d/10000 so said goes thru\n", (int)(10000*s));
+    if (s < 0)
+    {
+        os_printf("very small NEGATIVE motion parameter s = %d/10000 so said goes thru\n", (int)(10000 * s));
+    }
     return true;
 }
 
-uint8_t ICACHE_FLASH_ATTR  gonethru(float b_prev[], float b_now[], float p_1[], float p_2[], float rball, float b_nowadjusted[], float param[])
+uint8_t ICACHE_FLASH_ATTR  gonethru(float b_prev[], float b_now[], float p_1[], float p_2[], float rball,
+                                    float b_nowadjusted[], float param[])
 {
     // given two points p_1, p_2 in the (x,y) plane specifying a line interval from p_1 to p_2
     // a moving object (ball of radius rball, or point if rball is None)
@@ -1448,8 +1530,8 @@ uint8_t ICACHE_FLASH_ATTR  gonethru(float b_prev[], float b_now[], float p_1[], 
     b_nowadjusted[1] = b_now[1];
     //Find vector perpendicular to the wall
     //TODO could compute ppperp in mazeEnterMode to save time but take more space
-    pperp[0] = p_2[1]-p_1[1];
-    pperp[1] = p_1[0]-p_2[0];
+    pperp[0] = p_2[1] - p_1[1];
+    pperp[1] = p_1[0] - p_2[0];
 
     float pperplen = sqrt(pperp[0] * pperp[0] + pperp[1] * pperp[1]);
 
@@ -1467,14 +1549,23 @@ uint8_t ICACHE_FLASH_ATTR  gonethru(float b_prev[], float b_now[], float p_1[], 
     float testdir = pperp[0] * (b_now[0] - b_prev[0]) + pperp[1] * (b_now[1] - b_prev[1]);
     // Originally had if (testdir == 0.00) return false; // cause of teleportation
     //TELEPORT FIX
-    if (fabs(testdir) < 0.001) return false;
+    if (fabs(testdir) < 0.001)
+    {
+        return false;
+    }
 
     //os_printf("%d ", (int)(1000*testdir));
 
     if (testdir > 0) // > for leading edge , < for trailing edge
-        didgothru =  intervalsmeet(p_2[0]-p_1[0], p_2[1]-p_1[1], b_now[0]-b_prev[0], b_now[1]-b_prev[1], b_prev[0] + rball*pperp[0] - p_1[0], b_prev[1] + rball*pperp[1] - p_1[1], param);
+    {
+        didgothru =  intervalsmeet(p_2[0] - p_1[0], p_2[1] - p_1[1], b_now[0] - b_prev[0], b_now[1] - b_prev[1],
+                                   b_prev[0] + rball * pperp[0] - p_1[0], b_prev[1] + rball * pperp[1] - p_1[1], param);
+    }
     else
-        didgothru = intervalsmeet(p_2[0]-p_1[0], p_2[1]-p_1[1], b_now[0]-b_prev[0], b_now[1]-b_prev[1], b_prev[0] - rball*pperp[0] - p_1[0], b_prev[1] - rball*pperp[1] - p_1[1], param);
+    {
+        didgothru = intervalsmeet(p_2[0] - p_1[0], p_2[1] - p_1[1], b_now[0] - b_prev[0], b_now[1] - b_prev[1],
+                                  b_prev[0] - rball * pperp[0] - p_1[0], b_prev[1] - rball * pperp[1] - p_1[1], param);
+    }
 
     if (didgothru)
     {
@@ -1498,7 +1589,7 @@ uint8_t ICACHE_FLASH_ATTR  gonethru(float b_prev[], float b_now[], float p_1[], 
 
 
 
-   }
+    }
     return didgothru;
 }
 
@@ -1529,7 +1620,8 @@ uint8_t getTextWidth(char* text, fonts font)
 
     // We only get width info once we've drawn.
     // So we draw the text as inverse to get the width.
-    uint8_t textWidth = plotText(0, 0, text, font, INVERSE) - 1; // minus one accounts for the return being where the cursor is.
+    uint8_t textWidth = plotText(0, 0, text, font,
+                                 INVERSE) - 1; // minus one accounts for the return being where the cursor is.
 
     // Then we draw the inverse back over it to restore it.
     plotText(0, 0, text, font, INVERSE);
@@ -1542,10 +1634,10 @@ uint8_t getTextWidth(char* text, fonts font)
 // Fisher–Yates Shuffle
 void mzshuffle(int length, int array[length])
 {
-    for (int i = length-1; i > 0; i--)
+    for (int i = length - 1; i > 0; i--)
     {
         // Pick a random index from 0 to i
-        int j = rand() % (i+1);
+        int j = rand() % (i + 1);
 
         // Swap array[i] with the element at random index
         int temp = array[i];
