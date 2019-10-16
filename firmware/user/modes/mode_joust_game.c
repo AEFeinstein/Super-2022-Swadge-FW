@@ -292,25 +292,26 @@ void ICACHE_FLASH_ATTR joustMsgCallbackFn(p2pInfo* p2p __attribute__((unused)), 
                 uint16_t i = 0;
                 for (i = 0; i < sizeof(payload); i++)
                 {
-                    if((const char*)payload[i] == '_')
+                    if(payload[i] == '_')
                     {
                         break;
                     }
-                    col_str[i] = (const char*)payload[i];
+                    col_str[i] = payload[i];
                 }
-                joust.con_color = atoi((const char*)col_str);
+                joust.con_color = atoi(col_str);
 
                 i++;
                 char elo_str[32] = {0};
-                for (int j = 0; j < sizeof(payload); j++)
+                uint16_t j;
+                for (j = 0; j < sizeof(payload); j++)
                 {
-                    if((const char*)payload[j + i] == '_')
+                    if(payload[j + i] == '_')
                     {
                         break;
                     }
-                    elo_str[j] = (const char*)payload[j + i];
+                    elo_str[j] = payload[j + i];
                 }
-                joust.gam.otherJoustElo = atoi((const char*)elo_str);
+                joust.gam.otherJoustElo = atoi(elo_str);
                 double P1 = ( 1.0f / (1.0f + pow(10.0f, ((double)joust.gam.otherJoustElo - (double)joust.gam.joustElo) / 400.0f)));
                 joust.gam.win_score = (uint32_t)  200.0f * (1.0f - P1);
                 joust.gam.lose_score = (uint32_t) 200.0f * ( P1);
@@ -362,7 +363,7 @@ void ICACHE_FLASH_ATTR joustInit(void)
     joust_printf("%s\r\n", __func__);
     // setJoustElo(150);
     joust.gam.joustElo = getJoustElo();
-    if(joust.gam.joustElo > 10000 || joust.gam.joustElo < 0)
+    if(joust.gam.joustElo > 10000)
     {
         setJoustElo(1000);
     }
