@@ -103,11 +103,17 @@ CFLAGS_WARNINGS_EXTRA = \
 	# -Wsign-conversion \
 	# -Wdouble-promotion \
 
-swageversion != if [ X"$(SET_SWADGE_VERSION)" = X"1" ]; then \
-        echo 1; \
-    else \
-        echo 0; \
-    fi
+# See these values in user_config.h
+# #define SWADGE_DEV_KIT 0
+# #define SWADGE_BBKIWI  1
+# #define SWADGE_BARREL  2
+ifeq ($(SET_SWADGE_VERSION),1)
+  swadgeversion = 1
+else ifeq ($(SET_SWADGE_VERSION),2)
+  swadgeversion = 2
+else
+  swadgeversion = 0
+endif
 
 DEFINES_LIST = \
 	SOFTAP_CHANNEL=11 \
@@ -115,7 +121,7 @@ DEFINES_LIST = \
 	DISABLE_CHARRX=1 \
 	USE_OPTIMIZE_PRINTF=1 \
 	ICACHE_FLASH=1 \
-	SWADGE_VERSION=$(swageversion)
+	SWADGE_VERSION=$(swadgeversion)
 
 ifneq ($(ESP_GDB),)
   DEFINES_LIST += USE_ESP_GDB

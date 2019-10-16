@@ -98,8 +98,7 @@ static void ICACHE_FLASH_ATTR pollAccel(void* arg);
 
 #ifndef USE_2019_SWADGE
 static void ICACHE_FLASH_ATTR drawChangeMenuBar(void);
-#endif
-#ifdef USE_2019_SWADGE
+#else
 void ICACHE_FLASH_ATTR incrementSwadgeMode(void);
 #endif
 /*============================================================================
@@ -121,7 +120,7 @@ void ICACHE_FLASH_ATTR user_pre_init(void)
 void ICACHE_FLASH_ATTR user_init(void)
 {
     // Initialize the UART
-#ifdef GDBSTUB_H
+#ifdef USE_ESP_GDB
     // Only standard baud rates seem to be supported by xtensa gdb!
     // $ xtensa-lx106-elf-gdb -x gdbstub/gdbcmds -b 115200
     uart_init(BIT_RATE_115200, BIT_RATE_115200);
@@ -188,7 +187,7 @@ void ICACHE_FLASH_ATTR user_init(void)
 #endif
 
     // Initialize LEDs
-#ifndef GDBSTUB_H
+#ifndef USE_ESP_GDB
     ws2812_init();
     os_printf("LEDs initialized\n");
 #endif
@@ -333,7 +332,7 @@ static void ICACHE_FLASH_ATTR pollAccel(void* arg __attribute__((unused)))
         {
             QMA6981_poll(&accel);
         }
-#if SWADGE_VERSION == 1
+#if SWADGE_VERSION == SWADGE_BBKIWI
 	int16_t xarrow = TOPOLED;
 	int16_t yarrow = LEFTOLED;
 	int16_t zarrow = FACEOLED;
@@ -404,8 +403,7 @@ void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
  */
 #ifndef USE_2019_SWADGE
 void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
-#endif
-#ifdef USE_2019_SWADGE
+#else
 void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
 #endif
 {
@@ -442,8 +440,7 @@ void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
     // Switch to the next mode, or start from the beginning if we're at the end
 #ifndef USE_2019_SWADGE
     rtcMem.currentSwadgeMode = newMode;
-#endif
-#ifdef USE_2019_SWADGE
+#else
     rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
 #endif
     // Write the RTC memory so it knows what mode to be in when waking up
@@ -568,8 +565,7 @@ void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int d
             fillDisplayArea(0, OLED_HEIGHT - 1, menuChangeBarProgress, OLED_HEIGHT - 1, BLACK);
             menuChangeBarProgress = 0;
         }
-#endif
-#ifdef USE_2019_SWADGE
+#else
 	// Switch the mode
 	incrementSwadgeMode();
 #endif

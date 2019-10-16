@@ -7,9 +7,9 @@
 // can specify how these relate to the landscape view of OLED. In .bashrc put
 // export SET_SWADGE_VERSION=1
 // makefile has been changed to create -DSWADGE_VERSION=1 or 0
-#define SWADGE_DEV_KIT  0
-#define SWADGE_BBKIWI 1
-#define SWADGE_BARREL 2
+#define SWADGE_DEV_KIT 0
+#define SWADGE_BBKIWI  1
+#define SWADGE_BARREL  2
 #if SWADGE_VERSION == SWADGE_BBKIWI
 //bbkiwi swadge mockup
     #define NUM_LIN_LEDS 16
