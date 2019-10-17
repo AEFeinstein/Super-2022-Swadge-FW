@@ -58,46 +58,60 @@ class ProgrammerApplication:
         # First get a list of all serial ports
         comList = serial.tools.list_ports.comports()
         programmerComPorts = []
+        comPortsStr = ""
         for comPort in comList:
-            print(comPort)
+            # Build a list of all com ports, vids, and pids to print if no programmers are found
+            comPortsStr = comPortsStr + str(comPort.device)
+            if(comPort.vid is None):
+                comPortsStr = comPortsStr + " (no vid:pid)\n"
+            else:
+                comPortsStr = comPortsStr + " (" + \
+                    "0x{:04x}".format(comPort.vid) + ":" + \
+                    "0x{:04x}".format(comPort.pid) + ")\n"
             # If the VID and PID match the CP2012N's values, use it
             if(comPort.vid == 0x10C4 and comPort.pid == 0xEA60):
                 programmerComPorts.append(str(comPort.device))
-        print("programmerComPorts: " + str(programmerComPorts))
 
         # Create the UI root
         self.root = tk.Tk()
 
-        # Figure out how many rows and columns to display, each com port gets a cell
-        numCols = int(math.ceil(math.sqrt(float(len(programmerComPorts)))))
-        numRows = int(math.ceil(len(programmerComPorts) / float(numCols)))
-        for col in range(numCols):
-            tk.Grid.columnconfigure(self.root, col, weight=1)
-        for row in range(numRows):
-            tk.Grid.rowconfigure(self.root, row, weight=1)
-
         # Keep track of all the threads so they can be stopped later
         self.threads = []
 
-        # Keep track of where Labels are placed in the grid
-        rowIdx = 0
-        colIdx = 0
+        if 0 == len(programmerComPorts):
+            numCols = 1
+            numRows = 2
+            comPortLabel = tk.Label(
+                self.root, text="No programmers detected.\nDetected serial devices:\n" + comPortsStr)
+            comPortLabel.grid(row=0, column=0, sticky=[tk.W, tk.E, tk.N, tk.S])
+        else:
+            # Figure out how many rows and columns to display, each com port gets a cell
+            numCols = int(math.ceil(math.sqrt(float(len(programmerComPorts)))))
+            numRows = int(math.ceil(len(programmerComPorts) / float(numCols)))
+            for col in range(numCols):
+                tk.Grid.columnconfigure(self.root, col, weight=1)
+            for row in range(numRows):
+                tk.Grid.rowconfigure(self.root, row, weight=1)
 
-        # For each com port
-        for comPort in programmerComPorts:
-            # Make a label and add it to the grid
-            comPortLabel = tk.Label(self.root, text=comPort)
-            comPortLabel.grid(row=rowIdx, column=colIdx, sticky=[
-                tk.W, tk.E, tk.N, tk.S])
-            colIdx = colIdx + 1
-            if(colIdx == numCols):
-                colIdx = 0
-                rowIdx = rowIdx + 1
-            # Then create a thread for esptool associated with this com port and label and run it
-            programmerThread = StoppableThread(
-                _name=comPort, _label=comPortLabel)
-            self.threads.append(programmerThread)
-            programmerThread.start()
+            # Keep track of where Labels are placed in the grid
+            rowIdx = 0
+            colIdx = 0
+
+            # For each com port
+            for comPort in programmerComPorts:
+                # Make a label and add it to the grid
+                comPortLabel = tk.Label(self.root, text=comPort)
+                comPortLabel.grid(row=rowIdx, column=colIdx, sticky=[
+                    tk.W, tk.E, tk.N, tk.S])
+                colIdx = colIdx + 1
+                if(colIdx == numCols):
+                    colIdx = 0
+                    rowIdx = rowIdx + 1
+                # Then create a thread for esptool associated with this com port and label and run it
+                programmerThread = StoppableThread(
+                    _name=comPort, _label=comPortLabel)
+                self.threads.append(programmerThread)
+                programmerThread.start()
 
         # Set up how to exit
         self.exitButton = tk.Button(
@@ -111,13 +125,15 @@ class ProgrammerApplication:
         self.root.mainloop()
 
     def exit(self):
-        self.exitButton.config(text="Waiting for threads to finish")
-        # Tell all threads to stop
-        for thread in self.threads:
-            thread.stop()
-        # Wait for all threads to actually stop
-        for thread in self.threads:
-            thread.join()
+        if len(self.threads) > 0:
+            self.exitButton.config(text="Waiting for threads to finish")
+            self.root.update()
+            # Tell all threads to stop
+            for thread in self.threads:
+                thread.stop()
+            # Wait for all threads to actually stop
+            for thread in self.threads:
+                thread.join()
         # Destroy the UI
         self.root.destroy()
 
