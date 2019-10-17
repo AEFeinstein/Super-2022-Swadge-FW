@@ -126,7 +126,7 @@ typedef struct
 
 typedef struct
 {
-    bool shouldLoop;
+    uint32_t shouldLoop;
     uint32_t numNotes;
     musicalNote_t notes[];
 } song_t;

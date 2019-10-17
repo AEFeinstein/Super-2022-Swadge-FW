@@ -173,7 +173,7 @@ typedef struct
     uint32_t shape[TETRAD_GRID_SIZE][TETRAD_GRID_SIZE];
 } tetrad_t;
 
-const uint32_t iTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_RODATA_ATTR =
+const uint32_t iTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] RODATA_ATTR =
 {
     {   {0, 0, 0, 0},
         {1, 1, 1, 1},
@@ -197,7 +197,7 @@ const uint32_t iTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_R
     }
 };
 
-const uint32_t oTetradRotations [1][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_RODATA_ATTR =
+const uint32_t oTetradRotations [1][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] RODATA_ATTR =
 {
     {   {0, 1, 1, 0},
         {0, 1, 1, 0},
@@ -206,7 +206,7 @@ const uint32_t oTetradRotations [1][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_R
     }
 };
 
-const uint32_t tTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_RODATA_ATTR =
+const uint32_t tTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] RODATA_ATTR =
 {
     {   {0, 1, 0, 0},
         {1, 1, 1, 0},
@@ -230,7 +230,7 @@ const uint32_t tTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_R
     }
 };
 
-const uint32_t jTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_RODATA_ATTR =
+const uint32_t jTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] RODATA_ATTR =
 {
     {   {1, 0, 0, 0},
         {1, 1, 1, 0},
@@ -254,7 +254,7 @@ const uint32_t jTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_R
     }
 };
 
-const uint32_t lTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_RODATA_ATTR =
+const uint32_t lTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] RODATA_ATTR =
 {
     {   {0, 0, 1, 0},
         {1, 1, 1, 0},
@@ -278,7 +278,7 @@ const uint32_t lTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_R
     }
 };
 
-const uint32_t sTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_RODATA_ATTR =
+const uint32_t sTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] RODATA_ATTR =
 {
     {   {0, 1, 1, 0},
         {1, 1, 0, 0},
@@ -302,7 +302,7 @@ const uint32_t sTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_R
     }
 };
 
-const uint32_t zTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_RODATA_ATTR =
+const uint32_t zTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] RODATA_ATTR =
 {
     {   {1, 1, 0, 0},
         {0, 1, 1, 0},
@@ -341,7 +341,7 @@ const uint32_t zTetradRotations [4][TETRAD_GRID_SIZE][TETRAD_GRID_SIZE] ICACHE_R
 */
 
 // NOTE: These tables need to be updated if anti-clockwise rotation needs to be a supported option.
-const coord_t iTetradRotationTests [4][5] ICACHE_RODATA_ATTR =
+const coord_t iTetradRotationTests [4][5] RODATA_ATTR =
 {
     {{0, 0}, {-2, 0}, {1, 0}, {-2, 1}, {1, -2}},
     {{0, 0}, {-1, 0}, {2, 0}, {-1, -2}, {2, 1}},
@@ -349,7 +349,7 @@ const coord_t iTetradRotationTests [4][5] ICACHE_RODATA_ATTR =
     {{0, 0}, {1, 0}, {-2, 1}, {1, 2}, {-2, -1}}
 };
 
-const coord_t otjlszTetradRotationTests [4][5] ICACHE_RODATA_ATTR =
+const coord_t otjlszTetradRotationTests [4][5] RODATA_ATTR =
 {
     {{0, 0}, {-1, 0}, {-1, -1}, {0, 2}, {-1, 2}},
     {{0, 0}, {1, 0}, {1, 1}, {0, -2}, {1, -2}},
@@ -359,7 +359,7 @@ const coord_t otjlszTetradRotationTests [4][5] ICACHE_RODATA_ATTR =
 
 // Music / SFX
 
-const song_t singleLineClearSFX ICACHE_RODATA_ATTR =
+const song_t singleLineClearSFX RODATA_ATTR =
 {
     .notes = {
         {.note = C_4, .timeMs = 66},
@@ -375,7 +375,7 @@ const song_t singleLineClearSFX ICACHE_RODATA_ATTR =
     .shouldLoop = false
 };
 
-const song_t doubleLineClearSFX ICACHE_RODATA_ATTR =
+const song_t doubleLineClearSFX RODATA_ATTR =
 {
     .notes = {
         {.note = C_4, .timeMs = 66},
@@ -391,7 +391,7 @@ const song_t doubleLineClearSFX ICACHE_RODATA_ATTR =
     .shouldLoop = false
 };
 
-const song_t tripleLineClearSFX ICACHE_RODATA_ATTR =
+const song_t tripleLineClearSFX RODATA_ATTR =
 {
     .notes = {
         {.note = C_4, .timeMs = 66},
@@ -407,7 +407,7 @@ const song_t tripleLineClearSFX ICACHE_RODATA_ATTR =
     .shouldLoop = false
 };
 
-const song_t quadLineClearSFX ICACHE_RODATA_ATTR =
+const song_t quadLineClearSFX RODATA_ATTR =
 {
     .notes = {
         {.note = C_4, .timeMs = 66},
@@ -435,7 +435,7 @@ const song_t quadLineClearSFX ICACHE_RODATA_ATTR =
     .shouldLoop = false
 };
 
-const song_t lineOneSFX ICACHE_RODATA_ATTR =
+const song_t lineOneSFX RODATA_ATTR =
 {
     .notes = {
         {.note = C_4, .timeMs = 66},
@@ -445,7 +445,7 @@ const song_t lineOneSFX ICACHE_RODATA_ATTR =
     .shouldLoop = false
 };
 
-const song_t lineTwoSFX ICACHE_RODATA_ATTR =
+const song_t lineTwoSFX RODATA_ATTR =
 {
     .notes = {
         {.note = C_SHARP_4, .timeMs = 66},
@@ -455,7 +455,7 @@ const song_t lineTwoSFX ICACHE_RODATA_ATTR =
     .shouldLoop = false
 };
 
-const song_t lineThreeSFX ICACHE_RODATA_ATTR =
+const song_t lineThreeSFX RODATA_ATTR =
 {
     .notes = {
         {.note = D_4, .timeMs = 66},
@@ -465,7 +465,7 @@ const song_t lineThreeSFX ICACHE_RODATA_ATTR =
     .shouldLoop = false
 };
 
-const song_t lineFourSFX ICACHE_RODATA_ATTR =
+const song_t lineFourSFX RODATA_ATTR =
 {
     .notes = {
         {.note = D_SHARP_4, .timeMs = 66},
@@ -476,7 +476,7 @@ const song_t lineFourSFX ICACHE_RODATA_ATTR =
 };
 
 
-const song_t lineFiveSFX ICACHE_RODATA_ATTR =
+const song_t lineFiveSFX RODATA_ATTR =
 {
     .notes = {
         {.note = E_4, .timeMs = 66},
@@ -486,7 +486,7 @@ const song_t lineFiveSFX ICACHE_RODATA_ATTR =
     .shouldLoop = false
 };
 
-const song_t lineSixSFX ICACHE_RODATA_ATTR =
+const song_t lineSixSFX RODATA_ATTR =
 {
     .notes = {
         {.note = F_4, .timeMs = 66},
@@ -496,7 +496,7 @@ const song_t lineSixSFX ICACHE_RODATA_ATTR =
     .shouldLoop = false
 };
 
-const song_t lineSevenSFX ICACHE_RODATA_ATTR =
+const song_t lineSevenSFX RODATA_ATTR =
 {
     .notes = {
         {.note = F_SHARP_4, .timeMs = 66},
@@ -506,7 +506,7 @@ const song_t lineSevenSFX ICACHE_RODATA_ATTR =
     .shouldLoop = false
 };
 
-const song_t lineEightSFX ICACHE_RODATA_ATTR =
+const song_t lineEightSFX RODATA_ATTR =
 {
     .notes = {
         {.note = G_4, .timeMs = 66},
@@ -516,7 +516,7 @@ const song_t lineEightSFX ICACHE_RODATA_ATTR =
     .shouldLoop = false
 };
 
-const song_t lineNineSFX ICACHE_RODATA_ATTR =
+const song_t lineNineSFX RODATA_ATTR =
 {
     .notes = {
         {.note = G_SHARP_4, .timeMs = 66},
@@ -526,7 +526,7 @@ const song_t lineNineSFX ICACHE_RODATA_ATTR =
     .shouldLoop = false
 };
 
-const song_t lineTenSFX ICACHE_RODATA_ATTR =
+const song_t lineTenSFX RODATA_ATTR =
 {
     .notes = {
         {.note = A_4, .timeMs = 66},
@@ -536,7 +536,7 @@ const song_t lineTenSFX ICACHE_RODATA_ATTR =
     .shouldLoop = false
 };
 
-const song_t lineElevenSFX ICACHE_RODATA_ATTR =
+const song_t lineElevenSFX RODATA_ATTR =
 {
     .notes = {
         {.note = A_SHARP_4, .timeMs = 66},
@@ -546,7 +546,7 @@ const song_t lineElevenSFX ICACHE_RODATA_ATTR =
     .shouldLoop = false
 };
 
-const song_t lineTwelveSFX ICACHE_RODATA_ATTR =
+const song_t lineTwelveSFX RODATA_ATTR =
 {
     .notes = {
         {.note = B_4, .timeMs = 66},
@@ -556,7 +556,7 @@ const song_t lineTwelveSFX ICACHE_RODATA_ATTR =
     .shouldLoop = false
 };
 
-const song_t lineThirteenSFX ICACHE_RODATA_ATTR =
+const song_t lineThirteenSFX RODATA_ATTR =
 {
     .notes = {
         {.note = C_5, .timeMs = 66},
@@ -566,7 +566,7 @@ const song_t lineThirteenSFX ICACHE_RODATA_ATTR =
     .shouldLoop = false
 };
 
-const song_t lineFourteenSFX ICACHE_RODATA_ATTR =
+const song_t lineFourteenSFX RODATA_ATTR =
 {
     .notes = {
         {.note = C_SHARP_5, .timeMs = 66},
@@ -576,7 +576,7 @@ const song_t lineFourteenSFX ICACHE_RODATA_ATTR =
     .shouldLoop = false
 };
 
-const song_t lineFifteenSFX ICACHE_RODATA_ATTR =
+const song_t lineFifteenSFX RODATA_ATTR =
 {
     .notes = {
         {.note = D_5, .timeMs = 66},
@@ -586,7 +586,7 @@ const song_t lineFifteenSFX ICACHE_RODATA_ATTR =
     .shouldLoop = false
 };
 
-const song_t lineSixteenSFX ICACHE_RODATA_ATTR =
+const song_t lineSixteenSFX RODATA_ATTR =
 {
     .notes = {
         {.note = D_SHARP_5, .timeMs = 66},
@@ -618,7 +618,7 @@ const song_t* landSFX[NUM_LAND_FX] =
     &lineOneSFX
 };
 
-const song_t titleMusic ICACHE_RODATA_ATTR =
+const song_t titleMusic RODATA_ATTR =
 {
     .notes = {
         {.note = G_4, .timeMs = 79},
@@ -882,7 +882,7 @@ const song_t titleMusic ICACHE_RODATA_ATTR =
     .shouldLoop = true
 };
 
-const song_t gameStartSting ICACHE_RODATA_ATTR =
+const song_t gameStartSting RODATA_ATTR =
 {
     .notes = {
         {.note = C_4, .timeMs = 79},
@@ -898,7 +898,7 @@ const song_t gameStartSting ICACHE_RODATA_ATTR =
     .shouldLoop = false
 };
 
-const song_t gameOverSting ICACHE_RODATA_ATTR =
+const song_t gameOverSting RODATA_ATTR =
 {
     .notes = {
         {.note = C_7, .timeMs = 79},
@@ -922,21 +922,21 @@ const song_t gameOverSting ICACHE_RODATA_ATTR =
     .shouldLoop = false
 };
 
-const led_t titleColor ICACHE_RODATA_ATTR =
+const led_t titleColor RODATA_ATTR =
 {
     .r = 0x00,
     .g = 0xFF,
     .b = 0xFF
 };
 
-const led_t highScoreColor ICACHE_RODATA_ATTR =
+const led_t highScoreColor RODATA_ATTR =
 {
     .r = 0xFF,
     .g = 0xFF,
     .b = 0x00
 };
 
-const led_t tetradColors[NUM_TETRAD_TYPES] ICACHE_RODATA_ATTR =
+const led_t tetradColors[NUM_TETRAD_TYPES] RODATA_ATTR =
 {
     // I_TETRAD
     {
@@ -982,14 +982,14 @@ const led_t tetradColors[NUM_TETRAD_TYPES] ICACHE_RODATA_ATTR =
     },
 };
 
-const led_t gameoverColor ICACHE_RODATA_ATTR =
+const led_t gameoverColor RODATA_ATTR =
 {
     .r = 0xFF,
     .g = 0x00,
     .b = 0x00
 };
 
-const led_t clearColor ICACHE_RODATA_ATTR =
+const led_t clearColor RODATA_ATTR =
 {
     .r = 0xFF,
     .g = 0xFF,
@@ -1006,7 +1006,7 @@ int bagIndex;
 //POOL
 int typePool[35];
 int typeHistory[4];
-const int firstType[4] ICACHE_RODATA_ATTR = {I_TETRAD, J_TETRAD, L_TETRAD, T_TETRAD};
+const int firstType[4] RODATA_ATTR = {I_TETRAD, J_TETRAD, L_TETRAD, T_TETRAD};
 list_t* typeOrder;
 
 // Title screen vars.
