@@ -31,6 +31,22 @@
     } while(0)
 
 /*==============================================================================
+ * Structs
+ *============================================================================*/
+
+typedef struct
+{
+    uint8_t* data;
+    uint16_t len;
+} galFrame_t;
+
+typedef struct
+{
+    uint8_t nFrames;
+    galFrame_t frames[];
+} galImage_t;
+
+/*==============================================================================
  * Prototypes
  *============================================================================*/
 
@@ -61,17 +77,17 @@ swadgeMode galleryMode =
 
 struct
 {
-    uint8_t* compressedData;
-    uint8_t* decompressedData;
-    uint8_t* frameData;
-    uint16_t width;
-    uint16_t height;
-    uint16_t nFrames;
-    uint16_t cFrame;
-    uint16_t duration;
-    os_timer_t timerAnimate;
-    os_timer_t timerPan;
-    uint16_t cImage;
+    uint8_t* compressedData;   ///< A pointer to compressed data in RAM
+    uint8_t* decompressedData; ///< A pointer to decompressed data in RAM
+    uint8_t* frameData;        ///< A pointer to the frame being displayed
+    uint16_t width;            ///< The width of the current image
+    uint16_t height;           ///< The height of the current image
+    uint16_t nFrames;          ///< The number of frames in the image
+    uint16_t cFrame;           ///< The current frame index being displyed
+    uint16_t durationMs;       ///< The duration each frame should be displayed
+    os_timer_t timerAnimate;   ///< A timer to animate the image
+    os_timer_t timerPan;       ///< A timer to pan the image
+    uint16_t cImage;           ///< The index of the current image being
 } gal =
 {
     .compressedData = NULL,
@@ -81,24 +97,17 @@ struct
     .height = 0,
     .nFrames = 0,
     .cFrame = 0,
+    .durationMs = 0,
     .timerAnimate = {0},
     .timerPan = {0},
     .cImage = 0,
 };
 
-typedef struct
-{
-    uint8_t* data;
-    uint16_t len;
-} galFrame_t;
+/*==============================================================================
+ * Const Variables
+ *============================================================================*/
 
-typedef struct
-{
-    uint8_t nFrames;
-    galFrame_t frames[];
-} galImage_t;
-
-galImage_t galBongo =
+const galImage_t galBongo =
 {
     .nFrames = 2,
     .frames = {
@@ -107,7 +116,7 @@ galImage_t galBongo =
     }
 };
 
-galImage_t galSnort =
+const galImage_t galSnort =
 {
     .nFrames = 2,
     .frames = {
@@ -115,7 +124,7 @@ galImage_t galSnort =
     }
 };
 
-galImage_t galGaylord =
+const galImage_t galGaylord =
 {
     .nFrames = 3,
     .frames = {
@@ -125,7 +134,7 @@ galImage_t galGaylord =
     }
 };
 
-galImage_t galFunkus =
+const galImage_t galFunkus =
 {
     .nFrames = 30,
     .frames = {
@@ -162,7 +171,7 @@ galImage_t galFunkus =
     }
 };
 
-galImage_t galLogo =
+const galImage_t galLogo =
 {
     .nFrames = 21,
     .frames = {
@@ -190,7 +199,7 @@ galImage_t galLogo =
     }
 };
 
-galImage_t* galImages[5] =
+const galImage_t* galImages[5] =
 {
     &galBongo,
     &galFunkus,
@@ -204,7 +213,8 @@ galImage_t* galImages[5] =
  *============================================================================*/
 
 /**
- * Initializer for gallery
+ * Initializer for gallery. Allocate memory, set up timers, and load the first
+ * frame of the first image
  */
 void ICACHE_FLASH_ATTR galEnterMode(void)
 {
@@ -227,17 +237,23 @@ void ICACHE_FLASH_ATTR galEnterMode(void)
 }
 
 /**
- * Called when gallery is exited
+ * Called when gallery is exited. Stop timers and free memory
  */
 void ICACHE_FLASH_ATTR galExitMode(void)
 {
+    // Stop the timers
+    os_timer_disarm(&gal.timerAnimate);
+    os_timer_disarm(&gal.timerPan);
+
+    // Free the memory
     os_free(gal.compressedData);
     os_free(gal.decompressedData);
     os_free(gal.frameData);
 }
 
 /**
- * TODO
+ * Cycle between the images to display. The flow is to clear the current image,
+ * increment to the next image, and load that iamge
  *
  * @param state  A bitmask of all button states, unused
  * @param button The button which triggered this event
@@ -251,12 +267,15 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
         switch (button)
         {
             case 1:
+            {
                 galClearImage();
                 gal.cImage = (gal.cImage + 1) %
                              (sizeof(galImages) / sizeof(galImages[0]));
                 galLoadFirstFrame();
                 break;
+            }
             case 2:
+            {
                 galClearImage();
                 if(0 == gal.cImage)
                 {
@@ -268,25 +287,34 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
                 }
                 galLoadFirstFrame();
                 break;
+            }
             default:
+            {
                 break;
+            }
         }
     }
 }
 
 /**
- * @brief TODO
- *
+ * For the first frame of an image, load the compressed data from ROM to RAM,
+ * decompress the data in RAM, save the metadata, then draw the frame to the
+ * OLED
  */
 void ICACHE_FLASH_ATTR galLoadFirstFrame(void)
 {
-    // Decompress the image
+    /* Read the compressed image from ROM into RAM, and make sure to do a
+     * 32 bit aligned read. The arrays are all __attribute__((aligned(4)))
+     * so this is safe, not out of bounds
+     */
     uint32_t alignedSize = galImages[gal.cImage]->frames[0].len;
     while(alignedSize % 4 != 0)
     {
         alignedSize++;
     }
     memcpy(gal.compressedData, galImages[gal.cImage]->frames[0].data, alignedSize);
+
+    // Decompress the image from one RAM area to another
     uint32_t dLen = fastlz_decompress(gal.compressedData,
                                       galImages[gal.cImage]->frames[0].len,
                                       gal.decompressedData,
@@ -294,14 +322,14 @@ void ICACHE_FLASH_ATTR galLoadFirstFrame(void)
     DBG_GAL("dLen=%d\n", dLen);
 
     // Save the metadata
-    gal.width = (gal.decompressedData[0] << 8) | gal.decompressedData[1];
-    gal.height = (gal.decompressedData[2] << 8) | gal.decompressedData[3];
-    gal.nFrames = (gal.decompressedData[4] << 8) | gal.decompressedData[5];
-    gal.duration = (gal.decompressedData[6] << 8) | gal.decompressedData[7];
+    gal.width      = (gal.decompressedData[0] << 8) | gal.decompressedData[1];
+    gal.height     = (gal.decompressedData[2] << 8) | gal.decompressedData[3];
+    gal.nFrames    = (gal.decompressedData[4] << 8) | gal.decompressedData[5];
+    gal.durationMs = (gal.decompressedData[6] << 8) | gal.decompressedData[7];
     DBG_GAL("w=%d, h=%d, nfr=%d, dur=%d\n", gal.width, gal.height, gal.nFrames,
-            gal.duration);
+            gal.durationMs);
 
-    // Save the first actual frame
+    // Clear gal.frameData, then save the first actual frame
     memset(gal.frameData, 0, MAX_DECOMPRESSED_SIZE);
     memcpy(gal.frameData, &gal.decompressedData[METADATA_LEN], dLen - METADATA_LEN);
 
@@ -312,7 +340,7 @@ void ICACHE_FLASH_ATTR galLoadFirstFrame(void)
     os_timer_disarm(&gal.timerAnimate);
     if(gal.nFrames > 1)
     {
-        os_timer_arm(&gal.timerAnimate, gal.duration, 1);
+        os_timer_arm(&gal.timerAnimate, gal.durationMs, true);
     }
 
     // Draw the first frame in it's entirety to the OLED
@@ -320,28 +348,37 @@ void ICACHE_FLASH_ATTR galLoadFirstFrame(void)
 }
 
 /**
- * @brief TODO
+ * For any frame besides the first frame of an image, load the compressed data
+ * from ROM to RAM, decompress the data in RAM, modify the current frame with
+ * the differences in the decompressed data, then draw the frame to the OLED
  *
+ * @param arg Unused
  */
 static void ICACHE_FLASH_ATTR galLoadNextFrame(void* arg __attribute__((unused)))
 {
-    // Set the current frame to 0
+    // Increment the current frame
     gal.cFrame = (gal.cFrame + 1) % gal.nFrames;
 
+    // If we're back to the first frame
     if(0 == gal.cFrame)
     {
-        // Draw the whole frame
+        // Load an ddaw the whole frame
         galLoadFirstFrame();
     }
     else
     {
-        // Decompress the image
+        /* Read the compressed image from ROM into RAM, and make sure to do a
+        * 32 bit aligned read. The arrays are all __attribute__((aligned(4)))
+        * so this is safe, not out of bounds
+        */
         uint32_t alignedSize = galImages[gal.cImage]->frames[gal.cFrame].len;
         while(alignedSize % 4 != 0)
         {
             alignedSize++;
         }
         memcpy(gal.compressedData, galImages[gal.cImage]->frames[gal.cFrame].data, alignedSize);
+
+        // Decompress the image
         uint32_t dLen = fastlz_decompress(gal.compressedData,
                                           galImages[gal.cImage]->frames[gal.cFrame].len,
                                           gal.decompressedData,
@@ -353,13 +390,14 @@ static void ICACHE_FLASH_ATTR galLoadNextFrame(void* arg __attribute__((unused))
         {
             gal.frameData[idx] ^= gal.decompressedData[idx];
         }
+
+        // Draw the frame
         galDrawFrame();
     }
 }
 
 /**
- * @brief TODO
- *
+ * Clear all data in RAM from the current image, including the metadata
  */
 void ICACHE_FLASH_ATTR galClearImage(void)
 {
@@ -373,12 +411,11 @@ void ICACHE_FLASH_ATTR galClearImage(void)
 }
 
 /**
- * @brief TODO
- *
+ * Draw the current gal.frameData to the OLED
  */
 void ICACHE_FLASH_ATTR galDrawFrame(void)
 {
-    // Draw the frame to the OLED
+    // Draw the frame to the OLED, one pixel at a time
     for (int w = 0; w < OLED_WIDTH; w++)
     {
         for (int h = 0; h < OLED_HEIGHT; h++)
@@ -387,7 +424,7 @@ void ICACHE_FLASH_ATTR galDrawFrame(void)
             uint16_t byteIdx = linearIdx / 8;
             uint8_t bitIdx = linearIdx % 8;
 
-            if (gal.frameData[METADATA_LEN + byteIdx] & (0x80 >> bitIdx))
+            if (gal.frameData[byteIdx] & (0x80 >> bitIdx))
             {
                 drawPixel(w, h, WHITE);
             }
@@ -400,9 +437,10 @@ void ICACHE_FLASH_ATTR galDrawFrame(void)
 }
 
 /**
- * @brief TODO
+ * TODO
+ * Timer function to pan the image left and right, if it is wider than the OLED
  *
- * @param arg
+ * @param arg Unused
  */
 static void ICACHE_FLASH_ATTR galTimerPan(void* arg __attribute__((unused)))
 {
