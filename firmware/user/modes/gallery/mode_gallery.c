@@ -22,7 +22,7 @@
  * Defines
  *============================================================================*/
 
-#define MAX_DECOMPRESSED_SIZE 0x8440
+#define MAX_DECOMPRESSED_SIZE 0xA00
 #define METADATA_LEN 8
 
 #define DBG_GAL(...) do { \
@@ -37,10 +37,10 @@
 void ICACHE_FLASH_ATTR galEnterMode(void);
 void ICACHE_FLASH_ATTR galExitMode(void);
 void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state, int button, int down);
-void ICACHE_FLASH_ATTR galLoadFirstImage(void);
+void ICACHE_FLASH_ATTR galLoadFirstFrame(void);
 void ICACHE_FLASH_ATTR galClearImage(void);
-void ICACHE_FLASH_ATTR galDrawFirstFrame(void);
-static void ICACHE_FLASH_ATTR galDrawNextFrame(void* arg);
+void ICACHE_FLASH_ATTR galDrawFrame(void);
+static void ICACHE_FLASH_ATTR galLoadNextFrame(void* arg);
 static void ICACHE_FLASH_ATTR galTimerPan(void* arg);
 
 /*==============================================================================
@@ -61,7 +61,9 @@ swadgeMode galleryMode =
 
 struct
 {
-    uint8_t* imageData;
+    uint8_t* compressedData;
+    uint8_t* decompressedData;
+    uint8_t* frameData;
     uint16_t width;
     uint16_t height;
     uint16_t nFrames;
@@ -72,7 +74,9 @@ struct
     uint16_t cImage;
 } gal =
 {
-    .imageData = NULL,
+    .compressedData = NULL,
+    .decompressedData = NULL,
+    .frameData = NULL,
     .width = 0,
     .height = 0,
     .nFrames = 0,
@@ -82,17 +86,117 @@ struct
     .cImage = 0,
 };
 
-const struct
+typedef struct
 {
     uint8_t* data;
     uint16_t len;
-} galImages[] =
+} galFrame_t;
+
+typedef struct
 {
-    {gal_bongo, sizeof(gal_bongo)},
-    {gal_funkus, sizeof(gal_funkus)},
-    {gal_gaylord, sizeof(gal_gaylord)},
-    {gal_logo, sizeof(gal_logo)},
-    {gal_snort, sizeof(gal_snort)},
+    uint8_t nFrames;
+    galFrame_t frames[];
+} galImage_t;
+
+galImage_t galBongo =
+{
+    .nFrames = 2,
+    .frames = {
+        {.data = gal_bongo_0, .len = sizeof(gal_bongo_0)},
+        {.data = gal_bongo_1, .len = sizeof(gal_bongo_1)},
+    }
+};
+
+galImage_t galSnort =
+{
+    .nFrames = 2,
+    .frames = {
+        {.data = gal_snort_0, .len = sizeof(gal_snort_0)},
+    }
+};
+
+galImage_t galGaylord =
+{
+    .nFrames = 3,
+    .frames = {
+        {.data = gal_gaylord_0, .len = sizeof(gal_gaylord_0)},
+        {.data = gal_gaylord_1, .len = sizeof(gal_gaylord_1)},
+        {.data = gal_gaylord_2, .len = sizeof(gal_gaylord_2)},
+    }
+};
+
+galImage_t galFunkus =
+{
+    .nFrames = 30,
+    .frames = {
+        {.data = gal_funkus_0, .len = sizeof(gal_funkus_0)},
+        {.data = gal_funkus_1, .len = sizeof(gal_funkus_1)},
+        {.data = gal_funkus_2, .len = sizeof(gal_funkus_2)},
+        {.data = gal_funkus_3, .len = sizeof(gal_funkus_3)},
+        {.data = gal_funkus_4, .len = sizeof(gal_funkus_4)},
+        {.data = gal_funkus_5, .len = sizeof(gal_funkus_5)},
+        {.data = gal_funkus_6, .len = sizeof(gal_funkus_6)},
+        {.data = gal_funkus_7, .len = sizeof(gal_funkus_7)},
+        {.data = gal_funkus_8, .len = sizeof(gal_funkus_8)},
+        {.data = gal_funkus_9, .len = sizeof(gal_funkus_9)},
+        {.data = gal_funkus_10, .len = sizeof(gal_funkus_10)},
+        {.data = gal_funkus_11, .len = sizeof(gal_funkus_11)},
+        {.data = gal_funkus_12, .len = sizeof(gal_funkus_12)},
+        {.data = gal_funkus_13, .len = sizeof(gal_funkus_13)},
+        {.data = gal_funkus_14, .len = sizeof(gal_funkus_14)},
+        {.data = gal_funkus_15, .len = sizeof(gal_funkus_15)},
+        {.data = gal_funkus_16, .len = sizeof(gal_funkus_16)},
+        {.data = gal_funkus_17, .len = sizeof(gal_funkus_17)},
+        {.data = gal_funkus_18, .len = sizeof(gal_funkus_18)},
+        {.data = gal_funkus_19, .len = sizeof(gal_funkus_19)},
+        {.data = gal_funkus_20, .len = sizeof(gal_funkus_20)},
+        {.data = gal_funkus_21, .len = sizeof(gal_funkus_21)},
+        {.data = gal_funkus_22, .len = sizeof(gal_funkus_22)},
+        {.data = gal_funkus_23, .len = sizeof(gal_funkus_23)},
+        {.data = gal_funkus_24, .len = sizeof(gal_funkus_24)},
+        {.data = gal_funkus_25, .len = sizeof(gal_funkus_25)},
+        {.data = gal_funkus_26, .len = sizeof(gal_funkus_26)},
+        {.data = gal_funkus_27, .len = sizeof(gal_funkus_27)},
+        {.data = gal_funkus_28, .len = sizeof(gal_funkus_28)},
+        {.data = gal_funkus_29, .len = sizeof(gal_funkus_29)},
+    }
+};
+
+galImage_t galLogo =
+{
+    .nFrames = 21,
+    .frames = {
+        {.data = gal_logo_0, .len = sizeof(gal_logo_0)},
+        {.data = gal_logo_1, .len = sizeof(gal_logo_1)},
+        {.data = gal_logo_2, .len = sizeof(gal_logo_2)},
+        {.data = gal_logo_3, .len = sizeof(gal_logo_3)},
+        {.data = gal_logo_4, .len = sizeof(gal_logo_4)},
+        {.data = gal_logo_5, .len = sizeof(gal_logo_5)},
+        {.data = gal_logo_6, .len = sizeof(gal_logo_6)},
+        {.data = gal_logo_7, .len = sizeof(gal_logo_7)},
+        {.data = gal_logo_8, .len = sizeof(gal_logo_8)},
+        {.data = gal_logo_9, .len = sizeof(gal_logo_9)},
+        {.data = gal_logo_10, .len = sizeof(gal_logo_10)},
+        {.data = gal_logo_11, .len = sizeof(gal_logo_11)},
+        {.data = gal_logo_12, .len = sizeof(gal_logo_12)},
+        {.data = gal_logo_13, .len = sizeof(gal_logo_13)},
+        {.data = gal_logo_14, .len = sizeof(gal_logo_14)},
+        {.data = gal_logo_15, .len = sizeof(gal_logo_15)},
+        {.data = gal_logo_16, .len = sizeof(gal_logo_16)},
+        {.data = gal_logo_17, .len = sizeof(gal_logo_17)},
+        {.data = gal_logo_18, .len = sizeof(gal_logo_18)},
+        {.data = gal_logo_19, .len = sizeof(gal_logo_19)},
+        {.data = gal_logo_20, .len = sizeof(gal_logo_20)},
+    }
+};
+
+galImage_t* galImages[5] =
+{
+    &galBongo,
+    &galFunkus,
+    &galLogo,
+    &galSnort,
+    &galGaylord
 };
 
 /*==============================================================================
@@ -108,16 +212,18 @@ void ICACHE_FLASH_ATTR galEnterMode(void)
     memset(&gal, 0, sizeof(gal));
 
     // Allocate a bunch of memory for decompresed images
-    gal.imageData = os_malloc(MAX_DECOMPRESSED_SIZE);
+    gal.compressedData = os_malloc(MAX_DECOMPRESSED_SIZE);
+    gal.decompressedData = os_malloc(MAX_DECOMPRESSED_SIZE);
+    gal.frameData = os_malloc(MAX_DECOMPRESSED_SIZE);
 
     //Set up software timers for animation and panning
     os_timer_disarm(&gal.timerAnimate);
-    os_timer_setfn(&gal.timerAnimate, (os_timer_func_t*)galDrawNextFrame, NULL);
+    os_timer_setfn(&gal.timerAnimate, (os_timer_func_t*)galLoadNextFrame, NULL);
     os_timer_disarm(&gal.timerPan);
     os_timer_setfn(&gal.timerPan, (os_timer_func_t*)galTimerPan, NULL);
 
     // Load the image
-    galLoadFirstImage();
+    galLoadFirstFrame();
 }
 
 /**
@@ -125,7 +231,9 @@ void ICACHE_FLASH_ATTR galEnterMode(void)
  */
 void ICACHE_FLASH_ATTR galExitMode(void)
 {
-    os_free(gal.imageData);
+    os_free(gal.compressedData);
+    os_free(gal.decompressedData);
+    os_free(gal.frameData);
 }
 
 /**
@@ -146,7 +254,7 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
                 galClearImage();
                 gal.cImage = (gal.cImage + 1) %
                              (sizeof(galImages) / sizeof(galImages[0]));
-                galLoadFirstImage();
+                galLoadFirstFrame();
                 break;
             case 2:
                 galClearImage();
@@ -158,7 +266,7 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
                 {
                     gal.cImage--;
                 }
-                galLoadFirstImage();
+                galLoadFirstFrame();
                 break;
             default:
                 break;
@@ -170,32 +278,75 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
  * @brief TODO
  *
  */
-void ICACHE_FLASH_ATTR galLoadFirstImage(void)
+void ICACHE_FLASH_ATTR galLoadFirstFrame(void)
 {
     // Decompress the image
-    uint32_t dLen = fastlz_decompress(galImages[gal.cImage].data,
-                                      galImages[gal.cImage].len,
-                                      gal.imageData,
+    memcpy(gal.compressedData, galImages[gal.cImage]->frames[0].data,
+           galImages[gal.cImage]->frames[0].len);
+    uint32_t dLen = fastlz_decompress(gal.compressedData,
+                                      galImages[gal.cImage]->frames[0].len,
+                                      gal.decompressedData,
                                       MAX_DECOMPRESSED_SIZE);
     DBG_GAL("dLen=%d\n", dLen);
 
     // Save the metadata
-    gal.width = (gal.imageData[0] << 8) | gal.imageData[1];
-    gal.height = (gal.imageData[2] << 8) | gal.imageData[3];
-    gal.nFrames = (gal.imageData[4] << 8) | gal.imageData[5];
-    gal.duration = (gal.imageData[6] << 8) | gal.imageData[7];
+    gal.width = (gal.decompressedData[0] << 8) | gal.decompressedData[1];
+    gal.height = (gal.decompressedData[2] << 8) | gal.decompressedData[3];
+    gal.nFrames = (gal.decompressedData[4] << 8) | gal.decompressedData[5];
+    gal.duration = (gal.decompressedData[6] << 8) | gal.decompressedData[7];
     DBG_GAL("w=%d, h=%d, nfr=%d, dur=%d\n", gal.width, gal.height, gal.nFrames,
             gal.duration);
+
+    // Save the first actual frame
+    memset(gal.frameData, 0, MAX_DECOMPRESSED_SIZE);
+    memcpy(gal.frameData, &gal.decompressedData[METADATA_LEN], dLen - METADATA_LEN);
 
     // Set the current frame to 0
     gal.cFrame = 0;
 
     // Adjust the animation timer to this image's speed
     os_timer_disarm(&gal.timerAnimate);
-    os_timer_arm(&gal.timerAnimate, gal.duration, 1);
+    if(gal.nFrames > 1)
+    {
+        os_timer_arm(&gal.timerAnimate, gal.duration, 1);
+    }
 
     // Draw the first frame in it's entirety to the OLED
-    galDrawFirstFrame();
+    galDrawFrame();
+}
+
+/**
+ * @brief TODO
+ *
+ */
+static void ICACHE_FLASH_ATTR galLoadNextFrame(void* arg __attribute__((unused)))
+{
+    // Set the current frame to 0
+    gal.cFrame = (gal.cFrame + 1) % gal.nFrames;
+
+    if(0 == gal.cFrame)
+    {
+        // Draw the whole frame
+        galLoadFirstFrame();
+    }
+    else
+    {
+        // Decompress the image
+        memcpy(gal.compressedData, galImages[gal.cImage]->frames[gal.cFrame].data,
+               galImages[gal.cImage]->frames[gal.cFrame].len);
+        uint32_t dLen = fastlz_decompress(gal.compressedData,
+                                          galImages[gal.cImage]->frames[gal.cFrame].len,
+                                          gal.decompressedData,
+                                          MAX_DECOMPRESSED_SIZE);
+        DBG_GAL("dLen=%d\n", dLen);
+
+        // Adjust only the differences
+        for(uint32_t idx = 0; idx < dLen; idx++)
+        {
+            gal.frameData[idx] ^= gal.decompressedData[idx];
+        }
+        galDrawFrame();
+    }
 }
 
 /**
@@ -204,7 +355,9 @@ void ICACHE_FLASH_ATTR galLoadFirstImage(void)
  */
 void ICACHE_FLASH_ATTR galClearImage(void)
 {
-    memset(gal.imageData, 0, MAX_DECOMPRESSED_SIZE);
+    memset(gal.decompressedData, 0, MAX_DECOMPRESSED_SIZE);
+    memset(gal.compressedData, 0, MAX_DECOMPRESSED_SIZE);
+    memset(gal.frameData, 0, MAX_DECOMPRESSED_SIZE);
     gal.width = 0;
     gal.height = 0;
     gal.nFrames = 0;
@@ -215,7 +368,7 @@ void ICACHE_FLASH_ATTR galClearImage(void)
  * @brief TODO
  *
  */
-void ICACHE_FLASH_ATTR galDrawFirstFrame(void)
+void ICACHE_FLASH_ATTR galDrawFrame(void)
 {
     // Draw the frame to the OLED
     for (int w = 0; w < OLED_WIDTH; w++)
@@ -226,48 +379,13 @@ void ICACHE_FLASH_ATTR galDrawFirstFrame(void)
             uint16_t byteIdx = linearIdx / 8;
             uint8_t bitIdx = linearIdx % 8;
 
-            if (gal.imageData[METADATA_LEN + byteIdx] & (0x80 >> bitIdx))
+            if (gal.frameData[METADATA_LEN + byteIdx] & (0x80 >> bitIdx))
             {
                 drawPixel(w, h, WHITE);
             }
             else
             {
                 drawPixel(w, h, BLACK);
-            }
-        }
-    }
-}
-
-/**
- * @brief TODO
- *
- */
-void ICACHE_FLASH_ATTR galDrawNextFrame(void* arg __attribute__((unused)))
-{
-    // Set the current frame to 0
-    gal.cFrame = (gal.cFrame + 1) % gal.nFrames;
-
-    if(0 == gal.cFrame)
-    {
-        // Draw the whole frame
-        galDrawFirstFrame();
-    }
-    else
-    {
-        // Draw only the differences
-        for (int w = 0; w < OLED_WIDTH; w++)
-        {
-            for (int h = 0; h < OLED_HEIGHT; h++)
-            {
-                uint32_t linearIdx = ((OLED_HEIGHT * w) + h) +
-                                     (gal.width * gal.height * gal.cFrame);
-                uint16_t byteIdx = linearIdx / 8;
-                uint8_t bitIdx = linearIdx % 8;
-
-                if (gal.imageData[METADATA_LEN + byteIdx] & (0x80 >> bitIdx))
-                {
-                    drawPixel(w, h, INVERSE);
-                }
             }
         }
     }
