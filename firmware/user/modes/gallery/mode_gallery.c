@@ -31,6 +31,16 @@
     } while(0)
 
 /*==============================================================================
+ * Enums
+ *============================================================================*/
+
+typedef enum
+{
+    RIGHT,
+    LEFT
+} panDir_t;
+
+/*==============================================================================
  * Structs
  *============================================================================*/
 
@@ -88,6 +98,8 @@ struct
     os_timer_t timerAnimate;   ///< A timer to animate the image
     os_timer_t timerPan;       ///< A timer to pan the image
     uint16_t cImage;           ///< The index of the current image being
+    uint16_t panIdx;           ///< How much the image is currently panned
+    panDir_t panDir;           ///< The direction the image is currently panning
 } gal =
 {
     .compressedData = NULL,
@@ -101,6 +113,8 @@ struct
     .timerAnimate = {0},
     .timerPan = {0},
     .cImage = 0,
+    .panIdx = 0,
+    .panDir = RIGHT
 };
 
 /*==============================================================================
@@ -266,16 +280,18 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
     {
         switch (button)
         {
-            case 1:
+            case 2:
             {
+                // Right button
                 galClearImage();
                 gal.cImage = (gal.cImage + 1) %
                              (sizeof(galImages) / sizeof(galImages[0]));
                 galLoadFirstFrame();
                 break;
             }
-            case 2:
+            case 1:
             {
+                // Left Button
                 galClearImage();
                 if(0 == gal.cImage)
                 {
@@ -343,6 +359,14 @@ void ICACHE_FLASH_ATTR galLoadFirstFrame(void)
         os_timer_arm(&gal.timerAnimate, gal.durationMs, true);
     }
 
+    // Set up the panning timer if the image is wider that the OLED
+    os_timer_disarm(&gal.timerPan);
+    if(gal.width > OLED_WIDTH)
+    {
+        // Pan one pixel every 10ms
+        os_timer_arm(&gal.timerPan, 10, true);
+    }
+
     // Draw the first frame in it's entirety to the OLED
     galDrawFrame();
 }
@@ -398,20 +422,32 @@ static void ICACHE_FLASH_ATTR galLoadNextFrame(void* arg __attribute__((unused))
 
 /**
  * Clear all data in RAM from the current image, including the metadata
+ * Also stop the timers
  */
 void ICACHE_FLASH_ATTR galClearImage(void)
 {
-    memset(gal.decompressedData, 0, MAX_DECOMPRESSED_SIZE);
+    // Stop timers
+    os_timer_disarm(&gal.timerAnimate);
+    os_timer_disarm(&gal.timerPan);
+
+    // Zero memory, don't free it
     memset(gal.compressedData, 0, MAX_DECOMPRESSED_SIZE);
+    memset(gal.decompressedData, 0, MAX_DECOMPRESSED_SIZE);
     memset(gal.frameData, 0, MAX_DECOMPRESSED_SIZE);
+
+    // Clear variables
     gal.width = 0;
     gal.height = 0;
     gal.nFrames = 0;
     gal.cFrame = 0;
+    gal.durationMs = 0;
+    // Don't reset cImage
+    gal.panIdx = 0;
+    gal.panDir = RIGHT;
 }
 
 /**
- * Draw the current gal.frameData to the OLED
+ * Draw the current gal.frameData to the OLED, taking into account panning
  */
 void ICACHE_FLASH_ATTR galDrawFrame(void)
 {
@@ -420,7 +456,7 @@ void ICACHE_FLASH_ATTR galDrawFrame(void)
     {
         for (int h = 0; h < OLED_HEIGHT; h++)
         {
-            uint16_t linearIdx = (OLED_HEIGHT * w) + h;
+            uint16_t linearIdx = (OLED_HEIGHT * (w + gal.panIdx)) + h;
             uint16_t byteIdx = linearIdx / 8;
             uint8_t bitIdx = linearIdx % 8;
 
@@ -437,11 +473,52 @@ void ICACHE_FLASH_ATTR galDrawFrame(void)
 }
 
 /**
- * TODO
  * Timer function to pan the image left and right, if it is wider than the OLED
  *
  * @param arg Unused
  */
 static void ICACHE_FLASH_ATTR galTimerPan(void* arg __attribute__((unused)))
 {
+    if(gal.width > OLED_WIDTH)
+    {
+        switch(gal.panDir)
+        {
+            case RIGHT:
+            {
+                // If we're at the end
+                if((gal.width - OLED_WIDTH) == gal.panIdx)
+                {
+                    // Start going to the left
+                    gal.panDir = LEFT;
+                }
+                else
+                {
+                    // Pan to the right
+                    gal.panIdx++;
+                }
+                break;
+            }
+            case LEFT:
+            {
+                // If we're at the beginning
+                if(0 == gal.panIdx)
+                {
+                    // Start going to the right
+                    gal.panDir = RIGHT;
+                }
+                else
+                {
+                    // Pan to the left
+                    gal.panIdx--;
+                }
+                break;
+            }
+            default:
+            {
+                break;
+            }
+        }
+        // Draw the panned frame
+        galDrawFrame();
+    }
 }
