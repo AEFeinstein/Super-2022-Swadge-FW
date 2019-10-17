@@ -8,3 +8,4 @@ mfsmaker
 pushtodev
 tmp
 firmware/libgcc_stripped.a
+firmware/gdb_rsp_logfile.txt

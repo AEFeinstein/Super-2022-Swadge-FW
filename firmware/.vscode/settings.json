@@ -1,5 +1,5 @@
 {
-    "astyle.astylerc": "${workspaceFolder}/astylerc",
+    "astyle.astylerc": "${workspaceFolder}/.astylerc",
     "files.exclude": {
         "**/.git": true,
         "**/.svn": true,
