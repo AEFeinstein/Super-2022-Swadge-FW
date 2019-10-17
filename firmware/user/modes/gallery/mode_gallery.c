@@ -363,8 +363,8 @@ void ICACHE_FLASH_ATTR galLoadFirstFrame(void)
     os_timer_disarm(&gal.timerPan);
     if(gal.width > OLED_WIDTH)
     {
-        // Pan one pixel every 10ms
-        os_timer_arm(&gal.timerPan, 10, true);
+        // Pan one pixel every 50ms
+        os_timer_arm(&gal.timerPan, 50, true);
     }
 
     // Draw the first frame in it's entirety to the OLED
