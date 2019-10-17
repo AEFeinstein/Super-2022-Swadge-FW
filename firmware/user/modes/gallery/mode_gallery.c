@@ -281,8 +281,12 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
 void ICACHE_FLASH_ATTR galLoadFirstFrame(void)
 {
     // Decompress the image
-    memcpy(gal.compressedData, galImages[gal.cImage]->frames[0].data,
-           galImages[gal.cImage]->frames[0].len);
+    uint32_t alignedSize = galImages[gal.cImage]->frames[0].len;
+    while(alignedSize % 4 != 0)
+    {
+        alignedSize++;
+    }
+    memcpy(gal.compressedData, galImages[gal.cImage]->frames[0].data, alignedSize);
     uint32_t dLen = fastlz_decompress(gal.compressedData,
                                       galImages[gal.cImage]->frames[0].len,
                                       gal.decompressedData,
@@ -332,8 +336,12 @@ static void ICACHE_FLASH_ATTR galLoadNextFrame(void* arg __attribute__((unused))
     else
     {
         // Decompress the image
-        memcpy(gal.compressedData, galImages[gal.cImage]->frames[gal.cFrame].data,
-               galImages[gal.cImage]->frames[gal.cFrame].len);
+        uint32_t alignedSize = galImages[gal.cImage]->frames[gal.cFrame].len;
+        while(alignedSize % 4 != 0)
+        {
+            alignedSize++;
+        }
+        memcpy(gal.compressedData, galImages[gal.cImage]->frames[gal.cFrame].data, alignedSize);
         uint32_t dLen = fastlz_decompress(gal.compressedData,
                                           galImages[gal.cImage]->frames[gal.cFrame].len,
                                           gal.decompressedData,
