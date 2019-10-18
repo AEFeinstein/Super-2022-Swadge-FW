@@ -922,21 +922,21 @@ const song_t gameOverSting RODATA_ATTR =
     .shouldLoop = false
 };
 
-const led_t titleColor RODATA_ATTR =
+const led_t titleColor =
 {
     .r = 0x00,
     .g = 0xFF,
     .b = 0xFF
 };
 
-const led_t highScoreColor RODATA_ATTR =
+const led_t highScoreColor =
 {
     .r = 0xFF,
     .g = 0xFF,
     .b = 0x00
 };
 
-const led_t tetradColors[NUM_TETRAD_TYPES] RODATA_ATTR =
+const led_t tetradColors[NUM_TETRAD_TYPES] =
 {
     // I_TETRAD
     {
@@ -982,14 +982,14 @@ const led_t tetradColors[NUM_TETRAD_TYPES] RODATA_ATTR =
     },
 };
 
-const led_t gameoverColor RODATA_ATTR =
+const led_t gameoverColor =
 {
     .r = 0xFF,
     .g = 0x00,
     .b = 0x00
 };
 
-const led_t clearColor RODATA_ATTR =
+const led_t clearColor =
 {
     .r = 0xFF,
     .g = 0xFF,
@@ -1049,7 +1049,7 @@ uint32_t clearTime;
 uint8_t score0X;
 uint8_t score1X;
 uint8_t score2X;
-uint8_t lastScoreX;
+//uint8_t lastScoreX;
 
 // Gameover ui vars.
 uint8_t gameoverScoreX;
@@ -1437,13 +1437,13 @@ void ICACHE_FLASH_ATTR ttScoresInput(void)
             uint8_t x0 = 0;
             uint8_t x1 = OLED_WIDTH - 1;
             ets_snprintf(uiStr, sizeof(uiStr), "1. %d", highScores[0]);
-            score0X = getCenteredTextX(x0, x1, uiStr, TOM_THUMB);
+            score0X = getCenteredTextX(x0, x1, uiStr, IBM_VGA_8);
             ets_snprintf(uiStr, sizeof(uiStr), "2. %d", highScores[1]);
-            score1X = getCenteredTextX(x0, x1, uiStr, TOM_THUMB);
+            score1X = getCenteredTextX(x0, x1, uiStr, IBM_VGA_8);
             ets_snprintf(uiStr, sizeof(uiStr), "3. %d", highScores[2]);
-            score2X = getCenteredTextX(x0, x1, uiStr, TOM_THUMB);
-            ets_snprintf(uiStr, sizeof(uiStr), "YOUR LAST SCORE: %d", ttGetLastScore());
-            lastScoreX = getCenteredTextX(x0, x1, uiStr, TOM_THUMB);
+            score2X = getCenteredTextX(x0, x1, uiStr, IBM_VGA_8);
+            //ets_snprintf(uiStr, sizeof(uiStr), "YOUR LAST SCORE: %d", ttGetLastScore());
+            //lastScoreX = getCenteredTextX(x0, x1, uiStr, TOM_THUMB);
         }
     }
     else if(ttIsButtonUp(BTN_SCORES_CLEAR_SCORES))
@@ -1767,14 +1767,14 @@ void ICACHE_FLASH_ATTR ttTitleDisplay(void)
     uint8_t scoresTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);
     plotText(scoresTextX, scoresTextY, "SCORES", TOM_THUMB, WHITE);
 
-    uint8_t startAreaX0 = OLED_WIDTH - 18;
-    uint8_t startAreaY0 = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 3);
+    uint8_t startAreaX0 = OLED_WIDTH - 39;
+    uint8_t startAreaY0 = OLED_HEIGHT - (FONT_HEIGHT_IBMVGA8 + 3);
     uint8_t startAreaX1 = OLED_WIDTH - 1;
     uint8_t startAreaY1 = OLED_HEIGHT - 1;
     fillDisplayArea(startAreaX0, startAreaY0, startAreaX1, startAreaY1, BLACK);
-    uint8_t startTextX = OLED_WIDTH - 19;
-    uint8_t startTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);
-    plotText(startTextX, startTextY, "START", TOM_THUMB, WHITE);
+    uint8_t startTextX = OLED_WIDTH - 38;
+    uint8_t startTextY = OLED_HEIGHT - (FONT_HEIGHT_IBMVGA8 + 1);
+    plotText(startTextX, startTextY, "START", IBM_VGA_8, WHITE);
 
     // Clear the grid data (may not want to do this every frame)
     refreshTetradsGrid(TUTORIAL_GRID_WIDTH, TUTORIAL_GRID_HEIGHT, tutorialTetradsGrid, landedTetrads, &(tutorialTetrad),
@@ -1958,21 +1958,21 @@ void ICACHE_FLASH_ATTR ttScoresDisplay(void)
         char uiStr[32] = {0};
         // 1. 99999
         ets_snprintf(uiStr, sizeof(uiStr), "1. %d", highScores[0]);
-        plotText(score0X, (3 * FONT_HEIGHT_TOMTHUMB) + 1, uiStr, TOM_THUMB, WHITE);
+        plotText(score0X, (1 * (FONT_HEIGHT_IBMVGA8 + 2)) + 4, uiStr, IBM_VGA_8, WHITE);
 
         // 2. 99999
         ets_snprintf(uiStr, sizeof(uiStr), "2. %d", highScores[1]);
-        plotText(score1X, (5 * FONT_HEIGHT_TOMTHUMB) + 1, uiStr, TOM_THUMB, WHITE);
+        plotText(score1X, (2 * (FONT_HEIGHT_IBMVGA8 + 2)) + 4, uiStr, IBM_VGA_8, WHITE);
 
         // 3. 99999
         ets_snprintf(uiStr, sizeof(uiStr), "3. %d", highScores[2]);
-        plotText(score2X, (7 * FONT_HEIGHT_TOMTHUMB) + 1, uiStr, TOM_THUMB, WHITE);
+        plotText(score2X, (3 * (FONT_HEIGHT_IBMVGA8 + 2)) + 4, uiStr, IBM_VGA_8, WHITE);
 
         // YOUR LAST SCORE:
-        ets_snprintf(uiStr, sizeof(uiStr), "YOUR LAST SCORE: %d", ttGetLastScore());
-        plotText(lastScoreX, (9 * FONT_HEIGHT_TOMTHUMB) + 1, uiStr, TOM_THUMB, WHITE);
+        //ets_snprintf(uiStr, sizeof(uiStr), "YOUR LAST SCORE: %d", ttGetLastScore());
+        //plotText(lastScoreX, (9 * FONT_HEIGHT_TOMTHUMB) + 1, uiStr, TOM_THUMB, WHITE);
 
-        // CLEAR SCORES
+        // CLEAR
         uint8_t clearScoresTextX = 1;
         uint8_t clearScoresTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);
         plotText(clearScoresTextX, clearScoresTextY, "CLEAR SCORES", TOM_THUMB, WHITE);
@@ -1983,7 +1983,8 @@ void ICACHE_FLASH_ATTR ttScoresDisplay(void)
             double holdProgress = ((double)clearScoreTimer / (double)CLEAR_SCORES_HOLD_TIME);
             uint8_t holdAreaX0 = 0;
             uint8_t holdAreaY0 = (OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1)) - 1;
-            uint8_t holdAreaX1 = (uint8_t)(holdProgress * 49);
+            double holdAreaWidth = 49;
+            uint8_t holdAreaX1 = (uint8_t)(holdProgress * holdAreaWidth);
             uint8_t holdAreaY1 = OLED_HEIGHT - 1;
             fillDisplayArea(holdAreaX0, holdAreaY0, holdAreaX1, holdAreaY1, INVERSE);
         }
@@ -2130,13 +2131,13 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
             x0 = 0;
             x1 = OLED_WIDTH - 1;
             ets_snprintf(uiStr, sizeof(uiStr), "1. %d", highScores[0]);
-            score0X = getCenteredTextX(x0, x1, uiStr, TOM_THUMB);
+            score0X = getCenteredTextX(x0, x1, uiStr, IBM_VGA_8);
             ets_snprintf(uiStr, sizeof(uiStr), "2. %d", highScores[1]);
-            score1X = getCenteredTextX(x0, x1, uiStr, TOM_THUMB);
+            score1X = getCenteredTextX(x0, x1, uiStr, IBM_VGA_8);
             ets_snprintf(uiStr, sizeof(uiStr), "3. %d", highScores[2]);
-            score2X = getCenteredTextX(x0, x1, uiStr, TOM_THUMB);
-            ets_snprintf(uiStr, sizeof(uiStr), "YOUR LAST SCORE: %d", ttGetLastScore());
-            lastScoreX = getCenteredTextX(x0, x1, uiStr, TOM_THUMB);
+            score2X = getCenteredTextX(x0, x1, uiStr, IBM_VGA_8);
+            //ets_snprintf(uiStr, sizeof(uiStr), "YOUR LAST SCORE: %d", ttGetLastScore());
+            //lastScoreX = getCenteredTextX(x0, x1, uiStr, TOM_THUMB);
 
             clearScoreTimer = 0;
             holdingClearScore = false;
