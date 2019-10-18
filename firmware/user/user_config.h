@@ -1,6 +1,8 @@
 #ifndef USER_CONFIG_H_
 #define USER_CONFIG_H_
-#define USE_2019_SWADGE
+//The 2019 SWADGE can be used for testing - Its left button becomes mode change
+//    its white buttom becomes left, and the right button remains right
+//#define USE_2019_SWADGE
 
 
 // The accelerometer has two arrows marked x and y and dot in circle marking up
