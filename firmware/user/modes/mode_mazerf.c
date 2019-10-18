@@ -56,16 +56,16 @@
 //#define MAZE_DEBUG_PRINT
 #ifdef MAZE_DEBUG_PRINT
 #include <stdlib.h>
-    #define maze_printf(...) os_printf(__VA_ARGS__)
+#define maze_printf(...) os_printf(__VA_ARGS__)
 #else
-    #define maze_printf(...)
+#define maze_printf(...)
 #endif
 
 //#ifndef max
 //    #define max(a,b) ((a) > (b) ? (a) : (b))
 //#endif
 #ifndef min
-    #define min(a,b) ((a) < (b) ? (a) : (b))
+#define min(a,b) ((a) < (b) ? (a) : (b))
 #endif
 
 // controls (title)
@@ -114,7 +114,7 @@
 // any enums go here.
 
 typedef enum
-{
+   {
     MZ_TITLE,	// title screen
     MZ_GAME,	// play the actual game
     MZ_AUTO,	// automataically play the actual game
@@ -232,14 +232,14 @@ const char * levelName[] = {"BOX", "PRACTICE", "EASY", "MIDDLE", "HARD", "KILLER
 
 swadgeMode mazerfMode =
 {
-	.modeName = "Maze",
-	.fnEnterMode = mzInit,
-	.fnExitMode = mzDeInit,
-	.fnButtonCallback = mzButtonCallback,
-	.wifiMode = NO_WIFI,
-	.fnEspNowRecvCb = NULL,
-	.fnEspNowSendCb = NULL,
-	.fnAccelerometerCallback = mzAccelerometerCallback
+    .modeName = "Maze",
+    .fnEnterMode = mzInit,
+    .fnExitMode = mzDeInit,
+    .fnButtonCallback = mzButtonCallback,
+    .wifiMode = NO_WIFI,
+    .fnEspNowRecvCb = NULL,
+    .fnEspNowSendCb = NULL,
+    .fnAccelerometerCallback = mzAccelerometerCallback
 };
 
 accel_t mzAccel = {0};
@@ -315,21 +315,21 @@ void ICACHE_FLASH_ATTR mzInit(void)
     // External from mode_dance to set brightness when using dance mode display
     setDanceBrightness(2);
     // Give us reliable button input.
-	enableDebounce(false);
+    enableDebounce(false);
 
-	// Reset mode time tracking.
-	modeStartTime = system_get_time();
-	modeTime = 0;
+    // Reset mode time tracking.
+    modeStartTime = system_get_time();
+    modeTime = 0;
 
     // Reset state stuff.
-	mzChangeState(MZ_TITLE);
+    mzChangeState(MZ_TITLE);
 
 
-   // Construct Random Maze
+    // Construct Random Maze
     changeLevel(); // will bring in PRACTICE_LEVEL
     mzNewMazeSetUp();
 
-	// Start the update loop.
+    // Start the update loop.
     os_timer_disarm(&timerHandleUpdate);
     os_timer_setfn(&timerHandleUpdate, (os_timer_func_t*)mzUpdate, NULL);
     os_timer_arm(&timerHandleUpdate, UPDATE_TIME_MS, 1);
@@ -338,12 +338,12 @@ void ICACHE_FLASH_ATTR mzInit(void)
 void ICACHE_FLASH_ATTR mzDeInit(void)
 {
     mazeFreeMemory();
-	os_timer_disarm(&timerHandleUpdate);
+    os_timer_disarm(&timerHandleUpdate);
 }
 
 void ICACHE_FLASH_ATTR mzButtonCallback(uint8_t state, int button __attribute__((unused)), int down __attribute__((unused)))
 {
-	mzButtonState = state;	// Set the state of all buttons
+    mzButtonState = state;	// Set the state of all buttons
 }
 
 void ICACHE_FLASH_ATTR mzAccelerometerCallback(accel_t* accel)
@@ -377,42 +377,42 @@ void ICACHE_FLASH_ATTR setmazeLeds(led_t* ledData, uint8_t ledDataLen)
 
 void ICACHE_FLASH_ATTR mzUpdate(void* arg __attribute__((unused)))
 {
-	// Update time tracking.
+    // Update time tracking.
     // NOTE: delta time is in microseconds.
     // UPDATE time is in milliseconds.
 
-	uint32_t newModeTime = system_get_time() - modeStartTime;
-	uint32_t newStateTime = system_get_time() - stateStartTime;
-	deltaTime = newModeTime - modeTime;
-	modeTime = newModeTime;
-	stateTime = newStateTime;
+    uint32_t newModeTime = system_get_time() - modeStartTime;
+    uint32_t newStateTime = system_get_time() - stateStartTime;
+    deltaTime = newModeTime - modeTime;
+    modeTime = newModeTime;
+    stateTime = newStateTime;
 
-	// Handle Input (based on the state)
-	switch( currState )
+    // Handle Input (based on the state)
+    switch( currState )
     {
-        case MZ_TITLE:
-        {
-			mzTitleInput();
-            break;
-        }
-        case MZ_GAME:
-        case MZ_AUTO:
-        {
-			mzGameInput();
-            break;
-        }
-        case MZ_SCORES:
-        {
-			mzScoresInput();
-            break;
-        }
-        case MZ_GAMEOVER:
-        {
-            mzGameoverInput();
-            break;
-        }
-        default:
-            break;
+    case MZ_TITLE:
+    {
+        mzTitleInput();
+        break;
+    }
+    case MZ_GAME:
+    case MZ_AUTO:
+    {
+        mzGameInput();
+        break;
+    }
+    case MZ_SCORES:
+    {
+        mzScoresInput();
+        break;
+    }
+    case MZ_GAMEOVER:
+    {
+        mzGameoverInput();
+        break;
+    }
+    default:
+        break;
     };
 
     // Mark what our inputs were the last time we acted on them.
@@ -420,63 +420,63 @@ void ICACHE_FLASH_ATTR mzUpdate(void* arg __attribute__((unused)))
     mzLastAccel = mzAccel;
 
     // Handle Game Logic (based on the state)
-	switch( currState )
+    switch( currState )
     {
-        case MZ_TITLE:
-        {
-			mzTitleUpdate();
-            break;
-        }
-        case MZ_GAME:
-        {
-			mzGameUpdate();
-            break;
-        }
-        case MZ_AUTO:
-        {
-			mzAutoGameUpdate();
-            break;
-        }
-        case MZ_SCORES:
-        {
-			mzScoresUpdate();
-            break;
-        }
-        case MZ_GAMEOVER:
-        {
-            mzGameoverUpdate();
-            break;
-        }
-        default:
-            break;
+    case MZ_TITLE:
+    {
+        mzTitleUpdate();
+        break;
+    }
+    case MZ_GAME:
+    {
+        mzGameUpdate();
+        break;
+    }
+    case MZ_AUTO:
+    {
+        mzAutoGameUpdate();
+        break;
+    }
+    case MZ_SCORES:
+    {
+        mzScoresUpdate();
+        break;
+    }
+    case MZ_GAMEOVER:
+    {
+        mzGameoverUpdate();
+        break;
+    }
+    default:
+        break;
     };
 
-	// Handle Drawing Frame (based on the state)
-	switch( currState )
+    // Handle Drawing Frame (based on the state)
+    switch( currState )
     {
-        case MZ_TITLE:
-        {
-			mzTitleDisplay();
-            break;
-        }
-        case MZ_GAME:
-        case MZ_AUTO:
-        {
-			mzGameDisplay();
-            break;
-        }
-        case MZ_SCORES:
-        {
-			mzScoresDisplay();
-            break;
-        }
-        case MZ_GAMEOVER:
-        {
-            mzGameoverDisplay();
-            break;
-        }
-        default:
-            break;
+    case MZ_TITLE:
+    {
+        mzTitleDisplay();
+        break;
+    }
+    case MZ_GAME:
+    case MZ_AUTO:
+    {
+        mzGameDisplay();
+        break;
+    }
+    case MZ_SCORES:
+    {
+        mzScoresDisplay();
+        break;
+    }
+    case MZ_GAMEOVER:
+    {
+        mzGameoverDisplay();
+        break;
+    }
+    default:
+        break;
     };
 }
 
@@ -497,52 +497,52 @@ void ICACHE_FLASH_ATTR mzTitleInput(void)
 void ICACHE_FLASH_ATTR changeLevel(void)
 {
     switch (mazeLevel)
-        {
-        case BOX_LEVEL:
-            mazeLevel = PRACTICE_LEVEL;
-            width = 15;
-            height = 7;
-            rballused = 4;
-            break;
-        case PRACTICE_LEVEL:
-            mazeLevel = EASY_LEVEL;
-            width = 19;
-            height = 7;
-            rballused = 3;
-            break;
-        case EASY_LEVEL:
-            mazeLevel = MIDDLE_LEVEL;
-            width = 23;
-            height = 11;
-            rballused = 3;
-            break;
-        case MIDDLE_LEVEL:
-            mazeLevel = HARD_LEVEL;
-            width = 31;
-            height = 15;
-            rballused = 3;
-            break;
-        case HARD_LEVEL:
-            mazeLevel = KILLER_LEVEL;
-            width = 39;
-            height = 19;
-            rballused = 2;
-            break;
-        case KILLER_LEVEL:
-            mazeLevel = IMPOSSIBLE_LEVEL;
-            width = 63;
-            height = 27;
-            rballused = 1;
-            break;
-        case IMPOSSIBLE_LEVEL:
-            mazeLevel = BOX_LEVEL;
-            width = 7;
-            height = 3;
-            rballused = 9;
-            break;
-        default:
-            break;
-        }
+    {
+    case BOX_LEVEL:
+        mazeLevel = PRACTICE_LEVEL;
+        width = 15;
+        height = 7;
+        rballused = 4;
+        break;
+    case PRACTICE_LEVEL:
+        mazeLevel = EASY_LEVEL;
+        width = 19;
+        height = 7;
+        rballused = 3;
+        break;
+    case EASY_LEVEL:
+        mazeLevel = MIDDLE_LEVEL;
+        width = 23;
+        height = 11;
+        rballused = 3;
+        break;
+    case MIDDLE_LEVEL:
+        mazeLevel = HARD_LEVEL;
+        width = 31;
+        height = 15;
+        rballused = 3;
+        break;
+    case HARD_LEVEL:
+        mazeLevel = KILLER_LEVEL;
+        width = 39;
+        height = 19;
+        rballused = 2;
+        break;
+    case KILLER_LEVEL:
+        mazeLevel = IMPOSSIBLE_LEVEL;
+        width = 63;
+        height = 27;
+        rballused = 1;
+        break;
+    case IMPOSSIBLE_LEVEL:
+        mazeLevel = BOX_LEVEL;
+        width = 7;
+        height = 3;
+        rballused = 9;
+        break;
+    default:
+        break;
+    }
 }
 void ICACHE_FLASH_ATTR mzGameInput(void)
 {
@@ -562,7 +562,7 @@ void ICACHE_FLASH_ATTR mzGameInput(void)
 
 void ICACHE_FLASH_ATTR mzScoresInput(void)
 {
-	//button a = hold to clear scores.
+    //button a = hold to clear scores.
     if(holdingClearScore && mzIsButtonDown(BTN_SCORES_CLEAR_SCORES))
     {
         clearScoreTimer += deltaTime;
@@ -624,33 +624,33 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
 
     maxTimeBegin(&maze_updatedisplay_timer);
     //#define USE_SMOOTHED_ACCEL
-    #ifdef USE_SMOOTHED_ACCEL
+#ifdef USE_SMOOTHED_ACCEL
     // Smooth accelerometer readings
     xAccel = 0.9*xAccel + 0.1*mzAccel.x;
     yAccel = 0.9*yAccel + 0.1*mzAccel.y;
     zAccel = 0.9*zAccel + 0.1*mzAccel.z;
-    #else
+#else
     xAccel = mzAccel.x;
     yAccel = mzAccel.y;
     zAccel = mzAccel.z;
-    #endif
+#endif
 
 
 
-    #define GETVELOCITY
-    #ifdef GETVELOCITY
+#define GETVELOCITY
+#ifdef GETVELOCITY
     // (Smoothed) Accelerometer determines velocity and does one euler step with dt = 1000.0 / UPDATE_TIME_MS
     const float dt = (float)UPDATE_TIME_MS / MS_TO_S_FACTOR;
     // Note smoothed accelerometer causes inertia making bit harder to control
     scxc = scxcprev + dt * xAccel;
     scyc = scycprev + dt * yAccel;
-    #else
+#else
     // (Smoothed) accelerometer determines position on screen
     // NOTE if not smoothed very rough motions
     // want -63 to 63 to go approx from 0 to 124 for scxc and 60 to 0 for scyc
     scxc = xAccel + 62; //xAccel/63 * 62 + 62
     scyc = yAccel/2 + 30; //yAccel/63  + 30
-    #endif
+#endif
 
 
     // increment count and don't start moving till becomes zero
@@ -697,19 +697,19 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
                 gonethruany = true;
                 hitwall = true;
 
-        //DEBUG
+                //DEBUG
                 maze_printf(" Pass %d Wall %d: (%d, %d) to (%d, %d)\n from prev:(%d, %d) to now: (%d, %d)\n t=%d, s=%d, new now:(%d, %d)\n",
-                k, i,  (int)(100*p_1[0]), (int)(100*p_1[1]), (int)(100*p_2[0]), (int)(100*p_2[1]),
-                (int)(100*b_prev[0]), (int)(100*b_prev[1]), (int)(100*b_now[0]), (int)(100*b_now[1]),
-                (int)(100*param[0]), (int)(100*param[1]), (int)(100*b_nowadjusted[0]), (int)(100*b_nowadjusted[1]));
-        #ifdef MAZE_DEBUG_PRINT
+                            k, i,  (int)(100*p_1[0]), (int)(100*p_1[1]), (int)(100*p_2[0]), (int)(100*p_2[1]),
+                            (int)(100*b_prev[0]), (int)(100*b_prev[1]), (int)(100*b_now[0]), (int)(100*b_now[1]),
+                            (int)(100*param[0]), (int)(100*param[1]), (int)(100*b_nowadjusted[0]), (int)(100*b_nowadjusted[1]));
+#ifdef MAZE_DEBUG_PRINT
                 int xmeet1, xmeet2, ymeet1, ymeet2;
                 xmeet1 = 100*(b_prev[0] + param[1] * (b_now[0] - b_prev[0]));
                 ymeet1 = 100*(b_prev[1] + param[1] * (b_now[1] - b_prev[1]));
                 xmeet2 = 100*(p_1[0] + param[0] * (p_2[0] - p_1[0]));
                 ymeet2 = 100*(p_1[1] + param[0] * (p_2[1] - p_1[1]));
                 maze_printf("on motion vector meet (%d, %d) =? (%d, %d) on boundary\n\n", xmeet1, ymeet1, xmeet2, ymeet2);
-        #endif
+#endif
                 if (param[1] < smin)
                 {
                     smin = param[1];
@@ -775,12 +775,12 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
     // Get rare teleportation
     // but don't seem to always do so this hack
     // with TELEPORT FIX dont need this hack
-/* DEBUG try to observe telportation
-    scxc = min(scxc, scxcexit);
-    scxc = max(scxc, rballused);
-    scyc = min(scyc, scycexit);
-    scyc = max(scyc, rballused);
-*/
+    /* DEBUG try to observe telportation
+        scxc = min(scxc, scxcexit);
+        scxc = max(scxc, rballused);
+        scyc = min(scyc, scycexit);
+        scyc = max(scyc, rballused);
+    */
     // Update previous location for next cycle
 
     scxcprev = scxc;
@@ -789,7 +789,7 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
     leds[ledExitInd[exitInd]].g = 127;
 
     // Test if at exit (bottom right corner) thus finished
-     if ((round(scxc) == round(scxcexits[exitInd])) && (round(scyc) == round(scycexits[exitInd])))
+    if ((round(scxc) == round(scxcexits[exitInd])) && (round(scyc) == round(scycexits[exitInd])))
     {
         leds[ledExitInd[exitInd]].r = 255;
         leds[ledExitInd[exitInd]].g = 0;
@@ -903,7 +903,7 @@ void ICACHE_FLASH_ATTR mzGameoverUpdate(void)
 
 void ICACHE_FLASH_ATTR mzTitleDisplay(void)
 {
-	// Clear the display.
+    // Clear the display.
     clearDisplay();
 
     // MAG MAZE
@@ -1147,7 +1147,7 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     // exit is bottom right corner
 
     exitInd = UPPER_LEFT;
-    for (exitSpot_t ix = 0; ix<4;ix++)
+    for (exitSpot_t ix = 0; ix<4; ix++)
     {
         exitHit[ix] = false;
     }
@@ -1295,47 +1295,47 @@ void ICACHE_FLASH_ATTR mazeFreeMemory(void)
 
 void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState)
 {
-	prevState = currState;
+    prevState = currState;
     currState = newState;
-	stateStartTime = system_get_time();
-	stateTime = 0;
+    stateStartTime = system_get_time();
+    stateTime = 0;
 
     switch( currState )
     {
-        case MZ_TITLE:
-            // Clear leds
-            memset(leds, 0, sizeof(leds));
-            setmazeLeds(leds, sizeof(leds));
-            break;
-        case MZ_GAME:
-            // All game restart functions happen here.
-            loadHighScores();
-            // TODO: should I be seeding this, or re-seeding this, and if so, with what?
-            srand((uint32_t)(mzAccel.x + mzAccel.y * 3 + mzAccel.z * 5)); // Seed the random number generator.
-            break;
-        case MZ_AUTO:
-            loadHighScores();
-            indSolutionStep = 0;
-            totalcyclestilldone = 0;
-            exitInd = UPPER_LEFT;
-            break;
-        case MZ_SCORES:
-            loadHighScores();
-            clearScoreTimer = 0;
-            holdingClearScore = false;
-            break;
-        case MZ_GAMEOVER:
-            // Update high score if needed.
-            if (prevState != MZ_AUTO)
-            {
-                newHighScore = updateHighScores(score);
-                if (newHighScore) saveHighScores();
-                // Save out the last score.
-                mzSetLastScore(score);
-            }
-            break;
-        default:
-            break;
+    case MZ_TITLE:
+        // Clear leds
+        memset(leds, 0, sizeof(leds));
+        setmazeLeds(leds, sizeof(leds));
+        break;
+    case MZ_GAME:
+        // All game restart functions happen here.
+        loadHighScores();
+        // TODO: should I be seeding this, or re-seeding this, and if so, with what?
+        srand((uint32_t)(mzAccel.x + mzAccel.y * 3 + mzAccel.z * 5)); // Seed the random number generator.
+        break;
+    case MZ_AUTO:
+        loadHighScores();
+        indSolutionStep = 0;
+        totalcyclestilldone = 0;
+        exitInd = UPPER_LEFT;
+        break;
+    case MZ_SCORES:
+        loadHighScores();
+        clearScoreTimer = 0;
+        holdingClearScore = false;
+        break;
+    case MZ_GAMEOVER:
+        // Update high score if needed.
+        if (prevState != MZ_AUTO)
+        {
+            newHighScore = updateHighScores(score);
+            if (newHighScore) saveHighScores();
+            // Save out the last score.
+            mzSetLastScore(score);
+        }
+        break;
+    default:
+        break;
     };
 }
 
@@ -1498,7 +1498,7 @@ uint8_t ICACHE_FLASH_ATTR  gonethru(float b_prev[], float b_now[], float p_1[], 
 
 
 
-   }
+    }
     return didgothru;
 }
 
