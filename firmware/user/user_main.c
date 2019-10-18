@@ -530,7 +530,10 @@ void setOledDrawTime(uint32_t drawTimeMs)
     os_timer_disarm(&timerHandleUpdateDisplay);
     os_timer_arm(&timerHandleUpdateDisplay, drawTimeMs, true);
 }
-
+#else
+void setOledDrawTime(uint32_t drawTimeMs)
+{
+}
 #endif
 
 /*============================================================================

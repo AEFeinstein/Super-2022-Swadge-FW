@@ -1,6 +1,6 @@
 #ifndef USER_CONFIG_H_
 #define USER_CONFIG_H_
-//#define USE_2019_SWADGE
+#define USE_2019_SWADGE
 
 
 // The accelerometer has two arrows marked x and y and dot in circle marking up
