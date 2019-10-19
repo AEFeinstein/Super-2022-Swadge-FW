@@ -1140,7 +1140,7 @@ void ICACHE_FLASH_ATTR spawnNextTetrad(tetrad_t* newTetrad, tetradRandomizer_t r
 int32_t ICACHE_FLASH_ATTR getLowestActiveRow(tetrad_t* tetrad);
 int32_t ICACHE_FLASH_ATTR getHighestActiveRow(tetrad_t* tetrad);
 int32_t ICACHE_FLASH_ATTR getFallDistance(tetrad_t* tetrad, uint8_t gridWidth, uint8_t gridHeight,
-                                      const uint32_t gridData[][gridWidth]);
+        const uint32_t gridData[][gridWidth]);
 
 // drawing functions.
 void ICACHE_FLASH_ATTR plotSquare(int32_t x0, int32_t y0, int32_t size, color col);
@@ -1149,7 +1149,8 @@ void ICACHE_FLASH_ATTR plotGrid(int32_t x0, int32_t y0, uint8_t unitSize, uint8_
 void ICACHE_FLASH_ATTR plotShape(int32_t x0, int32_t y0, uint8_t unitSize, uint8_t shapeWidth, uint8_t shapeHeight,
                                  uint32_t shape[][shapeWidth], uint8_t shapeFill, int32_t fillRotation, color col);
 void ICACHE_FLASH_ATTR plotPerspectiveEffect(uint8_t leftSrc, uint8_t leftDst, uint8_t rightSrc, uint8_t rightDst,
-        uint8_t y0, uint8_t y1, int32_t numVerticalLines, int32_t numHorizontalLines, double lineTweenTimeS, uint32_t currentTimeUS,
+        uint8_t y0, uint8_t y1, int32_t numVerticalLines, int32_t numHorizontalLines, double lineTweenTimeS,
+        uint32_t currentTimeUS,
         color col);
 uint8_t ICACHE_FLASH_ATTR plotCenteredText(uint8_t x0, uint8_t y, uint8_t x1, char* text, fonts font, color col);
 uint8_t ICACHE_FLASH_ATTR getCenteredTextX(uint8_t x0, uint8_t x1, char* text, fonts font);
@@ -1181,11 +1182,12 @@ void ICACHE_FLASH_ATTR stopClearAnimation(void);
 uint32_t ICACHE_FLASH_ATTR getDropTime(uint32_t level);
 double ICACHE_FLASH_ATTR getDropFXTimeFactor(uint32_t level);
 
-bool ICACHE_FLASH_ATTR isLineCleared(int32_t line, uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth]);
+bool ICACHE_FLASH_ATTR isLineCleared(int32_t line, uint8_t gridWidth, uint8_t gridHeight,
+                                     uint32_t gridData[][gridWidth]);
 int32_t ICACHE_FLASH_ATTR checkLineClears(uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth],
-                                      list_t* fieldTetrads);
+        list_t* fieldTetrads);
 int32_t ICACHE_FLASH_ATTR clearLines(uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth],
-                                 list_t* fieldTetrads);
+                                     list_t* fieldTetrads);
 
 bool ICACHE_FLASH_ATTR checkCollision(coord_t newPos, uint8_t shapeWidth, uint8_t shapeHeight,
                                       const uint32_t shape[][shapeWidth], uint8_t gridWidth, uint8_t gridHeight, const uint32_t gridData[][gridWidth],
@@ -2607,7 +2609,7 @@ int32_t ICACHE_FLASH_ATTR getHighestActiveRow(tetrad_t* tetrad)
 }
 
 int32_t ICACHE_FLASH_ATTR getFallDistance(tetrad_t* tetrad, uint8_t gridWidth, uint8_t gridHeight,
-                                      const uint32_t gridData[][gridWidth])
+        const uint32_t gridData[][gridWidth])
 {
     int32_t fallDistance = gridHeight;
     int32_t currFallDistance;
@@ -2841,7 +2843,8 @@ void ICACHE_FLASH_ATTR plotShape(int32_t x0, int32_t y0, uint8_t unitSize, uint8
 }
 
 void ICACHE_FLASH_ATTR plotPerspectiveEffect(uint8_t leftSrc, uint8_t leftDst, uint8_t rightSrc, uint8_t rightDst,
-        uint8_t y0, uint8_t y1, int32_t numVerticalLines, int32_t numHorizontalLines, double lineTweenTimeS, uint32_t currentTimeUS,
+        uint8_t y0, uint8_t y1, int32_t numVerticalLines, int32_t numHorizontalLines, double lineTweenTimeS,
+        uint32_t currentTimeUS,
         color col)
 {
     // Drawing some fake 3D demo-scene like lines for effect.
@@ -3378,7 +3381,7 @@ bool ICACHE_FLASH_ATTR isLineCleared(int32_t line, uint8_t gridWidth, uint8_t gr
 }
 
 int32_t ICACHE_FLASH_ATTR checkLineClears(uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth],
-                                      list_t* fieldTetrads)
+        list_t* fieldTetrads)
 {
     //Refresh the tetrads grid before checking for any clears.
     refreshTetradsGrid(gridWidth, gridHeight, gridData, fieldTetrads, NULL, false);
@@ -3401,7 +3404,7 @@ int32_t ICACHE_FLASH_ATTR checkLineClears(uint8_t gridWidth, uint8_t gridHeight,
 }
 
 int32_t ICACHE_FLASH_ATTR clearLines(uint8_t gridWidth, uint8_t gridHeight, uint32_t gridData[][gridWidth],
-                                 list_t* fieldTetrads)
+                                     list_t* fieldTetrads)
 {
     //Refresh the tetrads grid before checking for any clears.
     refreshTetradsGrid(gridWidth, gridHeight, gridData, fieldTetrads, NULL, false);
