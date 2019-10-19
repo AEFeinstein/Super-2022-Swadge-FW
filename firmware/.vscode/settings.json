@@ -1,4 +1,7 @@
 {
+    "editor.rulers": [
+        80
+    ],
     "astyle.astylerc": "${workspaceFolder}/.astylerc",
     "files.exclude": {
         "**/.git": true,
@@ -58,7 +61,7 @@
         "mem.h": "c",
         "buzzer.h": "c",
         "mode_snake.h": "c",
-        "gdbstub-entry.C": "cpp",
+        "gdbstub-entry.C": "c",
         "mode_tiltrads.h": "c",
         "mode_gallery.h": "c"
     }
