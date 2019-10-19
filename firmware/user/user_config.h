@@ -1,5 +1,7 @@
 #ifndef USER_CONFIG_H_
 #define USER_CONFIG_H_
+//The 2019 SWADGE can be used for testing - Its left button becomes mode change
+//    its white buttom becomes left, and the right button remains right
 //#define USE_2019_SWADGE
 
 
