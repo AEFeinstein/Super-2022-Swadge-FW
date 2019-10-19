@@ -26,6 +26,7 @@ typedef struct
 
 #define NUM_BUTTON_EVTS      10
 #define DEBOUNCE_US      200000
+#define DEBOUNCE_US_FAST   7000
 
 /*============================================================================
  * Variables
@@ -67,31 +68,31 @@ void HandleButtonEventIRQ( uint8_t stat, int btn, int down )
  */
 void ICACHE_FLASH_ATTR HandleButtonEventSynchronous(void)
 {
-    while(buttonEvtHead != buttonEvtTail)
+    if(buttonEvtHead != buttonEvtTail)
     {
+        uint32_t debounceUs;
         if(debounceEnabled)
         {
-            if(0 != buttonQueue[buttonEvtHead].btn &&
-                    buttonQueue[buttonEvtHead].time - lastButtonPress[buttonQueue[buttonEvtHead].btn] < DEBOUNCE_US)
-            {
-                ; // Consume this event below, don't count it as a press
-            }
-            else
-            {
-                swadgeModeButtonCallback(buttonQueue[buttonEvtHead].stat,
-                                         buttonQueue[buttonEvtHead].btn,
-                                         buttonQueue[buttonEvtHead].down);
-
-                // Note the time of this button press
-                lastButtonPress[buttonQueue[buttonEvtHead].btn] = buttonQueue[buttonEvtHead].time;
-            }
+            debounceUs = DEBOUNCE_US;
         }
         else
         {
-            // Just pass it along, no filtering
+            debounceUs = DEBOUNCE_US_FAST;
+        }
+
+        if(0 != buttonQueue[buttonEvtHead].btn &&
+                buttonQueue[buttonEvtHead].time - lastButtonPress[buttonQueue[buttonEvtHead].btn] < debounceUs)
+        {
+            ; // Consume this event below, don't count it as a press
+        }
+        else
+        {
             swadgeModeButtonCallback(buttonQueue[buttonEvtHead].stat,
                                      buttonQueue[buttonEvtHead].btn,
                                      buttonQueue[buttonEvtHead].down);
+
+            // Note the time of this button press
+            lastButtonPress[buttonQueue[buttonEvtHead].btn] = buttonQueue[buttonEvtHead].time;
         }
 
         // Increment the head
