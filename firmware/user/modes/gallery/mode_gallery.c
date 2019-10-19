@@ -133,7 +133,7 @@ const galImage_t galBongo =
 
 const galImage_t galSnort =
 {
-    .nFrames = 2,
+    .nFrames = 1,
     .frames = {
         {.data = gal_snort_0, .len = sizeof(gal_snort_0)},
     }
