@@ -19,6 +19,7 @@
 #include "buzzer.h"
 #include "hpatimer.h"
 #include "custom_commands.h"
+#include "buttons.h"
 
 /*==============================================================================
  * Defines
@@ -38,11 +39,11 @@
 
 typedef enum
 {
-    UP    = 0,
-    RIGHT = 1,
-    DOWN  = 2,
-    LEFT  = 3,
-    NUM_DIRECTIONS
+    S_UP    = 0,
+    S_RIGHT = 1,
+    S_DOWN  = 2,
+    S_LEFT  = 3,
+    S_NUM_DIRECTIONS
 } dir_t;
 
 typedef enum
@@ -609,6 +610,9 @@ void ICACHE_FLASH_ATTR snakeButtonCallback(uint8_t state __attribute__((unused))
                     // Right button
                     case 2:
                     {
+                        // Request responsive buttons
+                        enableDebounce(false);
+
                         // Start the game
                         snake.mode = MODE_GAME;
                         snakeResetGame();
@@ -653,7 +657,7 @@ void ICACHE_FLASH_ATTR snakeButtonCallback(uint8_t state __attribute__((unused))
                     {
                         if(0 == snake.dir)
                         {
-                            snake.dir += NUM_DIRECTIONS;
+                            snake.dir += S_NUM_DIRECTIONS;
                         }
                         snake.dir--;
                         break;
@@ -661,7 +665,7 @@ void ICACHE_FLASH_ATTR snakeButtonCallback(uint8_t state __attribute__((unused))
                     // Right Button
                     case 2:
                     {
-                        snake.dir = (snake.dir + 1) % NUM_DIRECTIONS;
+                        snake.dir = (snake.dir + 1) % S_NUM_DIRECTIONS;
                         break;
                     }
                     default:
@@ -703,7 +707,7 @@ void ICACHE_FLASH_ATTR snakeResetGame(void)
     snake.snakeList = NULL;
 
     // Set all the game variables
-    snake.dir = RIGHT;
+    snake.dir = S_RIGHT;
     snake.posFood.x = -1;
     snake.posFood.y = -1;
     snake.posCritter.x = -1;
@@ -891,6 +895,9 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
         // Blink the field to indicate game over
         snake.mode = MODE_GAME_OVER_BLINK;
         os_timer_arm(&snake.timerHandeleSnakeBlink, 500, true);
+
+        // Request debounced buttons
+        enableDebounce(true);
     }
 }
 
@@ -1014,7 +1021,7 @@ void ICACHE_FLASH_ATTR snakeAddNode(uint8_t ttl)
         // Start in the middle of the display, facing right
         snake.snakeList->pos.x = SNAKE_FIELD_WIDTH / 2;
         snake.snakeList->pos.y = SNAKE_FIELD_HEIGHT / 2 + 2;
-        snake.snakeList->dir = RIGHT;
+        snake.snakeList->dir = S_RIGHT;
         snake.snakeList->isFat = 0;
         snake.snakeList->prevSegment = NULL;
         snake.snakeList->nextSegment = NULL;
@@ -1040,7 +1047,7 @@ void ICACHE_FLASH_ATTR snakeAddNode(uint8_t ttl)
         }
         snakePtr->nextSegment->pos.x = snakePtr->pos.x - SPRITE_DIM;
         snakePtr->nextSegment->pos.y = snakePtr->pos.y;
-        snakePtr->nextSegment->dir = RIGHT;
+        snakePtr->nextSegment->dir = S_RIGHT;
         snakePtr->nextSegment->isFat = 0;
         snakePtr->nextSegment->prevSegment = snakePtr;
         snakePtr->nextSegment->nextSegment = NULL;
@@ -1134,27 +1141,27 @@ void ICACHE_FLASH_ATTR snakeMoveSnakePos(pos_t* pos, dir_t dir)
 {
     switch(dir)
     {
-        case UP:
+        case S_UP:
         {
             pos->y = wrapIdx(pos->y, -SPRITE_DIM, SNAKE_FIELD_HEIGHT);
             break;
         }
-        case DOWN:
+        case S_DOWN:
         {
             pos->y = wrapIdx(pos->y, SPRITE_DIM, SNAKE_FIELD_HEIGHT);
             break;
         }
-        case LEFT:
+        case S_LEFT:
         {
             pos->x = wrapIdx(pos->x, -SPRITE_DIM, SNAKE_FIELD_WIDTH);
             break;
         }
-        case RIGHT:
+        case S_RIGHT:
         {
             pos->x = wrapIdx(pos->x, SPRITE_DIM, SNAKE_FIELD_WIDTH);
             break;
         }
-        case NUM_DIRECTIONS:
+        case S_NUM_DIRECTIONS:
         default:
         {
             break;
