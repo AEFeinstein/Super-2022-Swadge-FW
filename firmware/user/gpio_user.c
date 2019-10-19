@@ -45,7 +45,7 @@ bool mBuzzerState = false;
 // Matches order in button_mask
 static const gpioInfo_t gpioInfoInput[] =
 {
-#if defined(USE_2019_SWADGE)
+#if SWADGE_VERSION == SWADGE_2019
     // Up
     {
         .GPID = 13,
