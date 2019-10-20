@@ -12,10 +12,10 @@ The UI will flash green for four seconds when a Swadge is successfully flashed.
 The following Python modules must be installed:
 * ``tkinter`` (this should be installed with Python, use Google if you don't seem to have it)
 * ``pyserial``
-* ``esptool``
+* ``esptool`` (this dependency was replaced with a local version that has bugfix)
 
 This can be done with the command:
-```pip install pyserial esptool```
+```pip install pyserial```
 
 For the script to actually flash firmware, the following files must be in the same directory as ``pyFlashGui.py``:
 * ``image.elf-0x00000.bin`` (from compilation)
