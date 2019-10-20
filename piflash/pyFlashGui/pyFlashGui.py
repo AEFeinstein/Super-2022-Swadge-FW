@@ -21,6 +21,8 @@ class StoppableThread(threading.Thread):
 
     def run(self):
         # target function of the thread class
+        import sys
+        sys.path.insert(0, "./esptool")
         import esptool
         import time
         # Spin forever
@@ -35,13 +37,22 @@ class StoppableThread(threading.Thread):
 
             # Try to flash the firmware
             try:
-                esptool.main(["-b", "2000000", "--port", self.name, "write_flash", "-fm", "dio", "0x00000", "image.elf-0x00000.bin", "0x10000",
-                              "image.elf-0x10000.bin", "0x1FB000", "blank.bin", "0x1FC000", "esp_init_data_default_v08.bin", "0x1FE000", "blank.bin"])
+                esptool.main([
+                    "--baud", "2000000",
+                    "--port", self.name,
+                    "--chip", "esp8266",
+                    "write_flash", "-fm", "dio",
+                    "0x00000", "image.elf-0x00000.bin",
+                    "0x10000", "image.elf-0x10000.bin",
+                    "0x1FB000", "blank.bin",
+                    "0x1FC000", "esp_init_data_default_v08.bin",
+                    "0x1FE000", "blank.bin"])
                 # It worked! Display a nice green message
                 self.label.config(
                     text="Flash succeeded on " + self.name, bg="green")
                 time.sleep(4)
-            except:
+            except Exception as e:
+                print("esptool failed because" + str(e) + "\n")
                 # It failed, just wait a second a try again
                 time.sleep(1)
 

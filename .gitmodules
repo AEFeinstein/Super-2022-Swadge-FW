@@ -4,3 +4,6 @@
 [submodule "firmware/ESP8266_NONOS_SDK"]
 	path = firmware/ESP8266_NONOS_SDK
 	url = https://github.com/espressif/ESP8266_NONOS_SDK
+[submodule "piflash/pyFlashGui/esptool"]
+	path = piflash/pyFlashGui/esptool
+	url = https://github.com/AEFeinstein/esptool.git
