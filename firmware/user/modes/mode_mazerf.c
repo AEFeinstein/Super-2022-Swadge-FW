@@ -621,9 +621,6 @@ void ICACHE_FLASH_ATTR mzGameoverInput(void)
     //button b = go to title screen
     else if(mzIsButtonPressed(BTN_GAMEOVER_START_TITLE))
     {
-        //setLevel();
-        //mazeFreeMemory();
-        //mzNewMazeSetUp();
         mzChangeState(MZ_SCORES);
     }
 }
