@@ -37,7 +37,7 @@ class StoppableThread(threading.Thread):
 
             # Try to flash the firmware
             try:
-                esptool.main([
+                retval = esptool.main([
                     "--baud", "2000000",
                     "--port", self.name,
                     "--chip", "esp8266",
@@ -48,8 +48,12 @@ class StoppableThread(threading.Thread):
                     "0x1FC000", "esp_init_data_default_v08.bin",
                     "0x1FE000", "blank.bin"])
                 # It worked! Display a nice green message
-                self.label.config(
-                    text="Flash succeeded on " + self.name, bg="green")
+                if(retval is True):
+                    self.label.config(
+                        text="Flash succeeded on " + self.name, bg="green")
+                else:
+                    self.label.config(
+                        text="Flash failed on " + self.name, bg="red")
                 time.sleep(4)
             except Exception as e:
                 print("esptool failed because" + str(e) + "\n")
