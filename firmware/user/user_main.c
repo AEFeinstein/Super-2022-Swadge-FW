@@ -38,6 +38,8 @@
 #include "mode_tiltrads.h"
 #include "mode_mazerf.h"
 #include "mode_color_movement.h"
+#include "mode_roll3.h"
+#include "mode_roll.h"
 
 /*============================================================================
  * Defines
@@ -77,6 +79,8 @@ swadgeMode* swadgeModes[] =
     &tiltradsMode,
     &mazerfMode,
     &colorMoveMode,
+    &rollMode,
+    &roll3Mode,
     &galleryMode,
 };
 bool swadgeModeInit = false;

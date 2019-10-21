@@ -38,7 +38,7 @@
 
 void ICACHE_FLASH_ATTR rollEnterMode(void);
 void ICACHE_FLASH_ATTR rollExitMode(void);
-void ICACHE_FLASH_ATTR initializeConditionsForODE(uint8_t currentMethod);
+void ICACHE_FLASH_ATTR initializeConditionsForODE(uint8_t Method);
 void ICACHE_FLASH_ATTR rollSampleHandler(int32_t samp);
 void ICACHE_FLASH_ATTR rollButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down);
@@ -85,33 +85,41 @@ swadgeMode rollMode =
     .fnAccelerometerCallback = rollAccelerometerHandler
 };
 
-uint8_t currentMethod = 0;
-uint8_t numMethods = 4;
-accel_t rollAccel = {0};
-uint8_t rollButtonState = 0;
-uint8_t rollBrightnessIdx = 2;
-int roll_ledCount = 0;
-FLOATING scxc = 0;
-FLOATING scyc = 0;
+struct
+{
+    uint8_t currentMethod;
+    uint8_t numMethods;
+    accel_t Accel;
+    uint8_t ButtonState;
+    uint8_t Brightnessidx;
+    led_t leds[NUM_LIN_LEDS];
+    int LedCount;
+    FLOATING scxc;
+    FLOATING scyc;
 
 
-/* global variables for ODE */
-//const FLOATING gravity = 9.81;               // free fall acceleration in m/s^2
-//const FLOATING mass = 1.0;                // mass of a projectile in kg
-//const FLOATING radconversion = 3.1415926/180.0;  // radians
-//uint8_t numberoffirstordereqn = 2;                          // number of first-order equations
+    /* global variables for ODE */
+    //const FLOATING gravity = 9.81;               // free fall acceleration in m/s^2
+    //const FLOATING mass = 1.0;                // mass of a projectile in kg
+    //const FLOATING radconversion = 3.1415926/180.0;  // radians
+    uint8_t numberoffirstordereqn;                          // number of first-order equations
 #define MAX_EQNS 4                     // MAX number of first-order equations
-FLOATING ti, tf, dt;
-FLOATING xi[MAX_EQNS], xf[MAX_EQNS];
-FLOATING v0, a0;
+    FLOATING ti;
+    FLOATING tf;
+    FLOATING dt;
+    FLOATING xi[MAX_EQNS];
+    FLOATING xf[MAX_EQNS];
+    FLOATING v0;
+    FLOATING a0;
+    FLOATING xAccel;
+    FLOATING yAccel;
+    FLOATING zAccel;
+    FLOATING len;
 
-FLOATING xAccel;
-FLOATING yAccel;
-FLOATING zAccel;
-FLOATING len;
+    void (*rhs_fun_ptr)(FLOATING, FLOATING*, FLOATING*, int);
+    void (*adjustment_fun_ptr)(FLOATING, FLOATING*, FLOATING*, int);
 
-void (*rhs_fun_ptr)(FLOATING, FLOATING *, FLOATING *, int);
-void (*adjustment_fun_ptr)(FLOATING, FLOATING *, FLOATING *, int);
+} roll;
 
 /*============================================================================
  * Functions
@@ -123,8 +131,16 @@ void (*adjustment_fun_ptr)(FLOATING, FLOATING *, FLOATING *, int);
  */
 void ICACHE_FLASH_ATTR rollEnterMode(void)
 {
+    roll.currentMethod = 0;
+    roll.numMethods = 4;
+    //roll.Accel = {0};
+    roll.ButtonState = 0;
+    roll.Brightnessidx = 2;
+    roll.LedCount = 0;
+    roll.scxc = 0;
+    roll.scyc = 0;
     enableDebounce(false);
-    initializeConditionsForODE(currentMethod);
+    initializeConditionsForODE(roll.currentMethod);
 
 }
 
@@ -142,40 +158,41 @@ void ICACHE_FLASH_ATTR rollExitMode(void)
 void ICACHE_FLASH_ATTR initializeConditionsForODE(uint8_t Method)
 {
 
-/* for thrown ball
-    ti = 0.0;                // initial value for variable t
-    v0 = 180.0;              // initial speed (m/s)
-    a0 =  45.0;              // initial angle (degrees)
-    xi[0] = 0.0;             // initial position in x (m)
-    xi[1] = 0.0;             // initial position in y (m)
-    xi[2] = v0*cos(a0*rad);  // initial speed in x direction (m.s)
-    xi[3] = v0*sin(a0*rad);  // initial speed in y direction (m/s)
-    dt = 0.1;                // step size for integration (s)
-*/
-	switch(Method)
-	{
-		case 0:
-			// For damped pendulum
-			numberoffirstordereqn = 2;
-			ti = 0.0;                // initial value for variable t
-			xi[0] = 0.0;             // initial angle position in (radians)
-			xi[1] = 0.0;             // initial angular speed in radians/ sec
-			dt = 0.1;                // step size for integration (s)
-			rhs_fun_ptr = &dnxdampedpendulum;
-			adjustment_fun_ptr = NULL;
-			break;
-		case 1:
-			// For velocity controlled ball in plane
-			numberoffirstordereqn = 2;
-			ti = 0.0;                // initial value for variable t
-			xi[0] = 0.5;             // initial xcoor position
-			xi[1] = 0.5;             // initial ycoor
-			dt = 0.1;                // step size for integration (s)
-			rhs_fun_ptr = &dnx2dvelocity;
-			break;
-		default:
-                        (void)0;
-	}
+    /* for thrown ball
+        roll.numberoffirstordereqn = 4;
+        roll.ti = 0.0;                // initial value for variable t
+        roll.v0 = 180.0;              // initial speed (m/s)
+        roll.a0 =  45.0;              // initial angle (degrees)
+        roll.xi[0] = 0.0;             // initial position in x (m)
+        roll.xi[1] = 0.0;             // initial position in y (m)
+        roll.xi[2] = v0*cos(a0*rad);  // initial speed in x direction (m.s)
+        roll.xi[3] = v0*sin(a0*rad);  // initial speed in y direction (m/s)
+        roll.dt = 0.1;                // step size for integration (s)
+    */
+    switch(Method)
+    {
+        case 0:
+            // For damped pendulum
+            roll.numberoffirstordereqn = 2;
+            roll.ti = 0.0;                // initial value for variable t
+            roll.xi[0] = 0.0;             // initial angle position in (radians)
+            roll.xi[1] = 0.0;             // initial angular speed in radians/ sec
+            roll.dt = 0.1;                // step size for integration (s)
+            roll.rhs_fun_ptr = &dnxdampedpendulum;
+            roll.adjustment_fun_ptr = NULL;
+            break;
+        case 1:
+            // For velocity controlled ball in plane
+            roll.numberoffirstordereqn = 2;
+            roll.ti = 0.0;                // initial value for variable t
+            roll.xi[0] = 0.5;             // initial xcoor position
+            roll.xi[1] = 0.5;             // initial ycoor
+            roll.dt = 0.1;                // step size for integration (s)
+            roll.rhs_fun_ptr = &dnx2dvelocity;
+            break;
+        default:
+            (void)0;
+    }
 }
 
 
@@ -183,7 +200,7 @@ void ICACHE_FLASH_ATTR initializeConditionsForODE(uint8_t Method)
 /*==== RHS of ODE ===============================================*/
 
 /*
-// Motion of thrown ball numberoffirstordereqn=4, x = [xcoor, ycoor, xdot, ydot]
+// Motion of thrown ball roll.numberoffirstordereqn=4, x = [xcoor, ycoor, xdot, ydot]
 void ICACHE_FLASH_ATTR dnx(FLOATING t, FLOATING x[], FLOATING dx[], int n)
 {
 // to stop warning that t and n not used
@@ -201,39 +218,40 @@ void ICACHE_FLASH_ATTR dnx(FLOATING t, FLOATING x[], FLOATING dx[], int n)
 
 // Motion of damped rigid pendulum with gravity the downward component
 // of the accelerometer
-// Here numberoffirstordereqn = 2, x is [th, thdot] position in radian, speed in radians/sec
+// Here roll.numberoffirstordereqn = 2, x is [th, thdot] position in radian, speed in radians/sec
 void ICACHE_FLASH_ATTR dnxdampedpendulum(FLOATING t, FLOATING x[], FLOATING dx[], int n)
 {
-// to stop warning that t and n not used
-   (void)t;
-   (void)n;
-   //first order
-   dx[0] = x[1];
-   // second order
-   FLOATING down = atan2(-yAccel, -xAccel);
-   //os_printf("100down = %d\n", (int)(100*down)); // down 0 is with positve x on accel pointing down
-   FLOATING force = 0.0; // later used for button replulsion
-   //os_printf("%d\n", (int)(100*zAccel)); //xAccel can exceed 1
-   //NOTE as scaled accelerations can exceed 1 this computation sometime got error and then got negative overflow and all stopped working
-   //dx[1] = force + -gravity * sqrt(1.0 - pow(zAccel, 2)) / LEN_PENDULUM * sin(x[0] - down) - .05 * x[1];
-   //USE safer calculation that won't get sqrt of negative number
-   dx[1] = force + -gravity * sqrt(pow(xAccel,2) + pow(yAccel, 2)) / LEN_PENDULUM * sin(x[0] - down) - .05 * x[1];
+    // to stop warning that t and n not used
+    (void)t;
+    (void)n;
+    //first order
+    dx[0] = x[1];
+    // second order
+    FLOATING down = atan2(-roll.yAccel, -roll.xAccel);
+    //os_printf("100down = %d\n", (int)(100*down)); // down 0 is with positve x on accel pointing down
+    FLOATING force = 0.0; // later used for button replulsion
+    //os_printf("%d\n", (int)(100*roll.zAccel)); //roll.xAccel can exceed 1
+    //NOTE as scaled accelerations can exceed 1 this computation sometime got error and then got negative overflow and all stopped working
+    //dx[1] = force + -gravity * sqrt(1.0 - pow(roll.zAccel, 2)) / LEN_PENDULUM * sin(x[0] - down) - .05 * x[1];
+    //USE safer calculation that won't get sqrt of negative number
+    dx[1] = force + -gravity * sqrt(pow(roll.xAccel, 2) + pow(roll.yAccel,
+                                    2)) / LEN_PENDULUM * sin(x[0] - down) - .05 * x[1];
 }
 
 // Here 1st Order motion with velocity from accelerometer
 void ICACHE_FLASH_ATTR dnx2dvelocity(FLOATING t, FLOATING x[], FLOATING dx[], int n)
 {
-// to stop warning that t and n not used
-   (void)t;
-   (void)n;
-   (void)x;
-   FLOATING force = 0.0;
-   //FLOATING friction = 1.0;
-   FLOATING gmult = 200;
-   //first order
-   dx[0] = force + gmult * xAccel;
-   dx[1] = force + gmult * yAccel;
-   }
+    // to stop warning that t and n not used
+    (void)t;
+    (void)n;
+    (void)x;
+    FLOATING force = 0.0;
+    //FLOATING friction = 1.0;
+    FLOATING gmult = 200;
+    //first order
+    dx[0] = force + gmult * roll.xAccel;
+    dx[1] = force + gmult * roll.yAccel;
+}
 
 
 
@@ -247,25 +265,25 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
     //os_printf("100t = %d, x = %d, y = %d, vx = %d, vy = %d\n", (int)(100*ti), (int)xi[0], (int)xi[1], (int)xi[2], (int)xi[3]);
 
     //Save accelerometer reading in global storage
-//TODO can get values bigger than 1. here, my accelerometer has 14 bits
-    xAccel = rollAccel.x / 256.0;
-    yAccel = rollAccel.y / 256.0;
-    zAccel = rollAccel.z / 256.0;
+    //TODO can get values bigger than 1. here, my accelerometer has 14 bits
+    roll.xAccel = roll.Accel.x / 256.0;
+    roll.yAccel = roll.Accel.y / 256.0;
+    roll.zAccel = roll.Accel.z / 256.0;
 
-    switch (currentMethod)
+    switch (roll.currentMethod)
     {
         case 0:
-            tf = ti + dt;
+            roll.tf = roll.ti + roll.dt;
             // Do one step of ODE solver assigned to rhs_fun_pointer
-            //euler_dn1(dnx, ti, dt, xi, xf, numberoffirstordereqn);
-            //rk4_dn1(dnx, ti, dt, xi, xf, numberoffirstordereqn);
-            rk4_dn1((*rhs_fun_ptr), ti, dt, xi, xf, numberoffirstordereqn);
-	    break;
+            //euler_dn1(dnx, roll.ti, dt, roll.xi, roll.xf, roll.numberoffirstordereqn);
+            //rk4_dn1(dnx, roll.ti, roll.dt, roll.xi, roll.xf, roll.numberoffirstordereqn);
+            rk4_dn1((*roll.rhs_fun_ptr), roll.ti, roll.dt, roll.xi, roll.xf, roll.numberoffirstordereqn);
+            break;
         case 1:
-            tf = ti + dt;
-            euler_dn1((*rhs_fun_ptr), ti, dt, xi, xf, numberoffirstordereqn);
-	    break;
-       default:
+            roll.tf = roll.ti + roll.dt;
+            euler_dn1((*roll.rhs_fun_ptr), roll.ti, roll.dt, roll.xi, roll.xf, roll.numberoffirstordereqn);
+            break;
+        default:
             (void)0;
     }
 
@@ -274,30 +292,38 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
     // prevent hitting walls by stopping or bouncing
     // torus wrapping
     // simple case 4 walls bounding the screen
-    // migt use *adjustment_fun_ptr(xi, xf);
+    // migt use *adjustment_fun_ptr(roll.xi, roll.xf);
 
     int wrap[] = {127, 63};
-    switch (currentMethod)
+    switch (roll.currentMethod)
     {
         case 0:
-           ti = tf;
-           for (uint8_t i = 0; i < numberoffirstordereqn; i++)
-           {
-                xi[i] = xf[i];
-           }
-           break;
+            roll.ti = roll.tf;
+            for (uint8_t i = 0; i < roll.numberoffirstordereqn; i++)
+            {
+                roll.xi[i] = roll.xf[i];
+                //os_printf("%d ", (int)(100 * roll.xi[i]));
+            }
+            //os_printf("\n");
+            break;
         case 1:
-           ti = tf;
-           for (uint8_t i = 0; i < numberoffirstordereqn; i++)
-           {
-                if ((xf[i] >=0) && (xf[i] <= wrap[i]))
-                    xi[i] = xf[i];
-		else if (xf[i] < 0)
-		    xi[i] = xf[i] + wrap[i];
-		else
-		    xi[i] = xf[i] - wrap[i];
-           }
-	   break;
+            roll.ti = roll.tf;
+            for (uint8_t i = 0; i < roll.numberoffirstordereqn; i++)
+            {
+                if ((roll.xf[i] >= 0) && (roll.xf[i] <= wrap[i]))
+                {
+                    roll.xi[i] = roll.xf[i];
+                }
+                else if (roll.xf[i] < 0)
+                {
+                    roll.xi[i] = roll.xf[i] + wrap[i];
+                }
+                else
+                {
+                    roll.xi[i] = roll.xf[i] - wrap[i];
+                }
+            }
+            break;
         default:
             (void)0;
     }
@@ -305,70 +331,72 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
     // Insure solution coordinates on OLED for the moving ball
     // OLED xcoord from 0 (left) to 127, ycoord from 0(top) to 63
 
-    switch (currentMethod)
+    switch (roll.currentMethod)
     {
         case 0:
-            scxc = 64.0 - 28.0 * cos(xi[0]);
-            scyc = 32.0 - 28.0 * sin(xi[0]);
+            roll.scxc = 64.0 - 28.0 * cos(roll.xi[0]);
+            roll.scyc = 32.0 - 28.0 * sin(roll.xi[0]);
             break;
         case 1:
-            scxc = xi[0];
-            scyc = xi[1];
+            roll.scxc = roll.xi[0];
+            roll.scyc = roll.xi[1];
             break;
 
         case 2:
-            // Using center of screen as orgin, position ball  proportional to x,y component of rollAccel
-            scxc = 64 + (rollAccel.x>>2);
-            scyc = 32 + (rollAccel.y>>3);
+            // Using center of screen as orgin, position ball  proportional to x,y component of Accel
+            roll.scxc = 64 + (roll.Accel.x >> 2);
+            roll.scyc = 32 + (roll.Accel.y >> 3);
             break;
         case 3:
-            // Using center of screen as orgin, position ball on circle of radius 32 with direction x,y component of rollAccel
+            // Using center of screen as orgin, position ball on circle of radius 32 with direction x,y component of Accel
             // acts as level with ball at lowest spot
-            scxc = rollAccel.x;
-            scyc = rollAccel.y;
-            len = sqrt(scxc*scxc + scyc*scyc);
-            if (len>0)
+            roll.scxc = roll.Accel.x;
+            roll.scyc = roll.Accel.y;
+            roll.len = sqrt(roll.scxc * roll.scxc + roll.scyc * roll.scyc);
+            if (roll.len > 0)
             {
-               // scale normalized vector to length 28 to keep ball within bounds of screen
-               scxc = 64.0 + 28.0 * scxc / len;
-               scyc = 32.0 + 28.0 * scyc / len;
+                // scale normalized vector to length 28 to keep ball within bounds of screen
+                roll.scxc = 64.0 + 28.0 * roll.scxc / roll.len;
+                roll.scyc = 32.0 + 28.0 * roll.scyc / roll.len;
             }
             break;
 
-       default:
+        default:
             (void)0;
     }
 
     // Draw virtual ball
-    plotCircle(scxc, scyc, 5, WHITE);
-    plotCircle(scxc, scyc, 3, WHITE);
-    plotCircle(scxc, scyc, 1, WHITE);
+    plotCircle(roll.scxc, roll.scyc, 5, WHITE);
+    plotCircle(roll.scxc, roll.scyc, 3, WHITE);
+    plotCircle(roll.scxc, roll.scyc, 1, WHITE);
 
-    //os_printf("(%d, %d\n", (int)scxc, (int)scyc);
+    //os_printf("(%d, %d\n", (int)roll.scxc, (int)roll.scyc);
 
-    // Declare some LEDs, all off
-    led_t leds[NUM_LIN_LEDS] = {{0}};
+    // LEDs, all off
+    ets_memset(roll.leds, 0, sizeof(roll.leds));
+    //roll.leds[NUM_LIN_LEDS] = {{0}};
 #define GAP 1
 
-/*  Python
-    for led in self.leds:
-        led.alpha = (1 - abs(self.ball.position - led.position)/(30+2*self.size.h/2.5))**3
-        if self.framecount % 1 == 0:
-            led.color = colorsys.hsv_to_rgb(self.ball.meanspeed,1,1)
-*/
+    /*  Python
+        for led in self.leds:
+            led.alpha = (1 - abs(self.ball.position - led.position)/(30+2*self.size.h/2.5))**3
+            if self.framecount % 1 == 0:
+                led.color = colorsys.hsv_to_rgb(self.ball.meanspeed,1,1)
+    */
 
-    for (uint8_t indLed=0; indLed<NUM_LIN_LEDS/GAP; indLed++)
+    for (uint8_t indLed = 0; indLed < NUM_LIN_LEDS / GAP; indLed++)
     {
-        int16_t ledy = Ssinonlytable[((indLed<<8)*GAP/NUM_LIN_LEDS + 0x80) % 256]*28/1500; // from -1500 to 1500
-        int16_t ledx = Ssinonlytable[((indLed<<8)*GAP/NUM_LIN_LEDS + 0xC0) % 256]*28/1500;
-        len = sqrt((scxc - 64 - ledx)*(scxc - 64 - ledx) + (-scyc + 32 - ledy)*(-scyc + 32 - ledy));
-        //len = norm(scxc - ledx, scyc - ledy);
-        uint8_t glow = 255 * pow(1.0 - (len / 56.0), 3);
-        //os_printf("%d %d %d %d %d %d %d \n",indLed, ledx, ledy, scxc, scyc, len, 255 - len * 4);
-        //leds[GAP*indLed].r = 255 - len * 4;
-        leds[GAP*indLed].r = glow;
+        int16_t ledy = Ssinonlytable[((indLed << 8) * GAP / NUM_LIN_LEDS + 0x80) % 256] * 28 / 1500; // from -1500 to 1500
+        int16_t ledx = Ssinonlytable[((indLed << 8) * GAP / NUM_LIN_LEDS + 0xC0) % 256] * 28 / 1500;
+        roll.len = sqrt((roll.scxc - 64 - ledx) * (roll.scxc - 64 - ledx) + (-roll.scyc + 32 - ledy) *
+                        (-roll.scyc + 32 - ledy));
+        //roll.len = norm(roll.scxc - ledx, roll.scyc - ledy);
+        uint8_t glow = 255 * pow(1.0 - (roll.len / 56.0), 3);
+        //os_printf("%d %d %d %d %d %d %d \n",indLed, ledx, ledy, scxc, roll.scyc, roll.len, 255 - roll.len * 4);
+        //roll.leds[GAP*indLed].r = 255 - roll.len * 4;
+        roll.leds[GAP * indLed].r = glow;
     }
-    setRollLeds(leds, sizeof(leds));
+    setRollLeds(roll.leds, sizeof(roll.leds));
 
 }
 
@@ -382,23 +410,23 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
 void ICACHE_FLASH_ATTR rollButtonCallback( uint8_t state,
         int button __attribute__((unused)), int down __attribute__((unused)))
 {
-    rollButtonState = state;
+    roll.ButtonState = state;
     roll_updateDisplay();
 
     if(down)
     {
-	if(2 == button)
-	{
-        // Cycle movement methods
-		currentMethod = (currentMethod + 1) % numMethods;
-os_printf("currentMethod = %d\n", currentMethod);
-		//reset init conditions for new method
-		initializeConditionsForODE(currentMethod);
-        }
-	if(3 == button)
+        if(2 == button)
         {
-        // Cycle brightnesses
-		rollBrightnessIdx = (rollBrightnessIdx + 1) %
+            // Cycle movement methods
+            roll.currentMethod = (roll.currentMethod + 1) % roll.numMethods;
+            os_printf("roll.currentMethod = %d\n", roll.currentMethod);
+            //reset init conditions for new method
+            initializeConditionsForODE(roll.currentMethod);
+        }
+        if(1 == button)
+        {
+            // Cycle brightnesses
+            roll.Brightnessidx = (roll.Brightnessidx + 1) %
                                  (sizeof(rollBrightnesses) / sizeof(rollBrightnesses[0]));
         }
     }
@@ -413,9 +441,9 @@ os_printf("currentMethod = %d\n", currentMethod);
  */
 void ICACHE_FLASH_ATTR rollAccelerometerHandler(accel_t* accel)
 {
-    rollAccel.x = accel->y;
-    rollAccel.y = accel->x;
-    rollAccel.z = accel->z;
+    roll.Accel.x = accel->y;
+    roll.Accel.y = accel->x;
+    roll.Accel.z = accel->z;
     roll_updateDisplay();
 }
 
@@ -430,9 +458,9 @@ void ICACHE_FLASH_ATTR setRollLeds(led_t* ledData, uint8_t ledDataLen)
     uint8_t i;
     for(i = 0; i < ledDataLen / sizeof(led_t); i++)
     {
-        ledData[i].r = ledData[i].r / rollBrightnesses[rollBrightnessIdx];
-        ledData[i].g = ledData[i].g / rollBrightnesses[rollBrightnessIdx];
-        ledData[i].b = ledData[i].b / rollBrightnesses[rollBrightnessIdx];
+        ledData[i].r = ledData[i].r / rollBrightnesses[roll.Brightnessidx];
+        ledData[i].g = ledData[i].g / rollBrightnesses[roll.Brightnessidx];
+        ledData[i].b = ledData[i].b / rollBrightnesses[roll.Brightnessidx];
     }
     setLeds(ledData, ledDataLen);
 }
