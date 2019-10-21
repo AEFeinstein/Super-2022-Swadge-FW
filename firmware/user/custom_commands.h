@@ -9,7 +9,7 @@
 #define USER_CUSTOM_COMMANDS_H_
 
 #define NUM_TT_HIGH_SCORES 3 //Track this many highest scores.
-#define NUM_MZ_LEVELS 7 //Track best times for each level
+#define NUM_MZ_LEVELS 8 //Track best times for each level
 
 void ICACHE_FLASH_ATTR LoadSettings( void );
 

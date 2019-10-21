@@ -6,30 +6,15 @@
 *       Refactor of maze using Jonathan Moriarty basic set up
 */
 
+// Keeps best times for each level in flash
+// Reports adjusted time = time in corridors + 1.5 * time touching walls
+// Special Led pattern displays for each level
+// Auto maze does not count for record times and does not show special LED pattern
 //TODO
-// UI advice - nice to be able to retry the same maze
-//    abort out of too hard level
-// Put level name on home screen (make up appropriate names)
-// Changing to next level not intuitive and happens only after goes
-// Maybe in end of game have re try same maze or new maze
-// back to title screen.
-// A way to jump out of maze if too hard (e.g. hardest to very hard)
-//    hardest cant be done without touching the walls
-// DONE mostly - Improve Score
-// DONE HIGH appearing in window overlaps maze - removed
-// Maybe flash special pattern when get max score
-// Sound
-// DONE Maybe have lights in 4 corner of screen light to
-//  indicate where to aim for.
-// DONE - must traverse corner anti clockwise
-//      starting upper left. RED light when hit them
-// FIXED BUG in setmazeLeds effectively erases leds if game callback
-// PROBABLY FIXED BUG Teleport sometimes. stop this
-// DONE see code comment labeled TELPORT FIX
-// but when removed would get in constant teleporting
-// if safety stop was off. Differs from matlab test
-// would be nice to find reason
-// will try running with gdb
+// Once had clear best loop continually. Why?
+// Add Sound
+// Could make better choice of led patterns so hard levels get better patterns
+// Could unlock the special patterns for display later
 
 #include <osapi.h>
 #include <user_interface.h>
@@ -93,14 +78,15 @@
 
 #define CLEAR_SCORES_HOLD_TIME (5 * MS_TO_US_FACTOR * MS_TO_S_FACTOR)
 
-#define NUM_MZ_LEVELS 7
+#define NUM_MZ_LEVELS 8
 #define BOX_LEVEL 0
 #define PRACTICE_LEVEL 1
-#define EASY_LEVEL 2
-#define MIDDLE_LEVEL 3
-#define HARD_LEVEL 4
-#define KILLER_LEVEL 5
-#define IMPOSSIBLE_LEVEL 6
+#define NOVICE_LEVEL 2
+#define EASY_LEVEL 3
+#define MIDDLE_LEVEL 4
+#define HARD_LEVEL 5
+#define KILLER_LEVEL 6
+#define IMPOSSIBLE_LEVEL 7
 
 // LEDs relation to screen
 #define LED_UPPER_LEFT LED_1
@@ -139,6 +125,7 @@ bool holdingClearScore;
 
 // Game state info.
 uint32_t score; // The current score this game.
+uint32_t scoreauto; // The current autoscore this game.
 uint32_t mzBestTimes[NUM_MZ_LEVELS];
 bool nzNewBestTime;
 
@@ -225,7 +212,7 @@ static const uint8_t mazeBrightnesses[] =
 };
 
 
-const char* levelName[] = {"BOX", "PRACTICE", "EASY", "MIDDLE", "HARD", "KILLER", "IMPOSSIBLE"};
+const char* levelName[] = {"BOX", "PRACTICE", "NOVICE",  "EASY", "MIDDLE", "HARD", "KILLER", "IMPOSSIBLE"};
 
 /*============================================================================
  * Variables
@@ -518,6 +505,11 @@ void ICACHE_FLASH_ATTR setLevel(uint8_t mzLevel)
     switch (mzLevel)
     {
         case PRACTICE_LEVEL:
+            width = 11;
+            height = 7;
+            rballused = 4;
+            break;
+        case NOVICE_LEVEL:
             width = 15;
             height = 7;
             rballused = 4;
@@ -581,13 +573,10 @@ void ICACHE_FLASH_ATTR mzScoresInput(void)
         if (clearScoreTimer >= CLEAR_SCORES_HOLD_TIME)
         {
             clearScoreTimer = 0;
-            for (uint8_t  i = 0; i < 7; i++)
-            {
-                mzBestTimes[i] = 99999;
-            }
+            memset(mzBestTimes, 0x0f, NUM_MZ_LEVELS * sizeof(uint32_t));
             mzSaveBestTimes();
             mzLoadBestTimes();
-            mzSetLastScore((uint32_t)99999);
+            mzSetLastScore(0x0f0f0f0f);
         }
     }
     else if(mzIsButtonUp(BTN_SCORES_CLEAR_SCORES))
@@ -899,8 +888,16 @@ void ICACHE_FLASH_ATTR mzAutoGameUpdate(void)
         exitInd += 1;
         if (exitInd > UPPER_RIGHT)
         {
-            // Auto game gets no score!
-            score = 99999;
+            float totalTime = UPDATE_TIME_MS  * (float)totalcyclestilldone / MS_TO_S_FACTOR;
+            float rollingTime = UPDATE_TIME_MS  * (float)totalhitstilldone / MS_TO_S_FACTOR;
+            float incorridorTime = totalTime - rollingTime;
+            float adjustedTime = incorridorTime + 1.5 * rollingTime;
+            os_printf("Auto Time to complete maze %d, in corridor %d on walls %d adj %d ratio %d \n", (int)(100 * totalTime),
+                      (int)(100 * incorridorTime), (int)(100 * rollingTime), (int)(100 * adjustedTime),
+                      (int)(100 * adjustedTime / indSolution));
+            scoreauto = adjustedTime;
+            // Auto game does not get counted for best times!
+            score = 0x0f0f0f0f;
             gameover = true;
             didAutoMaze = true;
             // Clear Wall and Corner Hit Indicators
@@ -1032,32 +1029,91 @@ void ICACHE_FLASH_ATTR mzScoresDisplay(void)
 
     char uiStr[32] = {0};
     // 1. 99999
-    ets_snprintf(uiStr, sizeof(uiStr), "B %d", mzBestTimes[0]);
+    if (mzBestTimes[0] < 100000)
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "B %d", mzBestTimes[0]);
+    }
+    else
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "B -----");
+    }
     plotText(0, (2 * FONT_HEIGHT_TOMTHUMB) - 3, uiStr, IBM_VGA_8, WHITE);
 
     // 2. 99999
-    ets_snprintf(uiStr, sizeof(uiStr), "P %d", mzBestTimes[1]);
+    if (mzBestTimes[1] < 100000)
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "P %d", mzBestTimes[1]);
+    }
+    else
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "P -----");
+    }
     plotText(0, (2 * FONT_HEIGHT_TOMTHUMB) + (FONT_HEIGHT_IBMVGA8) - 2, uiStr, IBM_VGA_8, WHITE);
 
     // 3. 99999
-    ets_snprintf(uiStr, sizeof(uiStr), "E %d", mzBestTimes[2]);
+    if (mzBestTimes[2] < 100000)
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "N %d", mzBestTimes[2]);
+    }
+    else
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "N -----");
+    }
     plotText(0, (2 * FONT_HEIGHT_TOMTHUMB) + 2 * (FONT_HEIGHT_IBMVGA8), uiStr, IBM_VGA_8, WHITE);
 
     // 4. 99999
-    ets_snprintf(uiStr, sizeof(uiStr), "M %d", mzBestTimes[3]);
+    if (mzBestTimes[3] < 100000)
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "E %d", mzBestTimes[3]);
+    }
+    else
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "E -----");
+    }
     plotText(0, (2 * FONT_HEIGHT_TOMTHUMB) + 3 * (FONT_HEIGHT_IBMVGA8) + 2, uiStr, IBM_VGA_8, WHITE);
 
     // 5. 99999
-    ets_snprintf(uiStr, sizeof(uiStr), "H %d", mzBestTimes[4]);
+    if (mzBestTimes[4] < 100000)
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "M %d", mzBestTimes[4]);
+    }
+    else
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "M -----");
+    }
     plotText(64, (2 * FONT_HEIGHT_TOMTHUMB) - 3, uiStr, IBM_VGA_8, WHITE);
 
     // 6. 99999
-    ets_snprintf(uiStr, sizeof(uiStr), "K %d", mzBestTimes[5]);
+    if (mzBestTimes[5] < 100000)
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "H %d", mzBestTimes[5]);
+    }
+    else
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "H -----");
+    }
     plotText(64, (2 * FONT_HEIGHT_TOMTHUMB) + (FONT_HEIGHT_IBMVGA8) - 2, uiStr, IBM_VGA_8, WHITE);
 
     // 7. 99999
-    ets_snprintf(uiStr, sizeof(uiStr), "I %d", mzBestTimes[6]);
+    if (mzBestTimes[6] < 100000)
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "K %d", mzBestTimes[6]);
+    }
+    else
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "K -----");
+    }
     plotText(64, (2 * FONT_HEIGHT_TOMTHUMB) + 2 * (FONT_HEIGHT_IBMVGA8), uiStr, IBM_VGA_8, WHITE);
+    // 8. 99999
+    if (mzBestTimes[7] < 100000)
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "I %d", mzBestTimes[7]);
+    }
+    else
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "I -----");
+    }
+    plotText(64, (2 * FONT_HEIGHT_TOMTHUMB) + 3 * (FONT_HEIGHT_IBMVGA8) + 2, uiStr, IBM_VGA_8, WHITE);
 
     //TODO: explicitly add a hold to the text, or is the inverse effect enough.
     // (HOLD) CLEAR TIMES      TITLE
@@ -1085,11 +1141,14 @@ void ICACHE_FLASH_ATTR mzGameoverLedDisplay(void)
         case PRACTICE_LEVEL:
             danceTimerMode2(NULL);
             break;
-        case EASY_LEVEL:
+        case NOVICE_LEVEL:
             danceTimerMode3(NULL);
             break;
-        case MIDDLE_LEVEL:
+        case EASY_LEVEL:
             danceTimerMode4(NULL);
+            break;
+        case MIDDLE_LEVEL:
+            danceTimerMode5(NULL);
             break;
         case HARD_LEVEL:
             danceTimerMode13(NULL);
@@ -1125,20 +1184,40 @@ void ICACHE_FLASH_ATTR mzGameoverDisplay(void)
     uint8_t controlTextXPadding = 5;
 
     // Draw a centered bordered window.
-    fillDisplayArea(windowXMargin, windowYMarginTop, OLED_WIDTH - windowXMargin, OLED_HEIGHT - windowYMarginBot, BLACK);
-    plotRect(windowXMargin, windowYMarginTop, OLED_WIDTH - windowXMargin, OLED_HEIGHT - windowYMarginBot, WHITE);
+    if (didAutoMaze)
+    {
+        fillDisplayArea(windowXMargin, windowYMarginTop, OLED_WIDTH - windowXMargin, OLED_HEIGHT - windowYMarginBot, BLACK);
+        plotRect(windowXMargin, windowYMarginTop, OLED_WIDTH - windowXMargin, OLED_HEIGHT - windowYMarginBot, WHITE);
 
-    plotCenteredText(windowXMargin, windowYMarginTop + titleTextYOffset, OLED_WIDTH - windowXMargin, "YOUR ADJUSTED TIME:",
-                     TOM_THUMB, WHITE);
+        plotCenteredText(windowXMargin, windowYMarginTop + titleTextYOffset, OLED_WIDTH - windowXMargin,
+                         "MAZE SOLVED AUTOMATICALLY IN ",
+                         TOM_THUMB, WHITE);
 
-    // 1230495
-    char scoreStr[32] = {0};
-    ets_snprintf(scoreStr, sizeof(scoreStr), "%d", score);
-    plotCenteredText(windowXMargin, windowYMarginTop + titleTextYOffset + FONT_HEIGHT_TOMTHUMB + 5,
-                     OLED_WIDTH - windowXMargin, scoreStr,
-                     IBM_VGA_8,
-                     WHITE);
+        // 1230495
+        char scoreStr[32] = {0};
+        ets_snprintf(scoreStr, sizeof(scoreStr), "%d seconds", scoreauto);
+        plotCenteredText(windowXMargin, windowYMarginTop + titleTextYOffset + FONT_HEIGHT_TOMTHUMB + 5,
+                         OLED_WIDTH - windowXMargin, scoreStr,
+                         IBM_VGA_8,
+                         WHITE);
+    }
+    else
+    {
+        fillDisplayArea(windowXMargin, windowYMarginTop, OLED_WIDTH - windowXMargin, OLED_HEIGHT - windowYMarginBot, BLACK);
+        plotRect(windowXMargin, windowYMarginTop, OLED_WIDTH - windowXMargin, OLED_HEIGHT - windowYMarginBot, WHITE);
 
+        plotCenteredText(windowXMargin, windowYMarginTop + titleTextYOffset, OLED_WIDTH - windowXMargin,
+                         "YOUR ADJUSTED TIME IS",
+                         TOM_THUMB, WHITE);
+
+        // 1230495
+        char scoreStr[32] = {0};
+        ets_snprintf(scoreStr, sizeof(scoreStr), "%d seconds", score);
+        plotCenteredText(windowXMargin, windowYMarginTop + titleTextYOffset + FONT_HEIGHT_TOMTHUMB + 5,
+                         OLED_WIDTH - windowXMargin, scoreStr,
+                         IBM_VGA_8,
+                         WHITE);
+    }
     // TITLE    RESTART
     plotText(windowXMargin + controlTextXPadding, controlTextYOffset, "BEST TIMES", TOM_THUMB, WHITE);
     plotText(OLED_WIDTH - windowXMargin - getTextWidth("TITLE", TOM_THUMB) - controlTextXPadding,

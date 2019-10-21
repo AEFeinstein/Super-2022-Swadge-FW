@@ -202,12 +202,8 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
             }
         }
         memset(settings.ttHighScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
-        settings.ttLastScore = 0;
-        for (uint8_t i = 0; i < NUM_MZ_LEVELS; i++)
-        {
-            settings.mzBestTimes[i] = 99999;
-        }
-        settings.mzLastScore = 99999;
+        memset(settings.mzBestTimes, 0x0f, NUM_MZ_LEVELS * sizeof(uint32_t));
+        settings.mzLastScore = 100000;
         settings.joustElo = 1000;
         SaveSettings();
     }
