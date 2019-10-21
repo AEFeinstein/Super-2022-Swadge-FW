@@ -9,12 +9,15 @@
 // Keeps best times for each level in flash
 // Reports adjusted time = time in corridors + 1.5 * time touching walls
 // Special Led pattern displays for each level
-// Auto maze does not count for record times and does not show special LED pattern
+// Auto maze adjusted time is reported (it is the actual time as it never hits the walls)
+//   but does not count for record times and does not show special LED pattern
+// Have option to use Adam's button handling
 //TODO
 // Once had clear best loop continually. Why?
 // Add Sound
 // Could make better choice of led patterns so hard levels get better patterns
-// Could unlock the special patterns for display later
+// Could unlock the special patterns for display later, it simply are those
+//     levels which have a best time stored
 
 #include <osapi.h>
 #include <user_interface.h>
@@ -37,6 +40,10 @@
 /*============================================================================
  * Defines
  *==========================================================================*/
+// Original button handling as done by Johnathan
+//   might have caused pushes being interpreted at wrong time
+//   I have never see it. But can change to Adam's alternative here
+//#define ALTERNATIVE_BUTTON_HANDLING
 
 //#define MAZE_DEBUG_PRINT
 #ifdef MAZE_DEBUG_PRINT
@@ -54,8 +61,13 @@
 #endif
 
 // buttons
-#define BTN_LEFT_B 1
-#define BTN_RIGHT_A 2
+#ifdef ALTERNATIVE_BUTTON_HANDLING
+    #define BTN_LEFT_B 1
+    #define BTN_RIGHT_A 2
+#else
+    #define BTN_LEFT_B LEFT
+    #define BTN_RIGHT_A RIGHT
+#endif
 
 // controls (title)
 #define BTN_TITLE_CHOOSE_LEVEL BTN_LEFT_B
@@ -150,12 +162,13 @@ void ICACHE_FLASH_ATTR mazeFreeMemory(void);
 // game loop functions.
 void ICACHE_FLASH_ATTR mzUpdate(void* arg);
 
-// handle inputs.
-void ICACHE_FLASH_ATTR mzTitleInput(void);
-void ICACHE_FLASH_ATTR mzGameInput(void);
-void ICACHE_FLASH_ATTR mzScoresInput(void);
-void ICACHE_FLASH_ATTR mzGameoverInput(void);
-
+#ifndef ALTERNATIVE_BUTTON_HANDLING
+    // handle inputs.
+    void ICACHE_FLASH_ATTR mzTitleInput(void);
+    void ICACHE_FLASH_ATTR mzGameInput(void);
+    void ICACHE_FLASH_ATTR mzScoresInput(void);
+    void ICACHE_FLASH_ATTR mzGameoverInput(void);
+#endif
 // update any input-unrelated logic.
 void ICACHE_FLASH_ATTR mzTitleUpdate(void);
 void ICACHE_FLASH_ATTR mzGameUpdate(void);
@@ -173,8 +186,7 @@ void ICACHE_FLASH_ATTR mzGameoverLedDisplay(void);
 // mode state management.
 void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState);
 
-#define ALTERNATIVE_BUTTON_HANDLING
-#ifndef ALTERNATIVE_BUTTON_HANDLINGx
+#ifndef ALTERNATIVE_BUTTON_HANDLING
     // input checking.
     bool ICACHE_FLASH_ATTR mzIsButtonPressed(uint8_t button);
     bool ICACHE_FLASH_ATTR mzIsButtonReleased(uint8_t button);
@@ -244,7 +256,7 @@ accel_t mzLastAccel = {0};
 
 accel_t mzLastTestAccel = {0};
 
-#ifndef ALTERNATIVE_BUTTON_HANDLINGx
+#ifndef ALTERNATIVE_BUTTON_HANDLING
     uint8_t mzButtonState = 0;
     uint8_t mzLastButtonState = 0;
 #endif
@@ -316,6 +328,11 @@ float* extendedScaledWallYbot = NULL;
 
 void ICACHE_FLASH_ATTR mzInit(void)
 {
+#ifndef ALTERNATIVE_BUTTON_HANDLING
+    os_printf("Original button handling update at %d ms\n", UPDATE_TIME_MS);
+#else
+    os_printf("Adam's button handling update at %d ms\n", UPDATE_TIME_MS);
+#endif
     // External from mode_dance to set brightness when using dance mode display
     setDanceBrightness(2);
     // Give us reliable button input.
@@ -462,7 +479,7 @@ void ICACHE_FLASH_ATTR mzButtonCallback(uint8_t state __attribute__((unused)), i
                 {
                     case BTN_GAMEOVER_TITLE:
                     {
-                        //button a = start game
+                        //button a = back to title (having set up new maze)
                         mazeFreeMemory();
                         mzNewMazeSetUp();
                         mzChangeState(MZ_TITLE);
@@ -624,6 +641,7 @@ void ICACHE_FLASH_ATTR mzUpdate(void* arg __attribute__((unused)))
     };
 }
 
+#ifndef ALTERNATIVE_BUTTON_HANDLING
 void ICACHE_FLASH_ATTR mzTitleInput(void)
 {
     //button a = start game
@@ -644,7 +662,7 @@ void ICACHE_FLASH_ATTR mzTitleInput(void)
         mzNewMazeSetUp();
     }
 }
-
+#endif
 void ICACHE_FLASH_ATTR setLevel(uint8_t mzLevel)
 {
     switch (mzLevel)
@@ -693,6 +711,8 @@ void ICACHE_FLASH_ATTR setLevel(uint8_t mzLevel)
             break;
     }
 }
+
+#ifndef ALTERNATIVE_BUTTON_HANDLING
 void ICACHE_FLASH_ATTR mzGameInput(void)
 {
     //button b = abort and restart at same level
@@ -708,7 +728,30 @@ void ICACHE_FLASH_ATTR mzGameInput(void)
         mzChangeState(MZ_AUTO);
     }
 }
+#endif
 
+#ifdef ALTERNATIVE_BUTTON_HANDLING
+void ICACHE_FLASH_ATTR mzScoresUpdate(void)
+{
+    //button a = hold to clear scores.
+    if(holdingClearScore)
+    {
+        clearScoreTimer += deltaTime;
+        if (clearScoreTimer >= CLEAR_SCORES_HOLD_TIME)
+        {
+            clearScoreTimer = 0;
+            memset(mzBestTimes, 0x0f, NUM_MZ_LEVELS * sizeof(uint32_t));
+            mzSaveBestTimes();
+            mzLoadBestTimes();
+            mzSetLastScore(0x0f0f0f0f);
+        }
+    }
+    else
+    {
+        clearScoreTimer = 0;
+    }
+}
+#else
 void ICACHE_FLASH_ATTR mzScoresInput(void)
 {
     //button a = hold to clear scores.
@@ -742,7 +785,9 @@ void ICACHE_FLASH_ATTR mzScoresInput(void)
         mzChangeState(MZ_TITLE);
     }
 }
+#endif
 
+#ifndef ALTERNATIVE_BUTTON_HANDLING
 void ICACHE_FLASH_ATTR mzGameoverInput(void)
 {
     //button a = start game
@@ -758,6 +803,7 @@ void ICACHE_FLASH_ATTR mzGameoverInput(void)
         mzChangeState(MZ_SCORES);
     }
 }
+#endif
 
 void ICACHE_FLASH_ATTR mzTitleUpdate(void)
 {
@@ -1054,12 +1100,12 @@ void ICACHE_FLASH_ATTR mzAutoGameUpdate(void)
     }
 }
 
-
+#ifndef ALTERNATIVE_BUTTON_HANDLING
 void ICACHE_FLASH_ATTR mzScoresUpdate(void)
 {
     // Do nothing.
 }
-
+#endif
 void ICACHE_FLASH_ATTR mzGameoverUpdate(void)
 {
 }
@@ -1636,7 +1682,7 @@ void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState)
             break;
     };
 }
-#ifndef ALTERNATIVE_BUTTON_HANDLINGx
+#ifndef ALTERNATIVE_BUTTON_HANDLING
 bool ICACHE_FLASH_ATTR mzIsButtonPressed(uint8_t button)
 {
     return (mzButtonState & button) && !(mzLastButtonState & button);
