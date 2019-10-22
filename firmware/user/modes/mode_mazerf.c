@@ -985,10 +985,7 @@ void ICACHE_FLASH_ATTR mzGameDisplay(void)
     {
         if (mazeLevel >= KILLER_LEVEL)
         {
-            if (flashcount < flashmax / 2)
-            {
-                plotRect(round(scxc) + xadj - 1, round(scyc) + yadj - 1, round(scxc) + xadj + 1, round(scyc) + yadj + 1, WHITE);
-            }
+            plotRect(round(scxc) + xadj - 1, round(scyc) + yadj - 1, round(scxc) + xadj + 1, round(scyc) + yadj + 1, WHITE);
         }
         else
         {
