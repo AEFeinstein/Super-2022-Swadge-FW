@@ -5,8 +5,9 @@
  *      Author: bbkiwi
  */
 
-//TODO lots of repeated code from mode_dance and mode_demo and had to change
-//     names. Wasting space. More common routines needed.
+//TODO
+//Pass parameters to DE solver to pass onto dx fnc
+//   can parameters be a struct?
 
 
 /*============================================================================
@@ -37,6 +38,15 @@
 #define SPRINGCONSTR 5.0
 #define SPRINGCONSTG 20.0
 #define SPRINGCONSTB 45.0
+
+// LEDs relation to screen
+#define LED_UPPER_LEFT LED_1
+#define LED_UPPER_MID LED_2
+#define LED_UPPER_RIGHT LED_3
+#define LED_LOWER_RIGHT LED_4
+#define LED_LOWER_MID LED_5
+#define LED_LOWER_LEFT LED_6
+
 /*============================================================================
  * Prototypes
  *==========================================================================*/
@@ -94,6 +104,8 @@ swadgeMode roll3Mode =
     .fnEspNowSendCb = NULL,
     .fnAccelerometerCallback = roll3AccelerometerHandler
 };
+
+uint8_t ledOrderIndroll3[] = {LED_UPPER_LEFT, LED_LOWER_LEFT, LED_LOWER_MID, LED_LOWER_RIGHT, LED_UPPER_RIGHT, LED_UPPER_MID};
 
 uint8_t currentMethod = 0;
 uint8_t numMethods = 4;
@@ -220,15 +232,6 @@ void ICACHE_FLASH_ATTR initializeConditionsForODERoll3(uint8_t Method)
             rhs_fun_ptrb = &dnxdampedpendulumb;
             adjustment_fun_ptr = NULL;
             break;
-        case 4:
-            // For velocity controlled ball in plane
-            numberoffirstordereqn = 2;
-            ti = 0.0;                // initial value for variable t
-            xi[0] = 0.5;             // initial xcoor position
-            xi[1] = 0.5;             // initial ycoor
-            dt = 0.1;                // step size for integration (s)
-            rhs_fun_ptr = &dnx2dvelocityRoll3;
-            break;
         default:
             (void)0;
     }
@@ -237,22 +240,6 @@ void ICACHE_FLASH_ATTR initializeConditionsForODERoll3(uint8_t Method)
 
 
 /*==== RHS of ODE ===============================================*/
-
-/*
-// Motion of thrown ball numberoffirstordereqn=4, x = [xcoor, ycoor, xdot, ydot]
-void ICACHE_FLASH_ATTR dnx(FLOATING t, FLOATING x[], FLOATING dx[], int n)
-{
-// to stop warning that t and n not used
-   t = t;
-   n = n;
-   //first order
-    dx[0] = x[2];
-    dx[1] = x[3];
-   // second order
-    dx[2] = 0.0;
-    dx[3] = (-1.0)*g;
-}
-*/
 
 // Motion of damped spring with gravity the downward component
 // of the accelerometer
@@ -265,7 +252,7 @@ void ICACHE_FLASH_ATTR dnxdampedspringr(FLOATING t, FLOATING x[], FLOATING dx[],
     //first order
     dx[0] = x[1];
     // second order
-    FLOATING down = atan2(yAccel, -xAccel);
+    FLOATING down = atan2(-yAccel, -xAccel);
     //os_printf("100down = %d\n", (int)(100*down)); // down 0 is with positve x on accel pointing down
     FLOATING force = 0.0; // later used for button replulsion
     dx[1] = force - SPRINGCONSTR * (x[0] + pi / 2) - 0.2 * SPRINGCONSTR * sqrt(pow(xAccel, 2) + pow(yAccel,
@@ -283,8 +270,8 @@ void ICACHE_FLASH_ATTR dnxdampedpendulumr(FLOATING t, FLOATING x[], FLOATING dx[
     //first order
     dx[0] = x[1];
     // second order
-    FLOATING down = atan2(yAccel, -xAccel);
-    //os_printf("100down = %d\n", (int)(100*down)); // down 0 is with positve x on accel pointing down
+    FLOATING down = atan2(-yAccel, -xAccel);
+    //os_printf("100down = %d\n", (int)(100 * down)); // down 0 is with positve x on accel pointing down
     FLOATING force = 0.0; // later used for button replulsion
     //os_printf("%d\n", (int)(100*zAccel)); //xAccel can exceed 1
     //NOTE as scaled accelerations can exceed 1 this computation sometime got error and then got negative overflow and all stopped working
@@ -300,7 +287,7 @@ void ICACHE_FLASH_ATTR dnxdampedpendulumg(FLOATING t, FLOATING x[], FLOATING dx[
     //first order
     dx[0] = x[1];
     // second order
-    FLOATING down = atan2(yAccel, -xAccel);
+    FLOATING down = atan2(-yAccel, -xAccel);
     //os_printf("100down = %d\n", (int)(100*down)); // down 0 is with positve x on accel pointing down
     FLOATING force = 0.0; // later used for button replulsion
     //os_printf("%d\n", (int)(100*zAccel)); //xAccel can exceed 1
@@ -318,7 +305,7 @@ void ICACHE_FLASH_ATTR dnxdampedspringg(FLOATING t, FLOATING x[], FLOATING dx[],
     //first order
     dx[0] = x[1];
     // second order
-    FLOATING down = atan2(yAccel, -xAccel);
+    FLOATING down = atan2(-yAccel, -xAccel);
     //os_printf("100down = %d\n", (int)(100*down)); // down 0 is with positve x on accel pointing down
     FLOATING force = 0.0; // later used for button replulsion
     dx[1] = force - SPRINGCONSTG * (x[0] + pi / 2) - 0.2 * SPRINGCONSTG * sqrt(pow(xAccel, 2) + pow(yAccel,
@@ -333,7 +320,7 @@ void ICACHE_FLASH_ATTR dnxdampedpendulumb(FLOATING t, FLOATING x[], FLOATING dx[
     //first order
     dx[0] = x[1];
     // second order
-    FLOATING down = atan2(yAccel, -xAccel);
+    FLOATING down = atan2(-yAccel, -xAccel);
     //os_printf("100down = %d\n", (int)(100*down)); // down 0 is with positve x on accel pointing down
     FLOATING force = 0.0; // later used for button replulsion
     //os_printf("%d\n", (int)(100*zAccel)); //xAccel can exceed 1
@@ -351,7 +338,7 @@ void ICACHE_FLASH_ATTR dnxdampedspringb(FLOATING t, FLOATING x[], FLOATING dx[],
     //first order
     dx[0] = x[1];
     // second order
-    FLOATING down = atan2(yAccel, -xAccel);
+    FLOATING down = atan2(-yAccel, -xAccel);
     //os_printf("100down = %d\n", (int)(100*down)); // down 0 is with positve x on accel pointing down
     FLOATING force = 0.0; // later used for button replulsion
     dx[1] = force - SPRINGCONSTB * (x[0] + pi / 2) - 0.2 * SPRINGCONSTB * sqrt(pow(xAccel, 2) + pow(yAccel,
@@ -391,6 +378,7 @@ void ICACHE_FLASH_ATTR roll3_updateDisplay(void)
     xAccel = roll3Accel.x / 256.0;
     yAccel = roll3Accel.y / 256.0;
     zAccel = roll3Accel.z / 256.0;
+    //os_printf("%d %d %d\n", (int)(100 * xAccel), (int)(100 * yAccel), (int)(100 * zAccel));
 
     switch (currentMethod)
     {
@@ -431,7 +419,7 @@ void ICACHE_FLASH_ATTR roll3_updateDisplay(void)
         default:
             (void)0;
     }
-
+    FLOATING down = atan2(-yAccel, -xAccel);
     switch (currentMethod)
     {
         case 0:
@@ -444,12 +432,19 @@ void ICACHE_FLASH_ATTR roll3_updateDisplay(void)
             scycg = 32.0 - 28.0 * sin(xfg[0]);
             scxcb = 64.0 - 28.0 * cos(xfb[0]);
             scycb = 32.0 - 28.0 * sin(xfb[0]);
-            totalenergyr = SPRINGCONSTR * (xfr[0] + pi / 2) * (xfr[0] + pi / 2) + xfr[1] * xfr[1];
-            totalenergyg = SPRINGCONSTG * (xfg[0] + pi / 2) * (xfg[0] + pi / 2) + xfg[1] * xfg[1];
-            totalenergyb = SPRINGCONSTB * (xfb[0] + pi / 2) * (xfb[0] + pi / 2) + xfb[1] * xfb[1];
-            //os_printf("%d R %d G %d B %d\n",countframes++, (int)totalenergyr, (int)totalenergyg, (int)totalenergyb);
-            os_printf("%d, %d, %d, %d, %d, %d\n", (int)totalenergyr, (int)totalenergyg, (int)totalenergyb, (int)(xfr[1] * xfr[1]),
-                      (int)(xfg[1] * xfg[1]), (int)(xfb[1] * xfb[1]));
+            totalenergyr = gravity * LEN_PENDULUMR * (1 - cos(xfr[0] - down))  + 0.5 * LEN_PENDULUMR * LEN_PENDULUMR * xfr[1] *
+                           xfr[1];
+            totalenergyg = gravity * LEN_PENDULUMG * (1 - cos(xfg[0] - down))  + 0.5 * LEN_PENDULUMG * LEN_PENDULUMG * xfg[1] *
+                           xfg[1];
+            totalenergyb = gravity * LEN_PENDULUMB * (1 - cos(xfb[0] - down))  + 0.5 * LEN_PENDULUMB * LEN_PENDULUMB * xfb[1] *
+                           xfb[1];
+
+            // totalenergyr = SPRINGCONSTR * (xfr[0] + pi / 2) * (xfr[0] + pi / 2) + xfr[1] * xfr[1];
+            // totalenergyg = SPRINGCONSTG * (xfg[0] + pi / 2) * (xfg[0] + pi / 2) + xfg[1] * xfg[1];
+            // totalenergyb = SPRINGCONSTB * (xfb[0] + pi / 2) * (xfb[0] + pi / 2) + xfb[1] * xfb[1];
+            os_printf("%d R %d G %d B %d\n", countframes++, (int)totalenergyr, (int)totalenergyg, (int)totalenergyb);
+            //os_printf("%d, %d, %d, %d, %d, %d\n", (int)totalenergyr, (int)totalenergyg, (int)totalenergyb, (int)(xfr[1] * xfr[1]),
+            //          (int)(xfg[1] * xfg[1]), (int)(xfb[1] * xfb[1]));
             break;
         default:
             (void)0;
@@ -515,12 +510,22 @@ void ICACHE_FLASH_ATTR roll3_updateDisplay(void)
     {
         case 0:
         case 2:
-            leds[0].r = totalenergyr;
-            leds[1].r = totalenergyr;
-            leds[2].g = totalenergyg;
-            leds[3].g = totalenergyg;
-            leds[4].b = totalenergyb;
-            leds[5].b = totalenergyb;
+//TODO should be == but want to test on my mockup
+#if SWADGE_VERSION != SWADGE_BBKIWI
+            for (uint8_t indLed = 0; indLed < NUM_LIN_LEDS ; indLed++)
+            {
+                leds[indLed].r = totalenergyr;
+                leds[indLed].g = totalenergyg;
+                leds[indLed].b = totalenergyb;
+            }
+#else
+            for (uint8_t indLed = 0; indLed < 6 ; indLed++)
+            {
+                leds[ledOrderIndroll3[indLed]].r = totalenergyr;
+                leds[ledOrderIndroll3[indLed]].g = totalenergyg;
+                leds[ledOrderIndroll3[indLed]].b = totalenergyb;
+            }
+#endif
             break;
         case 1:
         case 3:
@@ -570,14 +575,14 @@ void ICACHE_FLASH_ATTR roll3ButtonCallback( uint8_t state,
         {
             // Cycle movement methods
             currentMethod = (currentMethod + 1) % numMethods;
+            initializeConditionsForODERoll3(currentMethod);
             os_printf("currentMethod = %d\n", currentMethod);
-            // maybe reset init conditions for new method
         }
-        if(3 == button)
+        if(1 == button)
         {
             // Cycle brightnesses
             roll3BrightnessIdx = (roll3BrightnessIdx + 1) %
-                                (sizeof(roll3Brightnesses) / sizeof(roll3Brightnesses[0]));
+                                 (sizeof(roll3Brightnesses) / sizeof(roll3Brightnesses[0]));
         }
     }
 }
@@ -591,8 +596,8 @@ void ICACHE_FLASH_ATTR roll3ButtonCallback( uint8_t state,
  */
 void ICACHE_FLASH_ATTR roll3AccelerometerHandler(accel_t* accel)
 {
-    roll3Accel.x = accel->x;
-    roll3Accel.y = accel->y;
+    roll3Accel.x = accel->y;
+    roll3Accel.y = accel->x;
     roll3Accel.z = accel->z;
     roll3_updateDisplay();
 }

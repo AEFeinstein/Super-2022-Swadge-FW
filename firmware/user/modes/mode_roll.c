@@ -269,6 +269,7 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
     roll.xAccel = roll.Accel.x / 256.0;
     roll.yAccel = roll.Accel.y / 256.0;
     roll.zAccel = roll.Accel.z / 256.0;
+    //os_printf("%d %d %d\n", (int)(100 * roll.xAccel), (int)(100 * roll.yAccel), (int)(100 * roll.zAccel));
 
     switch (roll.currentMethod)
     {
