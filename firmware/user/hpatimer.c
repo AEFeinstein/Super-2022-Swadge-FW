@@ -15,6 +15,7 @@
 #include "adc.h"
 #include "missingEspFnPrototypes.h"
 #include "gpio_user.h"
+#include "custom_commands.h"
 
 /*============================================================================
  * Defines
@@ -146,6 +147,12 @@ bool ICACHE_FLASH_ATTR isHpaRunning(void)
  */
 void ICACHE_FLASH_ATTR initBuzzer(void)
 {
+    // If it's muted, don't set anything
+    if(getIsMutedOption())
+    {
+        return;
+    }
+
     stopBuzzerSong();
     os_timer_setfn(&bzr.songTimer, songTimerCb, NULL);
 }
@@ -158,6 +165,12 @@ void ICACHE_FLASH_ATTR initBuzzer(void)
  */
 void ICACHE_FLASH_ATTR setBuzzerNote(noteFreq_t note)
 {
+    // If it's muted, don't set anything
+    if(getIsMutedOption())
+    {
+        return;
+    }
+
     // Set the frequency
     bzr.note = note;
 
@@ -178,6 +191,12 @@ void ICACHE_FLASH_ATTR setBuzzerNote(noteFreq_t note)
  */
 void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song)
 {
+    // If it's muted, don't set anything
+    if(getIsMutedOption())
+    {
+        return;
+    }
+
     // Stop everything
     stopBuzzerSong();
 
@@ -212,6 +231,12 @@ void ICACHE_FLASH_ATTR stopBuzzerSong(void)
  */
 void ICACHE_FLASH_ATTR songTimerCb(void* arg __attribute__((unused)))
 {
+    // If it's muted, don't set anything
+    if(getIsMutedOption())
+    {
+        return;
+    }
+
     // Increment the time
     bzr.noteTime++;
 
