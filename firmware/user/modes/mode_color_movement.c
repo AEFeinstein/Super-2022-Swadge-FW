@@ -64,7 +64,7 @@
 #define ALPHA_FAST 0.3
 #define ALPHA_SLOW 0.05
 #define ALPHA_CROSS 0.1
-#define ALPHA_ACTIVE 0.03
+#define ALPHA_ACTIVE 1
 #define CROSS_TOL 15
 #define SPECIAL_EFFECT true
 
@@ -287,7 +287,7 @@ bool still = true;
 uint16_t ICACHE_FLASH_ATTR circularPush(int16_t value, uint16_t insertInd, int16_t* buffer)
 {
     buffer[insertInd] = value;
-    if (insertInd >= NUM_DOTS)
+    if (insertInd >= NUM_DOTS - 1)
     {
         return 0;
     }
@@ -485,6 +485,10 @@ void ICACHE_FLASH_ATTR cmGameInput(void)
     //button b = abort and restart at same level
     if(cmIsButtonPressed(BTN_GAME_RIGHT))
     {
+        //TODO crashes if this in
+        //cmDeInit();
+        //cmInit();
+        //TODO frashes if this in
         cmFreeMemory();
         cmNewSetup();
         cmChangeState(CM_TITLE);
@@ -529,6 +533,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     // IPAD accel = list(map(lambda x, y : x + y, motion.get_gravity(),  motion.get_user_acceleration()))
     int16_t normAccel = sqrt( (double)xAccel * (double)xAccel + (double)yAccel * (double)yAccel + (double)zAccel *
                               (double)zAccel  );
+
     // empirical adjustment
     //normAccel *= 3;
 
@@ -557,16 +562,18 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     smoothZaccel = IIRFilter(alphaFast, zAccel, smoothZaccel);
     bufZaccelInsert = circularPush(smoothZaccel, bufZaccelInsert, bufZaccel);
 
+    // Identify stillness
+    float alphaActive = ALPHA_ACTIVE; // smoothing of deviaton from mean
+    smoothActivity = IIRFilter(alphaActive, abs(bufHighPassNormAccel[bufHighPassNormAccelInsert]), smoothActivity);
+
 
     // high pass by removing highly smoothed low pass (dc bias)
     float alphaSlow = ALPHA_SLOW;
-
     lowPassNormAccel = IIRFilter(alphaSlow, normAccel, lowPassNormAccel);
     bufHighPassNormAccelInsert = circularPush(smoothNormAccel - lowPassNormAccel, bufHighPassNormAccelInsert,
                                  bufHighPassNormAccel);
 
     // low pass for the three axes
-
     lowPassXaccel = IIRFilter(alphaSlow, xAccel, lowPassXaccel);
     bufLowPassXaccelInsert = circularPush(lowPassXaccel, bufLowPassXaccelInsert, bufLowPassXaccel);
 
@@ -582,11 +589,9 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     AdjustPlotDots(bufYaccel, bufYaccelInsert, bufLowPassYaccel, bufLowPassYaccelInsert);
     AdjustPlotDots(bufZaccel, bufZaccelInsert, bufLowPassZaccel, bufLowPassZaccelInsert);
 
-    // Identify stillness
-    float alphaActive = ALPHA_ACTIVE; // smoothing of deviaton from mean
-    smoothActivity = IIRFilter(alphaActive, abs(bufHighPassNormAccel[-1]), smoothActivity);
 
-    os_printf("smoothActivity = %d", smoothActivity);
+    //os_printf("smoothActivity = %d\n", smoothActivity);
+
     // Estimate bpm when movement activity
 
     // Might not need checking for stillness if use tolerance for cross checking (see below)
@@ -752,6 +757,9 @@ void ICACHE_FLASH_ATTR cmTitleDisplay(void)
 
 void ICACHE_FLASH_ATTR cmGameDisplay(void)
 {
+    char uiStr[32] = {0};
+    ets_snprintf(uiStr, sizeof(uiStr), "%d", smoothActivity);
+    plotCenteredText(0, OLED_HEIGHT / 2, OLED_WIDTH, uiStr, IBM_VGA_8, WHITE);
 }
 
 // helper functions.
@@ -764,6 +772,8 @@ void ICACHE_FLASH_ATTR cmGameDisplay(void)
  */
 void ICACHE_FLASH_ATTR cmNewSetup(void)
 {
+    system_print_meminfo();
+    os_printf("%s %d Free Heap %d\n", __func__, __LINE__, system_get_free_heap_size());
     //Allocate some working array memory now
     //TODO is memory being freed up appropriately?
     bufNormAccel = (int16_t*)malloc (sizeof (int16_t ) * NUM_DOTS);
@@ -823,11 +833,8 @@ void ICACHE_FLASH_ATTR cmNewSetup(void)
     skipNextCross = true;
     still = true;
 
-
-
     system_print_meminfo();
-    os_printf("Free Heap %d\n", system_get_free_heap_size());
-
+    os_printf("%s %d Free Heap %d\n", __func__, __LINE__, system_get_free_heap_size());
 
 }
 
@@ -836,6 +843,7 @@ void ICACHE_FLASH_ATTR cmNewSetup(void)
  */
 void ICACHE_FLASH_ATTR cmFreeMemory(void)
 {
+    os_printf("%s \n", __func__);
     free(bufNormAccel);
     free(bufHighPassNormAccel);
     free(bufXaccel);
