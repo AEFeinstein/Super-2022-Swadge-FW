@@ -111,6 +111,8 @@ ifeq ($(SET_SWADGE_VERSION),1)
   swadgeversion = 1
 else ifeq ($(SET_SWADGE_VERSION),2)
   swadgeversion = 2
+else ifeq ($(SET_SWADGE_VERSION),3)
+  swadgeversion = 3
 else
   swadgeversion = 0
 endif

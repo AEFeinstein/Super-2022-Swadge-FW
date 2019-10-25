@@ -51,7 +51,6 @@ def diffFrame(lastFrame, currFrame):
 
 def processGifFile(file):
     print("Processing " + file)
-    outFile = open("./bins/" + Path(file).stem + ".bin", "wb+")
     index = 0
     currentFrame = []
     prevFrame = []
@@ -82,16 +81,20 @@ def processGifFile(file):
             metadata.append((duration >> 8) & 0xFF)
             metadata.append((duration >> 0) & 0xFF)
 
+            outFile = open("./bins/" + Path(file).stem +
+                           "_" + str(index) + ".bin", "wb+")
+            # Print out the first frame and metadata
             outFile.write(metadata)
-
-            # Print out the first frame
             writeBinArray(outFile, currentFrame)
+            outFile.close
         else:
             # Just print the difference
+            outFile = open("./bins/" + Path(file).stem +
+                           "_" + str(index) + ".bin", "wb+")
             writeBinArray(outFile, diffFrame(prevFrame, currentFrame))
+            outFile.close
         prevFrame = currentFrame
         index = index + 1
-    outFile.close()
 
 
 if __name__ == "__main__":

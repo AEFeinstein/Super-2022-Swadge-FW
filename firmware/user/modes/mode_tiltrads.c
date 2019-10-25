@@ -1151,7 +1151,8 @@ void ICACHE_FLASH_ATTR plotGrid(int32_t x0, int32_t y0, uint8_t unitSize, uint8_
 void ICACHE_FLASH_ATTR plotTetrad(int32_t x0, int32_t y0, uint8_t unitSize, uint8_t tetradCols, uint8_t tetradRows,
                                  uint32_t shape[][tetradCols], uint8_t tetradFill, int32_t fillRotation, color col);
 void ICACHE_FLASH_ATTR plotPerspectiveEffect(uint8_t leftSrc, uint8_t leftDst, uint8_t rightSrc, uint8_t rightDst,
-        uint8_t y0, uint8_t y1, int32_t numVerticalLines, int32_t numHorizontalLines, double lineTweenTimeS, uint32_t currentTimeUS,
+        uint8_t y0, uint8_t y1, int32_t numVerticalLines, int32_t numHorizontalLines, double lineTweenTimeS,
+        uint32_t currentTimeUS,
         color col);
 uint8_t ICACHE_FLASH_ATTR plotCenteredText(uint8_t x0, uint8_t y, uint8_t x1, char* text, fonts font, color col);
 uint8_t ICACHE_FLASH_ATTR getCenteredTextX(uint8_t x0, uint8_t x1, char* text, fonts font);
@@ -2886,7 +2887,8 @@ void ICACHE_FLASH_ATTR plotTetrad(int32_t x0, int32_t y0, uint8_t unitSize, uint
 }
 
 void ICACHE_FLASH_ATTR plotPerspectiveEffect(uint8_t leftSrc, uint8_t leftDst, uint8_t rightSrc, uint8_t rightDst,
-        uint8_t y0, uint8_t y1, int32_t numVerticalLines, int32_t numHorizontalLines, double lineTweenTimeS, uint32_t currentTimeUS,
+        uint8_t y0, uint8_t y1, int32_t numVerticalLines, int32_t numHorizontalLines, double lineTweenTimeS,
+        uint32_t currentTimeUS,
         color col)
 {
     // Drawing some fake 3D demo-scene like lines for effect.

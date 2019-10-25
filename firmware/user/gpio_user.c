@@ -45,7 +45,27 @@ bool mBuzzerState = false;
 // Matches order in button_mask
 static const gpioInfo_t gpioInfoInput[] =
 {
-#if defined(BARREL_1_0_0)
+#if SWADGE_VERSION == SWADGE_2019
+    // Up
+    {
+        .GPID = 13,
+        .func = FUNC_GPIO13,
+        .periph = PERIPHS_IO_MUX_MTCK_U,
+        .initialState = 1
+    },
+    // Left
+    {
+        .GPID = 0,
+        .func = FUNC_GPIO0,
+        .periph = PERIPHS_IO_MUX_GPIO0_U
+    },
+    // Right
+    {
+        .GPID = 2,
+        .func = FUNC_GPIO2,
+        .periph = PERIPHS_IO_MUX_GPIO2_U
+    },
+#elif defined(BARREL_1_0_0)
     // Menu
     {
         .GPID = 12,
