@@ -94,6 +94,16 @@ typedef enum
     UPPER_RIGHT
 } exitSpot_t;
 
+// Circular buffer used to store last NUM_DOTS of accelerometer
+// readings. Need only to insert, read certain values and plot from
+// oldest to newest
+typedef struct circularBuffers
+{
+    int16_t* buffer;
+    uint16_t insertHeadInd;
+    uint16_t removeTailInd;
+    uint16_t length;
+} circularBuffer_t;
 
 
 // Title screen info.
@@ -107,9 +117,6 @@ void ICACHE_FLASH_ATTR cmInit(void);
 void ICACHE_FLASH_ATTR cmDeInit(void);
 void ICACHE_FLASH_ATTR cmButtonCallback(uint8_t state, int button, int down);
 void ICACHE_FLASH_ATTR cmAccelerometerCallback(accel_t* accel);
-
-// Free memory
-void ICACHE_FLASH_ATTR cmFreeMemory(void);
 
 // game loop functions.
 void ICACHE_FLASH_ATTR cmUpdate(void* arg);
@@ -145,10 +152,13 @@ void ICACHE_FLASH_ATTR cmChangeLevel(void);
 
 void ICACHE_FLASH_ATTR cmNewSetup(void);
 
-uint16_t ICACHE_FLASH_ATTR circularPush(int16_t value, uint16_t insertInd, int16_t buffer[]);
+void ICACHE_FLASH_ATTR initCircularBuffer(circularBuffer_t* cirbuff,  int16_t* buffer, uint16_t length);
+int16_t ICACHE_FLASH_ATTR getCircularBufferAtIndex(circularBuffer_t cirbuff,  int16_t index);
+void ICACHE_FLASH_ATTR circularPush(int16_t value, circularBuffer_t* cirbuff);
 int16_t ICACHE_FLASH_ATTR IIRFilter(float alpha, int16_t input, int16_t output);
-void ICACHE_FLASH_ATTR AdjustPlotDots(int16_t buffer1[], uint16_t insert1, int16_t buffer2[], uint16_t insert2);
-void ICACHE_FLASH_ATTR AdjustPlotDotsSingle(int16_t buffer[], uint16_t insert);
+void ICACHE_FLASH_ATTR AdjustPlotDots(circularBuffer_t cbuf1, circularBuffer_t cbuf2);
+void ICACHE_FLASH_ATTR AdjustPlotDotsSingle(circularBuffer_t cbuf);
+
 /*============================================================================
  * Static Const Variables
  *==========================================================================*/
@@ -160,6 +170,8 @@ static const uint8_t cmBrightnesses[] =
     0x40,
     0x80,
 };
+
+
 
 
 /*============================================================================
@@ -208,47 +220,31 @@ static cmState_t prevState;
 int16_t xAccel;
 int16_t yAccel;
 int16_t zAccel;
+int16_t bpm;
 
 bool gameover;
 
-//TODO wanted circular buffer to be a structure
-//And implement handling of it by helper function
-//Can't see how now, so will do by brute force in the mean time
-// typedef struct
-// {
-//     uint16_t length;
-//     uint16_t insertInd;
-//     int16_t * data;
-// } circularBuffer_t;
 
 
-// circularBuffer_t  bufNormAccel;
-// circularBuffer_t  bufHighPassNormAccel;
-// circularBuffer_t  bufXaccel;
-// circularBuffer_t  bufLowPassXaccel;
-// circularBuffer_t  bufYaccel;
-// circularBuffer_t  bufLowPassYaccel;
-// circularBuffer_t  bufZaccel;
-// circularBuffer_t  bufLowPassZaccel;
 
-int16_t* bufNormAccel;
-int16_t* bufHighPassNormAccel;
-int16_t* bufXaccel;
-int16_t* bufLowPassXaccel;
-int16_t* bufYaccel;
-int16_t* bufLowPassYaccel;
-int16_t* bufZaccel;
-int16_t* bufLowPassZaccel;
+circularBuffer_t  cirBufNormAccel;
+circularBuffer_t  cirBufHighPassNormAccel;
+circularBuffer_t  cirBufXaccel;
+circularBuffer_t  cirBufLowPassXaccel;
+circularBuffer_t  cirBufYaccel;
+circularBuffer_t  cirBufLowPassYaccel;
+circularBuffer_t  cirBufZaccel;
+circularBuffer_t  cirBufLowPassZaccel;
 
-// Point (index) to insertion point
-uint16_t  bufNormAccelInsert;
-uint16_t  bufHighPassNormAccelInsert;
-uint16_t  bufXaccelInsert;
-uint16_t  bufLowPassXaccelInsert;
-uint16_t  bufYaccelInsert;
-uint16_t  bufLowPassYaccelInsert;
-uint16_t  bufZaccelInsert;
-uint16_t  bufLowPassZaccelInsert;
+int16_t bufNormAccel[NUM_DOTS];
+int16_t bufHighPassNormAccel[NUM_DOTS];
+int16_t bufXaccel[NUM_DOTS];
+int16_t bufLowPassXaccel[NUM_DOTS];
+int16_t bufYaccel[NUM_DOTS];
+int16_t bufLowPassYaccel[NUM_DOTS];
+int16_t bufZaccel[NUM_DOTS];
+int16_t bufLowPassZaccel[NUM_DOTS];
+
 
 float REVOLUTIONS_PER_ZERO_CROSSING = 0.5;
 uint8_t PLOT_SCALE = 32;
@@ -274,27 +270,40 @@ int16_t prevHighPassNormAccel = 0;
 int16_t smoothActivity = 0;
 
 // times float? or use cycles?
-int16_t lastzerocrosst = 0;
-int16_t ledPrevIncTime = 0;
-int16_t aveZeroCrossInterval = 5;
-int16_t crossinterval = 5;
+int32_t lastzerocrosst = 0;
+int32_t ledPrevIncTime = 0;
+int32_t aveZeroCrossInterval = 5;
+int32_t crossinterval = 5;
 
 bool pause = false;
 bool skipNextCross = true;
 bool still = true;
 
 // Helpers
-uint16_t ICACHE_FLASH_ATTR circularPush(int16_t value, uint16_t insertInd, int16_t* buffer)
+
+void ICACHE_FLASH_ATTR initCircularBuffer(circularBuffer_t* cirbuff,  int16_t* buffer, uint16_t length)
 {
-    buffer[insertInd] = value;
-    if (insertInd >= NUM_DOTS - 1)
+    cirbuff->length = length;
+    cirbuff->buffer = buffer;
+    cirbuff->insertHeadInd = 0;
+    cirbuff->removeTailInd = 0;
+}
+
+int16_t ICACHE_FLASH_ATTR getCircularBufferAtIndex(circularBuffer_t cirbuff,  int16_t index)
+{
+    // index can be positive, zero, or negative
+    int16_t i = cirbuff.insertHeadInd + index;
+    while (i < 0)
     {
-        return 0;
+        i += cirbuff.length;
     }
-    else
-    {
-        return insertInd + 1;
-    }
+    return cirbuff.buffer[i % cirbuff.length];
+}
+
+void ICACHE_FLASH_ATTR circularPush(int16_t value, circularBuffer_t* cirbuff)
+{
+    cirbuff->buffer[cirbuff->insertHeadInd] = value;
+    cirbuff->insertHeadInd = (cirbuff->insertHeadInd + 1) % cirbuff->length;
 }
 
 int16_t ICACHE_FLASH_ATTR IIRFilter(float alpha, int16_t  input, int16_t output)
@@ -303,34 +312,29 @@ int16_t ICACHE_FLASH_ATTR IIRFilter(float alpha, int16_t  input, int16_t output)
     return  (1 - alpha) * output + alpha * input;
 }
 
-void ICACHE_FLASH_ATTR AdjustPlotDots(int16_t buffer1[], uint16_t insert1, int16_t buffer2[], uint16_t insert2)
+void ICACHE_FLASH_ATTR AdjustPlotDots(circularBuffer_t cbuf1, circularBuffer_t cbuf2)
 {
-    // Plots a graph with x from 0 to 119 and y from buffer1 - buffer2
+    // Plots a graph with x from 0 to 119 and y from cbuf1.buffer - cbuf2.buffer
     uint8_t i;
-    uint8_t i1 = insert1 + 1; // oldest
-    uint8_t i2 = insert2 + 1;
+    uint8_t i1 = cbuf1.insertHeadInd + 1; // oldest
+    uint8_t i2 = cbuf2.insertHeadInd + 1;
     for (i = 0; i < NUM_DOTS; i++, i1++, i2++)
     {
-        i1 = (i1 < NUM_DOTS) ? i1 : 0;
-        i2 = (i2 < NUM_DOTS) ? i2 : 0;
-        drawPixel(i, (buffer1[i1] - buffer2[i2]) / 4 + PLOT_SHIFT, WHITE);
+        i1 = (i1 < cbuf1.length) ? i1 : 0;
+        i2 = (i2 < cbuf2.length) ? i2 : 0;
+        drawPixel(i, (cbuf1.buffer[i1] - cbuf2.buffer[i2]) / 4 + PLOT_SHIFT, WHITE);
     }
-    //plotCircle(64,32,10,WHITE);
-    // pos[1] = PLOT_SCALE * buffer[i] + PLOT_SHIFT
-
 }
-void ICACHE_FLASH_ATTR AdjustPlotDotsSingle(int16_t buffer1[], uint16_t insert1)
+void ICACHE_FLASH_ATTR AdjustPlotDotsSingle(circularBuffer_t cbuf)
 {
-    // Plots a graph with x from 0 to 119 and y from buffer1
+    // Plots a graph with x from 0 to 119 and y from cbuf.buffer
     uint8_t i;
-    uint8_t i1 = insert1 + 1; // oldest
+    uint8_t i1 = cbuf.insertHeadInd + 1; // oldest
     for (i = 0; i < NUM_DOTS; i++, i1++)
     {
-        i1 = (i1 < NUM_DOTS) ? i1 : 0;
-        drawPixel(i, buffer1[i1] / 4 + PLOT_SHIFT, WHITE);
-        //os_printf("(%d, %d) ", i, buffer1[i1] + PLOT_SHIFT);
+        i1 = (i1 < cbuf.length) ? i1 : 0;
+        drawPixel(i, cbuf.buffer[i1] / 4 + PLOT_SHIFT, WHITE);
     }
-    //os_printf("\n");
 }
 
 
@@ -359,7 +363,6 @@ void ICACHE_FLASH_ATTR cmInit(void)
 
 void ICACHE_FLASH_ATTR cmDeInit(void)
 {
-    cmFreeMemory();
     os_timer_disarm(&timerHandleUpdate);
 }
 
@@ -485,11 +488,6 @@ void ICACHE_FLASH_ATTR cmGameInput(void)
     //button b = abort and restart at same level
     if(cmIsButtonPressed(BTN_GAME_RIGHT))
     {
-        //TODO crashes if this in
-        //cmDeInit();
-        //cmInit();
-        //TODO frashes if this in
-        cmFreeMemory();
         cmNewSetup();
         cmChangeState(CM_TITLE);
     }
@@ -543,51 +541,50 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     {
         // intertwine raw signal with smoothed
         // only need these buffers if want special effect
-        bufXaccelInsert = circularPush(xAccel, bufXaccelInsert, bufXaccel);
-        bufYaccelInsert = circularPush(yAccel, bufYaccelInsert, bufYaccel);
-        bufZaccelInsert = circularPush(zAccel, bufZaccelInsert, bufZaccel);
+        circularPush(xAccel, &cirBufXaccel);
+        circularPush(yAccel, &cirBufYaccel);
+        circularPush(zAccel, &cirBufZaccel);
     }
     // slightly smoothed signal
     float alphaFast = ALPHA_FAST;
 
     smoothNormAccel = IIRFilter(alphaFast, normAccel, smoothNormAccel);
-    bufNormAccelInsert = circularPush(smoothNormAccel, bufNormAccelInsert, bufNormAccel);
+    circularPush(smoothNormAccel, &cirBufNormAccel);
 
     smoothXaccel = IIRFilter(alphaFast, xAccel, smoothXaccel);
-    bufXaccelInsert = circularPush(smoothXaccel, bufXaccelInsert, bufXaccel);
+    circularPush(smoothXaccel, &cirBufXaccel);
 
     smoothYaccel = IIRFilter(alphaFast, yAccel, smoothYaccel);
-    bufYaccelInsert = circularPush(smoothYaccel, bufYaccelInsert, bufYaccel);
+    circularPush(smoothYaccel, &cirBufYaccel);
 
     smoothZaccel = IIRFilter(alphaFast, zAccel, smoothZaccel);
-    bufZaccelInsert = circularPush(smoothZaccel, bufZaccelInsert, bufZaccel);
+    circularPush(smoothZaccel, &cirBufZaccel);
 
     // Identify stillness
     float alphaActive = ALPHA_ACTIVE; // smoothing of deviaton from mean
-    smoothActivity = IIRFilter(alphaActive, abs(bufHighPassNormAccel[bufHighPassNormAccelInsert]), smoothActivity);
+    smoothActivity = IIRFilter(alphaActive, abs(getCircularBufferAtIndex(cirBufHighPassNormAccel, -1)), smoothActivity);
 
 
     // high pass by removing highly smoothed low pass (dc bias)
     float alphaSlow = ALPHA_SLOW;
     lowPassNormAccel = IIRFilter(alphaSlow, normAccel, lowPassNormAccel);
-    bufHighPassNormAccelInsert = circularPush(smoothNormAccel - lowPassNormAccel, bufHighPassNormAccelInsert,
-                                 bufHighPassNormAccel);
+    circularPush(smoothNormAccel - lowPassNormAccel, &cirBufHighPassNormAccel);
 
     // low pass for the three axes
     lowPassXaccel = IIRFilter(alphaSlow, xAccel, lowPassXaccel);
-    bufLowPassXaccelInsert = circularPush(lowPassXaccel, bufLowPassXaccelInsert, bufLowPassXaccel);
+    circularPush(lowPassXaccel, &cirBufLowPassXaccel);
 
     lowPassYaccel = IIRFilter(alphaSlow, yAccel, lowPassYaccel);
-    bufLowPassYaccelInsert = circularPush(lowPassYaccel, bufLowPassYaccelInsert, bufLowPassYaccel);
+    circularPush(lowPassYaccel, &cirBufLowPassYaccel);
 
     lowPassZaccel = IIRFilter(alphaSlow, zAccel, lowPassZaccel);
-    bufLowPassZaccelInsert = circularPush(lowPassZaccel, bufLowPassZaccelInsert, bufLowPassZaccel);
+    circularPush(lowPassZaccel, &cirBufLowPassZaccel);
 
     // Plot slightly smoothed less dc bias by adjusting the dots
-    // AdjustPlotDotsSingle(bufHighPassNormAccel, bufHighPassNormAccel);
-    AdjustPlotDots(bufXaccel, bufXaccelInsert, bufLowPassXaccel, bufLowPassXaccelInsert);
-    AdjustPlotDots(bufYaccel, bufYaccelInsert, bufLowPassYaccel, bufLowPassYaccelInsert);
-    AdjustPlotDots(bufZaccel, bufZaccelInsert, bufLowPassZaccel, bufLowPassZaccelInsert);
+    //AdjustPlotDotsSingle(cirBufHighPassNormAccel);
+    AdjustPlotDots(cirBufXaccel, cirBufLowPassXaccel);
+    AdjustPlotDots(cirBufYaccel, cirBufLowPassYaccel);
+    AdjustPlotDots(cirBufZaccel, cirBufLowPassZaccel);
 
 
     //os_printf("smoothActivity = %d\n", smoothActivity);
@@ -617,11 +614,12 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     //#define USE_ZERO_CROSSING
 #ifdef USE_ZERO_CROSSING
     // zero crossing NO tolerance check
-    if (bufHighPassNormAccel[-1] * bufHighPassNormAccel[-2] < 0):
+    if (getCircularBufferAtIndex(cirBufHighPassNormAccel, -1) * getCircularBufferAtIndex(cirBufHighPassNormAccel, -2) < 0):
 #else
     // downward zero crossing with tolerance
-    if ((bufHighPassNormAccel[-1] > 0) & (bufHighPassNormAccel[-2] < 0) & ((bufHighPassNormAccel[-1] -
-            bufHighPassNormAccel[-2]) > CROSS_TOL))
+    if ((getCircularBufferAtIndex(cirBufHighPassNormAccel, -1) > 0) & (getCircularBufferAtIndex(cirBufHighPassNormAccel,
+            -2) < 0) & ((getCircularBufferAtIndex(cirBufHighPassNormAccel, -1) -
+                         getCircularBufferAtIndex(cirBufHighPassNormAccel, -2)) > CROSS_TOL))
 #endif
     {
         if (skipNextCross)
@@ -639,7 +637,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     aveZeroCrossInterval = (1 - alphaCross) * aveZeroCrossInterval + alphaCross * crossinterval;
     //prevHighPassNormAccel = bufHighPassNormAccel[-1];
     //bpm = 30/aveZeroCrossInterval; // if using 1/2 period estimate for crossing
-    // int16_t bpm = 60 * MS_TO_US_FACTOR * S_TO_MS_FACTOR / aveZeroCrossInterval;
+    bpm = 60 * MS_TO_US_FACTOR * S_TO_MS_FACTOR / aveZeroCrossInterval;
 
     //TODO should be in cmGameDisplay()
     // graphical view of bpm could be here
@@ -758,8 +756,14 @@ void ICACHE_FLASH_ATTR cmTitleDisplay(void)
 void ICACHE_FLASH_ATTR cmGameDisplay(void)
 {
     char uiStr[32] = {0};
+    ets_snprintf(uiStr, sizeof(uiStr), "%d", bpm);
+    plotCenteredText(0, 1, OLED_WIDTH, uiStr, IBM_VGA_8, WHITE);
+
     ets_snprintf(uiStr, sizeof(uiStr), "%d", smoothActivity);
-    plotCenteredText(0, OLED_HEIGHT / 2, OLED_WIDTH, uiStr, IBM_VGA_8, WHITE);
+    plotCenteredText(0, 31, OLED_WIDTH, uiStr, IBM_VGA_8, WHITE);
+
+    ets_snprintf(uiStr, sizeof(uiStr), "%d", aveZeroCrossInterval);
+    plotCenteredText(0, OLED_HEIGHT - 1 - FONT_HEIGHT_IBMVGA8, OLED_WIDTH, uiStr, IBM_VGA_8, WHITE);
 }
 
 // helper functions.
@@ -772,30 +776,28 @@ void ICACHE_FLASH_ATTR cmGameDisplay(void)
  */
 void ICACHE_FLASH_ATTR cmNewSetup(void)
 {
-    system_print_meminfo();
-    os_printf("%s %d Free Heap %d\n", __func__, __LINE__, system_get_free_heap_size());
-    //Allocate some working array memory now
-    //TODO is memory being freed up appropriately?
-    bufNormAccel = (int16_t*)malloc (sizeof (int16_t ) * NUM_DOTS);
-    bufHighPassNormAccel = (int16_t*)malloc (sizeof (int16_t ) * NUM_DOTS);
-    bufXaccel = (int16_t*)malloc (sizeof (int16_t ) * NUM_DOTS);
-    bufLowPassXaccel = (int16_t*)malloc (sizeof (int16_t ) * NUM_DOTS);
-    bufYaccel = (int16_t*)malloc (sizeof (int16_t ) * NUM_DOTS);
-    bufLowPassYaccel = (int16_t*)malloc (sizeof (int16_t ) * NUM_DOTS);
-    bufZaccel = (int16_t*)malloc (sizeof (int16_t ) * NUM_DOTS);
-    bufLowPassZaccel = (int16_t*)malloc (sizeof (int16_t ) * NUM_DOTS);
+    //NO NEED FOR dynamic as all buffers always same size
 
-    bufNormAccelInsert = 0;
-    bufHighPassNormAccelInsert = 0;
-    bufXaccelInsert = 0;
-    bufLowPassXaccelInsert = 0;
-    bufYaccelInsert = 0;
-    bufLowPassYaccelInsert = 0;
-    bufZaccelInsert = 0;
-    bufLowPassZaccelInsert = 0;
-    // int16_t i;
-    // int16_t startvert = 0;
+    initCircularBuffer(&cirBufNormAccel, bufNormAccel, NUM_DOTS);
+    initCircularBuffer(&cirBufHighPassNormAccel, bufHighPassNormAccel, NUM_DOTS);
+    initCircularBuffer(&cirBufXaccel, bufXaccel, NUM_DOTS);
+    initCircularBuffer(&cirBufLowPassXaccel, bufLowPassXaccel, NUM_DOTS);
+    initCircularBuffer(&cirBufYaccel, bufYaccel, NUM_DOTS);
+    initCircularBuffer(&cirBufLowPassYaccel, bufLowPassYaccel, NUM_DOTS);
+    initCircularBuffer(&cirBufZaccel, bufZaccel, NUM_DOTS);
+    initCircularBuffer(&cirBufLowPassZaccel, bufLowPassZaccel, NUM_DOTS);
+
+    int16_t i;
+    int16_t startvert = 0;
     os_printf("%d leds\n", NUM_LIN_LEDS);
+
+    // os_printf("%d len of circular buffer\n", cirBufLowPassYaccel.length);
+    // circularPush(33, &cirBufNormAccel);
+    // circularPush(44, &cirBufNormAccel);
+    // circularPush(55, &cirBufNormAccel);
+    // os_printf("%d %d %d\n", getCircularBufferAtIndex(cirBufNormAccel, 0),  getCircularBufferAtIndex(cirBufNormAccel, -1),
+    //           getCircularBufferAtIndex(cirBufNormAccel, -2));
+
     memset(leds, 0, sizeof(leds));
 
     gameover = false;
@@ -833,27 +835,7 @@ void ICACHE_FLASH_ATTR cmNewSetup(void)
     skipNextCross = true;
     still = true;
 
-    system_print_meminfo();
-    os_printf("%s %d Free Heap %d\n", __func__, __LINE__, system_get_free_heap_size());
-
 }
-
-/**
- * Called when cm is exited or before making new cm
- */
-void ICACHE_FLASH_ATTR cmFreeMemory(void)
-{
-    os_printf("%s \n", __func__);
-    free(bufNormAccel);
-    free(bufHighPassNormAccel);
-    free(bufXaccel);
-    free(bufLowPassXaccel);
-    free(bufYaccel);
-    free(bufLowPassYaccel);
-    free(bufZaccel);
-    free(bufLowPassZaccel);
-}
-
 
 void ICACHE_FLASH_ATTR cmChangeState(cmState_t newState)
 {
