@@ -90,6 +90,7 @@ struct
     uint8_t currentMethod;
     uint8_t numMethods;
     accel_t Accel;
+    accel_t AccelHighPass;
     uint8_t ButtonState;
     uint8_t Brightnessidx;
     led_t leds[NUM_LIN_LEDS];
@@ -111,9 +112,14 @@ struct
     FLOATING xf[MAX_EQNS];
     FLOATING v0;
     FLOATING a0;
+    bool useHighPassAccel;
     FLOATING xAccel;
     FLOATING yAccel;
     FLOATING zAccel;
+    FLOATING alpha;
+    FLOATING xAccelSmoothed;
+    FLOATING yAccelSmoothed;
+    FLOATING zAccelSmoothed;
     FLOATING len;
 
     void (*rhs_fun_ptr)(FLOATING, FLOATING*, FLOATING*, int);
@@ -132,13 +138,14 @@ struct
 void ICACHE_FLASH_ATTR rollEnterMode(void)
 {
     roll.currentMethod = 0;
-    roll.numMethods = 4;
+    roll.numMethods = 8;
     //roll.Accel = {0};
     roll.ButtonState = 0;
     roll.Brightnessidx = 2;
     roll.LedCount = 0;
     roll.scxc = 0;
     roll.scyc = 0;
+    roll.alpha = 0.02;
     enableDebounce(false);
     initializeConditionsForODE(roll.currentMethod);
 
@@ -261,26 +268,38 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
     clearDisplay();
 
     //NOTE bug in Expressif OS can't print floating point! Must cast as int
-    //debug print for thrown ball
-    //os_printf("100t = %d, x = %d, y = %d, vx = %d, vy = %d\n", (int)(100*ti), (int)xi[0], (int)xi[1], (int)xi[2], (int)xi[3]);
-
     //Save accelerometer reading in global storage
     //TODO can get values bigger than 1. here, my accelerometer has 14 bits
     roll.xAccel = roll.Accel.x / 256.0;
     roll.yAccel = roll.Accel.y / 256.0;
     roll.zAccel = roll.Accel.z / 256.0;
+
     //os_printf("%d %d %d\n", (int)(100 * roll.xAccel), (int)(100 * roll.yAccel), (int)(100 * roll.zAccel));
+    switch (roll.currentMethod)
+    {
+        case 1:
+        case 3:
+        case 5:
+        case 7:
+            roll.useHighPassAccel = true;
+            break;
+        default:
+            roll.useHighPassAccel = false;
+            break;
+    }
 
     switch (roll.currentMethod)
     {
         case 0:
+        case 1:
             roll.tf = roll.ti + roll.dt;
             // Do one step of ODE solver assigned to rhs_fun_pointer
             //euler_dn1(dnx, roll.ti, dt, roll.xi, roll.xf, roll.numberoffirstordereqn);
             //rk4_dn1(dnx, roll.ti, roll.dt, roll.xi, roll.xf, roll.numberoffirstordereqn);
             rk4_dn1((*roll.rhs_fun_ptr), roll.ti, roll.dt, roll.xi, roll.xf, roll.numberoffirstordereqn);
             break;
-        case 1:
+        case 2:
+        case 3:
             roll.tf = roll.ti + roll.dt;
             euler_dn1((*roll.rhs_fun_ptr), roll.ti, roll.dt, roll.xi, roll.xf, roll.numberoffirstordereqn);
             break;
@@ -299,6 +318,7 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
     switch (roll.currentMethod)
     {
         case 0:
+        case 1:
             roll.ti = roll.tf;
             for (uint8_t i = 0; i < roll.numberoffirstordereqn; i++)
             {
@@ -307,7 +327,8 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
             }
             //os_printf("\n");
             break;
-        case 1:
+        case 2:
+        case 3:
             roll.ti = roll.tf;
             for (uint8_t i = 0; i < roll.numberoffirstordereqn; i++)
             {
@@ -335,20 +356,27 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
     switch (roll.currentMethod)
     {
         case 0:
+        case 1:
             roll.scxc = 64.0 - 28.0 * cos(roll.xi[0]);
             roll.scyc = 32.0 - 28.0 * sin(roll.xi[0]);
             break;
-        case 1:
+        case 2:
+        case 3:
             roll.scxc = roll.xi[0];
             roll.scyc = roll.xi[1];
             break;
 
-        case 2:
+        case 4:
+        case 5:
             // Using center of screen as orgin, position ball  proportional to x,y component of Accel
             roll.scxc = 64 + (roll.Accel.x >> 2);
             roll.scyc = 32 + (roll.Accel.y >> 3);
             break;
-        case 3:
+
+        case 6:
+        // flat corresponds to the average postion and level measured as deviation from this
+        case 7:
+            // Here holding screen flat the ball seeks the lowest level
             // Using center of screen as orgin, position ball on circle of radius 32 with direction x,y component of Accel
             // acts as level with ball at lowest spot
             roll.scxc = roll.Accel.x;
@@ -361,7 +389,6 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
                 roll.scyc = 32.0 + 28.0 * roll.scyc / roll.len;
             }
             break;
-
         default:
             (void)0;
     }
@@ -371,11 +398,14 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
     plotCircle(roll.scxc, roll.scyc, 3, WHITE);
     plotCircle(roll.scxc, roll.scyc, 1, WHITE);
 
+    char uiStr[32] = {0};
+    ets_snprintf(uiStr, sizeof(uiStr), "%d", roll.currentMethod);
+    plotText(57, 31, uiStr, IBM_VGA_8, WHITE);
+
     //os_printf("(%d, %d\n", (int)roll.scxc, (int)roll.scyc);
 
     // LEDs, all off
     ets_memset(roll.leds, 0, sizeof(roll.leds));
-    //roll.leds[NUM_LIN_LEDS] = {{0}};
 #define GAP 1
 
     /*  Python
@@ -445,6 +475,17 @@ void ICACHE_FLASH_ATTR rollAccelerometerHandler(accel_t* accel)
     roll.Accel.x = accel->y;
     roll.Accel.y = accel->x;
     roll.Accel.z = accel->z;
+
+    if (roll.useHighPassAccel)
+    {
+        roll.xAccelSmoothed = (1.0 - roll.alpha) * roll.xAccelSmoothed + roll.alpha * (float)roll.Accel.x;
+        roll.yAccelSmoothed = (1.0 - roll.alpha) * roll.yAccelSmoothed + roll.alpha * (float)roll.Accel.y;
+        roll.zAccelSmoothed = (1.0 - roll.alpha) * roll.zAccelSmoothed + roll.alpha * (float)roll.Accel.z;
+
+        roll.Accel.x = roll.Accel.x - roll.xAccelSmoothed;
+        roll.Accel.y = roll.Accel.y - roll.yAccelSmoothed;
+        roll.Accel.z = roll.Accel.z - roll.zAccelSmoothed;
+    }
     roll_updateDisplay();
 }
 
