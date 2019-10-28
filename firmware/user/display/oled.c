@@ -155,9 +155,9 @@ void ICACHE_FLASH_ATTR clearDisplay(void)
  * @param y2
  * @param c
  */
-void ICACHE_FLASH_ATTR fillDisplayArea(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, color c)
+void ICACHE_FLASH_ATTR fillDisplayArea(int16_t x1, int16_t y1, int16_t x2, int16_t y2, color c)
 {
-    uint8_t x, y;
+    int16_t x, y;
     for (x = x1; x <= x2; x++)
     {
         for (y = y1; y <= y2; y++)
@@ -184,9 +184,9 @@ void ICACHE_FLASH_ATTR drawFrame(const uint8_t* frame)
  * @param y Row of the display, 0 is at the top
  * @param c Pixel color, one of: BLACK, WHITE or INVERT
  */
-void ICACHE_FLASH_ATTR drawPixel(uint8_t x, uint8_t y, color c)
+void ICACHE_FLASH_ATTR drawPixel(int16_t x, int16_t y, color c)
 {
-    if ((x < OLED_WIDTH) && (y < OLED_HEIGHT))
+    if ((x < OLED_WIDTH) && (y < OLED_HEIGHT))// && (x >= 0) && (y >= 0)) //ADAM: This may be necessary with data type change.
     {
         x = (OLED_WIDTH - 1) - x;
         y = (OLED_HEIGHT - 1) - y;
