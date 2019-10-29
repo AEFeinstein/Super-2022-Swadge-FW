@@ -462,6 +462,7 @@ inline uint8_t ICACHE_FLASH_ATTR wrapIdx(uint8_t idx, int8_t delta, uint8_t max)
 
 // Functions for drawing the game or menu
 void ICACHE_FLASH_ATTR snakeClearDisplay(void);
+void ICACHE_FLASH_ATTR snakeDrawBackground(void);
 void ICACHE_FLASH_ATTR snakeDrawSprite(uint8_t x, uint8_t y, snakeSprite sprite, bool isOffset);
 void ICACHE_FLASH_ATTR snakeDrawSnake(void);
 void ICACHE_FLASH_ATTR snakeDrawCritter(void);
@@ -533,27 +534,8 @@ void ICACHE_FLASH_ATTR snakeInit(void)
     os_timer_setfn(&snake.timerHandleSnakeLogic, (os_timer_func_t*)snakeProcessGame, NULL);
     os_timer_setfn(&snake.timerHandeleSnakeBlink, (os_timer_func_t*)snakeBlinkField, NULL);
 
-    // Draw the border, just once. Not the most efficient, but eh
-    uint32_t bgVal = 0;
-    uint16_t bgIdx = 0;
-    for(int y = 0; y < OLED_HEIGHT; y++)
-    {
-        for(int x = 0; x < OLED_WIDTH; x++)
-        {
-            if(x % 32 == 0)
-            {
-                bgVal = snakeBackground[bgIdx++];
-            }
-            if(bgVal & (0x80000000 >> (x % 32)))
-            {
-                drawPixel(x, y, BLACK);
-            }
-            else
-            {
-                drawPixel(x, y, WHITE);
-            }
-        }
-    }
+    // Draw the border
+    snakeDrawBackground();
 
     // Set up and draw the menu
     ets_memcpy(snake.title, snakeTitle, sizeof(snakeTitle));
@@ -612,6 +594,9 @@ void ICACHE_FLASH_ATTR snakeButtonCallback(uint8_t state __attribute__((unused))
                     {
                         // Request responsive buttons
                         enableDebounce(false);
+
+                        // Redraw the background to clear button funcs
+                        snakeDrawBackground();
 
                         // Start the game
                         snake.mode = MODE_GAME;
@@ -1219,6 +1204,33 @@ void ICACHE_FLASH_ATTR snakeBlinkField(void* arg __attribute__((unused)))
  *============================================================================*/
 
 /**
+ * @brief Draw the background. Not the most efficient, but it works
+ */
+void ICACHE_FLASH_ATTR snakeDrawBackground(void)
+{
+    uint32_t bgVal = 0;
+    uint16_t bgIdx = 0;
+    for(int y = 0; y < OLED_HEIGHT; y++)
+    {
+        for(int x = 0; x < OLED_WIDTH; x++)
+        {
+            if(x % 32 == 0)
+            {
+                bgVal = snakeBackground[bgIdx++];
+            }
+            if(bgVal & (0x80000000 >> (x % 32)))
+            {
+                drawPixel(x, y, BLACK);
+            }
+            else
+            {
+                drawPixel(x, y, WHITE);
+            }
+        }
+    }
+}
+
+/**
  * Clear the display areas for the game and text, but don't touch the border
  */
 void ICACHE_FLASH_ATTR snakeClearDisplay(void)
@@ -1314,6 +1326,18 @@ void ICACHE_FLASH_ATTR snakeDrawMenu(void)
 {
     // Clear the display
     snakeClearDisplay();
+
+    // Plot button funcs
+    fillDisplayArea(
+        0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 2,
+        20, OLED_HEIGHT,
+        BLACK);
+    plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "LEVEL", TOM_THUMB, WHITE);
+    fillDisplayArea(
+        OLED_WIDTH - 21, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 2,
+        OLED_WIDTH, OLED_HEIGHT,
+        BLACK);
+    plotText(OLED_WIDTH - 19, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "START", TOM_THUMB, WHITE);
 
     // Draw the title, whatever it is
     plotText(SNAKE_FIELD_OFFSET_X, SNAKE_TEXT_OFFSET_Y, snake.title, TOM_THUMB, WHITE);
