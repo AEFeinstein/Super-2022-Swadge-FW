@@ -502,7 +502,7 @@ void ICACHE_FLASH_ATTR snakeDrawSnake(void);
 void ICACHE_FLASH_ATTR snakeDrawCritter(void);
 void ICACHE_FLASH_ATTR snakeDrawFood(void);
 void ICACHE_FLASH_ATTR snakeDrawMenu(void);
-
+void ICACHE_FLASH_ATTR snakeSetLeds(void);
 
 void ICACHE_FLASH_ATTR snakeBlinkField(void* arg __attribute__((unused)));
 
@@ -820,6 +820,8 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
     newHead->pos.y = newHead->nextSegment->pos.y;
     snakeMoveSnakePos(&newHead->pos, newHead->dir);
     newHead->ttl = oldHead->ttl + 1;
+
+    snakeSetLeds();
 
     // Figure out the sprite based on the food location and direction
     newHead->sprite = headTransitionTable[isFoodAheadOfHead()][newHead->dir];
@@ -1230,6 +1232,8 @@ void ICACHE_FLASH_ATTR snakeBlinkField(void* arg __attribute__((unused)))
     }
     else
     {
+        led_t leds[NUM_LIN_LEDS] = {{0}};
+        uint8_t i;
         // Draw everything every other blink
         if(snake.numBlinks % 2 != 0)
         {
@@ -1239,7 +1243,16 @@ void ICACHE_FLASH_ATTR snakeBlinkField(void* arg __attribute__((unused)))
             {
                 snakeDrawCritter();
             }
+
+            // Blink Red for losing
+            for(i = 0; i < NUM_LIN_LEDS; i++)
+            {
+                leds[i].r = 1;
+                leds[i].g = 0;
+                leds[i].b = 0;
+            }
         }
+        setLeds(leds, sizeof(leds));
 
         // Draw the game over text & score
         ets_snprintf(snake.title, sizeof(snake.title), snakeGameOver, snake.score);
@@ -1418,4 +1431,54 @@ void ICACHE_FLASH_ATTR snakeDrawMenu(void)
              SNAKE_FIELD_OFFSET_Y + 3 + snake.cursorPos * (FONT_HEIGHT_IBMVGA8 + 3),
              ">",
              IBM_VGA_8, WHITE);
+}
+
+/**
+ * @brief Point some LEDs in the direction of snek
+ */
+void ICACHE_FLASH_ATTR snakeSetLeds(void)
+{
+    led_t leds[NUM_LIN_LEDS] = {{0}};
+    uint8_t i;
+    for(i = 0; i < NUM_LIN_LEDS; i++)
+    {
+        leds[i].r = 0;
+        leds[i].g = 1;
+        leds[i].b = 0;
+    }
+    switch(snake.dir)
+    {
+        case S_UP:
+        {
+            leds[0].b = 1;
+            leds[1].b = 4;
+            leds[2].b = 1;
+            break;
+        }
+        case S_RIGHT:
+        {
+            leds[0].b = 4;
+            leds[5].b = 4;
+            break;
+        }
+        case S_DOWN:
+        {
+            leds[3].b = 1;
+            leds[4].b = 4;
+            leds[5].b = 1;
+            break;
+        }
+        case S_LEFT:
+        {
+            leds[2].b = 4;
+            leds[3].b = 4;
+            break;
+        }
+        default:
+        case S_NUM_DIRECTIONS:
+        {
+            break;
+        }
+    }
+    setLeds(leds, sizeof(leds));
 }
