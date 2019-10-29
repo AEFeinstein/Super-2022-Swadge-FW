@@ -1885,7 +1885,10 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     uint8_t highScoreHeaderTextStart = newHighScore ? 0 : 12;//newHighScore ? 3 : 15;
     uint8_t highScoreHeaderTextEnd = newHighScore ? highScoreHeaderTextStart + 34 : highScoreHeaderTextStart + 14;
 
-    if (newHighScore)
+    //ADAM: This call should produce a black background behind the "HIGH" or "HIGH (NEW)" text in the top left of the screen, but it does not.
+    fillDisplayArea(-5, currY - yPad, 34, currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
+
+    /*if (newHighScore)
     {
         fillDisplayArea(highScoreHeaderTextStart, currY - yPad, highScoreHeaderTextEnd + xPad,
                         currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
@@ -1894,7 +1897,7 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     {
         fillDisplayArea(highScoreHeaderTextStart - xPad, currY - yPad, highScoreHeaderTextEnd + xPad,
                         currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
-    }
+    }*/
     
     plotText(highScoreHeaderTextStart, currY, newHighScore ? "HIGH (NEW)" : "HIGH", TOM_THUMB, WHITE);
 
@@ -2723,8 +2726,8 @@ void ICACHE_FLASH_ATTR plotTetrad(int32_t x0, int32_t y0, uint8_t unitSize, uint
             if (shape[y][x] != EMPTY)
             {
                 // The top left of this unit.
-                uint8_t px = x0 + x * unitSize;
-                uint8_t py = y0 + y * unitSize;
+                int32_t px = x0 + x * unitSize;
+                int32_t py = y0 + y * unitSize;
                 switch (tetradFill)
                 {
                     case I_TETRAD:
@@ -2751,8 +2754,10 @@ void ICACHE_FLASH_ATTR plotTetrad(int32_t x0, int32_t y0, uint8_t unitSize, uint
                         }
                         else
                         {
-                            plotSquare(px, py, 2, col);
-                            plotSquare(px + (unitSize - 1) - 1, py, 2, col);
+                            //ADAM: This call crashes the software.
+                            fillDisplayArea(px, py, px + 1, py + 1, col);
+                            //plotSquare(px, py, 2, col);
+                            //plotSquare(px + (unitSize - 1) - 1, py, 2, col);
                         }
                         //bot
                         if (y == tetradRows - 1 || shape[y + 1][x] == EMPTY)
