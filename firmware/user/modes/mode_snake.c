@@ -208,6 +208,40 @@ const song_t MetalGear RODATA_ATTR =
     .shouldLoop = true
 };
 
+const song_t foodSfx RODATA_ATTR =
+{
+    .notes = {
+        {.note = G_5, .timeMs = 150},
+        {.note = C_6, .timeMs = 150},
+    },
+    .numNotes = 2,
+    .shouldLoop = false
+};
+
+const song_t critterSfx RODATA_ATTR =
+{
+    .notes = {
+        {.note = G_5, .timeMs = 100},
+        {.note = A_5, .timeMs = 100},
+        {.note = B_5, .timeMs = 100},
+        {.note = C_6, .timeMs = 100},
+    },
+    .numNotes = 4,
+    .shouldLoop = false
+};
+
+const song_t snakeDeathSfx RODATA_ATTR =
+{
+    .notes = {
+        {.note = A_SHARP_4, .timeMs = 666},
+        {.note = A_4, .timeMs = 666},
+        {.note = G_SHARP_4, .timeMs = 666},
+        {.note = G_4, .timeMs = 2002},
+    },
+    .numNotes = 4,
+    .shouldLoop = false
+};
+
 const uint32_t snakeBackground[] RODATA_ATTR =
 {
     0x80fe0000, 0x00000000, 0x00000000, 0x00007f01,
@@ -617,9 +651,6 @@ void ICACHE_FLASH_ATTR snakeButtonCallback(uint8_t state __attribute__((unused))
 
                         // Set the OLED to draw at the speed of the game
                         setOledDrawTime(snakeDifficulties[snake.cursorPos][0]);
-
-                        // Play a little ditty
-                        startBuzzerSong(&MetalGear);
                         break;
                     }
                     default:
@@ -810,6 +841,9 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
         // Food is points
         snake.score += snake.scoreMultiplier;
 
+        // Play a jingle
+        startBuzzerSong(&foodSfx);
+
         // Draw a new food somewhere else
         snakePlaceFood();
     }
@@ -822,6 +856,9 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
 
         // Critters are more points
         snake.score += (snake.scoreMultiplier * snake.critterTimerCount);
+
+        // Play a jingle
+        startBuzzerSong(&critterSfx);
 
         // Clear the criter
         snake.critterTimerCount = 0;
@@ -873,6 +910,17 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
 
         // Stop the song. Losers don't get music
         stopBuzzerSong();
+
+        // If they're on hard mode and scored a lot
+        if(snake.cursorPos == 2 && snake.score > 450)
+        {
+            // Give 'em a reward
+            startBuzzerSong(&MetalGear);
+        }
+        else
+        {
+            startBuzzerSong(&snakeDeathSfx);
+        }
 
         // Save the high score
         setSnakeHighScore(snake.cursorPos, snake.score);
