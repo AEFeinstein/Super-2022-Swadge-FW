@@ -168,16 +168,6 @@ void ICACHE_FLASH_ATTR fillDisplayArea(int16_t x1, int16_t y1, int16_t x2, int16
 }
 
 /**
- * @brief Copy an entire frame's worth of pixels to the framebuffer
- *
- * @param frame The frame to copy into the frameBuffer
- */
-void ICACHE_FLASH_ATTR drawFrame(const uint8_t* frame)
-{
-    memcpy(currentFb, frame, sizeof(currentFb));
-}
-
-/**
  * Set/clear/invert a single pixel.
  *
  * @param x Column of display, 0 is at the left
@@ -186,7 +176,8 @@ void ICACHE_FLASH_ATTR drawFrame(const uint8_t* frame)
  */
 void ICACHE_FLASH_ATTR drawPixel(int16_t x, int16_t y, color c)
 {
-    if ((x < OLED_WIDTH) && (y < OLED_HEIGHT))// && (x >= 0) && (y >= 0)) //ADAM: This may be necessary with data type change.
+    if ((0 <= x) && (x < OLED_WIDTH) &&
+            (0 <= y) && (y < OLED_HEIGHT))
     {
         x = (OLED_WIDTH - 1) - x;
         y = (OLED_HEIGHT - 1) - y;
