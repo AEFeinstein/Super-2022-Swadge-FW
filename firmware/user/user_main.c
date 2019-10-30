@@ -38,6 +38,9 @@
 #include "mode_tiltrads.h"
 #include "mode_mazerf.h"
 #include "mode_color_movement.h"
+#ifdef TEST_MODE
+#include "mode_test.h"
+#endif
 
 /*============================================================================
  * Defines
@@ -69,6 +72,9 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
 {
+#ifdef TEST_MODE
+    &testMode,
+#endif
 #if SWADGE_VERSION != SWADGE_2019
     &menuMode, // Menu must be the first
 #endif
