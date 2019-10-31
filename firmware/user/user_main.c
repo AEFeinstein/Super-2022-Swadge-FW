@@ -78,6 +78,7 @@ swadgeMode* swadgeModes[] =
     &mazerfMode,
     &colorMoveMode,
     &galleryMode,
+    &muteOption
 };
 bool swadgeModeInit = false;
 rtcMem_t rtcMem = {0};

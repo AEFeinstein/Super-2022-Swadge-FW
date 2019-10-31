@@ -7,6 +7,7 @@
 #include "mode_menu.h"
 #include "display/oled.h"
 #include "display/font.h"
+#include "custom_commands.h"
 
 /*============================================================================
  * Defines
@@ -37,6 +38,9 @@ swadgeMode menuMode =
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
 };
+
+// Dummy mode for the mute option
+swadgeMode muteOption = {0};
 
 uint8_t numModes = 0;
 swadgeMode** modes = NULL;
@@ -81,8 +85,17 @@ void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state __attribute__((unused)),
         {
             case 0:
             {
-                // Select the mode
-                switchToSwadgeMode(1 + selectedMode);
+                if(modes[1 + selectedMode] == &muteOption)
+                {
+                    // Toggle the mute and redraw the menu
+                    setIsMutedOption(!getIsMutedOption());
+                    drawMenu();
+                }
+                else
+                {
+                    // Select the mode
+                    switchToSwadgeMode(1 + selectedMode);
+                }
                 break;
             }
             case 2:
@@ -165,7 +178,23 @@ void ICACHE_FLASH_ATTR drawMenu(void)
     for(idx = 0; idx < NUM_MENU_ROWS; idx++)
     {
         uint8_t modeToDraw = 1 + ((menuPos + idx) % numModes);
-        plotText(MARGIN + 6, idx * (MARGIN + FONT_HEIGHT_IBMVGA8),
-                 modes[modeToDraw]->modeName, IBM_VGA_8, WHITE);
+        if(modes[modeToDraw] == &muteOption)
+        {
+            if(getIsMutedOption())
+            {
+                plotText(MARGIN + 6, idx * (MARGIN + FONT_HEIGHT_IBMVGA8),
+                         "Mute:        ON", IBM_VGA_8, WHITE);
+            }
+            else
+            {
+                plotText(MARGIN + 6, idx * (MARGIN + FONT_HEIGHT_IBMVGA8),
+                         "Mute:       OFF", IBM_VGA_8, WHITE);
+            }
+        }
+        else
+        {
+            plotText(MARGIN + 6, idx * (MARGIN + FONT_HEIGHT_IBMVGA8),
+                     modes[modeToDraw]->modeName, IBM_VGA_8, WHITE);
+        }
     }
 }

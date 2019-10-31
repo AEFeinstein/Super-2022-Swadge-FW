@@ -20,7 +20,7 @@
  *==========================================================================*/
 
 #define CONFIGURABLES sizeof(struct CCSettings) //(plus1)
-#define SAVE_LOAD_KEY 0xAC
+#define SAVE_LOAD_KEY 0xAD
 
 /*============================================================================
  * Structs
@@ -37,6 +37,7 @@ typedef struct __attribute__((aligned(4)))
     uint32_t mzLastScore;
     uint32_t joustElo;
     uint32_t snakeHighScores[3];
+    bool isMuted;
 }
 settings_t;
 
@@ -321,6 +322,17 @@ uint32_t ICACHE_FLASH_ATTR mzGetLastScore(void)
 void ICACHE_FLASH_ATTR mzSetLastScore(uint32_t newLastScore)
 {
     settings.mzLastScore = newLastScore;
+    SaveSettings();
+}
+
+bool ICACHE_FLASH_ATTR getIsMutedOption(void)
+{
+    return settings.isMuted;
+}
+
+void ICACHE_FLASH_ATTR setIsMutedOption(bool mute)
+{
+    settings.isMuted = mute;
     SaveSettings();
 }
 
