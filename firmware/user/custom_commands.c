@@ -185,6 +185,14 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
     if( settings.SaveLoadKey == SAVE_LOAD_KEY )
     {
         os_printf("Settings found\r\n");
+        // load gConfigs from the settings
+        for( uint8_t i = 0; i < CONFIGURABLES; i++ )
+        {
+            if( gConfigs[i].val )
+            {
+                *(gConfigs[i].val) = settings.configs[i];
+            }
+        }
     }
     else
     {
@@ -198,23 +206,14 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
         {
             if( gConfigs[i].val )
             {
-                settings.configs[i] = gConfigs[i].defaultVal;
+                *(gConfigs[i].val) = gConfigs[i].defaultVal;
             }
         }
         memset(settings.ttHighScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
         memset(settings.mzBestTimes, 0x0f, NUM_MZ_LEVELS * sizeof(uint32_t));
         settings.mzLastScore = 100000;
         settings.joustElo = 1000;
-        SaveSettings();
-    }
-
-    // load gConfigs from the settings
-    for( uint8_t i = 0; i < CONFIGURABLES; i++ )
-    {
-        if( gConfigs[i].val )
-        {
-            *gConfigs[i].val = settings.configs[i];
-        }
+        SaveSettings(); // updates settings.configs then saves
     }
 }
 
