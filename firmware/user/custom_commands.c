@@ -35,7 +35,7 @@ typedef struct __attribute__((aligned(4)))
     uint32_t ttLastScore;
     uint32_t mzBestTimes[NUM_MZ_LEVELS]; //best for each level
     uint32_t mzLastScore;
-    uint32_t joustElo;
+    uint32_t joustWins;
     uint32_t snakeHighScores[3];
 }
 settings_t;
@@ -151,7 +151,7 @@ settings_t settings =
 {
     .SaveLoadKey = 0,
     .configs = {0},
-    .joustElo = 0,
+    .joustWins = 0,
     .snakeHighScores = {0},
     .ttHighScores = {0},
     .ttLastScore = 0,
@@ -204,7 +204,7 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
         memset(settings.ttHighScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
         memset(settings.mzBestTimes, 0x0f, NUM_MZ_LEVELS * sizeof(uint32_t));
         settings.mzLastScore = 100000;
-        settings.joustElo = 1000;
+        settings.joustWins = 0;
         SaveSettings();
     }
 
@@ -257,9 +257,9 @@ void ICACHE_FLASH_ATTR setSnakeHighScore(uint8_t difficulty, uint32_t score)
 /**
  * Increment the game win count and save it to SPI flash
  */
-void ICACHE_FLASH_ATTR setJoustElo(uint32_t elo)
+void ICACHE_FLASH_ATTR setJoustWins(uint32_t elo)
 {
-    settings.joustElo = elo;
+    settings.joustWins = elo;
     SaveSettings();
 }
 
@@ -276,9 +276,9 @@ uint32_t* ICACHE_FLASH_ATTR getSnakeHighScores(void)
 /**
  * @return The number of reflector games this swadge has won
  */
-uint32_t ICACHE_FLASH_ATTR getJoustElo(void)
+uint32_t ICACHE_FLASH_ATTR getJoustWins(void)
 {
-    return settings.joustElo;
+    return settings.joustWins;
 }
 
 uint32_t* ICACHE_FLASH_ATTR ttGetHighScores(void)
