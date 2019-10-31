@@ -107,12 +107,16 @@ CFLAGS_WARNINGS_EXTRA = \
 # #define SWADGE_DEV_KIT 0
 # #define SWADGE_BBKIWI  1
 # #define SWADGE_BARREL  2
+# #define SWADGE_2019    3
+# #define BARREL_1_0_0   4
 ifeq ($(SET_SWADGE_VERSION),1)
   swadgeversion = 1
 else ifeq ($(SET_SWADGE_VERSION),2)
   swadgeversion = 2
 else ifeq ($(SET_SWADGE_VERSION),3)
   swadgeversion = 3
+else ifeq ($(SET_SWADGE_VERSION),4)
+  swadgeversion = 4
 else
   swadgeversion = 0
 endif
@@ -123,7 +127,8 @@ DEFINES_LIST = \
 	DISABLE_CHARRX=1 \
 	USE_OPTIMIZE_PRINTF=1 \
 	ICACHE_FLASH=1 \
-	SWADGE_VERSION=$(swadgeversion)
+	SWADGE_VERSION=$(swadgeversion) \
+	TEST_MODE=1
 
 ifneq ($(ESP_GDB),)
   DEFINES_LIST += USE_ESP_GDB

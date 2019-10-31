@@ -65,7 +65,7 @@ static const gpioInfo_t gpioInfoInput[] =
         .func = FUNC_GPIO2,
         .periph = PERIPHS_IO_MUX_GPIO2_U
     },
-#elif defined(BARREL_1_0_0)
+#elif (SWADGE_VERSION == BARREL_1_0_0)
     // Menu
     {
         .GPID = 12,
