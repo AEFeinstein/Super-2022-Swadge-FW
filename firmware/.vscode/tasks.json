@@ -4,9 +4,9 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "make all",
+            "label": "make all (devkit)",
             "type": "shell",
-            "command": "unset ESP_GDB && make -j$(nproc) all",
+            "command": "unset ESP_GDB && export SET_SWADGE_VERSION=0 && make -j$(nproc) all",
             "problemMatcher": [
                 "$gcc"
             ],
@@ -16,16 +16,40 @@
             }
         },
         {
+            "label": "make all (bbkiwi)",
+            "type": "shell",
+            "command": "unset ESP_GDB && export SET_SWADGE_VERSION=1 && make -j$(nproc) all",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build"
+        },
+        {
+            "label": "make all (barrel)",
+            "type": "shell",
+            "command": "unset ESP_GDB && export SET_SWADGE_VERSION=2 && make -j$(nproc) all",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build"
+        },
+        {
+            "label": "make all (swadge 2019)",
+            "type": "shell",
+            "command": "unset ESP_GDB && export SET_SWADGE_VERSION=3 && make -j$(nproc) all",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build"
+        },
+        {
             "label": "make all (barrel 1.0.0)",
             "type": "shell",
             "command": "unset ESP_GDB && export SET_SWADGE_VERSION=4 && make -j$(nproc) all",
             "problemMatcher": [
                 "$gcc"
             ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
+            "group": "build"
         },
         {
             "label": "make all (gdb)",
