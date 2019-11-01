@@ -23,8 +23,8 @@ void ICACHE_FLASH_ATTR mzSetBestTimes(uint32_t* newHighScores);
 uint32_t ICACHE_FLASH_ATTR mzGetLastScore(void);
 void ICACHE_FLASH_ATTR mzSetLastScore(uint32_t newLastScore);
 
-void ICACHE_FLASH_ATTR setJoustElo(uint32_t);
-uint32_t ICACHE_FLASH_ATTR getJoustElo(void);
+void ICACHE_FLASH_ATTR setJoustWins(uint32_t);
+uint32_t ICACHE_FLASH_ATTR getJoustWins(void);
 
 void ICACHE_FLASH_ATTR setSnakeHighScore(uint8_t difficulty, uint32_t score);
 uint32_t* ICACHE_FLASH_ATTR getSnakeHighScores(void);

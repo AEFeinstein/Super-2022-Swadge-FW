@@ -228,7 +228,7 @@ void ICACHE_FLASH_ATTR joustConnectionCallback(p2pInfo* p2p __attribute__((unuse
             }
             joust_printf("connection established\n");
             clearDisplay();
-            char accelStr[32] = {0};
+            // char accelStr[32] = {0};
             plotText(0, 0, "Found Player", IBM_VGA_8, WHITE);
             plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Move theirs", IBM_VGA_8, WHITE);
             plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Not yours!", IBM_VGA_8, WHITE);
@@ -294,6 +294,10 @@ void ICACHE_FLASH_ATTR joustMsgCallbackFn(p2pInfo* p2p __attribute__((unused)), 
             // Currently playing a game, if a message is sent, then update score
             break;
         }
+        case R_PLAYINGFFA:
+        {
+            break;
+        }
         case R_MENU:
         case R_SEARCHING:
         {
@@ -303,7 +307,7 @@ void ICACHE_FLASH_ATTR joustMsgCallbackFn(p2pInfo* p2p __attribute__((unused)), 
             {
                 joust.con_color =  atoi((const char*)payload);
                 clearDisplay();
-                char accelStr[32] = {0};
+                // char accelStr[32] = {0};
                 plotText(0, 0, "Found Player", IBM_VGA_8, WHITE);
                 plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Move theirs", IBM_VGA_8, WHITE);
                 plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Not yours!", IBM_VGA_8, WHITE);
