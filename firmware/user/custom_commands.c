@@ -20,7 +20,7 @@
  *==========================================================================*/
 
 #define CONFIGURABLES sizeof(struct CCSettings) //(plus1)
-#define SAVE_LOAD_KEY 0xAD
+#define SAVE_LOAD_KEY 0xAE
 
 /*============================================================================
  * Structs
