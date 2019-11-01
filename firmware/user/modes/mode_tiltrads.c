@@ -159,8 +159,8 @@ typedef enum
 // coordinates on the playfield grid, not the screen.
 typedef struct
 {
-    int32_t c;
-    int32_t r;
+    int16_t c;
+    int16_t r;
 } coord_t;
 
 // tetrads
@@ -1046,13 +1046,13 @@ uint32_t clearTimer;
 uint32_t clearTime;
 
 // Score screen ui vars.
-uint8_t score0X;
-uint8_t score1X;
-uint8_t score2X;
-//uint8_t lastScoreX;
+int16_t score0X;
+int16_t score1X;
+int16_t score2X;
+//int16_t lastScoreX;
 
 // Gameover ui vars.
-uint8_t gameoverScoreX;
+int16_t gameoverScoreX;
 
 // Input vars.
 accel_t ttAccel = {0};
@@ -1125,8 +1125,8 @@ void ICACHE_FLASH_ATTR transferGrid(coord_t srcOffset, uint8_t srcCols, uint8_t 
 void ICACHE_FLASH_ATTR clearGrid(uint8_t gridCols, uint8_t gridRows, uint32_t gridData[][gridCols]);
 void ICACHE_FLASH_ATTR refreshTetradsGrid(uint8_t gridCols, uint8_t gridRows, uint32_t gridData[][gridCols],
         list_t* fieldTetrads, tetrad_t* movingTetrad, bool includeMovingTetrad);
-uint8_t ICACHE_FLASH_ATTR xFromGridCol(int32_t x0, uint8_t gridCol, uint8_t unitSize);
-uint8_t ICACHE_FLASH_ATTR yFromGridRow(int32_t y0, uint8_t gridRow, uint8_t unitSize);
+int16_t ICACHE_FLASH_ATTR xFromGridCol(int16_t x0, int16_t gridCol, uint8_t unitSize);
+int16_t ICACHE_FLASH_ATTR yFromGridRow(int16_t y0, int16_t gridRow, uint8_t unitSize);
 
 // tetrad operations.
 bool ICACHE_FLASH_ATTR rotateTetrad(tetrad_t* tetrad, int32_t newRotation, uint8_t gridCols, uint8_t gridRows,
@@ -1145,16 +1145,16 @@ int32_t ICACHE_FLASH_ATTR getFallDistance(tetrad_t* tetrad, uint8_t gridCols, ui
                                       const uint32_t gridData[][gridCols]);
 
 // drawing functions.
-void ICACHE_FLASH_ATTR plotSquare(int32_t x0, int32_t y0, int32_t size, color col);
-void ICACHE_FLASH_ATTR plotGrid(int32_t x0, int32_t y0, uint8_t unitSize, uint8_t gridCols, uint8_t gridRows,
+void ICACHE_FLASH_ATTR plotSquare(int16_t x0, int16_t y0, uint8_t size, color col);
+void ICACHE_FLASH_ATTR plotGrid(int16_t x0, int16_t y0, uint8_t unitSize, uint8_t gridCols, uint8_t gridRows,
                                 uint32_t gridData[][gridCols], bool clearLineAnimation, color col);
-void ICACHE_FLASH_ATTR plotTetrad(int32_t x0, int32_t y0, uint8_t unitSize, uint8_t tetradCols, uint8_t tetradRows,
+void ICACHE_FLASH_ATTR plotTetrad(int16_t x0, int16_t y0, uint8_t unitSize, uint8_t tetradCols, uint8_t tetradRows,
                                  uint32_t shape[][tetradCols], uint8_t tetradFill, int32_t fillRotation, color col);
 void ICACHE_FLASH_ATTR plotPerspectiveEffect(uint8_t leftSrc, uint8_t leftDst, uint8_t rightSrc, uint8_t rightDst,
         uint8_t y0, uint8_t y1, int32_t numVerticalLines, int32_t numHorizontalLines, double lineTweenTimeS,
         uint32_t currentTimeUS,
         color col);
-uint8_t ICACHE_FLASH_ATTR plotCenteredText(uint8_t x0, uint8_t y, uint8_t x1, char* text, fonts font, color col);
+int16_t ICACHE_FLASH_ATTR plotCenteredText(int16_t x0, int16_t y, int16_t x1, char* text, fonts font, color col);
 uint8_t ICACHE_FLASH_ATTR getCenteredTextX(uint8_t x0, uint8_t x1, char* text, fonts font);
 uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font);
 uint8_t ICACHE_FLASH_ATTR getNumTextWidth(char* text);
@@ -1885,10 +1885,7 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     uint8_t highScoreHeaderTextStart = newHighScore ? 0 : 12;//newHighScore ? 3 : 15;
     uint8_t highScoreHeaderTextEnd = newHighScore ? highScoreHeaderTextStart + 34 : highScoreHeaderTextStart + 14;
 
-    //ADAM: This call should produce a black background behind the "HIGH" or "HIGH (NEW)" text in the top left of the screen, but it does not.
-    fillDisplayArea(-5, currY - yPad, 34, currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
-
-    /*if (newHighScore)
+    if (newHighScore)
     {
         fillDisplayArea(highScoreHeaderTextStart, currY - yPad, highScoreHeaderTextEnd + xPad,
                         currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
@@ -1897,7 +1894,7 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     {
         fillDisplayArea(highScoreHeaderTextStart - xPad, currY - yPad, highScoreHeaderTextEnd + xPad,
                         currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
-    }*/
+    }
     
     plotText(highScoreHeaderTextStart, currY, newHighScore ? "HIGH (NEW)" : "HIGH", TOM_THUMB, WHITE);
 
@@ -2283,12 +2280,12 @@ void ICACHE_FLASH_ATTR refreshTetradsGrid(uint8_t gridCols, uint8_t gridRows, ui
     }
 }
 
-uint8_t ICACHE_FLASH_ATTR xFromGridCol(int32_t x0, uint8_t gridCol, uint8_t unitSize)
+int16_t ICACHE_FLASH_ATTR xFromGridCol(int16_t x0, int16_t gridCol, uint8_t unitSize)
 {
     return (x0 + 1) + (gridCol * unitSize);
 }
 
-uint8_t ICACHE_FLASH_ATTR yFromGridRow(int32_t y0, uint8_t gridRow, uint8_t unitSize)
+int16_t ICACHE_FLASH_ATTR yFromGridRow(int16_t y0, int16_t gridRow, uint8_t unitSize)
 {
     return (y0 + 1) + (gridRow * unitSize);
 }
@@ -2685,12 +2682,12 @@ int32_t ICACHE_FLASH_ATTR getFallDistance(tetrad_t* tetrad, uint8_t gridCols, ui
 }
 
 
-void ICACHE_FLASH_ATTR plotSquare(int32_t x0, int32_t y0, int32_t size, color col)
+void ICACHE_FLASH_ATTR plotSquare(int16_t x0, int16_t y0, uint8_t size, color col)
 {
     plotRect(x0, y0, x0 + (size - 1), y0 + (size - 1), col);
 }
 
-void ICACHE_FLASH_ATTR plotGrid(int32_t x0, int32_t y0, uint8_t unitSize, uint8_t gridCols, uint8_t gridRows,
+void ICACHE_FLASH_ATTR plotGrid(int16_t x0, int16_t y0, uint8_t unitSize, uint8_t gridCols, uint8_t gridRows,
                                 uint32_t gridData[][gridCols], bool clearLineAnimation, color col)
 {
     // Draw the border
@@ -2715,7 +2712,7 @@ void ICACHE_FLASH_ATTR plotGrid(int32_t x0, int32_t y0, uint8_t unitSize, uint8_
     }
 }
 
-void ICACHE_FLASH_ATTR plotTetrad(int32_t x0, int32_t y0, uint8_t unitSize, uint8_t tetradCols, uint8_t tetradRows,
+void ICACHE_FLASH_ATTR plotTetrad(int16_t x0, int16_t y0, uint8_t unitSize, uint8_t tetradCols, uint8_t tetradRows,
                                  uint32_t shape[][tetradCols], uint8_t tetradFill, int32_t fillRotation, color col)
 {
     bool patternRotated = fillRotation % 2 != 0;
@@ -2726,8 +2723,8 @@ void ICACHE_FLASH_ATTR plotTetrad(int32_t x0, int32_t y0, uint8_t unitSize, uint
             if (shape[y][x] != EMPTY)
             {
                 // The top left of this unit.
-                int32_t px = x0 + x * unitSize;
-                int32_t py = y0 + y * unitSize;
+                int16_t px = x0 + x * unitSize;
+                int16_t py = y0 + y * unitSize;
                 switch (tetradFill)
                 {
                     case I_TETRAD:
@@ -2754,10 +2751,8 @@ void ICACHE_FLASH_ATTR plotTetrad(int32_t x0, int32_t y0, uint8_t unitSize, uint
                         }
                         else
                         {
-                            //ADAM: This call crashes the software.
-                            fillDisplayArea(px, py, px + 1, py + 1, col);
-                            //plotSquare(px, py, 2, col);
-                            //plotSquare(px + (unitSize - 1) - 1, py, 2, col);
+                            plotSquare(px, py, 2, col);
+                            plotSquare(px + (unitSize - 1) - 1, py, 2, col);
                         }
                         //bot
                         if (y == tetradRows - 1 || shape[y + 1][x] == EMPTY)
@@ -2932,12 +2927,12 @@ void ICACHE_FLASH_ATTR plotPerspectiveEffect(uint8_t leftSrc, uint8_t leftDst, u
 }
 
 // Draw text centered between x0 and x1.
-uint8_t ICACHE_FLASH_ATTR plotCenteredText(uint8_t x0, uint8_t y, uint8_t x1, char* text, fonts font, color col)
+int16_t ICACHE_FLASH_ATTR plotCenteredText(int16_t x0, int16_t y, int16_t x1, char* text, fonts font, color col)
 {
-    uint8_t centeredX = getCenteredTextX(x0, x1, text, font);
+    int16_t centeredX = getCenteredTextX(x0, x1, text, font);
 
     // Then we draw the correctly centered text.
-    uint8_t cursorEnd = plotText(centeredX, y, text, font, col);
+    int16_t cursorEnd = plotText(centeredX, y, text, font, col);
     return cursorEnd;
 }
 

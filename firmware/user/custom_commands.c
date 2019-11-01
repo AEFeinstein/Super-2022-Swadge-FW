@@ -20,7 +20,7 @@
  *==========================================================================*/
 
 #define CONFIGURABLES sizeof(struct CCSettings) //(plus1)
-#define SAVE_LOAD_KEY 0xAC
+#define SAVE_LOAD_KEY 0xAD
 
 /*============================================================================
  * Structs
@@ -37,6 +37,7 @@ typedef struct __attribute__((aligned(4)))
     uint32_t mzLastScore;
     uint32_t joustWins;
     uint32_t snakeHighScores[3];
+    bool isMuted;
 }
 settings_t;
 
@@ -185,6 +186,14 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
     if( settings.SaveLoadKey == SAVE_LOAD_KEY )
     {
         os_printf("Settings found\r\n");
+        // load gConfigs from the settings
+        for( uint8_t i = 0; i < CONFIGURABLES; i++ )
+        {
+            if( gConfigs[i].val )
+            {
+                *(gConfigs[i].val) = settings.configs[i];
+            }
+        }
     }
     else
     {
@@ -198,23 +207,14 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
         {
             if( gConfigs[i].val )
             {
-                settings.configs[i] = gConfigs[i].defaultVal;
+                *(gConfigs[i].val) = gConfigs[i].defaultVal;
             }
         }
         memset(settings.ttHighScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
         memset(settings.mzBestTimes, 0x0f, NUM_MZ_LEVELS * sizeof(uint32_t));
         settings.mzLastScore = 100000;
         settings.joustWins = 0;
-        SaveSettings();
-    }
-
-    // load gConfigs from the settings
-    for( uint8_t i = 0; i < CONFIGURABLES; i++ )
-    {
-        if( gConfigs[i].val )
-        {
-            *gConfigs[i].val = settings.configs[i];
-        }
+        SaveSettings(); // updates settings.configs then saves
     }
 }
 
@@ -322,6 +322,17 @@ uint32_t ICACHE_FLASH_ATTR mzGetLastScore(void)
 void ICACHE_FLASH_ATTR mzSetLastScore(uint32_t newLastScore)
 {
     settings.mzLastScore = newLastScore;
+    SaveSettings();
+}
+
+bool ICACHE_FLASH_ATTR getIsMutedOption(void)
+{
+    return settings.isMuted;
+}
+
+void ICACHE_FLASH_ATTR setIsMutedOption(bool mute)
+{
+    settings.isMuted = mute;
     SaveSettings();
 }
 

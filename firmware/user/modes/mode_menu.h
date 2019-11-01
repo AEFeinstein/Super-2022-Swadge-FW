@@ -9,5 +9,6 @@
 #define USER_MODE_MENU_H_
 
 extern swadgeMode menuMode;
+extern swadgeMode muteOption;
 
 #endif /* USER_MODE_MENU_H_ */
