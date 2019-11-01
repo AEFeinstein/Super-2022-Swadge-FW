@@ -12,7 +12,9 @@
 #define SWADGE_DEV_KIT 0
 #define SWADGE_BBKIWI  1
 #define SWADGE_BARREL  2
-#define SWADGE_2019 3
+#define SWADGE_2019    3
+#define BARREL_1_0_0   4
+
 #if SWADGE_VERSION == SWADGE_2019
     #define NUM_LIN_LEDS 6
     #define LED_1 1
@@ -45,7 +47,7 @@
     #define LED_4 7
     #define LED_5 1
     #define LED_6 2
-#else // SWADGE_BARREL
+#elif ((SWADGE_VERSION == SWADGE_BARREL) || (SWADGE_VERSION == BARREL_1_0_0))
     #define NUM_LIN_LEDS 6
     #define LED_1 0
     #define LED_2 1
