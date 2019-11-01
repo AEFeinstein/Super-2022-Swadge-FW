@@ -39,7 +39,7 @@
 #include "mode_mazerf.h"
 #include "mode_color_movement.h"
 #ifdef TEST_MODE
-#include "mode_test.h"
+    #include "mode_test.h"
 #endif
 
 /*============================================================================

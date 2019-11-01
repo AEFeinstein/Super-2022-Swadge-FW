@@ -1142,14 +1142,14 @@ void ICACHE_FLASH_ATTR spawnNextTetrad(tetrad_t* newTetrad, tetradRandomizer_t r
 int32_t ICACHE_FLASH_ATTR getLowestActiveRow(tetrad_t* tetrad);
 int32_t ICACHE_FLASH_ATTR getHighestActiveRow(tetrad_t* tetrad);
 int32_t ICACHE_FLASH_ATTR getFallDistance(tetrad_t* tetrad, uint8_t gridCols, uint8_t gridRows,
-                                      const uint32_t gridData[][gridCols]);
+        const uint32_t gridData[][gridCols]);
 
 // drawing functions.
 void ICACHE_FLASH_ATTR plotSquare(int16_t x0, int16_t y0, uint8_t size, color col);
 void ICACHE_FLASH_ATTR plotGrid(int16_t x0, int16_t y0, uint8_t unitSize, uint8_t gridCols, uint8_t gridRows,
                                 uint32_t gridData[][gridCols], bool clearLineAnimation, color col);
 void ICACHE_FLASH_ATTR plotTetrad(int16_t x0, int16_t y0, uint8_t unitSize, uint8_t tetradCols, uint8_t tetradRows,
-                                 uint32_t shape[][tetradCols], uint8_t tetradFill, int32_t fillRotation, color col);
+                                  uint32_t shape[][tetradCols], uint8_t tetradFill, int32_t fillRotation, color col);
 void ICACHE_FLASH_ATTR plotPerspectiveEffect(uint8_t leftSrc, uint8_t leftDst, uint8_t rightSrc, uint8_t rightDst,
         uint8_t y0, uint8_t y1, int32_t numVerticalLines, int32_t numHorizontalLines, double lineTweenTimeS,
         uint32_t currentTimeUS,
@@ -1186,9 +1186,9 @@ double ICACHE_FLASH_ATTR getDropFXTimeFactor(uint32_t level);
 
 bool ICACHE_FLASH_ATTR isLineCleared(int32_t line, uint8_t gridCols, uint8_t gridRows, uint32_t gridData[][gridCols]);
 int32_t ICACHE_FLASH_ATTR checkLineClears(uint8_t gridCols, uint8_t gridRows, uint32_t gridData[][gridCols],
-                                      list_t* fieldTetrads);
+        list_t* fieldTetrads);
 int32_t ICACHE_FLASH_ATTR clearLines(uint8_t gridCols, uint8_t gridRows, uint32_t gridData[][gridCols],
-                                 list_t* fieldTetrads);
+                                     list_t* fieldTetrads);
 
 bool ICACHE_FLASH_ATTR checkCollision(coord_t newPos, uint8_t tetradCols, uint8_t tetradRows,
                                       const uint32_t shape[][tetradCols], uint8_t gridCols, uint8_t gridRows, const uint32_t gridData[][gridCols],
@@ -1757,7 +1757,8 @@ void ICACHE_FLASH_ATTR ttTitleDisplay(void)
     clearDisplay();
 
     // Draw demo-scene title FX.
-    plotPerspectiveEffect(GRID_X, 0, xFromGridCol(GRID_X, GRID_COLS, GRID_UNIT_SIZE), OLED_WIDTH - 1, 0, OLED_HEIGHT, 3, 3, 2.0,
+    plotPerspectiveEffect(GRID_X, 0, xFromGridCol(GRID_X, GRID_COLS, GRID_UNIT_SIZE), OLED_WIDTH - 1, 0, OLED_HEIGHT, 3, 3,
+                          2.0,
                           stateTime, WHITE);
 
     // SCORES   START
@@ -1785,8 +1786,8 @@ void ICACHE_FLASH_ATTR ttTitleDisplay(void)
 
     // Draw the active tetrad.
     plotTetrad(xFromGridCol(GRID_X, tutorialTetrad.topLeft.c, GRID_UNIT_SIZE),
-              yFromGridRow(GRID_Y, tutorialTetrad.topLeft.r, GRID_UNIT_SIZE), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE,
-              tutorialTetrad.shape, tutorialTetrad.type, tutorialTetrad.rotation, WHITE);
+               yFromGridRow(GRID_Y, tutorialTetrad.topLeft.r, GRID_UNIT_SIZE), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE,
+               tutorialTetrad.shape, tutorialTetrad.type, tutorialTetrad.rotation, WHITE);
 
     // Draw the background grid. NOTE: (make sure everything that needs to be in tetradsGrid is in there now).
     plotGrid(GRID_X, GRID_Y, GRID_UNIT_SIZE, TUTORIAL_GRID_COLS, TUTORIAL_GRID_ROWS, tutorialTetradsGrid, false, WHITE);
@@ -1814,13 +1815,14 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
 
     // Draw the BG FX.
     // Goal: noticeable speed-ups when level increases and when soft drop is being held or released.
-    plotPerspectiveEffect(GRID_X, 0, xFromGridCol(GRID_X, GRID_COLS, GRID_UNIT_SIZE), OLED_WIDTH - 1, 0, OLED_HEIGHT, 3, 3, 5.0,
+    plotPerspectiveEffect(GRID_X, 0, xFromGridCol(GRID_X, GRID_COLS, GRID_UNIT_SIZE), OLED_WIDTH - 1, 0, OLED_HEIGHT, 3, 3,
+                          5.0,
                           dropFXTime, WHITE);
 
     // Draw the active tetrad.
     plotTetrad(xFromGridCol(GRID_X, activeTetrad.topLeft.c, GRID_UNIT_SIZE),
-              yFromGridRow(GRID_Y, activeTetrad.topLeft.r, GRID_UNIT_SIZE), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE,
-              activeTetrad.shape, activeTetrad.type, activeTetrad.rotation, WHITE);
+               yFromGridRow(GRID_Y, activeTetrad.topLeft.r, GRID_UNIT_SIZE), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE,
+               activeTetrad.shape, activeTetrad.type, activeTetrad.rotation, WHITE);
 
     // Draw all the landed tetrads.
     node_t* current = landedTetrads->first;
@@ -1828,8 +1830,8 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     {
         tetrad_t* currentTetrad = (tetrad_t*)current->val;
         plotTetrad(xFromGridCol(GRID_X, currentTetrad->topLeft.c, GRID_UNIT_SIZE),
-                  yFromGridRow(GRID_Y, currentTetrad->topLeft.r, GRID_UNIT_SIZE), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE,
-                  currentTetrad->shape, currentTetrad->type, currentTetrad->rotation, WHITE);
+                   yFromGridRow(GRID_Y, currentTetrad->topLeft.r, GRID_UNIT_SIZE), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE,
+                   currentTetrad->shape, currentTetrad->type, currentTetrad->rotation, WHITE);
         current = current->next;
     }
 
@@ -1864,8 +1866,8 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     nextTetradPoint.r = 1;
     tetrad_t nextTetrad = spawnTetrad(nextTetradType, tetradCounter + 1, nextTetradPoint, TETRAD_SPAWN_ROT);
     plotTetrad(xFromGridCol(NEXT_GRID_X, nextTetradPoint.c, GRID_UNIT_SIZE),
-              yFromGridRow(NEXT_GRID_Y, nextTetradPoint.r, GRID_UNIT_SIZE), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE,
-              nextTetrad.shape, nextTetrad.type, nextTetrad.rotation, WHITE);
+               yFromGridRow(NEXT_GRID_Y, nextTetradPoint.r, GRID_UNIT_SIZE), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE,
+               nextTetrad.shape, nextTetrad.type, nextTetrad.rotation, WHITE);
 
     // Draw the grid holding the next tetrad.
     clearGrid(NEXT_GRID_COLS, NEXT_GRID_ROWS, nextTetradGrid);
@@ -1895,7 +1897,7 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
         fillDisplayArea(highScoreHeaderTextStart - xPad, currY - yPad, highScoreHeaderTextEnd + xPad,
                         currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
     }
-    
+
     plotText(highScoreHeaderTextStart, currY, newHighScore ? "HIGH (NEW)" : "HIGH", TOM_THUMB, WHITE);
 
     //int32_t fallDistance = getFallDistance(&(activeTetrad), GRID_COLS, GRID_ROWS, tetradsGrid);
@@ -2020,8 +2022,8 @@ void ICACHE_FLASH_ATTR ttGameoverDisplay(void)
     {
         // Draw the active tetrad that was the killing tetrad once so that the flash effect works.
         plotTetrad(xFromGridCol(GRID_X, activeTetrad.topLeft.c, GRID_UNIT_SIZE),
-                  yFromGridRow(GRID_Y, activeTetrad.topLeft.r, GRID_UNIT_SIZE), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE,
-                  activeTetrad.shape, activeTetrad.type, activeTetrad.rotation, WHITE);
+                   yFromGridRow(GRID_Y, activeTetrad.topLeft.r, GRID_UNIT_SIZE), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE,
+                   activeTetrad.shape, activeTetrad.type, activeTetrad.rotation, WHITE);
 
         // Draw a centered bordered window.
         uint8_t windowXMargin = 18;
@@ -2063,8 +2065,8 @@ void ICACHE_FLASH_ATTR ttGameoverDisplay(void)
 
     // Flash the active tetrad that was the killing tetrad.
     plotTetrad(xFromGridCol(GRID_X, activeTetrad.topLeft.c, GRID_UNIT_SIZE),
-              yFromGridRow(GRID_Y, activeTetrad.topLeft.r, GRID_UNIT_SIZE), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE,
-              activeTetrad.shape, activeTetrad.type, activeTetrad.rotation, INVERSE);
+               yFromGridRow(GRID_Y, activeTetrad.topLeft.r, GRID_UNIT_SIZE), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE,
+               activeTetrad.shape, activeTetrad.type, activeTetrad.rotation, INVERSE);
 }
 
 // helper functions.
@@ -2630,7 +2632,7 @@ int32_t ICACHE_FLASH_ATTR getHighestActiveRow(tetrad_t* tetrad)
 }
 
 int32_t ICACHE_FLASH_ATTR getFallDistance(tetrad_t* tetrad, uint8_t gridCols, uint8_t gridRows,
-                                      const uint32_t gridData[][gridCols])
+        const uint32_t gridData[][gridCols])
 {
     int32_t fallDistance = gridRows;
     int32_t currFallDistance;
@@ -2713,7 +2715,7 @@ void ICACHE_FLASH_ATTR plotGrid(int16_t x0, int16_t y0, uint8_t unitSize, uint8_
 }
 
 void ICACHE_FLASH_ATTR plotTetrad(int16_t x0, int16_t y0, uint8_t unitSize, uint8_t tetradCols, uint8_t tetradRows,
-                                 uint32_t shape[][tetradCols], uint8_t tetradFill, int32_t fillRotation, color col)
+                                  uint32_t shape[][tetradCols], uint8_t tetradFill, int32_t fillRotation, color col)
 {
     bool patternRotated = fillRotation % 2 != 0;
     for (int32_t y = 0; y < tetradRows; y++)
@@ -2870,7 +2872,7 @@ void ICACHE_FLASH_ATTR plotTetrad(int16_t x0, int16_t y0, uint8_t unitSize, uint
                     drawPixel(px, py, col);
                     drawPixel(px, py + (unitSize - 1), col);
                 }
-                
+
                 //right
                 if (x == tetradCols - 1 || shape[y][x + 1] == EMPTY)
                 {
@@ -3425,7 +3427,7 @@ bool ICACHE_FLASH_ATTR isLineCleared(int32_t line, uint8_t gridCols, uint8_t gri
 }
 
 int32_t ICACHE_FLASH_ATTR checkLineClears(uint8_t gridCols, uint8_t gridRows, uint32_t gridData[][gridCols],
-                                      list_t* fieldTetrads)
+        list_t* fieldTetrads)
 {
     //Refresh the tetrads grid before checking for any clears.
     refreshTetradsGrid(gridCols, gridRows, gridData, fieldTetrads, NULL, false);
@@ -3448,7 +3450,7 @@ int32_t ICACHE_FLASH_ATTR checkLineClears(uint8_t gridCols, uint8_t gridRows, ui
 }
 
 int32_t ICACHE_FLASH_ATTR clearLines(uint8_t gridCols, uint8_t gridRows, uint32_t gridData[][gridCols],
-                                 list_t* fieldTetrads)
+                                     list_t* fieldTetrads)
 {
     //Refresh the tetrads grid before checking for any clears.
     refreshTetradsGrid(gridCols, gridRows, gridData, fieldTetrads, NULL, false);

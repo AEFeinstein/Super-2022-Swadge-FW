@@ -352,7 +352,7 @@ void ICACHE_FLASH_ATTR joustInit(void)
     plotText(32, 0, "Joust", RADIOSTARS, WHITE);
     char menuStr[32] = {0};
     ets_snprintf(menuStr, sizeof(menuStr), "wins: %d", joust.gam.joustWins);
-    plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1))-FONT_HEIGHT_TOMTHUMB-6, menuStr, TOM_THUMB, WHITE);
+    plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB - 6, menuStr, TOM_THUMB, WHITE);
 
     uint8_t scoresAreaX0 = 0;
     uint8_t scoresAreaY0 = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 3);
@@ -375,47 +375,47 @@ void ICACHE_FLASH_ATTR joustInit(void)
     if(joust.gam.joustWins < 4)
     {
         plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Serf Simian", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1))-FONT_HEIGHT_TOMTHUMB, "Next level: 4", TOM_THUMB, WHITE);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 4", TOM_THUMB, WHITE);
     }
     else if(joust.gam.joustWins < 8)
     {
         plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Peasant Primate", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1))-FONT_HEIGHT_TOMTHUMB, "Next level: 8", TOM_THUMB, WHITE);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 8", TOM_THUMB, WHITE);
     }
     else if(joust.gam.joustWins < 12)
     {
         plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Page Probocsis", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1))-FONT_HEIGHT_TOMTHUMB, "Next level: 12", TOM_THUMB, WHITE);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 12", TOM_THUMB, WHITE);
     }
     else if(joust.gam.joustWins < 16)
     {
         plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Squire Saki", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1))-FONT_HEIGHT_TOMTHUMB, "Next level: 16", TOM_THUMB, WHITE);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 16", TOM_THUMB, WHITE);
     }
     else if(joust.gam.joustWins < 22)
     {
         plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Apprentice Ape", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1))-FONT_HEIGHT_TOMTHUMB, "Next level: 22", TOM_THUMB, WHITE);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 22", TOM_THUMB, WHITE);
     }
     else if(joust.gam.joustWins < 28)
     {
         plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Maester Mandrill", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1))-FONT_HEIGHT_TOMTHUMB, "Next level: 28", TOM_THUMB, WHITE);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 28", TOM_THUMB, WHITE);
     }
     else if(joust.gam.joustWins < 36)
     {
         plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Thane Tamarin", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1))-FONT_HEIGHT_TOMTHUMB, "Next level: 36", TOM_THUMB, WHITE);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 36", TOM_THUMB, WHITE);
     }
     else if(joust.gam.joustWins < 44)
     {
         plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Lord Lemur", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1))-FONT_HEIGHT_TOMTHUMB, "Next level: 44", TOM_THUMB, WHITE);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 44", TOM_THUMB, WHITE);
     }
     else if(joust.gam.joustWins < 60)
     {
         plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Baron Baboon", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1))-FONT_HEIGHT_TOMTHUMB, "Next level: 60", TOM_THUMB, WHITE);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 60", TOM_THUMB, WHITE);
     }
     else if(joust.gam.joustWins < 100)
     {
@@ -764,30 +764,33 @@ void ICACHE_FLASH_ATTR joustUpdateDisplay(void)
 void ICACHE_FLASH_ATTR joustAccelerometerHandler(accel_t* accel)
 {
 
-    if(joust.gameState != R_MENU){
-      joust.joustAccel.x = accel->x;
-      joust.joustAccel.y = accel->y;
-      joust.joustAccel.z = accel->z;
-      uint16_t mov = (uint16_t) sqrt(pow(joust.joustAccel.x, 2) + pow(joust.joustAccel.y, 2) + pow(joust.joustAccel.z, 2));
-      joust.rolling_average = (joust.rolling_average * 2 + mov) / 3;
-
-    if (joust.gameState == R_PLAYING || joust.gameState == R_PLAYINGFFA)
+    if(joust.gameState != R_MENU)
     {
-        if(mov > joust.rolling_average + 60)
+        joust.joustAccel.x = accel->x;
+        joust.joustAccel.y = accel->y;
+        joust.joustAccel.z = accel->z;
+        uint16_t mov = (uint16_t) sqrt(pow(joust.joustAccel.x, 2) + pow(joust.joustAccel.y, 2) + pow(joust.joustAccel.z, 2));
+        joust.rolling_average = (joust.rolling_average * 2 + mov) / 3;
+
+        if (joust.gameState == R_PLAYING || joust.gameState == R_PLAYINGFFA)
         {
-          if(joust.gameState == R_PLAYING)
+            if(mov > joust.rolling_average + 60)
             {
-            joustSendRoundLossMsg();
-          }else{
-            joustRoundResultFFA();
-          }
-        }
-        else
-        {
-            joustUpdateDisplay();
+                if(joust.gameState == R_PLAYING)
+                {
+                    joustSendRoundLossMsg();
+                }
+                else
+                {
+                    joustRoundResultFFA();
+                }
+            }
+            else
+            {
+                joustUpdateDisplay();
+            }
         }
     }
-  }
 }
 
 /**
@@ -914,18 +917,19 @@ void ICACHE_FLASH_ATTR joustButton( uint8_t state __attribute__((unused)),
             p2pStartConnection(&joust.p2pJoust);
             clearDisplay();
             plotText(0, 0, "Searching", IBM_VGA_8, WHITE);
-        }else if(1 == button)
+        }
+        else if(1 == button)
         {
-          joust.gameState =  R_WAITING;
-          joustDisarmAllLedTimers();
-          joust.led.currBrightness = 0;
-          joust.led.ConnLedState = LED_CONNECTED_BRIGHT;
-          os_timer_arm(&joust.tmr.ShowConnectionLedFFA, 50, true);
-          clearDisplay();
-          plotText(0, 0, "GET READY", IBM_VGA_8, WHITE);
-          plotText(0, OLED_HEIGHT - (5 * (FONT_HEIGHT_IBMVGA8 + 1))+3, "TO JOUST!", IBM_VGA_8, WHITE);
-          plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Move theirs", IBM_VGA_8, WHITE);
-          plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), "Not yours!", IBM_VGA_8, WHITE);
+            joust.gameState =  R_WAITING;
+            joustDisarmAllLedTimers();
+            joust.led.currBrightness = 0;
+            joust.led.ConnLedState = LED_CONNECTED_BRIGHT;
+            os_timer_arm(&joust.tmr.ShowConnectionLedFFA, 50, true);
+            clearDisplay();
+            plotText(0, 0, "GET READY", IBM_VGA_8, WHITE);
+            plotText(0, OLED_HEIGHT - (5 * (FONT_HEIGHT_IBMVGA8 + 1)) + 3, "TO JOUST!", IBM_VGA_8, WHITE);
+            plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Move theirs", IBM_VGA_8, WHITE);
+            plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), "Not yours!", IBM_VGA_8, WHITE);
         }
     }
 }
@@ -1059,5 +1063,5 @@ void ICACHE_FLASH_ATTR joustRoundResultFFA()
  */
 void ICACHE_FLASH_ATTR joustFFACounter(void* arg __attribute__((unused)))
 {
-  joust.FFACounter += 1;
+    joust.FFACounter += 1;
 }

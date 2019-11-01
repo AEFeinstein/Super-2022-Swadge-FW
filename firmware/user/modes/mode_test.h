@@ -9,7 +9,7 @@
 #define MODES_MODE_TEST_H_
 
 #ifdef TEST_MODE
-extern swadgeMode testMode;
+    extern swadgeMode testMode;
 #endif
 
 #endif /* MODES_MODE_TEST_H_ */
