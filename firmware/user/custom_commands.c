@@ -20,7 +20,7 @@
  *==========================================================================*/
 
 #define CONFIGURABLES sizeof(struct CCSettings) //(plus1)
-#define SAVE_LOAD_KEY 0xAC
+#define SAVE_LOAD_KEY 0xAE
 
 /*============================================================================
  * Structs
@@ -33,10 +33,11 @@ typedef struct __attribute__((aligned(4)))
     uint8_t configs[CONFIGURABLES];
     uint32_t ttHighScores[NUM_TT_HIGH_SCORES]; //first,second,third
     uint32_t ttLastScore;
-    uint32_t mzHighScores[NUM_MZ_HIGH_SCORES]; //first,second,third
+    uint32_t mzBestTimes[NUM_MZ_LEVELS]; //best for each level
     uint32_t mzLastScore;
-    uint32_t joustElo;
+    uint32_t joustWins;
     uint32_t snakeHighScores[3];
+    bool isMuted;
 }
 settings_t;
 
@@ -151,11 +152,11 @@ settings_t settings =
 {
     .SaveLoadKey = 0,
     .configs = {0},
-    .joustElo = 0,
+    .joustWins = 0,
     .snakeHighScores = {0},
     .ttHighScores = {0},
     .ttLastScore = 0,
-    .mzHighScores = {0},
+    .mzBestTimes = {0},
     .mzLastScore = 0,
 };
 
@@ -185,6 +186,14 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
     if( settings.SaveLoadKey == SAVE_LOAD_KEY )
     {
         os_printf("Settings found\r\n");
+        // load gConfigs from the settings
+        for( uint8_t i = 0; i < CONFIGURABLES; i++ )
+        {
+            if( gConfigs[i].val )
+            {
+                *(gConfigs[i].val) = settings.configs[i];
+            }
+        }
     }
     else
     {
@@ -198,24 +207,14 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
         {
             if( gConfigs[i].val )
             {
-                settings.configs[i] = gConfigs[i].defaultVal;
+                *(gConfigs[i].val) = gConfigs[i].defaultVal;
             }
         }
         memset(settings.ttHighScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
-        settings.ttLastScore = 0;
-        memset(settings.mzHighScores, 0, NUM_MZ_HIGH_SCORES * sizeof(uint32_t));
-        settings.mzLastScore = 0;
-        settings.joustElo = 1000;
-        SaveSettings();
-    }
-
-    // load gConfigs from the settings
-    for( uint8_t i = 0; i < CONFIGURABLES; i++ )
-    {
-        if( gConfigs[i].val )
-        {
-            *gConfigs[i].val = settings.configs[i];
-        }
+        memset(settings.mzBestTimes, 0x0f, NUM_MZ_LEVELS * sizeof(uint32_t));
+        settings.mzLastScore = 100000;
+        settings.joustWins = 0;
+        SaveSettings(); // updates settings.configs then saves
     }
 }
 
@@ -258,9 +257,9 @@ void ICACHE_FLASH_ATTR setSnakeHighScore(uint8_t difficulty, uint32_t score)
 /**
  * Increment the game win count and save it to SPI flash
  */
-void ICACHE_FLASH_ATTR setJoustElo(uint32_t elo)
+void ICACHE_FLASH_ATTR setJoustWins(uint32_t elo)
 {
-    settings.joustElo = elo;
+    settings.joustWins = elo;
     SaveSettings();
 }
 
@@ -277,9 +276,9 @@ uint32_t* ICACHE_FLASH_ATTR getSnakeHighScores(void)
 /**
  * @return The number of reflector games this swadge has won
  */
-uint32_t ICACHE_FLASH_ATTR getJoustElo(void)
+uint32_t ICACHE_FLASH_ATTR getJoustWins(void)
 {
-    return settings.joustElo;
+    return settings.joustWins;
 }
 
 uint32_t* ICACHE_FLASH_ATTR ttGetHighScores(void)
@@ -304,14 +303,14 @@ void ICACHE_FLASH_ATTR ttSetLastScore(uint32_t newLastScore)
     SaveSettings();
 }
 
-uint32_t* ICACHE_FLASH_ATTR mzGetHighScores(void)
+uint32_t* ICACHE_FLASH_ATTR mzGetBestTimes(void)
 {
-    return settings.mzHighScores;
+    return settings.mzBestTimes;
 }
 
-void ICACHE_FLASH_ATTR mzSetHighScores(uint32_t* newHighScores)
+void ICACHE_FLASH_ATTR mzSetBestTimes(uint32_t* newHighScores)
 {
-    memcpy(settings.mzHighScores, newHighScores, NUM_MZ_HIGH_SCORES * sizeof(uint32_t));
+    memcpy(settings.mzBestTimes, newHighScores, NUM_MZ_LEVELS * sizeof(uint32_t));
     SaveSettings();
 }
 
@@ -323,6 +322,21 @@ uint32_t ICACHE_FLASH_ATTR mzGetLastScore(void)
 void ICACHE_FLASH_ATTR mzSetLastScore(uint32_t newLastScore)
 {
     settings.mzLastScore = newLastScore;
+    SaveSettings();
+}
+
+bool ICACHE_FLASH_ATTR getIsMutedOption(void)
+{
+#ifdef TEST_MODE
+    return false;
+#else
+    return settings.isMuted;
+#endif
+}
+
+void ICACHE_FLASH_ATTR setIsMutedOption(bool mute)
+{
+    settings.isMuted = mute;
     SaveSettings();
 }
 

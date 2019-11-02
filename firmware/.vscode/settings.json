@@ -63,6 +63,9 @@
         "mode_snake.h": "c",
         "gdbstub-entry.C": "c",
         "mode_tiltrads.h": "c",
-        "mode_gallery.h": "c"
+        "mode_gallery.h": "c",
+        "mode_test.h": "c",
+        "cmath": "c",
+        "cstdlib": "c"
     }
 }

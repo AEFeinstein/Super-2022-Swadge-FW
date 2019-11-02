@@ -205,7 +205,8 @@ uint8_t cmButtonState = 0;
 uint8_t cmLastButtonState = 0;
 
 uint8_t cmBrightnessIdx = 2;
-uint8_t ledOrderInd[] = {LED_UPPER_LEFT, LED_LOWER_LEFT, LED_LOWER_MID, LED_LOWER_RIGHT, LED_UPPER_RIGHT, LED_UPPER_MID};
+uint8_t ledOrderInd[NUM_LIN_LEDS] = {LED_UPPER_LEFT, LED_LOWER_LEFT, LED_LOWER_MID, LED_LOWER_RIGHT, LED_UPPER_RIGHT, LED_UPPER_MID};
+
 static led_t leds[NUM_LIN_LEDS] = {{0}};
 int CM_ledCount = 0;
 static os_timer_t timerHandleUpdate = {0};

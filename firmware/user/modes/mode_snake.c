@@ -19,6 +19,7 @@
 #include "buzzer.h"
 #include "hpatimer.h"
 #include "custom_commands.h"
+#include "buttons.h"
 
 /*==============================================================================
  * Defines
@@ -38,11 +39,11 @@
 
 typedef enum
 {
-    UP    = 0,
-    RIGHT = 1,
-    DOWN  = 2,
-    LEFT  = 3,
-    NUM_DIRECTIONS
+    S_UP    = 0,
+    S_RIGHT = 1,
+    S_DOWN  = 2,
+    S_LEFT  = 3,
+    S_NUM_DIRECTIONS
 } dir_t;
 
 typedef enum
@@ -205,6 +206,40 @@ const song_t MetalGear RODATA_ATTR =
     },
     .numNotes = 64,
     .shouldLoop = true
+};
+
+const song_t foodSfx RODATA_ATTR =
+{
+    .notes = {
+        {.note = G_5, .timeMs = 150},
+        {.note = C_6, .timeMs = 150},
+    },
+    .numNotes = 2,
+    .shouldLoop = false
+};
+
+const song_t critterSfx RODATA_ATTR =
+{
+    .notes = {
+        {.note = G_5, .timeMs = 100},
+        {.note = A_5, .timeMs = 100},
+        {.note = B_5, .timeMs = 100},
+        {.note = C_6, .timeMs = 100},
+    },
+    .numNotes = 4,
+    .shouldLoop = false
+};
+
+const song_t snakeDeathSfx RODATA_ATTR =
+{
+    .notes = {
+        {.note = A_SHARP_4, .timeMs = 666},
+        {.note = A_4, .timeMs = 666},
+        {.note = G_SHARP_4, .timeMs = 666},
+        {.note = G_4, .timeMs = 2002},
+    },
+    .numNotes = 4,
+    .shouldLoop = false
 };
 
 const uint32_t snakeBackground[] RODATA_ATTR =
@@ -461,12 +496,13 @@ inline uint8_t ICACHE_FLASH_ATTR wrapIdx(uint8_t idx, int8_t delta, uint8_t max)
 
 // Functions for drawing the game or menu
 void ICACHE_FLASH_ATTR snakeClearDisplay(void);
+void ICACHE_FLASH_ATTR snakeDrawBackground(void);
 void ICACHE_FLASH_ATTR snakeDrawSprite(uint8_t x, uint8_t y, snakeSprite sprite, bool isOffset);
 void ICACHE_FLASH_ATTR snakeDrawSnake(void);
 void ICACHE_FLASH_ATTR snakeDrawCritter(void);
 void ICACHE_FLASH_ATTR snakeDrawFood(void);
 void ICACHE_FLASH_ATTR snakeDrawMenu(void);
-
+void ICACHE_FLASH_ATTR snakeSetLeds(void);
 
 void ICACHE_FLASH_ATTR snakeBlinkField(void* arg __attribute__((unused)));
 
@@ -532,27 +568,8 @@ void ICACHE_FLASH_ATTR snakeInit(void)
     os_timer_setfn(&snake.timerHandleSnakeLogic, (os_timer_func_t*)snakeProcessGame, NULL);
     os_timer_setfn(&snake.timerHandeleSnakeBlink, (os_timer_func_t*)snakeBlinkField, NULL);
 
-    // Draw the border, just once. Not the most efficient, but eh
-    uint32_t bgVal = 0;
-    uint16_t bgIdx = 0;
-    for(int y = 0; y < OLED_HEIGHT; y++)
-    {
-        for(int x = 0; x < OLED_WIDTH; x++)
-        {
-            if(x % 32 == 0)
-            {
-                bgVal = snakeBackground[bgIdx++];
-            }
-            if(bgVal & (0x80000000 >> (x % 32)))
-            {
-                drawPixel(x, y, BLACK);
-            }
-            else
-            {
-                drawPixel(x, y, WHITE);
-            }
-        }
-    }
+    // Draw the border
+    snakeDrawBackground();
 
     // Set up and draw the menu
     ets_memcpy(snake.title, snakeTitle, sizeof(snakeTitle));
@@ -609,6 +626,12 @@ void ICACHE_FLASH_ATTR snakeButtonCallback(uint8_t state __attribute__((unused))
                     // Right button
                     case 2:
                     {
+                        // Request responsive buttons
+                        enableDebounce(false);
+
+                        // Redraw the background to clear button funcs
+                        snakeDrawBackground();
+
                         // Start the game
                         snake.mode = MODE_GAME;
                         snakeResetGame();
@@ -628,9 +651,6 @@ void ICACHE_FLASH_ATTR snakeButtonCallback(uint8_t state __attribute__((unused))
 
                         // Set the OLED to draw at the speed of the game
                         setOledDrawTime(snakeDifficulties[snake.cursorPos][0]);
-
-                        // Play a little ditty
-                        startBuzzerSong(&MetalGear);
                         break;
                     }
                     default:
@@ -653,7 +673,7 @@ void ICACHE_FLASH_ATTR snakeButtonCallback(uint8_t state __attribute__((unused))
                     {
                         if(0 == snake.dir)
                         {
-                            snake.dir += NUM_DIRECTIONS;
+                            snake.dir += S_NUM_DIRECTIONS;
                         }
                         snake.dir--;
                         break;
@@ -661,7 +681,7 @@ void ICACHE_FLASH_ATTR snakeButtonCallback(uint8_t state __attribute__((unused))
                     // Right Button
                     case 2:
                     {
-                        snake.dir = (snake.dir + 1) % NUM_DIRECTIONS;
+                        snake.dir = (snake.dir + 1) % S_NUM_DIRECTIONS;
                         break;
                     }
                     default:
@@ -703,7 +723,7 @@ void ICACHE_FLASH_ATTR snakeResetGame(void)
     snake.snakeList = NULL;
 
     // Set all the game variables
-    snake.dir = RIGHT;
+    snake.dir = S_RIGHT;
     snake.posFood.x = -1;
     snake.posFood.y = -1;
     snake.posCritter.x = -1;
@@ -801,6 +821,8 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
     snakeMoveSnakePos(&newHead->pos, newHead->dir);
     newHead->ttl = oldHead->ttl + 1;
 
+    snakeSetLeds();
+
     // Figure out the sprite based on the food location and direction
     newHead->sprite = headTransitionTable[isFoodAheadOfHead()][newHead->dir];
 
@@ -821,6 +843,9 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
         // Food is points
         snake.score += snake.scoreMultiplier;
 
+        // Play a jingle
+        startBuzzerSong(&foodSfx);
+
         // Draw a new food somewhere else
         snakePlaceFood();
     }
@@ -833,6 +858,9 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
 
         // Critters are more points
         snake.score += (snake.scoreMultiplier * snake.critterTimerCount);
+
+        // Play a jingle
+        startBuzzerSong(&critterSfx);
 
         // Clear the criter
         snake.critterTimerCount = 0;
@@ -885,12 +913,26 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
         // Stop the song. Losers don't get music
         stopBuzzerSong();
 
+        // If they're on hard mode and scored a lot
+        if(snake.cursorPos == 2 && snake.score > 450)
+        {
+            // Give 'em a reward
+            startBuzzerSong(&MetalGear);
+        }
+        else
+        {
+            startBuzzerSong(&snakeDeathSfx);
+        }
+
         // Save the high score
         setSnakeHighScore(snake.cursorPos, snake.score);
 
         // Blink the field to indicate game over
         snake.mode = MODE_GAME_OVER_BLINK;
         os_timer_arm(&snake.timerHandeleSnakeBlink, 500, true);
+
+        // Request debounced buttons
+        enableDebounce(true);
     }
 }
 
@@ -1014,7 +1056,7 @@ void ICACHE_FLASH_ATTR snakeAddNode(uint8_t ttl)
         // Start in the middle of the display, facing right
         snake.snakeList->pos.x = SNAKE_FIELD_WIDTH / 2;
         snake.snakeList->pos.y = SNAKE_FIELD_HEIGHT / 2 + 2;
-        snake.snakeList->dir = RIGHT;
+        snake.snakeList->dir = S_RIGHT;
         snake.snakeList->isFat = 0;
         snake.snakeList->prevSegment = NULL;
         snake.snakeList->nextSegment = NULL;
@@ -1040,7 +1082,7 @@ void ICACHE_FLASH_ATTR snakeAddNode(uint8_t ttl)
         }
         snakePtr->nextSegment->pos.x = snakePtr->pos.x - SPRITE_DIM;
         snakePtr->nextSegment->pos.y = snakePtr->pos.y;
-        snakePtr->nextSegment->dir = RIGHT;
+        snakePtr->nextSegment->dir = S_RIGHT;
         snakePtr->nextSegment->isFat = 0;
         snakePtr->nextSegment->prevSegment = snakePtr;
         snakePtr->nextSegment->nextSegment = NULL;
@@ -1134,27 +1176,27 @@ void ICACHE_FLASH_ATTR snakeMoveSnakePos(pos_t* pos, dir_t dir)
 {
     switch(dir)
     {
-        case UP:
+        case S_UP:
         {
             pos->y = wrapIdx(pos->y, -SPRITE_DIM, SNAKE_FIELD_HEIGHT);
             break;
         }
-        case DOWN:
+        case S_DOWN:
         {
             pos->y = wrapIdx(pos->y, SPRITE_DIM, SNAKE_FIELD_HEIGHT);
             break;
         }
-        case LEFT:
+        case S_LEFT:
         {
             pos->x = wrapIdx(pos->x, -SPRITE_DIM, SNAKE_FIELD_WIDTH);
             break;
         }
-        case RIGHT:
+        case S_RIGHT:
         {
             pos->x = wrapIdx(pos->x, SPRITE_DIM, SNAKE_FIELD_WIDTH);
             break;
         }
-        case NUM_DIRECTIONS:
+        case S_NUM_DIRECTIONS:
         default:
         {
             break;
@@ -1190,6 +1232,8 @@ void ICACHE_FLASH_ATTR snakeBlinkField(void* arg __attribute__((unused)))
     }
     else
     {
+        led_t leds[NUM_LIN_LEDS] = {{0}};
+        uint8_t i;
         // Draw everything every other blink
         if(snake.numBlinks % 2 != 0)
         {
@@ -1199,7 +1243,16 @@ void ICACHE_FLASH_ATTR snakeBlinkField(void* arg __attribute__((unused)))
             {
                 snakeDrawCritter();
             }
+
+            // Blink Red for losing
+            for(i = 0; i < NUM_LIN_LEDS; i++)
+            {
+                leds[i].r = 1;
+                leds[i].g = 0;
+                leds[i].b = 0;
+            }
         }
+        setLeds(leds, sizeof(leds));
 
         // Draw the game over text & score
         ets_snprintf(snake.title, sizeof(snake.title), snakeGameOver, snake.score);
@@ -1210,6 +1263,33 @@ void ICACHE_FLASH_ATTR snakeBlinkField(void* arg __attribute__((unused)))
 /*==============================================================================
  * Functions for drawing
  *============================================================================*/
+
+/**
+ * @brief Draw the background. Not the most efficient, but it works
+ */
+void ICACHE_FLASH_ATTR snakeDrawBackground(void)
+{
+    uint32_t bgVal = 0;
+    uint16_t bgIdx = 0;
+    for(int y = 0; y < OLED_HEIGHT; y++)
+    {
+        for(int x = 0; x < OLED_WIDTH; x++)
+        {
+            if(x % 32 == 0)
+            {
+                bgVal = snakeBackground[bgIdx++];
+            }
+            if(bgVal & (0x80000000 >> (x % 32)))
+            {
+                drawPixel(x, y, BLACK);
+            }
+            else
+            {
+                drawPixel(x, y, WHITE);
+            }
+        }
+    }
+}
 
 /**
  * Clear the display areas for the game and text, but don't touch the border
@@ -1308,6 +1388,18 @@ void ICACHE_FLASH_ATTR snakeDrawMenu(void)
     // Clear the display
     snakeClearDisplay();
 
+    // Plot button funcs
+    fillDisplayArea(
+        0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 2,
+        20, OLED_HEIGHT,
+        BLACK);
+    plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "LEVEL", TOM_THUMB, WHITE);
+    fillDisplayArea(
+        OLED_WIDTH - 21, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 2,
+        OLED_WIDTH, OLED_HEIGHT,
+        BLACK);
+    plotText(OLED_WIDTH - 19, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "START", TOM_THUMB, WHITE);
+
     // Draw the title, whatever it is
     plotText(SNAKE_FIELD_OFFSET_X, SNAKE_TEXT_OFFSET_Y, snake.title, TOM_THUMB, WHITE);
 
@@ -1339,4 +1431,54 @@ void ICACHE_FLASH_ATTR snakeDrawMenu(void)
              SNAKE_FIELD_OFFSET_Y + 3 + snake.cursorPos * (FONT_HEIGHT_IBMVGA8 + 3),
              ">",
              IBM_VGA_8, WHITE);
+}
+
+/**
+ * @brief Point some LEDs in the direction of snek
+ */
+void ICACHE_FLASH_ATTR snakeSetLeds(void)
+{
+    led_t leds[NUM_LIN_LEDS] = {{0}};
+    uint8_t i;
+    for(i = 0; i < NUM_LIN_LEDS; i++)
+    {
+        leds[i].r = 0;
+        leds[i].g = 1;
+        leds[i].b = 0;
+    }
+    switch(snake.dir)
+    {
+        case S_UP:
+        {
+            leds[0].b = 1;
+            leds[1].b = 4;
+            leds[2].b = 1;
+            break;
+        }
+        case S_RIGHT:
+        {
+            leds[0].b = 4;
+            leds[5].b = 4;
+            break;
+        }
+        case S_DOWN:
+        {
+            leds[3].b = 1;
+            leds[4].b = 4;
+            leds[5].b = 1;
+            break;
+        }
+        case S_LEFT:
+        {
+            leds[2].b = 4;
+            leds[3].b = 4;
+            break;
+        }
+        default:
+        case S_NUM_DIRECTIONS:
+        {
+            break;
+        }
+    }
+    setLeds(leds, sizeof(leds));
 }

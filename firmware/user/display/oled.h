@@ -21,10 +21,9 @@ typedef enum
 #define OLED_HEIGHT 64
 
 bool initOLED(bool reset);
-void drawPixel(uint8_t x, uint8_t y, color c);
-void drawFrame(const uint8_t* frame);
+void drawPixel(int16_t x, int16_t y, color c);
 bool updateOLED(void);
 void clearDisplay(void);
-void fillDisplayArea(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, color c);
+void fillDisplayArea(int16_t x1, int16_t y1, int16_t x2, int16_t y2, color c);
 
 #endif /* OLED_H_ */

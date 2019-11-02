@@ -38,6 +38,9 @@
 #include "mode_tiltrads.h"
 #include "mode_mazerf.h"
 #include "mode_color_movement.h"
+#ifdef TEST_MODE
+    #include "mode_test.h"
+#endif
 #include "mode_roll3.h"
 #include "mode_roll.h"
 
@@ -71,6 +74,9 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
 {
+#ifdef TEST_MODE
+    &testMode,
+#endif
 #if SWADGE_VERSION != SWADGE_2019
     &menuMode, // Menu must be the first
 #endif
@@ -82,6 +88,7 @@ swadgeMode* swadgeModes[] =
     &rollMode,
     &roll3Mode,
     &galleryMode,
+    &muteOption
 };
 bool swadgeModeInit = false;
 rtcMem_t rtcMem = {0};

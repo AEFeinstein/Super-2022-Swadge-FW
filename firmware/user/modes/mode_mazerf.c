@@ -6,30 +6,18 @@
 *       Refactor of maze using Jonathan Moriarty basic set up
 */
 
+// Keeps best times for each level in flash
+// Reports adjusted time = time in corridors + 1.5 * time touching walls
+// Special Led pattern displays for each level
+// Auto maze adjusted time is reported (it is the actual time as it never hits the walls)
+//   but does not count for record times and does not show special LED pattern
+// Have option to use Adam's button handling
 //TODO
-// UI advice - nice to be able to retry the same maze
-//    abort out of too hard level
-// Put level name on home screen (make up appropriate names)
-// Changing to next level not intuitive and happens only after goes
-// Maybe in end of game have re try same maze or new maze
-// back to title screen.
-// A way to jump out of maze if too hard (e.g. hardest to very hard)
-//    hardest cant be done without touching the walls
-// DONE mostly - Improve Score
-// DONE HIGH appearing in window overlaps maze - removed
-// Maybe flash special pattern when get max score
-// Sound
-// DONE Maybe have lights in 4 corner of screen light to
-//  indicate where to aim for.
-// DONE - must traverse corner anti clockwise
-//      starting upper left. RED light when hit them
-// FIXED BUG in setmazeLeds effectively erases leds if game callback
-// PROBABLY FIXED BUG Teleport sometimes. stop this
-// DONE see code comment labeled TELPORT FIX
-// but when removed would get in constant teleporting
-// if safety stop was off. Differs from matlab test
-// would be nice to find reason
-// will try running with gdb
+// Once had clear best loop continually. Why?
+// Add Sound
+// Could make better choice of led patterns so hard levels get better patterns
+// Could unlock the special patterns for display later, it simply are those
+//     levels which have a best time stored
 
 #include <osapi.h>
 #include <user_interface.h>
@@ -68,40 +56,44 @@
     #define min(a,b) ((a) < (b) ? (a) : (b))
 #endif
 
+// buttons
+#define BTN_LEFT_B LEFT
+#define BTN_RIGHT_A RIGHT
+
 // controls (title)
-#define BTN_TITLE_START_SCORES 1
-#define BTN_TITLE_START_GAME 2
+#define BTN_TITLE_CHOOSE_LEVEL BTN_LEFT_B
+#define BTN_TITLE_START_GAME BTN_RIGHT_A
 
 // controls (game)
-#define BTN_GAME_RIGHT 2
-#define BTN_GAME_LEFT 1
+#define BTN_GAME_RESTART BTN_RIGHT_A
+#define BTN_GAME_AUTO BTN_LEFT_B
 
 // controls (scores)
-#define BTN_SCORES_CLEAR_SCORES 1
-#define BTN_SCORES_START_TITLE 2
+#define BTN_SCORES_CLEAR_SCORES BTN_LEFT_B
+#define BTN_SCORES_START_TITLE BTN_RIGHT_A
 
 // controls (gameover)
-#define BTN_GAMEOVER_START_TITLE 1
-#define BTN_GAMEOVER_START_GAME 2
+#define BTN_GAMEOVER_BEST_TIMES BTN_LEFT_B
+#define BTN_GAMEOVER_TITLE BTN_RIGHT_A
 
 // update task (Richard maxTime has 28 ms for most complicated maze)
-#define UPDATE_TIME_MS 100
+#define UPDATE_TIME_MS 50
 
 // time info.
 #define MS_TO_US_FACTOR 1000
 #define MS_TO_S_FACTOR 1000
-//#define US_TO_MS_FACTOR 0.001
 
 #define CLEAR_SCORES_HOLD_TIME (5 * MS_TO_US_FACTOR * MS_TO_S_FACTOR)
 
-#define NUM_MZ_HIGH_SCORES 3
+#define NUM_MZ_LEVELS 8
 #define BOX_LEVEL 0
 #define PRACTICE_LEVEL 1
-#define EASY_LEVEL 2
-#define MIDDLE_LEVEL 3
-#define HARD_LEVEL 4
-#define KILLER_LEVEL 5
-#define IMPOSSIBLE_LEVEL 6
+#define NOVICE_LEVEL 2
+#define EASY_LEVEL 3
+#define MIDDLE_LEVEL 4
+#define HARD_LEVEL 5
+#define KILLER_LEVEL 6
+#define IMPOSSIBLE_LEVEL 7
 
 // LEDs relation to screen
 #define LED_UPPER_LEFT LED_1
@@ -140,8 +132,9 @@ bool holdingClearScore;
 
 // Game state info.
 uint32_t score; // The current score this game.
-uint32_t highScores[NUM_MZ_HIGH_SCORES];
-bool newHighScore;
+uint32_t scoreauto; // The current autoscore this game.
+uint32_t mzBestTimes[NUM_MZ_LEVELS];
+bool nzNewBestTime;
 
 // function prototypes go here.
 /*============================================================================
@@ -160,6 +153,12 @@ void ICACHE_FLASH_ATTR mazeFreeMemory(void);
 // game loop functions.
 void ICACHE_FLASH_ATTR mzUpdate(void* arg);
 
+// handle inputs.
+void ICACHE_FLASH_ATTR mzTitleInput(void);
+void ICACHE_FLASH_ATTR mzGameInput(void);
+void ICACHE_FLASH_ATTR mzScoresInput(void);
+void ICACHE_FLASH_ATTR mzGameoverInput(void);
+
 // update any input-unrelated logic.
 void ICACHE_FLASH_ATTR mzTitleUpdate(void);
 void ICACHE_FLASH_ATTR mzGameUpdate(void);
@@ -173,8 +172,15 @@ void ICACHE_FLASH_ATTR mzGameDisplay(void);
 void ICACHE_FLASH_ATTR mzScoresDisplay(void);
 void ICACHE_FLASH_ATTR mzGameoverDisplay(void);
 
+void ICACHE_FLASH_ATTR mzGameoverLedDisplay(void);
 // mode state management.
 void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState);
+
+// input checking.
+bool ICACHE_FLASH_ATTR mzIsButtonPressed(uint8_t button);
+bool ICACHE_FLASH_ATTR mzIsButtonReleased(uint8_t button);
+bool ICACHE_FLASH_ATTR mzIsButtonDown(uint8_t button);
+bool ICACHE_FLASH_ATTR mzIsButtonUp(uint8_t button);
 
 // drawing functions.
 static void ICACHE_FLASH_ATTR plotCenteredText(uint8_t x0, uint8_t y, uint8_t x1, char* text, fonts font, color col);
@@ -182,10 +188,11 @@ static uint8_t getTextWidth(char* text, fonts font);
 
 // randomizer operations.
 void mzshuffle(int length, int array[length]);
+
 // score operations.
-static void loadHighScores(void);
-static void saveHighScores(void);
-static bool updateHighScores(uint32_t newScore);
+void ICACHE_FLASH_ATTR mzLoadBestTimes(void);
+void ICACHE_FLASH_ATTR mzSaveBestTimes(void);
+bool ICACHE_FLASH_ATTR mzUpdateBestTimes(uint8_t levelInd,  uint32_t newScore);
 
 // Additional Helper
 void ICACHE_FLASH_ATTR setmazeLeds(led_t* ledData, uint8_t ledDataLen);
@@ -197,7 +204,7 @@ uint8_t ICACHE_FLASH_ATTR  gonethru(float b_prev[], float b_now[], float p_1[], 
                                     float b_nowadjusted[], float param[]);
 int16_t ICACHE_FLASH_ATTR  incrementifnewvert(int16_t nwi, int16_t startind, int16_t endind);
 int16_t ICACHE_FLASH_ATTR  incrementifnewhoriz(int16_t nwi, int16_t startind, int16_t endind);
-void ICACHE_FLASH_ATTR changeLevel(void);
+void ICACHE_FLASH_ATTR setLevel(uint8_t mazeLevel);
 
 /*============================================================================
  * Static Const Variables
@@ -212,7 +219,7 @@ static const uint8_t mazeBrightnesses[] =
 };
 
 
-const char* levelName[] = {"BOX", "PRACTICE", "EASY", "MIDDLE", "HARD", "KILLER", "IMPOSSIBLE"};
+const char* levelName[] = {"BOX", "PRACTICE", "NOVICE",  "EASY", "MIDDLE", "HARD", "KILLER", "IMPOSSIBLE"};
 
 /*============================================================================
  * Variables
@@ -238,6 +245,9 @@ accel_t mzLastAccel = {0};
 
 accel_t mzLastTestAccel = {0};
 
+uint8_t mzButtonState = 0;
+uint8_t mzLastButtonState = 0;
+
 uint8_t mazeBrightnessIdx = 2;
 led_t leds[NUM_LIN_LEDS] = {{0}};
 int maze_ledCount = 0;
@@ -259,6 +269,10 @@ float zAccel;
 float len;
 float scxc;
 float scyc;
+float scxcauto;
+float scycauto;
+float scxcautonext;
+float scycautonext;
 float scxcprev;
 float scycprev;
 float scxcexits[4];
@@ -273,8 +287,9 @@ int yadj;
 int16_t totalcyclestilldone;
 uint16_t totalhitstilldone;
 bool gameover;
+bool didAutoMaze;
 
-uint8_t mazeLevel = IMPOSSIBLE_LEVEL;
+uint8_t mazeLevel = BOX_LEVEL;
 uint8_t width;
 uint8_t height; //Maze dimensions must be 1 less than multiples of 4
 uint8_t mazescalex = 1;
@@ -282,6 +297,7 @@ uint8_t mazescaley = 1;
 int16_t numwalls;
 int16_t indSolution;
 int16_t indSolutionStep;
+int16_t indSolutionSubStep;
 int16_t numwallstodraw;
 uint8_t* xleft = NULL;
 uint8_t* xright = NULL;
@@ -314,7 +330,8 @@ void ICACHE_FLASH_ATTR mzInit(void)
 
 
     // Construct Random Maze
-    changeLevel(); // will bring in PRACTICE_LEVEL
+    mazeLevel = BOX_LEVEL;
+    setLevel(mazeLevel);
     mzNewMazeSetUp();
 
     // Start the update loop.
@@ -329,138 +346,10 @@ void ICACHE_FLASH_ATTR mzDeInit(void)
     os_timer_disarm(&timerHandleUpdate);
 }
 
-void ICACHE_FLASH_ATTR mzButtonCallback(uint8_t state __attribute__((unused)), int button,
+void ICACHE_FLASH_ATTR mzButtonCallback(uint8_t state, int button __attribute__((unused)),
                                         int down __attribute__((unused)))
 {
-    switch(currState)
-    {
-        case MZ_TITLE:
-        {
-            if(down)
-            {
-                switch (button)
-                {
-                    case BTN_TITLE_START_SCORES:
-                    {
-                        //button b = go to score screen
-                        mzChangeState(MZ_SCORES);
-                        break;
-                    }
-                    case BTN_TITLE_START_GAME:
-                    {
-                        //button a = start game
-                        mzChangeState(MZ_GAME);
-                        break;
-                    }
-                    default:
-                    {
-                        break;
-                    }
-                }
-            }
-            break;
-        }
-        case MZ_GAME:
-        {
-            if(down)
-            {
-                switch(button)
-                {
-                    case BTN_GAME_RIGHT:
-                    {
-                        //button b = abort and restart at same level
-                        mazeFreeMemory();
-                        mzNewMazeSetUp();
-                        mzChangeState(MZ_GAME);
-                        break;
-                    }
-                    case BTN_GAME_LEFT:
-                    {
-                        //button a = abort and automatically do maze
-                        mzChangeState(MZ_AUTO);
-                        break;
-                    }
-                    default:
-                    {
-                        break;
-                    }
-                }
-            }
-            break;
-        }
-        case MZ_AUTO:
-        {
-            // Don't handle buttons
-            break;
-        }
-        case MZ_SCORES:
-        {
-            switch (button)
-            {
-                case BTN_SCORES_CLEAR_SCORES:
-                {
-                    if(down)
-                    {
-                        holdingClearScore = true;
-                    }
-                    else
-                    {
-                        holdingClearScore = false;
-                    }
-                    break;
-                }
-                case BTN_SCORES_START_TITLE:
-                {
-                    //button b = go to title screen
-                    if(down)
-                    {
-                        mzChangeState(MZ_TITLE);
-                    }
-                    break;
-                }
-                default:
-                {
-                    break;
-                }
-            }
-            break;
-        }
-        case MZ_GAMEOVER:
-        {
-            if(down)
-            {
-                switch(button)
-                {
-                    case BTN_GAMEOVER_START_GAME:
-                    {
-                        //button a = start game
-                        mazeFreeMemory();
-                        mzNewMazeSetUp();
-                        mzChangeState(MZ_TITLE);
-                        break;
-                    }
-                    case BTN_GAMEOVER_START_TITLE:
-                    {
-                        //button b = go to title screen
-                        changeLevel();
-                        mazeFreeMemory();
-                        mzNewMazeSetUp();
-                        mzChangeState(MZ_TITLE);
-                        break;
-                    }
-                    default:
-                    {
-                        break;
-                    }
-                }
-            }
-            break;
-        }
-        default:
-        {
-            break;
-        }
-    }
+    mzButtonState = state;  // Set the state of all buttons
 }
 
 void ICACHE_FLASH_ATTR mzAccelerometerCallback(accel_t* accel)
@@ -504,7 +393,37 @@ void ICACHE_FLASH_ATTR mzUpdate(void* arg __attribute__((unused)))
     modeTime = newModeTime;
     stateTime = newStateTime;
 
+    // Handle Input (based on the state)
+    switch( currState )
+    {
+        case MZ_TITLE:
+        {
+            mzTitleInput();
+            break;
+        }
+        case MZ_GAME:
+        case MZ_AUTO:
+        {
+            mzGameInput();
+            break;
+        }
+        case MZ_SCORES:
+        {
+            mzScoresInput();
+            break;
+        }
+        case MZ_GAMEOVER:
+        {
+            mzGameoverInput();
+            break;
+        }
+        default:
+            break;
+    };
+
     // Mark what our inputs were the last time we acted on them.
+    mzLastButtonState = mzButtonState;
+
     mzLastAccel = mzAccel;
 
     // Handle Game Logic (based on the state)
@@ -568,50 +487,67 @@ void ICACHE_FLASH_ATTR mzUpdate(void* arg __attribute__((unused)))
     };
 }
 
-
-
-void ICACHE_FLASH_ATTR changeLevel(void)
+void ICACHE_FLASH_ATTR mzTitleInput(void)
 {
-    switch (mazeLevel)
+    //button a = start game
+    if(mzIsButtonPressed(BTN_TITLE_START_GAME))
     {
-        case BOX_LEVEL:
-            mazeLevel = PRACTICE_LEVEL;
+        mzChangeState(MZ_GAME);
+    }
+    //button b = choose a level
+    else if(mzIsButtonPressed(BTN_TITLE_CHOOSE_LEVEL))
+    {
+        mazeLevel++;
+        if (mazeLevel > IMPOSSIBLE_LEVEL)
+        {
+            mazeLevel = BOX_LEVEL;
+        }
+        setLevel(mazeLevel);
+        mazeFreeMemory();
+        mzNewMazeSetUp();
+    }
+}
+
+void ICACHE_FLASH_ATTR setLevel(uint8_t mzLevel)
+{
+    switch (mzLevel)
+    {
+        case PRACTICE_LEVEL:
+            width = 11;
+            height = 7;
+            rballused = 4;
+            break;
+        case NOVICE_LEVEL:
             width = 15;
             height = 7;
             rballused = 4;
             break;
-        case PRACTICE_LEVEL:
-            mazeLevel = EASY_LEVEL;
+        case EASY_LEVEL:
             width = 19;
             height = 7;
             rballused = 3;
             break;
-        case EASY_LEVEL:
-            mazeLevel = MIDDLE_LEVEL;
+        case MIDDLE_LEVEL:
             width = 23;
             height = 11;
             rballused = 3;
             break;
-        case MIDDLE_LEVEL:
-            mazeLevel = HARD_LEVEL;
+        case HARD_LEVEL:
             width = 31;
             height = 15;
             rballused = 3;
             break;
-        case HARD_LEVEL:
-            mazeLevel = KILLER_LEVEL;
+        case KILLER_LEVEL:
             width = 39;
             height = 19;
             rballused = 2;
             break;
-        case KILLER_LEVEL:
-            mazeLevel = IMPOSSIBLE_LEVEL;
+        case IMPOSSIBLE_LEVEL:
             width = 63;
             height = 27;
             rballused = 1;
             break;
-        case IMPOSSIBLE_LEVEL:
-            mazeLevel = BOX_LEVEL;
+        case BOX_LEVEL:
             width = 7;
             height = 3;
             rballused = 9;
@@ -621,7 +557,71 @@ void ICACHE_FLASH_ATTR changeLevel(void)
     }
 }
 
+void ICACHE_FLASH_ATTR mzGameInput(void)
+{
+    //button b = abort and restart at same level
+    if(mzIsButtonPressed(BTN_GAME_RESTART))
+    {
+        mazeFreeMemory();
+        mzNewMazeSetUp();
+        mzChangeState(MZ_GAME);
+    }
+    //button a = abort and automatically do maze
+    else if(mzIsButtonPressed(BTN_GAME_AUTO))
+    {
+        mzChangeState(MZ_AUTO);
+    }
+}
 
+void ICACHE_FLASH_ATTR mzScoresInput(void)
+{
+    //button a = hold to clear scores.
+    if(holdingClearScore && mzIsButtonDown(BTN_SCORES_CLEAR_SCORES))
+    {
+        clearScoreTimer += deltaTime;
+        if (clearScoreTimer >= CLEAR_SCORES_HOLD_TIME)
+        {
+            clearScoreTimer = 0;
+            memset(mzBestTimes, 0x0f, NUM_MZ_LEVELS * sizeof(uint32_t));
+            mzSaveBestTimes();
+            mzLoadBestTimes();
+            mzSetLastScore(0x0f0f0f0f);
+        }
+    }
+    else if(mzIsButtonUp(BTN_SCORES_CLEAR_SCORES))
+    {
+        clearScoreTimer = 0;
+    }
+    // This is added to prevent people holding left from the previous screen from accidentally clearing their scores.
+    else if(mzIsButtonPressed(BTN_SCORES_CLEAR_SCORES))
+    {
+        holdingClearScore = true;
+    }
+
+    //button b = go to title screen
+    if(mzIsButtonPressed(BTN_SCORES_START_TITLE))
+    {
+        mazeFreeMemory();
+        mzNewMazeSetUp();
+        mzChangeState(MZ_TITLE);
+    }
+}
+
+void ICACHE_FLASH_ATTR mzGameoverInput(void)
+{
+    //button a = start game
+    if(mzIsButtonPressed(BTN_GAMEOVER_TITLE))
+    {
+        mazeFreeMemory();
+        mzNewMazeSetUp();
+        mzChangeState(MZ_TITLE);
+    }
+    //button b = go to title screen
+    else if(mzIsButtonPressed(BTN_GAMEOVER_BEST_TIMES))
+    {
+        mzChangeState(MZ_SCORES);
+    }
+}
 
 void ICACHE_FLASH_ATTR mzTitleUpdate(void)
 {
@@ -651,7 +651,7 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
 
 #define GETVELOCITY
 #ifdef GETVELOCITY
-    // (Smoothed) Accelerometer determines velocity and does one euler step with dt = 1000.0 / UPDATE_TIME_MS
+    // (Smoothed) Accelerometer determines velocity and does one euler step with dt
     const float dt = (float)UPDATE_TIME_MS / MS_TO_S_FACTOR;
     // Note smoothed accelerometer causes inertia making bit harder to control
     scxc = scxcprev + dt * xAccel;
@@ -828,13 +828,20 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
             float totalTime = UPDATE_TIME_MS  * (float)totalcyclestilldone / MS_TO_S_FACTOR;
             float rollingTime = UPDATE_TIME_MS  * (float)totalhitstilldone / MS_TO_S_FACTOR;
             float incorridorTime = totalTime - rollingTime;
-            float adjustedTime = incorridorTime + wiggleroom * rollingTime;
-            os_printf("Time to complete maze %d, in corridor %d on walls %d adj %d \n", (int)(100 * totalTime),
-                      (int)(100 * incorridorTime), (int)(100 * rollingTime), (int)(100 * adjustedTime));
+            // Too severe a penalty
+            //float adjustedTime = incorridorTime + wiggleroom * rollingTime;
+            //here use 50 %
+            float adjustedTime = incorridorTime + 1.5 * rollingTime;
+            os_printf("Time to complete maze %d, in corridor %d on walls %d adj %d ratio %d \n", (int)(100 * totalTime),
+                      (int)(100 * incorridorTime), (int)(100 * rollingTime), (int)(100 * adjustedTime),
+                      (int)(100 * adjustedTime / indSolution));
 
-            score = 100.0 * numwallstodraw * numwallstodraw / adjustedTime;
-            os_printf("Score %d, Cycles to complete maze %d, time on walls %d\n", score, totalcyclestilldone, totalhitstilldone);
+            // could scale by length of solution
+            //score = 10000 * adjustedTime / indSolution;
+            score = adjustedTime;
+
             gameover = true;
+            didAutoMaze = false;
             // Clear Wall and Corner Hit Indicators
             leds[LED_UPPER_MID].g = 0;
             leds[LED_UPPER_MID].r = 0;
@@ -847,40 +854,38 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
     maxTimeEnd(&maze_updatedisplay_timer);
 }
 
+#define NUM_SUB_STEPS 5
 void ICACHE_FLASH_ATTR mzAutoGameUpdate(void)
 {
-    //bool gonethruany;
-
-    scxc = xsol[indSolutionStep];
-    scyc = ysol[indSolutionStep];
-
-
-    // increment count and don't start moving till becomes zero
+    // increment count
     totalcyclestilldone++;
 
-    if (totalcyclestilldone < 0)
+    if (indSolutionSubStep == 0)
     {
-        scxc = scxcprev;
-        scyc = scycprev;
-    }
-    else
-    {
-        scxc = xsol[indSolutionStep];
-        scyc = ysol[indSolutionStep];
+        scxcauto = xsol[indSolutionStep];
+        scycauto = ysol[indSolutionStep];
+
         indSolutionStep++;
-        if (indSolutionStep > indSolution)
+        if (indSolutionStep < indSolution)
         {
-            gameover = true;
+            scxcautonext = xsol[indSolutionStep];
+            scycautonext = ysol[indSolutionStep];
         }
     }
+
+    scxc = scxcauto + indSolutionSubStep * (scxcautonext - scxcauto) / NUM_SUB_STEPS;
+    scyc = scycauto + indSolutionSubStep * (scycautonext - scycauto) / NUM_SUB_STEPS;
+
+    indSolutionSubStep++;
+    indSolutionSubStep %= NUM_SUB_STEPS;
 
     maze_printf("ENTRY\n from (%d, %d) to (%d, %d)\n", (int)(100 * scxcprev), (int)(100 * scycprev), (int)(100 * scxc),
                 (int)(100 * scyc));
 
     // Update previous location for next cycle
-
     scxcprev = scxc;
     scycprev = scyc;
+
     // Show green LED in corner heading towards
     leds[ledExitInd[exitInd]].g = 127;
 
@@ -892,53 +897,30 @@ void ICACHE_FLASH_ATTR mzAutoGameUpdate(void)
         exitInd += 1;
         if (exitInd > UPPER_RIGHT)
         {
-            // Compute score
-            // Best performance is fast but not rolling along walls
-            // So time rolling is totalhitstilldone, while time
-            // moving in corridor without touching is totalcyclestilldone - totalhitstilldone
-            // Adjusted time is (totalcyclestilldone - totalhitstilldone) + penaltyFactor * totalhitstilldone
-            //   = totalcyclestilldone + (penaltyFactor - 1) * totalhitstilldone
-            // wiggleroom + 1 is used for penaltyFactor (more room to wiggle the greater the factor)
-            // score proportional to square of number of walls and inversely proportional adjusted time
             float totalTime = UPDATE_TIME_MS  * (float)totalcyclestilldone / MS_TO_S_FACTOR;
-            float rollingTime = 0; //UPDATE_TIME_MS  * (float)totalhitstilldone / MS_TO_S_FACTOR;
+            float rollingTime = UPDATE_TIME_MS  * (float)totalhitstilldone / MS_TO_S_FACTOR;
             float incorridorTime = totalTime - rollingTime;
-            float adjustedTime = incorridorTime + wiggleroom * rollingTime;
-            os_printf("Time to auto complete maze %d, in corridor %d on walls %d adj %d \n", (int)(100 * totalTime),
-                      (int)(100 * incorridorTime), (int)(100 * rollingTime), (int)(100 * adjustedTime));
-
-            score = 100.0 * numwallstodraw * numwallstodraw / adjustedTime;
-            os_printf("Score %d, Cycles to complete maze %d, time on walls %d\n", score, totalcyclestilldone, totalhitstilldone);
+            float adjustedTime = incorridorTime + 1.5 * rollingTime;
+            os_printf("Auto Time to complete maze %d, in corridor %d on walls %d adj %d ratio %d \n", (int)(100 * totalTime),
+                      (int)(100 * incorridorTime), (int)(100 * rollingTime), (int)(100 * adjustedTime),
+                      (int)(100 * adjustedTime / indSolution));
+            scoreauto = adjustedTime;
+            // Auto game does not get counted for best times!
+            score = 0x0f0f0f0f;
             gameover = true;
+            didAutoMaze = true;
             // Clear Wall and Corner Hit Indicators
             leds[LED_UPPER_MID].g = 0;
             leds[LED_UPPER_MID].r = 0;
             leds[LED_LOWER_MID].g = 0;
             leds[LED_LOWER_MID].r = 0;
-
         }
     }
 }
 
-
 void ICACHE_FLASH_ATTR mzScoresUpdate(void)
 {
-    if(holdingClearScore)
-    {
-        clearScoreTimer += deltaTime;
-        if (clearScoreTimer >= CLEAR_SCORES_HOLD_TIME)
-        {
-            clearScoreTimer = 0;
-            memset(highScores, 0, NUM_MZ_HIGH_SCORES * sizeof(uint32_t));
-            saveHighScores();
-            loadHighScores();
-            mzSetLastScore(0);
-        }
-    }
-    else
-    {
-        clearScoreTimer = 0;
-    }
+    // Do nothing.
 }
 
 void ICACHE_FLASH_ATTR mzGameoverUpdate(void)
@@ -956,7 +938,7 @@ void ICACHE_FLASH_ATTR mzTitleDisplay(void)
     plotCenteredText(0, OLED_HEIGHT / 2, 127, (char*)levelName[mazeLevel], IBM_VGA_8, WHITE);
 
     // SCORES   START
-    plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "SCORES", IBM_VGA_8, WHITE);
+    plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "CHOOSE", IBM_VGA_8, WHITE);
     plotText(OLED_WIDTH - getTextWidth("START", IBM_VGA_8), OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "START",
              IBM_VGA_8, WHITE);
 
@@ -1003,10 +985,7 @@ void ICACHE_FLASH_ATTR mzGameDisplay(void)
     {
         if (mazeLevel >= KILLER_LEVEL)
         {
-            if (flashcount < flashmax / 2)
-            {
-                plotRect(round(scxc) + xadj - 1, round(scyc) + yadj - 1, round(scxc) + xadj + 1, round(scyc) + yadj + 1, WHITE);
-            }
+            plotRect(round(scxc) + xadj - 1, round(scyc) + yadj - 1, round(scxc) + xadj + 1, round(scyc) + yadj + 1, WHITE);
         }
         else
         {
@@ -1028,8 +1007,8 @@ void ICACHE_FLASH_ATTR mzGameDisplay(void)
 
     setmazeLeds(leds, sizeof(leds));
 
-    newHighScore = score > highScores[0];
-    //plotCenteredText(0, 0, 10, newHighScore ? "HIGH (NEW!)" : "HIGH", TOM_THUMB, WHITE);
+    nzNewBestTime = score > mzBestTimes[0];
+    //plotCenteredText(0, 0, 10, nzNewBestTime ? "HIGH (NEW!)" : "HIGH", TOM_THUMB, WHITE);
     plotText(0, 59, "AUTO", TOM_THUMB, WHITE);
     plotText(OLED_WIDTH - getTextWidth("RESTART", TOM_THUMB), 59, "RESTART", TOM_THUMB, WHITE);
     ets_snprintf(uiStr, sizeof(uiStr), "%d secs", totalcyclestilldone * UPDATE_TIME_MS / MS_TO_S_FACTOR);
@@ -1044,38 +1023,112 @@ void ICACHE_FLASH_ATTR mzGameDisplay(void)
 
 void ICACHE_FLASH_ATTR mzScoresDisplay(void)
 {
+    if (! didAutoMaze)
+    {
+        mzGameoverLedDisplay();
+    }
     // Clear the display
     clearDisplay();
 
-    plotCenteredText(0, 0, OLED_WIDTH, "HIGH SCORES", IBM_VGA_8, WHITE);
+    plotCenteredText(0, 0, OLED_WIDTH, "BEST ADJUSTED TIMES", TOM_THUMB, WHITE);
 
     char uiStr[32] = {0};
     // 1. 99999
-    ets_snprintf(uiStr, sizeof(uiStr), "1. %d", highScores[0]);
-    plotCenteredText(0, (3 * FONT_HEIGHT_TOMTHUMB) + 1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
+    if (mzBestTimes[0] < 100000)
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "B %d", mzBestTimes[0]);
+    }
+    else
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "B -----");
+    }
+    plotText(0, (2 * FONT_HEIGHT_TOMTHUMB) - 3, uiStr, IBM_VGA_8, WHITE);
 
     // 2. 99999
-    ets_snprintf(uiStr, sizeof(uiStr), "2. %d", highScores[1]);
-    plotCenteredText(0, (5 * FONT_HEIGHT_TOMTHUMB) + 1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
+    if (mzBestTimes[1] < 100000)
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "P %d", mzBestTimes[1]);
+    }
+    else
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "P -----");
+    }
+    plotText(0, (2 * FONT_HEIGHT_TOMTHUMB) + (FONT_HEIGHT_IBMVGA8) - 2, uiStr, IBM_VGA_8, WHITE);
 
     // 3. 99999
-    ets_snprintf(uiStr, sizeof(uiStr), "3. %d", highScores[2]);
-    plotCenteredText(0, (7 * FONT_HEIGHT_TOMTHUMB) + 1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
+    if (mzBestTimes[2] < 100000)
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "N %d", mzBestTimes[2]);
+    }
+    else
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "N -----");
+    }
+    plotText(0, (2 * FONT_HEIGHT_TOMTHUMB) + 2 * (FONT_HEIGHT_IBMVGA8), uiStr, IBM_VGA_8, WHITE);
 
-    // YOUR LAST SCORE:
-    ets_snprintf(uiStr, sizeof(uiStr), "YOUR LAST SCORE: %d", mzGetLastScore());
-    plotCenteredText(0, (9 * FONT_HEIGHT_TOMTHUMB) + 1, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
+    // 4. 99999
+    if (mzBestTimes[3] < 100000)
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "E %d", mzBestTimes[3]);
+    }
+    else
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "E -----");
+    }
+    plotText(0, (2 * FONT_HEIGHT_TOMTHUMB) + 3 * (FONT_HEIGHT_IBMVGA8) + 2, uiStr, IBM_VGA_8, WHITE);
 
+    // 5. 99999
+    if (mzBestTimes[4] < 100000)
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "M %d", mzBestTimes[4]);
+    }
+    else
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "M -----");
+    }
+    plotText(64, (2 * FONT_HEIGHT_TOMTHUMB) - 3, uiStr, IBM_VGA_8, WHITE);
+
+    // 6. 99999
+    if (mzBestTimes[5] < 100000)
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "H %d", mzBestTimes[5]);
+    }
+    else
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "H -----");
+    }
+    plotText(64, (2 * FONT_HEIGHT_TOMTHUMB) + (FONT_HEIGHT_IBMVGA8) - 2, uiStr, IBM_VGA_8, WHITE);
+
+    // 7. 99999
+    if (mzBestTimes[6] < 100000)
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "K %d", mzBestTimes[6]);
+    }
+    else
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "K -----");
+    }
+    plotText(64, (2 * FONT_HEIGHT_TOMTHUMB) + 2 * (FONT_HEIGHT_IBMVGA8), uiStr, IBM_VGA_8, WHITE);
+    // 8. 99999
+    if (mzBestTimes[7] < 100000)
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "I %d", mzBestTimes[7]);
+    }
+    else
+    {
+        ets_snprintf(uiStr, sizeof(uiStr), "I -----");
+    }
+    plotText(64, (2 * FONT_HEIGHT_TOMTHUMB) + 3 * (FONT_HEIGHT_IBMVGA8) + 2, uiStr, IBM_VGA_8, WHITE);
 
     //TODO: explicitly add a hold to the text, or is the inverse effect enough.
-    // (HOLD) CLEAR SCORES      TITLE
-    plotText(1, OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1)), "CLEAR SCORES", TOM_THUMB, WHITE);
+    // (HOLD) CLEAR TIMES      TITLE
+    plotText(1, OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1)), "CLEAR TIMES", TOM_THUMB, WHITE);
 
     // fill the clear scores area depending on how long the button's held down.
     if (clearScoreTimer != 0)
     {
         double holdProgress = ((double)clearScoreTimer / (double)CLEAR_SCORES_HOLD_TIME);
-        uint8_t holdFill = (uint8_t)(holdProgress * (getTextWidth("CLEAR SCORES", TOM_THUMB) + 2));
+        uint8_t holdFill = (uint8_t)(holdProgress * (getTextWidth("CLEAR TIMES", TOM_THUMB) + 2));
         fillDisplayArea(0, (OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1))) - 1, holdFill, OLED_HEIGHT, INVERSE);
     }
 
@@ -1083,7 +1136,7 @@ void ICACHE_FLASH_ATTR mzScoresDisplay(void)
              TOM_THUMB, WHITE);
 }
 
-void ICACHE_FLASH_ATTR mzGameoverDisplay(void)
+void ICACHE_FLASH_ATTR mzGameoverLedDisplay(void)
 {
     switch (mazeLevel)
     {
@@ -1093,11 +1146,14 @@ void ICACHE_FLASH_ATTR mzGameoverDisplay(void)
         case PRACTICE_LEVEL:
             danceTimerMode2(NULL);
             break;
-        case EASY_LEVEL:
+        case NOVICE_LEVEL:
             danceTimerMode3(NULL);
             break;
-        case MIDDLE_LEVEL:
+        case EASY_LEVEL:
             danceTimerMode4(NULL);
+            break;
+        case MIDDLE_LEVEL:
+            danceTimerMode5(NULL);
             break;
         case HARD_LEVEL:
             danceTimerMode13(NULL);
@@ -1111,52 +1167,67 @@ void ICACHE_FLASH_ATTR mzGameoverDisplay(void)
         default:
             break;
     }
-    //random_dance_mode(); //didn't work
-
+}
+void ICACHE_FLASH_ATTR mzGameoverDisplay(void)
+{
+    if (!didAutoMaze)
+    {
+        mzGameoverLedDisplay();
+    }
     // We don't clear the display because we want the playfield to appear in the background.
     // Draw a centered bordered window.
 
     //TODO: #define these instead of variables here?
-    uint8_t windowXMargin = 18;
-    uint8_t windowYMarginTop = 5;
-    uint8_t windowYMarginBot = 5;
+    uint8_t windowXMargin = 1;
+    uint8_t windowYMarginTop = 25;
+    uint8_t windowYMarginBot = 0;
 
-    uint8_t titleTextYOffset = 5;
-    uint8_t highScoreTextYOffset = titleTextYOffset + FONT_HEIGHT_IBMVGA8 + 5;
-    uint8_t scoreTextYOffset = highScoreTextYOffset + FONT_HEIGHT_TOMTHUMB + 5;
+    uint8_t titleTextYOffset = 2;
+    //uint8_t highScoreTextYOffset = titleTextYOffset + FONT_HEIGHT_IBMVGA8 + 5;
+    //uint8_t scoreTextYOffset = highScoreTextYOffset + FONT_HEIGHT_TOMTHUMB + 5;
     uint8_t controlTextYOffset = OLED_HEIGHT - windowYMarginBot - FONT_HEIGHT_TOMTHUMB - 5;
     uint8_t controlTextXPadding = 5;
 
     // Draw a centered bordered window.
-    fillDisplayArea(windowXMargin, windowYMarginTop, OLED_WIDTH - windowXMargin, OLED_HEIGHT - windowYMarginBot, BLACK);
-    plotRect(windowXMargin, windowYMarginTop, OLED_WIDTH - windowXMargin, OLED_HEIGHT - windowYMarginBot, WHITE);
-
-    // GAME OVER
-    plotCenteredText(windowXMargin, windowYMarginTop + titleTextYOffset, OLED_WIDTH - windowXMargin, "GAME OVER", IBM_VGA_8,
-                     WHITE);
-
-    // HIGH SCORE! or YOUR SCORE:
-    if (newHighScore)
+    if (didAutoMaze)
     {
-        plotCenteredText(windowXMargin, windowYMarginTop + highScoreTextYOffset, OLED_WIDTH - windowXMargin, "HIGH SCORE!",
+        fillDisplayArea(windowXMargin, windowYMarginTop, OLED_WIDTH - windowXMargin, OLED_HEIGHT - windowYMarginBot, BLACK);
+        plotRect(windowXMargin, windowYMarginTop, OLED_WIDTH - windowXMargin, OLED_HEIGHT - windowYMarginBot, WHITE);
+
+        plotCenteredText(windowXMargin, windowYMarginTop + titleTextYOffset, OLED_WIDTH - windowXMargin,
+                         "MAZE SOLVED AUTOMATICALLY IN ",
                          TOM_THUMB, WHITE);
+
+        // 1230495
+        char scoreStr[32] = {0};
+        ets_snprintf(scoreStr, sizeof(scoreStr), "%d seconds", scoreauto);
+        plotCenteredText(windowXMargin, windowYMarginTop + titleTextYOffset + FONT_HEIGHT_TOMTHUMB + 5,
+                         OLED_WIDTH - windowXMargin, scoreStr,
+                         IBM_VGA_8,
+                         WHITE);
     }
     else
     {
-        plotCenteredText(windowXMargin, windowYMarginTop + highScoreTextYOffset, OLED_WIDTH - windowXMargin, "YOUR SCORE:",
+        fillDisplayArea(windowXMargin, windowYMarginTop, OLED_WIDTH - windowXMargin, OLED_HEIGHT - windowYMarginBot, BLACK);
+        plotRect(windowXMargin, windowYMarginTop, OLED_WIDTH - windowXMargin, OLED_HEIGHT - windowYMarginBot, WHITE);
+
+        plotCenteredText(windowXMargin, windowYMarginTop + titleTextYOffset, OLED_WIDTH - windowXMargin,
+                         "YOUR ADJUSTED TIME IS",
                          TOM_THUMB, WHITE);
+
+        // 1230495
+        char scoreStr[32] = {0};
+        ets_snprintf(scoreStr, sizeof(scoreStr), "%d seconds", score);
+        plotCenteredText(windowXMargin, windowYMarginTop + titleTextYOffset + FONT_HEIGHT_TOMTHUMB + 5,
+                         OLED_WIDTH - windowXMargin, scoreStr,
+                         IBM_VGA_8,
+                         WHITE);
     }
-
-    // 1230495
-    char scoreStr[32] = {0};
-    ets_snprintf(scoreStr, sizeof(scoreStr), "%d", score);
-    plotCenteredText(windowXMargin, windowYMarginTop + scoreTextYOffset, OLED_WIDTH - windowXMargin, scoreStr, IBM_VGA_8,
-                     WHITE);
-
     // TITLE    RESTART
-    plotText(windowXMargin + controlTextXPadding, controlTextYOffset, "NEW LEVEL", TOM_THUMB, WHITE);
-    plotText(OLED_WIDTH - windowXMargin - getTextWidth("SAME LEVEL", TOM_THUMB) - controlTextXPadding, controlTextYOffset,
-             "SAME LEVEL", TOM_THUMB, WHITE);
+    plotText(windowXMargin + controlTextXPadding, controlTextYOffset, "BEST TIMES", TOM_THUMB, WHITE);
+    plotText(OLED_WIDTH - windowXMargin - getTextWidth("TITLE", TOM_THUMB) - controlTextXPadding,
+             controlTextYOffset,
+             "TITLE", TOM_THUMB, WHITE);
 }
 
 // helper functions.
@@ -1392,37 +1463,58 @@ void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState)
             break;
         case MZ_GAME:
             // All game restart functions happen here.
-            loadHighScores();
+            mzLoadBestTimes();
             // TODO: should I be seeding this, or re-seeding this, and if so, with what?
             srand((uint32_t)(mzAccel.x + mzAccel.y * 3 + mzAccel.z * 5)); // Seed the random number generator.
             break;
         case MZ_AUTO:
-            loadHighScores();
+            mzLoadBestTimes();
             indSolutionStep = 0;
+            indSolutionSubStep = 0;
             totalcyclestilldone = 0;
             exitInd = UPPER_LEFT;
             break;
         case MZ_SCORES:
-            loadHighScores();
-            clearScoreTimer = 0;
-            holdingClearScore = false;
-            break;
-        case MZ_GAMEOVER:
             // Update high score if needed.
             if (prevState != MZ_AUTO)
             {
-                newHighScore = updateHighScores(score);
-                if (newHighScore)
+                nzNewBestTime = mzUpdateBestTimes(mazeLevel, score);
+                if (nzNewBestTime)
                 {
-                    saveHighScores();
+                    mzSaveBestTimes();
                 }
                 // Save out the last score.
                 mzSetLastScore(score);
             }
+            mzLoadBestTimes();
+            clearScoreTimer = 0;
+            holdingClearScore = false;
+            break;
+        case MZ_GAMEOVER:
             break;
         default:
             break;
     };
+}
+
+bool ICACHE_FLASH_ATTR mzIsButtonPressed(uint8_t button)
+{
+    return (mzButtonState & button) && !(mzLastButtonState & button);
+}
+
+bool ICACHE_FLASH_ATTR mzIsButtonReleased(uint8_t button)
+{
+    return !(mzButtonState & button) && (mzLastButtonState & button);
+}
+
+bool ICACHE_FLASH_ATTR mzIsButtonDown(uint8_t button)
+{
+    return mzButtonState & button;
+}
+
+bool ICACHE_FLASH_ATTR mzIsButtonUp(uint8_t button)
+{
+    return !(mzButtonState & button);
 }
 
 int16_t ICACHE_FLASH_ATTR  incrementifnewvert(int16_t nwi, int16_t startind, int16_t endind)
@@ -1647,31 +1739,27 @@ void mzshuffle(int length, int array[length])
 }
 
 
-static void loadHighScores(void)
+void ICACHE_FLASH_ATTR mzLoadBestTimes(void)
 {
-    memcpy(highScores, mzGetHighScores(),  NUM_MZ_HIGH_SCORES * sizeof(uint32_t));
+    memcpy(mzBestTimes, mzGetBestTimes(),  NUM_MZ_LEVELS * sizeof(uint32_t));
 }
 
-static void saveHighScores(void)
+void ICACHE_FLASH_ATTR mzSaveBestTimes(void)
 {
-    mzSetHighScores(highScores);
+    mzSetBestTimes(mzBestTimes);
 }
 
-static bool updateHighScores(uint32_t newScore)
+bool ICACHE_FLASH_ATTR mzUpdateBestTimes(uint8_t levelInd, uint32_t newScore)
 {
-    bool highScore = false;
-    uint32_t placeScore = newScore;
-    for (int i = 0; i < NUM_MZ_HIGH_SCORES; i++)
+    bool bestTime = false;
+    // Get the current score at this index.
+    uint32_t currentScore = mzBestTimes[levelInd];
+
+    if (newScore < currentScore)
     {
-        // Get the current score at this index.
-        uint32_t currentScore = highScores[i];
-
-        if (placeScore >= currentScore)
-        {
-            highScores[i] = placeScore;
-            placeScore = currentScore;
-            highScore = true;
-        }
+        mzBestTimes[levelInd] = newScore;
+        bestTime = true;
     }
-    return highScore;
+
+    return bestTime;
 }
