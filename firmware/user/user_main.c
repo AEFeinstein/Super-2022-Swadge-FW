@@ -41,6 +41,8 @@
 #ifdef TEST_MODE
     #include "mode_test.h"
 #endif
+#include "mode_roll3.h"
+#include "mode_roll.h"
 
 /*============================================================================
  * Defines
@@ -83,6 +85,8 @@ swadgeMode* swadgeModes[] =
     &tiltradsMode,
     &mazerfMode,
     &colorMoveMode,
+    &rollMode,
+    &roll3Mode,
     &galleryMode,
     &muteOption
 };
