@@ -1141,28 +1141,28 @@ void ICACHE_FLASH_ATTR mzGameoverLedDisplay(void)
     switch (mazeLevel)
     {
         case BOX_LEVEL:
-            danceTimerMode1(NULL);
+            danceTimers[0].timerFn(NULL);
             break;
         case PRACTICE_LEVEL:
-            danceTimerMode2(NULL);
+            danceTimers[1].timerFn(NULL);
             break;
         case NOVICE_LEVEL:
-            danceTimerMode3(NULL);
+            danceTimers[2].timerFn(NULL);
             break;
         case EASY_LEVEL:
-            danceTimerMode4(NULL);
+            danceTimers[3].timerFn(NULL);
             break;
         case MIDDLE_LEVEL:
-            danceTimerMode5(NULL);
+            danceTimers[4].timerFn(NULL);
             break;
         case HARD_LEVEL:
-            danceTimerMode13(NULL);
+            danceTimers[12].timerFn(NULL);
             break;
         case KILLER_LEVEL:
-            danceTimerMode16(NULL);
+            danceTimers[15].timerFn(NULL);
             break;
         case IMPOSSIBLE_LEVEL:
-            danceTimerMode17(NULL);
+            danceTimers[16].timerFn(NULL);
             break;
         default:
             break;
