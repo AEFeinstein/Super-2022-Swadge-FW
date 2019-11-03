@@ -11,9 +11,7 @@
 // Special Led pattern displays for each level
 // Auto maze adjusted time is reported (it is the actual time as it never hits the walls)
 //   but does not count for record times and does not show special LED pattern
-// Have option to use Adam's button handling
 //TODO
-// Once had clear best loop continually. Why?
 // Add Sound
 // Could make better choice of led patterns so hard levels get better patterns
 // Could unlock the special patterns for display later, it simply are those
@@ -81,9 +79,9 @@
 
 // time info.
 #define MS_TO_US_FACTOR 1000
-#define MS_TO_S_FACTOR 1000
+#define S_TO_MS_FACTOR 1000
 
-#define CLEAR_SCORES_HOLD_TIME (5 * MS_TO_US_FACTOR * MS_TO_S_FACTOR)
+#define CLEAR_SCORES_HOLD_TIME (5 * MS_TO_US_FACTOR * S_TO_MS_FACTOR)
 
 #define NUM_MZ_LEVELS 8
 #define BOX_LEVEL 0
@@ -652,7 +650,7 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
 #define GETVELOCITY
 #ifdef GETVELOCITY
     // (Smoothed) Accelerometer determines velocity and does one euler step with dt
-    const float dt = (float)UPDATE_TIME_MS / MS_TO_S_FACTOR;
+    const float dt = (float)UPDATE_TIME_MS / S_TO_MS_FACTOR;
     // Note smoothed accelerometer causes inertia making bit harder to control
     scxc = scxcprev + dt * xAccel;
     scyc = scycprev + dt * yAccel;
@@ -825,8 +823,8 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
             //   = totalcyclestilldone + (penaltyFactor - 1) * totalhitstilldone
             // wiggleroom + 1 is used for penaltyFactor (more room to wiggle the greater the factor)
             // score proportional to square of number of walls and inversely proportional adjusted time
-            float totalTime = UPDATE_TIME_MS  * (float)totalcyclestilldone / MS_TO_S_FACTOR;
-            float rollingTime = UPDATE_TIME_MS  * (float)totalhitstilldone / MS_TO_S_FACTOR;
+            float totalTime = UPDATE_TIME_MS  * (float)totalcyclestilldone / S_TO_MS_FACTOR;
+            float rollingTime = UPDATE_TIME_MS  * (float)totalhitstilldone / S_TO_MS_FACTOR;
             float incorridorTime = totalTime - rollingTime;
             // Too severe a penalty
             //float adjustedTime = incorridorTime + wiggleroom * rollingTime;
@@ -897,8 +895,8 @@ void ICACHE_FLASH_ATTR mzAutoGameUpdate(void)
         exitInd += 1;
         if (exitInd > UPPER_RIGHT)
         {
-            float totalTime = UPDATE_TIME_MS  * (float)totalcyclestilldone / MS_TO_S_FACTOR;
-            float rollingTime = UPDATE_TIME_MS  * (float)totalhitstilldone / MS_TO_S_FACTOR;
+            float totalTime = UPDATE_TIME_MS  * (float)totalcyclestilldone / S_TO_MS_FACTOR;
+            float rollingTime = UPDATE_TIME_MS  * (float)totalhitstilldone / S_TO_MS_FACTOR;
             float incorridorTime = totalTime - rollingTime;
             float adjustedTime = incorridorTime + 1.5 * rollingTime;
             os_printf("Auto Time to complete maze %d, in corridor %d on walls %d adj %d ratio %d \n", (int)(100 * totalTime),
@@ -1011,7 +1009,7 @@ void ICACHE_FLASH_ATTR mzGameDisplay(void)
     //plotCenteredText(0, 0, 10, nzNewBestTime ? "HIGH (NEW!)" : "HIGH", TOM_THUMB, WHITE);
     plotText(0, 59, "AUTO", TOM_THUMB, WHITE);
     plotText(OLED_WIDTH - getTextWidth("RESTART", TOM_THUMB), 59, "RESTART", TOM_THUMB, WHITE);
-    ets_snprintf(uiStr, sizeof(uiStr), "%d secs", totalcyclestilldone * UPDATE_TIME_MS / MS_TO_S_FACTOR);
+    ets_snprintf(uiStr, sizeof(uiStr), "%d secs", totalcyclestilldone * UPDATE_TIME_MS / S_TO_MS_FACTOR);
     plotCenteredText(0, 59, OLED_WIDTH, uiStr, TOM_THUMB, WHITE);
 
 
@@ -1252,7 +1250,8 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     int16_t startvert = 0;
     get_maze_output_t out;
 
-    totalcyclestilldone = -4 * MS_TO_S_FACTOR / UPDATE_TIME_MS;
+    // One second pause before ball starts to move
+    totalcyclestilldone = -1 * S_TO_MS_FACTOR / UPDATE_TIME_MS;
     totalhitstilldone = 0;
     gameover = false;
     memset(leds, 0, sizeof(leds));
@@ -1475,6 +1474,11 @@ void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState)
             exitInd = UPPER_LEFT;
             break;
         case MZ_SCORES:
+            mzLoadBestTimes();
+            clearScoreTimer = 0;
+            holdingClearScore = false;
+            break;
+        case MZ_GAMEOVER:
             // Update high score if needed.
             if (prevState != MZ_AUTO)
             {
@@ -1483,14 +1487,9 @@ void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState)
                 {
                     mzSaveBestTimes();
                 }
-                // Save out the last score.
+                // Save the last score.
                 mzSetLastScore(score);
             }
-            mzLoadBestTimes();
-            clearScoreTimer = 0;
-            holdingClearScore = false;
-            break;
-        case MZ_GAMEOVER:
             break;
         default:
             break;
