@@ -27,6 +27,7 @@
 #include "buttons.h"
 #include "math.h"
 #include "ode_solvers.h"
+#include "ccconfig.h"
 
 /*============================================================================
  * Defines

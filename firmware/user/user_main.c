@@ -190,6 +190,9 @@ void ICACHE_FLASH_ATTR user_init(void)
         }
     }
 
+    // Sets up gConfigs in custom_commands.c
+    // Could do major refactor to eliminate
+    PopulategConfigs();
     // Load configurable parameters from SPI memory
     LoadSettings();
 
