@@ -135,7 +135,10 @@ FLOATING totalenergyb;
 pendParam pendulumParametersRed;
 pendParam pendulumParametersGreen;
 pendParam pendulumParametersBlue;
-FLOATING damping = .2;
+springParam springParametersRed;
+springParam springParametersGreen;
+springParam springParametersBlue;
+
 int16_t countframes;
 
 void (*rhs_fun_ptr)(FLOATING, FLOATING*, FLOATING*, int, FLOATING*);
@@ -143,6 +146,7 @@ void (*rhs_fun_ptrr)(FLOATING, FLOATING*, FLOATING*, int, FLOATING*);
 void (*rhs_fun_ptrg)(FLOATING, FLOATING*, FLOATING*, int, FLOATING*);
 void (*rhs_fun_ptrb)(FLOATING, FLOATING*, FLOATING*, int, FLOATING*);
 void (*adjustment_fun_ptr)(FLOATING, FLOATING*, FLOATING*, int, FLOATING*);
+
 
 /*============================================================================
  * Functions
@@ -203,6 +207,24 @@ void ICACHE_FLASH_ATTR initializeConditionsForODERoll3(uint8_t Method)
             rhs_fun_ptrr = &dnxdampedspring;
             rhs_fun_ptrg = &dnxdampedspring;
             rhs_fun_ptrb = &dnxdampedspring;
+            springParametersRed = (springParam)
+            {
+                .damping = 0.2,
+                .springConstant = SPRINGCONSTR,
+                .force = 0
+            };
+            springParametersGreen = (springParam)
+            {
+                .damping = 0.2,
+                .springConstant = SPRINGCONSTG,
+                .force = 0
+            };
+            springParametersBlue = (springParam)
+            {
+                .damping = 0.1,
+                .springConstant = SPRINGCONSTB,
+                .force = 0
+            };
             adjustment_fun_ptr = NULL;
             break;
         case 2:
@@ -257,17 +279,25 @@ void ICACHE_FLASH_ATTR initializeConditionsForODERoll3(uint8_t Method)
 // Here numberoffirstordereqn = 2, x is [th, thdot] position in radian, speed in radians/sec
 void ICACHE_FLASH_ATTR dnxdampedspring(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
 {
+    // cast p1 to point to structure and assign to p
+    springParam* p = (springParam*)parameters;
+    // can now refer to the paramters p->a, p->b rather than p1[0], p1[1]
+
     // to stop warning that t and n not used
     (void)t;
     (void)n;
+    //os_printf("IN  t %d x[0] %d x[1] %d dx[0] %d dx[1] %d n %d\n", (int)(100 * t), (int)(100 * x[0]), (int)(100 * x[1]),
+    //          (int)(100 * dx[0]), (int)(100 * dx[1]), n);
     //first order
     dx[0] = x[1];
     // second order
-    FLOATING down = atan2(-yAccel, -xAccel);
+    FLOATING down = atan2(-p->yAccel, -p->xAccel);
     //os_printf("100down = %d\n", (int)(100*down)); // down 0 is with positve x on accel pointing down
-    FLOATING force = 0.0; // later used for button replulsion
-    dx[1] = force - SPRINGCONSTR * (x[0] + pi / 2) - 0.2 * SPRINGCONSTR * sqrt(pow(xAccel, 2) + pow(yAccel,
-            2))  * sin(x[0] - down) - damping * x[1];
+    dx[1] = p->force - p->springConstant * (x[0] + pi / 2)  - p->damping * x[1] - p->springConstant * sqrt(pow(xAccel, 2) + pow(yAccel,
+            2))  * sin(x[0] - down);
+    //os_printf("OUT t %d x[0] %d x[1] %d dx[0] %d dx[1] %d n %d\n\n", (int)(100 * t), (int)(100 * x[0]), (int)(100 * x[1]),
+    //          (int)(100 * dx[0]), (int)(100 * dx[1]), n);
+
 }
 
 // // Here 1st Order motion with velocity from accelerometer
@@ -310,33 +340,39 @@ void ICACHE_FLASH_ATTR roll3_updateDisplay(void)
         case 1:
             // Damped Spring
             tf = ti + dt;
-            // Do one step of ODE solver assigned to rhs_fun_pointer
-            //euler_dn1(dnx, ti, dt, xi, xf, numberoffirstordereqn);
-            //rk4_dn1(dnx, ti, dt, xi, xf, numberoffirstordereqn);
-            rk4_dn1((*rhs_fun_ptrr), ti, dt, xir, xfr, numberoffirstordereqn, NULL);
-            rk4_dn1((*rhs_fun_ptrg), ti, dt, xig, xfg, numberoffirstordereqn, NULL);
-            rk4_dn1((*rhs_fun_ptrb), ti, dt, xib, xfb, numberoffirstordereqn, NULL);
+            // Do one step of ODE solver to dnx assigned to rhs_fun_pointer
+            // Need to update accel values in parameters
+            springParametersRed.xAccel = xAccel;
+            springParametersRed.yAccel = yAccel;
+            springParametersGreen.xAccel = xAccel;
+            springParametersGreen.yAccel = yAccel;
+            springParametersBlue.xAccel = xAccel;
+            springParametersBlue.yAccel = yAccel;
+            rk4_dn1((*rhs_fun_ptrr), ti, dt, xir, xfr, numberoffirstordereqn, (FLOATING*)&springParametersRed);
+            rk4_dn1((*rhs_fun_ptrg), ti, dt, xig, xfg, numberoffirstordereqn, (FLOATING*)&springParametersGreen);
+            rk4_dn1((*rhs_fun_ptrb), ti, dt, xib, xfb, numberoffirstordereqn, (FLOATING*)&springParametersBlue);
+            break;
         case 2:
         case 3:
             // Damped Pendulum
             tf = ti + dt;
-            // Do one step of ODE solver assigned to rhs_fun_pointer
-            //euler_dn1(dnx, ti, dt, xi, xf, numberoffirstordereqn);
-            //rk4_dn1(dnx, ti, dt, xi, xf, numberoffirstordereqn);
+            // Do one step of ODE solver to dnx assigned to rhs_fun_pointer
+            // Need to update accel values in parameters
             pendulumParametersRed.xAccel = xAccel;
             pendulumParametersRed.yAccel = yAccel;
             pendulumParametersGreen.xAccel = xAccel;
             pendulumParametersGreen.yAccel = yAccel;
             pendulumParametersBlue.xAccel = xAccel;
             pendulumParametersBlue.yAccel = yAccel;
-            //TODO if use this code starts ok but code below starts all bright and energy values overflowed!
-            // rk4_dn1((*rhs_fun_ptrr), ti, dt, xir, xfr, numberoffirstordereqn, (FLOATING*)&pendulumParametersRed);
-            // rk4_dn1((*rhs_fun_ptrg), ti, dt, xig, xfg, numberoffirstordereqn, (FLOATING*)&pendulumParametersGreen);
-            // rk4_dn1((*rhs_fun_ptrb), ti, dt, xib, xfb, numberoffirstordereqn, (FLOATING*)&pendulumParametersBlue);
-//TODO thought should be &dandampedpendulum but either works but mode starts with spring wrong
+            //Old but don't need pointer
+            //rk4_dn1((*rhs_fun_ptrr), ti, dt, xir, xfr, numberoffirstordereqn, (FLOATING*)&pendulumParametersRed);
+            //rk4_dn1((*rhs_fun_ptrg), ti, dt, xig, xfg, numberoffirstordereqn, (FLOATING*)&pendulumParametersGreen);
+            //rk4_dn1((*rhs_fun_ptrb), ti, dt, xib, xfb, numberoffirstordereqn, (FLOATING*)&pendulumParametersBlue);
+            //TODO thought should be &dandampedpendulum but either works but mode starts with spring wrong
             rk4_dn1(dnxdampedpendulum, ti, dt, xir, xfr, numberoffirstordereqn, (FLOATING*)&pendulumParametersRed);
             rk4_dn1(dnxdampedpendulum, ti, dt, xig, xfg, numberoffirstordereqn, (FLOATING*)&pendulumParametersGreen);
             rk4_dn1(dnxdampedpendulum, ti, dt, xib, xfb, numberoffirstordereqn, (FLOATING*)&pendulumParametersBlue);
+            break;
         default:
             (void)0;
     }
@@ -359,6 +395,7 @@ void ICACHE_FLASH_ATTR roll3_updateDisplay(void)
                 xig[i] = xfg[i];
                 xib[i] = xfb[i];
             }
+            break;
         default:
             (void)0;
     }
@@ -367,6 +404,16 @@ void ICACHE_FLASH_ATTR roll3_updateDisplay(void)
     {
         case 0:
         case 1:
+            scxcr = 64.0 - 16 * (xfr[0] + pi / 2);
+            scycr = 10.0;
+            scxcg = 64.0 - 16 * (xfg[0] + pi / 2);
+            scycg = 32.0;
+            scxcb = 64.0 - 16 * (xfb[0] + pi / 2);
+            scycb = 54.0;
+            totalenergyr = SPRINGCONSTR * (xfr[0] + pi / 2) * (xfr[0] + pi / 2) + xfr[1] * xfr[1];
+            totalenergyg = SPRINGCONSTG * (xfg[0] + pi / 2) * (xfg[0] + pi / 2) + xfg[1] * xfg[1];
+            totalenergyb = SPRINGCONSTB * (xfb[0] + pi / 2) * (xfb[0] + pi / 2) + xfb[1] * xfb[1];
+            break;
         case 2:
         case 3:
             scxcr = 64.0 - 28.0 * cos(xfr[0]);
@@ -375,6 +422,7 @@ void ICACHE_FLASH_ATTR roll3_updateDisplay(void)
             scycg = 32.0 - 28.0 * sin(xfg[0]);
             scxcb = 64.0 - 28.0 * cos(xfb[0]);
             scycb = 32.0 - 28.0 * sin(xfb[0]);
+            // Using this for both spring and pendulum
             totalenergyr = gravity * LEN_PENDULUMR * (1 - cos(xfr[0] - down))  + 0.5 * LEN_PENDULUMR * LEN_PENDULUMR * xfr[1] *
                            xfr[1];
             totalenergyg = gravity * LEN_PENDULUMG * (1 - cos(xfg[0] - down))  + 0.5 * LEN_PENDULUMG * LEN_PENDULUMG * xfg[1] *
@@ -385,7 +433,7 @@ void ICACHE_FLASH_ATTR roll3_updateDisplay(void)
             // totalenergyr = SPRINGCONSTR * (xfr[0] + pi / 2) * (xfr[0] + pi / 2) + xfr[1] * xfr[1];
             // totalenergyg = SPRINGCONSTG * (xfg[0] + pi / 2) * (xfg[0] + pi / 2) + xfg[1] * xfg[1];
             // totalenergyb = SPRINGCONSTB * (xfb[0] + pi / 2) * (xfb[0] + pi / 2) + xfb[1] * xfb[1];
-            os_printf("%d R %d G %d B %d\n", countframes++, (int)totalenergyr, (int)totalenergyg, (int)totalenergyb);
+            //os_printf("Total Energy at frame %d: R %d G %d B %d\n", countframes++, (int)totalenergyr, (int)totalenergyg, (int)totalenergyb);
             //os_printf("%d, %d, %d, %d, %d, %d\n", (int)totalenergyr, (int)totalenergyg, (int)totalenergyb, (int)(xfr[1] * xfr[1]),
             //          (int)(xfg[1] * xfg[1]), (int)(xfb[1] * xfb[1]));
             break;

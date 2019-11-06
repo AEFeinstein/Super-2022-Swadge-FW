@@ -8,6 +8,7 @@
 #ifndef MODES_MODE_ROLL_H_
 #define MODES_MODE_ROLL_H_
 #include "ode_solvers.h"
+
 // specify struct naming the needed parameters must all be FLOATING to match passed parameters array
 typedef struct pendP
 {
@@ -18,6 +19,16 @@ typedef struct pendP
     FLOATING gravity;
     FLOATING force;
 } pendParam;
+
+typedef struct springP
+{
+    FLOATING yAccel;
+    FLOATING xAccel;
+    FLOATING springConstant;
+    FLOATING damping;
+    FLOATING force;
+} springParam;
+
 
 typedef struct velP
 {
