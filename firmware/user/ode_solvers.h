@@ -17,9 +17,9 @@
  * Function Prototypes
  *==========================================================================*/
 
-void ICACHE_FLASH_ATTR rk4_dn1(void(dnx)(FLOATING, FLOATING [], FLOATING [], int),
-                               FLOATING ti, FLOATING h, FLOATING xi[], FLOATING xf[], int n);
-void ICACHE_FLASH_ATTR euler_dn1(void(dnx)(FLOATING, FLOATING [], FLOATING [], int),
-                                 FLOATING ti, FLOATING h, FLOATING xi[], FLOATING xf[], int n);
+void ICACHE_FLASH_ATTR rk4_dn1(void(dnx)(FLOATING, FLOATING [], FLOATING [], int, FLOATING []),
+                               FLOATING ti, FLOATING h, FLOATING xi[], FLOATING xf[], int n, FLOATING parameters[]);
+void ICACHE_FLASH_ATTR euler_dn1(void(dnx)(FLOATING, FLOATING [], FLOATING [], int, FLOATING []),
+                                 FLOATING ti, FLOATING h, FLOATING xi[], FLOATING xf[], int n, FLOATING parameters[]);
 
 #endif /* _ODE_SOLVERS_H_ */

@@ -31,7 +31,7 @@
  * Defines
  *==========================================================================*/
 //NOTE in ode_solvers.h is #define of FLOATING float    or double to test
-#define LEN_PENDULUM 1
+
 /*============================================================================
  * Prototypes
  *==========================================================================*/
@@ -47,13 +47,13 @@ void ICACHE_FLASH_ATTR rollAccelerometerHandler(accel_t* accel);
 void ICACHE_FLASH_ATTR roll_updateDisplay(void);
 //uint16_t ICACHE_FLASH_ATTR norm(int16_t xc, int16_t yc);
 void ICACHE_FLASH_ATTR setRollLeds(led_t* ledData, uint8_t ledDataLen);
-void dnxdampedpendulum(FLOATING, FLOATING [], FLOATING [], int );
-void dnx2dvelocity(FLOATING, FLOATING [], FLOATING [], int );
+void dnxdampedpendulum(FLOATING, FLOATING [], FLOATING [], int, FLOATING [] );
+void dnx2dvelocity(FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
 //brought in from ode_solvers.h
-//void rk4_dn1(void(*)(FLOATING, FLOATING [], FLOATING [], int ),
-//               FLOATING, FLOATING, FLOATING [], FLOATING [], int);
-//void euler_dn1(void(*)(FLOATING, FLOATING [], FLOATING [], int ),
-//               FLOATING, FLOATING, FLOATING [], FLOATING [], int);
+//void rk4_dn1(void(*)(FLOATING, FLOATING [], FLOATING [], int, FLOATING [] ),
+//               FLOATING, FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
+//void euler_dn1(void(*)(FLOATING, FLOATING [], FLOATING [], int , FLOATING []),
+//               FLOATING, FLOATING, FLOATING [], FLOATING [], int, , FLOATING []);
 
 /*============================================================================
  * Static Const Variables
@@ -84,6 +84,25 @@ swadgeMode rollMode =
     .fnEspNowSendCb = NULL,
     .fnAccelerometerCallback = rollAccelerometerHandler
 };
+
+// specify struct naming the needed parameters must all be FLOATING to match passed parameters array
+typedef struct pendP
+{
+    FLOATING yAccel;
+    FLOATING xAccel;
+    FLOATING lenPendulum;
+    FLOATING damping;
+    FLOATING gravity;
+    FLOATING force;
+} pendParam;
+
+typedef struct velP
+{
+    FLOATING yAccel;
+    FLOATING xAccel;
+    FLOATING gmult;
+    FLOATING force;
+} velParam;
 
 struct
 {
@@ -121,9 +140,10 @@ struct
     FLOATING yAccelSmoothed;
     FLOATING zAccelSmoothed;
     FLOATING len;
-
-    void (*rhs_fun_ptr)(FLOATING, FLOATING*, FLOATING*, int);
-    void (*adjustment_fun_ptr)(FLOATING, FLOATING*, FLOATING*, int);
+    pendParam pendulumParameters;
+    velParam velocityParameters;
+    void (*rhs_fun_ptr)(FLOATING, FLOATING*, FLOATING*, int, FLOATING*);
+    void (*adjustment_fun_ptr)(FLOATING, FLOATING*, FLOATING*, int, FLOATING*);
 
 } roll;
 
@@ -186,6 +206,13 @@ void ICACHE_FLASH_ATTR initializeConditionsForODE(uint8_t Method)
             roll.xi[1] = 0.0;             // initial angular speed in radians/ sec
             roll.dt = 0.1;                // step size for integration (s)
             roll.rhs_fun_ptr = &dnxdampedpendulum;
+            roll.pendulumParameters = (pendParam)
+            {
+                .damping = 0.05,
+                .lenPendulum = 1,
+                .gravity  = 9.81,
+                .force = 0
+            };
             roll.adjustment_fun_ptr = NULL;
             break;
         case 1:
@@ -196,6 +223,11 @@ void ICACHE_FLASH_ATTR initializeConditionsForODE(uint8_t Method)
             roll.xi[1] = 0.5;             // initial ycoor
             roll.dt = 0.1;                // step size for integration (s)
             roll.rhs_fun_ptr = &dnx2dvelocity;
+            roll.velocityParameters = (velParam)
+            {
+                .gmult = 200,
+                .force = 0
+            };
             break;
         default:
             (void)0;
@@ -208,7 +240,7 @@ void ICACHE_FLASH_ATTR initializeConditionsForODE(uint8_t Method)
 
 /*
 // Motion of thrown ball roll.numberoffirstordereqn=4, x = [xcoor, ycoor, xdot, ydot]
-void ICACHE_FLASH_ATTR dnx(FLOATING t, FLOATING x[], FLOATING dx[], int n)
+void ICACHE_FLASH_ATTR dnx(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
 {
 // to stop warning that t and n not used
    t = t;
@@ -226,38 +258,36 @@ void ICACHE_FLASH_ATTR dnx(FLOATING t, FLOATING x[], FLOATING dx[], int n)
 // Motion of damped rigid pendulum with gravity the downward component
 // of the accelerometer
 // Here roll.numberoffirstordereqn = 2, x is [th, thdot] position in radian, speed in radians/sec
-void ICACHE_FLASH_ATTR dnxdampedpendulum(FLOATING t, FLOATING x[], FLOATING dx[], int n)
+void ICACHE_FLASH_ATTR dnxdampedpendulum(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
 {
-    // to stop warning that t and n not used
+
+    // cast p1 to point to structure and assign to p
+    pendParam* p = (pendParam*)parameters;
+    // can now refer to the paramters p->a, p->b rather than p1[0], p1[1]   // to stop warning that t and n not used
     (void)t;
     (void)n;
     //first order
     dx[0] = x[1];
     // second order
-    FLOATING down = atan2(-roll.yAccel, -roll.xAccel);
-    //os_printf("100down = %d\n", (int)(100*down)); // down 0 is with positve x on accel pointing down
-    FLOATING force = 0.0; // later used for button replulsion
-    //os_printf("%d\n", (int)(100*roll.zAccel)); //roll.xAccel can exceed 1
+    FLOATING down = atan2(-p->yAccel, -p->xAccel);
     //NOTE as scaled accelerations can exceed 1 this computation sometime got error and then got negative overflow and all stopped working
     //dx[1] = force + -gravity * sqrt(1.0 - pow(roll.zAccel, 2)) / LEN_PENDULUM * sin(x[0] - down) - .05 * x[1];
     //USE safer calculation that won't get sqrt of negative number
-    dx[1] = force + -gravity * sqrt(pow(roll.xAccel, 2) + pow(roll.yAccel,
-                                    2)) / LEN_PENDULUM * sin(x[0] - down) - .05 * x[1];
+    dx[1] = p->force + -p->gravity * sqrt(pow(p->xAccel, 2) + pow(p->yAccel,
+                                          2)) / p->lenPendulum * sin(x[0] - down) - p->damping * x[1];
 }
 
 // Here 1st Order motion with velocity from accelerometer
-void ICACHE_FLASH_ATTR dnx2dvelocity(FLOATING t, FLOATING x[], FLOATING dx[], int n)
+void ICACHE_FLASH_ATTR dnx2dvelocity(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
 {
+    velParam* p = (velParam*)parameters;
     // to stop warning that t and n not used
     (void)t;
     (void)n;
     (void)x;
-    FLOATING force = 0.0;
-    //FLOATING friction = 1.0;
-    FLOATING gmult = 200;
     //first order
-    dx[0] = force + gmult * roll.xAccel;
-    dx[1] = force + gmult * roll.yAccel;
+    dx[0] = p->force + p->gmult * p->xAccel;
+    dx[1] = p->force + p->gmult * p->yAccel;
 }
 
 
@@ -296,12 +326,18 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
             // Do one step of ODE solver assigned to rhs_fun_pointer
             //euler_dn1(dnx, roll.ti, dt, roll.xi, roll.xf, roll.numberoffirstordereqn);
             //rk4_dn1(dnx, roll.ti, roll.dt, roll.xi, roll.xf, roll.numberoffirstordereqn);
-            rk4_dn1((*roll.rhs_fun_ptr), roll.ti, roll.dt, roll.xi, roll.xf, roll.numberoffirstordereqn);
+            roll.pendulumParameters.xAccel = roll.xAccel;
+            roll.pendulumParameters.yAccel = roll.yAccel;
+            rk4_dn1((*roll.rhs_fun_ptr), roll.ti, roll.dt, roll.xi, roll.xf, roll.numberoffirstordereqn,
+                    (FLOATING*)&roll.pendulumParameters);
             break;
         case 2:
         case 3:
             roll.tf = roll.ti + roll.dt;
-            euler_dn1((*roll.rhs_fun_ptr), roll.ti, roll.dt, roll.xi, roll.xf, roll.numberoffirstordereqn);
+            roll.velocityParameters.xAccel = roll.xAccel;
+            roll.velocityParameters.yAccel = roll.yAccel;
+            euler_dn1((*roll.rhs_fun_ptr), roll.ti, roll.dt, roll.xi, roll.xf, roll.numberoffirstordereqn,
+                      (FLOATING*)&roll.velocityParameters);
             break;
         default:
             (void)0;

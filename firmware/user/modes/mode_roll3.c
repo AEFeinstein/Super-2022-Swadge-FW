@@ -5,9 +5,6 @@
  *      Author: bbkiwi
  */
 
-//TODO
-//Pass parameters to DE solver to pass onto dx fnc
-//   can parameters be a struct?
 
 
 /*============================================================================
@@ -63,18 +60,18 @@ void ICACHE_FLASH_ATTR roll3AccelerometerHandler(accel_t* accel);
 void ICACHE_FLASH_ATTR roll3_updateDisplay(void);
 //uint16_t ICACHE_FLASH_ATTR norm(int16_t xc, int16_t yc);
 void ICACHE_FLASH_ATTR setRoll3Leds(led_t* ledData, uint8_t ledDataLen);
-void dnxdampedpendulumr(FLOATING, FLOATING [], FLOATING [], int);
-void dnxdampedpendulumg(FLOATING, FLOATING [], FLOATING [], int);
-void dnxdampedpendulumb(FLOATING, FLOATING [], FLOATING [], int);
-void dnxdampedspringr(FLOATING, FLOATING [], FLOATING [], int);
-void dnxdampedspringg(FLOATING, FLOATING [], FLOATING [], int);
-void dnxdampedspringb(FLOATING, FLOATING [], FLOATING [], int);
-void dnx2dvelocityRoll3(FLOATING, FLOATING [], FLOATING [], int );
+void dnxdampedpendulumr(FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
+void dnxdampedpendulumg(FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
+void dnxdampedpendulumb(FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
+void dnxdampedspringr(FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
+void dnxdampedspringg(FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
+void dnxdampedspringb(FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
+void dnx2dvelocityRoll3(FLOATING, FLOATING [], FLOATING [], int , FLOATING []);
 //brought in from ode_solvers.h
-//void rk4_dn1(void(*)(FLOATING, FLOATING [], FLOATING [], int ),
-//               FLOATING, FLOATING, FLOATING [], FLOATING [], int);
-//void euler_dn1(void(*)(FLOATING, FLOATING [], FLOATING [], int ),
-//               FLOATING, FLOATING, FLOATING [], FLOATING [], int);
+//void rk4_dn1(void(*)(FLOATING, FLOATING [], FLOATING [], int , FLOATING []),
+//               FLOATING, FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
+//void euler_dn1(void(*)(FLOATING, FLOATING [], FLOATING [], int , FLOATING []),
+//               FLOATING, FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
 
 /*============================================================================
  * Static Const Variables
@@ -149,11 +146,11 @@ FLOATING totalenergyb;
 FLOATING damping = .2;
 int16_t countframes;
 
-void (*rhs_fun_ptr)(FLOATING, FLOATING*, FLOATING*, int);
-void (*rhs_fun_ptrr)(FLOATING, FLOATING*, FLOATING*, int);
-void (*rhs_fun_ptrg)(FLOATING, FLOATING*, FLOATING*, int);
-void (*rhs_fun_ptrb)(FLOATING, FLOATING*, FLOATING*, int);
-void (*adjustment_fun_ptr)(FLOATING, FLOATING*, FLOATING*, int);
+void (*rhs_fun_ptr)(FLOATING, FLOATING*, FLOATING*, int, FLOATING*);
+void (*rhs_fun_ptrr)(FLOATING, FLOATING*, FLOATING*, int, FLOATING*);
+void (*rhs_fun_ptrg)(FLOATING, FLOATING*, FLOATING*, int, FLOATING*);
+void (*rhs_fun_ptrb)(FLOATING, FLOATING*, FLOATING*, int, FLOATING*);
+void (*adjustment_fun_ptr)(FLOATING, FLOATING*, FLOATING*, int, FLOATING*);
 
 /*============================================================================
  * Functions
@@ -245,7 +242,7 @@ void ICACHE_FLASH_ATTR initializeConditionsForODERoll3(uint8_t Method)
 // Motion of damped spring with gravity the downward component
 // of the accelerometer
 // Here numberoffirstordereqn = 2, x is [th, thdot] position in radian, speed in radians/sec
-void ICACHE_FLASH_ATTR dnxdampedspringr(FLOATING t, FLOATING x[], FLOATING dx[], int n)
+void ICACHE_FLASH_ATTR dnxdampedspringr(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
 {
     // to stop warning that t and n not used
     (void)t;
@@ -263,7 +260,7 @@ void ICACHE_FLASH_ATTR dnxdampedspringr(FLOATING t, FLOATING x[], FLOATING dx[],
 // Motion of damped rigid pendulum with gravity the downward component
 // of the accelerometer
 // Here numberoffirstordereqn = 2, x is [th, thdot] position in radian, speed in radians/sec
-void ICACHE_FLASH_ATTR dnxdampedpendulumr(FLOATING t, FLOATING x[], FLOATING dx[], int n)
+void ICACHE_FLASH_ATTR dnxdampedpendulumr(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
 {
     // to stop warning that t and n not used
     (void)t;
@@ -280,7 +277,7 @@ void ICACHE_FLASH_ATTR dnxdampedpendulumr(FLOATING t, FLOATING x[], FLOATING dx[
     //USE safer calculation that won't get sqrt of negative number
     dx[1] = force + -gravity * sqrt(pow(xAccel, 2) + pow(yAccel, 2)) / LEN_PENDULUMR * sin(x[0] - down) - .05 * x[1];
 }
-void ICACHE_FLASH_ATTR dnxdampedpendulumg(FLOATING t, FLOATING x[], FLOATING dx[], int n)
+void ICACHE_FLASH_ATTR dnxdampedpendulumg(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
 {
     // to stop warning that t and n not used
     (void)t;
@@ -298,7 +295,7 @@ void ICACHE_FLASH_ATTR dnxdampedpendulumg(FLOATING t, FLOATING x[], FLOATING dx[
     dx[1] = force + -gravity * sqrt(pow(xAccel, 2) + pow(yAccel, 2)) / LEN_PENDULUMG * sin(x[0] - down) - .05 * x[1];
 }
 
-void ICACHE_FLASH_ATTR dnxdampedspringg(FLOATING t, FLOATING x[], FLOATING dx[], int n)
+void ICACHE_FLASH_ATTR dnxdampedspringg(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
 {
     // to stop warning that t and n not used
     (void)t;
@@ -313,7 +310,7 @@ void ICACHE_FLASH_ATTR dnxdampedspringg(FLOATING t, FLOATING x[], FLOATING dx[],
             2))  * sin(x[0] - down) - damping * x[1];
 }
 
-void ICACHE_FLASH_ATTR dnxdampedpendulumb(FLOATING t, FLOATING x[], FLOATING dx[], int n)
+void ICACHE_FLASH_ATTR dnxdampedpendulumb(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
 {
     // to stop warning that t and n not used
     (void)t;
@@ -331,7 +328,7 @@ void ICACHE_FLASH_ATTR dnxdampedpendulumb(FLOATING t, FLOATING x[], FLOATING dx[
     dx[1] = force + -gravity * sqrt(pow(xAccel, 2) + pow(yAccel, 2)) / LEN_PENDULUMB * sin(x[0] - down) - .05 * x[1];
 }
 
-void ICACHE_FLASH_ATTR dnxdampedspringb(FLOATING t, FLOATING x[], FLOATING dx[], int n)
+void ICACHE_FLASH_ATTR dnxdampedspringb(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
 {
     // to stop warning that t and n not used
     (void)t;
@@ -348,7 +345,7 @@ void ICACHE_FLASH_ATTR dnxdampedspringb(FLOATING t, FLOATING x[], FLOATING dx[],
 
 
 // Here 1st Order motion with velocity from accelerometer
-void ICACHE_FLASH_ATTR dnx2dvelocityRoll3(FLOATING t, FLOATING x[], FLOATING dx[], int n)
+void ICACHE_FLASH_ATTR dnx2dvelocityRoll3(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
 {
     // to stop warning that t and n not used
     (void)t;
@@ -392,9 +389,9 @@ void ICACHE_FLASH_ATTR roll3_updateDisplay(void)
             // Do one step of ODE solver assigned to rhs_fun_pointer
             //euler_dn1(dnx, ti, dt, xi, xf, numberoffirstordereqn);
             //rk4_dn1(dnx, ti, dt, xi, xf, numberoffirstordereqn);
-            rk4_dn1((*rhs_fun_ptrr), ti, dt, xir, xfr, numberoffirstordereqn);
-            rk4_dn1((*rhs_fun_ptrg), ti, dt, xig, xfg, numberoffirstordereqn);
-            rk4_dn1((*rhs_fun_ptrb), ti, dt, xib, xfb, numberoffirstordereqn);
+            rk4_dn1((*rhs_fun_ptrr), ti, dt, xir, xfr, numberoffirstordereqn, NULL);
+            rk4_dn1((*rhs_fun_ptrg), ti, dt, xig, xfg, numberoffirstordereqn, NULL);
+            rk4_dn1((*rhs_fun_ptrb), ti, dt, xib, xfb, numberoffirstordereqn, NULL);
         default:
             (void)0;
     }
