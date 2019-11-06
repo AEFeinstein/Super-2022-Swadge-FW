@@ -60,18 +60,7 @@ void ICACHE_FLASH_ATTR roll3AccelerometerHandler(accel_t* accel);
 void ICACHE_FLASH_ATTR roll3_updateDisplay(void);
 //uint16_t ICACHE_FLASH_ATTR norm(int16_t xc, int16_t yc);
 void ICACHE_FLASH_ATTR setRoll3Leds(led_t* ledData, uint8_t ledDataLen);
-void dnxdampedpendulumr(FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
-void dnxdampedpendulumg(FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
-void dnxdampedpendulumb(FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
-void dnxdampedspringr(FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
-void dnxdampedspringg(FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
-void dnxdampedspringb(FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
-void dnx2dvelocityRoll3(FLOATING, FLOATING [], FLOATING [], int , FLOATING []);
-//brought in from ode_solvers.h
-//void rk4_dn1(void(*)(FLOATING, FLOATING [], FLOATING [], int , FLOATING []),
-//               FLOATING, FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
-//void euler_dn1(void(*)(FLOATING, FLOATING [], FLOATING [], int , FLOATING []),
-//               FLOATING, FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
+void dnxdampedspring(FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
 
 /*============================================================================
  * Static Const Variables
@@ -143,6 +132,9 @@ FLOATING lenb;
 FLOATING totalenergyr;
 FLOATING totalenergyg;
 FLOATING totalenergyb;
+pendParam pendulumParametersRed;
+pendParam pendulumParametersGreen;
+pendParam pendulumParametersBlue;
 FLOATING damping = .2;
 int16_t countframes;
 
@@ -208,9 +200,9 @@ void ICACHE_FLASH_ATTR initializeConditionsForODERoll3(uint8_t Method)
             xib[0] = sqrt(200 / SPRINGCONSTB) - pi / 2; // initial position in (m)
             xib[1] = 0.0;
             dt = 0.1;                // step size for integration (s)
-            rhs_fun_ptrr = &dnxdampedspringr;
-            rhs_fun_ptrg = &dnxdampedspringg;
-            rhs_fun_ptrb = &dnxdampedspringb;
+            rhs_fun_ptrr = &dnxdampedspring;
+            rhs_fun_ptrg = &dnxdampedspring;
+            rhs_fun_ptrb = &dnxdampedspring;
             adjustment_fun_ptr = NULL;
             break;
         case 2:
@@ -225,9 +217,30 @@ void ICACHE_FLASH_ATTR initializeConditionsForODERoll3(uint8_t Method)
             xib[0] = 0.0;             // initial angle position in (radians)
             xib[1] = 0.0;             // initial angular speed in radians/ sec
             dt = 0.1;                // step size for integration (s)
-            rhs_fun_ptrr = &dnxdampedpendulumr;
-            rhs_fun_ptrg = &dnxdampedpendulumg;
-            rhs_fun_ptrb = &dnxdampedpendulumb;
+            rhs_fun_ptrr = &dnxdampedpendulum;
+            rhs_fun_ptrg = &dnxdampedpendulum;
+            rhs_fun_ptrb = &dnxdampedpendulum;
+            pendulumParametersRed = (pendParam)
+            {
+                .damping = 0.05,
+                .lenPendulum = LEN_PENDULUMR,
+                .gravity  = 9.81,
+                .force = 0
+            };
+            pendulumParametersGreen = (pendParam)
+            {
+                .damping = 0.05,
+                .lenPendulum = LEN_PENDULUMG,
+                .gravity  = 9.81,
+                .force = 0
+            };
+            pendulumParametersBlue = (pendParam)
+            {
+                .damping = 0.05,
+                .lenPendulum = LEN_PENDULUMB,
+                .gravity  = 9.81,
+                .force = 0
+            };
             adjustment_fun_ptr = NULL;
             break;
         default:
@@ -242,7 +255,7 @@ void ICACHE_FLASH_ATTR initializeConditionsForODERoll3(uint8_t Method)
 // Motion of damped spring with gravity the downward component
 // of the accelerometer
 // Here numberoffirstordereqn = 2, x is [th, thdot] position in radian, speed in radians/sec
-void ICACHE_FLASH_ATTR dnxdampedspringr(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
+void ICACHE_FLASH_ATTR dnxdampedspring(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
 {
     // to stop warning that t and n not used
     (void)t;
@@ -257,107 +270,20 @@ void ICACHE_FLASH_ATTR dnxdampedspringr(FLOATING t, FLOATING x[], FLOATING dx[],
             2))  * sin(x[0] - down) - damping * x[1];
 }
 
-// Motion of damped rigid pendulum with gravity the downward component
-// of the accelerometer
-// Here numberoffirstordereqn = 2, x is [th, thdot] position in radian, speed in radians/sec
-void ICACHE_FLASH_ATTR dnxdampedpendulumr(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
-{
-    // to stop warning that t and n not used
-    (void)t;
-    (void)n;
-    //first order
-    dx[0] = x[1];
-    // second order
-    FLOATING down = atan2(-yAccel, -xAccel);
-    //os_printf("100down = %d\n", (int)(100 * down)); // down 0 is with positve x on accel pointing down
-    FLOATING force = 0.0; // later used for button replulsion
-    //os_printf("%d\n", (int)(100*zAccel)); //xAccel can exceed 1
-    //NOTE as scaled accelerations can exceed 1 this computation sometime got error and then got negative overflow and all stopped working
-    //dx[1] = force + -gravity * sqrt(1.0 - pow(zAccel, 2)) / LEN_PENDULUM * sin(x[0] - down) - .05 * x[1];
-    //USE safer calculation that won't get sqrt of negative number
-    dx[1] = force + -gravity * sqrt(pow(xAccel, 2) + pow(yAccel, 2)) / LEN_PENDULUMR * sin(x[0] - down) - .05 * x[1];
-}
-void ICACHE_FLASH_ATTR dnxdampedpendulumg(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
-{
-    // to stop warning that t and n not used
-    (void)t;
-    (void)n;
-    //first order
-    dx[0] = x[1];
-    // second order
-    FLOATING down = atan2(-yAccel, -xAccel);
-    //os_printf("100down = %d\n", (int)(100*down)); // down 0 is with positve x on accel pointing down
-    FLOATING force = 0.0; // later used for button replulsion
-    //os_printf("%d\n", (int)(100*zAccel)); //xAccel can exceed 1
-    //NOTE as scaled accelerations can exceed 1 this computation sometime got error and then got negative overflow and all stopped working
-    //dx[1] = force + -gravity * sqrt(1.0 - pow(zAccel, 2)) / LEN_PENDULUM * sin(x[0] - down) - .05 * x[1];
-    //USE safer calculation that won't get sqrt of negative number
-    dx[1] = force + -gravity * sqrt(pow(xAccel, 2) + pow(yAccel, 2)) / LEN_PENDULUMG * sin(x[0] - down) - .05 * x[1];
-}
-
-void ICACHE_FLASH_ATTR dnxdampedspringg(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
-{
-    // to stop warning that t and n not used
-    (void)t;
-    (void)n;
-    //first order
-    dx[0] = x[1];
-    // second order
-    FLOATING down = atan2(-yAccel, -xAccel);
-    //os_printf("100down = %d\n", (int)(100*down)); // down 0 is with positve x on accel pointing down
-    FLOATING force = 0.0; // later used for button replulsion
-    dx[1] = force - SPRINGCONSTG * (x[0] + pi / 2) - 0.2 * SPRINGCONSTG * sqrt(pow(xAccel, 2) + pow(yAccel,
-            2))  * sin(x[0] - down) - damping * x[1];
-}
-
-void ICACHE_FLASH_ATTR dnxdampedpendulumb(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
-{
-    // to stop warning that t and n not used
-    (void)t;
-    (void)n;
-    //first order
-    dx[0] = x[1];
-    // second order
-    FLOATING down = atan2(-yAccel, -xAccel);
-    //os_printf("100down = %d\n", (int)(100*down)); // down 0 is with positve x on accel pointing down
-    FLOATING force = 0.0; // later used for button replulsion
-    //os_printf("%d\n", (int)(100*zAccel)); //xAccel can exceed 1
-    //NOTE as scaled accelerations can exceed 1 this computation sometime got error and then got negative overflow and all stopped working
-    //dx[1] = force + -gravity * sqrt(1.0 - pow(zAccel, 2)) / LEN_PENDULUM * sin(x[0] - down) - .05 * x[1];
-    //USE safer calculation that won't get sqrt of negative number
-    dx[1] = force + -gravity * sqrt(pow(xAccel, 2) + pow(yAccel, 2)) / LEN_PENDULUMB * sin(x[0] - down) - .05 * x[1];
-}
-
-void ICACHE_FLASH_ATTR dnxdampedspringb(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
-{
-    // to stop warning that t and n not used
-    (void)t;
-    (void)n;
-    //first order
-    dx[0] = x[1];
-    // second order
-    FLOATING down = atan2(-yAccel, -xAccel);
-    //os_printf("100down = %d\n", (int)(100*down)); // down 0 is with positve x on accel pointing down
-    FLOATING force = 0.0; // later used for button replulsion
-    dx[1] = force - SPRINGCONSTB * (x[0] + pi / 2) - 0.2 * SPRINGCONSTB * sqrt(pow(xAccel, 2) + pow(yAccel,
-            2))  * sin(x[0] - down) - damping * x[1];
-}
-
-
-// Here 1st Order motion with velocity from accelerometer
-void ICACHE_FLASH_ATTR dnx2dvelocityRoll3(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
-{
-    // to stop warning that t and n not used
-    (void)t;
-    (void)n;
-    (void)x;
-    FLOATING force = 0.0;
-    //FLOATING friction = 1.0;
-    FLOATING gmult = 2;
-    //first order
-    dx[0] = force + gmult * xAccel;
-    dx[1] = force + gmult * yAccel;
-}
+// // Here 1st Order motion with velocity from accelerometer
+// void ICACHE_FLASH_ATTR dnx2dvelocityRoll3(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
+// {
+//     // to stop warning that t and n not used
+//     (void)t;
+//     (void)n;
+//     (void)x;
+//     FLOATING force = 0.0;
+//     //FLOATING friction = 1.0;
+//     FLOATING gmult = 2;
+//     //first order
+//     dx[0] = force + gmult * xAccel;
+//     dx[1] = force + gmult * yAccel;
+// }
 
 
 
@@ -382,9 +308,7 @@ void ICACHE_FLASH_ATTR roll3_updateDisplay(void)
     {
         case 0:
         case 1:
-        case 2:
-        case 3:
-
+            // Damped Spring
             tf = ti + dt;
             // Do one step of ODE solver assigned to rhs_fun_pointer
             //euler_dn1(dnx, ti, dt, xi, xf, numberoffirstordereqn);
@@ -392,6 +316,27 @@ void ICACHE_FLASH_ATTR roll3_updateDisplay(void)
             rk4_dn1((*rhs_fun_ptrr), ti, dt, xir, xfr, numberoffirstordereqn, NULL);
             rk4_dn1((*rhs_fun_ptrg), ti, dt, xig, xfg, numberoffirstordereqn, NULL);
             rk4_dn1((*rhs_fun_ptrb), ti, dt, xib, xfb, numberoffirstordereqn, NULL);
+        case 2:
+        case 3:
+            // Damped Pendulum
+            tf = ti + dt;
+            // Do one step of ODE solver assigned to rhs_fun_pointer
+            //euler_dn1(dnx, ti, dt, xi, xf, numberoffirstordereqn);
+            //rk4_dn1(dnx, ti, dt, xi, xf, numberoffirstordereqn);
+            pendulumParametersRed.xAccel = xAccel;
+            pendulumParametersRed.yAccel = yAccel;
+            pendulumParametersGreen.xAccel = xAccel;
+            pendulumParametersGreen.yAccel = yAccel;
+            pendulumParametersBlue.xAccel = xAccel;
+            pendulumParametersBlue.yAccel = yAccel;
+            //TODO if use this code starts ok but code below starts all bright and energy values overflowed!
+            // rk4_dn1((*rhs_fun_ptrr), ti, dt, xir, xfr, numberoffirstordereqn, (FLOATING*)&pendulumParametersRed);
+            // rk4_dn1((*rhs_fun_ptrg), ti, dt, xig, xfg, numberoffirstordereqn, (FLOATING*)&pendulumParametersGreen);
+            // rk4_dn1((*rhs_fun_ptrb), ti, dt, xib, xfb, numberoffirstordereqn, (FLOATING*)&pendulumParametersBlue);
+//TODO thought should be &dandampedpendulum but either works but mode starts with spring wrong
+            rk4_dn1(dnxdampedpendulum, ti, dt, xir, xfr, numberoffirstordereqn, (FLOATING*)&pendulumParametersRed);
+            rk4_dn1(dnxdampedpendulum, ti, dt, xig, xfg, numberoffirstordereqn, (FLOATING*)&pendulumParametersGreen);
+            rk4_dn1(dnxdampedpendulum, ti, dt, xib, xfb, numberoffirstordereqn, (FLOATING*)&pendulumParametersBlue);
         default:
             (void)0;
     }
@@ -504,12 +449,13 @@ void ICACHE_FLASH_ATTR roll3_updateDisplay(void)
                 led.color = colorsys.hsv_to_rgb(self.ball.meanspeed,1,1)
     */
 
+#define USE_6_LEDS
     switch (currentMethod)
     {
         case 0:
         case 2:
-//TODO should be == but want to test on my mockup
-#if SWADGE_VERSION != SWADGE_BBKIWI
+            //NOTE set to  == if want to test on my mockup with 16 leds
+#ifndef USE_6_LEDS
             for (uint8_t indLed = 0; indLed < NUM_LIN_LEDS ; indLed++)
             {
                 leds[indLed].r = totalenergyr;
@@ -527,11 +473,17 @@ void ICACHE_FLASH_ATTR roll3_updateDisplay(void)
             break;
         case 1:
         case 3:
+
 #define GAP 1
-            for (uint8_t indLed = 0; indLed < NUM_LIN_LEDS / GAP; indLed++)
+#ifdef USE_6_LEDS
+#define USE_NUM_LEDS 6
+#else
+#define USE_NUM_LEDS NUM_LIN_LEDS
+#endif
+            for (uint8_t indLed = 0; indLed < USE_NUM_LEDS / GAP; indLed++)
             {
-                int16_t ledy = Ssinonlytable[((indLed << 8) * GAP / NUM_LIN_LEDS + 0x80) % 256] * 28 / 1500; // from -1500 to 1500
-                int16_t ledx = Ssinonlytable[((indLed << 8) * GAP / NUM_LIN_LEDS + 0xC0) % 256] * 28 / 1500;
+                int16_t ledy = Ssinonlytable[((indLed << 8) * GAP / USE_NUM_LEDS + 0x80) % 256] * 28 / 1500; // from -1500 to 1500
+                int16_t ledx = Ssinonlytable[((indLed << 8) * GAP / USE_NUM_LEDS + 0xC0) % 256] * 28 / 1500;
                 lenr = sqrt((scxcr - 64 - ledx) * (scxcr - 64 - ledx) + (-scycr + 32 - ledy) * (-scycr + 32 - ledy));
                 leng = sqrt((scxcg - 64 - ledx) * (scxcg - 64 - ledx) + (-scycg + 32 - ledy) * (-scycg + 32 - ledy));
                 lenb = sqrt((scxcb - 64 - ledx) * (scxcb - 64 - ledx) + (-scycb + 32 - ledy) * (-scycb + 32 - ledy));
@@ -541,9 +493,15 @@ void ICACHE_FLASH_ATTR roll3_updateDisplay(void)
                 uint8_t glowb = 255 * pow(1.0 - (lenb / 56.0), 3);
                 //os_printf("%d %d %d %d %d %d %d \n",indLed, ledx, ledy, scxc, scyc, len, 255 - len * 4);
                 //leds[GAP*indLed].r = 255 - len * 4;
+#ifdef USE_6_LEDS
+                leds[ledOrderIndroll3[GAP * indLed]].r = glowr;
+                leds[ledOrderIndroll3[GAP * indLed]].g = glowg;
+                leds[ledOrderIndroll3[GAP * indLed]].b = glowb;
+#else
                 leds[GAP * indLed].r = glowr;
                 leds[GAP * indLed].g = glowg;
                 leds[GAP * indLed].b = glowb;
+#endif
             }
             break;
         default:

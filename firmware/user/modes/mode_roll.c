@@ -25,7 +25,7 @@
 #include "bresenham.h"
 #include "buttons.h"
 #include "math.h"
-#include "ode_solvers.h"
+
 
 /*============================================================================
  * Defines
@@ -47,8 +47,8 @@ void ICACHE_FLASH_ATTR rollAccelerometerHandler(accel_t* accel);
 void ICACHE_FLASH_ATTR roll_updateDisplay(void);
 //uint16_t ICACHE_FLASH_ATTR norm(int16_t xc, int16_t yc);
 void ICACHE_FLASH_ATTR setRollLeds(led_t* ledData, uint8_t ledDataLen);
-void dnxdampedpendulum(FLOATING, FLOATING [], FLOATING [], int, FLOATING [] );
-void dnx2dvelocity(FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
+//void dnxdampedpendulum(FLOATING, FLOATING [], FLOATING [], int, FLOATING [] );
+//void dnx2dvelocity(FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
 //brought in from ode_solvers.h
 //void rk4_dn1(void(*)(FLOATING, FLOATING [], FLOATING [], int, FLOATING [] ),
 //               FLOATING, FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
@@ -85,24 +85,6 @@ swadgeMode rollMode =
     .fnAccelerometerCallback = rollAccelerometerHandler
 };
 
-// specify struct naming the needed parameters must all be FLOATING to match passed parameters array
-typedef struct pendP
-{
-    FLOATING yAccel;
-    FLOATING xAccel;
-    FLOATING lenPendulum;
-    FLOATING damping;
-    FLOATING gravity;
-    FLOATING force;
-} pendParam;
-
-typedef struct velP
-{
-    FLOATING yAccel;
-    FLOATING xAccel;
-    FLOATING gmult;
-    FLOATING force;
-} velParam;
 
 struct
 {
