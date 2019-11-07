@@ -43,6 +43,7 @@
 #endif
 #include "mode_roll3.h"
 #include "mode_roll.h"
+#include "mode_magfestons.h"
 
 /*============================================================================
  * Defines
@@ -88,7 +89,8 @@ swadgeMode* swadgeModes[] =
     &rollMode,
     &roll3Mode,
     &galleryMode,
-    &muteOption
+    &muteOption,
+    &magfestonsMode
 };
 bool swadgeModeInit = false;
 rtcMem_t rtcMem = {0};
