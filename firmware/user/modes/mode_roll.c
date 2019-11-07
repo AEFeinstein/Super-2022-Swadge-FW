@@ -98,6 +98,8 @@ struct
     int LedCount;
     FLOATING scxc;
     FLOATING scyc;
+    FLOATING scxchold;
+    FLOATING scychold;
 
 
     /* global variables for ODE */
@@ -181,6 +183,7 @@ void ICACHE_FLASH_ATTR initializeConditionsForODE(uint8_t Method)
     switch(Method)
     {
         case 0:
+        case 1:
             // For damped pendulum
             roll.numberoffirstordereqn = 2;
             roll.ti = 0.0;                // initial value for variable t
@@ -197,7 +200,8 @@ void ICACHE_FLASH_ATTR initializeConditionsForODE(uint8_t Method)
             };
             roll.adjustment_fun_ptr = NULL;
             break;
-        case 1:
+        case 2:
+        case 3:
             // For velocity controlled ball in plane
             roll.numberoffirstordereqn = 2;
             roll.ti = 0.0;                // initial value for variable t
@@ -405,6 +409,13 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
                 // scale normalized vector to length 28 to keep ball within bounds of screen
                 roll.scxc = 64.0 + 28.0 * roll.scxc / roll.len;
                 roll.scyc = 32.0 + 28.0 * roll.scyc / roll.len;
+                roll.scxchold = roll.scxc;
+                roll.scychold = roll.scyc;
+            }
+            else
+            {
+                roll.scxc = roll.scxchold;
+                roll.scyc = roll.scychold;
             }
             break;
         default:
