@@ -41,6 +41,7 @@ typedef struct velP
 
 void dnxdampedpendulum(FLOATING, FLOATING [], FLOATING [], int, FLOATING [] );
 void dnx2dvelocity(FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
+void dnxdampedspring(FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
 
 
 #include "ode_solvers.h"

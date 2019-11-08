@@ -41,7 +41,7 @@
 #ifdef TEST_MODE
     #include "mode_test.h"
 #endif
-#include "mode_roll3.h"
+//#include "mode_roll3.h"
 #include "mode_roll.h"
 #include "mode_magfestons.h"
 
@@ -87,7 +87,7 @@ swadgeMode* swadgeModes[] =
     &mazerfMode,
     &colorMoveMode,
     &rollMode,
-    &roll3Mode,
+    //&roll3Mode,
     &magfestonsMode,
     &galleryMode,
 #if SWADGE_VERSION != SWADGE_2019
@@ -372,7 +372,7 @@ static void ICACHE_FLASH_ATTR pollAccel(void* arg __attribute__((unused)))
         //TODO put code to return random, specific periods, or L/R button presses
         accel.x = 0;
         accel.y = 0;
-        accel.z = 255
+        accel.z = 255;
 #endif
 
         swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback(&accel);

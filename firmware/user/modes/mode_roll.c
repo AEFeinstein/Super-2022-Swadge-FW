@@ -31,7 +31,20 @@
  * Defines
  *==========================================================================*/
 //NOTE in ode_solvers.h is #define of FLOATING float    or double to test
+// LEDs relation to screen
+#define LED_UPPER_LEFT LED_1
+#define LED_UPPER_MID LED_2
+#define LED_UPPER_RIGHT LED_3
+#define LED_LOWER_RIGHT LED_4
+#define LED_LOWER_MID LED_5
+#define LED_LOWER_LEFT LED_6
 
+#define LEN_PENDULUMR sqrt(2.0)
+#define LEN_PENDULUMG sqrt(3.0)
+#define LEN_PENDULUMB sqrt(5.0)
+#define SPRINGCONSTR 5.0
+#define SPRINGCONSTG 20.0
+#define SPRINGCONSTB 45.0
 /*============================================================================
  * Prototypes
  *==========================================================================*/
@@ -47,13 +60,7 @@ void ICACHE_FLASH_ATTR rollAccelerometerHandler(accel_t* accel);
 void ICACHE_FLASH_ATTR roll_updateDisplay(void);
 //uint16_t ICACHE_FLASH_ATTR norm(int16_t xc, int16_t yc);
 void ICACHE_FLASH_ATTR setRollLeds(led_t* ledData, uint8_t ledDataLen);
-//void dnxdampedpendulum(FLOATING, FLOATING [], FLOATING [], int, FLOATING [] );
-//void dnx2dvelocity(FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
-//brought in from ode_solvers.h
-//void rk4_dn1(void(*)(FLOATING, FLOATING [], FLOATING [], int, FLOATING [] ),
-//               FLOATING, FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
-//void euler_dn1(void(*)(FLOATING, FLOATING [], FLOATING [], int , FLOATING []),
-//               FLOATING, FLOATING, FLOATING [], FLOATING [], int, , FLOATING []);
+// other protypes in mode_roll.h and ode_solvers.h
 
 /*============================================================================
  * Static Const Variables
@@ -95,12 +102,18 @@ struct
     uint8_t ButtonState;
     uint8_t Brightnessidx;
     led_t leds[NUM_LIN_LEDS];
+    uint8_t ledOrderInd[6];
     int LedCount;
     FLOATING scxc;
     FLOATING scyc;
     FLOATING scxchold;
     FLOATING scychold;
-
+    FLOATING scxcr;
+    FLOATING scycr;
+    FLOATING scxcg;
+    FLOATING scycg;
+    FLOATING scxcb;
+    FLOATING scycb;
 
     /* global variables for ODE */
     //const FLOATING gravity = 9.81;               // free fall acceleration in m/s^2
@@ -113,6 +126,9 @@ struct
     FLOATING dt;
     FLOATING xi[MAX_EQNS];
     FLOATING xf[MAX_EQNS];
+    FLOATING xir[MAX_EQNS], xfr[MAX_EQNS];
+    FLOATING xig[MAX_EQNS], xfg[MAX_EQNS];
+    FLOATING xib[MAX_EQNS], xfb[MAX_EQNS];
     FLOATING v0;
     FLOATING a0;
     bool useHighPassAccel;
@@ -124,12 +140,27 @@ struct
     FLOATING yAccelSmoothed;
     FLOATING zAccelSmoothed;
     FLOATING len;
+    FLOATING lenr;
+    FLOATING leng;
+    FLOATING lenb;
+    FLOATING totalenergyr;
+    FLOATING totalenergyg;
+    FLOATING totalenergyb;
+    int16_t countframes;
+    pendParam pendulumParametersRed;
+    pendParam pendulumParametersGreen;
+    pendParam pendulumParametersBlue;
+    springParam springParametersRed;
+    springParam springParametersGreen;
+    springParam springParametersBlue;
     pendParam pendulumParameters;
     velParam velocityParameters;
     void (*rhs_fun_ptr)(FLOATING, FLOATING*, FLOATING*, int, FLOATING*);
     void (*adjustment_fun_ptr)(FLOATING, FLOATING*, FLOATING*, int, FLOATING*);
 
 } roll;
+
+const FLOATING pi = 3.15159;
 
 /*============================================================================
  * Functions
@@ -142,14 +173,27 @@ struct
 void ICACHE_FLASH_ATTR rollEnterMode(void)
 {
     roll.currentMethod = 0;
-    roll.numMethods = 8;
+    roll.numMethods = 12;
     //roll.Accel = {0};
     roll.ButtonState = 0;
     roll.Brightnessidx = 2;
     roll.LedCount = 0;
     roll.scxc = 0;
     roll.scyc = 0;
+    roll.scxcr = 0;
+    roll.scycr = 0;
+    roll.scxcg = 0;
+    roll.scycg = 0;
+    roll.scxcb = 0;
+    roll.scycb = 0;
     roll.alpha = 0.02;
+    roll.ledOrderInd[0] = LED_UPPER_LEFT;
+    roll.ledOrderInd[1] = LED_LOWER_LEFT;
+    roll.ledOrderInd[2] = LED_LOWER_MID;
+    roll.ledOrderInd[3] = LED_LOWER_RIGHT;
+    roll.ledOrderInd[4] = LED_UPPER_RIGHT;
+    roll.ledOrderInd[5] = LED_UPPER_MID;
+
     enableDebounce(false);
     initializeConditionsForODE(roll.currentMethod);
 
@@ -215,6 +259,76 @@ void ICACHE_FLASH_ATTR initializeConditionsForODE(uint8_t Method)
                 .force = 0
             };
             break;
+        case 8:
+        case 9:
+            // For damped spring
+            roll.numberoffirstordereqn = 2;
+            roll.ti = 0.0;                // initial value for variable t
+            // Choose initial position so all have same max potential energy
+            roll.xir[0] = sqrt(200 / SPRINGCONSTR) - pi / 2; // initial position in (m)
+            roll.xir[1] = 0.0;                              // initial speed in m/ sec
+            roll.xig[0] = sqrt(200 / SPRINGCONSTG) - pi / 2; // initial position in (m)
+            roll.xig[1] = 0.0;
+            roll.xib[0] = sqrt(200 / SPRINGCONSTB) - pi / 2; // initial position in (m)
+            roll.xib[1] = 0.0;
+            roll.dt = 0.1;                // step size for integration (s)
+            roll.rhs_fun_ptr = &dnxdampedspring;
+            roll.springParametersRed = (springParam)
+            {
+                .damping = 0.2,
+                .springConstant = SPRINGCONSTR,
+                .force = 0
+            };
+            roll.springParametersGreen = (springParam)
+            {
+                .damping = 0.2,
+                .springConstant = SPRINGCONSTG,
+                .force = 0
+            };
+            roll.springParametersBlue = (springParam)
+            {
+                .damping = 0.1,
+                .springConstant = SPRINGCONSTB,
+                .force = 0
+            };
+            roll.adjustment_fun_ptr = NULL;
+            break;
+        case 10:
+        case 11:
+            // For damped pendulum
+            roll.numberoffirstordereqn = 2;
+            roll.ti = 0.0;                // initial value for variable t
+            roll.xir[0] = 0.0;             // initial angle position in (radians)
+            roll.xir[1] = 0.0;             // initial angular speed in radians/ sec
+            roll.xig[0] = 0.0;             // initial angle position in (radians)
+            roll.xig[1] = 0.0;             // initial angular speed in radians/ sec
+            roll.xib[0] = 0.0;             // initial angle position in (radians)
+            roll.xib[1] = 0.0;             // initial angular speed in radians/ sec
+            roll.dt = 0.1;                // step size for integration (s)
+            roll.rhs_fun_ptr = &dnxdampedpendulum;
+            roll.pendulumParametersRed = (pendParam)
+            {
+                .damping = 0.05,
+                .lenPendulum = LEN_PENDULUMR,
+                .gravity  = 9.81,
+                .force = 0
+            };
+            roll.pendulumParametersGreen = (pendParam)
+            {
+                .damping = 0.05,
+                .lenPendulum = LEN_PENDULUMG,
+                .gravity  = 9.81,
+                .force = 0
+            };
+            roll.pendulumParametersBlue = (pendParam)
+            {
+                .damping = 0.05,
+                .lenPendulum = LEN_PENDULUMB,
+                .gravity  = 9.81,
+                .force = 0
+            };
+            roll.adjustment_fun_ptr = NULL;
+            break;
         default:
             (void)0;
     }
@@ -263,6 +377,34 @@ void ICACHE_FLASH_ATTR dnxdampedpendulum(FLOATING t, FLOATING x[], FLOATING dx[]
                                           2)) / p->lenPendulum * sin(x[0] - down) - p->damping * x[1];
 }
 
+
+// Motion of damped spring with gravity the downward component
+// of the accelerometer
+// Here numberoffirstordereqn = 2, x is [th, thdot] position in radian, speed in radians/sec
+void ICACHE_FLASH_ATTR dnxdampedspring(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
+{
+    // cast p1 to point to structure and assign to p
+    springParam* p = (springParam*)parameters;
+    // can now refer to the paramters p->a, p->b rather than p1[0], p1[1]
+
+    // to stop warning that t and n not used
+    (void)t;
+    (void)n;
+    //os_printf("IN  t %d x[0] %d x[1] %d dx[0] %d dx[1] %d n %d\n", (int)(100 * t), (int)(100 * x[0]), (int)(100 * x[1]),
+    //          (int)(100 * dx[0]), (int)(100 * dx[1]), n);
+    //first order
+    dx[0] = x[1];
+    // second order
+    FLOATING down = atan2(-p->yAccel, -p->xAccel);
+    //os_printf("100down = %d\n", (int)(100*down)); // down 0 is with positve x on accel pointing down
+    dx[1] = p->force - p->springConstant * (x[0] + pi / 2)  - p->damping * x[1] - p->springConstant * sqrt(pow(p->xAccel,
+            2) + pow(p->yAccel,
+                     2))  * sin(x[0] - down);
+    //os_printf("OUT t %d x[0] %d x[1] %d dx[0] %d dx[1] %d n %d\n\n", (int)(100 * t), (int)(100 * x[0]), (int)(100 * x[1]),
+    //          (int)(100 * dx[0]), (int)(100 * dx[1]), n);
+
+}
+
 // Here 1st Order motion with velocity from accelerometer
 void ICACHE_FLASH_ATTR dnx2dvelocity(FLOATING t, FLOATING x[], FLOATING dx[], int n, FLOATING parameters[])
 {
@@ -297,6 +439,8 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
         case 3:
         case 5:
         case 7:
+        case 9:
+        case 11:
             roll.useHighPassAccel = true;
             break;
         default:
@@ -325,6 +469,51 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
             euler_dn1((*roll.rhs_fun_ptr), roll.ti, roll.dt, roll.xi, roll.xf, roll.numberoffirstordereqn,
                       (FLOATING*)&roll.velocityParameters);
             break;
+
+        case 8:
+        case 9:
+            // Damped Spring
+            roll.tf = roll.ti + roll.dt;
+            // Do one step of ODE solver to dnx assigned to rhs_fun_pointer
+            // Need to update accel values in parameters
+            roll.springParametersRed.xAccel = roll.xAccel;
+            roll.springParametersRed.yAccel = roll.yAccel;
+            roll.springParametersGreen.xAccel = roll.xAccel;
+            roll.springParametersGreen.yAccel = roll.yAccel;
+            roll.springParametersBlue.xAccel = roll.xAccel;
+            roll.springParametersBlue.yAccel = roll.yAccel;
+            rk4_dn1((*roll.rhs_fun_ptr), roll.ti, roll.dt, roll.xir, roll.xfr, roll.numberoffirstordereqn,
+                    (FLOATING*)&roll.springParametersRed);
+            rk4_dn1((*roll.rhs_fun_ptr), roll.ti, roll.dt, roll.xig, roll.xfg, roll.numberoffirstordereqn,
+                    (FLOATING*)&roll.springParametersGreen);
+            rk4_dn1((*roll.rhs_fun_ptr), roll.ti, roll.dt, roll.xib, roll.xfb, roll.numberoffirstordereqn,
+                    (FLOATING*)&roll.springParametersBlue);
+            break;
+        case 10:
+        case 11:
+            // Damped Pendulum
+            roll.tf = roll.ti + roll.dt;
+            // Do one step of ODE solver to dnx assigned to rhs_fun_pointer
+            // Need to update accel values in parameters
+            roll.pendulumParametersRed.xAccel = roll.xAccel;
+            roll.pendulumParametersRed.yAccel = roll.yAccel;
+            roll.pendulumParametersGreen.xAccel = roll.xAccel;
+            roll.pendulumParametersGreen.yAccel = roll.yAccel;
+            roll.pendulumParametersBlue.xAccel = roll.xAccel;
+            roll.pendulumParametersBlue.yAccel = roll.yAccel;
+            //Old but don't need pointer
+            //rk4_dn1((*rhs_fun_ptrr), ti, dt, xir, xfr, numberoffirstordereqn, (FLOATING*)&pendulumParametersRed);
+            //rk4_dn1((*rhs_fun_ptrg), ti, dt, xig, xfg, numberoffirstordereqn, (FLOATING*)&pendulumParametersGreen);
+            //rk4_dn1((*rhs_fun_ptrb), ti, dt, xib, xfb, numberoffirstordereqn, (FLOATING*)&pendulumParametersBlue);
+            //TODO thought should be &dandampedpendulum but either works but mode starts with spring wrong
+            rk4_dn1(dnxdampedpendulum, roll.ti, roll.dt, roll.xir, roll.xfr, roll.numberoffirstordereqn,
+                    (FLOATING*)&roll.pendulumParametersRed);
+            rk4_dn1(dnxdampedpendulum, roll.ti, roll.dt, roll.xig, roll.xfg, roll.numberoffirstordereqn,
+                    (FLOATING*)&roll.pendulumParametersGreen);
+            rk4_dn1(dnxdampedpendulum, roll.ti, roll.dt, roll.xib, roll.xfb, roll.numberoffirstordereqn,
+                    (FLOATING*)&roll.pendulumParametersBlue);
+            break;
+
         default:
             (void)0;
     }
@@ -348,6 +537,19 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
                 //os_printf("%d ", (int)(100 * roll.xi[i]));
             }
             //os_printf("\n");
+
+            break;
+        case 8:
+        case 9:
+        case 10:
+        case 11:
+            roll.ti = roll.tf;
+            for (uint8_t i = 0; i < roll.numberoffirstordereqn; i++)
+            {
+                roll.xir[i] = roll.xfr[i];
+                roll.xig[i] = roll.xfg[i];
+                roll.xib[i] = roll.xfb[i];
+            }
             break;
         case 2:
         case 3:
@@ -374,6 +576,7 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
 
     // Insure solution coordinates on OLED for the moving ball
     // OLED xcoord from 0 (left) to 127, ycoord from 0(top) to 63
+    FLOATING down = atan2(-roll.yAccel, -roll.xAccel);
 
     switch (roll.currentMethod)
     {
@@ -418,44 +621,179 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
                 roll.scyc = roll.scychold;
             }
             break;
+
+        case 8:
+        case 9:
+            roll.scxcr = 64.0 - 16 * (roll.xfr[0] + pi / 2);
+            roll.scycr = 10.0;
+            roll.scxcg = 64.0 - 16 * (roll.xfg[0] + pi / 2);
+            roll.scycg = 32.0;
+            roll.scxcb = 64.0 - 16 * (roll.xfb[0] + pi / 2);
+            roll.scycb = 54.0;
+            roll.totalenergyr = SPRINGCONSTR * (roll.xfr[0] + pi / 2) * (roll.xfr[0] + pi / 2) + roll.xfr[1] *
+                                roll.xfr[1];
+            roll.totalenergyg = SPRINGCONSTG * (roll.xfg[0] + pi / 2) * (roll.xfg[0] + pi / 2) + roll.xfg[1] *
+                                roll.xfg[1];
+            roll.totalenergyb = SPRINGCONSTB * (roll.xfb[0] + pi / 2) * (roll.xfb[0] + pi / 2) + roll.xfb[1] *
+                                roll.xfb[1];
+            break;
+        case 10:
+        case 11:
+            roll.scxcr = 64.0 - 28.0 * cos(roll.xfr[0]);
+            roll.scycr = 32.0 - 28.0 * sin(roll.xfr[0]);
+            roll.scxcg = 64.0 - 28.0 * cos(roll.xfg[0]);
+            roll.scycg = 32.0 - 28.0 * sin(roll.xfg[0]);
+            roll.scxcb = 64.0 - 28.0 * cos(roll.xfb[0]);
+            roll.scycb = 32.0 - 28.0 * sin(roll.xfb[0]);
+            // Using this for pendulum
+            roll.totalenergyr = gravity * LEN_PENDULUMR * (1 - cos(roll.xfr[0] - down))  + 0.5 * LEN_PENDULUMR * LEN_PENDULUMR *
+                                roll.xfr[1] *
+                                roll.xfr[1];
+            roll.totalenergyg = gravity * LEN_PENDULUMG * (1 - cos(roll.xfg[0] - down))  + 0.5 * LEN_PENDULUMG * LEN_PENDULUMG *
+                                roll.xfg[1] *
+                                roll.xfg[1];
+            roll.totalenergyb = gravity * LEN_PENDULUMB * (1 - cos(roll.xfb[0] - down))  + 0.5 * LEN_PENDULUMB * LEN_PENDULUMB *
+                                roll.xfb[1] *
+                                roll.xfb[1];
+            break;
+
+
         default:
             (void)0;
     }
 
-    // Draw virtual ball
-    plotCircle(roll.scxc, roll.scyc, 5, WHITE);
-    plotCircle(roll.scxc, roll.scyc, 3, WHITE);
-    plotCircle(roll.scxc, roll.scyc, 1, WHITE);
+    switch (roll.currentMethod)
+    {
+        case 0:
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+        case 6:
+        case 7:
+            // Draw virtual ball
+            plotCircle(roll.scxc, roll.scyc, 5, WHITE);
+            plotCircle(roll.scxc, roll.scyc, 3, WHITE);
+            plotCircle(roll.scxc, roll.scyc, 1, WHITE);
 
-    char uiStr[32] = {0};
-    ets_snprintf(uiStr, sizeof(uiStr), "%d", roll.currentMethod);
-    plotText(57, 31, uiStr, IBM_VGA_8, WHITE);
+            char uiStr[32] = {0};
+            ets_snprintf(uiStr, sizeof(uiStr), "%d", roll.currentMethod);
+            plotText(57, 31, uiStr, IBM_VGA_8, WHITE);
 
-    //os_printf("(%d, %d\n", (int)roll.scxc, (int)roll.scyc);
+            //os_printf("(%d, %d\n", (int)roll.scxc, (int)roll.scyc);
 
-    // LEDs, all off
-    ets_memset(roll.leds, 0, sizeof(roll.leds));
+            // LEDs, all off
+            ets_memset(roll.leds, 0, sizeof(roll.leds));
 #define GAP 1
 
-    /*  Python
-        for led in self.leds:
-            led.alpha = (1 - abs(self.ball.position - led.position)/(30+2*self.size.h/2.5))**3
-            if self.framecount % 1 == 0:
-                led.color = colorsys.hsv_to_rgb(self.ball.meanspeed,1,1)
-    */
+            /*  Python
+                for led in self.leds:
+                    led.alpha = (1 - abs(self.ball.position - led.position)/(30+2*self.size.h/2.5))**3
+                    if self.framecount % 1 == 0:
+                        led.color = colorsys.hsv_to_rgb(self.ball.meanspeed,1,1)
+            */
 
-    for (uint8_t indLed = 0; indLed < NUM_LIN_LEDS / GAP; indLed++)
-    {
-        int16_t ledy = Ssinonlytable[((indLed << 8) * GAP / NUM_LIN_LEDS + 0x80) % 256] * 28 / 1500; // from -1500 to 1500
-        int16_t ledx = Ssinonlytable[((indLed << 8) * GAP / NUM_LIN_LEDS + 0xC0) % 256] * 28 / 1500;
-        roll.len = sqrt((roll.scxc - 64 - ledx) * (roll.scxc - 64 - ledx) + (-roll.scyc + 32 - ledy) *
-                        (-roll.scyc + 32 - ledy));
-        //roll.len = norm(roll.scxc - ledx, roll.scyc - ledy);
-        uint8_t glow = 255 * pow(1.0 - (roll.len / 56.0), 3);
-        //os_printf("%d %d %d %d %d %d %d \n",indLed, ledx, ledy, scxc, roll.scyc, roll.len, 255 - roll.len * 4);
-        //roll.leds[GAP*indLed].r = 255 - roll.len * 4;
-        roll.leds[GAP * indLed].r = glow;
+            for (uint8_t indLed = 0; indLed < NUM_LIN_LEDS / GAP; indLed++)
+            {
+                int16_t ledy = Ssinonlytable[((indLed << 8) * GAP / NUM_LIN_LEDS + 0x80) % 256] * 28 / 1500; // from -1500 to 1500
+                int16_t ledx = Ssinonlytable[((indLed << 8) * GAP / NUM_LIN_LEDS + 0xC0) % 256] * 28 / 1500;
+                roll.len = sqrt((roll.scxc - 64 - ledx) * (roll.scxc - 64 - ledx) + (-roll.scyc + 32 - ledy) *
+                                (-roll.scyc + 32 - ledy));
+                //roll.len = norm(roll.scxc - ledx, roll.scyc - ledy);
+                uint8_t glow = 255 * pow(1.0 - (roll.len / 56.0), 3);
+                //os_printf("%d %d %d %d %d %d %d \n",indLed, ledx, ledy, scxc, roll.scyc, roll.len, 255 - roll.len * 4);
+                //roll.leds[GAP*indLed].r = 255 - roll.len * 4;
+                roll.leds[GAP * indLed].r = glow;
+            }
+            break;
+        case 8:
+        case 9:
+            plotText(roll.scxcr, roll.scycr, "R", IBM_VGA_8, WHITE);
+            plotText(roll.scxcg, roll.scycg, "G", IBM_VGA_8, WHITE);
+            plotText(roll.scxcb, roll.scycb, "B", IBM_VGA_8, WHITE);
+            break;
+        case 10:
+        case 11:
+            plotText(.95 * roll.scxcr, .95 * roll.scycr, "R", IBM_VGA_8, WHITE);
+            plotText(.9 * roll.scxcg, .9 * roll.scycg, "G", IBM_VGA_8, WHITE);
+            plotText(.85 * roll.scxcb, .85 * roll.scycb, "B", IBM_VGA_8, WHITE);
+            //plotCircle(scxcr, scycr, 5, WHITE);
+            //plotCircle(scxcr, scycr, 3, WHITE);
+            //plotCircle(scxcr, scycr, 1, WHITE);
+            //plotCircle(scxcg, scycg, 5, WHITE);
+            //plotCircle(scxcg, scycg, 3, WHITE);
+            //plotCircle(scxcg, scycg, 1, WHITE);
+            //plotCircle(scxcb, scycb, 5, WHITE);
+            //plotCircle(scxcb, scycb, 3, WHITE);
+            //plotCircle(scxcb, scycb, 1, WHITE);
+            break;
+        default:
+            (void)0;
     }
+
+#define USE_6_LEDS
+
+    switch (roll.currentMethod)
+    {
+        case 8:
+        case 9:
+            //NOTE set to  == if want to test on my mockup with 16 leds
+#ifndef USE_6_LEDS
+            for (uint8_t indLed = 0; indLed < NUM_LIN_LEDS ; indLed++)
+            {
+                roll.leds[indLed].r = roll.totalenergyr;
+                roll.leds[indLed].g = roll.totalenergyg;
+                roll.leds[indLed].b = roll.totalenergyb;
+            }
+#else
+            for (uint8_t indLed = 0; indLed < 6 ; indLed++)
+            {
+                roll.leds[roll.ledOrderInd[indLed]].r = roll.totalenergyr;
+                roll.leds[roll.ledOrderInd[indLed]].g = roll.totalenergyg;
+                roll.leds[roll.ledOrderInd[indLed]].b = roll.totalenergyb;
+            }
+#endif
+            break;
+        case 10:
+        case 11:
+#define GAP 1
+#ifdef USE_6_LEDS
+#define USE_NUM_LEDS 6
+#else
+#define USE_NUM_LEDS NUM_LIN_LEDS
+#endif
+            for (uint8_t indLed = 0; indLed < USE_NUM_LEDS / GAP; indLed++)
+            {
+                int16_t ledy = Ssinonlytable[((indLed << 8) * GAP / USE_NUM_LEDS + 0x80) % 256] * 28 / 1500; // from -1500 to 1500
+                int16_t ledx = Ssinonlytable[((indLed << 8) * GAP / USE_NUM_LEDS + 0xC0) % 256] * 28 / 1500;
+                roll.lenr = sqrt((roll.scxcr - 64 - ledx) * (roll.scxcr - 64 - ledx) + (-roll.scycr + 32 - ledy) *
+                                 (-roll.scycr + 32 - ledy));
+                roll.leng = sqrt((roll.scxcg - 64 - ledx) * (roll.scxcg - 64 - ledx) + (-roll.scycg + 32 - ledy) *
+                                 (-roll.scycg + 32 - ledy));
+                roll.lenb = sqrt((roll.scxcb - 64 - ledx) * (roll.scxcb - 64 - ledx) + (-roll.scycb + 32 - ledy) *
+                                 (-roll.scycb + 32 - ledy));
+                //len = norm(roll.scxc - ledx, roll.scyc - ledy);
+                uint8_t glowr = 255 * pow(1.0 - (roll.lenr / 56.0), 3);
+                uint8_t glowg = 255 * pow(1.0 - (roll.leng / 56.0), 3);
+                uint8_t glowb = 255 * pow(1.0 - (roll.lenb / 56.0), 3);
+                //os_printf("%d %d %d %d %d %d %d \n",indLed, ledx, ledy, scxc, scyc, len, 255 - len * 4);
+                //roll.leds[GAP*indLed].r = 255 - len * 4;
+#ifdef USE_6_LEDS
+                roll.leds[roll.ledOrderInd[GAP * indLed]].r = glowr;
+                roll.leds[roll.ledOrderInd[GAP * indLed]].g = glowg;
+                roll.leds[roll.ledOrderInd[GAP * indLed]].b = glowb;
+#else
+                roll.leds[GAP * indLed].r = glowr;
+                roll.leds[GAP * indLed].g = glowg;
+                roll.leds[GAP * indLed].b = glowb;
+#endif
+            }
+            break;
+        default:
+            (void)0;
+    }
+
     setRollLeds(roll.leds, sizeof(roll.leds));
 
 }
