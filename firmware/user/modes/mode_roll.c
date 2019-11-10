@@ -647,20 +647,20 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
             roll.scycb = 32.0 - 28.0 * sin(roll.xfb[0]);
             // Using this for pendulum
             roll.totalenergyr = gravity * LEN_PENDULUMR * (1 - cos(roll.xfr[0] - down))  + 0.5 * LEN_PENDULUMR * LEN_PENDULUMR *
-                                roll.xfr[1] *
-                                roll.xfr[1];
+                                roll.xfr[1] * roll.xfr[1];
             roll.totalenergyg = gravity * LEN_PENDULUMG * (1 - cos(roll.xfg[0] - down))  + 0.5 * LEN_PENDULUMG * LEN_PENDULUMG *
-                                roll.xfg[1] *
-                                roll.xfg[1];
+                                roll.xfg[1] * roll.xfg[1];
             roll.totalenergyb = gravity * LEN_PENDULUMB * (1 - cos(roll.xfb[0] - down))  + 0.5 * LEN_PENDULUMB * LEN_PENDULUMB *
-                                roll.xfb[1] *
-                                roll.xfb[1];
+                                roll.xfb[1] * roll.xfb[1];
             break;
 
 
         default:
             (void)0;
     }
+    char uiStr[32] = {0};
+    ets_snprintf(uiStr, sizeof(uiStr), "%d", roll.currentMethod);
+    plotText(57, 31, uiStr, IBM_VGA_8, WHITE);
 
     switch (roll.currentMethod)
     {
@@ -677,9 +677,7 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
             plotCircle(roll.scxc, roll.scyc, 3, WHITE);
             plotCircle(roll.scxc, roll.scyc, 1, WHITE);
 
-            char uiStr[32] = {0};
-            ets_snprintf(uiStr, sizeof(uiStr), "%d", roll.currentMethod);
-            plotText(57, 31, uiStr, IBM_VGA_8, WHITE);
+
 
             //os_printf("(%d, %d\n", (int)roll.scxc, (int)roll.scyc);
 

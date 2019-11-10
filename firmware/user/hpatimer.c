@@ -49,7 +49,7 @@ volatile bool hpaRunning = false;
 
 struct
 {
-    noteFreq_t note;
+    int32_t note;
     const song_t* song;
     uint32_t noteTime;
     uint32_t noteIdx;
@@ -163,7 +163,7 @@ void ICACHE_FLASH_ATTR initBuzzer(void)
  * @param note The musical note to be played. The numerical value is
  *             5000000/(2*freq). It's written to registers in StartHPATimer()
  */
-void ICACHE_FLASH_ATTR setBuzzerNote(noteFreq_t note)
+void ICACHE_FLASH_ATTR setBuzzerNote(int32_t note)
 {
     // If it's muted, don't set anything
     if(getIsMutedOption())
@@ -207,7 +207,7 @@ void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song)
     os_timer_arm(&bzr.songTimer, 1, true);
 
     // Start playing the first note
-    setBuzzerNote(bzr.song->notes[bzr.noteIdx].note);
+    setBuzzerNote((int32_t)bzr.song->notes[bzr.noteIdx].note);
 }
 
 /**
