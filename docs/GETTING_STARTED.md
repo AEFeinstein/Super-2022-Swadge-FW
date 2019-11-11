@@ -8,6 +8,10 @@ The Swadge is compiled from a Linux environment. If you have one of those alread
 
 You can also set up a Linux virtual machine, like [Xubuntu](https://xubuntu.org/download/) running in [VirtualBox](https://www.virtualbox.org/wiki/Downloads). Google for a guide if you need one.
 
+It is also possible to set up a Mac environment using a fork of pfalcon's esp-open-sdk (see below). See the following which outlines the procedure. https://github.com/pfalcon/esp-open-sdk/issues/342
+especially the comments made on March 15 2019 by phibo23. 
+
+
 # 2. Compiling and Flashing a Swadge
 
 1. Update your packages and install all dependencies
