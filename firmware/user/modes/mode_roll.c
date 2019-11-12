@@ -25,6 +25,8 @@
 #include "bresenham.h"
 #include "buttons.h"
 #include "math.h"
+#include "buzzer.h" // music notes
+#include "hpatimer.h" //buzzer functions
 
 
 /*============================================================================
@@ -45,6 +47,8 @@
 #define SPRINGCONSTR 5.0
 #define SPRINGCONSTG 20.0
 #define SPRINGCONSTB 45.0
+
+#define MAX_NUM_NOTES 30
 /*============================================================================
  * Prototypes
  *==========================================================================*/
@@ -60,6 +64,8 @@ void ICACHE_FLASH_ATTR rollAccelerometerHandler(accel_t* accel);
 void ICACHE_FLASH_ATTR roll_updateDisplay(void);
 //uint16_t ICACHE_FLASH_ATTR norm(int16_t xc, int16_t yc);
 void ICACHE_FLASH_ATTR setRollLeds(led_t* ledData, uint8_t ledDataLen);
+int32_t ICACHE_FLASH_ATTR midi2note(uint8_t mid);
+void ICACHE_FLASH_ATTR generateScale(uint8_t* midiScale, uint8_t numNotes);
 // other protypes in mode_roll.h and ode_solvers.h
 
 /*============================================================================
@@ -104,6 +110,9 @@ struct
     led_t leds[NUM_LIN_LEDS];
     uint8_t ledOrderInd[6];
     int LedCount;
+    int32_t midiNote;
+    uint8_t numNotes;
+    uint8_t midiScale[MAX_NUM_NOTES];
     FLOATING scxc;
     FLOATING scyc;
     FLOATING scxchold;
@@ -172,7 +181,7 @@ const FLOATING pi = 3.15159;
  */
 void ICACHE_FLASH_ATTR rollEnterMode(void)
 {
-    roll.currentMethod = 0;
+    roll.currentMethod = 6;
     roll.numMethods = 12;
     //roll.Accel = {0};
     roll.ButtonState = 0;
@@ -195,6 +204,8 @@ void ICACHE_FLASH_ATTR rollEnterMode(void)
     roll.ledOrderInd[5] = LED_UPPER_MID;
 
     enableDebounce(false);
+    roll.numNotes = 9;
+    generateScale(roll.midiScale, roll.numNotes );
     initializeConditionsForODE(roll.currentMethod);
 
 }
@@ -793,7 +804,10 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
     }
 
     setRollLeds(roll.leds, sizeof(roll.leds));
-
+    // Set midiNote
+    uint8_t notenum = (int)(roll.numNotes * atan2(roll.scxc - 64, roll.scyc - 32) / 2.0 / pi) + (roll.numNotes >> 1);
+    roll.midiNote = midi2note(roll.midiScale[notenum]);
+    //os_printf("notenum = %d,   midi = %d,  roll.midiNote = %d\n", notenum, roll.midiScale[notenum], roll.midiNote);
 }
 
 
@@ -813,18 +827,27 @@ void ICACHE_FLASH_ATTR rollButtonCallback( uint8_t state,
     {
         if(2 == button)
         {
-            // Cycle movement methods
-            roll.currentMethod = (roll.currentMethod + 1) % roll.numMethods;
-            os_printf("roll.currentMethod = %d\n", roll.currentMethod);
-            //reset init conditions for new method
-            initializeConditionsForODE(roll.currentMethod);
+            setBuzzerNote(roll.midiNote);
         }
         if(1 == button)
         {
             // Cycle brightnesses
             roll.Brightnessidx = (roll.Brightnessidx + 1) %
                                  (sizeof(rollBrightnesses) / sizeof(rollBrightnesses[0]));
+            if (roll.Brightnessidx == 0)
+            {
+                // Cycle movement methods
+                roll.currentMethod = (roll.currentMethod + 1) % roll.numMethods;
+                os_printf("roll.currentMethod = %d\n", roll.currentMethod);
+                //reset init conditions for new method
+                initializeConditionsForODE(roll.currentMethod);
+            }
         }
+    }
+    else
+    {
+        //os_printf("up \n");
+        stopBuzzerSong();
     }
 }
 
@@ -871,3 +894,83 @@ void ICACHE_FLASH_ATTR setRollLeds(led_t* ledData, uint8_t ledDataLen)
     }
     setLeds(ledData, ledDataLen);
 }
+
+
+/*
+def midiToFreq(mid):
+    if mid is None:
+        return (None, None, None, None, None)
+    letNames = {0:'c', 1:'c#', 2:'d', 3:'d#', 4:'e', 5:'f', 6:'f#', 7:'g', 8:'g#', 9:'a', 10:'a#', 11:'b'}
+    freq = 55 * pow(2, (mid - 33 )/12)
+    oct = int(mid / 12) - 1
+    note = mid % 12
+    k = int(abs(oct - 2.5))
+    symbol = letNames[note] + "'" * k if oct > 2.5 else letNames[note].upper() + "," * k
+    return (freq, symbol , oct, note, colorsys.hsv_to_rgb(note/12,1,1)  )
+*/
+
+/**
+ * Converts midi number to int32_t to be used as note
+ *
+ * @param mid
+ */
+int32_t ICACHE_FLASH_ATTR midi2note(uint8_t mid)
+{
+    int32_t freq = 55.0 * pow(2.0, ((float)mid - 33.0 ) / 12.0);
+    return 2500000 / freq;
+}
+
+void ICACHE_FLASH_ATTR generateScale(uint8_t* midiScale, uint8_t numNotes)
+{
+    uint8_t i;
+    uint8_t j = 0;
+    //uint8_t intervals[] = {2, 3, 2, 2, 3}; // pentatonic
+    uint8_t intervals[] = {2, 2, 1, 2, 2, 2, 1}; // major
+
+    uint8_t n = sizeof(intervals) / sizeof(uint8_t);
+    uint8_t baseMidi = 80;
+    midiScale[0] = baseMidi;
+    for (i = 1; i < numNotes; i++)
+    {
+        if (i >= MAX_NUM_NOTES)
+        {
+            return;
+        }
+        midiScale[i] = midiScale[i - 1] + intervals[j];
+        j++;
+        if (j >= n)
+        {
+            j = 0;
+        }
+    }
+}
+
+
+/*
+def generateScale(musicalScale, numNotes=6, baseMidi=60, name='pentatonic'):
+    '''baseMidi is in the middle and work forward and backward
+    '''
+    intervals = dict(
+        pentatonic=[2,3,2,2,3],
+        major=[2,2,1,2,2,2,1],
+        minor=[2,1,2,2,1,2,2],
+        arpeggiomaj=[4,3,5],
+        arpeggiomin=[3,4,5],
+        diminished=[3,3,3,3],
+        augmented=[4,4,4],
+        wholetone=[2,2,2,2,2,2],
+        chromatic=[1],
+        circleof5=[7,-5,7,-5,7,-5,-5])
+
+    x = baseMidi
+    for k in range(int(numNotes/2)):
+        nextint = intervals[name].pop()
+        intervals[name].insert(0,nextint)
+        x -= nextint
+
+    for n in range(numNotes):
+        musicalScale.append(x)
+        nextint = intervals[name].pop(0)
+        intervals[name].append(nextint)
+        x += nextint
+*/
