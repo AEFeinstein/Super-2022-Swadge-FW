@@ -805,7 +805,8 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
 
     setRollLeds(roll.leds, sizeof(roll.leds));
     // Set midiNote
-    uint8_t notenum = (int)(roll.numNotes * atan2(roll.scxc - 64, roll.scyc - 32) / 2.0 / pi) + (roll.numNotes >> 1);
+    //TODO are notes spread equally around circle?
+    uint8_t notenum = (int)(0.5 + roll.numNotes * atan2(roll.scxc - 64, roll.scyc - 32) / 2.0 / pi) + (roll.numNotes >> 1);
     roll.midiNote = midi2note(roll.midiScale[notenum]);
     //os_printf("notenum = %d,   midi = %d,  roll.midiNote = %d\n", notenum, roll.midiScale[notenum], roll.midiNote);
 }
@@ -924,11 +925,11 @@ void ICACHE_FLASH_ATTR generateScale(uint8_t* midiScale, uint8_t numNotes)
 {
     uint8_t i;
     uint8_t j = 0;
-    //uint8_t intervals[] = {2, 3, 2, 2, 3}; // pentatonic
-    uint8_t intervals[] = {2, 2, 1, 2, 2, 2, 1}; // major
+    uint8_t intervals[] = {2, 3, 2, 2, 3}; // pentatonic
+    //uint8_t intervals[] = {2, 2, 1, 2, 2, 2, 1}; // major
 
     uint8_t n = sizeof(intervals) / sizeof(uint8_t);
-    uint8_t baseMidi = 80;
+    uint8_t baseMidi = 84; // 80; // with major and 9 notes
     midiScale[0] = baseMidi;
     for (i = 1; i < numNotes; i++)
     {

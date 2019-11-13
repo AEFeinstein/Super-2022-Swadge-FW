@@ -179,6 +179,7 @@ void ICACHE_FLASH_ATTR setBuzzerNote(int32_t note)
     // Start the timer if we're not playing silence
     if(SILENCE != bzr.note)
     {
+        os_printf("note %d freq %d\n", note, 2500000 / note);
         StartHPATimer();
     }
 }
