@@ -206,6 +206,8 @@ void ICACHE_FLASH_ATTR music_updateDisplay(void)
     music.zAccel = music.Accel.z / 256.0;
 
     //os_printf("%d %d %d\n", (int)(100 * music.xAccel), (int)(100 * music.yAccel), (int)(100 * music.zAccel));
+
+    // Specify using High Pass Accel for the examples
     switch (music.currentMethod)
     {
         case 1:
@@ -236,7 +238,9 @@ void ICACHE_FLASH_ATTR music_updateDisplay(void)
             music.scxc = music.Accel.x;
             music.scyc = music.Accel.y;
             music.len = sqrt(music.scxc * music.scxc + music.scyc * music.scyc);
-            if (music.len > 0)
+            // Larger IGNORE_RADIUS ignore nearly horizontal readings
+#define IGNORE_RADIUS 0.2
+            if (music.len > IGNORE_RADIUS)
             {
                 // scale normalized vector to length 28 to keep ball within bounds of screen
                 music.scxc = 64.0 + 28.0 * music.scxc / music.len;
@@ -461,7 +465,7 @@ void ICACHE_FLASH_ATTR generateScale(uint8_t* midiScale, uint8_t numNotes, uint8
     uint8_t i;
     uint8_t j = 0;
     //os_printf("n = %d\n", nIntervals);
-    uint8_t baseMidi = 84; // 80; // with major and 9 notes
+    uint8_t baseMidi = 90; // 80; // with major and 9 notes
     midiScale[0] = baseMidi;
     for (i = 1; i < numNotes; i++)
     {
