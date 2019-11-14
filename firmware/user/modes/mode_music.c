@@ -10,7 +10,9 @@
  *==========================================================================*/
 
 #include <osapi.h>
-
+#include "buzzer.h" // music notes
+#include "hpatimer.h" //buzzer functions
+#include "embeddedout.h" // EHSVtoHEX
 #include "user_main.h"
 #include "mode_music.h"
 #include "DFT32.h"
@@ -21,9 +23,7 @@
 #include "bresenham.h"
 #include "buttons.h"
 #include "math.h"
-#include "buzzer.h" // music notes
-#include "hpatimer.h" //buzzer functions
-#include "embeddedout.h" // EHSVtoHEX
+
 
 
 /*============================================================================
@@ -101,7 +101,7 @@ struct
     led_t leds[NUM_LIN_LEDS];
     uint8_t ledOrderInd[6];
     int LedCount;
-    int32_t midiNote;
+    notePeriod_t midiNote;
     uint8_t numNotes;
     uint8_t midiScale[MAX_NUM_NOTES];
     float scxc;
@@ -448,11 +448,11 @@ def midiToFreq(mid):
 */
 
 /**
- * Converts midi number to int32_t to be used as note
+ * Converts midi number to notePeriod_t to be used as note
  *
  * @param mid
  */
-int32_t ICACHE_FLASH_ATTR midi2note(uint8_t mid)
+notePeriod_t ICACHE_FLASH_ATTR midi2note(uint8_t mid)
 {
     int32_t freq = 55.0 * pow(2.0, ((float)mid - 33.0 ) / 12.0);
     return 2500000 / freq;

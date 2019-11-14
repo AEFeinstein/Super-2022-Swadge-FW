@@ -112,7 +112,7 @@ struct
     led_t leds[NUM_LIN_LEDS];
     uint8_t ledOrderInd[6];
     int LedCount;
-    int32_t midiNote;
+    notePeriod_t midiNote;
     uint8_t numNotes;
     uint8_t midiScale[MAX_NUM_NOTES];
     FLOATING scxc;

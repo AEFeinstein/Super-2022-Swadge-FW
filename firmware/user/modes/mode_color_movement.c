@@ -838,7 +838,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         // could be from 110 to 880 say if buzzer can accept changing
         // freq. Or could be discrete jumps to pentatonic scale
         //  from buzzer.h to play freq f need  compute period (5,000,000 / (2 * f))
-        //  to set up a noteFreq_t (NOTE should be notePeriod_t)
+        //  to set up a notePeriod_t
         //  then set up musicalNote_t with this and a duration
 
         //pitch = (min( max(bpmFromTau, 75), 150) - 75) / 75;
