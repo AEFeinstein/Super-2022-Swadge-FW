@@ -8,6 +8,7 @@
 #include "display/oled.h"
 #include "display/font.h"
 #include "custom_commands.h"
+#include "mode_dance.h"
 
 /*============================================================================
  * Defines
@@ -23,6 +24,10 @@
 void ICACHE_FLASH_ATTR modeInit(void);
 void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state, int button, int down);
 void ICACHE_FLASH_ATTR drawMenu(void);
+
+static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unused)));
+static void ICACHE_FLASH_ATTR menuAnimateScreensaver(void* arg __attribute__((unused)));
+void ICACHE_FLASH_ATTR stopScreensaver(void);
 
 /*============================================================================
  * Variables
@@ -48,6 +53,10 @@ uint8_t selectedMode = 0;
 uint8_t menuPos = 0;
 uint8_t cursorPos = 0;
 
+os_timer_t timerScreensaverStart = {0};
+os_timer_t timerScreensaverAnimation = {0};
+uint8_t menuScreensaverIdx = 0;
+
 /*============================================================================
  * Variables
  *==========================================================================*/
@@ -66,6 +75,16 @@ void ICACHE_FLASH_ATTR modeInit(void)
     menuPos = 0;
     cursorPos = 0;
 
+    // Timer for starting a screensaver
+    os_timer_disarm(&timerScreensaverStart);
+    os_timer_setfn(&timerScreensaverStart, (os_timer_func_t*)menuStartScreensaver, NULL);
+
+    // Timer for running a screensaver
+    os_timer_disarm(&timerScreensaverAnimation);
+    os_timer_setfn(&timerScreensaverAnimation, (os_timer_func_t*)menuAnimateScreensaver, NULL);
+
+    stopScreensaver();
+
     drawMenu();
 }
 
@@ -79,6 +98,9 @@ void ICACHE_FLASH_ATTR modeInit(void)
 void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down)
 {
+    // Stop the screensaver
+    stopScreensaver();
+
     if(down)
     {
         switch(button)
@@ -197,4 +219,46 @@ void ICACHE_FLASH_ATTR drawMenu(void)
                      modes[modeToDraw]->modeName, IBM_VGA_8, WHITE);
         }
     }
+}
+
+/**
+ * @brief Called on a timer if there's no user input to start a screensaver
+ *
+ * @param arg unused
+ */
+static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unused)))
+{
+    // Pick a random screensaver
+    menuScreensaverIdx = os_random() % getNumDances();
+
+    // Animate it at the given period
+    os_timer_disarm(&timerScreensaverStart);
+    os_timer_arm(&timerScreensaverAnimation, danceTimers[menuScreensaverIdx].period, true);
+}
+
+/**
+ * @brief Called on a timer to animate a screensaver
+ *
+ * @param arg unused
+ */
+static void ICACHE_FLASH_ATTR menuAnimateScreensaver(void* arg __attribute__((unused)))
+{
+    // Animation!
+    danceTimers[menuScreensaverIdx].timerFn(NULL);
+}
+
+/**
+ * @brief Stop the screensaver and set it up to run again if idle
+ *
+ */
+void ICACHE_FLASH_ATTR stopScreensaver(void)
+{
+    // Stop the current screensaver
+    os_timer_disarm(&timerScreensaverAnimation);
+    led_t leds[NUM_LIN_LEDS] = {{0}};
+    setLeds(leds, sizeof(leds));
+
+    // Start a timer to start the screensaver if there's no input
+    os_timer_disarm(&timerScreensaverStart);
+    os_timer_arm(&timerScreensaverStart, 5000, false);
 }

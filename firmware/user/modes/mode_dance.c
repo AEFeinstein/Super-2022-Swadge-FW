@@ -21,17 +21,6 @@
 #include "mode_dance.h"
 
 /*============================================================================
- * Structs
- *==========================================================================*/
-
-typedef struct
-{
-    os_timer_t timer;       ///< This is a system timer
-    void (*timerFn)(void*); ///< This is a function which will be attached to the timer
-    uint32_t period;        ///< This is the period, in ms, at which the function will be called
-} timerWithPeriod;
-
-/*============================================================================
  * Prototypes
  *==========================================================================*/
 
@@ -46,6 +35,25 @@ void ICACHE_FLASH_ATTR unlockAnimation(void* arg);
 
 void ICACHE_FLASH_ATTR freeze_color(void* arg);
 void ICACHE_FLASH_ATTR random_dance_mode(void* arg);
+
+void ICACHE_FLASH_ATTR danceTimerMode1(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode2(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode3(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode4(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode5(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode6(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode7(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode8(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode9(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode10(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode11(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode12(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode13(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode14(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode15(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode16(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode17(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode18(void* arg);
 
 /*============================================================================
  * Static Const Variables
@@ -71,103 +79,83 @@ uint8_t danceBrightnessIdx = 0;
 timerWithPeriod danceTimers[] =
 {
     {
-        .timer = {0},
         .timerFn = danceTimerMode1,
         .period = 100
     },
     {
-        .timer = {0},
         .timerFn = danceTimerMode2,
         .period = 100
     },
     {
-        .timer = {0},
         .timerFn = danceTimerMode3,
         .period = 100
     },
     {
-        .timer = {0},
         .timerFn = danceTimerMode4,
         .period = 5
     },
     {
-        .timer = {0},
         .timerFn = danceTimerMode5,
         .period = 100
     },
     {
-        .timer = {0},
         .timerFn = danceTimerMode6,
         .period = 80
     },
     {
-        .timer = {0},
         .timerFn = danceTimerMode8,
         .period = 300
     },
     {
-        .timer = {0},
         .timerFn = danceTimerMode9,
         .period = 100
     },
     {
-        .timer = {0},
         .timerFn = danceTimerMode10,
         .period = 100
     },
     {
-        .timer = {0},
         .timerFn = danceTimerMode11,
         .period = 100
     },
     {
-        .timer = {0},
         .timerFn = danceTimerMode12,
         .period = 100
     },
     {
-        .timer = {0},
         .timerFn = danceTimerMode13,
         .period = 2
     },
     {
-        .timer = {0},
         .timerFn = danceTimerMode14,
         .period = 10
     },
     {
-        .timer = {0},
         .timerFn = danceTimerMode15,
         .period = 100
     },
     {
-        .timer = {0},
         .timerFn = danceTimerMode16,
         .period = 120
     },
     {
-        .timer = {0},
         .timerFn = danceTimerMode17,
         .period = 100
     },
     {
-        .timer = {0},
         .timerFn = danceTimerMode18,
         .period = 7
     },
     {
-        .timer = {0},
         .timerFn = danceTimerMode7,
         .period = 70
     },
     {
-        .timer = {0},
         .timerFn = freeze_color,
         .period = 40
     },
     // Note this MUST be last so that random mode never calls random mode
     {
-        .timer = {0},
         .timerFn = random_dance_mode,
         .period = 1
     }
@@ -1059,4 +1047,14 @@ void ICACHE_FLASH_ATTR random_dance_mode(void* arg __attribute__((unused)))
 
     // Increment the timer
     random_dance_timer += 1;
+}
+
+/**
+ * @brief Get the number of dances
+ *
+ * @return uint8_t getNumDances
+ */
+uint8_t ICACHE_FLASH_ATTR getNumDances(void)
+{
+    return sizeof(danceTimers) / sizeof(danceTimers[0]);
 }
