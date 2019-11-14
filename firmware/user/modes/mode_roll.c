@@ -27,6 +27,7 @@
 #include "math.h"
 #include "buzzer.h" // music notes
 #include "hpatimer.h" //buzzer functions
+#include "mode_music.h"
 
 
 /*============================================================================
@@ -49,6 +50,9 @@
 #define SPRINGCONSTB 45.0
 
 #define MAX_NUM_NOTES 30
+
+// update task (16 would give 60 fps like ipad, need read accel that fast too?)
+#define UPDATE_TIME_MS 16
 /*============================================================================
  * Prototypes
  *==========================================================================*/
@@ -64,8 +68,6 @@ void ICACHE_FLASH_ATTR rollAccelerometerHandler(accel_t* accel);
 void ICACHE_FLASH_ATTR roll_updateDisplay(void);
 //uint16_t ICACHE_FLASH_ATTR norm(int16_t xc, int16_t yc);
 void ICACHE_FLASH_ATTR setRollLeds(led_t* ledData, uint8_t ledDataLen);
-int32_t ICACHE_FLASH_ATTR midi2note(uint8_t mid);
-void ICACHE_FLASH_ATTR generateScale(uint8_t* midiScale, uint8_t numNotes);
 // other protypes in mode_roll.h and ode_solvers.h
 
 /*============================================================================
@@ -141,13 +143,18 @@ struct
     FLOATING v0;
     FLOATING a0;
     bool useHighPassAccel;
+    bool useSmooth;
     FLOATING xAccel;
     FLOATING yAccel;
     FLOATING zAccel;
-    FLOATING alpha;
-    FLOATING xAccelSmoothed;
-    FLOATING yAccelSmoothed;
-    FLOATING zAccelSmoothed;
+    FLOATING alphaSlow;
+    FLOATING alphaSmooth;
+    FLOATING xAccelSlowAve;
+    FLOATING yAccelSlowAve;
+    FLOATING zAccelSlowAve;
+    FLOATING xAccelHighPassSmoothed;
+    FLOATING yAccelHighPassSmoothed;
+    FLOATING zAccelHighPassSmoothed;
     FLOATING len;
     FLOATING lenr;
     FLOATING leng;
@@ -169,18 +176,24 @@ struct
 
 } roll;
 
+static os_timer_t timerHandleUpdate = {0};
 const FLOATING pi = 3.15159;
 
 /*============================================================================
  * Functions
  *==========================================================================*/
 
-
 /**
  * Initializer for roll
  */
 void ICACHE_FLASH_ATTR rollEnterMode(void)
 {
+
+    // Start the update loop.
+    os_timer_disarm(&timerHandleUpdate);
+    os_timer_setfn(&timerHandleUpdate, (os_timer_func_t*)roll_updateDisplay, NULL);
+    os_timer_arm(&timerHandleUpdate, UPDATE_TIME_MS, 1);
+
     roll.currentMethod = 6;
     roll.numMethods = 12;
     //roll.Accel = {0};
@@ -195,7 +208,9 @@ void ICACHE_FLASH_ATTR rollEnterMode(void)
     roll.scycg = 0;
     roll.scxcb = 0;
     roll.scycb = 0;
-    roll.alpha = 0.02;
+    roll.alphaSlow = 0.02; // for finding long term moving average
+    roll.alphaSmooth = 0.3; // for slight smoothing of High Pass Accel
+    roll.useSmooth = true;
     roll.ledOrderInd[0] = LED_UPPER_LEFT;
     roll.ledOrderInd[1] = LED_LOWER_LEFT;
     roll.ledOrderInd[2] = LED_LOWER_MID;
@@ -205,7 +220,8 @@ void ICACHE_FLASH_ATTR rollEnterMode(void)
 
     enableDebounce(false);
     roll.numNotes = 9;
-    generateScale(roll.midiScale, roll.numNotes );
+    uint8_t intervals[] = {2, 3, 2, 2, 3}; // pentatonic
+    generateScale(roll.midiScale, roll.numNotes, intervals, sizeof(intervals) );
     initializeConditionsForODE(roll.currentMethod);
 
 }
@@ -215,7 +231,7 @@ void ICACHE_FLASH_ATTR rollEnterMode(void)
  */
 void ICACHE_FLASH_ATTR rollExitMode(void)
 {
-
+    os_timer_disarm(&timerHandleUpdate);
 }
 
 /**
@@ -808,6 +824,8 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
     //TODO are notes spread equally around circle?
     uint8_t notenum = (int)(0.5 + roll.numNotes * atan2(roll.scxc - 64, roll.scyc - 32) / 2.0 / pi) + (roll.numNotes >> 1);
     roll.midiNote = midi2note(roll.midiScale[notenum]);
+    // if want continous change at each frame
+    //setBuzzerNote(roll.midiNote);
     //os_printf("notenum = %d,   midi = %d,  roll.midiNote = %d\n", notenum, roll.midiScale[notenum], roll.midiNote);
 }
 
@@ -822,7 +840,7 @@ void ICACHE_FLASH_ATTR rollButtonCallback( uint8_t state,
         int button __attribute__((unused)), int down __attribute__((unused)))
 {
     roll.ButtonState = state;
-    roll_updateDisplay();
+    //roll_updateDisplay();
 
     if(down)
     {
@@ -867,15 +885,31 @@ void ICACHE_FLASH_ATTR rollAccelerometerHandler(accel_t* accel)
 
     if (roll.useHighPassAccel)
     {
-        roll.xAccelSmoothed = (1.0 - roll.alpha) * roll.xAccelSmoothed + roll.alpha * (float)roll.Accel.x;
-        roll.yAccelSmoothed = (1.0 - roll.alpha) * roll.yAccelSmoothed + roll.alpha * (float)roll.Accel.y;
-        roll.zAccelSmoothed = (1.0 - roll.alpha) * roll.zAccelSmoothed + roll.alpha * (float)roll.Accel.z;
+        roll.xAccelSlowAve = (1.0 - roll.alphaSlow) * roll.xAccelSlowAve + roll.alphaSlow * (float)roll.Accel.x;
+        roll.yAccelSlowAve = (1.0 - roll.alphaSlow) * roll.yAccelSlowAve + roll.alphaSlow * (float)roll.Accel.y;
+        roll.zAccelSlowAve = (1.0 - roll.alphaSlow) * roll.zAccelSlowAve + roll.alphaSlow * (float)roll.Accel.z;
 
-        roll.Accel.x = roll.Accel.x - roll.xAccelSmoothed;
-        roll.Accel.y = roll.Accel.y - roll.yAccelSmoothed;
-        roll.Accel.z = roll.Accel.z - roll.zAccelSmoothed;
+        roll.Accel.x = roll.Accel.x - roll.xAccelSlowAve;
+        roll.Accel.y = roll.Accel.y - roll.yAccelSlowAve;
+        roll.Accel.z = roll.Accel.z - roll.zAccelSlowAve;
     }
-    roll_updateDisplay();
+    if (roll.useSmooth)
+    {
+        roll.xAccelHighPassSmoothed = (1.0 - roll.alphaSmooth) * roll.xAccelHighPassSmoothed + roll.alphaSmooth *
+                                      (float)roll.Accel.x;
+        roll.yAccelHighPassSmoothed = (1.0 - roll.alphaSmooth) * roll.yAccelHighPassSmoothed + roll.alphaSmooth *
+                                      (float)roll.Accel.y;
+        roll.zAccelHighPassSmoothed = (1.0 - roll.alphaSmooth) * roll.zAccelHighPassSmoothed + roll.alphaSmooth *
+                                      (float)roll.Accel.z;
+
+        roll.Accel.x = roll.xAccelHighPassSmoothed;
+        roll.Accel.y = roll.yAccelHighPassSmoothed;
+        roll.Accel.z = roll.zAccelHighPassSmoothed;
+    }
+
+
+
+    //roll_updateDisplay();
 }
 
 /**
@@ -897,81 +931,3 @@ void ICACHE_FLASH_ATTR setRollLeds(led_t* ledData, uint8_t ledDataLen)
 }
 
 
-/*
-def midiToFreq(mid):
-    if mid is None:
-        return (None, None, None, None, None)
-    letNames = {0:'c', 1:'c#', 2:'d', 3:'d#', 4:'e', 5:'f', 6:'f#', 7:'g', 8:'g#', 9:'a', 10:'a#', 11:'b'}
-    freq = 55 * pow(2, (mid - 33 )/12)
-    oct = int(mid / 12) - 1
-    note = mid % 12
-    k = int(abs(oct - 2.5))
-    symbol = letNames[note] + "'" * k if oct > 2.5 else letNames[note].upper() + "," * k
-    return (freq, symbol , oct, note, colorsys.hsv_to_rgb(note/12,1,1)  )
-*/
-
-/**
- * Converts midi number to int32_t to be used as note
- *
- * @param mid
- */
-int32_t ICACHE_FLASH_ATTR midi2note(uint8_t mid)
-{
-    int32_t freq = 55.0 * pow(2.0, ((float)mid - 33.0 ) / 12.0);
-    return 2500000 / freq;
-}
-
-void ICACHE_FLASH_ATTR generateScale(uint8_t* midiScale, uint8_t numNotes)
-{
-    uint8_t i;
-    uint8_t j = 0;
-    uint8_t intervals[] = {2, 3, 2, 2, 3}; // pentatonic
-    //uint8_t intervals[] = {2, 2, 1, 2, 2, 2, 1}; // major
-
-    uint8_t n = sizeof(intervals) / sizeof(uint8_t);
-    uint8_t baseMidi = 84; // 80; // with major and 9 notes
-    midiScale[0] = baseMidi;
-    for (i = 1; i < numNotes; i++)
-    {
-        if (i >= MAX_NUM_NOTES)
-        {
-            return;
-        }
-        midiScale[i] = midiScale[i - 1] + intervals[j];
-        j++;
-        if (j >= n)
-        {
-            j = 0;
-        }
-    }
-}
-
-
-/*
-def generateScale(musicalScale, numNotes=6, baseMidi=60, name='pentatonic'):
-    '''baseMidi is in the middle and work forward and backward
-    '''
-    intervals = dict(
-        pentatonic=[2,3,2,2,3],
-        major=[2,2,1,2,2,2,1],
-        minor=[2,1,2,2,1,2,2],
-        arpeggiomaj=[4,3,5],
-        arpeggiomin=[3,4,5],
-        diminished=[3,3,3,3],
-        augmented=[4,4,4],
-        wholetone=[2,2,2,2,2,2],
-        chromatic=[1],
-        circleof5=[7,-5,7,-5,7,-5,-5])
-
-    x = baseMidi
-    for k in range(int(numNotes/2)):
-        nextint = intervals[name].pop()
-        intervals[name].insert(0,nextint)
-        x -= nextint
-
-    for n in range(numNotes):
-        musicalScale.append(x)
-        nextint = intervals[name].pop(0)
-        intervals[name].append(nextint)
-        x += nextint
-*/

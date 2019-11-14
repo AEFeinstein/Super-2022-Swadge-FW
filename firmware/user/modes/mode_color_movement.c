@@ -654,7 +654,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         return;
     }
 
-//#define BUILT_IN_INPUT
+    //#define BUILT_IN_INPUT
 #ifdef BUILT_IN_INPUT
 #define BPM_GEN 16
     xAccel = 200 * sin(6.2831853 * BPM_GEN / 60  * modeTime / 1000000);
@@ -715,7 +715,9 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     // This is plotted on OLED
     circularPush(sample, &cirBufHighPassNormAccel);
 
-    // Calculate slow running average via IIR to deviations
+    // Use a simple variation of the YIN method for finding the fundamental freq of signal
+    // Calculate slow running average via IIR of deviations of current signal
+    //      current signal shifted by tau (where tau from 12 to NUM_DOTS-1)
     // Since accelerometer runs at 10 Hz, 5 Hz is highest freq to detect
     // This is 300 bpm. The frame rate producing the samples here is 60 Hz
     // Ignore tau < 12 ( 12 would estimate 60/12 = 5 Hz signal = 300 bpm)

@@ -43,6 +43,7 @@
 #endif
 //#include "mode_roll3.h"
 #include "mode_roll.h"
+#include "mode_music.h"
 #include "mode_magfestons.h"
 
 /*============================================================================
@@ -87,6 +88,7 @@ swadgeMode* swadgeModes[] =
     &mazerfMode,
     &colorMoveMode,
     &rollMode,
+    &musicMode,
     //&roll3Mode,
     &magfestonsMode,
     &galleryMode,
