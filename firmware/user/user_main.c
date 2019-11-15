@@ -565,8 +565,23 @@ void setOledDrawTime(uint32_t drawTimeMs)
     os_timer_disarm(&timerHandleUpdateDisplay);
     os_timer_arm(&timerHandleUpdateDisplay, drawTimeMs, true);
 }
+
+/**
+ * @brief Set the time between accelerometer polls
+ *
+ * @param drawTimeMs
+ */
+void setAccelPollTime(uint32_t pollTimeMs)
+{
+    os_timer_disarm(&timerHandlePollAccel);
+    os_timer_arm(&timerHandlePollAccel, pollTimeMs, true);
+}
+
 #else
 void setOledDrawTime(uint32_t drawTimeMs)
+{
+}
+void setAccelPollTime(uint32_t pollTimeMs)
 {
 }
 #endif
