@@ -177,11 +177,12 @@ void ICACHE_FLASH_ATTR setBuzzerNote(notePeriod_t note)
     }
 
     // Set the period count
-    if ((int)note < 0) //must cast to int for compare to work properly
+    if (note < 0)
     {
         // take note from mode_music
+        float cent = note + 1201;
         //os_printf("note from mode_music %d currentMusicNote %d\n", note, currentMusicNote);
-        bzr.note = currentMusicNote;
+        bzr.note = currentMusicNote * pow(2.0, -cent / 1200);
     }
     else
     {

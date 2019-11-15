@@ -5,6 +5,9 @@
  *      Author: bbkiwi
  */
 
+// TODO adjust tempos
+// TODO when L button changes rhythm or other parameters pop up temp window
+
 /*============================================================================
  * Includes
  *==========================================================================*/
@@ -91,8 +94,8 @@ swadgeMode musicMode =
 
 struct
 {
-    uint8_t currentMethod;
-    uint8_t numMethods;
+    uint8_t currentRhythm;
+    uint8_t numRhythms;
     accel_t Accel;
     accel_t AccelHighPass;
     uint8_t ButtonState;
@@ -108,7 +111,7 @@ struct
     float scxchold;
     float scychold;
     bool useHighPassAccel;
-    bool useSmooth;
+    bool useSmoothAccel;
     bool playButtonDown;
     float xAccel;
     float yAccel;
@@ -134,23 +137,83 @@ static os_timer_t timerHandleUpdate = {0};
 static float pi = 3.15159;
 notePeriod_t currentMusicNote;
 
-const song_t noteRythmn RODATA_ATTR =
-    //const song_t noteRythmn  =
+// 'Songs' for rhythms and riffs
+// TODO adjust tempos
+
+const song_t oneNoteRhythm RODATA_ATTR =
 {
     .notes = {
-        {.note = -1, .timeMs = 230},
+        {.note = CURRENT_MUSIC_MODE_NOTE, .timeMs = 5000},
+    },
+    .numNotes = 1,
+    .shouldLoop = true
+};
+
+
+const song_t didididahRhythm RODATA_ATTR =
+{
+    .notes = {
+        {.note = CURRENT_MUSIC_MODE_NOTE, .timeMs = 230},
         {.note = SILENCE, .timeMs = 20},
-        {.note = -1, .timeMs = 230},
+        {.note = CURRENT_MUSIC_MODE_NOTE, .timeMs = 230},
         {.note = SILENCE, .timeMs = 20},
-        {.note = -1, .timeMs = 230},
+        {.note = CURRENT_MUSIC_MODE_NOTE, .timeMs = 230},
         {.note = SILENCE, .timeMs = 20},
-        {.note = -1, .timeMs = 740},
+        {.note = CURRENT_MUSIC_MODE_NOTE, .timeMs = 740},
         {.note = SILENCE, .timeMs = 10},
     },
     .numNotes = 8,
     .shouldLoop = true
 };
 
+const song_t majorChord RODATA_ATTR =
+{
+    .notes = {
+        {.note = CURRENT_MUSIC_MODE_NOTE, .timeMs = 300},
+        {.note = SILENCE, .timeMs = 10},
+        {.note = CURRENT_MUSIC_MODE_NOTE_UP_3RD, .timeMs = 300},
+        {.note = SILENCE, .timeMs = 10},
+        {.note = CURRENT_MUSIC_MODE_NOTE_UP_5TH, .timeMs = 300},
+        {.note = SILENCE, .timeMs = 30},
+    },
+    .numNotes = 6,
+    .shouldLoop = true
+};
+
+const song_t dacsRhythm RODATA_ATTR =
+{
+    .notes = {
+        {.note = CURRENT_MUSIC_MODE_NOTE, .timeMs = 175},
+        {.note = SILENCE, .timeMs = 25},
+    },
+    .numNotes = 2,
+    .shouldLoop = true
+};
+
+const song_t backbeatRhythm RODATA_ATTR =
+{
+    .notes = {
+        {.note = CURRENT_MUSIC_MODE_NOTE, .timeMs = 240},
+        {.note = SILENCE, .timeMs = 160},
+        {.note = CURRENT_MUSIC_MODE_NOTE, .timeMs = 350},
+        {.note = SILENCE, .timeMs = 50},
+        {.note = CURRENT_MUSIC_MODE_NOTE, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 200},
+        {.note = CURRENT_MUSIC_MODE_NOTE, .timeMs = 350},
+        {.note = SILENCE, .timeMs = 50},
+    },
+    .numNotes = 8,
+    .shouldLoop = true
+};
+
+const song_t* rhythmPatterns[] =
+{
+    &oneNoteRhythm,
+    &dacsRhythm,
+    &didididahRhythm,
+    &backbeatRhythm,
+    &majorChord,
+};
 
 /*============================================================================
  * Functions
@@ -167,8 +230,11 @@ void ICACHE_FLASH_ATTR musicEnterMode(void)
     os_timer_setfn(&timerHandleUpdate, (os_timer_func_t*)music_updateDisplay, NULL);
     os_timer_arm(&timerHandleUpdate, UPDATE_TIME_MS, 1);
 
-    music.currentMethod = 0;
-    music.numMethods = 4;
+    music.useHighPassAccel = true; //adjust for position being held
+    music.useSmoothAccel = true;
+    music.currentRhythm = 0;
+    //os_printf("%d\n", sizeof(rhythmPatterns) / sizeof( song_t*));
+    music.numRhythms = sizeof(rhythmPatterns) / sizeof( song_t*);
     music.ButtonState = 0;
     music.Brightnessidx = 1;
     music.LedCount = 0;
@@ -176,7 +242,6 @@ void ICACHE_FLASH_ATTR musicEnterMode(void)
     music.scyc = 0;
     music.alphaSlow = 0.02; // for finding long term moving average
     music.alphaSmooth = 0.3; // for slight smoothing of High Pass Accel
-    music.useSmooth = true;
     music.ledOrderInd[0] = LED_UPPER_LEFT;
     music.ledOrderInd[1] = LED_LOWER_LEFT;
     music.ledOrderInd[2] = LED_LOWER_MID;
@@ -224,127 +289,89 @@ void ICACHE_FLASH_ATTR music_updateDisplay(void)
 
     //os_printf("%d %d %d\n", (int)(100 * music.xAccel), (int)(100 * music.yAccel), (int)(100 * music.zAccel));
 
-    // Specify using High Pass Accel for the examples
-    switch (music.currentMethod)
-    {
-        case 1:
-        case 3:
-            music.useHighPassAccel = true;
-            break;
-        default:
-            music.useHighPassAccel = false;
-            break;
-    }
-
-
-
     // Insure solution coordinates on OLED for the moving ball
     // OLED xcoord from 0 (left) to 127, ycoord from 0(top) to 63
+    // flat corresponds to the average postion and level measured as deviation from this
+    // Using center of screen as orgin, position ball on circle of radius 32 with direction x,y component of Accel
+    // acts as level with ball at lowest spot
 
-    switch (music.currentMethod)
-    {
+    music.scxc = music.Accel.x;
+    music.scyc = music.Accel.y;
 
-        case 0:
-        case 2:
-        // flat corresponds to the average postion and level measured as deviation from this
-        case 1:
-        case 3:
-            // Here holding screen flat the ball seeks the lowest level
-            // Using center of screen as orgin, position ball on circle of radius 32 with direction x,y component of Accel
-            // acts as level with ball at lowest spot
-            music.scxc = music.Accel.x;
-            music.scyc = music.Accel.y;
-            music.len = sqrt(music.scxc * music.scxc + music.scyc * music.scyc);
-            // Larger IGNORE_RADIUS ignore nearly horizontal readings
+    music.len = sqrt(music.scxc * music.scxc + music.scyc * music.scyc);
+    // Larger IGNORE_RADIUS ignore nearly rest position readings
 #define IGNORE_RADIUS 0.2
-            if (music.len > IGNORE_RADIUS)
-            {
-                // scale normalized vector to length 28 to keep ball within bounds of screen
-                music.scxc = 64.0 + 28.0 * music.scxc / music.len;
-                music.scyc = 32.0 + 28.0 * music.scyc / music.len;
-                music.scxchold = music.scxc;
-                music.scychold = music.scyc;
-            }
-            else
-            {
-                music.scxc = music.scxchold;
-                music.scyc = music.scychold;
-            }
-            break;
-        default:
-            (void)0;
+    if (music.len > IGNORE_RADIUS)
+    {
+        // scale normalized vector to length 28 to keep ball within bounds of screen
+        music.scxc = 64.0 + 28.0 * music.scxc / music.len;
+        music.scyc = 32.0 + 28.0 * music.scyc / music.len;
+        music.scxchold = music.scxc;
+        music.scychold = music.scyc;
     }
+    else
+    {
+        music.scxc = music.scxchold;
+        music.scyc = music.scychold;
+    }
+
     char uiStr[32] = {0};
-    ets_snprintf(uiStr, sizeof(uiStr), "%d", music.currentMethod);
+    ets_snprintf(uiStr, sizeof(uiStr), "%d", music.currentRhythm);
     plotText(120, 53, uiStr, IBM_VGA_8, WHITE);
 
-    switch (music.currentMethod)
+    // Draw note sectors
+    for (uint8_t i = 0; i < music.numNotes; i++)
     {
-        case 0:
-        case 1:
-        case 2:
-        case 3:
-            // Draw note sectors
-            for (uint8_t i = 0; i < music.numNotes; i++)
-            {
-                plotLine(64, 32, 64 + 28 * sin(2 * pi * i / music.numNotes), 32 + 28 * cos(2 * pi * i / music.numNotes), WHITE );
-            }
-
-            // Draw virtual ball
-            //plotCircle(music.scxc, music.scyc, 5, WHITE);
-            plotCircle(music.scxc, music.scyc, 3, WHITE);
-            plotCircle(music.scxc, music.scyc, 1, WHITE);
-            //os_printf("(%d, %d\n", (int)music.scxc, (int)music.scyc);
-
-            // Set midiNote
-            music.noteNum = (int)(music.numNotes * (1 + atan2(music.scxc - 64, music.scyc - 32) / 2.0 / pi)) % music.numNotes;
-            music.midiNote = midi2note(music.midiScale[music.noteNum]);
-            currentMusicNote = music.midiNote;
-            //os_printf("notenum = %d,   midi = %d,  music.midiNote = %d\n", notenum, music.midiScale[notenum], music.midiNote);
-
-            // LEDs, all off
-            ets_memset(music.leds, 0, sizeof(music.leds));
-
-            // All LEDs glow with note color - dim if not sounding, bright is sounding
-            if (music.playButtonDown)
-            {
-                music.colorToShow = EHSVtoHEX((music.midiScale[music.noteNum] % 12) * 255 / 12, 0xFF, 0xFF);
-            }
-            else
-            {
-                music.colorToShow = EHSVtoHEX((music.midiScale[music.noteNum] % 12) * 255 / 12, 0xFF, 0x7F);
-            }
-            music.ledr = (music.colorToShow >>  0) & 0xFF;
-            music.ledg = (music.colorToShow >>  8) & 0xFF;
-            music.ledb = (music.colorToShow >> 16) & 0xFF;
-
-            //NOTE set to  == if want to test on my mockup with 16 leds
-#define USE_6_LEDS
-#ifndef USE_6_LEDS
-            for (uint8_t indLed = 0; indLed < NUM_LIN_LEDS ; indLed++)
-            {
-                music.leds[indLed].r = music.ledr;
-                music.leds[indLed].g = music.ledg;
-                music.leds[indLed].b = music.ledb;
-            }
-#else
-            for (uint8_t indLed = 0; indLed < 6 ; indLed++)
-            {
-                music.leds[music.ledOrderInd[indLed]].r = music.ledr;
-                music.leds[music.ledOrderInd[indLed]].g = music.ledg;
-                music.leds[music.ledOrderInd[indLed]].b = music.ledb;
-            }
-#endif
-
-
-            break;
-        default:
-            (void)0;
+        plotLine(64, 32, 64 + 28 * sin(2 * pi * i / music.numNotes), 32 + 28 * cos(2 * pi * i / music.numNotes), WHITE );
     }
 
+    // Draw virtual ball
+    //plotCircle(music.scxc, music.scyc, 5, WHITE);
+    plotCircle(music.scxc, music.scyc, 3, WHITE);
+    plotCircle(music.scxc, music.scyc, 1, WHITE);
+    //os_printf("(%d, %d\n", (int)music.scxc, (int)music.scyc);
+
+    // Set midiNote
+    music.noteNum = (int)(music.numNotes * (1 + atan2(music.scxc - 64, music.scyc - 32) / 2.0 / pi)) % music.numNotes;
+    music.midiNote = midi2note(music.midiScale[music.noteNum]);
+    currentMusicNote = music.midiNote;
+    //os_printf("notenum = %d,   midi = %d,  music.midiNote = %d\n", notenum, music.midiScale[notenum], music.midiNote);
+
+    // LEDs, all off
+    ets_memset(music.leds, 0, sizeof(music.leds));
+
+    // All LEDs glow with note color - dim if not sounding, bright is sounding
+    if (music.playButtonDown)
+    {
+        music.colorToShow = EHSVtoHEX((music.midiScale[music.noteNum] % 12) * 255 / 12, 0xFF, 0xFF);
+    }
+    else
+    {
+        music.colorToShow = EHSVtoHEX((music.midiScale[music.noteNum] % 12) * 255 / 12, 0xFF, 0x7F);
+    }
+    music.ledr = (music.colorToShow >>  0) & 0xFF;
+    music.ledg = (music.colorToShow >>  8) & 0xFF;
+    music.ledb = (music.colorToShow >> 16) & 0xFF;
+
+    //NOTE set to  == if want to test on my mockup with 16 leds
+#define USE_6_LEDS
+#ifndef USE_6_LEDS
+    for (uint8_t indLed = 0; indLed < NUM_LIN_LEDS ; indLed++)
+    {
+        music.leds[indLed].r = music.ledr;
+        music.leds[indLed].g = music.ledg;
+        music.leds[indLed].b = music.ledb;
+    }
+#else
+    for (uint8_t indLed = 0; indLed < 6 ; indLed++)
+    {
+        music.leds[music.ledOrderInd[indLed]].r = music.ledr;
+        music.leds[music.ledOrderInd[indLed]].g = music.ledg;
+        music.leds[music.ledOrderInd[indLed]].b = music.ledb;
+    }
+#endif
 
     setMusicLeds(music.leds, sizeof(music.leds));
-
 }
 
 
@@ -364,28 +391,15 @@ void ICACHE_FLASH_ATTR musicButtonCallback( uint8_t state,
     {
         if(2 == button)
         {
-            //Play note
+            // play notes given by ball using a specified Rythmn
             music.playButtonDown = true;
-            switch (music.currentMethod)
-            {
-                case 0:
-                case 1:
-                    // play selected note while button down
-                    setBuzzerNote(music.midiNote);
-                    break;
-                default:
-                    // play notes given by ball using a specified Rythmn
-                    startBuzzerSong(&noteRythmn);
-                    break;
-            }
-
-
+            startBuzzerSong(rhythmPatterns[music.currentRhythm]);
         }
         if(1 == button)
         {
             // Cycle movement methods
-            music.currentMethod = (music.currentMethod + 1) % music.numMethods;
-            os_printf("music.currentMethod = %d\n", music.currentMethod);
+            music.currentRhythm = (music.currentRhythm + 1) % music.numRhythms;
+            os_printf("music.currentRhythm = %d\n", music.currentRhythm);
         }
     }
     else
@@ -420,7 +434,7 @@ void ICACHE_FLASH_ATTR musicAccelerometerHandler(accel_t* accel)
         music.Accel.y = music.Accel.y - music.yAccelSlowAve;
         music.Accel.z = music.Accel.z - music.zAccelSlowAve;
     }
-    if (music.useSmooth)
+    if (music.useSmoothAccel)
     {
         music.xAccelHighPassSmoothed = (1.0 - music.alphaSmooth) * music.xAccelHighPassSmoothed + music.alphaSmooth *
                                        (float)music.Accel.x;
