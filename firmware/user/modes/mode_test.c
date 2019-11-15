@@ -4,7 +4,7 @@
  *  Created on: Mar 27, 2019
  *      Author: adam
  */
-
+#include "user_config.h"
 #ifdef TEST_MODE
 
 /*============================================================================

@@ -5,6 +5,14 @@
 *               Author: bbkiw
 */
 
+//TODO
+//Could have buffers for values bigger than 120 so for
+// example estimating bpm via tau could go lower than 60/119
+// need to modify plotting on OLED to should most recent 120 values
+// Use buttons to select options
+//     ways to use accel or built in wave forms
+//     estimation of bpm or DFT from cc
+
 #include <osapi.h>
 #include <user_interface.h>
 #include <stdlib.h>
@@ -13,6 +21,7 @@
 #include "mode_color_movement.h"
 #include "mode_dance.h"
 #include "ccconfig.h"
+#include "embeddednf.h"
 #include "DFT32.h"
 #include "buttons.h"
 #include "oled.h"       //display functions
@@ -36,6 +45,7 @@
     #define CM_printf(...)
 #endif
 
+
 #ifndef max
     #define max(a,b) ((a) > (b) ? (a) : (b))
 #endif
@@ -55,7 +65,7 @@
 #define UPDATE_TIME_MS 16
 
 // time info.
-//#define MS_TO_US_FACTOR 1000
+#define MS_TO_US_FACTOR 1000
 #define S_TO_MS_FACTOR 1000
 #define BPM_SAMPLE_TIME 12000 // in ms
 #define BPM_BUF_SIZE (BPM_SAMPLE_TIME / UPDATE_TIME_MS)
@@ -67,7 +77,7 @@
 #define ALPHA_SLOW 0.05
 //#define ALPHA_CROSS 0.1
 #define ALPHA_ACTIVE 0.03
-#define CROSS_TOL 2
+#define CROSS_TOL 0
 #define SPECIAL_EFFECT true
 
 // LEDs relation to screen
@@ -119,6 +129,7 @@ void ICACHE_FLASH_ATTR cmInit(void);
 void ICACHE_FLASH_ATTR cmDeInit(void);
 void ICACHE_FLASH_ATTR cmButtonCallback(uint8_t state, int button, int down);
 void ICACHE_FLASH_ATTR cmAccelerometerCallback(accel_t* accel);
+void ICACHE_FLASH_ATTR cmSampleHandler(int32_t samp);
 
 // game loop functions.
 void ICACHE_FLASH_ATTR cmUpdate(void* arg);
@@ -157,7 +168,7 @@ void ICACHE_FLASH_ATTR cmNewSetup(void);
 void ICACHE_FLASH_ATTR initCircularBuffer(circularBuffer_t* cirbuff,  int16_t* buffer, uint16_t length);
 int16_t ICACHE_FLASH_ATTR getCircularBufferAtIndex(circularBuffer_t cirbuff,  int16_t index);
 void ICACHE_FLASH_ATTR circularPush(int16_t value, circularBuffer_t* cirbuff);
-int16_t ICACHE_FLASH_ATTR sumOfBuffer(circularBuffer_t cbuf);
+int32_t ICACHE_FLASH_ATTR sumOfBuffer(circularBuffer_t cbuf);
 int16_t ICACHE_FLASH_ATTR IIRFilter(float alpha, int16_t input, int16_t output);
 void ICACHE_FLASH_ATTR AdjustPlotDots(circularBuffer_t cbuf1, circularBuffer_t cbuf2);
 void ICACHE_FLASH_ATTR AdjustPlotDotsSingle(circularBuffer_t cbuf);
@@ -172,6 +183,7 @@ static const uint8_t cmBrightnesses[] =
     0x08,
     0x40,
     0x80,
+    0xC0,
 };
 
 
@@ -196,6 +208,10 @@ swadgeMode colorMoveMode =
     .fnAccelerometerCallback = cmAccelerometerCallback
 };
 
+int gFRAMECOUNT_MOD_SHIFT_INTERVAL = 0;
+int gROTATIONSHIFT = 0; //Amount of spinning of pattern around a LED ring
+
+int cmSamplesProcessed = 0;
 accel_t cmAccel = {0};
 accel_t cmLastAccel = {0};
 
@@ -205,8 +221,7 @@ uint8_t cmButtonState = 0;
 uint8_t cmLastButtonState = 0;
 
 uint8_t cmBrightnessIdx = 2;
-uint8_t ledOrderInd[NUM_LIN_LEDS] = {LED_UPPER_LEFT, LED_LOWER_LEFT, LED_LOWER_MID, LED_LOWER_RIGHT, LED_UPPER_RIGHT, LED_UPPER_MID};
-
+uint8_t ledOrderInd[] = {LED_UPPER_LEFT, LED_LOWER_LEFT, LED_LOWER_MID, LED_LOWER_RIGHT, LED_UPPER_RIGHT, LED_UPPER_MID};
 static led_t leds[NUM_LIN_LEDS] = {{0}};
 int CM_ledCount = 0;
 static os_timer_t timerHandleUpdate = {0};
@@ -224,7 +239,9 @@ static cmState_t prevState;
 int16_t xAccel;
 int16_t yAccel;
 int16_t zAccel;
-int16_t bpm;
+int16_t bpmFromCrossing;
+int16_t bpmFromTau;
+int16_t lastsign;
 
 bool gameover;
 
@@ -251,7 +268,9 @@ int16_t bufZaccel[NUM_DOTS];
 int16_t bufLowPassZaccel[NUM_DOTS];
 int16_t bufCrossings[BPM_BUF_SIZE];
 
-float REVOLUTIONS_PER_ZERO_CROSSING = 1 / 8.0;
+int16_t deviations[NUM_DOTS];
+
+float REVOLUTIONS_PER_BEAT = 1 / 8.0;
 uint8_t PLOT_SCALE = 32;
 uint8_t PLOT_SHIFT = 32;
 // do via timer now 10 fps FRAME_RESET = 0 // 0 for 60 fps, 1 for 30 fps, 2 for 20 fps, k for 60/(k+1) fps
@@ -277,8 +296,8 @@ int64_t ledDirection = 1;
 
 // for zero crossing measure time is number of cycles of update
 uint16_t crossIntervalCounter = 0;
-uint16_t ledPrevIncTime = 0;
-uint16_t aveZeroCrossInterval = 5;
+uint32_t ledPrevIncTime = 0;
+uint16_t avePeriodMs = 5;
 //uint16_t crossInterval = 5;
 bool showCrossOnLed = false;
 
@@ -301,6 +320,9 @@ void ICACHE_FLASH_ATTR initCircularBuffer(circularBuffer_t* cirbuff,  int16_t* b
 int16_t ICACHE_FLASH_ATTR getCircularBufferAtIndex(circularBuffer_t cirbuff,  int16_t index)
 {
     // index can be positive, zero, or negative
+    // index = -1 is last value placed
+    // index = -2 is second to last value placed etc.
+    // index = 0 is oldest value
     int16_t i = cirbuff.insertHeadInd + index;
     while (i < 0)
     {
@@ -342,15 +364,15 @@ void ICACHE_FLASH_ATTR AdjustPlotDotsSingle(circularBuffer_t cbuf)
     for (i = 0; i < NUM_DOTS; i++, i1++)
     {
         i1 = (i1 < cbuf.length) ? i1 : 0;
-        drawPixel(i, cbuf.buffer[i1] / 4 + PLOT_SHIFT, WHITE);
+        drawPixel(i, cbuf.buffer[i1] / 30 + PLOT_SHIFT, WHITE);
     }
 }
 
-int16_t ICACHE_FLASH_ATTR sumOfBuffer(circularBuffer_t cbuf)
+int32_t ICACHE_FLASH_ATTR sumOfBuffer(circularBuffer_t cbuf)
 {
     // computes sum
     uint16_t i;
-    int16_t sum = 0;
+    int32_t sum = 0;
     for (i = 0; i < cbuf.length; i++)
     {
         sum += cbuf.buffer[i];
@@ -362,6 +384,11 @@ void ICACHE_FLASH_ATTR cmInit(void)
 {
     // External from mode_dance to set brightness when using dance mode display
     setDanceBrightness(2);
+
+    // Use ColorChord code to process accelerometer samples
+    InitColorChord();
+    cmSamplesProcessed = 0;
+
     // Give us reliable button input.
     enableDebounce(false);
 
@@ -420,6 +447,85 @@ void ICACHE_FLASH_ATTR setCMLeds(led_t* ledData, uint8_t ledDataLen)
     }
     setLeds(ledsAdjusted, ledDataLen);
 }
+
+int32_t mzMaxSamp = -30000;
+int32_t mzMinSamp = 30000;
+/**
+ * Just run colorchord but will give accelerometer samples
+ *
+ * @param samp A 32 bit sample
+ */
+void ICACHE_FLASH_ATTR cmSampleHandler(int32_t samp)
+{
+    //os_printf("%d\n", samp);
+    if (abs(samp) > 0)
+    {
+        PushSample32( samp );
+    }
+    else
+    {
+        PushSample32(0);
+        //os_printf("%d ", samp);
+    }
+    // Here  -2700 < samp < 2780 from audio in demo mode
+    // if (samp < mzMinSamp)
+    // {
+    //     mzMinSamp = samp;
+    //     os_printf("range %d to %d\n", mzMinSamp, mzMaxSamp);
+    // }
+    // if (samp > mzMaxSamp)
+    // {
+    //     mzMaxSamp = samp;
+    //     os_printf("range %d to %d\n", mzMinSamp, mzMaxSamp);
+    // }
+
+    cmSamplesProcessed++;
+
+    // If at least NUM_SAMPLES_PER_FRAME samples have been processed
+    if( cmSamplesProcessed >= NUM_SAMPLES_PER_FRAME )
+    {
+        //os_printf("COLORCHORD_ACTIVE %d DFTIIR %d\n", COLORCHORD_ACTIVE, DFTIIR);
+        // Don't bother if colorchord is inactive
+        if( !COLORCHORD_ACTIVE )
+        {
+            return;
+        }
+
+
+        // Colorchord magic
+        HandleFrameInfo();
+
+        // Set LEDs
+
+
+        gFRAMECOUNT_MOD_SHIFT_INTERVAL++;
+        if ( gFRAMECOUNT_MOD_SHIFT_INTERVAL >= COLORCHORD_SHIFT_INTERVAL )
+        {
+            gFRAMECOUNT_MOD_SHIFT_INTERVAL = 0;
+        }
+        //printf("MOD FRAME %d ******\n", gFRAMECOUNT_MOD_SHIFT_INTERVAL);
+
+        switch( COLORCHORD_OUTPUT_DRIVER )
+        {
+            case 254:
+                PureRotatingLEDs();
+                break;
+            case 255:
+                DFTInLights();
+                break;
+            default:
+                UpdateLinearLEDs(); // have variety of display options and uses COLORCHORD_OUTPUT_DRIVER to select them
+        };
+
+        // could use this if want overall brightness control
+        //setCMLeds( (led_t*)ledOut, NUM_LIN_LEDS * 3 );
+        setLeds( (led_t*)ledOut, NUM_LIN_LEDS * 3 );
+
+        // Reset the sample count
+        cmSamplesProcessed = 0;
+    }
+}
+
 
 void ICACHE_FLASH_ATTR cmUpdate(void* arg __attribute__((unused)))
 {
@@ -527,6 +633,8 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     static struct maxtime_t CM_updatedisplay_timer = { .name = "CM_updateDisplay"};
     maxTimeBegin(&CM_updatedisplay_timer);
 
+    //os_printf("modeTime %d\n", modeTime);
+
     crossIntervalCounter++;
 
     clearDisplay();
@@ -546,18 +654,27 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         return;
     }
 
+    //#define BUILT_IN_INPUT
+#ifdef BUILT_IN_INPUT
+#define BPM_GEN 16
+    xAccel = 200 * sin(6.2831853 * BPM_GEN / 60  * modeTime / 1000000);
+    yAccel = 300 * sin(3 * 6.2831853 * BPM_GEN / 60  * modeTime / 1000000);
+    zAccel = 255;
+#else
     xAccel = cmAccel.x;
     yAccel = cmAccel.y;
     zAccel = cmAccel.z;
+#endif
 
     // IPAD accel = list(map(lambda x, y : x + y, motion.get_gravity(),  motion.get_user_acceleration()))
+    // NOTE taking the norm doubles the frequency
     int16_t normAccel = sqrt( (double)xAccel * (double)xAccel + (double)yAccel * (double)yAccel + (double)zAccel *
                               (double)zAccel  );
 
     // empirical adjustment
     //normAccel *= 3;
 
-    CM_printf("%d %d %d %d\n", xAccel, yAccel, zAccel,   normAccel);
+    //os_printf("%d %d %d %d\n", xAccel, yAccel, zAccel,   normAccel);
 
     if (SPECIAL_EFFECT)
     {
@@ -589,8 +706,51 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
 
     // high pass by removing highly smoothed low pass (dc bias)
     float alphaSlow = ALPHA_SLOW;
+    // Low pass using IIR
     lowPassNormAccel = IIRFilter(alphaSlow, normAccel, lowPassNormAccel);
-    circularPush(smoothNormAccel - lowPassNormAccel, &cirBufHighPassNormAccel);
+    // Low pass via running average
+    lowPassNormAccel = sumOfBuffer(cirBufNormAccel) / NUM_DOTS;
+
+    int16_t sample = 10 * (smoothNormAccel - lowPassNormAccel);
+    // This is plotted on OLED
+    circularPush(sample, &cirBufHighPassNormAccel);
+
+    // Use a simple variation of the YIN method for finding the fundamental freq of signal
+    // Calculate slow running average via IIR of deviations of current signal
+    //      current signal shifted by tau (where tau from 12 to NUM_DOTS-1)
+    // Since accelerometer runs at 10 Hz, 5 Hz is highest freq to detect
+    // This is 300 bpm. The frame rate producing the samples here is 60 Hz
+    // Ignore tau < 12 ( 12 would estimate 60/12 = 5 Hz signal = 300 bpm)
+    // First tau > 11 with smallest deviation gives fundamental period
+    // so estimate fundamental freq as sample freq / tau
+    // sample freq is 1000 / UPDATE_TIME_MS
+    // so lowest freq that can be sensed is sample freq / (NUM_DOTS - 1)
+    // ex. 60/119 = 30.25
+
+    int16_t minDeviation = 0x7FFF;
+    uint8_t tauArgMin = 0;
+    for (uint8_t tau = 12; tau < NUM_DOTS; tau++)
+    {
+        deviations[tau] = IIRFilter(alphaSlow, abs(getCircularBufferAtIndex(cirBufHighPassNormAccel,
+                                    -1) - getCircularBufferAtIndex(cirBufHighPassNormAccel, -1 - tau)), deviations[tau]);
+        drawPixel(tau, OLED_HEIGHT - deviations[tau] / 30, WHITE);
+        if (deviations[tau] < minDeviation)
+        {
+            tauArgMin = tau;
+            minDeviation = deviations[tau];
+        }
+    }
+    plotLine(tauArgMin, 0, tauArgMin, OLED_HEIGHT, WHITE);
+    //#define TRY_COLOR_CHORD
+    // send this to be dealt with by color chord
+#ifdef TRY_COLOR_CHORD
+    cmSampleHandler(sample);
+#endif
+    // average the last 6 readings as accel sampled at 10hz while this is called at 60hz
+    //cmSampleHandler(10 / 6 * (getCircularBufferAtIndex(cirBufHighPassNormAccel,
+    //   -1) + getCircularBufferAtIndex(cirBufHighPassNormAccel, -2) + getCircularBufferAtIndex(cirBufHighPassNormAccel,
+    //           -3) + getCircularBufferAtIndex(cirBufHighPassNormAccel, -4) + getCircularBufferAtIndex(cirBufHighPassNormAccel,
+    //                   -5) + getCircularBufferAtIndex(cirBufHighPassNormAccel, -6) ));
 
     // low pass for the three axes
     lowPassXaccel = IIRFilter(alphaSlow, xAccel, lowPassXaccel);
@@ -608,6 +768,14 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     //AdjustPlotDots(cirBufYaccel, cirBufLowPassYaccel);
     //AdjustPlotDots(cirBufZaccel, cirBufLowPassZaccel);
 
+#ifdef TRY_COLOR_CHORD
+    for (uint8_t  i = 0; i < FIXBINS; i++)
+    {
+        drawPixel(i, OLED_HEIGHT - fuzzed_bins[i] / 2000, WHITE);
+        //os_printf("%d ", fuzzed_bins[i]);
+    }
+    //os_printf("fuzzed_bins[0] = %d\n", fuzzed_bins[0]);
+#endif
 
     CM_printf("smoothActivity = %d\n", smoothActivity);
 
@@ -622,51 +790,35 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
 #define ACTIVITY_BOUND 15
     if (smoothActivity > ACTIVITY_BOUND )
     {
-        //TODO could fix. If sample happens to be neg, zero, pos the tests below will miss the crossing.
-        //  if last (-1 index) is positive, check if (-2 index) is negative or if zero check (-3 index) is negative
-#define USE_UPWARD_CROSSING
-#ifdef USE_UPWARD_CROSSING
-        // upward zero crossing with tolerance
-        if ((getCircularBufferAtIndex(cirBufHighPassNormAccel, -1) > 0) & (getCircularBufferAtIndex(cirBufHighPassNormAccel,
-                -2) < 0) & ((getCircularBufferAtIndex(cirBufHighPassNormAccel, -1) -
-                             getCircularBufferAtIndex(cirBufHighPassNormAccel, -2)) > CROSS_TOL))
-#else
-        // zero crossing NO tolerance check
-        if (getCircularBufferAtIndex(cirBufHighPassNormAccel, -1) * getCircularBufferAtIndex(cirBufHighPassNormAccel, -2) < 0)
-#endif
+        circularPush(0x0000, &cirBufCrossings);
+        //Compute upward crossings and note it
+        if (lastsign >= 0 && sample < 0)
         {
+            lastsign = -1;
+        }
+        else if (lastsign <= 0 && sample > 0)
+        {
+            lastsign = 1;
             showCrossOnLed = true;
             circularPush(0x0001, &cirBufCrossings);
             crossIntervalCounter = 0;
         }
-        else
-        {
-            circularPush(0x0000, &cirBufCrossings);
-        }
-
     }
 
-    // // period for downward crossing
-    // if (!still)
-    // {
-    //     aveZeroCrossInterval = (1 - alphaCross) * aveZeroCrossInterval + alphaCross * crossInterval;
-    // }
-    //bpm = 30/aveZeroCrossInterval; // if using 1/2 period estimate for crossing
-    //bpm = 60 * S_TO_MS_FACTOR / UPDATE_TIME_MS / aveZeroCrossInterval;
+    // BPM Estimation from upward crossings (can highly overestimate)
+    bpmFromCrossing = 60 * S_TO_MS_FACTOR * sumOfBuffer(cirBufCrossings) / BPM_SAMPLE_TIME;
 
-#ifdef USE_UPWARD_CROSSING
-    bpm = (60 * S_TO_MS_FACTOR / BPM_BUF_SIZE / UPDATE_TIME_MS) * sumOfBuffer(cirBufCrossings);
-#else
-    bpm = (30 * S_TO_MS_FACTOR / BPM_BUF_SIZE / UPDATE_TIME_MS) * sumOfBuffer(cirBufCrossings);
-#endif
+    // BPM Estimation from min shifted deviation
+    bpmFromTau = 60 * S_TO_MS_FACTOR / UPDATE_TIME_MS / tauArgMin;
 
-    if (bpm > 0)
+
+    if (bpmFromTau > 0)
     {
-        aveZeroCrossInterval = 60000 / bpm;
+        avePeriodMs = 60 * S_TO_MS_FACTOR  / bpmFromTau;
     }
     else
     {
-        aveZeroCrossInterval = 60000;
+        avePeriodMs = 60 * S_TO_MS_FACTOR;
     }
 
     //TODO should be in cmGameDisplay()
@@ -686,10 +838,10 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         // could be from 110 to 880 say if buzzer can accept changing
         // freq. Or could be discrete jumps to pentatonic scale
         //  from buzzer.h to play freq f need  compute period (5,000,000 / (2 * f))
-        //  to set up a noteFreq_t (NOTE should be notePeriod_t)
+        //  to set up a notePeriod_t
         //  then set up musicalNote_t with this and a duration
 
-        //pitch = (min( max(bpm, 75), 150) - 75) / 75;
+        //pitch = (min( max(bpmFromTau, 75), 150) - 75) / 75;
 
 
         // song_t testSong =
@@ -709,10 +861,12 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         //sound.play_effect('game:Beep', volume = 300*smoothActivity/500, pitch=pitch)
     }
 
+
+#ifndef TRY_COLOR_CHORD
     //Clear leds
     memset(leds, 0, sizeof(leds));
 
-    CM_printf("bpm %d, activity %d\n", bpm, smoothActivity);
+    CM_printf("bpmFromCrossing %d, bpmFromTau %d, activity %d\n", bpmFromCrossing, bpmFromTau, smoothActivity);
 
     uint8_t ledr;
     uint8_t ledg;
@@ -731,9 +885,9 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
 
     //Color and intensity related to bpm and amount of shaking using color wheel
     // map 50 to 150 bpm to 0 to 255 for angle
-    uint8_t hue = (min( max(bpm, 50), 150) - 50) * 255 / 100;
+    uint8_t hue = (min( max(bpmFromTau, 30), 300) - 30) * 255 / 100;
     // map 15 to 100 smoothActivity to 0 to 255
-    uint8_t val = (min( max(smoothActivity, 15), 100) - 15) * 255 / 85;
+    uint8_t val = (min( max(smoothActivity, 15), 900) - 15) * 255 / 885;
     uint32_t colorToShow = EHSVtoHEX(hue, 0xFF, val);
 
     ledr = (colorToShow >>  0) & 0xFF;
@@ -741,15 +895,17 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     ledb = (colorToShow >> 16) & 0xFF;
 
     // Spin the leds syncronized to bpm
-    if (modeTime - ledPrevIncTime > aveZeroCrossInterval / NUM_LIN_LEDS / REVOLUTIONS_PER_ZERO_CROSSING)
+    if (modeTime - ledPrevIncTime > MS_TO_US_FACTOR * avePeriodMs / NUM_LIN_LEDS / REVOLUTIONS_PER_BEAT)
     {
+        //os_printf("modeTime %d, ledPrevIncTime %d\n", modeTime, ledPrevIncTime);
         ledPrevIncTime = modeTime;
         ledcycle += ledDirection;
         ledcycle = (ledcycle + NUM_LIN_LEDS) % NUM_LIN_LEDS;
     }
 
     // allcolored the same
-#define SHOW_NUM_LEDS (NUM_LIN_LEDS / 3)
+#define SHOW_NUM_LEDS (NUM_LIN_LEDS / 2)
+    //#define SHOW_NUM_LEDS (NUM_LIN_LEDS)
     for (uint8_t i = 0; i < SHOW_NUM_LEDS; i++)
     {
         //use axis colors or hue colors computed above
@@ -762,23 +918,24 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     //Flip direction on crossing
     if (showCrossOnLed && crossIntervalCounter == 0)
     {
-        ledDirection *= -1;
+        //ledDirection *= -1;
     }
 
     //Brighten on crossing
     if (showCrossOnLed && crossIntervalCounter < 10)
     {
-        cmBrightnessIdx = 0;
+        cmBrightnessIdx = 1;
     }
     else
     {
         showCrossOnLed = false;
-        cmBrightnessIdx = 1;
+        cmBrightnessIdx = 4;
     }
 
 
 
     setCMLeds(leds, sizeof(leds));
+#endif
     maxTimeEnd(&CM_updatedisplay_timer);
 }
 
@@ -804,13 +961,16 @@ void ICACHE_FLASH_ATTR cmTitleDisplay(void)
 void ICACHE_FLASH_ATTR cmGameDisplay(void)
 {
     char uiStr[32] = {0};
-    ets_snprintf(uiStr, sizeof(uiStr), "%d", bpm);
-    plotCenteredText(0, 1, OLED_WIDTH, uiStr, IBM_VGA_8, WHITE);
+    ets_snprintf(uiStr, sizeof(uiStr), "%d", bpmFromCrossing);
+    plotCenteredText(0, 1, OLED_WIDTH / 3, uiStr, IBM_VGA_8, WHITE);
+
+    ets_snprintf(uiStr, sizeof(uiStr), "%d", bpmFromTau);
+    plotCenteredText(OLED_WIDTH / 3, 1, 2 * OLED_WIDTH / 3, uiStr, IBM_VGA_8, WHITE);
 
     ets_snprintf(uiStr, sizeof(uiStr), "%d", smoothActivity);
-    plotCenteredText(0, 31, OLED_WIDTH, uiStr, IBM_VGA_8, WHITE);
+    plotCenteredText(2 * OLED_WIDTH / 3, 1, OLED_WIDTH, uiStr, IBM_VGA_8, WHITE);
 
-    // ets_snprintf(uiStr, sizeof(uiStr), "%d", aveZeroCrossInterval);
+    // ets_snprintf(uiStr, sizeof(uiStr), "%d", avePeriodMs);
     // plotCenteredText(0, OLED_HEIGHT - 1 - FONT_HEIGHT_IBMVGA8, OLED_WIDTH, uiStr, IBM_VGA_8, WHITE);
 }
 
@@ -838,13 +998,13 @@ void ICACHE_FLASH_ATTR cmNewSetup(void)
 
     CM_printf("%d leds\n", NUM_LIN_LEDS);
     //os_printf("%d %d sum: %d\n", getCircularBufferAtIndex(cirBufCrossings, 0), getCircularBufferAtIndex(cirBufCrossings,
-     //         -1), sumOfBuffer(cirBufCrossings));
+    //         -1), sumOfBuffer(cirBufCrossings));
     memset(leds, 0, sizeof(leds));
-
+    memset(deviations, 0, sizeof(deviations));
     gameover = false;
 
 
-    REVOLUTIONS_PER_ZERO_CROSSING = 0.5;
+    REVOLUTIONS_PER_BEAT = 1.0 / NUM_LIN_LEDS;
     PLOT_SCALE = 32;
     PLOT_SHIFT = 32;
     // do via timer now 10 fps FRAME_RESET = 0 // 0 for 60 fps, 1 for 30 fps, 2 for 20 fps, k for 60/(k+1) fps
@@ -854,6 +1014,7 @@ void ICACHE_FLASH_ATTR cmNewSetup(void)
     wid = 128 - 2 * SCREEN_BORDER;
 
     ledcycle = 0;
+    lastsign = 0;
 
     lowPassNormAccel = 0;
     lowPassXaccel = 0;
@@ -868,7 +1029,7 @@ void ICACHE_FLASH_ATTR cmNewSetup(void)
 
     crossIntervalCounter = 0;
     ledPrevIncTime = 0;
-    aveZeroCrossInterval = 5;
+    avePeriodMs = 5;
     //crossInterval = 5;
 
     ledDirection = 1;

@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// These values are (5,000,000 / (2 * frequency))
+// These counts (essential period of notes) are (5,000,000 / (2 * frequency))
 typedef enum
 {
     SILENCE = 0,
@@ -116,12 +116,12 @@ typedef enum
     A_8 = 355,
     A_SHARP_8 = 335,
     B_8 = 316,
-} noteFreq_t;
+} notePeriod_t;
 
 typedef struct
 {
     uint32_t timeMs;
-    noteFreq_t note;
+    notePeriod_t note;
 } musicalNote_t;
 
 typedef struct

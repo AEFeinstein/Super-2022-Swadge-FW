@@ -7,6 +7,42 @@
 
 #ifndef MODES_MODE_ROLL_H_
 #define MODES_MODE_ROLL_H_
+#include "ode_solvers.h"
+
+// specify struct naming the needed parameters must all be FLOATING to match passed parameters array
+typedef struct pendP
+{
+    FLOATING yAccel;
+    FLOATING xAccel;
+    FLOATING lenPendulum;
+    FLOATING damping;
+    FLOATING gravity;
+    FLOATING force;
+} pendParam;
+
+typedef struct springP
+{
+    FLOATING yAccel;
+    FLOATING xAccel;
+    FLOATING springConstant;
+    FLOATING damping;
+    FLOATING force;
+} springParam;
+
+
+typedef struct velP
+{
+    FLOATING yAccel;
+    FLOATING xAccel;
+    FLOATING gmult;
+    FLOATING force;
+} velParam;
+
+
+void dnxdampedpendulum(FLOATING, FLOATING [], FLOATING [], int, FLOATING [] );
+void dnx2dvelocity(FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
+void dnxdampedspring(FLOATING, FLOATING [], FLOATING [], int, FLOATING []);
+
 
 #include "ode_solvers.h"
 extern const FLOATING gravity; //= 9.81;               // free fall acceleration in m/s^2

@@ -42,17 +42,18 @@ uint8_t numberoffirstordereqn;                          // number of first-order
  last revision: 7 October 2009
 ----------------------------------------------------------
  call ...
- dnx(t,x[],dx[],n)- functions dx/dt   (supplied by a user)
+ dnx(t,x[],dx[],n, parameters)- functions dx/dt   (supplied by a user)
  input ...
  ti    - initial time
  tf    - solution time
  xi[]  - initial values
  n     - number of first order equations
+ parameters - used in formula for dnx (could vary each step)
  output ...
  xf[]  - solutions
 ==========================================================*/
-void ICACHE_FLASH_ATTR rk4_dn1(void(dnx)(FLOATING, FLOATING [], FLOATING [], int),
-                               FLOATING ti, FLOATING h, FLOATING xi[], FLOATING xf[], int n)
+void ICACHE_FLASH_ATTR rk4_dn1(void(dnx)(FLOATING, FLOATING [], FLOATING [], int, FLOATING []),
+                               FLOATING ti, FLOATING h, FLOATING xi[], FLOATING xf[], int n, FLOATING parameters[])
 {
     FLOATING t, x[n], dx[n];
     FLOATING k1[n], k2[n], k3[n], k4[n];
@@ -60,28 +61,28 @@ void ICACHE_FLASH_ATTR rk4_dn1(void(dnx)(FLOATING, FLOATING [], FLOATING [], int
 
     t = ti;
     //k1
-    dnx(t, xi, dx, n);
+    dnx(t, xi, dx, n, parameters);
     for (j = 0; j <= n - 1; j = j + 1)
     {
         k1[j] = h * dx[j];
         x[j]  = xi[j] + k1[j] / 2.0;
     }
     //k2
-    dnx(t + h / 2.0, x, dx, n);
+    dnx(t + h / 2.0, x, dx, n, parameters);
     for (j = 0; j <= n - 1; j = j + 1)
     {
         k2[j] = h * dx[j];
         x[j]  = xi[j] + k2[j] / 2.0;
     }
     //k3
-    dnx(t + h / 2.0, x, dx, n);
+    dnx(t + h / 2.0, x, dx, n, parameters);
     for (j = 0; j <= n - 1; j = j + 1)
     {
         k3[j] = h * dx[j];
         x[j]  = xi[j] + k3[j];
     }
     //k4 and result
-    dnx(t + h, x, dx, n);
+    dnx(t + h, x, dx, n, parameters);
     for (j = 0; j <= n - 1; j = j + 1)
     {
         k4[j] = h * dx[j];
@@ -90,15 +91,15 @@ void ICACHE_FLASH_ATTR rk4_dn1(void(dnx)(FLOATING, FLOATING [], FLOATING [], int
 }
 
 /* Eulers method for a system */
-void ICACHE_FLASH_ATTR euler_dn1(void(dnx)(FLOATING, FLOATING [], FLOATING [], int),
-                                 FLOATING ti, FLOATING h, FLOATING xi[], FLOATING xf[], int n)
+void ICACHE_FLASH_ATTR euler_dn1(void(dnx)(FLOATING, FLOATING [], FLOATING [], int, FLOATING []),
+                                 FLOATING ti, FLOATING h, FLOATING xi[], FLOATING xf[], int n, FLOATING parameters[])
 {
     FLOATING t, dx[n];
     int j;
 
     t = ti;
     //result after 1 step
-    dnx(t, xi, dx, n);
+    dnx(t, xi, dx, n, parameters);
     for (j = 0; j <= n - 1; j = j + 1)
     {
         xf[j]  = xi[j] + h * dx[j];

@@ -41,8 +41,10 @@
 #ifdef TEST_MODE
     #include "mode_test.h"
 #endif
-#include "mode_roll3.h"
+//#include "mode_roll3.h"
 #include "mode_roll.h"
+#include "mode_music.h"
+#include "mode_magfestons.h"
 
 /*============================================================================
  * Defines
@@ -86,9 +88,13 @@ swadgeMode* swadgeModes[] =
     &mazerfMode,
     &colorMoveMode,
     &rollMode,
-    &roll3Mode,
+    &musicMode,
+    //&roll3Mode,
+    &magfestonsMode,
     &galleryMode,
-    &muteOption
+#if SWADGE_VERSION != SWADGE_2019
+    &muteOption,
+#endif
 };
 bool swadgeModeInit = false;
 rtcMem_t rtcMem = {0};
@@ -141,7 +147,11 @@ void ICACHE_FLASH_ATTR user_init(void)
 #else
     uart_init(BIT_RATE_74880, BIT_RATE_74880);
 #endif
+#if SWADGE_VERSION != SWADGE_2019
     os_printf("\nSwadge 2020\n");
+#else
+    os_printf("\nSwadge 2020 mod put in 2019\n");
+#endif
 
     // Read data fom RTC memory if we're waking from deep sleep
     if(REASON_DEEP_SLEEP_AWAKE == system_get_rst_info()->reason)
@@ -190,6 +200,9 @@ void ICACHE_FLASH_ATTR user_init(void)
         }
     }
 
+    // Sets up gConfigs in custom_commands.c
+    // Could do major refactor to eliminate
+    PopulategConfigs();
     // Load configurable parameters from SPI memory
     LoadSettings();
 
@@ -244,7 +257,11 @@ void ICACHE_FLASH_ATTR user_init(void)
         os_printf("QMA6981 not needed\n");
     }
 
+#if SWADGE_VERSION != SWADGE_2019
     if(QMA6981_init || MMA8452Q_init)
+#else
+    if(true)
+#endif
     {
         // Start a software timer to run every 100ms
         os_timer_disarm(&timerHandlePollAccel);
@@ -353,6 +370,13 @@ static void ICACHE_FLASH_ATTR pollAccel(void* arg __attribute__((unused)))
         accel.y = yarrow;
         accel.z = zarrow;
 #endif
+#if SWADGE_VERSION == SWADGE_2019
+        //TODO put code to return random, specific periods, or L/R button presses
+        accel.x = 0;
+        accel.y = 0;
+        accel.z = 255;
+#endif
+
         swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback(&accel);
     }
 }

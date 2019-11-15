@@ -19,8 +19,9 @@
  * Defines
  *==========================================================================*/
 
+#define NUMBER_STORED_CONFIGURABLES 16
 #define CONFIGURABLES sizeof(struct CCSettings) //(plus1)
-#define SAVE_LOAD_KEY 0xAE
+#define SAVE_LOAD_KEY 0xAF
 
 /*============================================================================
  * Structs
@@ -52,101 +53,62 @@ typedef struct
  * Variables
  *==========================================================================*/
 
+#if PROGRESSIVE_DFT == 0
+    #define DUP 128
+#else
+    #define DUP 1
+#endif
+
+uint8_t gConfigDefaults[NUMBER_STORED_CONFIGURABLES][CONFIGURABLES] = {
+//   i  r o d d   f     f l  s j  c    a d m    a d m    m  m b   s     p  u                       s  a d    s  f    d      s w   c  n                 e
+//   a  m f i u   i     b c  b m  o    1 1 1    2 2 2    a  a r   a     r  s                       y  c r    h  l    i      r r   f  l                 q
+//      s f r p   r     p o  b p  m                      n  d i   t     o  e                       m  t v    f  p    s      t p   #  d                 u
+	{32,1,0,3,DUP,1,    5,15,0,44,0,   2,2,96,  4,4,69,  45,1,100,255, 103,DEFAULT_NUM_LEDS,       0, 1,0,   0, 0,   0,     1,1,  0, DEFAULT_NUM_LEDS, 0, 0},
+	{16,1,0,6,DUP,3,    5,14,3,85,0,   0,3,208, 0,3,102, 45,8,100,255,  55,DEFAULT_NUM_LEDS-2,     0, 1,8,   4, 32 , 1,     0,0,  1, DEFAULT_NUM_LEDS, 0, 0},
+	{16,1,0,5,DUP,3,    5,14,3,85,0,   4,4,152, 7,7,145, 82,1,255,255,  15,DEFAULT_NUM_LEDS/3,     0, 1,0,   1, 1,   2,     0,0,  2, DEFAULT_NUM_LEDS, 0, 0},
+	{ 8,0,0,6,DUP,6,    5,21,3,42,0,   2,2,124, 4,4,16,  45,1,100,255,  10,DEFAULT_NUM_LEDS,       0, 1,254, 20,0,   0,     0,0,  3, DEFAULT_NUM_LEDS, 0, 0},
+	{16,0,0,2,DUP,1,    5,14,3,85,0,   0,4,32,  0,6,16,  82,1,100,255,  55,DEFAULT_NUM_LEDS/3-2,   2, 1,4, 100, 0, 255,     0,0,  4, DEFAULT_NUM_LEDS, 0, 0},
+	{16,0,0,2,DUP,1,    5,14,3,85,0,   0,4,32,  0,6,16,  82,1,100,255,  55,DEFAULT_NUM_LEDS/3-2,   2, 1,10,  0, 0,   0,     0,0,  5, DEFAULT_NUM_LEDS, 0, 0},
+	{32,1,0,6,DUP,3,    5,15,3,44,0,   2,2,96,  4,4,69,  45,1,100,255, 103,DEFAULT_NUM_LEDS,       0, 1,10,  0, 0,   0,     0,0,  6, DEFAULT_NUM_LEDS, 0, 0},
+	{32,1,0,6,DUP,3,    5,15,3,44,0,   2,2,96,  4,4,69,  45,1,100,255, 103,DEFAULT_NUM_LEDS,       0, 1,11,  0, 0,   0,     0,0,  7, DEFAULT_NUM_LEDS, 0, 0},
+	{16,0,0,3,DUP,2,    0,11,3,42,0,   2,2,16,  4,4,81,  45,1,100,255,  15,DEFAULT_NUM_LEDS,       0, 1,255, 0, 0,   0,     0,0,  8, DEFAULT_NUM_LEDS, 0, 0},
+	{16,0,0,6,DUP,3,    5,14,3,255,0,  3,1,180, 8,7,187, 45,4,100,255,  55,DEFAULT_NUM_LEDS-2,     0, 1,8,   0, 1,   1,     0,0,  9, DEFAULT_NUM_LEDS, 0, 0},
+	{32,1,0,6,DUP,3,    5,15,3,44,0,   2,2,96,  4,4,69,  45,1,100,255, 103,DEFAULT_NUM_LEDS/2,     1, 1,0,   0, 0,   0,     1,1, 10, DEFAULT_NUM_LEDS, 0, 0},
+	{32,1,0,6,DUP,3,    5,15,3,44,0,   2,2,96,  4,4,69,  45,1,100,255, 103,DEFAULT_NUM_LEDS/3,     2, 1,0,   0, 0,   0,     1,1, 11, DEFAULT_NUM_LEDS, 0, 0},
+	{32,1,0,6,DUP,3,    5,15,3,44,0,   2,2,96,  4,4,69,  45,1,100,255, 103,DEFAULT_NUM_LEDS/4,     3, 1,0,   0, 0,   0,     1,1, 12, DEFAULT_NUM_LEDS, 0, 0},
+	{32,1,0,6,DUP,3,    5,15,3,44,0,   2,2,96,  4,4,69,  45,1,100,255, 103,DEFAULT_NUM_LEDS/2,     0, 1,0,  65,65,   0,     1,1, 13, DEFAULT_NUM_LEDS, 0, 0},
+	{32,1,0,6,DUP,3,    5,15,3,44,0,   2,2,96,  4,6,69,  45,1,100,255, 103,DEFAULT_NUM_LEDS,       0, 1,1,   0, 0,   0,     1,1,  14,DEFAULT_NUM_LEDS, 0, 0},
+	{32,1,0,6,DUP,3,    5,15,3,44,0,   2,2,96,  4,4,69,  45,1,100,255, 101,DEFAULT_NUM_LEDS/8,     0, 1,0,   1, 31,  1,     1,0,  15,DEFAULT_NUM_LEDS, 0, 0},
+	};
+
+
+uint8_t* gConfigurables[CONFIGURABLES] = { &CCS.gINITIAL_AMP, &CCS.gRMUXSHIFT,  &CCS.gROOT_NOTE_OFFSET, &CCS.gDFTIIR, &CCS.gDFT_UPDATE, &CCS.gFUZZ_IIR_BITS,
+                                           &CCS.gFILTER_BLUR_PASSES, &CCS.gLOWER_CUTOFF, &CCS.gSEMIBITSPERBIN, &CCS.gMAX_JUMP_DISTANCE, &CCS.gMAX_COMBINE_DISTANCE,
+                                           &CCS.gAMP1_ATTACK_BITS, &CCS.gAMP1_DECAY_BITS, &CCS.gAMP_1_MULT, &CCS.gAMP2_ATTACK_BITS, &CCS.gAMP2_DECAY_BITS, &CCS.gAMP_2_MULT, &CCS.gMIN_AMP_FOR_NOTE,
+                                           &CCS.gMINIMUM_AMP_FOR_NOTE_TO_DISAPPEAR, &CCS.gNOTE_FINAL_AMP, &CCS.gNOTE_FINAL_SATURATION,
+                                           &CCS.gNERF_NOTE_PORP, &CCS.gUSE_NUM_LIN_LEDS, &CCS.gSYMMETRY_REPEAT, &CCS.gCOLORCHORD_ACTIVE, &CCS.gCOLORCHORD_OUTPUT_DRIVER, &CCS.gCOLORCHORD_SHIFT_INTERVAL,
+                                           &CCS.gCOLORCHORD_FLIP_ON_PEAK, &CCS.gCOLORCHORD_SHIFT_DISTANCE, &CCS.gCOLORCHORD_SORT_NOTES, &CCS.gCOLORCHORD_LIN_WRAPAROUND, &CCS.gCONFIG_NUMBER,
+                                           &CCS.gNUM_LIN_LEDS, &CCS.gEQUALIZER_SET,  0
+                                         };
+
+char* gConfigurableNames[CONFIGURABLES] = { "gINITIAL_AMP", "gRMUXSHIFT", "gROOT_NOTE_OFFSET", "gDFTIIR", "gDFT_UPDATE", "gFUZZ_IIR_BITS",
+                                            "gFILTER_BLUR_PASSES", "gLOWER_CUTOFF", "gSEMIBITSPERBIN", "gMAX_JUMP_DISTANCE", "gMAX_COMBINE_DISTANCE", "gAMP1_ATTACK_BITS", "gAMP1_DECAY_BITS",
+                                            "gAMP_1_MULT", "gAMP2_ATTACK_BITS", "gAMP2_DECAY_BITS", "gAMP_2_MULT", "gMIN_AMP_FOR_NOTE", "gMINIMUM_AMP_FOR_NOTE_TO_DISAPPEAR", "gNOTE_FINAL_AMP",
+                                            "gNOTE_FINAL_SATURATION", "gNERF_NOTE_PORP", "gUSE_NUM_LIN_LEDS", "gSYMMETRY_REPEAT", "gCOLORCHORD_ACTIVE", "gCOLORCHORD_OUTPUT_DRIVER",
+                                            "gCOLORCHORD_SHIFT_INTERVAL", "gCOLORCHORD_FLIP_ON_PEAK", "gCOLORCHORD_SHIFT_DISTANCE", "gCOLORCHORD_SORT_NOTES", "gCOLORCHORD_LIN_WRAPAROUND",
+                                            "gCONFIG_NUMBER", "gNUM_LIN_LEDS",  "gEQUALIZER_SET", 0
+                                          };
+
 struct CCSettings CCS = {0};
 
-configurable_t gConfigs[CONFIGURABLES] =
-{
-    {
-        .defaultVal = 0,
-        .name = "gROOT_NOTE_OFFSET",
-        .val = &CCS.gROOT_NOTE_OFFSET
-    },
-    {
-        .defaultVal = 6,
-        .name = "gDFTIIR",
-        .val = &CCS.gDFTIIR
-    },
-    {
-        .defaultVal = 1,
-        .name = "gFUZZ_IIR_BITS",
-        .val = &CCS.gFUZZ_IIR_BITS
-    },
-    {
-        .defaultVal = 2,
-        .name = "gFILTER_BLUR_PASSES",
-        .val = &CCS.gFILTER_BLUR_PASSES
-    },
-    {
-        .defaultVal = 3,
-        .name = "gSEMIBITSPERBIN",
-        .val = &CCS.gSEMIBITSPERBIN
-    },
-    {
-        .defaultVal = 4,
-        .name = "gMAX_JUMP_DISTANCE",
-        .val = &CCS.gMAX_JUMP_DISTANCE
-    },
-    {
-        .defaultVal = 7,
-        .name = "gMAX_COMBINE_DISTANCE",
-        .val = &CCS.gMAX_COMBINE_DISTANCE
-    },
-    {
-        .defaultVal = 4,
-        .name = "gAMP_1_IIR_BITS",
-        .val = &CCS.gAMP_1_IIR_BITS
-    },
-    {
-        .defaultVal = 2,
-        .name = "gAMP_2_IIR_BITS",
-        .val = &CCS.gAMP_2_IIR_BITS
-    },
-    {
-        .defaultVal = 80,
-        .name = "gMIN_AMP_FOR_NOTE",
-        .val = &CCS.gMIN_AMP_FOR_NOTE
-    },
-    {
-        .defaultVal = 64,
-        .name = "gMINIMUM_AMP_FOR_NOTE_TO_DISAPPEAR",
-        .val = &CCS.gMINIMUM_AMP_FOR_NOTE_TO_DISAPPEAR
-    },
-    {
-        .defaultVal = 12,
-        .name = "gNOTE_FINAL_AMP",
-        .val = &CCS.gNOTE_FINAL_AMP
-    },
-    {
-        .defaultVal = 15,
-        .name = "gNERF_NOTE_PORP",
-        .val = &CCS.gNERF_NOTE_PORP
-    },
-    {
-        .defaultVal = NUM_LIN_LEDS,
-        .name = "gUSE_NUM_LIN_LEDS",
-        .val = &CCS.gUSE_NUM_LIN_LEDS
-    },
-    {
-        .defaultVal = 1,
-        .name = "gCOLORCHORD_ACTIVE",
-        .val = &CCS.gCOLORCHORD_ACTIVE
-    },
-    {
-        .defaultVal = 1,
-        .name = "gCOLORCHORD_OUTPUT_DRIVER",
-        .val = &CCS.gCOLORCHORD_OUTPUT_DRIVER
-    },
-    {
-        .defaultVal = 20,
-        .name = "gINITIAL_AMP",
-        .val = &CCS.gINITIAL_AMP
-    },
-    {
-        .defaultVal = 0,
-        .name = 0,
-        .val = 0
-    }
-};
+configurable_t gConfigs[CONFIGURABLES] = {{0}};
+// {
+//     {
+//         .defaultVal = 0,
+//         .name = 0,
+//         .val = 0
+//     }
+// };
 
 settings_t settings =
 {
@@ -174,6 +136,19 @@ void ICACHE_FLASH_ATTR SaveSettings(void);
 /*============================================================================
  * Functions
  *==========================================================================*/
+
+void ICACHE_FLASH_ATTR PopulategConfigs(void)
+{
+    for( uint8_t i = 0; i < CONFIGURABLES - 1; i++ )
+    {
+        gConfigs[i].defaultVal = gConfigDefaults[0][i];
+        gConfigs[i].name = gConfigurableNames[i];
+        gConfigs[i].val = gConfigurables[i];
+        os_printf("i %d, defaultVal %d, name %s, val %x\n", i, gConfigs[i].defaultVal, gConfigs[i].name, (uint32_t)gConfigs[i].val);
+        //os_printf("i %d, defaultVal %d, name %s\n", i, gConfigs[i].defaultVal, gConfigs[i].name);
+        //os_printf("i %d\n", i);
+    }
+}
 
 /**
  * Initialization for settings, called by user_init().
@@ -327,11 +302,7 @@ void ICACHE_FLASH_ATTR mzSetLastScore(uint32_t newLastScore)
 
 bool ICACHE_FLASH_ATTR getIsMutedOption(void)
 {
-#ifdef TEST_MODE
-    return false;
-#else
     return settings.isMuted;
-#endif
 }
 
 void ICACHE_FLASH_ATTR setIsMutedOption(bool mute)
