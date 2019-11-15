@@ -72,7 +72,6 @@ static const uint8_t musicBrightnesses[] =
 };
 
 
-
 /*============================================================================
  * Variables
  *==========================================================================*/
@@ -124,7 +123,6 @@ struct
     float zAccelHighPassSmoothed;
     float len;
     uint8_t noteNum;
-    uint8_t prevNoteNum;
     int16_t countframes;
     uint32_t colorToShow;
     uint8_t ledr;
@@ -134,6 +132,25 @@ struct
 
 static os_timer_t timerHandleUpdate = {0};
 static float pi = 3.15159;
+notePeriod_t currentMusicNote;
+
+const song_t noteRythmn RODATA_ATTR =
+    //const song_t noteRythmn  =
+{
+    .notes = {
+        {.note = -1, .timeMs = 230},
+        {.note = SILENCE, .timeMs = 20},
+        {.note = -1, .timeMs = 230},
+        {.note = SILENCE, .timeMs = 20},
+        {.note = -1, .timeMs = 230},
+        {.note = SILENCE, .timeMs = 20},
+        {.note = -1, .timeMs = 740},
+        {.note = SILENCE, .timeMs = 10},
+    },
+    .numNotes = 8,
+    .shouldLoop = true
+};
+
 
 /*============================================================================
  * Functions
@@ -282,13 +299,7 @@ void ICACHE_FLASH_ATTR music_updateDisplay(void)
             // Set midiNote
             music.noteNum = (int)(music.numNotes * (1 + atan2(music.scxc - 64, music.scyc - 32) / 2.0 / pi)) % music.numNotes;
             music.midiNote = midi2note(music.midiScale[music.noteNum]);
-            // continous play while button down for methods 2 and 3
-            if ((music.currentMethod > 1) &&  music.playButtonDown && (music.prevNoteNum != music.noteNum))
-            {
-                setBuzzerNote(music.midiNote);
-            }
-            music.prevNoteNum = music.noteNum;
-
+            currentMusicNote = music.midiNote;
             //os_printf("notenum = %d,   midi = %d,  music.midiNote = %d\n", notenum, music.midiScale[notenum], music.midiNote);
 
             // LEDs, all off
@@ -355,7 +366,20 @@ void ICACHE_FLASH_ATTR musicButtonCallback( uint8_t state,
         {
             //Play note
             music.playButtonDown = true;
-            setBuzzerNote(music.midiNote);
+            switch (music.currentMethod)
+            {
+                case 0:
+                case 1:
+                    // play selected note while button down
+                    setBuzzerNote(music.midiNote);
+                    break;
+                default:
+                    // play notes given by ball using a specified Rythmn
+                    startBuzzerSong(&noteRythmn);
+                    break;
+            }
+
+
         }
         if(1 == button)
         {

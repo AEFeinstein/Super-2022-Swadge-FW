@@ -75,6 +75,7 @@ void ICACHE_FLASH_ATTR modeInit(void)
     menuPos = 0;
     cursorPos = 0;
 
+#if SWADGE_VERSION != SWADGE_BBKIWI
     // Timer for starting a screensaver
     os_timer_disarm(&timerScreensaverStart);
     os_timer_setfn(&timerScreensaverStart, (os_timer_func_t*)menuStartScreensaver, NULL);
@@ -84,7 +85,7 @@ void ICACHE_FLASH_ATTR modeInit(void)
     os_timer_setfn(&timerScreensaverAnimation, (os_timer_func_t*)menuAnimateScreensaver, NULL);
 
     stopScreensaver();
-
+#endif
     drawMenu();
 }
 
@@ -98,8 +99,10 @@ void ICACHE_FLASH_ATTR modeInit(void)
 void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down)
 {
+#if SWADGE_VERSION != SWADGE_BBKIKI
     // Stop the screensaver
     stopScreensaver();
+#endif
 
     if(down)
     {

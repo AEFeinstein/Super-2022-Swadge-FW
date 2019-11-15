@@ -77,10 +77,17 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 swadgeMode* swadgeModes[] =
 {
 #ifdef TEST_MODE
+#if SWADGE_VERSION != SWADGE_BBKIWI
     &testMode,
+#endif
 #endif
 #if SWADGE_VERSION != SWADGE_2019
     &menuMode, // Menu must be the first
+#endif
+#ifdef TEST_MODE
+#if SWADGE_VERSION == SWADGE_BBKIWI
+    &testMode,
+#endif
 #endif
     &joustGameMode,
     &snakeMode,
@@ -89,7 +96,6 @@ swadgeMode* swadgeModes[] =
     &colorMoveMode,
     &rollMode,
     &musicMode,
-    //&roll3Mode,
     &magfestonsMode,
     &galleryMode,
 #if SWADGE_VERSION != SWADGE_2019

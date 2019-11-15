@@ -1,6 +1,6 @@
 #ifndef USER_CONFIG_H_
 #define USER_CONFIG_H_
-//#define TEST_MODE
+#define TEST_MODE
 // The accelerometer has two arrows marked x and y and dot in circle marking up
 // can specify how these relate to the landscape view of OLED. In .bashrc put
 // export SET_SWADGE_VERSION=1
