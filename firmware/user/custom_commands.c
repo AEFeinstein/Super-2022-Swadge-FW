@@ -21,7 +21,7 @@
 
 #define NUMBER_STORED_CONFIGURABLES 16
 #define CONFIGURABLES sizeof(struct CCSettings) //(plus1)
-#define SAVE_LOAD_KEY 0xAF
+#define SAVE_LOAD_KEY 0xB0
 
 /*============================================================================
  * Structs
@@ -38,6 +38,7 @@ typedef struct __attribute__((aligned(4)))
     uint32_t mzLastScore;
     uint32_t joustWins;
     uint32_t snakeHighScores[3];
+    uint32_t galleryUnlocks;
     bool isMuted;
 }
 settings_t;
@@ -189,6 +190,7 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
         memset(settings.mzBestTimes, 0x0f, NUM_MZ_LEVELS * sizeof(uint32_t));
         settings.mzLastScore = 100000;
         settings.joustWins = 0;
+        settings.galleryUnlocks = 0;
         SaveSettings(); // updates settings.configs then saves
     }
 }
@@ -309,6 +311,28 @@ void ICACHE_FLASH_ATTR setIsMutedOption(bool mute)
 {
     settings.isMuted = mute;
     SaveSettings();
+}
+
+/**
+ * @return A bitmask of unlocked images
+ */
+uint32_t ICACHE_FLASH_ATTR getGalleryUnlocks(void)
+{
+    return settings.galleryUnlocks;
+}
+
+/**
+ * Set a bit at the given index in the unlocked images bitmask
+ * 
+ * @param idx The index of the bit to set, starting at 0
+ */
+void ICACHE_FLASH_ATTR unlockGallery(uint8_t idx)
+{
+    if(!(settings.galleryUnlocks & (1 << idx)))
+    {
+        settings.galleryUnlocks |= (1 << idx);
+        SaveSettings();
+    }
 }
 
 /**

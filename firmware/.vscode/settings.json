@@ -66,6 +66,7 @@
         "mode_gallery.h": "c",
         "mode_test.h": "c",
         "cmath": "c",
-        "cstdlib": "c"
+        "cstdlib": "c",
+        "fastlz.h": "c"
     }
 }
