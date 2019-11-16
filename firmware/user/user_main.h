@@ -169,5 +169,4 @@ void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode);
 
 void setOledDrawTime(uint32_t drawTimeMs);
 
-extern bool (*getIsMutedOption)(void);
 #endif /* USER_USER_MAIN_H_ */
