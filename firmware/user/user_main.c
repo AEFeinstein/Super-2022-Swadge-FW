@@ -93,7 +93,7 @@ swadgeMode* swadgeModes[] =
     //&magfestonsMode,
     &galleryMode,
 #if SWADGE_VERSION != SWADGE_2019
-    &muteOption,
+    &muteOptionOff,
 #endif
 };
 bool swadgeModeInit = false;

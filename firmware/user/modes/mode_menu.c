@@ -41,7 +41,12 @@ swadgeMode menuMode =
 };
 
 // Dummy mode for the mute option
-swadgeMode muteOption =
+swadgeMode muteOptionOn =
+{
+    .menuImageData = mnu_muteon_0,
+    .menuImageLen = sizeof(mnu_muteon_0)
+};
+swadgeMode muteOptionOff =
 {
     .menuImageData = mnu_muteoff_0,
     .menuImageLen = sizeof(mnu_muteoff_0)
@@ -107,7 +112,7 @@ void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state __attribute__((unused)),
         {
             case 0:
             {
-                if(modes[1 + selectedMode] == &muteOption)
+                if(modes[1 + selectedMode] == &muteOptionOff)
                 {
                     // Toggle the mute and redraw the menu
                     setIsMutedOption(!getIsMutedOption());
@@ -159,7 +164,24 @@ void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state __attribute__((unused)),
  */
 void ICACHE_FLASH_ATTR drawMenu(void)
 {
-    loadImg(modes[1 + selectedMode], img1);
+    swadgeMode* modeToDraw;
+    if(&muteOptionOff == modes[1 + selectedMode])
+    {
+        if(getIsMutedOption())
+        {
+            modeToDraw = &muteOptionOn;
+        }
+        else
+        {
+            modeToDraw = &muteOptionOff;
+        }
+    }
+    else
+    {
+        modeToDraw = modes[1 + selectedMode];
+    }
+
+    loadImg(modeToDraw, img1);
 
     // Draw the frame to the OLED, one pixel at a time
     for (int w = 0; w < OLED_WIDTH; w++)
