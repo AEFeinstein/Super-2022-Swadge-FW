@@ -300,7 +300,7 @@ void ICACHE_FLASH_ATTR mzSetLastScore(uint32_t newLastScore)
     SaveSettings();
 }
 
-bool ICACHE_FLASH_ATTR getIsMutedOption(void)
+bool ICACHE_FLASH_ATTR getIsMutedOptionFromFlash(void)
 {
     return settings.isMuted;
 }

@@ -110,6 +110,7 @@ bool QMA6981_init = false;
 
 uint8_t menuChangeBarProgress = 0;
 
+bool (*getIsMutedOption)(void);
 /*============================================================================
  * Prototypes
  *==========================================================================*/
@@ -144,6 +145,7 @@ void ICACHE_FLASH_ATTR user_pre_init(void)
  */
 void ICACHE_FLASH_ATTR user_init(void)
 {
+
     // Initialize the UART
 #ifdef USE_ESP_GDB
     // Only standard baud rates seem to be supported by xtensa gdb!
@@ -294,6 +296,9 @@ void ICACHE_FLASH_ATTR user_init(void)
     StartHPATimer();
 
     // Initialize the buzzer
+
+    // Can be overridden in fnEnterMode
+    getIsMutedOption = &getIsMutedOptionFromFlash;
     initBuzzer();
     setBuzzerNote(SILENCE);
 

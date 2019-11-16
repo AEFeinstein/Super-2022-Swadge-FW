@@ -48,7 +48,7 @@
 /*============================================================================
  * Prototypes
  *==========================================================================*/
-
+bool ICACHE_FLASH_ATTR getIsMutedOptionOveride(void);
 void ICACHE_FLASH_ATTR musicEnterMode(void);
 void ICACHE_FLASH_ATTR musicExitMode(void);
 void ICACHE_FLASH_ATTR musicSampleHandler(int32_t samp);
@@ -218,12 +218,17 @@ const song_t* rhythmPatterns[] =
 /*============================================================================
  * Functions
  *==========================================================================*/
+bool ICACHE_FLASH_ATTR getIsMutedOptionOveride(void)
+{
+    return false;
+}
 
 /**
  * Initializer for music
  */
 void ICACHE_FLASH_ATTR musicEnterMode(void)
 {
+    getIsMutedOption = &getIsMutedOptionOveride;
 
     // Start the update loop.
     os_timer_disarm(&timerHandleUpdate);

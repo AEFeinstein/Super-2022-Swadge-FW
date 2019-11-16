@@ -10,7 +10,7 @@
 #include <eagle_soc.h>
 #include <user_interface.h>
 #include <ets_sys.h>
-
+#include "user_main.h"
 #include "hpatimer.h"
 #include "adc.h"
 #include "missingEspFnPrototypes.h"
