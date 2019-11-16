@@ -24,7 +24,6 @@
  *============================================================================*/
 
 #define MAX_DECOMPRESSED_SIZE 0xA00
-#define METADATA_LEN 8
 
 #define DBG_GAL(...) do { \
         os_printf("%s::%d ", __func__, __LINE__); \
@@ -83,7 +82,9 @@ swadgeMode galleryMode =
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
-    .fnAccelerometerCallback = NULL
+    .fnAccelerometerCallback = NULL,
+    .menuImageData = mnu_gallery_0,
+    .menuImageLen = sizeof(mnu_gallery_0)
 };
 
 struct

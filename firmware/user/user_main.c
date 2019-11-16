@@ -87,10 +87,10 @@ swadgeMode* swadgeModes[] =
     &tiltradsMode,
     &mazerfMode,
     &colorMoveMode,
-    &rollMode,
+    //&rollMode,
     &musicMode,
     //&roll3Mode,
-    &magfestonsMode,
+    //&magfestonsMode,
     &galleryMode,
 #if SWADGE_VERSION != SWADGE_2019
     &muteOption,

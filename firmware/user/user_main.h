@@ -23,6 +23,7 @@
 #include <c_types.h>
 #include <stdint.h>
 #include <stddef.h>
+#include "menuImages.h"
 
 /*============================================================================
 * Enums
@@ -129,6 +130,14 @@ typedef struct _swadgeMode
      * @param accel A struct with 10 bit signed X, Y, and Z accel vectors
      */
     void (*fnAccelerometerCallback)(accel_t* accel);
+    /**
+     * A pointer to the compressed image data in ROM
+     */
+    uint8_t * menuImageData;
+    /**
+     * The length of the compressed image data in ROM
+     */
+    uint16_t menuImageLen;
 } swadgeMode;
 
 /*============================================================================

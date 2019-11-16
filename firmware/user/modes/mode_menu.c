@@ -9,13 +9,8 @@
 #include "display/font.h"
 #include "custom_commands.h"
 #include "mode_dance.h"
-
-/*============================================================================
- * Defines
- *==========================================================================*/
-
-#define MARGIN 3
-#define NUM_MENU_ROWS 5
+#include "fastlz.h"
+#include "mode_gallery.h"
 
 /*============================================================================
  * Function prototypes
@@ -28,6 +23,7 @@ void ICACHE_FLASH_ATTR drawMenu(void);
 static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR menuAnimateScreensaver(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR stopScreensaver(void);
+void ICACHE_FLASH_ATTR loadImg(swadgeMode* mode, uint8_t* decompressedImage);
 
 /*============================================================================
  * Variables
@@ -45,17 +41,23 @@ swadgeMode menuMode =
 };
 
 // Dummy mode for the mute option
-swadgeMode muteOption = {0};
+swadgeMode muteOption =
+{
+    .menuImageData = mnu_muteoff_0,
+    .menuImageLen = sizeof(mnu_muteoff_0)
+};
 
 uint8_t numModes = 0;
 swadgeMode** modes = NULL;
 uint8_t selectedMode = 0;
-uint8_t menuPos = 0;
-uint8_t cursorPos = 0;
 
 os_timer_t timerScreensaverStart = {0};
 os_timer_t timerScreensaverAnimation = {0};
 uint8_t menuScreensaverIdx = 0;
+
+uint8_t compressedStagingSpace[600];
+uint8_t img1[((OLED_WIDTH * OLED_HEIGHT) / 8) + METADATA_LEN];
+uint8_t img2[((OLED_WIDTH * OLED_HEIGHT) / 8) + METADATA_LEN];
 
 /*============================================================================
  * Variables
@@ -72,8 +74,6 @@ void ICACHE_FLASH_ATTR modeInit(void)
     numModes--;
 
     selectedMode = 0;
-    menuPos = 0;
-    cursorPos = 0;
 
     // Timer for starting a screensaver
     os_timer_disarm(&timerScreensaverStart);
@@ -122,18 +122,6 @@ void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state __attribute__((unused)),
             }
             case 2:
             {
-                // Cycle the menu by either moving the cursor or shifting names
-                if(cursorPos < NUM_MENU_ROWS - 1)
-                {
-                    // Move the cursor
-                    cursorPos++;
-                }
-                else
-                {
-                    // Shift the names
-                    menuPos = (menuPos + 1) % numModes;
-                }
-
                 // Cycle the currently selected mode
                 selectedMode = (selectedMode + 1) % numModes;
 
@@ -143,25 +131,6 @@ void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state __attribute__((unused)),
             }
             case 1:
             {
-                // Cycle the menu by either moving the cursor or shifting names
-                if(cursorPos > 0)
-                {
-                    // Move the cursor
-                    cursorPos--;
-                }
-                else
-                {
-                    // Shift the names
-                    if(0 == menuPos)
-                    {
-                        menuPos = numModes - 1;
-                    }
-                    else
-                    {
-                        menuPos--;
-                    }
-                }
-
                 // Cycle the currently selected mode
                 if(0 == selectedMode)
                 {
@@ -190,33 +159,25 @@ void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state __attribute__((unused)),
  */
 void ICACHE_FLASH_ATTR drawMenu(void)
 {
-    clearDisplay();
+    loadImg(modes[1 + selectedMode], img1);
 
-    // Draw a cursor
-    plotText(0, cursorPos * (MARGIN + FONT_HEIGHT_IBMVGA8), ">", IBM_VGA_8, WHITE);
-
-    // Draw all the mode names
-    uint8_t idx;
-    for(idx = 0; idx < NUM_MENU_ROWS; idx++)
+    // Draw the frame to the OLED, one pixel at a time
+    for (int w = 0; w < OLED_WIDTH; w++)
     {
-        uint8_t modeToDraw = 1 + ((menuPos + idx) % numModes);
-        if(modes[modeToDraw] == &muteOption)
+        for (int h = 0; h < OLED_HEIGHT; h++)
         {
-            if(getIsMutedOption())
+            uint16_t linearIdx = (OLED_HEIGHT * (w)) + h;
+            uint16_t byteIdx = METADATA_LEN + linearIdx / 8;
+            uint8_t bitIdx = linearIdx % 8;
+
+            if (img1[byteIdx] & (0x80 >> bitIdx))
             {
-                plotText(MARGIN + 6, idx * (MARGIN + FONT_HEIGHT_IBMVGA8),
-                         "Mute:        ON", IBM_VGA_8, WHITE);
+                drawPixel(w, h, WHITE);
             }
             else
             {
-                plotText(MARGIN + 6, idx * (MARGIN + FONT_HEIGHT_IBMVGA8),
-                         "Mute:       OFF", IBM_VGA_8, WHITE);
+                drawPixel(w, h, BLACK);
             }
-        }
-        else
-        {
-            plotText(MARGIN + 6, idx * (MARGIN + FONT_HEIGHT_IBMVGA8),
-                     modes[modeToDraw]->modeName, IBM_VGA_8, WHITE);
         }
     }
 }
@@ -260,5 +221,36 @@ void ICACHE_FLASH_ATTR stopScreensaver(void)
 
     // Start a timer to start the screensaver if there's no input
     os_timer_disarm(&timerScreensaverStart);
-    os_timer_arm(&timerScreensaverStart, 5000, false);
+    // os_timer_arm(&timerScreensaverStart, 5000, false);
+}
+
+/**
+ * @brief Helper function to load an image from ROM
+ *
+ * @param mode The mode who's menu image t load
+ * @param decompressedImage The memory to load the image to
+ */
+void ICACHE_FLASH_ATTR loadImg(swadgeMode* mode, uint8_t* decompressedImage)
+{
+    /* Read the compressed image from ROM into RAM, and make sure to do a
+     * 32 bit aligned read. The arrays are all __attribute__((aligned(4)))
+     * so this is safe, not out of bounds
+     */
+    uint32_t alignedSize = mode->menuImageLen;
+    while(alignedSize % 4 != 0)
+    {
+        alignedSize++;
+    }
+    memcpy(compressedStagingSpace, mode->menuImageData, alignedSize);
+
+    // Decompress the image from one RAM area to another
+    uint32_t dLen = fastlz_decompress(compressedStagingSpace,
+                                      mode->menuImageLen,
+                                      decompressedImage,
+                                      1024 + 8);
+    uint8_t width      = (decompressedImage[0] << 8) | decompressedImage[1];
+    uint8_t height     = (decompressedImage[2] << 8) | decompressedImage[3];
+    uint8_t nFrames    = (decompressedImage[4] << 8) | decompressedImage[5];
+    uint8_t durationMs = (decompressedImage[6] << 8) | decompressedImage[7];
+    os_printf("2=%d\nh=%d\nf=%d\nd=%d\ndLen=%d\n", width, height, nFrames, durationMs, dLen);
 }

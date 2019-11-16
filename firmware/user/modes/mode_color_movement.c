@@ -205,7 +205,9 @@ swadgeMode colorMoveMode =
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
-    .fnAccelerometerCallback = cmAccelerometerCallback
+    .fnAccelerometerCallback = cmAccelerometerCallback,
+    .menuImageData = mnu_colorshake_0,
+    .menuImageLen = sizeof(mnu_colorshake_0)
 };
 
 int gFRAMECOUNT_MOD_SHIFT_INTERVAL = 0;

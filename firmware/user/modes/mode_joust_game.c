@@ -123,7 +123,9 @@ swadgeMode joustGameMode =
     .wifiMode = ESP_NOW,
     .fnEspNowRecvCb = joustRecvCb,
     .fnEspNowSendCb = joustSendCb,
-    .fnAccelerometerCallback = joustAccelerometerHandler
+    .fnAccelerometerCallback = joustAccelerometerHandler,
+    .menuImageData = mnu_joust_0,
+    .menuImageLen = sizeof(mnu_joust_0)
 };
 
 struct

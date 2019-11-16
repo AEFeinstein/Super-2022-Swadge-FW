@@ -86,7 +86,9 @@ swadgeMode musicMode =
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
-    .fnAccelerometerCallback = musicAccelerometerHandler
+    .fnAccelerometerCallback = musicAccelerometerHandler,
+    .menuImageData = mnu_music_0,
+    .menuImageLen = sizeof(mnu_music_0)
 };
 
 

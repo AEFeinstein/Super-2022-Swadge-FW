@@ -8,6 +8,8 @@
 #ifndef MODES_MODE_GALLERY_H_
 #define MODES_MODE_GALLERY_H_
 
+#define METADATA_LEN 8
+
 extern swadgeMode galleryMode;
 
 #endif /* MODES_MODE_GALLERY_H_ */

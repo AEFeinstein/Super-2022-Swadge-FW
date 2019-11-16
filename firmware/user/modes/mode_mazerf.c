@@ -235,7 +235,9 @@ swadgeMode mazerfMode =
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
-    .fnAccelerometerCallback = mzAccelerometerCallback
+    .fnAccelerometerCallback = mzAccelerometerCallback,
+    .menuImageData = mnu_maze_0,
+    .menuImageLen = sizeof(mnu_maze_0)
 };
 
 accel_t mzAccel = {0};
