@@ -13,17 +13,28 @@
 #include "mode_gallery.h"
 
 /*============================================================================
+ * Defines
+ *==========================================================================*/
+
+#define MENU_PAN_PERIOD_MS 20
+#define MENU_PX_PER_PAN     4
+
+/*============================================================================
  * Function prototypes
  *==========================================================================*/
 
 void ICACHE_FLASH_ATTR modeInit(void);
 void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state, int button, int down);
-void ICACHE_FLASH_ATTR drawMenu(void);
 
 static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR menuAnimateScreensaver(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR stopScreensaver(void);
+
 void ICACHE_FLASH_ATTR loadImg(swadgeMode* mode, uint8_t* decompressedImage);
+void ICACHE_FLASH_ATTR drawImgAtOffset(uint8_t* img, int8_t hOffset);
+
+void ICACHE_FLASH_ATTR startPanning(bool pLeft);
+static void ICACHE_FLASH_ATTR menuPanImages(void* arg __attribute__((unused)));
 
 /*============================================================================
  * Variables
@@ -60,12 +71,19 @@ os_timer_t timerScreensaverStart = {0};
 os_timer_t timerScreensaverAnimation = {0};
 uint8_t menuScreensaverIdx = 0;
 
-uint8_t compressedStagingSpace[600];
-uint8_t img1[((OLED_WIDTH * OLED_HEIGHT) / 8) + METADATA_LEN];
-uint8_t img2[((OLED_WIDTH * OLED_HEIGHT) / 8) + METADATA_LEN];
+uint8_t compressedStagingSpace[600] = {0};
+uint8_t img1[((OLED_WIDTH * OLED_HEIGHT) / 8) + METADATA_LEN] = {0};
+uint8_t img2[((OLED_WIDTH * OLED_HEIGHT) / 8) + METADATA_LEN] = {0};
+uint8_t* curImg = img1;
+uint8_t* nextImg = img2;
+
+os_timer_t timerPanning = {0};
+bool menuIsPanning = false;
+bool panningLeft = false;
+int16_t panIdx = 0;
 
 /*============================================================================
- * Variables
+ * Swadge Mode Functions
  *==========================================================================*/
 
 /**
@@ -78,7 +96,16 @@ void ICACHE_FLASH_ATTR modeInit(void)
     // Don't count the menu as a mode
     numModes--;
 
+    // Start at mode 0
     selectedMode = 0;
+
+    // Set up memory for loading images into
+    curImg = img1;
+    nextImg = img2;
+
+    // Load and draw the first image
+    loadImg(modes[1 + selectedMode], curImg);
+    drawImgAtOffset(curImg, 0);
 
     // Timer for starting a screensaver
     os_timer_disarm(&timerScreensaverStart);
@@ -88,9 +115,15 @@ void ICACHE_FLASH_ATTR modeInit(void)
     os_timer_disarm(&timerScreensaverAnimation);
     os_timer_setfn(&timerScreensaverAnimation, (os_timer_func_t*)menuAnimateScreensaver, NULL);
 
+    // Timer for running a screensaver
+    os_timer_disarm(&timerPanning);
+    os_timer_setfn(&timerPanning, (os_timer_func_t*)menuPanImages, NULL);
+
+    // This starts the screensaver timer
     stopScreensaver();
 
-    drawMenu();
+    // Draw to OLED at the same rate the image is panned
+    setOledDrawTime(MENU_PAN_PERIOD_MS);
 }
 
 /**
@@ -106,17 +139,38 @@ void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state __attribute__((unused)),
     // Stop the screensaver
     stopScreensaver();
 
+    // Don't accept button input if the menu is panning
+    if(menuIsPanning)
+    {
+        return;
+    }
+
+    // Menu is not panning
     if(down)
     {
         switch(button)
         {
             case 0:
             {
+                // Special handling for the mute mode
                 if(modes[1 + selectedMode] == &muteOptionOff)
                 {
                     // Toggle the mute and redraw the menu
                     setIsMutedOption(!getIsMutedOption());
-                    drawMenu();
+
+                    // Pick one of the mute images to draw
+                    swadgeMode* modeToDraw;
+                    if(getIsMutedOption())
+                    {
+                        modeToDraw = &muteOptionOn;
+                    }
+                    else
+                    {
+                        modeToDraw = &muteOptionOff;
+                    }
+                    // Load and draw the mute image
+                    loadImg(modeToDraw, curImg);
+                    drawImgAtOffset(curImg, 0);
                 }
                 else
                 {
@@ -130,8 +184,7 @@ void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state __attribute__((unused)),
                 // Cycle the currently selected mode
                 selectedMode = (selectedMode + 1) % numModes;
 
-                // Draw the menu
-                drawMenu();
+                startPanning(true);
                 break;
             }
             case 1:
@@ -146,8 +199,7 @@ void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state __attribute__((unused)),
                     selectedMode--;
                 }
 
-                // Draw the menu
-                drawMenu();
+                startPanning(false);
                 break;
             }
             default:
@@ -159,31 +211,44 @@ void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state __attribute__((unused)),
     }
 }
 
+/*==============================================================================
+ * Image utility functions
+ *============================================================================*/
+
 /**
- * Draw a cursor and all the mode names to the display
+ * @brief Helper function to load an image from ROM
+ *
+ * @param mode The mode who's menu image to load
+ * @param decompressedImage The memory to load the image to
  */
-void ICACHE_FLASH_ATTR drawMenu(void)
+void ICACHE_FLASH_ATTR loadImg(swadgeMode* mode, uint8_t* decompressedImage)
 {
-    swadgeMode* modeToDraw;
-    if(&muteOptionOff == modes[1 + selectedMode])
+    /* Read the compressed image from ROM into RAM, and make sure to do a
+     * 32 bit aligned read. The arrays are all __attribute__((aligned(4)))
+     * so this is safe, not out of bounds
+     */
+    uint32_t alignedSize = mode->menuImageLen;
+    while(alignedSize % 4 != 0)
     {
-        if(getIsMutedOption())
-        {
-            modeToDraw = &muteOptionOn;
-        }
-        else
-        {
-            modeToDraw = &muteOptionOff;
-        }
+        alignedSize++;
     }
-    else
-    {
-        modeToDraw = modes[1 + selectedMode];
-    }
+    memcpy(compressedStagingSpace, mode->menuImageData, alignedSize);
 
-    loadImg(modeToDraw, img1);
+    // Decompress the image from one RAM area to another
+    fastlz_decompress(compressedStagingSpace,
+                      mode->menuImageLen,
+                      decompressedImage,
+                      1024 + 8);
+}
 
-    // Draw the frame to the OLED, one pixel at a time
+/**
+ * @brief Draw a menu image at a given horizontal offset
+ *
+ * @param img The image to draw
+ * @param hOffset The horizontal offset to draw it at
+ */
+void ICACHE_FLASH_ATTR drawImgAtOffset(uint8_t* img, int8_t wOffset)
+{
     for (int w = 0; w < OLED_WIDTH; w++)
     {
         for (int h = 0; h < OLED_HEIGHT; h++)
@@ -192,17 +257,107 @@ void ICACHE_FLASH_ATTR drawMenu(void)
             uint16_t byteIdx = METADATA_LEN + linearIdx / 8;
             uint8_t bitIdx = linearIdx % 8;
 
-            if (img1[byteIdx] & (0x80 >> bitIdx))
+            if (img[byteIdx] & (0x80 >> bitIdx))
             {
-                drawPixel(w, h, WHITE);
+                drawPixel(w + wOffset, h, WHITE);
             }
             else
             {
-                drawPixel(w, h, BLACK);
+                drawPixel(w + wOffset, h, BLACK);
             }
         }
     }
 }
+
+/*==============================================================================
+ * Menu panning functions
+ *============================================================================*/
+
+/**
+ * Start panning the menu
+ *
+ * @param pLeft true to pan to the left, false to pan to the right
+ */
+void ICACHE_FLASH_ATTR startPanning(bool pLeft)
+{
+    // Block button input until it's done
+    menuIsPanning = true;
+
+    // Special handling for mute, pick the actual mode to draw an image for
+    swadgeMode* newMode;
+    if(&muteOptionOff == modes[1 + selectedMode])
+    {
+        if(getIsMutedOption())
+        {
+            newMode = &muteOptionOn;
+        }
+        else
+        {
+            newMode = &muteOptionOff;
+        }
+    }
+    else
+    {
+        newMode = modes[1 + selectedMode];
+    }
+
+    // Load the next image
+    loadImg(newMode, nextImg);
+
+    // Start the timer to pan
+    panningLeft = pLeft;
+    panIdx = 0;
+    os_timer_arm(&timerPanning, MENU_PAN_PERIOD_MS, true);
+}
+
+/**
+ * Timer function called periodically while the menu is panning
+ *
+ * @param arg unused
+ */
+static void ICACHE_FLASH_ATTR menuPanImages(void* arg __attribute__((unused)))
+{
+    // Every MENU_PAN_PERIOD_MS, pan the menu MENU_PX_PER_PAN pixels
+    // With 4px every 20ms, a transition takes 640ms
+    if(panningLeft)
+    {
+        panIdx -= MENU_PX_PER_PAN;
+        if(panIdx < -OLED_WIDTH)
+        {
+            panIdx = -OLED_WIDTH;
+        }
+        drawImgAtOffset(curImg, panIdx);
+        drawImgAtOffset(nextImg, panIdx + OLED_WIDTH);
+    }
+    else
+    {
+        panIdx += MENU_PX_PER_PAN;
+        if(panIdx > OLED_WIDTH)
+        {
+            panIdx = OLED_WIDTH;
+        }
+        drawImgAtOffset(curImg, panIdx);
+        drawImgAtOffset(nextImg, panIdx - OLED_WIDTH);
+    }
+
+    // Check if it's all done
+    if(panIdx == -OLED_WIDTH || panIdx == OLED_WIDTH)
+    {
+        // Swap curImg and nextImg
+        uint8_t* tmp;
+        tmp = curImg;
+        curImg = nextImg;
+        nextImg = tmp;
+
+        // stop the timer
+        os_timer_disarm(&timerPanning);
+        menuIsPanning = false;
+    }
+}
+
+/*==============================================================================
+ * Screensaver functions
+ *============================================================================*/
 
 /**
  * @brief Called on a timer if there's no user input to start a screensaver
@@ -244,35 +399,4 @@ void ICACHE_FLASH_ATTR stopScreensaver(void)
     // Start a timer to start the screensaver if there's no input
     os_timer_disarm(&timerScreensaverStart);
     // os_timer_arm(&timerScreensaverStart, 5000, false);
-}
-
-/**
- * @brief Helper function to load an image from ROM
- *
- * @param mode The mode who's menu image t load
- * @param decompressedImage The memory to load the image to
- */
-void ICACHE_FLASH_ATTR loadImg(swadgeMode* mode, uint8_t* decompressedImage)
-{
-    /* Read the compressed image from ROM into RAM, and make sure to do a
-     * 32 bit aligned read. The arrays are all __attribute__((aligned(4)))
-     * so this is safe, not out of bounds
-     */
-    uint32_t alignedSize = mode->menuImageLen;
-    while(alignedSize % 4 != 0)
-    {
-        alignedSize++;
-    }
-    memcpy(compressedStagingSpace, mode->menuImageData, alignedSize);
-
-    // Decompress the image from one RAM area to another
-    uint32_t dLen = fastlz_decompress(compressedStagingSpace,
-                                      mode->menuImageLen,
-                                      decompressedImage,
-                                      1024 + 8);
-    uint8_t width      = (decompressedImage[0] << 8) | decompressedImage[1];
-    uint8_t height     = (decompressedImage[2] << 8) | decompressedImage[3];
-    uint8_t nFrames    = (decompressedImage[4] << 8) | decompressedImage[5];
-    uint8_t durationMs = (decompressedImage[6] << 8) | decompressedImage[7];
-    os_printf("2=%d\nh=%d\nf=%d\nd=%d\ndLen=%d\n", width, height, nFrames, durationMs, dLen);
 }
