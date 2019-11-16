@@ -938,8 +938,8 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
                 snakeHS[1] >= 500 &&
                 snakeHS[2] >= 500)
         {
-            // 3 means snortmelon stampede
-            if(true == unlockGallery(3))
+            // 3 means Funkus Chillin
+            if(true == unlockGallery(2))
             {
                 // Print gallery unlock
                 snake.printUnlock = true;
