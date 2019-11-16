@@ -20,6 +20,7 @@
 #include "hpatimer.h"
 #include "custom_commands.h"
 #include "buttons.h"
+#include "bresenham.h"
 
 /*==============================================================================
  * Defines
@@ -549,6 +550,7 @@ struct
     // Blinking State
     os_timer_t timerHandeleSnakeBlink;
     uint8_t numBlinks;
+    bool printUnlock;
 } snake;
 
 /*==============================================================================
@@ -578,6 +580,7 @@ void ICACHE_FLASH_ATTR snakeInit(void)
     snake.cursorPos = 0;
     snake.mode = MODE_MENU;
     snake.numBlinks = 0;
+    snake.printUnlock = false;
     snakeDrawMenu();
 }
 
@@ -916,7 +919,7 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
         stopBuzzerSong();
 
         // If they're on hard mode and scored a lot
-        if(snake.cursorPos == 2 && snake.score > 450)
+        if(snake.cursorPos == 2 && snake.score >= 500)
         {
             // Give 'em a reward
             startBuzzerSong(&MetalGear);
@@ -928,6 +931,20 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
 
         // Save the high score
         setSnakeHighScore(snake.cursorPos, snake.score);
+
+        // If all three high scores are at least 500, unlock the gallery img
+        uint32_t* snakeHS = getSnakeHighScores();
+        if( snakeHS[0] >= 500 &&
+                snakeHS[1] >= 500 &&
+                snakeHS[2] >= 500)
+        {
+            // 3 means snortmelon stampede
+            if(true == unlockGallery(3))
+            {
+                // Print gallery unlock
+                snake.printUnlock = true;
+            }
+        }
 
         // Blink the field to indicate game over
         snake.mode = MODE_GAME_OVER_BLINK;
@@ -1227,6 +1244,7 @@ void ICACHE_FLASH_ATTR snakeBlinkField(void* arg __attribute__((unused)))
     // Done blinking, back to the menu
     if(snake.numBlinks == 9)
     {
+        snake.printUnlock = false;
         snake.numBlinks = 0;
         os_timer_disarm(&snake.timerHandeleSnakeBlink);
         snake.mode = MODE_MENU;
@@ -1259,6 +1277,33 @@ void ICACHE_FLASH_ATTR snakeBlinkField(void* arg __attribute__((unused)))
         // Draw the game over text & score
         ets_snprintf(snake.title, sizeof(snake.title), snakeGameOver, snake.score);
         plotText(SNAKE_FIELD_OFFSET_X, SNAKE_TEXT_OFFSET_Y, snake.title, TOM_THUMB, WHITE);
+        if(snake.printUnlock)
+        {
+            fillDisplayArea(
+                SNAKE_FIELD_OFFSET_X + 5,
+                SNAKE_FIELD_OFFSET_Y + (SNAKE_FIELD_HEIGHT / 2) - FONT_HEIGHT_IBMVGA8 - 2 - 2,
+                SNAKE_FIELD_OFFSET_X + SNAKE_FIELD_WIDTH - 1 - 5,
+                SNAKE_FIELD_OFFSET_Y + (SNAKE_FIELD_HEIGHT / 2) + FONT_HEIGHT_IBMVGA8 + 1 + 2,
+                BLACK);
+            plotRect(
+                SNAKE_FIELD_OFFSET_X + 5,
+                SNAKE_FIELD_OFFSET_Y + (SNAKE_FIELD_HEIGHT / 2) - FONT_HEIGHT_IBMVGA8 - 2 - 2,
+                SNAKE_FIELD_OFFSET_X + SNAKE_FIELD_WIDTH - 1 - 5,
+                SNAKE_FIELD_OFFSET_Y + (SNAKE_FIELD_HEIGHT / 2) + FONT_HEIGHT_IBMVGA8 + 1 + 2,
+                WHITE);
+            plotText(
+                SNAKE_FIELD_OFFSET_X + 8 + 4,
+                SNAKE_FIELD_OFFSET_Y + (SNAKE_FIELD_HEIGHT / 2) - (FONT_HEIGHT_IBMVGA8) - 1,
+                "Gallery",
+                IBM_VGA_8,
+                WHITE);
+            plotText(
+                SNAKE_FIELD_OFFSET_X + 8,
+                SNAKE_FIELD_OFFSET_Y + (SNAKE_FIELD_HEIGHT / 2) + 1,
+                "Unlocked",
+                IBM_VGA_8,
+                WHITE);
+        }
     }
 }
 

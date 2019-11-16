@@ -322,17 +322,21 @@ uint32_t ICACHE_FLASH_ATTR getGalleryUnlocks(void)
 }
 
 /**
- * Set a bit at the given index in the unlocked images bitmask
+ * @brief Set a bit at the given index in the unlocked images bitmask
  * 
- * @param idx The index of the bit to set, starting at 0
+ * @param idx 
+ * @return true  if the bit was just set
+ * @return false if the bit was already set
  */
-void ICACHE_FLASH_ATTR unlockGallery(uint8_t idx)
+bool ICACHE_FLASH_ATTR unlockGallery(uint8_t idx)
 {
     if(!(settings.galleryUnlocks & (1 << idx)))
     {
         settings.galleryUnlocks |= (1 << idx);
         SaveSettings();
+        return true;
     }
+    return false;
 }
 
 /**
