@@ -302,7 +302,8 @@ void ICACHE_FLASH_ATTR mzSetLastScore(uint32_t newLastScore)
 
 bool ICACHE_FLASH_ATTR getIsMutedOption(void)
 {
-    return settings.isMuted;
+    //os_printf("%d %d %d\n", muteOverride, settings.isMuted, settings.isMuted && !muteOverride);
+    return settings.isMuted && !muteOverride;
 }
 
 void ICACHE_FLASH_ATTR setIsMutedOption(bool mute)

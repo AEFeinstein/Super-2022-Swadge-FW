@@ -224,7 +224,7 @@ const song_t* rhythmPatterns[] =
  */
 void ICACHE_FLASH_ATTR musicEnterMode(void)
 {
-
+    setMuteOverride(true);
     // Start the update loop.
     os_timer_disarm(&timerHandleUpdate);
     os_timer_setfn(&timerHandleUpdate, (os_timer_func_t*)music_updateDisplay, NULL);

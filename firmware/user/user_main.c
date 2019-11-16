@@ -109,6 +109,7 @@ bool MMA8452Q_init = false;
 bool QMA6981_init = false;
 
 uint8_t menuChangeBarProgress = 0;
+bool muteOverride;
 
 /*============================================================================
  * Prototypes
@@ -136,6 +137,14 @@ static void ICACHE_FLASH_ATTR pollAccel(void* arg);
 void ICACHE_FLASH_ATTR user_pre_init(void)
 {
     LoadDefaultPartitionMap();
+}
+
+/**
+ * Can be called in a mode's init with true to override mute ON
+ */
+void ICACHE_FLASH_ATTR setMuteOverride(bool over)
+{
+    muteOverride = over;
 }
 
 /**

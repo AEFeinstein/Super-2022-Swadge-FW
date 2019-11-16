@@ -149,12 +149,6 @@ bool ICACHE_FLASH_ATTR isHpaRunning(void)
  */
 void ICACHE_FLASH_ATTR initBuzzer(void)
 {
-    // If it's muted, don't set anything
-    if(getIsMutedOption())
-    {
-        return;
-    }
-
     stopBuzzerSong();
     os_timer_setfn(&bzr.songTimer, songTimerCb, NULL);
 }
