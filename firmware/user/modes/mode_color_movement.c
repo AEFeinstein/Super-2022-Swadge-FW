@@ -77,7 +77,7 @@
 #define ALPHA_SLOW 0.05
 //#define ALPHA_CROSS 0.1
 #define ALPHA_ACTIVE 0.03
-#define CROSS_TOL 0
+// #define CROSS_TOL 0
 #define SPECIAL_EFFECT true
 
 // LEDs relation to screen

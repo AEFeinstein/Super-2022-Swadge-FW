@@ -19,7 +19,7 @@ uint16_t embeddedbins32[FIXBINS];
 // 20 MHz clock / 4.8k sps = 4096 IPS = 34 clocks per bin = :(
 //  We can do two at the same time, this frees us up some
 
-static uint8_t Sdonefirstrun;
+// static uint8_t Sdonefirstrun;
 
 //A table of precomputed sin() values.  Ranging -1500 to +1500
 //If we increase this, it may cause overflows elsewhere in code.
@@ -101,10 +101,10 @@ int32_t Sdatspace32BOut[FIXBINS * 2]; //(isses,icses)
 //get away with updating the next octave down every-other-time, then the next
 //one down yet, every-other-time from that one.  That way, no matter how many
 //octaves we have, we only need to update FIXBPERO*2 DFT bins.
-static uint8_t Sdo_this_octave[BINCYCLE];
+// static uint8_t Sdo_this_octave[BINCYCLE];
 
-static int32_t Saccum_octavebins[OCTAVES];
-static uint8_t Swhichoctaveplace;
+// static int32_t Saccum_octavebins[OCTAVES];
+// static uint8_t Swhichoctaveplace;
 static uint8_t UpdateCount = 0;
 
 
