@@ -21,7 +21,7 @@
 
 #define NUMBER_STORED_CONFIGURABLES 16
 #define CONFIGURABLES sizeof(struct CCSettings) //(plus1)
-#define SAVE_LOAD_KEY 0xAF
+#define SAVE_LOAD_KEY 0xB0
 
 /*============================================================================
  * Structs
@@ -38,6 +38,7 @@ typedef struct __attribute__((aligned(4)))
     uint32_t mzLastScore;
     uint32_t joustWins;
     uint32_t snakeHighScores[3];
+    uint32_t galleryUnlocks;
     bool isMuted;
 }
 settings_t;
@@ -122,9 +123,7 @@ settings_t settings =
     .mzLastScore = 0,
 };
 
-uint32_t ttHighScores[NUM_TT_HIGH_SCORES] = {0};
-
-uint32_t ttLastScore = 0;
+bool isMutedOverride = false;
 
 /*============================================================================
  * Prototypes
@@ -189,6 +188,7 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
         memset(settings.mzBestTimes, 0x0f, NUM_MZ_LEVELS * sizeof(uint32_t));
         settings.mzLastScore = 100000;
         settings.joustWins = 0;
+        settings.galleryUnlocks = 0;
         SaveSettings(); // updates settings.configs then saves
     }
 }
@@ -300,6 +300,16 @@ void ICACHE_FLASH_ATTR mzSetLastScore(uint32_t newLastScore)
     SaveSettings();
 }
 
+/**
+ * @brief 
+ * 
+ * @param opt true to keep sound on, false to use the flash muted option 
+ */
+void ICACHE_FLASH_ATTR overrideIsMutedOption(bool opt)
+{
+    isMutedOverride = opt;
+}
+
 bool ICACHE_FLASH_ATTR getIsMutedOption(void)
 {
     //os_printf("%d %d %d\n", muteOverride, settings.isMuted, settings.isMuted && !muteOverride);
@@ -310,6 +320,32 @@ void ICACHE_FLASH_ATTR setIsMutedOption(bool mute)
 {
     settings.isMuted = mute;
     SaveSettings();
+}
+
+/**
+ * @return A bitmask of unlocked images
+ */
+uint32_t ICACHE_FLASH_ATTR getGalleryUnlocks(void)
+{
+    return settings.galleryUnlocks;
+}
+
+/**
+ * @brief Set a bit at the given index in the unlocked images bitmask
+ * 
+ * @param idx 
+ * @return true  if the bit was just set
+ * @return false if the bit was already set
+ */
+bool ICACHE_FLASH_ATTR unlockGallery(uint8_t idx)
+{
+    if(!(settings.galleryUnlocks & (1 << idx)))
+    {
+        settings.galleryUnlocks |= (1 << idx);
+        SaveSettings();
+        return true;
+    }
+    return false;
 }
 
 /**

@@ -1213,7 +1213,9 @@ swadgeMode tiltradsMode =
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
-    .fnAccelerometerCallback = ttAccelerometerCallback
+    .fnAccelerometerCallback = ttAccelerometerCallback,
+    .menuImageData = mnu_tiltrads_0,
+    .menuImageLen = sizeof(mnu_tiltrads_0)
 };
 
 void ICACHE_FLASH_ATTR ttInit(void)

@@ -88,7 +88,9 @@ swadgeMode musicMode =
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
-    .fnAccelerometerCallback = musicAccelerometerHandler
+    .fnAccelerometerCallback = musicAccelerometerHandler,
+    .menuImageData = mnu_music_0,
+    .menuImageLen = sizeof(mnu_music_0)
 };
 
 
@@ -263,6 +265,8 @@ void ICACHE_FLASH_ATTR musicEnterMode(void)
     // uint8_t intervals[] =  {7,-5,7,-5,7,-5,-5}; //cirle of 5th
 
     generateScale(music.midiScale, music.numNotes, intervals, sizeof(intervals) );
+
+    overrideIsMutedOption(true);
 }
 
 /**
