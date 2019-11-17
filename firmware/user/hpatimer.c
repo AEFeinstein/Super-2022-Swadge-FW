@@ -45,6 +45,8 @@ typedef enum
  * Variables
  *==========================================================================*/
 
+extern notePeriod_t currentMusicNote; //to communicate with mode_music.c
+
 volatile bool hpaRunning = false;
 
 struct
@@ -147,12 +149,6 @@ bool ICACHE_FLASH_ATTR isHpaRunning(void)
  */
 void ICACHE_FLASH_ATTR initBuzzer(void)
 {
-    // If it's muted, don't set anything
-    if(getIsMutedOption())
-    {
-        return;
-    }
-
     stopBuzzerSong();
     os_timer_setfn(&bzr.songTimer, songTimerCb, NULL);
 }
@@ -160,8 +156,11 @@ void ICACHE_FLASH_ATTR initBuzzer(void)
 /**
  * Set the note currently played by the buzzer
  *
- * @param note The musical note to be played. The numerical value is
- *             5000000/(2*freq). It's written to registers in StartHPATimer()
+ * @param note The musical note to be played.
+ *             note==0 means silence, note=-1 means take from mode_music
+ *             positive values are the counts to produce a pitch
+ *             The numerical value is 5000000/(2*freq).
+ *             It's written to registers in StartHPATimer()
  */
 void ICACHE_FLASH_ATTR setBuzzerNote(notePeriod_t note)
 {
@@ -172,14 +171,24 @@ void ICACHE_FLASH_ATTR setBuzzerNote(notePeriod_t note)
     }
 
     // Set the period count
-    bzr.note = note;
+    if (note < 0)
+    {
+        // take note from mode_music
+        float cent = note + 1201;
+        //os_printf("note from mode_music %d currentMusicNote %d\n", note, currentMusicNote);
+        bzr.note = currentMusicNote * pow(2.0, -cent / 1200);
+    }
+    else
+    {
+        bzr.note = note;
+    }
 
     // Stop the timer
     PauseHPATimer();
     // Start the timer if we're not playing silence
     if(SILENCE != bzr.note)
     {
-        os_printf("note %d freq %d\n", note, 2500000 / note);
+        //os_printf("note %d freq %d currentMusicNote %d\n", note, 2500000 / note, currentMusicNote);
         StartHPATimer();
     }
 }

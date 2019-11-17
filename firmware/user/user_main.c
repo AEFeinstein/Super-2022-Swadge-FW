@@ -77,10 +77,17 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 swadgeMode* swadgeModes[] =
 {
 #ifdef TEST_MODE
+#if SWADGE_VERSION != SWADGE_BBKIWI
     &testMode,
+#endif
 #endif
 #if SWADGE_VERSION != SWADGE_2019
     &menuMode, // Menu must be the first
+#endif
+#ifdef TEST_MODE
+#if SWADGE_VERSION == SWADGE_BBKIWI
+    &testMode,
+#endif
 #endif
     &joustGameMode,
     &snakeMode,
@@ -89,7 +96,6 @@ swadgeMode* swadgeModes[] =
     &colorMoveMode,
     &rollMode,
     &musicMode,
-    //&roll3Mode,
     &magfestonsMode,
     &galleryMode,
 #if SWADGE_VERSION != SWADGE_2019
@@ -103,6 +109,7 @@ bool MMA8452Q_init = false;
 bool QMA6981_init = false;
 
 uint8_t menuChangeBarProgress = 0;
+bool muteOverride;
 
 /*============================================================================
  * Prototypes
@@ -130,6 +137,14 @@ static void ICACHE_FLASH_ATTR pollAccel(void* arg);
 void ICACHE_FLASH_ATTR user_pre_init(void)
 {
     LoadDefaultPartitionMap();
+}
+
+/**
+ * Can be called in a mode's init with true to override mute ON
+ */
+void ICACHE_FLASH_ATTR setMuteOverride(bool over)
+{
+    muteOverride = over;
 }
 
 /**

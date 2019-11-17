@@ -41,6 +41,7 @@ typedef enum
     MT_TX_STATUS_FAILED,
 } mt_tx_status;
 
+extern bool muteOverride;
 /*============================================================================
  * Structs
  *==========================================================================*/
@@ -134,6 +135,7 @@ typedef struct _swadgeMode
 /*============================================================================
  * Functions
  *==========================================================================*/
+void ICACHE_FLASH_ATTR setMuteOverride(bool over);
 
 /**
  * Set the state of the six RGB LEDs, but don't overwrite if the LEDs were
