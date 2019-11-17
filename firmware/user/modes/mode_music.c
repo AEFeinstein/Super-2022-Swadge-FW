@@ -183,6 +183,8 @@ void ICACHE_FLASH_ATTR musicEnterMode(void)
     // uint8_t intervals[] =  {7,-5,7,-5,7,-5,-5}; //cirle of 5th
 
     generateScale(music.midiScale, music.numNotes, intervals, sizeof(intervals) );
+
+    overrideIsMutedOption(true);
 }
 
 /**
