@@ -137,7 +137,6 @@ struct
 
 static os_timer_t timerHandleUpdate = {0};
 static float pi = 3.15159;
-notePeriod_t currentMusicNote;
 
 // 'Songs' for rhythms and riffs
 // TODO adjust tempos
@@ -344,7 +343,7 @@ void ICACHE_FLASH_ATTR music_updateDisplay(void)
     // Set midiNote
     music.noteNum = (int)(music.numNotes * (1 + atan2(music.scxc - 64, music.scyc - 32) / 2.0 / pi)) % music.numNotes;
     music.midiNote = midi2note(music.midiScale[music.noteNum]);
-    currentMusicNote = music.midiNote;
+    setCurrentMusicNote(music.midiNote);
     //os_printf("notenum = %d,   midi = %d,  music.midiNote = %d\n", notenum, music.midiScale[notenum], music.midiNote);
 
     // LEDs, all off

@@ -11,7 +11,6 @@
 notePeriod_t ICACHE_FLASH_ATTR midi2note(uint8_t mid);
 void ICACHE_FLASH_ATTR generateScale(uint8_t* midiScale, uint8_t numNotes, uint8_t intervals[], uint8_t nIntervals);
 
-extern notePeriod_t currentMusicNote;
 extern swadgeMode musicMode;
 
 

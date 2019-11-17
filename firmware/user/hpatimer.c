@@ -10,6 +10,7 @@
 #include <eagle_soc.h>
 #include <user_interface.h>
 #include <ets_sys.h>
+#include <math.h>
 
 #include "hpatimer.h"
 #include "adc.h"
@@ -45,7 +46,7 @@ typedef enum
  * Variables
  *==========================================================================*/
 
-extern notePeriod_t currentMusicNote; //to communicate with mode_music.c
+notePeriod_t currentMusicNote; // settable by any mode via setCurrentMusicNote()
 
 volatile bool hpaRunning = false;
 
@@ -284,4 +285,14 @@ void ICACHE_FLASH_ATTR songTimerCb(void* arg __attribute__((unused)))
             }
         }
     }
+}
+
+/**
+ * @brief Sets the current note being played for negative notes in songs
+ * 
+ * @param note The note to play
+ */
+void ICACHE_FLASH_ATTR setCurrentMusicNote(notePeriod_t note)
+{
+    currentMusicNote = note;
 }
