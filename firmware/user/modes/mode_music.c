@@ -26,7 +26,7 @@
 #include "bresenham.h"
 #include "buttons.h"
 #include "math.h"
-
+#include "custom_commands.h"
 
 
 /*============================================================================
@@ -226,7 +226,15 @@ const song_t* rhythmPatterns[] =
  */
 void ICACHE_FLASH_ATTR musicEnterMode(void)
 {
-    setMuteOverride(true);
+    // If the swadge is muted
+    if(getIsMutedOption())
+    {
+        // Unmute it and init the buzzer
+        setMuteOverride(true);
+        initBuzzer();
+        setBuzzerNote(SILENCE);
+    }
+
     // Start the update loop.
     os_timer_disarm(&timerHandleUpdate);
     os_timer_setfn(&timerHandleUpdate, (os_timer_func_t*)music_updateDisplay, NULL);
@@ -265,8 +273,6 @@ void ICACHE_FLASH_ATTR musicEnterMode(void)
     // uint8_t intervals[] =  {7,-5,7,-5,7,-5,-5}; //cirle of 5th
 
     generateScale(music.midiScale, music.numNotes, intervals, sizeof(intervals) );
-
-    overrideIsMutedOption(true);
 }
 
 /**

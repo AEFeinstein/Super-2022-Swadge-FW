@@ -123,7 +123,7 @@ settings_t settings =
     .mzLastScore = 0,
 };
 
-bool isMutedOverride = false;
+bool muteOverride = false;
 
 /*============================================================================
  * Prototypes
@@ -305,9 +305,9 @@ void ICACHE_FLASH_ATTR mzSetLastScore(uint32_t newLastScore)
  * 
  * @param opt true to keep sound on, false to use the flash muted option 
  */
-void ICACHE_FLASH_ATTR overrideIsMutedOption(bool opt)
+void ICACHE_FLASH_ATTR setMuteOverride(bool opt)
 {
-    isMutedOverride = opt;
+    muteOverride = opt;
 }
 
 bool ICACHE_FLASH_ATTR getIsMutedOption(void)
