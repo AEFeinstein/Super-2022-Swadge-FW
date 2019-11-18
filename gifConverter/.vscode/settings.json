@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "fastlz.h": "c",
-        "galleryimages.h": "c"
+        "galleryimages.h": "c",
+        "menuimages.h": "c"
     }
 }
