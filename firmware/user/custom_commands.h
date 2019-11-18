@@ -30,7 +30,11 @@ uint32_t ICACHE_FLASH_ATTR getJoustWins(void);
 void ICACHE_FLASH_ATTR setSnakeHighScore(uint8_t difficulty, uint32_t score);
 uint32_t* ICACHE_FLASH_ATTR getSnakeHighScores(void);
 
+void ICACHE_FLASH_ATTR setMuteOverride(bool opt);
 void ICACHE_FLASH_ATTR setIsMutedOption(bool mute);
 bool ICACHE_FLASH_ATTR getIsMutedOption(void);
+
+bool ICACHE_FLASH_ATTR unlockGallery(uint8_t idx);
+uint32_t ICACHE_FLASH_ATTR getGalleryUnlocks(void);
 
 #endif /* USER_CUSTOM_COMMANDS_H_ */

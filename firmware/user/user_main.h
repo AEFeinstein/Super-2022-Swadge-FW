@@ -23,6 +23,7 @@
 #include <c_types.h>
 #include <stdint.h>
 #include <stddef.h>
+#include "menuImages.h"
 
 /*============================================================================
 * Enums
@@ -41,7 +42,6 @@ typedef enum
     MT_TX_STATUS_FAILED,
 } mt_tx_status;
 
-extern bool muteOverride;
 /*============================================================================
  * Structs
  *==========================================================================*/
@@ -130,12 +130,19 @@ typedef struct _swadgeMode
      * @param accel A struct with 10 bit signed X, Y, and Z accel vectors
      */
     void (*fnAccelerometerCallback)(accel_t* accel);
+    /**
+     * A pointer to the compressed image data in ROM
+     */
+    uint8_t * menuImageData;
+    /**
+     * The length of the compressed image data in ROM
+     */
+    uint16_t menuImageLen;
 } swadgeMode;
 
 /*============================================================================
  * Functions
  *==========================================================================*/
-void ICACHE_FLASH_ATTR setMuteOverride(bool over);
 
 /**
  * Set the state of the six RGB LEDs, but don't overwrite if the LEDs were
@@ -170,5 +177,6 @@ uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr);
 void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode);
 
 void setOledDrawTime(uint32_t drawTimeMs);
+void setAccelPollTime(uint32_t pollTimeMs);
 
 #endif /* USER_USER_MAIN_H_ */

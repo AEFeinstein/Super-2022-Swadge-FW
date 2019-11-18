@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "lzCompressor Launch",
+            "name": "lzCompressor Launch Gallery",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/lzCompressor",
@@ -15,6 +15,35 @@
                 "bins/gaylord.bin",
                 "bins/logo.bin",
                 "bins/snort.bin"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "lzCompressor Launch Menu",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/lzCompressor",
+            "args": [
+                "bins/colorshake.gif",
+                "bins/gallery.gif",
+                "bins/joust.gif",
+                "bins/maze.gif",
+                "bins/music.gif",
+                "bins/muteoff.gif",
+                "bins/muteon.gif",
+                "bins/snake.gif",
+                "bins/tiltrads.gif"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

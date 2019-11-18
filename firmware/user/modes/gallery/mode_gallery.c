@@ -18,18 +18,21 @@
 #include "galleryImages.h"
 #include "fastlz.h"
 #include "font.h"
+#include "custom_commands.h"
 
 /*==============================================================================
  * Defines
  *============================================================================*/
 
 #define MAX_DECOMPRESSED_SIZE 0xA00
-#define METADATA_LEN 8
 
+/*
 #define DBG_GAL(...) do { \
         os_printf("%s::%d ", __func__, __LINE__); \
         os_printf(__VA_ARGS__); \
     } while(0)
+*/
+#define DBG_GAL(...)
 
 /*==============================================================================
  * Enums
@@ -83,7 +86,9 @@ swadgeMode galleryMode =
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
-    .fnAccelerometerCallback = NULL
+    .fnAccelerometerCallback = NULL,
+    .menuImageData = mnu_gallery_0,
+    .menuImageLen = sizeof(mnu_gallery_0)
 };
 
 struct
@@ -101,6 +106,7 @@ struct
     uint16_t cImage;           ///< The index of the current image being
     uint16_t panIdx;           ///< How much the image is currently panned
     panDir_t panDir;           ///< The direction the image is currently panning
+    uint32_t unlockBitmask;    ///< A bitmask of the unlocked gallery images
 } gal =
 {
     .compressedData = NULL,
@@ -216,9 +222,9 @@ const galImage_t galLogo =
 
 const galImage_t* galImages[5] =
 {
+    &galLogo,
     &galBongo,
     &galFunkus,
-    &galLogo,
     &galSnort,
     &galGaylord
 };
@@ -246,6 +252,10 @@ void ICACHE_FLASH_ATTR galEnterMode(void)
     os_timer_setfn(&gal.timerAnimate, (os_timer_func_t*)galLoadNextFrame, NULL);
     os_timer_disarm(&gal.timerPan);
     os_timer_setfn(&gal.timerPan, (os_timer_func_t*)galTimerPan, NULL);
+
+    // Unlock one image by default
+    unlockGallery(0);
+    gal.unlockBitmask = getGalleryUnlocks();
 
     // Load the image
     galLoadFirstFrame();
@@ -277,6 +287,12 @@ void ICACHE_FLASH_ATTR galExitMode(void)
 void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
         int button __attribute__((unused)), int down __attribute__((unused)))
 {
+    if(gal.unlockBitmask == 1)
+    {
+        // Only one image unlocked, no use trying to go to the next
+        return;
+    }
+
     if(down)
     {
         switch (button)
@@ -285,8 +301,18 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
             {
                 // Right button
                 galClearImage();
-                gal.cImage = (gal.cImage + 1) %
-                             (sizeof(galImages) / sizeof(galImages[0]));
+
+                // Iterate through the images and stop when you find an unlocked one
+                for(uint8_t i = 0; i < (sizeof(galImages) / sizeof(galImages[0])); i++)
+                {
+                    gal.cImage = (gal.cImage + 1) %
+                                 (sizeof(galImages) / sizeof(galImages[0]));
+                    if(gal.unlockBitmask & (1 << gal.cImage))
+                    {
+                        break;
+                    }
+                }
+
                 galLoadFirstFrame();
                 break;
             }
@@ -294,14 +320,25 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
             {
                 // Left Button
                 galClearImage();
-                if(0 == gal.cImage)
+
+                // Iterate through the images and stop when you find an unlocked one
+                for(uint8_t i = 0; i < (sizeof(galImages) / sizeof(galImages[0])); i++)
                 {
-                    gal.cImage = (sizeof(galImages) / sizeof(galImages[0])) - 1;
+                    if(0 == gal.cImage)
+                    {
+                        gal.cImage = (sizeof(galImages) / sizeof(galImages[0])) - 1;
+                    }
+                    else
+                    {
+                        gal.cImage--;
+                    }
+
+                    if(gal.unlockBitmask & (1 << gal.cImage))
+                    {
+                        break;
+                    }
                 }
-                else
-                {
-                    gal.cImage--;
-                }
+
                 galLoadFirstFrame();
                 break;
             }
@@ -472,11 +509,14 @@ void ICACHE_FLASH_ATTR galDrawFrame(void)
         }
     }
 
-    // Draw left and right arrows to indicate button functions
-    fillDisplayArea(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, 7, OLED_HEIGHT, BLACK);
-    plotText(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "<", IBM_VGA_8, WHITE);
-    fillDisplayArea(OLED_WIDTH - 7, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, OLED_WIDTH, OLED_HEIGHT, BLACK);
-    plotText(OLED_WIDTH - 6, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, ">", IBM_VGA_8, WHITE);
+    if(gal.unlockBitmask > 1)
+    {
+        // Draw left and right arrows to indicate button functions
+        fillDisplayArea(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, 7, OLED_HEIGHT, BLACK);
+        plotText(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "<", IBM_VGA_8, WHITE);
+        fillDisplayArea(OLED_WIDTH - 7, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, OLED_WIDTH, OLED_HEIGHT, BLACK);
+        plotText(OLED_WIDTH - 6, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, ">", IBM_VGA_8, WHITE);
+    }
 }
 
 /**

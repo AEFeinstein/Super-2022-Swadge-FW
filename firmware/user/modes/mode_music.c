@@ -26,7 +26,7 @@
 #include "bresenham.h"
 #include "buttons.h"
 #include "math.h"
-
+#include "custom_commands.h"
 
 
 /*============================================================================
@@ -88,7 +88,9 @@ swadgeMode musicMode =
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
-    .fnAccelerometerCallback = musicAccelerometerHandler
+    .fnAccelerometerCallback = musicAccelerometerHandler,
+    .menuImageData = mnu_music_0,
+    .menuImageLen = sizeof(mnu_music_0)
 };
 
 
@@ -135,7 +137,6 @@ struct
 
 static os_timer_t timerHandleUpdate = {0};
 static float pi = 3.15159;
-notePeriod_t currentMusicNote;
 
 // 'Songs' for rhythms and riffs
 // TODO adjust tempos
@@ -224,7 +225,15 @@ const song_t* rhythmPatterns[] =
  */
 void ICACHE_FLASH_ATTR musicEnterMode(void)
 {
-    setMuteOverride(true);
+    // If the swadge is muted
+    if(getIsMutedOption())
+    {
+        // Unmute it and init the buzzer
+        setMuteOverride(true);
+        initBuzzer();
+        setBuzzerNote(SILENCE);
+    }
+
     // Start the update loop.
     os_timer_disarm(&timerHandleUpdate);
     os_timer_setfn(&timerHandleUpdate, (os_timer_func_t*)music_updateDisplay, NULL);
@@ -334,7 +343,7 @@ void ICACHE_FLASH_ATTR music_updateDisplay(void)
     // Set midiNote
     music.noteNum = (int)(music.numNotes * (1 + atan2(music.scxc - 64, music.scyc - 32) / 2.0 / pi)) % music.numNotes;
     music.midiNote = midi2note(music.midiScale[music.noteNum]);
-    currentMusicNote = music.midiNote;
+    setCurrentMusicNote(music.midiNote);
     //os_printf("notenum = %d,   midi = %d,  music.midiNote = %d\n", notenum, music.midiScale[notenum], music.midiNote);
 
     // LEDs, all off

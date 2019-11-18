@@ -269,7 +269,7 @@ void ICACHE_FLASH_ATTR UpdateLinearLEDs()
     uint16_t local_peak_amps[MAXNOTES];
     uint16_t local_peak_amps2[MAXNOTES];
     int16_t  local_peak_freq[MAXNOTES];
-    uint8_t  local_note_jumped_to[MAXNOTES];
+    // uint8_t  local_note_jumped_to[MAXNOTES];
 
     switch (COLORCHORD_SORT_NOTES)
     {
@@ -279,7 +279,7 @@ void ICACHE_FLASH_ATTR UpdateLinearLEDs()
                 local_peak_amps[i] = note_peak_amps[sorted_note_map[snmapmap[i]]];
                 local_peak_amps2[i] = note_peak_amps2[sorted_note_map[snmapmap[i]]];
                 local_peak_freq[i] = note_peak_freqs[sorted_note_map[snmapmap[i]]];
-                local_note_jumped_to[i] = note_jumped_to[sorted_note_map[snmapmap[i]]];
+                // local_note_jumped_to[i] = note_jumped_to[sorted_note_map[snmapmap[i]]];
             }
             break;
         case ORDER_FREQ_INC :
@@ -291,7 +291,7 @@ void ICACHE_FLASH_ATTR UpdateLinearLEDs()
                 local_peak_amps[i] = note_peak_amps[sorted_note_map[i]];
                 local_peak_amps2[i] = note_peak_amps2[sorted_note_map[i]];
                 local_peak_freq[i] = note_peak_freqs[sorted_note_map[i]];
-                local_note_jumped_to[i] = note_jumped_to[sorted_note_map[i]];
+                // local_note_jumped_to[i] = note_jumped_to[sorted_note_map[i]];
             }
     }
 
@@ -740,8 +740,8 @@ uint32_t ICACHE_FLASH_ATTR ECCtoAdjustedHEX( int16_t note, uint8_t sat, uint8_t 
 #define hn1  255
 #define rn2  43690
 #define hn2  170
-#define rn3  65535
-#define hn3  43
+// #define rn3  65535
+// #define hn3  43
     if( renote < rn1 )
     {
         hue = hn0 - (renote - rn0) * (43) / (21845);
