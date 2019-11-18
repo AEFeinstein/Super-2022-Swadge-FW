@@ -28,6 +28,7 @@ void ICACHE_FLASH_ATTR modeInit(void);
 void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state, int button, int down);
 
 static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unused)));
+static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR menuAnimateScreensaver(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR stopScreensaver(void);
 
@@ -70,6 +71,7 @@ uint8_t selectedMode = 0;
 
 #if SWADGE_VERSION != SWADGE_BBKIWI
 os_timer_t timerScreensaverStart = {0};
+os_timer_t timerScreensaverBright = {0};
 os_timer_t timerScreensaverAnimation = {0};
 uint8_t menuScreensaverIdx = 0;
 #endif
@@ -114,6 +116,10 @@ void ICACHE_FLASH_ATTR modeInit(void)
     // Timer for starting a screensaver
     os_timer_disarm(&timerScreensaverStart);
     os_timer_setfn(&timerScreensaverStart, (os_timer_func_t*)menuStartScreensaver, NULL);
+
+    // Timer for starting a screensaver
+    os_timer_disarm(&timerScreensaverBright);
+    os_timer_setfn(&timerScreensaverBright, (os_timer_func_t*)menuBrightScreensaver, NULL);
 
     // Timer for running a screensaver
     os_timer_disarm(&timerScreensaverAnimation);
@@ -380,9 +386,28 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
     // Pick a random screensaver
     menuScreensaverIdx = os_random() % getNumDances();
 
+    // Set the brightness to low
+    setDanceBrightness(2);
+
     // Animate it at the given period
-    os_timer_disarm(&timerScreensaverStart);
     os_timer_arm(&timerScreensaverAnimation, danceTimers[menuScreensaverIdx].period, true);
+
+    // Start a timer to turn the screensaver brighter
+    os_timer_arm(&timerScreensaverBright, 5000, false);
+}
+
+/**
+ * @brief Five seconds after starting the screensaver, clear the OLED and 
+ *        make the LEDs one step brighter
+ *
+ * @param arg unused
+ */
+static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unused)))
+{
+    // Clear the display
+    clearDisplay();
+    // Set the brightness to medium
+    setDanceBrightness(1);
 }
 
 /**
@@ -410,5 +435,8 @@ void ICACHE_FLASH_ATTR stopScreensaver(void)
     // Start a timer to start the screensaver if there's no input
     os_timer_disarm(&timerScreensaverStart);
     os_timer_arm(&timerScreensaverStart, 5000, false);
+
+    // Stop this timer too
+    os_timer_disarm(&timerScreensaverBright);
 }
 #endif
