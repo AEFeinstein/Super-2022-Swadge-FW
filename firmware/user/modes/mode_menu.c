@@ -11,6 +11,7 @@
 #include "mode_dance.h"
 #include "fastlz.h"
 #include "mode_gallery.h"
+#include "buttons.h"
 
 /*============================================================================
  * Defines
