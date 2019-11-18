@@ -17,7 +17,7 @@
  *==========================================================================*/
 
 #define MENU_PAN_PERIOD_MS 20
-#define MENU_PX_PER_PAN     4
+#define MENU_PX_PER_PAN     8
 
 /*============================================================================
  * Function prototypes
@@ -73,7 +73,7 @@ os_timer_t timerScreensaverAnimation = {0};
 uint8_t menuScreensaverIdx = 0;
 #endif
 
-uint8_t compressedStagingSpace[600] = {0};
+uint8_t compressedStagingSpace[1000] = {0};
 uint8_t img1[((OLED_WIDTH * OLED_HEIGHT) / 8) + METADATA_LEN] = {0};
 uint8_t img2[((OLED_WIDTH * OLED_HEIGHT) / 8) + METADATA_LEN] = {0};
 uint8_t* curImg = img1;
@@ -128,6 +128,9 @@ void ICACHE_FLASH_ATTR modeInit(void)
 
     // Draw to OLED at the same rate the image is panned
     setOledDrawTime(MENU_PAN_PERIOD_MS);
+
+    // Make buttons sensitive, they're ignored during animation anyway
+    enableDebounce(false);
 }
 
 /**
@@ -405,6 +408,6 @@ void ICACHE_FLASH_ATTR stopScreensaver(void)
 
     // Start a timer to start the screensaver if there's no input
     os_timer_disarm(&timerScreensaverStart);
-    // os_timer_arm(&timerScreensaverStart, 5000, false);
+    os_timer_arm(&timerScreensaverStart, 5000, false);
 }
 #endif
