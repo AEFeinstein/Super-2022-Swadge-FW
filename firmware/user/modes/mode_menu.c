@@ -383,8 +383,9 @@ static void ICACHE_FLASH_ATTR menuPanImages(void* arg __attribute__((unused)))
  */
 static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unused)))
 {
-    // Pick a random screensaver
-    menuScreensaverIdx = os_random() % getNumDances();
+    // Pick a random screensaver from a reduced list of dances (missing 12, 13, 18, 19)
+    static const uint8_t acceptableDances[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 17};
+    menuScreensaverIdx = acceptableDances[os_random() % sizeof(acceptableDances)];
 
     // Set the brightness to low
     setDanceBrightness(2);
@@ -397,7 +398,7 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
 }
 
 /**
- * @brief Five seconds after starting the screensaver, clear the OLED and 
+ * @brief Five seconds after starting the screensaver, clear the OLED and
  *        make the LEDs one step brighter
  *
  * @param arg unused
