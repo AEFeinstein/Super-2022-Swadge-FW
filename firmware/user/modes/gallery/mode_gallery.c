@@ -281,7 +281,6 @@ const galImage_t* galUnlockPlaceholders[4] =
  */
 void ICACHE_FLASH_ATTR galEnterMode(void)
 {
-    unlockGallery(2);
     // Clear everything out, for safety
     memset(&gal, 0, sizeof(gal));
 
