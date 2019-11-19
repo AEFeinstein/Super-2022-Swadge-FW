@@ -76,8 +76,9 @@
     void ICACHE_FLASH_ATTR PureRotatingLEDs(void);
 
     uint32_t ECCtoAdjustedHEX( int16_t note, uint8_t sat, uint8_t val );
+    uint32_t ICACHE_FLASH_ATTR EHSVtoHEXhelper( uint8_t hue, uint8_t sat, uint8_t val, bool applyGamma );
     uint32_t EHSVtoHEX( uint8_t hue, uint8_t sat, uint8_t val ); //hue = 0..255 // TODO: TEST ME!!!
-
+    uint8_t ICACHE_FLASH_ATTR GAMMA_CORRECT(uint8_t val);
 
 #endif
 

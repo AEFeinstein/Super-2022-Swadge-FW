@@ -97,7 +97,9 @@ swadgeMode rollMode =
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
-    .fnAccelerometerCallback = rollAccelerometerHandler
+    .fnAccelerometerCallback = rollAccelerometerHandler,
+    .menuImageData = mnu_colorshake_0,
+    .menuImageLen = sizeof(mnu_colorshake_0)
 };
 
 
