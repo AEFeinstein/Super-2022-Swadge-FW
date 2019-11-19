@@ -206,7 +206,7 @@ const song_t MetalGear RODATA_ATTR =
         {.note = E_6, .timeMs = 1920},
     },
     .numNotes = 64,
-    .shouldLoop = true
+    .shouldLoop = false
 };
 
 const song_t foodSfx RODATA_ATTR =
@@ -464,7 +464,7 @@ const char snakeDifficultyNames[NUM_DIFFICULTIES][8] RODATA_ATTR =
 const uint32_t snakeDifficulties[3][2] RODATA_ATTR =
 {
     // ms per frame, score multiplier
-    {130, 5}, // Easy
+    {180, 5}, // Easy
     {90, 9},  // Medium
     {60, 13},  // Hard
 };
@@ -631,6 +631,9 @@ void ICACHE_FLASH_ATTR snakeButtonCallback(uint8_t state __attribute__((unused))
                     // Right button
                     case 2:
                     {
+                        // Stop the buzzer, just in case
+                        stopBuzzerSong();
+
                         // Request responsive buttons
                         enableDebounce(false);
 
@@ -938,8 +941,8 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
                 snakeHS[1] >= 500 &&
                 snakeHS[2] >= 500)
         {
-            // 3 means Funkus Chillin
-            if(true == unlockGallery(2))
+            // 1 means Funkus Chillin
+            if(true == unlockGallery(1))
             {
                 // Print gallery unlock
                 snake.printUnlock = true;
