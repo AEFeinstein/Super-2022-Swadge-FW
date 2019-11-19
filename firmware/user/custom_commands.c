@@ -333,7 +333,10 @@ uint32_t ICACHE_FLASH_ATTR getGalleryUnlocks(void)
 /**
  * @brief Set a bit at the given index in the unlocked images bitmask
  * 
- * @param idx 
+ * @param idx 0 - Bongos for Joust
+ *            1 - Funkus for Snake
+ *            2 - Gaylord for Tiltrads
+ *            3 - Snortmelon for Maze
  * @return true  if the bit was just set
  * @return false if the bit was already set
  */

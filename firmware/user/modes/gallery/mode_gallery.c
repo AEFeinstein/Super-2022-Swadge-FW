@@ -296,7 +296,6 @@ void ICACHE_FLASH_ATTR galEnterMode(void)
     os_timer_setfn(&gal.timerPan, (os_timer_func_t*)galTimerPan, NULL);
 
     // Unlock one image by default
-    unlockGallery(0);
     gal.unlockBitmask = getGalleryUnlocks();
 
     // Load the image
