@@ -61,5 +61,9 @@ extern uint8_t gal_logo_7[19] RODATA_ATTR;
 extern uint8_t gal_logo_8[19] RODATA_ATTR;
 extern uint8_t gal_logo_9[19] RODATA_ATTR;
 extern uint8_t gal_snort_0[2011] RODATA_ATTR;
+extern uint8_t gal_unlock_joust_0[278] RODATA_ATTR;
+extern uint8_t gal_unlock_maze_0[297] RODATA_ATTR;
+extern uint8_t gal_unlock_snake_0[328] RODATA_ATTR;
+extern uint8_t gal_unlock_tiltrads_0[310] RODATA_ATTR;
 
 #endif // _GALLERY_IMAGES_H_

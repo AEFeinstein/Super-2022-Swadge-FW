@@ -72,6 +72,7 @@ void ICACHE_FLASH_ATTR galClearImage(void);
 void ICACHE_FLASH_ATTR galDrawFrame(void);
 static void ICACHE_FLASH_ATTR galLoadNextFrame(void* arg);
 static void ICACHE_FLASH_ATTR galTimerPan(void* arg);
+const galImage_t* ICACHE_FLASH_ATTR galGetCurrentImage(void);
 
 /*==============================================================================
  * Variables
@@ -220,13 +221,54 @@ const galImage_t galLogo =
     }
 };
 
+const galImage_t galUnlockJoust =
+{
+    .nFrames = 1,
+    .frames = {
+        {.data = gal_unlock_joust_0, .len = sizeof(gal_unlock_joust_0)},
+    }
+};
+
+const galImage_t galUnlockMaze =
+{
+    .nFrames = 1,
+    .frames = {
+        {.data = gal_unlock_maze_0, .len = sizeof(gal_unlock_maze_0)},
+    }
+};
+
+const galImage_t galUnlockTiltrads =
+{
+    .nFrames = 1,
+    .frames = {
+        {.data = gal_unlock_tiltrads_0, .len = sizeof(gal_unlock_tiltrads_0)},
+    }
+};
+
+const galImage_t galUnlockSnake =
+{
+    .nFrames = 1,
+    .frames = {
+        {.data = gal_unlock_snake_0, .len = sizeof(gal_unlock_snake_0)},
+    }
+};
+
+// Order matters, must match galUnlockPlaceholders
 const galImage_t* galImages[5] =
 {
-    &galLogo,
-    &galBongo,
-    &galFunkus,
-    &galSnort,
-    &galGaylord
+    &galLogo,    // Already unlocked
+    &galBongo,   // Joust
+    &galFunkus,  // Snake
+    &galGaylord, // Tiltrads
+    &galSnort    // Maze
+};
+
+const galImage_t* galUnlockPlaceholders[4] =
+{
+    &galUnlockJoust,
+    &galUnlockSnake,
+    &galUnlockTiltrads,
+    &galUnlockMaze
 };
 
 /*==============================================================================
@@ -239,6 +281,7 @@ const galImage_t* galImages[5] =
  */
 void ICACHE_FLASH_ATTR galEnterMode(void)
 {
+    unlockGallery(2);
     // Clear everything out, for safety
     memset(&gal, 0, sizeof(gal));
 
@@ -287,12 +330,6 @@ void ICACHE_FLASH_ATTR galExitMode(void)
 void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
         int button __attribute__((unused)), int down __attribute__((unused)))
 {
-    if(gal.unlockBitmask == 1)
-    {
-        // Only one image unlocked, no use trying to go to the next
-        return;
-    }
-
     if(down)
     {
         switch (button)
@@ -302,16 +339,9 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
                 // Right button
                 galClearImage();
 
-                // Iterate through the images and stop when you find an unlocked one
-                for(uint8_t i = 0; i < (sizeof(galImages) / sizeof(galImages[0])); i++)
-                {
-                    gal.cImage = (gal.cImage + 1) %
-                                 (sizeof(galImages) / sizeof(galImages[0]));
-                    if(gal.unlockBitmask & (1 << gal.cImage))
-                    {
-                        break;
-                    }
-                }
+                // Iterate through the images
+                gal.cImage = (gal.cImage + 1) %
+                             (sizeof(galImages) / sizeof(galImages[0]));
 
                 galLoadFirstFrame();
                 break;
@@ -321,22 +351,14 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
                 // Left Button
                 galClearImage();
 
-                // Iterate through the images and stop when you find an unlocked one
-                for(uint8_t i = 0; i < (sizeof(galImages) / sizeof(galImages[0])); i++)
+                // Iterate through the images
+                if(0 == gal.cImage)
                 {
-                    if(0 == gal.cImage)
-                    {
-                        gal.cImage = (sizeof(galImages) / sizeof(galImages[0])) - 1;
-                    }
-                    else
-                    {
-                        gal.cImage--;
-                    }
-
-                    if(gal.unlockBitmask & (1 << gal.cImage))
-                    {
-                        break;
-                    }
+                    gal.cImage = (sizeof(galImages) / sizeof(galImages[0])) - 1;
+                }
+                else
+                {
+                    gal.cImage--;
                 }
 
                 galLoadFirstFrame();
@@ -351,26 +373,57 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
 }
 
 /**
+ * @return a pointer to the current image to draw, takes into account unlocks
+ */
+const galImage_t* ICACHE_FLASH_ATTR galGetCurrentImage(void)
+{
+    const galImage_t* imageToLoad;
+    // If we're not on the first image
+    if(gal.cImage > 0)
+    {
+        // Check to see if it's unlocked
+        if(getGalleryUnlocks() & 1 << (gal.cImage - 1))
+        {
+            // unlocked
+            imageToLoad = galImages[gal.cImage];
+        }
+        else
+        {
+            // Not unlocked
+            imageToLoad = galUnlockPlaceholders[gal.cImage - 1];
+        }
+    }
+    else
+    {
+        // First image always unlocked
+        imageToLoad = galImages[gal.cImage];
+    }
+    return imageToLoad;
+}
+
+/**
  * For the first frame of an image, load the compressed data from ROM to RAM,
  * decompress the data in RAM, save the metadata, then draw the frame to the
  * OLED
  */
 void ICACHE_FLASH_ATTR galLoadFirstFrame(void)
 {
+    const galImage_t* imageToLoad = galGetCurrentImage();
+
     /* Read the compressed image from ROM into RAM, and make sure to do a
      * 32 bit aligned read. The arrays are all __attribute__((aligned(4)))
      * so this is safe, not out of bounds
      */
-    uint32_t alignedSize = galImages[gal.cImage]->frames[0].len;
+    uint32_t alignedSize = imageToLoad->frames[0].len;
     while(alignedSize % 4 != 0)
     {
         alignedSize++;
     }
-    memcpy(gal.compressedData, galImages[gal.cImage]->frames[0].data, alignedSize);
+    memcpy(gal.compressedData, imageToLoad->frames[0].data, alignedSize);
 
     // Decompress the image from one RAM area to another
     uint32_t dLen = fastlz_decompress(gal.compressedData,
-                                      galImages[gal.cImage]->frames[0].len,
+                                      imageToLoad->frames[0].len,
                                       gal.decompressedData,
                                       MAX_DECOMPRESSED_SIZE);
     DBG_GAL("dLen=%d\n", dLen);
@@ -429,20 +482,21 @@ static void ICACHE_FLASH_ATTR galLoadNextFrame(void* arg __attribute__((unused))
     }
     else
     {
+        const galImage_t* imageToLoad = galGetCurrentImage();
         /* Read the compressed image from ROM into RAM, and make sure to do a
         * 32 bit aligned read. The arrays are all __attribute__((aligned(4)))
         * so this is safe, not out of bounds
         */
-        uint32_t alignedSize = galImages[gal.cImage]->frames[gal.cFrame].len;
+        uint32_t alignedSize = imageToLoad->frames[gal.cFrame].len;
         while(alignedSize % 4 != 0)
         {
             alignedSize++;
         }
-        memcpy(gal.compressedData, galImages[gal.cImage]->frames[gal.cFrame].data, alignedSize);
+        memcpy(gal.compressedData, imageToLoad->frames[gal.cFrame].data, alignedSize);
 
         // Decompress the image
         uint32_t dLen = fastlz_decompress(gal.compressedData,
-                                          galImages[gal.cImage]->frames[gal.cFrame].len,
+                                          imageToLoad->frames[gal.cFrame].len,
                                           gal.decompressedData,
                                           MAX_DECOMPRESSED_SIZE);
         DBG_GAL("dLen=%d\n", dLen);
@@ -509,14 +563,11 @@ void ICACHE_FLASH_ATTR galDrawFrame(void)
         }
     }
 
-    if(gal.unlockBitmask > 1)
-    {
-        // Draw left and right arrows to indicate button functions
-        fillDisplayArea(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, 7, OLED_HEIGHT, BLACK);
-        plotText(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "<", IBM_VGA_8, WHITE);
-        fillDisplayArea(OLED_WIDTH - 7, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, OLED_WIDTH, OLED_HEIGHT, BLACK);
-        plotText(OLED_WIDTH - 6, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, ">", IBM_VGA_8, WHITE);
-    }
+    // Draw left and right arrows to indicate button functions
+    fillDisplayArea(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, 7, OLED_HEIGHT, BLACK);
+    plotText(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "<", IBM_VGA_8, WHITE);
+    fillDisplayArea(OLED_WIDTH - 7, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, OLED_WIDTH, OLED_HEIGHT, BLACK);
+    plotText(OLED_WIDTH - 6, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, ">", IBM_VGA_8, WHITE);
 }
 
 /**

@@ -14,7 +14,11 @@
                 "bins/funkus.bin",
                 "bins/gaylord.bin",
                 "bins/logo.bin",
-                "bins/snort.bin"
+                "bins/snort.bin",
+                "bins/unlock_maze.bin",
+                "bins/unlock_tiltrads.bin",
+                "bins/unlock_snake.bin",
+                "bins/unlock_joust.bin"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
