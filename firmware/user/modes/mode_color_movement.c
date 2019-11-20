@@ -58,11 +58,11 @@
 
 // controls (title)
 #define BTN_TITLE_CHOOSE_SUBMODE LEFT
-#define BTN_TITLE_START_GAME RIGHT
+#define BTN_TITLE_START_SUBMODE RIGHT
 
 // controls (game)
-#define BTN_GAME_BACK_TO_TITLE RIGHT
 #define BTN_GAME_CYCLE_BRIGHTNESS LEFT
+#define BTN_GAME_BACK_TO_TITLE RIGHT
 
 // update task (16 would give 60 fps like ipad, need read accel that fast too?)
 //TODO note cant handle 120 fps using 8ms
@@ -485,6 +485,7 @@ void ICACHE_FLASH_ATTR cmInit(void)
     // External from mode_dance to set brightness when using dance mode display
     setDanceBrightness(2);
 
+    //TODO only if going to use CC
     // Use ColorChord code to process accelerometer samples
     InitColorChord();
     cmSamplesProcessed = 0;
@@ -502,6 +503,7 @@ void ICACHE_FLASH_ATTR cmInit(void)
     // Set up all initialization
     cmCurrentSubMode = BEAT_SPIN;
     cmNewSetup(cmCurrentSubMode);
+    rollEnterMode();
 
     // Start the update loop.
     os_timer_disarm(&timerHandleUpdate);
@@ -722,13 +724,13 @@ void ICACHE_FLASH_ATTR cmUpdate(void* arg __attribute__((unused)))
 
 void ICACHE_FLASH_ATTR cmTitleInput(void)
 {
-    //button a = start game
-    if(cmIsButtonPressed(BTN_TITLE_START_GAME))
+    //button a = start sub mode
+    if(cmIsButtonPressed(BTN_TITLE_START_SUBMODE))
     {
-        os_printf("%s should start game?", __func__);
+        //os_printf("%s should start game?\n", __func__);
         cmChangeState(CM_GAME);
     }
-    //button b = choose a submore
+    //button b = choose a sub mode
     else if(cmIsButtonPressed(BTN_TITLE_CHOOSE_SUBMODE))
         // Cycle movement methods
     {
@@ -747,7 +749,7 @@ void ICACHE_FLASH_ATTR cmGameInput(void)
     {
         cmChangeState(CM_TITLE);
     }
-    //button a = abort and automatically do cm
+    //button a = cycle brightness
     else if(cmIsButtonPressed(BTN_GAME_CYCLE_BRIGHTNESS))
     {
         // Cycle brightnesses
@@ -863,6 +865,8 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     // so lowest freq that can be sensed is sample freq / (NUM_IN_CIRCULAR_BUFFER - 1)
     // ex. 60/119 = 30.25
 
+
+//TODO some of this may not be wanted for CC or ROLL sub modes
     int16_t minDeviation = 0x7FFF;
     uint8_t tauArgMin = 0;
     for (uint8_t tau = 12; tau < NUM_IN_CIRCULAR_BUFFER; tau++)
@@ -877,12 +881,6 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         }
     }
     //OUT plotLine(tauArgMin, 0, tauArgMin, OLED_HEIGHT, WHITE);
-
-    if(cmUseColorChordDFT)
-    {
-        // send this to be dealt with by color chord
-        cmSampleHandler(sample);
-    }
 
     // low pass for the three axes
     lowPassXaccel = IIRFilter(alphaSlow, xAccel, lowPassXaccel);
@@ -902,8 +900,12 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     AdjustAndPlotDots(cirBufZaccel, cirBufLowPassZaccel);
 #endif
 
-    if (cmUseColorChordDFT)
+// Sub mode sections
+    if (cmCurrentSubMode == DFT_SHAKE)
     {
+        // send this to be dealt with by color chord
+        // computes light pattern and OLED display
+        cmSampleHandler(sample);
         for (uint8_t  i = 0; i < FIXBINS; i++)
         {
             drawPixel(i, OLED_HEIGHT - fuzzed_bins[i] / 2000, WHITE);
@@ -911,8 +913,17 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         }
         //os_printf("fuzzed_bins[0] = %d\n", fuzzed_bins[0]);
     }
+    else if ((cmCurrentSubMode == ROLL_BALL) || (cmCurrentSubMode == ROLL_3_BALLS))
+    {
+        // send this to be dealt with by roll mode routines
+        // computes light pattern and OLED display
+        led_t* outLeds = roll_updateDisplayComputations(xAccel, yAccel, zAccel);
+        //os_printf("Size of outLeds %d\n",sizeof(outLeds) );
+        setCMLeds(outLeds, NUM_LIN_LEDS * 3);
+    }
     else
     {
+        // rest of sub modes
 
         CM_printf("smoothActivity = %d\n", smoothActivity);
 

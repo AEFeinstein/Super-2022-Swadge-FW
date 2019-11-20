@@ -41,10 +41,7 @@
 #ifdef TEST_MODE
     #include "mode_test.h"
 #endif
-//#include "mode_roll3.h"
-#include "mode_roll.h"
 #include "mode_music.h"
-#include "mode_magfestons.h"
 
 /*============================================================================
  * Defines
@@ -92,7 +89,6 @@ swadgeMode* swadgeModes[] =
 #endif
     /* These are the modes which are displayed in the menu */
     &colorMoveMode,
-    &rollMode,
     &joustGameMode,
     &snakeMode,
     &tiltradsMode,
