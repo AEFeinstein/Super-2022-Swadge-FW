@@ -54,22 +54,18 @@
     #define min(a,b) ((a) < (b) ? (a) : (b))
 #endif
 
-#define CLAMP(x, low, high) ({\
-        __typeof__(x) __x = (x); \
-        __typeof__(low) __low = (low);\
-        __typeof__(high) __high = (high);\
-        __x > __high ? __high : (__x < __low ? __low : __x);\
-    })
+#define CLAMP(x, low, high) (max((min((x),(high))),(low)))
 
 // controls (title)
-#define BTN_TITLE_START_SCORES LEFT
+#define BTN_TITLE_CHOOSE_SUBMODE LEFT
 #define BTN_TITLE_START_GAME RIGHT
 
 // controls (game)
-#define BTN_GAME_RIGHT RIGHT
-#define BTN_GAME_LEFT LEFT
+#define BTN_GAME_BACK_TO_TITLE RIGHT
+#define BTN_GAME_CYCLE_BRIGHTNESS LEFT
 
 // update task (16 would give 60 fps like ipad, need read accel that fast too?)
+//TODO note cant handle 120 fps using 8ms
 #define UPDATE_TIME_MS 16
 
 // time info.
@@ -77,7 +73,6 @@
 #define S_TO_MS_FACTOR 1000
 #define BPM_SAMPLE_TIME 12000 // in ms
 #define BPM_BUF_SIZE (BPM_SAMPLE_TIME / UPDATE_TIME_MS)
-//#define US_TO_MS_FACTOR 0.001
 
 #define NUM_IN_CIRCULAR_BUFFER 120
 #define NUM_DOTS_TO_PLOT 120
@@ -123,7 +118,8 @@ typedef enum
     SHOCK_CHAOTIC,
     ROLL_BALL,
     ROLL_3_BALLS,
-    TILT_A_COLOR
+    TILT_A_COLOR,
+    POV_EFFECT
 } subMethod_t;
 
 typedef enum
@@ -213,15 +209,6 @@ void ICACHE_FLASH_ATTR AdjustAndPlotDotsSingle(circularBuffer_t cbuf);
  * Static Const Variables
  *==========================================================================*/
 
-// static const uint8_t cmBrightnesses[] =
-// {
-//     0x01,
-//     0x08,
-//     0x40,
-//     0x80,
-//     0xC0,
-// };
-
 // When using gamma correcton
 static const uint8_t cmBrightnesses[] =
 {
@@ -229,11 +216,11 @@ static const uint8_t cmBrightnesses[] =
     0x02,
     0x04,
     0x08,
-    0x10,
 };
 
 const char* subModeName[] = {"BEAT_SPIN", "BEAT_SELECT", "SHOCK_CHANGE",
-                             "SHOCK_CHAOTIC", "ROLL_BALL", "ROLL_3_BALLS", "TILT_A_COLOR"
+                             "SHOCK_CHAOTIC", "ROLL_BALL", "ROLL_3_BALLS", "TILT_A_COLOR",
+                             "POV_EFFECT"
                             };
 
 
@@ -259,25 +246,44 @@ swadgeMode colorMoveMode =
     .menuImageLen = sizeof(mnu_colorshake_0)
 };
 
+// Parameters controling submodes
+uint16_t cmNumSum;
+uint16_t cmScaleLed;
+colorMethod_t cmComputeColor;
+displayMethod_t cmLedMethod;
+
+bool cmUseHighPassAccel;
+bool cmUseSmooth;
+bool cmFilterAllWithIIR;
+bool cmUsePOVeffect;
+bool cmUseShiftingLeds;
+bool cmUseShiftingColorWheel;
+
+FLOATING cmalphaSlow;
+FLOATING cmalphaSmooth;
+uint8_t cmShowNumLeds;
+uint8_t NUM_SUB_FRAMES = 6; // used for POV effects
+float REVOLUTIONS_PER_BEAT = 1 / 8.0;
+// TODO could change this order for other display effects
+uint8_t ledOrderInd[] = {LED_UPPER_LEFT, LED_LOWER_LEFT, LED_LOWER_MID, LED_LOWER_RIGHT, LED_UPPER_RIGHT, LED_UPPER_MID};
+
+// end of parameters
+
+// If use CC
 int gFRAMECOUNT_MOD_SHIFT_INTERVAL = 0;
 int gROTATIONSHIFT = 0; //Amount of spinning of pattern around a LED ring
 
 int cmSamplesProcessed = 0;
 accel_t cmAccel = {0};
 accel_t cmLastAccel = {0};
-
 accel_t cmLastTestAccel = {0};
-
 uint8_t cmButtonState = 0;
 uint8_t cmLastButtonState = 0;
-
 uint8_t cmBrightnessIdx = 0;
-uint8_t ledOrderInd[] = {LED_UPPER_LEFT, LED_LOWER_LEFT, LED_LOWER_MID, LED_LOWER_RIGHT, LED_UPPER_RIGHT, LED_UPPER_MID};
 static led_t leds[NUM_LIN_LEDS] = {{0}};
-//int CM_ledCount = 0;
 
 subMethod_t cmCurrentSubMode;
-uint8_t cmNumSubModes = 7;
+uint8_t cmNumSubModes = sizeof(subModeName) / sizeof(subModeName[0]);
 
 static os_timer_t timerHandleUpdate = {0};
 
@@ -305,22 +311,11 @@ int16_t minCheck2 = 32767;
 int16_t maxCheck3 = -32768;
 int16_t minCheck3 = 32767;
 
-uint16_t cmNumSum;
-uint16_t cmScaleLed;
-colorMethod_t cmComputeColor;
-displayMethod_t cmLedMethod;
 
-bool gameover;
-bool cmuseHighPassAccel;
-bool cmuseSmooth;
-bool cmFilterNormWithIIR;
 
-FLOATING cmalphaSlow;
 FLOATING cmxAccelSlowAve;
 FLOATING cmyAccelSlowAve;
 FLOATING cmzAccelSlowAve;
-
-FLOATING cmalphaSmooth;
 FLOATING cmxAccelHighPassSmoothed;
 FLOATING cmyAccelHighPassSmoothed;
 FLOATING cmzAccelHighPassSmoothed;
@@ -347,13 +342,11 @@ int16_t bufCrossings[BPM_BUF_SIZE];
 
 int16_t deviations[NUM_IN_CIRCULAR_BUFFER];
 
-float REVOLUTIONS_PER_BEAT = 1 / 8.0;
 uint8_t PLOT_SCALE = 32;
 uint8_t PLOT_SHIFT = 32;
-// do via timer now 10 fps FRAME_RESET = 0 // 0 for 60 fps, 1 for 30 fps, 2 for 20 fps, k for 60/(k+1) fps
-uint8_t FRAME_RESET = 0;
 
-int16_t showcount = 0; // used for skipping frames
+int16_t subFrameCount = 0; // which sub frame used for POV effects
+
 int16_t adj = SCREEN_BORDER;
 int16_t wid = 128 - 2 * SCREEN_BORDER;
 
@@ -378,10 +371,6 @@ uint32_t ledPrevIncTime = 0;
 uint16_t avePeriodMs = 5;
 //uint16_t crossInterval = 5;
 bool showCrossOnLed = false;
-
-bool pause = false;
-bool skipNextCross = false;
-bool still = true;
 
 // Helpers
 
@@ -535,7 +524,7 @@ void ICACHE_FLASH_ATTR cmAccelerometerCallback(accel_t* accel)
     cmAccel.y = accel->x;
     cmAccel.z = accel->z;
 
-    if (cmuseHighPassAccel)
+    if (cmUseHighPassAccel)
     {
         cmxAccelSlowAve = (1.0 - cmalphaSlow) * cmxAccelSlowAve + cmalphaSlow * (float)cmAccel.x;
         cmyAccelSlowAve = (1.0 - cmalphaSlow) * cmyAccelSlowAve + cmalphaSlow * (float)cmAccel.y;
@@ -545,7 +534,7 @@ void ICACHE_FLASH_ATTR cmAccelerometerCallback(accel_t* accel)
         cmAccel.y = cmAccel.y - cmyAccelSlowAve;
         cmAccel.z = cmAccel.z - cmzAccelSlowAve;
     }
-    if (cmuseSmooth)
+    if (cmUseSmooth)
     {
         cmxAccelHighPassSmoothed = (1.0 - cmalphaSmooth) * cmxAccelHighPassSmoothed + cmalphaSmooth *
                                    (float)cmAccel.x;
@@ -735,7 +724,7 @@ void ICACHE_FLASH_ATTR cmTitleInput(void)
         cmChangeState(CM_GAME);
     }
     //button b = choose a submore
-    else if(cmIsButtonPressed(BTN_TITLE_START_SCORES))
+    else if(cmIsButtonPressed(BTN_TITLE_CHOOSE_SUBMODE))
         // Cycle movement methods
     {
         cmCurrentSubMode = (cmCurrentSubMode + 1) % cmNumSubModes;
@@ -748,13 +737,13 @@ void ICACHE_FLASH_ATTR cmTitleInput(void)
 
 void ICACHE_FLASH_ATTR cmGameInput(void)
 {
-    //button b = abort and restart at same level
-    if(cmIsButtonPressed(BTN_GAME_RIGHT))
+    //button b = back to title so can choose submode again
+    if(cmIsButtonPressed(BTN_GAME_BACK_TO_TITLE))
     {
         cmChangeState(CM_TITLE);
     }
     //button a = abort and automatically do cm
-    else if(cmIsButtonPressed(BTN_GAME_LEFT))
+    else if(cmIsButtonPressed(BTN_GAME_CYCLE_BRIGHTNESS))
     {
         // Cycle brightnesses
         cmBrightnessIdx = (cmBrightnessIdx + 1) %
@@ -768,6 +757,7 @@ void ICACHE_FLASH_ATTR cmTitleUpdate(void)
 
 void ICACHE_FLASH_ATTR cmGameUpdate(void)
 {
+    float alphaFast;
     static struct maxtime_t CM_updatedisplay_timer = { .name = "CM_updateDisplay"};
     maxTimeBegin(&CM_updatedisplay_timer);
 
@@ -778,20 +768,11 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     clearDisplay();
 
 
-    showcount += 1;
-    if (showcount > FRAME_RESET)
+    subFrameCount += 1;
+    if (subFrameCount > NUM_SUB_FRAMES)
     {
-        showcount = 0;
+        subFrameCount = 0;
     }
-    if (showcount > 0)
-    {
-        return;
-    }
-    if (pause)
-    {
-        return;
-    }
-
     //#define BUILT_IN_INPUT
 #ifdef BUILT_IN_INPUT
 #define BPM_GEN 16
@@ -800,7 +781,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     zAccel = -255; //255 * sin(5 * 6.2831853 * BPM_GEN / 60  * modeTime / 1000000);
 #else
     // cmAccel return direct, high pass filtered and/or smoothed readings depending on
-    // cmuseHighPassAccel and cmuseSmooth
+    // cmUseHighPassAccel and cmUseSmooth
     xAccel = cmAccel.x;
     yAccel = cmAccel.y;
     zAccel = cmAccel.z;
@@ -811,7 +792,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                               (double)zAccel  );
 
     //os_printf("%d %d %d %d\n", xAccel, yAccel, zAccel,   normAccel);
-
+    //TODO make this an option
     if (SPECIAL_EFFECT)
     {
         // intertwine raw signal with smoothed
@@ -820,12 +801,20 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         circularPush(yAccel, &cirBufYaccel);
         circularPush(zAccel, &cirBufZaccel);
     }
-    // slightly smoothed signal
-    float alphaFast = ALPHA_FAST;
 
+    if (cmFilterAllWithIIR)
+    {
+        // slightly smoothed signals
+        alphaFast = ALPHA_FAST;
+    }
+    else
+    {
+        alphaFast = 1.0;
+    }
     smoothNormAccel = IIRFilter(alphaFast, normAccel, smoothNormAccel);
     circularPush(smoothNormAccel, &cirBufNormAccel);
 
+    //TODO make this an option
     // Inactive as now filtering accel readings directly
 #if 0
     smoothXaccel = IIRFilter(alphaFast, xAccel, smoothXaccel);
@@ -839,17 +828,20 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
 #endif
     // Identify stillness
     float alphaActive = ALPHA_ACTIVE; // smoothing of deviaton from mean
+    //TODO very similar to lowPassNormAccel, could use that instead
     smoothActivity = IIRFilter(alphaActive, abs(getCircularBufferAtIndex(cirBufHighPassNormAccel, -1)), smoothActivity);
 
 
     // high pass by removing highly smoothed low pass (dc bias)
     float alphaSlow = ALPHA_SLOW;
+    //TODO make this option to select which one to use
     // Low pass using IIR
     lowPassNormAccel = IIRFilter(alphaSlow, normAccel, lowPassNormAccel);
 
     // Low pass via running average
     lowPassNormAccel = sumOfBuffer(cirBufNormAccel, cirBufNormAccel.length) / NUM_IN_CIRCULAR_BUFFER;
 
+    // This is scaled HP filter of smoothNormAccel
     int16_t sample = 10 * (smoothNormAccel - lowPassNormAccel);
     // This is plotted on OLED
     circularPush(sample, &cirBufHighPassNormAccel);
@@ -903,9 +895,11 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
 
     // Plot slightly smoothed less dc bias by adjusting the dots
     AdjustAndPlotDotsSingle(cirBufHighPassNormAccel);
+#if 0
     AdjustAndPlotDots(cirBufXaccel, cirBufLowPassXaccel);
     AdjustAndPlotDots(cirBufYaccel, cirBufLowPassYaccel);
     AdjustAndPlotDots(cirBufZaccel, cirBufLowPassZaccel);
+#endif
 
 #ifdef TRY_COLOR_CHORD
     for (uint8_t  i = 0; i < FIXBINS; i++)
@@ -914,7 +908,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         //os_printf("%d ", fuzzed_bins[i]);
     }
     //os_printf("fuzzed_bins[0] = %d\n", fuzzed_bins[0]);
-#endif
+#else
 
     CM_printf("smoothActivity = %d\n", smoothActivity);
 
@@ -946,18 +940,20 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
 
     // BPM Estimation from upward crossings (can highly overestimate)
     bpmFromCrossing = 60 * S_TO_MS_FACTOR * sumOfBuffer(cirBufCrossings, cirBufCrossings.length) / BPM_SAMPLE_TIME;
+    //TODO compute and average period
 
     // BPM Estimation from min shifted deviation
     bpmFromTau = 60 * S_TO_MS_FACTOR / UPDATE_TIME_MS / tauArgMin;
 
 
-    if (bpmFromTau > 0)
+    if (bpmFromCrossing > 0)
     {
-        avePeriodMs = 60 * S_TO_MS_FACTOR  / bpmFromTau;
+        avePeriodMs = 60 * S_TO_MS_FACTOR  / bpmFromCrossing;
+        //TODO IIR average here
     }
     else
     {
-        avePeriodMs = 60 * S_TO_MS_FACTOR;
+        //avePeriodMs = 60 * S_TO_MS_FACTOR;
     }
     //TODO compute avePeriodMs from smoothActivity
 
@@ -1001,12 +997,11 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         //sound.play_effect('game:Beep', volume = 300*smoothActivity/500, pitch=pitch)
     }
 
-
-#ifndef TRY_COLOR_CHORD
     //Clear leds
     memset(leds, 0, sizeof(leds));
 
-    CM_printf("bpmFromCrossing %d, bpmFromTau %d, activity %d\n", bpmFromCrossing, bpmFromTau, smoothActivity);
+    os_printf("bpmFromCrossing %d, bpmFromTau %d, tauArgMin %d, activity %d\n", bpmFromCrossing, bpmFromTau, tauArgMin,
+              smoothActivity);
     uint8_t val;
     uint8_t hue;
     uint32_t colorToShow;
@@ -1036,22 +1031,18 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
             // Violent shaking can give xHP just over 600 but then hard to just
             // shake only in one direction x,y,z
 
-            ledr = CLAMP(xHP * cmScaleLed / 600, 0, 255);
-            ledg = CLAMP(yHP * cmScaleLed / 600, 0, 255);
-            ledb = CLAMP(zHP * cmScaleLed / 600, 0, 255);
+            ledr = CLAMP(xHP * 255 * cmScaleLed / 600, 0, 255);
+            ledg = CLAMP(yHP * 255 * cmScaleLed / 600, 0, 255);
+            ledb = CLAMP(zHP * 255 * cmScaleLed / 600, 0, 255);
             break;
         case BPM2HUE:
         default:
             //Color and intensity related to bpm and amount of shaking using color wheel
-            // map 50 to 150 bpm to 0 to 255 for angle
-            //TODO option to use bpmFromTau or bpmFromCrossing or even smoothActivity
-            //TODO need to have a look at range of values so can clamp and scale appropriately
-
-            //hue = (min( max(bpmFromTau, 30), 300) - 30) * 255 / (300 - 30);
-            hue = (CLAMP(bpmFromTau, 30, 312) - 30) * 255 / (312 - 30);
-            // map 15 to 1800 smoothActivity to 0 to 255
-            //val = (min( max(smoothActivity, 15), 1800) - 15) * 255 / (1800 - 15);
-            val = (CLAMP( smoothActivity, 15, 1500 ) - 15 ) * 255 / (1500 - 15);
+            //hue = CLAMP(((CLAMP(bpmFromTau, 30, 312) - 30) * 255 / (312 - 30)),0,255);
+            //hue = CLAMP(((CLAMP(smoothActivity, 0, 500) - 0) * 255 / (500 - 0)), 0, 255);
+            // This seems best
+            hue = CLAMP(((CLAMP(bpmFromCrossing, 30, 250) - 30) * 255 / (250 - 30)), 0, 255);
+            val = CLAMP(((CLAMP( cmScaleLed * smoothActivity, 15, 1500 ) - 15 ) * 255 / (1500 - 15)), 0, 255);
 
             maxCheck1 = max(maxCheck1, bpmFromTau);
             maxCheck2 = max(maxCheck2, bpmFromCrossing);
@@ -1059,8 +1050,8 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
             minCheck1 = min(minCheck1, bpmFromTau);
             minCheck2 = min(minCheck2, bpmFromCrossing);
             minCheck3 = min(minCheck3, smoothActivity);
-            os_printf("bpmFromTau: min %d  max %d, bpmFromCrossing min %d max:%d, smoothAct min %d max %d \n", minCheck1, maxCheck1,
-                      minCheck2, maxCheck2, minCheck3, maxCheck3);
+            //os_printf("bpmFromTau: min %d  max %d, bpmFromCrossing min %d max:%d, smoothAct min %d max %d \n", minCheck1, maxCheck1,
+            //          minCheck2, maxCheck2, minCheck3, maxCheck3);
 
             // Don't apply gamma as is done in setCMLeds
             colorToShow = EHSVtoHEXhelper(hue, 0xFF, val, false);
@@ -1074,14 +1065,12 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     // Gamma correction corrects washed out look
     //   Done in setCMLeds
 
-    os_printf("r:%d  g:%d  b:%d \n", ledr, ledg, ledb);
-
+    //os_printf("r:%d  g:%d  b:%d \n", ledr, ledg, ledb);
 
 #define USE_NUM_LEDS 6
-    // Spin the leds syncronized to bpm
-    //TODO fixed for rainbow but need to work for simple moving too
-    if (modeTime - ledPrevIncTime > MS_TO_US_FACTOR * avePeriodMs / USE_NUM_LEDS / REVOLUTIONS_PER_BEAT * USE_NUM_LEDS /
-            255)
+    // Spin the leds syncronized to bpm while there is some shaking activity
+    if ((modeTime - ledPrevIncTime > MS_TO_US_FACTOR * avePeriodMs / USE_NUM_LEDS / REVOLUTIONS_PER_BEAT * USE_NUM_LEDS /
+            255 / 10) && (smoothActivity > ACTIVITY_BOUND ))
     {
         //os_printf("modeTime %d, ledPrevIncTime %d\n", modeTime, ledPrevIncTime);
         ledPrevIncTime = modeTime;
@@ -1090,14 +1079,22 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         cmLedCount = cmLedCount + 1; //will wrap back to 0
     }
 
+    if (!cmUseShiftingLeds)
+    {
+        ledCycle = 0;
+    }
+    if (!cmUseShiftingColorWheel)
+    {
+        cmLedCount = 0;
+    }
+
+
     switch (cmLedMethod)
     {
         case ALL_SAME:
 
             // allcolored the same
-            //#define SHOW_NUM_LEDS (USE_NUM_LEDS / 2)
-#define SHOW_NUM_LEDS (USE_NUM_LEDS)
-            for (uint8_t i = 0; i < SHOW_NUM_LEDS; i++)
+            for (uint8_t i = 0; i < cmShowNumLeds; i++)
             {
                 //use axis colors or hue colors computed above
 #if USE_NUM_LEDS == 6
@@ -1127,8 +1124,6 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                 ledg = (colorToShow >>  8) & 0xFF;
                 ledb = (colorToShow >> 16) & 0xFF;
 
-                //TODO fix HACK
-                ledCycle = 0;
 #if USE_NUM_LEDS == 6
                 leds[ledOrderInd[(i + ledCycle) % USE_NUM_LEDS]].r = ledr;
                 leds[ledOrderInd[(i + ledCycle) % USE_NUM_LEDS]].g = ledg;
@@ -1141,23 +1136,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
             }
             break;
     }
-    /*
-    #if  USE_NUM_LEDS == 6
-        for (uint8_t indLed = 0; indLed < 6 ; indLed++)
-        {
-            leds[ledOrderInd[indLed]].r = ledr;
-            leds[ledOrderInd[indLed]].g = ledg;
-            leds[ledOrderInd[indLed]].b = ledb;
-        }
-    #else
-        for (uint8_t indLed = 0; indLed < NUM_LIN_LEDS ; indLed++)
-        {
-            leds[indLed].r = ledr;
-            leds[indLed].g = ledg;
-            leds[indLed].b = ledb;
-        }
-    #endif
-    */
+
     //Flip direction on crossing
     if (showCrossOnLed && crossIntervalCounter == 0)
     {
@@ -1176,10 +1155,33 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         //cmBrightnessIdx = 0;
     }
 
+    if (cmUsePOVeffect)
+    {
+        for (uint8_t indLed = 0; indLed < NUM_LIN_LEDS ; indLed++)
+        {
+
+            // POV effect
+            if (subFrameCount / 2 == 0)
+            {
+                leds[indLed].g = 0;
+                leds[indLed].b = 0;
+            }
+            else if (subFrameCount / 2 == 1)
+            {
+                leds[indLed].r = 0;
+                leds[indLed].b = 0;
+            }
+            else
+            {
+                leds[indLed].r = 0;
+                leds[indLed].g = 0;
+            };
+        };
+    }
 
 
     setCMLeds(leds, sizeof(leds));
-#endif
+#endif //non color chord
     maxTimeEnd(&CM_updatedisplay_timer);
 }
 
@@ -1254,22 +1256,45 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
     //         -1), sumOfBuffer(cirBufCrossings));
     memset(leds, 0, sizeof(leds));
     memset(deviations, 0, sizeof(deviations));
-    gameover = false;
 
+    // Defaults of parameters go here used for BEAT_SPIN
+    // A Colorwheel rotates in proportion to the BPM
+    // Other submodes override in switch
+
+    // Control of cmAccelerometerCallback
     // for finding long term moving average and remove from signal to get High Pass
+    // if not used measure wrt absolute orientation, if used measure relative to average pos
     cmalphaSlow = 0.02;
+    cmUseHighPassAccel = true;
     // for slight smoothing of original accelerometer readings or High Pass Accel filtered ones
     cmalphaSmooth = 0.3;
+    cmUseSmooth = true;
+
+    // extra filtering with ALPHA_FAST
+    cmFilterAllWithIIR = true;
+
+    // Number of past samples used to calculate running average of x,y,z readings
+    // from 1 to NUM_IN_CIRCULAR_BUFFER
+    cmNumSum = 1;
+    cmScaleLed = 2; // Multiplier of Leds color which gets clamped from 0 to 255
+    cmComputeColor = BPM2HUE; //using bpmFromCrossing
+    cmLedMethod = RAINBOW;
+    cmUseShiftingColorWheel = true;
+    cmShowNumLeds = USE_NUM_LEDS;
+    cmShowNumLeds = USE_NUM_LEDS; // must be <= USE_NUM_LEDS
+    cmUseShiftingLeds = false; // possible to shift leds showing around ring
+    cmUsePOVeffect = false; // possible to shift hue angle
+
+
     switch (subMode)
     {
         case BEAT_SELECT:
-            cmuseSmooth = true;
-            cmuseHighPassAccel = false;
-            cmFilterNormWithIIR = false;
-            cmNumSum = 1;
-            cmScaleLed = 2 * 255;
-            cmComputeColor = BPM2HUE; //using BPMfromTau
+            // BPM mapped to hue for all leds.
+            // Leds display near max selected brightness while movement
+            cmShowNumLeds = USE_NUM_LEDS / 2;
+            cmUseShiftingColorWheel = false;
             cmLedMethod = ALL_SAME;
+            cmScaleLed = 10; // scaling for intensity and want to keep alive until very quiet
             break;
         case SHOCK_CHANGE:
             /* code */
@@ -1284,23 +1309,19 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
             /* code */
             break;
         case TILT_A_COLOR:
-            cmuseSmooth = false;
-            cmuseHighPassAccel = false;
-            cmFilterNormWithIIR = false; //false will use running average
+            cmUseSmooth = false;
+            cmUseHighPassAccel = false;
+            cmFilterAllWithIIR = false; //false will use running average
             cmNumSum = 1;
-            cmScaleLed = 2 * 255;
             cmComputeColor = XYZ2RGB;
             cmLedMethod = ALL_SAME;
             break;
+        case POV_EFFECT:
+            cmUsePOVeffect = true;
+            break;
         case BEAT_SPIN:
         default:
-            cmuseSmooth = true;
-            cmuseHighPassAccel = false;
-            cmFilterNormWithIIR = false;
-            cmNumSum = 1;
-            cmScaleLed = 2 * 255;
-            cmComputeColor = BPM2HUE; //using BPMfromTau
-            cmLedMethod = RAINBOW;
+            // A Colorwheel rotates in proportion to the BPM
             break;
     }
 
@@ -1308,9 +1329,9 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
     REVOLUTIONS_PER_BEAT = 1.0 / NUM_LIN_LEDS;
     PLOT_SCALE = 32;
     PLOT_SHIFT = 32;
-    // do via timer now 10 fps FRAME_RESET = 0 // 0 for 60 fps, 1 for 30 fps, 2 for 20 fps, k for 60/(k+1) fps
+    // do via timer now 10 fps NUM_SUB_FRAMES = 0 // 0 for 60 fps, 1 for 30 fps, 2 for 20 fps, k for 60/(k+1) fps
 
-    showcount = 0; // used for skipping frames
+    subFrameCount = 0; // used for skipping frames
     adj = SCREEN_BORDER;
     wid = 128 - 2 * SCREEN_BORDER;
 
@@ -1332,11 +1353,7 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
     ledPrevIncTime = 0;
     avePeriodMs = 5;
     //crossInterval = 5;
-
     ledDirection = 1;
-    pause = false;
-    skipNextCross = false;
-    still = false;
 
 }
 
