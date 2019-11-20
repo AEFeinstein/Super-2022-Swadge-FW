@@ -119,7 +119,9 @@ typedef enum
     ROLL_BALL,
     ROLL_3_BALLS,
     TILT_A_COLOR,
-    POV_EFFECT
+    POV_EFFECT,
+    DFT_SHAKE,
+    POWER_SHAKE
 } subMethod_t;
 
 typedef enum
@@ -220,7 +222,7 @@ static const uint8_t cmBrightnesses[] =
 
 const char* subModeName[] = {"BEAT_SPIN", "BEAT_SELECT", "SHOCK_CHANGE",
                              "SHOCK_CHAOTIC", "ROLL_BALL", "ROLL_3_BALLS", "TILT_A_COLOR",
-                             "POV_EFFECT"
+                             "POV_EFFECT", "DFT_SHAKE", "POWER_SHAKE"
                             };
 
 
@@ -247,10 +249,6 @@ swadgeMode colorMoveMode =
 };
 
 // Parameters controling submodes
-uint16_t cmNumSum;
-uint16_t cmScaleLed;
-colorMethod_t cmComputeColor;
-displayMethod_t cmLedMethod;
 
 bool cmUseHighPassAccel;
 bool cmUseSmooth;
@@ -258,12 +256,17 @@ bool cmFilterAllWithIIR;
 bool cmUsePOVeffect;
 bool cmUseShiftingLeds;
 bool cmUseShiftingColorWheel;
+bool cmUseColorChordDFT;
 
+uint16_t cmNumSum;
+uint16_t cmScaleLed;
+colorMethod_t cmComputeColor;
+displayMethod_t cmLedMethod;
 FLOATING cmalphaSlow;
 FLOATING cmalphaSmooth;
 uint8_t cmShowNumLeds;
-uint8_t NUM_SUB_FRAMES = 6; // used for POV effects
-float REVOLUTIONS_PER_BEAT = 1 / 8.0;
+uint8_t cmNumSubFrames;
+float cmRevsPerBeat;
 // TODO could change this order for other display effects
 uint8_t ledOrderInd[] = {LED_UPPER_LEFT, LED_LOWER_LEFT, LED_LOWER_MID, LED_LOWER_RIGHT, LED_UPPER_RIGHT, LED_UPPER_MID};
 
@@ -363,7 +366,8 @@ int16_t smoothYaccel = 0;
 int16_t smoothZaccel = 0;
 int16_t prevHighPassNormAccel = 0;
 int16_t smoothActivity = 0;
-int64_t ledDirection = 1;
+uint32_t cmCumulativeActivity = 0;
+int8_t ledDirection = 1;
 
 // for zero crossing measure time is number of cycles of update
 uint16_t crossIntervalCounter = 0;
@@ -371,6 +375,7 @@ uint32_t ledPrevIncTime = 0;
 uint16_t avePeriodMs = 5;
 //uint16_t crossInterval = 5;
 bool showCrossOnLed = false;
+bool cmCollectingActivity = true;
 
 // Helpers
 
@@ -769,7 +774,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
 
 
     subFrameCount += 1;
-    if (subFrameCount > NUM_SUB_FRAMES)
+    if (subFrameCount > cmNumSubFrames)
     {
         subFrameCount = 0;
     }
@@ -872,16 +877,12 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         }
     }
     //OUT plotLine(tauArgMin, 0, tauArgMin, OLED_HEIGHT, WHITE);
-    //#define TRY_COLOR_CHORD
-    // send this to be dealt with by color chord
-#ifdef TRY_COLOR_CHORD
-    cmSampleHandler(sample);
-#endif
-    // average the last 6 readings as accel sampled at 10hz while this is called at 60hz
-    //cmSampleHandler(10 / 6 * (getCircularBufferAtIndex(cirBufHighPassNormAccel,
-    //   -1) + getCircularBufferAtIndex(cirBufHighPassNormAccel, -2) + getCircularBufferAtIndex(cirBufHighPassNormAccel,
-    //           -3) + getCircularBufferAtIndex(cirBufHighPassNormAccel, -4) + getCircularBufferAtIndex(cirBufHighPassNormAccel,
-    //                   -5) + getCircularBufferAtIndex(cirBufHighPassNormAccel, -6) ));
+
+    if(cmUseColorChordDFT)
+    {
+        // send this to be dealt with by color chord
+        cmSampleHandler(sample);
+    }
 
     // low pass for the three axes
     lowPassXaccel = IIRFilter(alphaSlow, xAccel, lowPassXaccel);
@@ -901,287 +902,262 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     AdjustAndPlotDots(cirBufZaccel, cirBufLowPassZaccel);
 #endif
 
-#ifdef TRY_COLOR_CHORD
-    for (uint8_t  i = 0; i < FIXBINS; i++)
+    if (cmUseColorChordDFT)
     {
-        drawPixel(i, OLED_HEIGHT - fuzzed_bins[i] / 2000, WHITE);
-        //os_printf("%d ", fuzzed_bins[i]);
-    }
-    //os_printf("fuzzed_bins[0] = %d\n", fuzzed_bins[0]);
-#else
-
-    CM_printf("smoothActivity = %d\n", smoothActivity);
-
-    // Estimate bpm when movement activity
-
-    //float alphaCross = ALPHA_CROSS; // for smoothing gaps between zero crossing
-
-    CM_printf("%d %d  smooth: %d\n", getCircularBufferAtIndex(cirBufHighPassNormAccel, -2),
-              getCircularBufferAtIndex(cirBufHighPassNormAccel, -1), smoothActivity);
-
-    // Ignore low level input so only do if enough activity
-#define ACTIVITY_BOUND 15
-    if (smoothActivity > ACTIVITY_BOUND )
-    {
-        circularPush(0x0000, &cirBufCrossings);
-        //Compute upward crossings and note it
-        if (lastsign >= 0 && sample < 0)
+        for (uint8_t  i = 0; i < FIXBINS; i++)
         {
-            lastsign = -1;
+            drawPixel(i, OLED_HEIGHT - fuzzed_bins[i] / 2000, WHITE);
+            //os_printf("%d ", fuzzed_bins[i]);
         }
-        else if (lastsign <= 0 && sample > 0)
-        {
-            lastsign = 1;
-            showCrossOnLed = true;
-            circularPush(0x0001, &cirBufCrossings);
-            crossIntervalCounter = 0;
-        }
-    }
-
-    // BPM Estimation from upward crossings (can highly overestimate)
-    bpmFromCrossing = 60 * S_TO_MS_FACTOR * sumOfBuffer(cirBufCrossings, cirBufCrossings.length) / BPM_SAMPLE_TIME;
-    //TODO compute and average period
-
-    // BPM Estimation from min shifted deviation
-    bpmFromTau = 60 * S_TO_MS_FACTOR / UPDATE_TIME_MS / tauArgMin;
-
-
-    if (bpmFromCrossing > 0)
-    {
-        avePeriodMs = 60 * S_TO_MS_FACTOR  / bpmFromCrossing;
-        //TODO IIR average here
+        //os_printf("fuzzed_bins[0] = %d\n", fuzzed_bins[0]);
     }
     else
     {
-        //avePeriodMs = 60 * S_TO_MS_FACTOR;
-    }
-    //TODO compute avePeriodMs from smoothActivity
 
-    //TODO should be in cmGameDisplay()
-    // graphical view of bpm could be here
+        CM_printf("smoothActivity = %d\n", smoothActivity);
 
-    // graphical view of amp could be here
+        // Estimate bpm when movement activity
 
+        //float alphaCross = ALPHA_CROSS; // for smoothing gaps between zero crossing
 
+        CM_printf("%d %d  smooth: %d\n", getCircularBufferAtIndex(cirBufHighPassNormAccel, -2),
+                  getCircularBufferAtIndex(cirBufHighPassNormAccel, -1), smoothActivity);
 
-    //TODO pitch could simple be computed by tilt
-    //   as dac suggestd, button to actuate sound so
-    //   make a musical instrument
-    if (SOUND_ON)
-    {
-
-        // TODO choose nice range of bpm and map to nice pitch range
-        // could be from 110 to 880 say if buzzer can accept changing
-        // freq. Or could be discrete jumps to pentatonic scale
-        //  from buzzer.h to play freq f need  compute period (5,000,000 / (2 * f))
-        //  to set up a notePeriod_t
-        //  then set up musicalNote_t with this and a duration
-
-        //pitch = (min( max(bpmFromTau, 75), 150) - 75) / 75;
-
-
-        // song_t testSong =
-        // {
-        //     .shouldLoop = true,
-        //     .numNotes = 1,
-        //     .notes = FIX to take period
-
-        // };
-
-        // Play this song continous and stop then change to another freq
-        // or use button to start and stop
-
-        // Is it possible to play bufHighPassNormAccel at 160 times faster?
-        // this would convert 30 to 300 bpm to 80 to 800 Hz
-        // audible indication of bpm
-        //sound.play_effect('game:Beep', volume = 300*smoothActivity/500, pitch=pitch)
-    }
-
-    //Clear leds
-    memset(leds, 0, sizeof(leds));
-
-    os_printf("bpmFromCrossing %d, bpmFromTau %d, tauArgMin %d, activity %d\n", bpmFromCrossing, bpmFromTau, tauArgMin,
-              smoothActivity);
-    uint8_t val;
-    uint8_t hue;
-    uint32_t colorToShow;
-    uint8_t ledr;
-    uint8_t ledg;
-    uint8_t ledb;
-    int16_t xHP;
-    int16_t yHP;
-    int16_t zHP;;
-
-    // Various led options
-    switch (cmComputeColor)
-    {
-        case XYZ2RGB:
-            xHP = sumAbsOfBuffer(cirBufXaccel, cmNumSum) / cmNumSum;
-            yHP = sumAbsOfBuffer(cirBufYaccel, cmNumSum) / cmNumSum;
-            zHP = sumAbsOfBuffer(cirBufZaccel, cmNumSum) / cmNumSum;
-
-            maxCheck1 = max(maxCheck1, xHP);
-            maxCheck2 = max(maxCheck2, yHP);
-            maxCheck3 = max(maxCheck3, zHP);
-            minCheck1 = min(minCheck1, xHP);
-            minCheck2 = min(minCheck2, yHP);
-            minCheck3 = min(minCheck3, zHP);
-            //os_printf("minxHP:%d  minyHP:%d  minzHP:%d maxxHP:%d  maxyHP:%d  maxzHP:%d \n", minCheck1, minCheck2, minCheck3, maxCheck1, maxCheck2, maxCheck3);
-
-            // Violent shaking can give xHP just over 600 but then hard to just
-            // shake only in one direction x,y,z
-
-            ledr = CLAMP(xHP * 255 * cmScaleLed / 600, 0, 255);
-            ledg = CLAMP(yHP * 255 * cmScaleLed / 600, 0, 255);
-            ledb = CLAMP(zHP * 255 * cmScaleLed / 600, 0, 255);
-            break;
-        case BPM2HUE:
-        default:
-            //Color and intensity related to bpm and amount of shaking using color wheel
-            //hue = CLAMP(((CLAMP(bpmFromTau, 30, 312) - 30) * 255 / (312 - 30)),0,255);
-            //hue = CLAMP(((CLAMP(smoothActivity, 0, 500) - 0) * 255 / (500 - 0)), 0, 255);
-            // This seems best
-            hue = CLAMP(((CLAMP(bpmFromCrossing, 30, 250) - 30) * 255 / (250 - 30)), 0, 255);
-            val = CLAMP(((CLAMP( cmScaleLed * smoothActivity, 15, 1500 ) - 15 ) * 255 / (1500 - 15)), 0, 255);
-
-            maxCheck1 = max(maxCheck1, bpmFromTau);
-            maxCheck2 = max(maxCheck2, bpmFromCrossing);
-            maxCheck3 = max(maxCheck3, smoothActivity);
-            minCheck1 = min(minCheck1, bpmFromTau);
-            minCheck2 = min(minCheck2, bpmFromCrossing);
-            minCheck3 = min(minCheck3, smoothActivity);
-            //os_printf("bpmFromTau: min %d  max %d, bpmFromCrossing min %d max:%d, smoothAct min %d max %d \n", minCheck1, maxCheck1,
-            //          minCheck2, maxCheck2, minCheck3, maxCheck3);
-
-            // Don't apply gamma as is done in setCMLeds
-            colorToShow = EHSVtoHEXhelper(hue, 0xFF, val, false);
-
-            ledr = (colorToShow >>  0) & 0xFF;
-            ledg = (colorToShow >>  8) & 0xFF;
-            ledb = (colorToShow >> 16) & 0xFF;
-
-            break;
-    }
-    // Gamma correction corrects washed out look
-    //   Done in setCMLeds
-
-    //os_printf("r:%d  g:%d  b:%d \n", ledr, ledg, ledb);
-
-#define USE_NUM_LEDS 6
-    // Spin the leds syncronized to bpm while there is some shaking activity
-    if ((modeTime - ledPrevIncTime > MS_TO_US_FACTOR * avePeriodMs / USE_NUM_LEDS / REVOLUTIONS_PER_BEAT * USE_NUM_LEDS /
-            255 / 10) && (smoothActivity > ACTIVITY_BOUND ))
-    {
-        //os_printf("modeTime %d, ledPrevIncTime %d\n", modeTime, ledPrevIncTime);
-        ledPrevIncTime = modeTime;
-        ledCycle += ledDirection;
-        ledCycle = (ledCycle + USE_NUM_LEDS) % USE_NUM_LEDS;
-        cmLedCount = cmLedCount + 1; //will wrap back to 0
-    }
-
-    if (!cmUseShiftingLeds)
-    {
-        ledCycle = 0;
-    }
-    if (!cmUseShiftingColorWheel)
-    {
-        cmLedCount = 0;
-    }
-
-
-    switch (cmLedMethod)
-    {
-        case ALL_SAME:
-
-            // allcolored the same
-            for (uint8_t i = 0; i < cmShowNumLeds; i++)
+        // Ignore low level input so only do if enough activity
+#define ACTIVITY_BOUND 15
+        if (smoothActivity > ACTIVITY_BOUND )
+        {
+            circularPush(0x0000, &cirBufCrossings);
+            //Compute upward crossings and note it
+            if (lastsign >= 0 && sample < 0)
             {
-                //use axis colors or hue colors computed above
-#if USE_NUM_LEDS == 6
-                leds[ledOrderInd[(i + ledCycle) % USE_NUM_LEDS]].r = ledr;
-                leds[ledOrderInd[(i + ledCycle) % USE_NUM_LEDS]].g = ledg;
-                leds[ledOrderInd[(i + ledCycle) % USE_NUM_LEDS]].b = ledb;
-#else
-                leds[(i + ledCycle) % USE_NUM_LEDS].r = ledr;
-                leds[(i + ledCycle) % USE_NUM_LEDS].g = ledg;
-                leds[(i + ledCycle) % USE_NUM_LEDS].b = ledb;
-#endif
+                lastsign = -1;
             }
-            /* code */
-            break;
-
-        case RAINBOW:
-        default:
-
-            // rainbow
-
-            for(uint8_t i = 0; i < USE_NUM_LEDS; i++)
+            else if (lastsign <= 0 && sample > 0)
             {
-                hue = (((i * 256) / USE_NUM_LEDS)) + cmLedCount % 256;
-                colorToShow = EHSVtoHEXhelper(hue, 0xFF, 0xFF, false);
+                lastsign = 1;
+                showCrossOnLed = true;
+                circularPush(0x0001, &cirBufCrossings);
+                crossIntervalCounter = 0;
+            }
+        }
+
+        // BPM Estimation from upward crossings (can highly overestimate)
+        bpmFromCrossing = 60 * S_TO_MS_FACTOR * sumOfBuffer(cirBufCrossings, cirBufCrossings.length) / BPM_SAMPLE_TIME;
+        //TODO compute and average period
+
+        // BPM Estimation from min shifted deviation
+        bpmFromTau = 60 * S_TO_MS_FACTOR / UPDATE_TIME_MS / tauArgMin;
+
+
+        if (bpmFromCrossing > 0)
+        {
+            avePeriodMs = 60 * S_TO_MS_FACTOR  / bpmFromCrossing;
+            //TODO IIR average here
+        }
+        else
+        {
+            //avePeriodMs = 60 * S_TO_MS_FACTOR;
+        }
+        //TODO compute avePeriodMs from smoothActivity
+
+        //TODO should be in cmGameDisplay()
+        // graphical view of bpm could be here
+
+        // graphical view of amp could be here
+
+
+        if (SOUND_ON)
+        {
+            // TODO? map bpm to pitch, play on shocks?
+        }
+
+        //Clear leds
+        memset(leds, 0, sizeof(leds));
+
+        os_printf("bpmFromCrossing %d, bpmFromTau %d, tauArgMin %d, activity %d\n", bpmFromCrossing, bpmFromTau, tauArgMin,
+                  smoothActivity);
+        uint8_t val;
+        uint8_t hue;
+        uint32_t colorToShow;
+        uint8_t ledr;
+        uint8_t ledg;
+        uint8_t ledb;
+        int16_t xHP;
+        int16_t yHP;
+        int16_t zHP;;
+
+        // Various led options
+        switch (cmComputeColor)
+        {
+            case XYZ2RGB:
+                xHP = sumAbsOfBuffer(cirBufXaccel, cmNumSum) / cmNumSum;
+                yHP = sumAbsOfBuffer(cirBufYaccel, cmNumSum) / cmNumSum;
+                zHP = sumAbsOfBuffer(cirBufZaccel, cmNumSum) / cmNumSum;
+
+                maxCheck1 = max(maxCheck1, xHP);
+                maxCheck2 = max(maxCheck2, yHP);
+                maxCheck3 = max(maxCheck3, zHP);
+                minCheck1 = min(minCheck1, xHP);
+                minCheck2 = min(minCheck2, yHP);
+                minCheck3 = min(minCheck3, zHP);
+                //os_printf("minxHP:%d  minyHP:%d  minzHP:%d maxxHP:%d  maxyHP:%d  maxzHP:%d \n", minCheck1, minCheck2, minCheck3, maxCheck1, maxCheck2, maxCheck3);
+
+                // Violent shaking can give xHP just over 600 but then hard to just
+                // shake only in one direction x,y,z
+
+                ledr = CLAMP(xHP * 255 * cmScaleLed / 600, 0, 255);
+                ledg = CLAMP(yHP * 255 * cmScaleLed / 600, 0, 255);
+                ledb = CLAMP(zHP * 255 * cmScaleLed / 600, 0, 255);
+                break;
+            case BPM2HUE:
+            default:
+                //Color and intensity related to bpm and amount of shaking using color wheel
+                //hue = CLAMP(((CLAMP(bpmFromTau, 30, 312) - 30) * 255 / (312 - 30)),0,255);
+                //hue = CLAMP(((CLAMP(smoothActivity, 0, 500) - 0) * 255 / (500 - 0)), 0, 255);
+                // This seems best
+                hue = CLAMP(((CLAMP(bpmFromCrossing, 30, 250) - 30) * 255 / (250 - 30)), 0, 255);
+                val = CLAMP(((CLAMP( cmScaleLed * smoothActivity, 15, 1500 ) - 15 ) * 255 / (1500 - 15)), 0, 255);
+
+                maxCheck1 = max(maxCheck1, bpmFromTau);
+                maxCheck2 = max(maxCheck2, bpmFromCrossing);
+                maxCheck3 = max(maxCheck3, smoothActivity);
+                minCheck1 = min(minCheck1, bpmFromTau);
+                minCheck2 = min(minCheck2, bpmFromCrossing);
+                minCheck3 = min(minCheck3, smoothActivity);
+                //os_printf("bpmFromTau: min %d  max %d, bpmFromCrossing min %d max:%d, smoothAct min %d max %d \n", minCheck1, maxCheck1,
+                //          minCheck2, maxCheck2, minCheck3, maxCheck3);
+
+                // Don't apply gamma as is done in setCMLeds
+                colorToShow = EHSVtoHEXhelper(hue, 0xFF, val, false);
 
                 ledr = (colorToShow >>  0) & 0xFF;
                 ledg = (colorToShow >>  8) & 0xFF;
                 ledb = (colorToShow >> 16) & 0xFF;
 
-#if USE_NUM_LEDS == 6
-                leds[ledOrderInd[(i + ledCycle) % USE_NUM_LEDS]].r = ledr;
-                leds[ledOrderInd[(i + ledCycle) % USE_NUM_LEDS]].g = ledg;
-                leds[ledOrderInd[(i + ledCycle) % USE_NUM_LEDS]].b = ledb;
-#else
-                leds[(i + ledCycle) % USE_NUM_LEDS].r = ledr;
-                leds[(i + ledCycle) % USE_NUM_LEDS].g = ledg;
-                leds[(i + ledCycle) % USE_NUM_LEDS].b = ledb;
-#endif
-            }
-            break;
-    }
+                break;
+        }
+        // Gamma correction corrects washed out look
+        //   Done in setCMLeds
 
-    //Flip direction on crossing
-    if (showCrossOnLed && crossIntervalCounter == 0)
-    {
-        //ledDirection *= -1;
-    }
+        //os_printf("r:%d  g:%d  b:%d \n", ledr, ledg, ledb);
 
-    //Brighten on crossing
-    if (showCrossOnLed && crossIntervalCounter < 10)
-    {
-        //Need to temp brighten not change index
-        //cmBrightnessIdx = 0;
-    }
-    else
-    {
-        showCrossOnLed = false;
-        //cmBrightnessIdx = 0;
-    }
-
-    if (cmUsePOVeffect)
-    {
-        for (uint8_t indLed = 0; indLed < NUM_LIN_LEDS ; indLed++)
+#define USE_NUM_LEDS 6
+        // Spin the leds syncronized to bpm while there is some shaking activity
+        if ((modeTime - ledPrevIncTime > MS_TO_US_FACTOR * avePeriodMs / USE_NUM_LEDS / cmRevsPerBeat)
+                && (smoothActivity > ACTIVITY_BOUND ))
         {
+            //os_printf("modeTime %d, ledPrevIncTime %d\n", modeTime, ledPrevIncTime);
+            ledPrevIncTime = modeTime;
+            ledCycle += ledDirection;
+            ledCycle = (ledCycle + USE_NUM_LEDS) % USE_NUM_LEDS;
+            cmLedCount = cmLedCount + 1; //will wrap back to 0
+        }
 
-            // POV effect
-            if (subFrameCount / 2 == 0)
+        if (!cmUseShiftingLeds)
+        {
+            ledCycle = 0;
+        }
+        if (!cmUseShiftingColorWheel)
+        {
+            cmLedCount = 0;
+        }
+
+
+        switch (cmLedMethod)
+        {
+            case ALL_SAME:
+
+                // allcolored the same
+                for (uint8_t i = 0; i < cmShowNumLeds; i++)
+                {
+                    //use axis colors or hue colors computed above
+#if USE_NUM_LEDS == 6
+                    leds[ledOrderInd[(i + ledCycle) % USE_NUM_LEDS]].r = ledr;
+                    leds[ledOrderInd[(i + ledCycle) % USE_NUM_LEDS]].g = ledg;
+                    leds[ledOrderInd[(i + ledCycle) % USE_NUM_LEDS]].b = ledb;
+#else
+                    leds[(i + ledCycle) % USE_NUM_LEDS].r = ledr;
+                    leds[(i + ledCycle) % USE_NUM_LEDS].g = ledg;
+                    leds[(i + ledCycle) % USE_NUM_LEDS].b = ledb;
+#endif
+                }
+                /* code */
+                break;
+
+            case RAINBOW:
+            default:
+
+                // rainbow
+
+                for(uint8_t i = 0; i < cmShowNumLeds; i++)
+                {
+                    hue = (((i * 256) / cmShowNumLeds)) + cmLedCount % 256;
+                    colorToShow = EHSVtoHEXhelper(hue, 0xFF, 0xFF, false);
+
+                    ledr = (colorToShow >>  0) & 0xFF;
+                    ledg = (colorToShow >>  8) & 0xFF;
+                    ledb = (colorToShow >> 16) & 0xFF;
+
+#if USE_NUM_LEDS == 6
+                    leds[ledOrderInd[(i + ledCycle) % USE_NUM_LEDS]].r = ledr;
+                    leds[ledOrderInd[(i + ledCycle) % USE_NUM_LEDS]].g = ledg;
+                    leds[ledOrderInd[(i + ledCycle) % USE_NUM_LEDS]].b = ledb;
+#else
+                    leds[(i + ledCycle) % USE_NUM_LEDS].r = ledr;
+                    leds[(i + ledCycle) % USE_NUM_LEDS].g = ledg;
+                    leds[(i + ledCycle) % USE_NUM_LEDS].b = ledb;
+#endif
+                }
+                break;
+        }
+
+        //Flip direction on crossing
+        if (showCrossOnLed && crossIntervalCounter == 0)
+        {
+            //ledDirection *= -1;
+        }
+
+        //Brighten on crossing
+        if (showCrossOnLed && crossIntervalCounter < 10)
+        {
+            //Need to temp brighten not change index
+            //cmBrightnessIdx = 0;
+        }
+        else
+        {
+            showCrossOnLed = false;
+            //cmBrightnessIdx = 0;
+        }
+
+        if (cmUsePOVeffect)
+        {
+            for (uint8_t indLed = 0; indLed < NUM_LIN_LEDS ; indLed++)
             {
-                leds[indLed].g = 0;
-                leds[indLed].b = 0;
-            }
-            else if (subFrameCount / 2 == 1)
-            {
-                leds[indLed].r = 0;
-                leds[indLed].b = 0;
-            }
-            else
-            {
-                leds[indLed].r = 0;
-                leds[indLed].g = 0;
+
+                // POV effect
+                if (subFrameCount / 2 == 0)
+                {
+                    leds[indLed].g = 0;
+                    leds[indLed].b = 0;
+                }
+                else if (subFrameCount / 2 == 1)
+                {
+                    leds[indLed].r = 0;
+                    leds[indLed].b = 0;
+                }
+                else
+                {
+                    leds[indLed].r = 0;
+                    leds[indLed].g = 0;
+                };
             };
-        };
-    }
+        }
 
 
-    setCMLeds(leds, sizeof(leds));
-#endif //non color chord
+        setCMLeds(leds, sizeof(leds));
+    } //non color chord
+
     maxTimeEnd(&CM_updatedisplay_timer);
 }
 
@@ -1280,10 +1256,16 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
     cmComputeColor = BPM2HUE; //using bpmFromCrossing
     cmLedMethod = RAINBOW;
     cmUseShiftingColorWheel = true;
-    cmShowNumLeds = USE_NUM_LEDS;
+    //TODO can extend to give subset to use eg 1,3,5 or 1,4
+    //    rather than just how many consecutive
     cmShowNumLeds = USE_NUM_LEDS; // must be <= USE_NUM_LEDS
     cmUseShiftingLeds = false; // possible to shift leds showing around ring
     cmUsePOVeffect = false; // possible to shift hue angle
+    cmUseColorChordDFT = false;
+    //cmRevsPerBeat = 1.0 / USE_NUM_LEDS;
+    cmRevsPerBeat = 1.0;
+    //TODO need fix POV effects
+    cmNumSubFrames = 6; // used for POV effects
 
 
     switch (subMode)
@@ -1291,13 +1273,17 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
         case BEAT_SELECT:
             // BPM mapped to hue for all leds.
             // Leds display near max selected brightness while movement
-            cmShowNumLeds = USE_NUM_LEDS / 2;
+            cmShowNumLeds = USE_NUM_LEDS;
             cmUseShiftingColorWheel = false;
             cmLedMethod = ALL_SAME;
             cmScaleLed = 10; // scaling for intensity and want to keep alive until very quiet
             break;
         case SHOCK_CHANGE:
-            /* code */
+            cmUseSmooth = false;
+            cmUseHighPassAccel = false;
+            cmFilterAllWithIIR = false; //false will use running average
+            cmNumSum = 1;
+            cmLedMethod = ALL_SAME;
             break;
         case SHOCK_CHAOTIC:
             /* code */
@@ -1319,6 +1305,22 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
         case POV_EFFECT:
             cmUsePOVeffect = true;
             break;
+        case DFT_SHAKE:
+            cmUseColorChordDFT = true;
+            break;
+        case POWER_SHAKE:
+            // Shake and lights will slowly get hotter - accumulated energy mapped to hue.
+            //  when stop the stored energy will power a display
+            //  at that points will show random or partial rainbow of colors seen
+            //  during the build up. Using 1 led rotating in proportion to stored energy left
+            // Leds display near max selected brightness while movement
+            cmShowNumLeds = 1;
+            cmUseShiftingColorWheel = false;
+            cmUseShiftingLeds = true;
+            cmLedMethod = ALL_SAME;
+            cmScaleLed = 1000; // scaling for intensity and want to keep alive until very quiet
+            cmRevsPerBeat = 3.0;
+            break;
         case BEAT_SPIN:
         default:
             // A Colorwheel rotates in proportion to the BPM
@@ -1326,10 +1328,9 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
     }
 
 
-    REVOLUTIONS_PER_BEAT = 1.0 / NUM_LIN_LEDS;
     PLOT_SCALE = 32;
     PLOT_SHIFT = 32;
-    // do via timer now 10 fps NUM_SUB_FRAMES = 0 // 0 for 60 fps, 1 for 30 fps, 2 for 20 fps, k for 60/(k+1) fps
+    // do via timer now 10 fps cmNumSubFrames = 0 // 0 for 60 fps, 1 for 30 fps, 2 for 20 fps, k for 60/(k+1) fps
 
     subFrameCount = 0; // used for skipping frames
     adj = SCREEN_BORDER;
@@ -1354,6 +1355,8 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
     avePeriodMs = 5;
     //crossInterval = 5;
     ledDirection = 1;
+    cmCumulativeActivity = 0;
+    cmCollectingActivity = true;
 
 }
 
