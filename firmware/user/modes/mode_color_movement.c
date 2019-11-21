@@ -119,6 +119,7 @@ typedef enum
     ROLL_BALL,
     ROLL_3_BALLS,
     TILT_A_COLOR,
+    TWIRL_A_COLOR,
     POV_EFFECT,
     DFT_SHAKE,
     POWER_SHAKE
@@ -127,6 +128,7 @@ typedef enum
 typedef enum
 {
     XYZ2RGB,
+    ANGLE2HUE,
     BPM2HUE,
 } colorMethod_t;
 
@@ -222,7 +224,7 @@ static const uint8_t cmBrightnesses[] =
 
 const char* subModeName[] = {"BEAT_SPIN", "BEAT_SELECT", "SHOCK_CHANGE",
                              "SHOCK_CHAOTIC", "ROLL_BALL", "ROLL_3_BALLS", "TILT_A_COLOR",
-                             "POV_EFFECT", "DFT_SHAKE", "POWER_SHAKE"
+                             "TWIRL_A_COLOR", "POV_EFFECT", "DFT_SHAKE", "POWER_SHAKE"
                             };
 
 
@@ -376,7 +378,7 @@ uint16_t avePeriodMs = 5;
 //uint16_t crossInterval = 5;
 bool showCrossOnLed = false;
 bool cmCollectingActivity = true;
-
+const FLOATING cmPi = 3.15159;
 // Helpers
 
 void ICACHE_FLASH_ATTR initCircularBuffer(circularBuffer_t* cirbuff,  int16_t* buffer, uint16_t length)
@@ -866,7 +868,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     // ex. 60/119 = 30.25
 
 
-//TODO some of this may not be wanted for CC or ROLL sub modes
+    //TODO some of this may not be wanted for CC or ROLL sub modes
     int16_t minDeviation = 0x7FFF;
     uint8_t tauArgMin = 0;
     for (uint8_t tau = 12; tau < NUM_IN_CIRCULAR_BUFFER; tau++)
@@ -900,7 +902,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     AdjustAndPlotDots(cirBufZaccel, cirBufLowPassZaccel);
 #endif
 
-// Sub mode sections
+    // Sub mode sections
     if (cmCurrentSubMode == DFT_SHAKE)
     {
         // send this to be dealt with by color chord
@@ -986,8 +988,8 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         //Clear leds
         memset(leds, 0, sizeof(leds));
 
-        os_printf("bpmFromCrossing %d, bpmFromTau %d, tauArgMin %d, activity %d\n", bpmFromCrossing, bpmFromTau, tauArgMin,
-                  smoothActivity);
+        //os_printf("bpmFromCrossing %d, bpmFromTau %d, tauArgMin %d, activity %d\n", bpmFromCrossing, bpmFromTau, tauArgMin,
+        //          smoothActivity);
         uint8_t val;
         uint8_t hue;
         uint32_t colorToShow;
@@ -1002,6 +1004,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         switch (cmComputeColor)
         {
             case XYZ2RGB:
+                //Using (averaged) absolute value of x,y,z
                 xHP = sumAbsOfBuffer(cirBufXaccel, cmNumSum) / cmNumSum;
                 yHP = sumAbsOfBuffer(cirBufYaccel, cmNumSum) / cmNumSum;
                 zHP = sumAbsOfBuffer(cirBufZaccel, cmNumSum) / cmNumSum;
@@ -1021,13 +1024,39 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                 ledg = CLAMP(yHP * 255 * cmScaleLed / 600, 0, 255);
                 ledb = CLAMP(zHP * 255 * cmScaleLed / 600, 0, 255);
                 break;
+
+            case ANGLE2HUE:
+                //Using (averaged) value of x,y,z to compute angle
+                xHP = sumOfBuffer(cirBufXaccel, cmNumSum) / cmNumSum;
+                yHP = sumOfBuffer(cirBufYaccel, cmNumSum) / cmNumSum;
+                zHP = sumOfBuffer(cirBufZaccel, cmNumSum) / cmNumSum;
+
+                maxCheck1 = max(maxCheck1, xHP);
+                maxCheck2 = max(maxCheck2, yHP);
+                maxCheck3 = max(maxCheck3, zHP);
+                minCheck1 = min(minCheck1, xHP);
+                minCheck2 = min(minCheck2, yHP);
+                minCheck3 = min(minCheck3, zHP);
+                //os_printf("minxHP:%d  minyHP:%d  minzHP:%d maxxHP:%d  maxyHP:%d  maxzHP:%d \n", minCheck1, minCheck2, minCheck3, maxCheck1, maxCheck2, maxCheck3);
+
+                hue = 127 + atan2(yHP, xHP) * 127 / cmPi ;
+                //os_printf("hue %d, yHP %d, xHP %d\n", hue, yHP, xHP);
+                val = CLAMP(((CLAMP( cmScaleLed * smoothActivity, 15, 1500 ) - 15 ) * 255 / (1500 - 15)), 0, 255);
+                // Don't apply gamma as is done in setCMLeds
+                colorToShow = EHSVtoHEXhelper(hue, 0xFF, val, false);
+
+                ledr = (colorToShow >>  0) & 0xFF;
+                ledg = (colorToShow >>  8) & 0xFF;
+                ledb = (colorToShow >> 16) & 0xFF;
+                break;
             case BPM2HUE:
             default:
                 //Color and intensity related to bpm and amount of shaking using color wheel
                 //hue = CLAMP(((CLAMP(bpmFromTau, 30, 312) - 30) * 255 / (312 - 30)),0,255);
                 //hue = CLAMP(((CLAMP(smoothActivity, 0, 500) - 0) * 255 / (500 - 0)), 0, 255);
-                // This seems best
-                hue = CLAMP(((CLAMP(bpmFromCrossing, 30, 250) - 30) * 255 / (250 - 30)), 0, 255);
+                #define SLOWEST_BEAT 30
+                #define FASTEST_BEAT 150
+                hue = CLAMP(((CLAMP(bpmFromCrossing, SLOWEST_BEAT, FASTEST_BEAT) - SLOWEST_BEAT) * 255 / (FASTEST_BEAT - SLOWEST_BEAT)), 0, 255);
                 val = CLAMP(((CLAMP( cmScaleLed * smoothActivity, 15, 1500 ) - 15 ) * 255 / (1500 - 15)), 0, 255);
 
                 maxCheck1 = max(maxCheck1, bpmFromTau);
@@ -1274,7 +1303,7 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
     cmUsePOVeffect = false; // possible to shift hue angle
     cmUseColorChordDFT = false;
     //cmRevsPerBeat = 1.0 / USE_NUM_LEDS;
-    cmRevsPerBeat = 1.0;
+    cmRevsPerBeat = 10.0;
     //TODO need fix POV effects
     cmNumSubFrames = 6; // used for POV effects
 
@@ -1311,6 +1340,15 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
             cmFilterAllWithIIR = false; //false will use running average
             cmNumSum = 1;
             cmComputeColor = XYZ2RGB;
+            cmLedMethod = ALL_SAME;
+            break;
+        case TWIRL_A_COLOR:
+            cmUseSmooth = false;
+            cmUseHighPassAccel = true; //false;
+            cmFilterAllWithIIR = false; //false will use running average
+            cmNumSum = 1;
+            cmScaleLed = 100;
+            cmComputeColor = ANGLE2HUE;
             cmLedMethod = ALL_SAME;
             break;
         case POV_EFFECT:
@@ -1369,8 +1407,13 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
     cmCumulativeActivity = 0;
     cmCollectingActivity = true;
 
+    os_printf("SwageVersion %d ", SWADGE_VERSION);
+    for (uint8_t i = 0; i < 6; i++)
+    {
+        os_printf("%d ", ledOrderInd[i]);
+    }
+    os_printf("\n");
 }
-
 void ICACHE_FLASH_ATTR cmChangeState(cmState_t newState)
 {
     prevState = currState;
