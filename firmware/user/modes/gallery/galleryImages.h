@@ -61,5 +61,6 @@ extern uint8_t gal_logo_7[19] RODATA_ATTR;
 extern uint8_t gal_logo_8[19] RODATA_ATTR;
 extern uint8_t gal_logo_9[19] RODATA_ATTR;
 extern uint8_t gal_snort_0[2011] RODATA_ATTR;
+extern uint8_t gal_contsnortpixel_0[2063] RODATA_ATTR;
 
 #endif // _GALLERY_IMAGES_H_

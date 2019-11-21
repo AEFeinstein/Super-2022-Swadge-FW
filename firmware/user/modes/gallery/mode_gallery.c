@@ -44,6 +44,14 @@ typedef enum
     LEFT
 } panDir_t;
 
+typedef enum
+{
+    NONE,
+    ALWAYS_RIGHT,
+    ALWAYS_LEFT
+} panContDir_t;
+
+
 /*==============================================================================
  * Structs
  *============================================================================*/
@@ -57,6 +65,7 @@ typedef struct
 typedef struct
 {
     uint8_t nFrames;
+    panContDir_t continousPan;
     galFrame_t frames[];
 } galImage_t;
 
@@ -106,6 +115,7 @@ struct
     uint16_t cImage;           ///< The index of the current image being
     uint16_t panIdx;           ///< How much the image is currently panned
     panDir_t panDir;           ///< The direction the image is currently panning
+    panContDir_t panContDir;   ///< Direction of continuos pan which overides above
     uint32_t unlockBitmask;    ///< A bitmask of the unlocked gallery images
 } gal =
 {
@@ -121,7 +131,8 @@ struct
     .timerPan = {0},
     .cImage = 0,
     .panIdx = 0,
-    .panDir = RIGHT
+    .panDir = RIGHT,
+    .panContDir = NONE
 };
 
 /*==============================================================================
@@ -131,6 +142,7 @@ struct
 const galImage_t galBongo =
 {
     .nFrames = 2,
+    .continousPan = NONE,
     .frames = {
         {.data = gal_bongo_0, .len = sizeof(gal_bongo_0)},
         {.data = gal_bongo_1, .len = sizeof(gal_bongo_1)},
@@ -140,14 +152,25 @@ const galImage_t galBongo =
 const galImage_t galSnort =
 {
     .nFrames = 1,
+    .continousPan = NONE,
     .frames = {
         {.data = gal_snort_0, .len = sizeof(gal_snort_0)},
+    }
+};
+
+const galImage_t galSnort2 =
+{
+    .nFrames = 1,
+    .continousPan = ALWAYS_LEFT,
+    .frames = {
+        {.data = gal_contsnortpixel_0, .len = sizeof(gal_contsnortpixel_0)},
     }
 };
 
 const galImage_t galGaylord =
 {
     .nFrames = 3,
+    .continousPan = NONE,
     .frames = {
         {.data = gal_gaylord_0, .len = sizeof(gal_gaylord_0)},
         {.data = gal_gaylord_1, .len = sizeof(gal_gaylord_1)},
@@ -158,6 +181,7 @@ const galImage_t galGaylord =
 const galImage_t galFunkus =
 {
     .nFrames = 30,
+    .continousPan = NONE,
     .frames = {
         {.data = gal_funkus_0, .len = sizeof(gal_funkus_0)},
         {.data = gal_funkus_1, .len = sizeof(gal_funkus_1)},
@@ -195,6 +219,7 @@ const galImage_t galFunkus =
 const galImage_t galLogo =
 {
     .nFrames = 21,
+    .continousPan = NONE,
     .frames = {
         {.data = gal_logo_0, .len = sizeof(gal_logo_0)},
         {.data = gal_logo_1, .len = sizeof(gal_logo_1)},
@@ -220,12 +245,13 @@ const galImage_t galLogo =
     }
 };
 
-const galImage_t* galImages[5] =
+const galImage_t* galImages[6] =
 {
     &galLogo,
     &galBongo,
     &galFunkus,
     &galSnort,
+    &galSnort2,
     &galGaylord
 };
 
@@ -255,7 +281,8 @@ void ICACHE_FLASH_ATTR galEnterMode(void)
 
     // Unlock one image by default
     unlockGallery(0);
-    gal.unlockBitmask = getGalleryUnlocks();
+    gal.unlockBitmask = 0xffffffff;
+    //gal.unlockBitmask = getGalleryUnlocks();
 
     // Load the image
     galLoadFirstFrame();
@@ -312,7 +339,7 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
                         break;
                     }
                 }
-
+                gal.panContDir =   galImages[gal.cImage]->continousPan;
                 galLoadFirstFrame();
                 break;
             }
@@ -338,7 +365,7 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
                         break;
                     }
                 }
-
+                gal.panContDir =   galImages[gal.cImage]->continousPan;
                 galLoadFirstFrame();
                 break;
             }
@@ -482,6 +509,7 @@ void ICACHE_FLASH_ATTR galClearImage(void)
     // Don't reset cImage
     gal.panIdx = 0;
     gal.panDir = RIGHT;
+    gal.panContDir = NONE;
 }
 
 /**
@@ -535,6 +563,8 @@ static void ICACHE_FLASH_ATTR galTimerPan(void* arg __attribute__((unused)))
                 // If we're at the end
                 if((gal.width - OLED_WIDTH) == gal.panIdx)
                 {
+                    // For continous pan
+                    //gal.panIdx = 0;
                     // Start going to the left
                     gal.panDir = LEFT;
                 }
@@ -550,6 +580,8 @@ static void ICACHE_FLASH_ATTR galTimerPan(void* arg __attribute__((unused)))
                 // If we're at the beginning
                 if(0 == gal.panIdx)
                 {
+                    // Continous
+                    //gal.panIdx = gal.width - OLED_WIDTH;
                     // Start going to the right
                     gal.panDir = RIGHT;
                 }
