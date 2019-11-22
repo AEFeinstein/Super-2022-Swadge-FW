@@ -26,12 +26,13 @@
 
 #define MAX_DECOMPRESSED_SIZE 0xA00
 
-/*
-#define DBG_GAL(...) do { \
+
+/* #define DBG_GAL(...) do { \
         os_printf("%s::%d ", __func__, __LINE__); \
         os_printf(__VA_ARGS__); \
     } while(0)
 */
+
 #define DBG_GAL(...)
 
 /*==============================================================================
@@ -81,6 +82,7 @@ void ICACHE_FLASH_ATTR galClearImage(void);
 void ICACHE_FLASH_ATTR galDrawFrame(void);
 static void ICACHE_FLASH_ATTR galLoadNextFrame(void* arg);
 static void ICACHE_FLASH_ATTR galTimerPan(void* arg);
+const galImage_t* ICACHE_FLASH_ATTR galGetCurrentImage(void);
 
 /*==============================================================================
  * Variables
@@ -106,6 +108,7 @@ struct
     uint8_t* decompressedData; ///< A pointer to decompressed data in RAM
     uint8_t* frameData;        ///< A pointer to the frame being displayed
     uint16_t width;            ///< The width of the current image
+    uint16_t virtualWidth;     ///< The effective width = actual width or double that if continous panning
     uint16_t height;           ///< The height of the current image
     uint16_t nFrames;          ///< The number of frames in the image
     uint16_t cFrame;           ///< The current frame index being displyed
@@ -152,25 +155,16 @@ const galImage_t galBongo =
 const galImage_t galSnort =
 {
     .nFrames = 1,
-    .continousPan = NONE,
-    .frames = {
-        {.data = gal_snort_0, .len = sizeof(gal_snort_0)},
-    }
-};
-
-const galImage_t galSnort2 =
-{
-    .nFrames = 1,
     .continousPan = ALWAYS_LEFT,
     .frames = {
-        {.data = gal_contsnortpixel_0, .len = sizeof(gal_contsnortpixel_0)},
+        {.data = gal_snort_0, .len = sizeof(gal_snort_0)},
     }
 };
 
 const galImage_t galGaylord =
 {
     .nFrames = 3,
-    .continousPan = NONE,
+    .continousPan = ALWAYS_RIGHT,
     .frames = {
         {.data = gal_gaylord_0, .len = sizeof(gal_gaylord_0)},
         {.data = gal_gaylord_1, .len = sizeof(gal_gaylord_1)},
@@ -245,14 +239,54 @@ const galImage_t galLogo =
     }
 };
 
-const galImage_t* galImages[6] =
+const galImage_t galUnlockJoust =
 {
-    &galLogo,
-    &galBongo,
-    &galFunkus,
-    &galSnort,
-    &galSnort2,
-    &galGaylord
+    .nFrames = 1,
+    .frames = {
+        {.data = gal_unlock_joust_0, .len = sizeof(gal_unlock_joust_0)},
+    }
+};
+
+const galImage_t galUnlockMaze =
+{
+    .nFrames = 1,
+    .frames = {
+        {.data = gal_unlock_maze_0, .len = sizeof(gal_unlock_maze_0)},
+    }
+};
+
+const galImage_t galUnlockTiltrads =
+{
+    .nFrames = 1,
+    .frames = {
+        {.data = gal_unlock_tiltrads_0, .len = sizeof(gal_unlock_tiltrads_0)},
+    }
+};
+
+const galImage_t galUnlockSnake =
+{
+    .nFrames = 1,
+    .frames = {
+        {.data = gal_unlock_snake_0, .len = sizeof(gal_unlock_snake_0)},
+    }
+};
+
+// Order matters, must match galUnlockPlaceholders
+const galImage_t* galImages[5] =
+{
+    &galLogo,    // Already unlocked
+    &galBongo,   // Joust
+    &galFunkus,  // Snake
+    &galGaylord, // Tiltrads
+    &galSnort    // Maze
+};
+
+const galImage_t* galUnlockPlaceholders[4] =
+{
+    &galUnlockJoust,
+    &galUnlockSnake,
+    &galUnlockTiltrads,
+    &galUnlockMaze
 };
 
 /*==============================================================================
@@ -280,9 +314,7 @@ void ICACHE_FLASH_ATTR galEnterMode(void)
     os_timer_setfn(&gal.timerPan, (os_timer_func_t*)galTimerPan, NULL);
 
     // Unlock one image by default
-    unlockGallery(0);
-    gal.unlockBitmask = 0xffffffff;
-    //gal.unlockBitmask = getGalleryUnlocks();
+    gal.unlockBitmask = getGalleryUnlocks();
 
     // Load the image
     galLoadFirstFrame();
@@ -314,12 +346,6 @@ void ICACHE_FLASH_ATTR galExitMode(void)
 void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
         int button __attribute__((unused)), int down __attribute__((unused)))
 {
-    if(gal.unlockBitmask == 1)
-    {
-        // Only one image unlocked, no use trying to go to the next
-        return;
-    }
-
     if(down)
     {
         switch (button)
@@ -327,45 +353,29 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
             case 2:
             {
                 // Right button
-                galClearImage();
+                gal.cImage = (gal.cImage + 1) %
+                             (sizeof(galImages) / sizeof(galImages[0]));
 
-                // Iterate through the images and stop when you find an unlocked one
-                for(uint8_t i = 0; i < (sizeof(galImages) / sizeof(galImages[0])); i++)
-                {
-                    gal.cImage = (gal.cImage + 1) %
-                                 (sizeof(galImages) / sizeof(galImages[0]));
-                    if(gal.unlockBitmask & (1 << gal.cImage))
-                    {
-                        break;
-                    }
-                }
                 gal.panContDir =   galImages[gal.cImage]->continousPan;
+                galClearImage();
                 galLoadFirstFrame();
                 break;
             }
             case 1:
             {
                 // Left Button
-                galClearImage();
-
-                // Iterate through the images and stop when you find an unlocked one
-                for(uint8_t i = 0; i < (sizeof(galImages) / sizeof(galImages[0])); i++)
+                // Iterate through the images
+                if(0 == gal.cImage)
                 {
-                    if(0 == gal.cImage)
-                    {
-                        gal.cImage = (sizeof(galImages) / sizeof(galImages[0])) - 1;
-                    }
-                    else
-                    {
-                        gal.cImage--;
-                    }
-
-                    if(gal.unlockBitmask & (1 << gal.cImage))
-                    {
-                        break;
-                    }
+                    gal.cImage = (sizeof(galImages) / sizeof(galImages[0])) - 1;
                 }
+                else
+                {
+                    gal.cImage--;
+                }
+
                 gal.panContDir =   galImages[gal.cImage]->continousPan;
+                galClearImage();
                 galLoadFirstFrame();
                 break;
             }
@@ -378,37 +388,76 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
 }
 
 /**
+ * @return a pointer to the current image to draw, takes into account unlocks
+ */
+const galImage_t* ICACHE_FLASH_ATTR galGetCurrentImage(void)
+{
+    const galImage_t* imageToLoad;
+    // If we're not on the first image
+    if(gal.cImage > 0)
+    {
+        // Check to see if it's unlocked
+        if(getGalleryUnlocks() & 1 << (gal.cImage - 1))
+        {
+            // unlocked
+            imageToLoad = galImages[gal.cImage];
+        }
+        else
+        {
+            // Not unlocked
+            imageToLoad = galUnlockPlaceholders[gal.cImage - 1];
+        }
+    }
+    else
+    {
+        // First image always unlocked
+        imageToLoad = galImages[gal.cImage];
+    }
+    return imageToLoad;
+}
+
+/**
  * For the first frame of an image, load the compressed data from ROM to RAM,
  * decompress the data in RAM, save the metadata, then draw the frame to the
  * OLED
  */
 void ICACHE_FLASH_ATTR galLoadFirstFrame(void)
 {
+    const galImage_t* imageToLoad = galGetCurrentImage();
+
     /* Read the compressed image from ROM into RAM, and make sure to do a
      * 32 bit aligned read. The arrays are all __attribute__((aligned(4)))
      * so this is safe, not out of bounds
      */
-    uint32_t alignedSize = galImages[gal.cImage]->frames[0].len;
+    uint32_t alignedSize = imageToLoad->frames[0].len;
     while(alignedSize % 4 != 0)
     {
         alignedSize++;
     }
-    memcpy(gal.compressedData, galImages[gal.cImage]->frames[0].data, alignedSize);
+    memcpy(gal.compressedData, imageToLoad->frames[0].data, alignedSize);
 
     // Decompress the image from one RAM area to another
     uint32_t dLen = fastlz_decompress(gal.compressedData,
-                                      galImages[gal.cImage]->frames[0].len,
+                                      imageToLoad->frames[0].len,
                                       gal.decompressedData,
                                       MAX_DECOMPRESSED_SIZE);
     DBG_GAL("dLen=%d\n", dLen);
 
     // Save the metadata
     gal.width      = (gal.decompressedData[0] << 8) | gal.decompressedData[1];
+    if (gal.panContDir == NONE)
+    {
+        gal.virtualWidth = gal.width;
+    }
+    else
+    {
+        gal.virtualWidth = 2 * gal.width;
+    }
     gal.height     = (gal.decompressedData[2] << 8) | gal.decompressedData[3];
     gal.nFrames    = (gal.decompressedData[4] << 8) | gal.decompressedData[5];
     gal.durationMs = (gal.decompressedData[6] << 8) | gal.decompressedData[7];
-    DBG_GAL("w=%d, h=%d, nfr=%d, dur=%d\n", gal.width, gal.height, gal.nFrames,
-            gal.durationMs);
+    DBG_GAL("w=%d, h=%d, nfr=%d, dur=%d repeatw=%d\n", gal.width, gal.height, gal.nFrames,
+            gal.durationMs, gal.virtualWidth);
 
     // Clear gal.frameData, then save the first actual frame
     memset(gal.frameData, 0, MAX_DECOMPRESSED_SIZE);
@@ -426,10 +475,10 @@ void ICACHE_FLASH_ATTR galLoadFirstFrame(void)
 
     // Set up the panning timer if the image is wider that the OLED
     os_timer_disarm(&gal.timerPan);
-    if(gal.width > OLED_WIDTH)
+    if(gal.virtualWidth > OLED_WIDTH)
     {
-        // Pan one pixel every 50ms
-        os_timer_arm(&gal.timerPan, 50, true);
+        // Pan one pixel every 25 ms for a faster pan
+        os_timer_arm(&gal.timerPan, 25, true);
     }
 
     // Draw the first frame in it's entirety to the OLED
@@ -456,20 +505,21 @@ static void ICACHE_FLASH_ATTR galLoadNextFrame(void* arg __attribute__((unused))
     }
     else
     {
+        const galImage_t* imageToLoad = galGetCurrentImage();
         /* Read the compressed image from ROM into RAM, and make sure to do a
         * 32 bit aligned read. The arrays are all __attribute__((aligned(4)))
         * so this is safe, not out of bounds
         */
-        uint32_t alignedSize = galImages[gal.cImage]->frames[gal.cFrame].len;
+        uint32_t alignedSize = imageToLoad->frames[gal.cFrame].len;
         while(alignedSize % 4 != 0)
         {
             alignedSize++;
         }
-        memcpy(gal.compressedData, galImages[gal.cImage]->frames[gal.cFrame].data, alignedSize);
+        memcpy(gal.compressedData, imageToLoad->frames[gal.cFrame].data, alignedSize);
 
         // Decompress the image
         uint32_t dLen = fastlz_decompress(gal.compressedData,
-                                          galImages[gal.cImage]->frames[gal.cFrame].len,
+                                          imageToLoad->frames[gal.cFrame].len,
                                           gal.decompressedData,
                                           MAX_DECOMPRESSED_SIZE);
         DBG_GAL("dLen=%d\n", dLen);
@@ -509,7 +559,14 @@ void ICACHE_FLASH_ATTR galClearImage(void)
     // Don't reset cImage
     gal.panIdx = 0;
     gal.panDir = RIGHT;
-    gal.panContDir = NONE;
+    if (gal.panContDir == ALWAYS_LEFT)
+    {
+        gal.panDir = LEFT;
+    }
+    else if (gal.panContDir == ALWAYS_RIGHT)
+    {
+        gal.panDir = RIGHT;
+    }
 }
 
 /**
@@ -518,11 +575,28 @@ void ICACHE_FLASH_ATTR galClearImage(void)
 void ICACHE_FLASH_ATTR galDrawFrame(void)
 {
     // Draw the frame to the OLED, one pixel at a time
+    int wmod;
     for (int w = 0; w < OLED_WIDTH; w++)
     {
         for (int h = 0; h < OLED_HEIGHT; h++)
         {
-            uint16_t linearIdx = (OLED_HEIGHT * (w + gal.panIdx)) + h;
+            uint16_t linearIdx;
+            if(gal.panContDir == NONE)
+            {
+
+                linearIdx = (OLED_HEIGHT * (w + gal.panIdx)) + h;
+            }
+            else
+            {
+                //At first had this code which blows up if try and pan fast 10ms
+                //linearIdx = (OLED_HEIGHT * ((w + gal.panIdx) % gal.width)) + h;
+                wmod = w + gal.panIdx;
+                while (wmod > gal.width)
+                {
+                    wmod -= gal.width;
+                }
+                linearIdx = OLED_HEIGHT * wmod + h;
+            }
             uint16_t byteIdx = linearIdx / 8;
             uint8_t bitIdx = linearIdx % 8;
 
@@ -537,14 +611,11 @@ void ICACHE_FLASH_ATTR galDrawFrame(void)
         }
     }
 
-    if(gal.unlockBitmask > 1)
-    {
-        // Draw left and right arrows to indicate button functions
-        fillDisplayArea(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, 7, OLED_HEIGHT, BLACK);
-        plotText(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "<", IBM_VGA_8, WHITE);
-        fillDisplayArea(OLED_WIDTH - 7, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, OLED_WIDTH, OLED_HEIGHT, BLACK);
-        plotText(OLED_WIDTH - 6, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, ">", IBM_VGA_8, WHITE);
-    }
+    // Draw left and right arrows to indicate button functions
+    fillDisplayArea(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, 7, OLED_HEIGHT, BLACK);
+    plotText(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "<", IBM_VGA_8, WHITE);
+    fillDisplayArea(OLED_WIDTH - 7, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, OLED_WIDTH, OLED_HEIGHT, BLACK);
+    plotText(OLED_WIDTH - 6, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, ">", IBM_VGA_8, WHITE);
 }
 
 /**
@@ -554,19 +625,25 @@ void ICACHE_FLASH_ATTR galDrawFrame(void)
  */
 static void ICACHE_FLASH_ATTR galTimerPan(void* arg __attribute__((unused)))
 {
-    if(gal.width > OLED_WIDTH)
+    if(gal.virtualWidth > OLED_WIDTH)
     {
         switch(gal.panDir)
         {
             case RIGHT:
             {
                 // If we're at the end
-                if((gal.width - OLED_WIDTH) == gal.panIdx)
+                if((gal.virtualWidth - OLED_WIDTH) == gal.panIdx)
                 {
-                    // For continous pan
-                    //gal.panIdx = 0;
-                    // Start going to the left
-                    gal.panDir = LEFT;
+                    if (gal.panContDir == ALWAYS_RIGHT)
+                    {
+                        // reset for pan
+                        gal.panIdx = (gal.virtualWidth - OLED_WIDTH) - gal.width;
+                    }
+                    else
+                    {
+                        // Start going to the left
+                        gal.panDir = LEFT;
+                    }
                 }
                 else
                 {
@@ -580,14 +657,20 @@ static void ICACHE_FLASH_ATTR galTimerPan(void* arg __attribute__((unused)))
                 // If we're at the beginning
                 if(0 == gal.panIdx)
                 {
-                    // Continous
-                    //gal.panIdx = gal.width - OLED_WIDTH;
-                    // Start going to the right
-                    gal.panDir = RIGHT;
+                    if (gal.panContDir == ALWAYS_LEFT)
+                    {
+                        // reset for pan
+                        gal.panIdx = gal.width;
+                    }
+                    else
+                    {
+                        // Start going to the right
+                        gal.panDir = RIGHT;
+                    }
                 }
                 else
                 {
-                    // Pan to the left
+                    // Pan to the left (objects seem to move from L to R)
                     gal.panIdx--;
                 }
                 break;

@@ -327,7 +327,8 @@ void ICACHE_FLASH_ATTR setIsMutedOption(bool mute)
  */
 uint32_t ICACHE_FLASH_ATTR getGalleryUnlocks(void)
 {
-    return settings.galleryUnlocks;
+    return 0xffffffff;
+    //return settings.galleryUnlocks;
 }
 
 /**

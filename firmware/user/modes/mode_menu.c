@@ -11,13 +11,14 @@
 #include "mode_dance.h"
 #include "fastlz.h"
 #include "mode_gallery.h"
+#include "buttons.h"
 
 /*============================================================================
  * Defines
  *==========================================================================*/
 
 #define MENU_PAN_PERIOD_MS 20
-#define MENU_PX_PER_PAN     4
+#define MENU_PX_PER_PAN     8
 
 /*============================================================================
  * Function prototypes
@@ -27,6 +28,7 @@ void ICACHE_FLASH_ATTR modeInit(void);
 void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state, int button, int down);
 
 static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unused)));
+static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR menuAnimateScreensaver(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR stopScreensaver(void);
 
@@ -68,10 +70,11 @@ swadgeMode** modes = NULL;
 uint8_t selectedMode = 0;
 
 os_timer_t timerScreensaverStart = {0};
+os_timer_t timerScreensaverBright = {0};
 os_timer_t timerScreensaverAnimation = {0};
 uint8_t menuScreensaverIdx = 0;
 
-uint8_t compressedStagingSpace[600] = {0};
+uint8_t compressedStagingSpace[1000] = {0};
 uint8_t img1[((OLED_WIDTH * OLED_HEIGHT) / 8) + METADATA_LEN] = {0};
 uint8_t img2[((OLED_WIDTH * OLED_HEIGHT) / 8) + METADATA_LEN] = {0};
 uint8_t* curImg = img1;
@@ -111,6 +114,10 @@ void ICACHE_FLASH_ATTR modeInit(void)
     os_timer_disarm(&timerScreensaverStart);
     os_timer_setfn(&timerScreensaverStart, (os_timer_func_t*)menuStartScreensaver, NULL);
 
+    // Timer for starting a screensaver
+    os_timer_disarm(&timerScreensaverBright);
+    os_timer_setfn(&timerScreensaverBright, (os_timer_func_t*)menuBrightScreensaver, NULL);
+
     // Timer for running a screensaver
     os_timer_disarm(&timerScreensaverAnimation);
     os_timer_setfn(&timerScreensaverAnimation, (os_timer_func_t*)menuAnimateScreensaver, NULL);
@@ -124,6 +131,9 @@ void ICACHE_FLASH_ATTR modeInit(void)
 
     // Draw to OLED at the same rate the image is panned
     setOledDrawTime(MENU_PAN_PERIOD_MS);
+
+    // Make buttons sensitive, they're ignored during animation anyway
+    enableDebounce(false);
 }
 
 /**
@@ -366,12 +376,32 @@ static void ICACHE_FLASH_ATTR menuPanImages(void* arg __attribute__((unused)))
  */
 static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unused)))
 {
-    // Pick a random screensaver
-    menuScreensaverIdx = os_random() % getNumDances();
+    // Pick a random screensaver from a reduced list of dances (missing 12, 13, 18, 19)
+    static const uint8_t acceptableDances[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 17};
+    menuScreensaverIdx = acceptableDances[os_random() % sizeof(acceptableDances)];
+
+    // Set the brightness to low
+    setDanceBrightness(2);
 
     // Animate it at the given period
-    os_timer_disarm(&timerScreensaverStart);
     os_timer_arm(&timerScreensaverAnimation, danceTimers[menuScreensaverIdx].period, true);
+
+    // Start a timer to turn the screensaver brighter
+    os_timer_arm(&timerScreensaverBright, 5000, false);
+}
+
+/**
+ * @brief Five seconds after starting the screensaver, clear the OLED and
+ *        make the LEDs one step brighter
+ *
+ * @param arg unused
+ */
+static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unused)))
+{
+    // Clear the display
+    clearDisplay();
+    // Set the brightness to medium
+    setDanceBrightness(1);
 }
 
 /**
@@ -398,8 +428,8 @@ void ICACHE_FLASH_ATTR stopScreensaver(void)
 
     // Start a timer to start the screensaver if there's no input
     os_timer_disarm(&timerScreensaverStart);
-    #if SWADGE_VERSION != SWADGE_BBKIWI
-    //uncomment if want random dance for 'screen saver'
-    //os_timer_arm(&timerScreensaverStart, 5000, false);
-    #endif
+    os_timer_arm(&timerScreensaverStart, 5000, false);
+
+    // Stop this timer too
+    os_timer_disarm(&timerScreensaverBright);
 }
