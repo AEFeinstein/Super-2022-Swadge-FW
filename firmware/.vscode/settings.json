@@ -68,6 +68,7 @@
         "cmath": "c",
         "cstdlib": "c",
         "fastlz.h": "c",
-        "menuimages.h": "c"
+        "menuimages.h": "c",
+        "math.h": "c"
     }
 }
