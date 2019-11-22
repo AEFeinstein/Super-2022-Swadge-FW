@@ -136,6 +136,7 @@ rhythm_t triplets[] =
 };
 
 notePeriod_t M_penta[] = {C_4, D_4, E_4, G_4, A_4, C_5};
+notePeriod_t chromatic[] = {C_4, C_SHARP_4, D_4, D_SHARP_4, E_4, F_4, F_SHARP_4, G_4, G_SHARP_4, A_4, A_SHARP_4, B_4, C_5};
 
 uint8_t arp_M_triad[] = {1, 5, 8};
 
@@ -158,6 +159,15 @@ swynthParam_t swynthParams[] =
         .rhythmLen = lengthof(triplets),
         .arpIntervals = arp_M_triad,
         .arpLen = lengthof(arp_M_triad)
+    },
+    {
+        .name = "Chroma",
+        .notes = chromatic,
+        .notesLen = lengthof(chromatic),
+        .rhythm = quarterNotes,
+        .rhythmLen = lengthof(quarterNotes),
+        .arpIntervals = NULL,
+        .arpLen = 0
     },
 };
 
