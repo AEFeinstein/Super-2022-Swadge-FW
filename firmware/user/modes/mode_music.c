@@ -56,13 +56,13 @@ typedef struct
     // The parameter's name
     char* name;
     // The notes
-    notePeriod_t* notes;
+    const notePeriod_t* notes;
     uint16_t notesLen;
     // The rhythm
-    rhythm_t* rhythm;
+    const rhythm_t* rhythm;
     uint16_t rhythmLen;
     // The arpeggios
-    uint8_t* arpIntervals;
+    const uint8_t* arpIntervals;
     uint16_t arpLen;
 } swynthParam_t;
 
@@ -135,17 +135,43 @@ rhythm_t triplets[] =
     },
 };
 
-notePeriod_t M_penta[] = {C_4, D_4, E_4, G_4, A_4, C_5};
-notePeriod_t chromatic[] = {C_4, C_SHARP_4, D_4, D_SHARP_4, E_4, F_4, F_SHARP_4, G_4, G_SHARP_4, A_4, A_SHARP_4, B_4, C_5};
+// All the scales
+const notePeriod_t scl_M_Penta[] = {C_5, D_5, E_5, G_5, A_5, C_6, C_7, D_7, E_7, G_7, A_7, C_8, };
+const notePeriod_t scl_m_Penta[] = {C_5, D_SHARP_5, F_5, G_5, A_SHARP_5, C_6, C_7, D_SHARP_7, F_7, G_7, A_SHARP_7, C_8, };
+const notePeriod_t scl_m_Blues[] = {C_5, D_SHARP_5, F_5, F_SHARP_5, G_5, A_SHARP_5, C_6, C_7, D_SHARP_7, F_7, F_SHARP_7, G_7, A_SHARP_7, C_8, };
+const notePeriod_t scl_M_Blues[] = {C_5, D_5, D_SHARP_5, E_5, G_5, A_5, C_6, C_7, D_7, D_SHARP_7, E_7, G_7, A_7, C_8, };
+const notePeriod_t scl_Major[] = {C_5, D_5, E_5, F_5, G_5, A_5, B_5, C_6, C_7, D_7, E_7, F_7, G_7, A_7, B_7, C_8, };
+const notePeriod_t scl_Minor_Aeolian[] = {C_5, D_5, D_SHARP_5, F_5, G_5, G_SHARP_5, A_SHARP_5, C_6, C_7, D_7, D_SHARP_7, F_7, G_7, G_SHARP_7, A_SHARP_7, C_8, };
+const notePeriod_t scl_Harm_Minor[] = {C_5, D_5, D_SHARP_5, F_5, G_5, G_SHARP_5, B_5, C_6, C_7, D_7, D_SHARP_7, F_7, G_7, G_SHARP_7, B_7, C_8, };
+const notePeriod_t scl_Dorian[] = {C_5, D_5, D_SHARP_5, F_5, G_5, A_5, A_SHARP_5, C_6, C_7, D_7, D_SHARP_7, F_7, G_7, A_7, A_SHARP_7, C_8, };
+const notePeriod_t scl_Phrygian[] = {C_5, C_SHARP_5, D_SHARP_5, F_5, G_5, G_SHARP_5, A_SHARP_5, C_6, C_7, C_SHARP_7, D_SHARP_7, F_7, G_7, G_SHARP_7, A_SHARP_7, C_8, };
+const notePeriod_t scl_Lydian[] = {C_5, D_5, E_5, F_SHARP_5, G_5, A_5, B_5, C_6, C_7, D_7, E_7, F_SHARP_7, G_7, A_7, B_7, C_8, };
+const notePeriod_t scl_Mixolydian[] = {C_5, D_5, E_5, F_5, G_5, A_5, A_SHARP_5, C_6, C_7, D_7, E_7, F_7, G_7, A_7, A_SHARP_7, C_8, };
+const notePeriod_t scl_Locrian[] = {C_5, C_SHARP_5, D_SHARP_5, F_5, F_SHARP_5, G_SHARP_5, A_SHARP_5, C_6, C_7, C_SHARP_7, D_SHARP_7, F_7, F_SHARP_7, G_SHARP_7, A_SHARP_7, C_8, };
+const notePeriod_t scl_Dom_Bebop[] = {C_5, D_5, E_5, F_5, G_5, A_5, A_SHARP_5, B_5, C_6, C_7, D_7, E_7, F_7, G_7, A_7, A_SHARP_7, B_7, C_8, };
+const notePeriod_t scl_M_Bebop[] = {C_5, D_5, E_5, F_5, G_5, G_SHARP_5, A_SHARP_5, B_5, C_6, C_7, D_7, E_7, F_7, G_7, G_SHARP_7, A_SHARP_7, B_7, C_8, };
+const notePeriod_t scl_Whole_Tone[] = {C_5, D_5, E_5, F_SHARP_5, G_SHARP_5, A_SHARP_5, C_6, C_7, D_7, E_7, F_SHARP_7, G_SHARP_7, A_SHARP_7, C_8, };
+const notePeriod_t scl_Chromatic[] = {C_5, C_SHARP_5, D_5, D_SHARP_5, E_5, F_5, F_SHARP_5, G_5, G_SHARP_5, A_5, A_SHARP_5, B_5, C_6, C_7, C_SHARP_7, D_7, D_SHARP_7, E_7, F_7, F_SHARP_7, G_7, G_SHARP_7, A_7, A_SHARP_7, B_7, C_8, };
 
-uint8_t arp_M_triad[] = {1, 5, 8};
+// All the arpeggios
+const uint8_t arp_M_Triad[] = {1, 5, 8};
+const uint8_t arp_m_Triad[] = {1, 4, 8};
+const uint8_t arp_M7[] = {1, 5, 8, 11};
+const uint8_t arp_m7[] = {1, 4, 8, 10};
+const uint8_t arp_Dom7[] = {1, 5, 8, 10};
+const uint8_t arp_Octave[] = {1, 13};
+const uint8_t arp_Fifth[] = {1, 8};
+const uint8_t arp_Dim[] = {1, 4, 7};
+const uint8_t arp_Dim7[] = {1, 4, 7, 10};
+const uint8_t arp_M7_add_9[] = {1, 5, 8, 12, 15};
+const uint8_t arp_Sans[] = {1, 1, 13, 8, 7, 6, 4, 1, 4, 6};
 
 swynthParam_t swynthParams[] =
 {
     {
         .name = "Test",
-        .notes = M_penta,
-        .notesLen = lengthof(M_penta),
+        .notes = scl_M_Penta,
+        .notesLen = lengthof(scl_M_Penta),
         .rhythm = quarterNotes,
         .rhythmLen = lengthof(quarterNotes),
         .arpIntervals = NULL,
@@ -153,17 +179,17 @@ swynthParam_t swynthParams[] =
     },
     {
         .name = "ArpTest",
-        .notes = M_penta,
-        .notesLen = lengthof(M_penta),
+        .notes = scl_M_Penta,
+        .notesLen = lengthof(scl_M_Penta),
         .rhythm = triplets,
         .rhythmLen = lengthof(triplets),
-        .arpIntervals = arp_M_triad,
-        .arpLen = lengthof(arp_M_triad)
+        .arpIntervals = arp_M_Triad,
+        .arpLen = lengthof(arp_M_Triad)
     },
     {
         .name = "Chroma",
-        .notes = chromatic,
-        .notesLen = lengthof(chromatic),
+        .notes = scl_Chromatic,
+        .notesLen = lengthof(scl_Chromatic),
         .rhythm = quarterNotes,
         .rhythmLen = lengthof(quarterNotes),
         .arpIntervals = NULL,
