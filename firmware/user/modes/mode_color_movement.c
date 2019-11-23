@@ -271,6 +271,7 @@ bool cmUseFilteredAccel;
 
 bool cmFilterAllWithIIR;
 bool cmUsePOVeffect;
+bool cmUseRadialSymmetry;
 bool cmUseShiftingLeds;
 bool cmUseShiftingColorWheel;
 #ifdef COLORCHORD_DFT
@@ -1274,6 +1275,33 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
             };
         }
 
+        // Radial symmetry
+        // TODO could easily make complement symmetry
+        if (cmUseRadialSymmetry)
+        {
+            for (uint8_t i = 0; i < USE_NUM_LEDS / 2; i++)
+            {
+                uint8_t indLed;
+                uint8_t indOppLed;
+                uint8_t tmpHoldMax;
+#if USE_NUM_LEDS == 6
+                indLed = ledOrderInd[i];
+                indOppLed = ledOrderInd[(i + USE_NUM_LEDS / 2) % USE_NUM_LEDS];
+#else
+                indLed = i;
+                indOppLed = (i + USE_NUM_LEDS / 2) % USE_NUM_LEDS;
+#endif
+                tmpHoldMax = max(leds[indLed].r, leds[indOppLed].r);
+                leds[indOppLed].r = tmpHoldMax;
+                leds[indLed].r = tmpHoldMax;
+                tmpHoldMax = max(leds[indLed].g, leds[indOppLed].g);
+                leds[indOppLed].g = tmpHoldMax;
+                leds[indLed].g = tmpHoldMax;
+                tmpHoldMax = max(leds[indLed].b, leds[indOppLed].b);
+                leds[indOppLed].b = tmpHoldMax;
+                leds[indLed].b = tmpHoldMax;
+            };
+        }
 
         cmSetLeds(leds, sizeof(leds));
     } //non color chord
@@ -1396,6 +1424,7 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
     cmShowNumLeds = USE_NUM_LEDS; // must be <= USE_NUM_LEDS
     cmUseShiftingLeds = false; // possible to shift leds showing around ring
     cmUsePOVeffect = false; // possible to shift hue angle
+    cmUseRadialSymmetry = false; // possible to force radial symmetry
 #ifdef COLORCHORD_DFT
     cmUseColorChordDFT = false;
 #endif
@@ -1468,7 +1497,8 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
             //  at that points will show random or partial rainbow of colors seen
             //  during the build up. Using 1 led rotating in proportion to stored energy left
             // Leds display near max selected brightness while movement
-            cmShowNumLeds = 3;
+            cmShowNumLeds = 1;
+            cmUseRadialSymmetry = true;
             cmUseShiftingColorWheel = false;
             cmUseShiftingLeds = true;
             cmLedMethod = ALL_SAME;
