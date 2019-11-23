@@ -426,10 +426,11 @@ void ICACHE_FLASH_ATTR stopScreensaver(void)
     led_t leds[NUM_LIN_LEDS] = {{0}};
     setLeds(leds, sizeof(leds));
 
+#if SWADGE_VERSION != SWADGE_BBKIWI
     // Start a timer to start the screensaver if there's no input
     os_timer_disarm(&timerScreensaverStart);
     os_timer_arm(&timerScreensaverStart, 5000, false);
-
+#endif
     // Stop this timer too
     os_timer_disarm(&timerScreensaverBright);
 }

@@ -13,6 +13,7 @@
 //     ways to use accel or built in wave forms
 //     estimation of bpm or DFT from cc
 
+
 #include <osapi.h>
 #include <user_interface.h>
 #include <stdlib.h>
@@ -20,8 +21,10 @@
 #include "user_main.h"  //swadge mode
 #include "mode_color_movement.h"
 #include "mode_dance.h"
-#include "ccconfig.h"
-#include "embeddednf.h"
+#ifdef COLORCHORD_DFT
+    #include "ccconfig.h"
+    #include "embeddednf.h"
+#endif
 #include "DFT32.h"
 #include "buttons.h"
 #include "oled.h"       //display functions
@@ -37,7 +40,6 @@
 /*============================================================================
  * Defines
  *==========================================================================*/
-
 //#define CM_DEBUG_PRINT
 #ifdef CM_DEBUG_PRINT
     #include <stdlib.h>
@@ -122,7 +124,9 @@ typedef enum
     TILT_A_COLOR,
     TWIRL_A_COLOR,
     POV_EFFECT,
+#ifdef COLORCHORD_DFT
     DFT_SHAKE,
+#endif
     POWER_SHAKE
 } subMethod_t;
 
@@ -164,8 +168,9 @@ void ICACHE_FLASH_ATTR cmInit(void);
 void ICACHE_FLASH_ATTR cmDeInit(void);
 void ICACHE_FLASH_ATTR cmButtonCallback(uint8_t state, int button, int down);
 void ICACHE_FLASH_ATTR cmAccelerometerCallback(accel_t* accel);
-void ICACHE_FLASH_ATTR cmSampleHandler(int32_t samp);
-
+#ifdef COLORCHORD_DFT
+    void ICACHE_FLASH_ATTR cmSampleHandler(int32_t samp);
+#endif
 // game loop functions.
 void ICACHE_FLASH_ATTR cmUpdate(void* arg);
 
@@ -223,13 +228,18 @@ static const uint8_t cmBrightnesses[] =
     0x08,
 };
 
+#ifdef COLORCHORD_DFT
 const char* subModeName[] = {"BEAT_SPIN", "BEAT_SELECT", "SHOCK_CHANGE",
                              "SHOCK_CHAOTIC", "ROLL_BALL", "ROLL_3_BALLS", "TILT_A_COLOR",
                              "TWIRL_A_COLOR", "POV_EFFECT", "DFT_SHAKE", "POWER_SHAKE"
                             };
+#else
 
-
-
+const char* subModeName[] = {"BEAT_SPIN", "BEAT_SELECT", "SHOCK_CHANGE",
+                             "SHOCK_CHAOTIC", "ROLL_BALL", "ROLL_3_BALLS", "TILT_A_COLOR",
+                             "TWIRL_A_COLOR", "POV_EFFECT", "POWER_SHAKE"
+                            };
+#endif
 /*============================================================================
  * Variables
  *==========================================================================*/
@@ -259,7 +269,9 @@ bool cmFilterAllWithIIR;
 bool cmUsePOVeffect;
 bool cmUseShiftingLeds;
 bool cmUseShiftingColorWheel;
-bool cmUseColorChordDFT;
+#ifdef COLORCHORD_DFT
+    bool cmUseColorChordDFT;
+#endif
 
 uint16_t cmNumSum;
 uint16_t cmScaleLed;
@@ -508,8 +520,6 @@ void ICACHE_FLASH_ATTR cmInit(void)
     // Set up all initialization
     cmCurrentSubMode = BEAT_SPIN;
     cmNewSetup(cmCurrentSubMode);
-    rollEnterMode();
-
     // Start the update loop.
     os_timer_disarm(&timerHandleUpdate);
     os_timer_setfn(&timerHandleUpdate, (os_timer_func_t*)cmUpdate, NULL);
@@ -582,6 +592,8 @@ void ICACHE_FLASH_ATTR setCMLeds(led_t* ledData, uint8_t ledDataLen)
 
 int32_t mzMaxSamp = -30000;
 int32_t mzMinSamp = 30000;
+
+#ifdef COLORCHORD_DFT
 /**
  * Just run colorchord but will be given accelerometer samples
  *
@@ -657,7 +669,7 @@ void ICACHE_FLASH_ATTR cmSampleHandler(int32_t samp)
         cmSamplesProcessed = 0;
     }
 }
-
+#endif
 
 void ICACHE_FLASH_ATTR cmUpdate(void* arg __attribute__((unused)))
 {
@@ -915,6 +927,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
 #endif
 
     // Sub mode sections
+#ifdef COLORCHORD_DFT
     if (cmCurrentSubMode == DFT_SHAKE)
     {
         // send this to be dealt with by color chord
@@ -927,7 +940,9 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         }
         //os_printf("fuzzed_bins[0] = %d\n", fuzzed_bins[0]);
     }
-    else if ((cmCurrentSubMode == ROLL_BALL) || (cmCurrentSubMode == ROLL_3_BALLS))
+    //TODO should be else here if COLORCHORD_DFT is defined, but it leave astyle messes up
+#endif
+    if ((cmCurrentSubMode == ROLL_BALL) || (cmCurrentSubMode == ROLL_3_BALLS))
     {
         // send this to be dealt with by roll mode routines
         // computes light pattern and OLED display
@@ -1328,7 +1343,9 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
     cmShowNumLeds = USE_NUM_LEDS; // must be <= USE_NUM_LEDS
     cmUseShiftingLeds = false; // possible to shift leds showing around ring
     cmUsePOVeffect = false; // possible to shift hue angle
+#ifdef COLORCHORD_DFT
     cmUseColorChordDFT = false;
+#endif
     cmLedRevsPerBeat = 2.0;
     cmColorWheelRevsPerBeat = 1.0;
     cmColorWheelIncPerBeat = 1;
@@ -1357,10 +1374,10 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
             /* code */
             break;
         case ROLL_BALL:
-            /* code */
+            rollEnterMode(0);
             break;
         case ROLL_3_BALLS:
-            /* code */
+            rollEnterMode(11);
             break;
         case TILT_A_COLOR:
             cmUseSmooth = false;
@@ -1382,9 +1399,11 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
         case POV_EFFECT:
             cmUsePOVeffect = true;
             break;
+#ifdef COLORCHORD_DFT
         case DFT_SHAKE:
             cmUseColorChordDFT = true;
             break;
+#endif
         case POWER_SHAKE:
             // Shake and lights will slowly get hotter - accumulated energy mapped to hue.
             //  when stop the stored energy will power a display

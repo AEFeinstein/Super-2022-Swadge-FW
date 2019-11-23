@@ -32,6 +32,14 @@
  * Defines
  *==========================================================================*/
 //NOTE in ode_solvers.h is #define of FLOATING float    or double to test
+
+// If want to simulate 6 LED barrel on dev-kit or bbkiwi or other with more than 6 leds
+#define USE_6_LEDS
+#ifdef USE_6_LEDS
+#define USE_NUM_LEDS 6
+#else
+#define USE_NUM_LEDS NUM_LIN_LEDS
+#endif
 // LEDs relation to screen
 #define LED_UPPER_LEFT LED_1
 #define LED_UPPER_MID LED_2
@@ -191,15 +199,15 @@ void ICACHE_FLASH_ATTR rollInitMode(void)
     os_timer_setfn(&timerHandleUpdate, (os_timer_func_t*)roll_updateDisplay, NULL);
     os_timer_arm(&timerHandleUpdate, UPDATE_TIME_MS, 1);
     enableDebounce(false);
-    rollEnterMode();
+    rollEnterMode(0);
 }
 
 /**
  * Initializer for roll
  */
-void ICACHE_FLASH_ATTR rollEnterMode(void)
+void ICACHE_FLASH_ATTR rollEnterMode(uint8_t method)
 {
-    roll.currentMethod = 0;
+    roll.currentMethod = method;
     roll.numMethods = 12;
     //roll.Accel = {0};
     roll.ButtonState = 0;
@@ -705,17 +713,21 @@ led_t* ICACHE_FLASH_ATTR roll_updateDisplayComputations(int16_t xAccel, int16_t 
                         led.color = colorsys.hsv_to_rgb(self.ball.meanspeed,1,1)
             */
 
-            for (uint8_t indLed = 0; indLed < NUM_LIN_LEDS / GAP; indLed++)
+            for (uint8_t indLed = 0; indLed < USE_NUM_LEDS / GAP; indLed++)
             {
-                int16_t ledy = Ssinonlytable[((indLed << 8) * GAP / NUM_LIN_LEDS + 0x80) % 256] * 28 / 1500; // from -1500 to 1500
-                int16_t ledx = Ssinonlytable[((indLed << 8) * GAP / NUM_LIN_LEDS + 0xC0) % 256] * 28 / 1500;
+                int16_t ledy = Ssinonlytable[((indLed << 8) * GAP / USE_NUM_LEDS + 0x80) % 256] * 28 / 1500; // from -1500 to 1500
+                int16_t ledx = Ssinonlytable[((indLed << 8) * GAP / USE_NUM_LEDS + 0xC0) % 256] * 28 / 1500;
                 roll.len = sqrt((roll.scxc - 64 - ledx) * (roll.scxc - 64 - ledx) + (-roll.scyc + 32 - ledy) *
                                 (-roll.scyc + 32 - ledy));
                 //roll.len = norm(roll.scxc - ledx, roll.scyc - ledy);
                 uint8_t glow = 255 * pow(1.0 - (roll.len / 56.0), 3);
                 //os_printf("%d %d %d %d %d %d %d \n",indLed, ledx, ledy, scxc, roll.scyc, roll.len, 255 - roll.len * 4);
-                //roll.leds[GAP*indLed].r = 255 - roll.len * 4;
+
+#ifdef USE_6_LEDS
+                roll.leds[roll.ledOrderInd[GAP * indLed]].r = glow;
+#else
                 roll.leds[GAP * indLed].r = glow;
+#endif
             }
             break;
         case 8:
@@ -743,13 +755,10 @@ led_t* ICACHE_FLASH_ATTR roll_updateDisplayComputations(int16_t xAccel, int16_t 
             (void)0;
     }
 
-#define USE_6_LEDS
-
     switch (roll.currentMethod)
     {
         case 8:
         case 9:
-            //NOTE set to  == if want to test on my mockup with 16 leds
 #ifndef USE_6_LEDS
             for (uint8_t indLed = 0; indLed < NUM_LIN_LEDS ; indLed++)
             {
@@ -769,11 +778,6 @@ led_t* ICACHE_FLASH_ATTR roll_updateDisplayComputations(int16_t xAccel, int16_t 
         case 10:
         case 11:
 #define GAP 1
-#ifdef USE_6_LEDS
-#define USE_NUM_LEDS 6
-#else
-#define USE_NUM_LEDS NUM_LIN_LEDS
-#endif
             for (uint8_t indLed = 0; indLed < USE_NUM_LEDS / GAP; indLed++)
             {
                 int16_t ledy = Ssinonlytable[((indLed << 8) * GAP / USE_NUM_LEDS + 0x80) % 256] * 28 / 1500; // from -1500 to 1500

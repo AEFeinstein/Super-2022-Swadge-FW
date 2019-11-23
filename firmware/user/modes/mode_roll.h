@@ -38,7 +38,7 @@ typedef struct velP
     FLOATING force;
 } velParam;
 
-void ICACHE_FLASH_ATTR rollEnterMode(void);
+void ICACHE_FLASH_ATTR rollEnterMode(uint8_t method);
 led_t* ICACHE_FLASH_ATTR roll_updateDisplayComputations(int16_t xAccel, int16_t yAccel, int16_t zAccel);
 
 void dnxdampedpendulum(FLOATING, FLOATING [], FLOATING [], int, FLOATING [] );
