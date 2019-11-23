@@ -164,7 +164,7 @@ const galImage_t galSnort =
 const galImage_t galGaylord =
 {
     .nFrames = 3,
-    .continousPan = ALWAYS_RIGHT,
+    .continousPan = NONE,
     .frames = {
         {.data = gal_gaylord_0, .len = sizeof(gal_gaylord_0)},
         {.data = gal_gaylord_1, .len = sizeof(gal_gaylord_1)},

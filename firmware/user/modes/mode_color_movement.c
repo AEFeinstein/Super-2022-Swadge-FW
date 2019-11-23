@@ -5,13 +5,13 @@
 *               Author: bbkiw
 */
 
+
 //TODO
-//Could have buffers for values bigger than 120 so for
-// example estimating bpm via tau could go lower than 60/119
-// need to modify plotting on OLED to should most recent 120 values
-// Use buttons to select options
-//     ways to use accel or built in wave forms
-//     estimation of bpm or DFT from cc
+// POV should work on top (or bottom) 3 leds of barrel
+
+// Devel Features that can be turned on (but also could be used for effect)
+// Can spoof accel with built in wave forms
+
 
 
 #include <osapi.h>
@@ -965,7 +965,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
 
         // graphical view of amp could be here
 
-//TODO may want to compute shock only in certain submodes
+        //TODO may want to compute shock only in certain submodes
         // Sets bool shock true at instant get sharp shock. Has slight recovery time.
         // shock is tested for wheel or led cycling
         // a ramp starts falling to start then dim the leds
@@ -1105,7 +1105,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         //os_printf("r:%d  g:%d  b:%d \n", ledr, ledg, ledb);
 
 #define USE_NUM_LEDS 6
-//TODO do I want || shock here. If so will need to supress shock above if dont want
+        //TODO do I want || shock here. If so will need to supress shock above if dont want
         if (cmUseShiftingLeds)
         {
             // Spin the leds syncronized to bpm while there is some shaking activity
@@ -1212,12 +1212,22 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
             //cmBrightnessRamp = 255;
         }
 
+
+
+
         if (cmUsePOVeffect)
         {
-            for (uint8_t indLed = 0; indLed < NUM_LIN_LEDS ; indLed++)
+            for (uint8_t i = 0; i < cmShowNumLeds; i++)
             {
-
+                uint8_t indLed;
+#if USE_NUM_LEDS == 6
+                indLed = ledOrderInd[i];
+#else
+                indLed = i;
+#endif
                 // POV effect
+#if 0
+                // Spread out r,g,b
                 if (subFrameCount / 2 == 0)
                 {
                     leds[indLed].g = 0;
@@ -1233,6 +1243,34 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                     leds[indLed].r = 0;
                     leds[indLed].g = 0;
                 };
+#else
+                // Flip between color and complement so shows white untill moved
+                if (subFrameCount <= 0)
+                {
+                    // no change
+                }
+                else if (subFrameCount <= cmNumSubFrames / 4)
+                {
+                    // off
+                    leds[indLed].r = 0;
+                    leds[indLed].g = 0;
+                    leds[indLed].b = 0;
+                }
+                else if (subFrameCount <= cmNumSubFrames / 2)
+                {
+                    // complement
+                    leds[indLed].r = 255 - leds[indLed].r;
+                    leds[indLed].g = 255 - leds[indLed].g;
+                    leds[indLed].b = 255 - leds[indLed].b;
+                }
+                else if (subFrameCount <= 3 * cmNumSubFrames / 4)
+                {
+                    // off
+                    leds[indLed].r = 0;
+                    leds[indLed].g = 0;
+                    leds[indLed].b = 0;
+                }
+#endif
             };
         }
 
@@ -1365,7 +1403,7 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
     cmColorWheelRevsPerBeat = 1.0;
     cmColorWheelIncPerBeat = 4;
     //TODO need fix POV effects
-    cmNumSubFrames = 6; // used for POV effects
+    cmNumSubFrames = 4; // used for POV effects
 
 
     switch (subMode)
@@ -1414,7 +1452,10 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
             cmLedMethod = ALL_SAME;
             break;
         case POV_EFFECT:
+            cmColorWheelRevsPerBeat = 0.5;
+            cmColorWheelIncPerBeat = 1;
             cmUsePOVeffect = true;
+            cmShowNumLeds = 3;
             break;
 #ifdef COLORCHORD_DFT
         case DFT_SHAKE:
