@@ -220,7 +220,7 @@ void ICACHE_FLASH_ATTR rollEnterMode(void)
 
     enableDebounce(false);
     roll.numNotes = 9;
-    uint8_t intervals[] = {2, 3, 2, 2, 3}; // pentatonic
+    // uint8_t intervals[] = {2, 3, 2, 2, 3}; // pentatonic
     // generateScale(roll.midiScale, roll.numNotes, intervals, sizeof(intervals) );
     initializeConditionsForODE(roll.currentMethod);
 

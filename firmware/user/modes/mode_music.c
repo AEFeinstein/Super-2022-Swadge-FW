@@ -16,6 +16,10 @@
 #include "bresenham.h"
 #include "font.h"
 
+#include "embeddedout.h"
+
+#include "buttons.h"
+
 #include "mode_tiltrads.h"
 
 /*==============================================================================
@@ -25,7 +29,9 @@
 #define TICK_HEIGHT 2
 #define CURSOR_HEIGHT 4
 #define BAR_X_MARGIN 0
-#define BAR_Y_MARGIN 4
+#define BAR_Y_MARGIN (FONT_HEIGHT_TOMTHUMB + CURSOR_HEIGHT + 1)
+
+#define PITCH_THRESHOLD 32
 
 #define lengthof(x) (sizeof(x) / sizeof(x[0]))
 
@@ -43,6 +49,8 @@ void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)));
 notePeriod_t ICACHE_FLASH_ATTR arpModify(notePeriod_t note, uint8_t arpInterval);
 notePeriod_t ICACHE_FLASH_ATTR getCurrentNote(void);
 char* ICACHE_FLASH_ATTR noteToStr(notePeriod_t note);
+void ICACHE_FLASH_ATTR plotBar(uint8_t yOffset);
+void ICACHE_FLASH_ATTR noteToColor( led_t* led, notePeriod_t note, uint8_t brightness);
 
 /*==============================================================================
  * Structs
@@ -108,14 +116,18 @@ struct
     uint8_t paramIdx;
 } music;
 
+/*==============================================================================
+ * Const Variables
+ *============================================================================*/
+
 const rhythm_t quarterNotes[] =
 {
     {
-        .timeMs = 250,
+        .timeMs = 175,
         .isRest = false
     },
     {
-        .timeMs = 250,
+        .timeMs = 25,
         .isRest = true
     },
 };
@@ -171,7 +183,7 @@ const uint8_t arp_Dim7[] = {1, 4, 7, 10};
 const uint8_t arp_M7_add_9[] = {1, 5, 8, 12, 15};
 const uint8_t arp_Sans[] = {1, 1, 13, 8, 7, 6, 4, 1, 4, 6};
 
-swynthParam_t swynthParams[] =
+const swynthParam_t swynthParams[] =
 {
     {
         .name = "Test",
@@ -197,12 +209,12 @@ swynthParam_t swynthParams[] =
         .notesLen = lengthof(scl_Chromatic),
         .rhythm = quarterNotes,
         .rhythmLen = lengthof(quarterNotes),
-        .arpIntervals = NULL,
-        .arpLen = 0
+        .arpIntervals = arp_M7_add_9,
+        .arpLen = sizeof(arp_M7_add_9)
     },
 };
 
-notePeriod_t allNotes[] =
+const notePeriod_t allNotes[] =
 {
     C_5,
     C_SHARP_5,
@@ -216,6 +228,7 @@ notePeriod_t allNotes[] =
     A_5,
     A_SHARP_5,
     B_5,
+
     C_6,
     C_SHARP_6,
     D_6,
@@ -228,7 +241,32 @@ notePeriod_t allNotes[] =
     A_6,
     A_SHARP_6,
     B_6,
+
     C_7,
+    C_SHARP_7,
+    D_7,
+    D_SHARP_7,
+    E_7,
+    F_7,
+    F_SHARP_7,
+    G_7,
+    G_SHARP_7,
+    A_7,
+    A_SHARP_7,
+    B_7,
+
+    C_8,
+    C_SHARP_8,
+    D_8,
+    D_SHARP_8,
+    E_8,
+    F_8,
+    F_SHARP_8,
+    G_8,
+    G_SHARP_8,
+    A_8,
+    A_SHARP_8,
+    B_8,
 };
 
 /*============================================================================
@@ -259,6 +297,11 @@ void ICACHE_FLASH_ATTR musicEnterMode(void)
 
     // Draw an initial display
     musicUpdateDisplay();
+
+    // Request to do everything faster
+    setAccelPollTime(50);
+    setOledDrawTime(50);
+    enableDebounce(false);
 }
 
 /**
@@ -356,12 +399,49 @@ void ICACHE_FLASH_ATTR musicUpdateDisplay(void)
 {
     clearDisplay();
 
+    // Plot the bars
+    plotBar(OLED_HEIGHT - BAR_Y_MARGIN - 1);
+    plotBar(OLED_HEIGHT - BAR_Y_MARGIN - (2 * CURSOR_HEIGHT + 5));
+
+    if(music.pitch < PITCH_THRESHOLD)
+    {
+        // Plot the cursor
+        plotLine(music.roll, OLED_HEIGHT - BAR_Y_MARGIN - (2 * CURSOR_HEIGHT + 5) - CURSOR_HEIGHT,
+                 music.roll, OLED_HEIGHT - BAR_Y_MARGIN - (2 * CURSOR_HEIGHT + 5) + CURSOR_HEIGHT,
+                 WHITE);
+    }
+    else
+    {
+        // Plot the cursor
+        plotLine(music.roll, OLED_HEIGHT - BAR_Y_MARGIN - 1 - CURSOR_HEIGHT,
+                 music.roll, OLED_HEIGHT - BAR_Y_MARGIN - 1 + CURSOR_HEIGHT,
+                 WHITE);
+    }
+
+    // Plot the title
+    plotText(0, 0, swynthParams[music.paramIdx].name, RADIOSTARS, WHITE);
+
+    // Plot the note
+    plotCenteredText(0, 20, OLED_WIDTH - 1, noteToStr(getCurrentNote()), RADIOSTARS, WHITE);
+
+    // Plot the button funcs
+    plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Choose", TOM_THUMB, WHITE);
+    plotText(OLED_WIDTH - 15, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Play", TOM_THUMB, WHITE);
+}
+
+/**
+ * @brief TODO
+ *
+ * @param yOffset
+ */
+void ICACHE_FLASH_ATTR plotBar(uint8_t yOffset)
+{
     // Plot the main bar
     plotLine(
         BAR_X_MARGIN,
-        OLED_HEIGHT - BAR_Y_MARGIN,
+        yOffset,
         OLED_WIDTH - BAR_X_MARGIN,
-        OLED_HEIGHT - BAR_Y_MARGIN,
+        yOffset,
         WHITE);
 
     // Plot tick marks at each of the note boundaries
@@ -370,21 +450,10 @@ void ICACHE_FLASH_ATTR musicUpdateDisplay(void)
     {
         uint8_t x = BAR_X_MARGIN + ( (tick * ((OLED_WIDTH - 1) - (BAR_X_MARGIN * 2))) /
                                      (swynthParams[music.paramIdx].notesLen / 2)) ;
-        plotLine(x, OLED_HEIGHT - BAR_Y_MARGIN - TICK_HEIGHT,
-                 x, OLED_HEIGHT - BAR_Y_MARGIN + TICK_HEIGHT,
+        plotLine(x, yOffset - TICK_HEIGHT,
+                 x, yOffset + TICK_HEIGHT,
                  WHITE);
     }
-
-    // Plot the cursor
-    plotLine(music.roll, OLED_HEIGHT - BAR_Y_MARGIN - CURSOR_HEIGHT,
-             music.roll, OLED_HEIGHT - BAR_Y_MARGIN + CURSOR_HEIGHT,
-             WHITE);
-
-    // Plot the title
-    plotText(0, 0, swynthParams[music.paramIdx].name, IBM_VGA_8, WHITE);
-
-    // Plot the note
-    plotCenteredText(0, 16, OLED_WIDTH - 1, noteToStr(getCurrentNote()), RADIOSTARS, WHITE);
 }
 
 /**
@@ -413,9 +482,11 @@ void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)))
         }
 
         // See if we should actually play the note or not
+        led_t leds[NUM_LIN_LEDS] = {{0}};
         if(!music.shouldPlay || swynthParams[music.paramIdx].rhythm[music.rhythmIdx].isRest)
         {
             setBuzzerNote(SILENCE);
+            noteToColor(&leds[0], getCurrentNote(), 0x10);
         }
         else
         {
@@ -428,7 +499,17 @@ void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)))
                                  swynthParams[music.paramIdx].arpIntervals[music.arpIdx]);
             }
             setBuzzerNote(noteToPlay);
+            noteToColor(&leds[0], getCurrentNote(), 0x40);
         }
+
+        // Copy LED color from the first LED to all of them
+        for(uint8_t ledIdx = 1; ledIdx < NUM_LIN_LEDS; ledIdx++)
+        {
+            leds[ledIdx].r = leds[0].r;
+            leds[ledIdx].g = leds[0].g;
+            leds[ledIdx].b = leds[0].b;
+        }
+        setLeds(leds, sizeof(leds));
     }
 }
 
@@ -441,7 +522,16 @@ notePeriod_t ICACHE_FLASH_ATTR getCurrentNote(void)
 {
     // Get the index of the note to play based on roll
     uint8_t noteIdx = (music.roll * (swynthParams[music.paramIdx].notesLen / 2)) / OLED_WIDTH;
-    return swynthParams[music.paramIdx].notes[noteIdx];
+    // See if we should play the higher note
+    if(music.pitch < PITCH_THRESHOLD)
+    {
+        uint8_t offset = swynthParams[music.paramIdx].notesLen / 2;
+        return swynthParams[music.paramIdx].notes[noteIdx + offset];
+    }
+    else
+    {
+        return swynthParams[music.paramIdx].notes[noteIdx];
+    }
 }
 
 /**
@@ -471,6 +561,32 @@ notePeriod_t ICACHE_FLASH_ATTR arpModify(notePeriod_t note, uint8_t arpInterval)
 }
 
 /**
+ * @brief
+ *
+ * @param led
+ * @param note
+ * @param brightness
+ */
+void ICACHE_FLASH_ATTR noteToColor( led_t* led, notePeriod_t note, uint8_t brightness)
+{
+    // First find the note in the list of all notes
+    for(uint16_t idx = 0; idx < lengthof(allNotes); idx++)
+    {
+        if(note == allNotes[idx])
+        {
+            idx = idx % 12;
+            idx = (idx * 255) / 12;
+
+            uint32_t col = EHSVtoHEX(idx, 0xFF, brightness);
+            led->r = (col >> 16) & 0xFF;
+            led->g = (col >>  8) & 0xFF;
+            led->b = (col >>  0) & 0xFF;
+            return;
+        }
+    }
+}
+
+/**
  * @brief TODO
  *
  * @param note
@@ -481,249 +597,66 @@ char* ICACHE_FLASH_ATTR noteToStr(notePeriod_t note)
     switch(note)
     {
         case SILENCE:
-        {
-            return "SILENCE";
-        }
         case C_0:
-        {
-            return "C0";
-        }
         case C_SHARP_0:
-        {
-            return "C#0";
-        }
         case D_0:
-        {
-            return "D0";
-        }
         case D_SHARP_0:
-        {
-            return "D#0";
-        }
         case E_0:
-        {
-            return "E0";
-        }
         case F_0:
-        {
-            return "F0";
-        }
         case F_SHARP_0:
-        {
-            return "F#0";
-        }
         case G_0:
-        {
-            return "G0";
-        }
         case G_SHARP_0:
-        {
-            return "G#0";
-        }
         case A_0:
-        {
-            return "A0";
-        }
         case A_SHARP_0:
-        {
-            return "A#0";
-        }
         case B_0:
-        {
-            return "B0";
-        }
         case C_1:
-        {
-            return "C1";
-        }
         case C_SHARP_1:
-        {
-            return "C#1";
-        }
         case D_1:
-        {
-            return "D1";
-        }
         case D_SHARP_1:
-        {
-            return "D#1";
-        }
         case E_1:
-        {
-            return "E1";
-        }
         case F_1:
-        {
-            return "F1";
-        }
         case F_SHARP_1:
-        {
-            return "F#1";
-        }
         case G_1:
-        {
-            return "G1";
-        }
         case G_SHARP_1:
-        {
-            return "G#1";
-        }
         case A_1:
-        {
-            return "A1";
-        }
         case A_SHARP_1:
-        {
-            return "A#1";
-        }
         case B_1:
-        {
-            return "B1";
-        }
         case C_2:
-        {
-            return "C2";
-        }
         case C_SHARP_2:
-        {
-            return "C#2";
-        }
         case D_2:
-        {
-            return "D2";
-        }
         case D_SHARP_2:
-        {
-            return "D#2";
-        }
         case E_2:
-        {
-            return "E2";
-        }
         case F_2:
-        {
-            return "F2";
-        }
         case F_SHARP_2:
-        {
-            return "F#2";
-        }
         case G_2:
-        {
-            return "G2";
-        }
         case G_SHARP_2:
-        {
-            return "G#2";
-        }
         case A_2:
-        {
-            return "A2";
-        }
         case A_SHARP_2:
-        {
-            return "A#2";
-        }
         case B_2:
-        {
-            return "B2";
-        }
         case C_3:
-        {
-            return "C3";
-        }
         case C_SHARP_3:
-        {
-            return "C#3";
-        }
         case D_3:
-        {
-            return "D3";
-        }
         case D_SHARP_3:
-        {
-            return "D#3";
-        }
         case E_3:
-        {
-            return "E3";
-        }
         case F_3:
-        {
-            return "F3";
-        }
         case F_SHARP_3:
-        {
-            return "F#3";
-        }
         case G_3:
-        {
-            return "G3";
-        }
         case G_SHARP_3:
-        {
-            return "G#3";
-        }
         case A_3:
-        {
-            return "A3";
-        }
         case A_SHARP_3:
-        {
-            return "A#3";
-        }
         case B_3:
-        {
-            return "B3";
-        }
         case C_4:
-        {
-            return "C4";
-        }
         case C_SHARP_4:
-        {
-            return "C#4";
-        }
         case D_4:
-        {
-            return "D4";
-        }
         case D_SHARP_4:
-        {
-            return "D#4";
-        }
         case E_4:
-        {
-            return "E4";
-        }
         case F_4:
-        {
-            return "F4";
-        }
         case F_SHARP_4:
-        {
-            return "F#4";
-        }
         case G_4:
-        {
-            return "G4";
-        }
         case G_SHARP_4:
-        {
-            return "G#4";
-        }
         case A_4:
-        {
-            return "A4";
-        }
         case A_SHARP_4:
-        {
-            return "A#4";
-        }
         case B_4:
-        {
-            return "B4";
-        }
         case C_5:
         {
             return "C5";
@@ -825,97 +758,28 @@ char* ICACHE_FLASH_ATTR noteToStr(notePeriod_t note)
             return "C7";
         }
         case C_SHARP_7:
-        {
-            return "C#7";
-        }
         case D_7:
-        {
-            return "D7";
-        }
         case D_SHARP_7:
-        {
-            return "D#7";
-        }
         case E_7:
-        {
-            return "E7";
-        }
         case F_7:
-        {
-            return "F7";
-        }
         case F_SHARP_7:
-        {
-            return "F#7";
-        }
         case G_7:
-        {
-            return "G7";
-        }
         case G_SHARP_7:
-        {
-            return "G#7";
-        }
         case A_7:
-        {
-            return "A7";
-        }
         case A_SHARP_7:
-        {
-            return "A#7";
-        }
         case B_7:
-        {
-            return "B7";
-        }
         case C_8:
-        {
-            return "C8";
-        }
         case C_SHARP_8:
-        {
-            return "C#8";
-        }
         case D_8:
-        {
-            return "D8";
-        }
         case D_SHARP_8:
-        {
-            return "D#8";
-        }
         case E_8:
-        {
-            return "E8";
-        }
         case F_8:
-        {
-            return "F8";
-        }
         case F_SHARP_8:
-        {
-            return "F#8";
-        }
         case G_8:
-        {
-            return "G8";
-        }
         case G_SHARP_8:
-        {
-            return "G#8";
-        }
         case A_8:
-        {
-            return "A8";
-        }
         case A_SHARP_8:
-        {
-            return "A#8";
-        }
         case B_8:
-        {
-            return "B8";
-        }
         default:
         {
             return "";
