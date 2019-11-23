@@ -430,9 +430,9 @@ void ICACHE_FLASH_ATTR musicUpdateDisplay(void)
 }
 
 /**
- * @brief TODO
+ * @brief Plot a horizontal bar indicating where the note boundaries are
  *
- * @param yOffset
+ * @param yOffset The Y Offset of the middle of the bar, not the ticks
  */
 void ICACHE_FLASH_ATTR plotBar(uint8_t yOffset)
 {
@@ -514,9 +514,8 @@ void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)))
 }
 
 /**
- * @brief TODO
- *
- * @return notePeriod_t getCurrentNote
+ * @return the current note the angle coresponds to. doesn't matter if it should
+ *         be played right now or not
  */
 notePeriod_t ICACHE_FLASH_ATTR getCurrentNote(void)
 {
@@ -561,11 +560,11 @@ notePeriod_t ICACHE_FLASH_ATTR arpModify(notePeriod_t note, uint8_t arpInterval)
 }
 
 /**
- * @brief
+ * @brief Translate a musical note to a color
  *
- * @param led
- * @param note
- * @param brightness
+ * @param led The led_t to write the color data to
+ * @param note The note to translate to color
+ * @param brightness The brightness of the LED
  */
 void ICACHE_FLASH_ATTR noteToColor( led_t* led, notePeriod_t note, uint8_t brightness)
 {
@@ -587,10 +586,10 @@ void ICACHE_FLASH_ATTR noteToColor( led_t* led, notePeriod_t note, uint8_t brigh
 }
 
 /**
- * @brief TODO
+ * @brief Translate a musical note to a string. Only covers the notes we play
  *
- * @param note
- * @return char* noteToStr
+ * @param note The note to translate to color
+ * @return A null terminated string for this note
  */
 char* ICACHE_FLASH_ATTR noteToStr(notePeriod_t note)
 {
