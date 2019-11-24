@@ -220,6 +220,7 @@ int16_t ICACHE_FLASH_ATTR IIRFilter(float alpha, int16_t input, int16_t output);
 void ICACHE_FLASH_ATTR AdjustAndPlotDots(circularBuffer_t cbuf1, circularBuffer_t cbuf2);
 void ICACHE_FLASH_ATTR AdjustAndPlotLisajou(circularBuffer_t cbuf1, circularBuffer_t cbuf2);
 void ICACHE_FLASH_ATTR AdjustAndPlotDotsSingle(circularBuffer_t cbuf);
+void ICACHE_FLASH_ATTR PlotMagnitudeTriangle(uint8_t r, uint8_t g, uint8_t b);
 
 /*============================================================================
  * Static Const Variables
@@ -1086,6 +1087,13 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                 ledr = CLAMP(xHP * 255 * cmScaleLed / 600, 0, 255);
                 ledg = CLAMP(yHP * 255 * cmScaleLed / 600, 0, 255);
                 ledb = CLAMP(zHP * 255 * cmScaleLed / 600, 0, 255);
+
+                // Plot a triangle, always show a little of everything
+                PlotMagnitudeTriangle(
+                    CLAMP(xHP, 64, 255),
+                    CLAMP(yHP, 64, 255),
+                    CLAMP(zHP, 64, 255)
+                );
                 break;
 
             case ANGLE2HUE:
@@ -1111,6 +1119,13 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                 ledr = (colorToShow >>  0) & 0xFF;
                 ledg = (colorToShow >>  8) & 0xFF;
                 ledb = (colorToShow >> 16) & 0xFF;
+
+                // Plot a triangle, always show a little of everything
+                PlotMagnitudeTriangle(
+                    CLAMP(xHP, 64, 255),
+                    CLAMP(yHP, 64, 255),
+                    CLAMP(zHP, 64, 255)
+                );
                 break;
             case BPM2HUE:
             default:
@@ -1815,3 +1830,38 @@ void ICACHE_FLASH_ATTR cmSampleHandler(int32_t samp)
     }
 }
 #endif
+
+/**
+ * Plot a triangle where each vertex represents the magnitude of a color vector
+ *
+ * @param r Red magnitude
+ * @param g Green magnitude
+ * @param b Blue magnitude
+ */
+void ICACHE_FLASH_ATTR PlotMagnitudeTriangle(uint8_t r, uint8_t g, uint8_t b)
+{
+    // Center
+    uint8_t cX = OLED_WIDTH / 2;
+    uint8_t cY = OLED_HEIGHT / 2 + 8;
+    // Red Vertex
+    uint8_t rX = cX;
+    uint8_t rY = roundf(cY - (r / 8.0f));
+    // Green Vertex
+    uint8_t gX = cX - (uint8_t)roundf(sinf(45) * (g / 8.0f));
+    uint8_t gY = cY + (uint8_t)roundf(cosf(45) * (g / 8.0f));
+    // Blue Vertex
+    uint8_t bX = cX + (uint8_t)roundf(sinf(45) * (b / 8.0f));
+    uint8_t bY = cY + (uint8_t)roundf(cosf(45) * (b / 8.0f));
+
+    os_printf("%3d %3d %3d\n", g, gX, gY);
+
+    // Plot a triange
+    plotLine(rX, rY, gX, gY, WHITE);
+    plotLine(gX, gY, bX, bY, WHITE);
+    plotLine(bX, bY, rX, rY, WHITE);
+
+    // Plot lines from the center point to each vertex
+    plotLine(cX, cY, rX, rY, WHITE);
+    plotLine(cX, cY, gX, gY, WHITE);
+    plotLine(cX, cY, bX, bY, WHITE);
+}
