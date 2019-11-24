@@ -8,9 +8,11 @@
 
 //TODO
 // POV should work on top (or bottom) 3 leds of barrel
+// Gallery Unlock is hacked so I can see all
 
 // Devel Features that can be turned on (but also could be used for effect)
 // Can spoof accel with built in wave forms
+// Now being used to generate Lissajou display for sub mode 2
 
 
 
@@ -340,7 +342,8 @@ static uint32_t stateTime = 0;  // total time the game has been running.
 static cmState_t currState = CM_TITLE;
 static cmState_t prevState;
 
-
+int16_t xPlot;
+int16_t yPlot;
 int16_t xAccel;
 int16_t yAccel;
 int16_t zAccel;
@@ -374,6 +377,8 @@ circularBuffer_t  cirBufLowPassYaccel;
 circularBuffer_t  cirBufZaccel;
 circularBuffer_t  cirBufLowPassZaccel;
 circularBuffer_t  cirBufCrossings;
+circularBuffer_t  cirBufXPlot;
+circularBuffer_t  cirBufYPlot;
 
 int16_t bufNormAccel[NUM_IN_CIRCULAR_BUFFER];
 int16_t bufHighPassNormAccel[NUM_IN_CIRCULAR_BUFFER];
@@ -384,6 +389,8 @@ int16_t bufLowPassYaccel[NUM_IN_CIRCULAR_BUFFER];
 int16_t bufZaccel[NUM_IN_CIRCULAR_BUFFER];
 int16_t bufLowPassZaccel[NUM_IN_CIRCULAR_BUFFER];
 int16_t bufCrossings[BPM_BUF_SIZE];
+int16_t bufXPlot[BPM_BUF_SIZE];
+int16_t bufYPlot[BPM_BUF_SIZE];
 
 int16_t deviations[NUM_IN_CIRCULAR_BUFFER];
 
@@ -477,7 +484,7 @@ void ICACHE_FLASH_ATTR AdjustAndPlotDots(circularBuffer_t cbuf1, circularBuffer_
 
 void ICACHE_FLASH_ATTR AdjustAndPlotLisajou(circularBuffer_t cbuf1, circularBuffer_t cbuf2)
 {
-    // Plots a graph with x from 0 to 119 and y from cbuf1.buffer - cbuf2.buffer
+    // Plots a graph  cbuf1.buffer against cbuf2.buffer
     uint16_t i;
     uint16_t i1 = cbuf1.insertHeadInd; // oldest
     uint16_t i2 = cbuf2.insertHeadInd;
@@ -485,7 +492,7 @@ void ICACHE_FLASH_ATTR AdjustAndPlotLisajou(circularBuffer_t cbuf1, circularBuff
     {
         i1 = (i1 < cbuf1.length) ? i1 : 0;
         i2 = (i2 < cbuf2.length) ? i2 : 0;
-        drawPixel(cbuf1.buffer[i1] / 25 + PLOT_SHIFT, cbuf2.buffer[i2] / 25 + PLOT_SHIFT, WHITE);
+        drawPixel(cbuf1.buffer[i1] * 8 / 25 + 64, cbuf2.buffer[i2] * 8 / 25 + 32, WHITE);
     }
 }
 
@@ -565,7 +572,7 @@ void ICACHE_FLASH_ATTR cmInit(void)
     cmChangeState(CM_GAME);
 
     // Set up all initialization
-    cmCurrentSubMode =  SHOCK_CHAOTIC;// BEAT_SPIN;
+    cmCurrentSubMode =  BEAT_SPIN;
     cmNewSetup(cmCurrentSubMode);
     // Start the update loop.
     os_timer_disarm(&timerHandleUpdate);
@@ -777,18 +784,22 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     }
 
     //#define BUILT_IN_INPUT
-#ifdef BUILT_IN_INPUT
+    //#ifdef BUILT_IN_INPUT
 #define BPM_GEN 70
-    xAccel = 100 * sin(6.2831853 * BPM_GEN / 60  * modeTime / 1000000);
-    yAccel = 100 + 100 * cos(6.2831853 * BPM_GEN / 60  * modeTime / 1000000);
-    zAccel = 0;
-#else
+    xPlot = 100 * sin(2 * cmPi * BPM_GEN / 60  * modeTime / 1000000);
+    yPlot = 100 * cos(4 * cmPi * BPM_GEN / 60  * modeTime / 1000000 + cmHue * cmPi / 255);
+    //zAccel = 0;
+    //#else
     // cmAccel return direct, high pass filtered and/or smoothed readings depending on
     // cmUseHighPassAccel and cmUseSmooth
     xAccel = cmAccel.x;
     yAccel = cmAccel.y;
     zAccel = cmAccel.z;
-#endif
+    //#endif
+
+
+    circularPush(xPlot, &cirBufXPlot);
+    circularPush(yPlot, &cirBufYPlot);
 
     // NOTE taking the norm doubles the frequency
     int16_t normAccel = sqrt( (double)xAccel * (double)xAccel + (double)yAccel * (double)yAccel + (double)zAccel *
@@ -902,7 +913,10 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     {
         AdjustAndPlotDotsSingle(cirBufHighPassNormAccel);
     }
-    //AdjustAndPlotLisajou(cirBufXaccel, cirBufHighPassNormAccel);
+    if(cmPlotLissajou)
+    {
+        AdjustAndPlotLisajou(cirBufXPlot, cirBufYPlot);
+    }
     //AdjustAndPlotDots(cirBufXaccel, cirBufLowPassXaccel);
     //AdjustAndPlotDots(cirBufYaccel, cirBufLowPassYaccel);
     //AdjustAndPlotDots(cirBufZaccel, cirBufLowPassZaccel);
@@ -1441,6 +1455,8 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
     initCircularBuffer(&cirBufZaccel, bufZaccel, NUM_IN_CIRCULAR_BUFFER);
     initCircularBuffer(&cirBufLowPassZaccel, bufLowPassZaccel, NUM_IN_CIRCULAR_BUFFER);
     initCircularBuffer(&cirBufCrossings, bufCrossings, BPM_BUF_SIZE);
+    initCircularBuffer(&cirBufXPlot, bufXPlot, NUM_IN_CIRCULAR_BUFFER);
+    initCircularBuffer(&cirBufYPlot, bufYPlot, NUM_IN_CIRCULAR_BUFFER);
 
     // Use for debugging to find extreems of readings being used by a SubMode
     maxCheck1 = -32768;
@@ -1508,7 +1524,7 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
         case BEAT_SELECT:
             // BPM mapped to hue for all leds.
             // Leds display near max selected brightness while movement
-            cmPlotBPMTau = true;
+            cmPlotLissajou = true;
             cmShowNumLeds = USE_NUM_LEDS;
             cmUseShiftingColorWheel = false;
             cmLedMethod = ALL_SAME;

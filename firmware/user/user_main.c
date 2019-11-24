@@ -88,11 +88,11 @@ swadgeMode* swadgeModes[] =
     &menuMode,
 #endif
     /* These are the modes which are displayed in the menu */
-    &colorMoveMode,
     &joustGameMode,
     &snakeMode,
     &tiltradsMode,
     &mazerfMode,
+    &colorMoveMode,
     &musicMode,
     &galleryMode,
     /* SWADGE_2019 doesn't have a buzzer either */
