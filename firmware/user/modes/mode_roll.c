@@ -683,9 +683,10 @@ led_t* ICACHE_FLASH_ATTR roll_updateDisplayComputations(int16_t xAccel, int16_t 
         default:
             (void)0;
     }
-    char uiStr[32] = {0};
-    ets_snprintf(uiStr, sizeof(uiStr), "%d", roll.currentMethod);
-    plotText(57, 31, uiStr, IBM_VGA_8, WHITE);
+    //TODO for development
+    // char uiStr[32] = {0};
+    // ets_snprintf(uiStr, sizeof(uiStr), "%d", roll.currentMethod);
+    // plotText(57, 31, uiStr, IBM_VGA_8, WHITE);
 
     switch (roll.currentMethod)
     {

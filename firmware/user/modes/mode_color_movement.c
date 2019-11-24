@@ -236,12 +236,14 @@ const char* subModeName[] = {"BEAT_SPIN", "BEAT_SELECT", "SHOCK_CHANGE",
                              "TWIRL_A_COLOR", "POV_EFFECT", "DFT_SHAKE", "POWER_SHAKE"
                             };
 #else
-
 const char* subModeName[] = {"BEAT_SPIN", "BEAT_SELECT", "SHOCK_CHANGE",
                              "SHOCK_CHAOTIC", "ROLL_BALL", "ROLL_3_BALLS", "TILT_A_COLOR",
                              "TWIRL_A_COLOR", "POV_EFFECT", "POWER_SHAKE"
                             };
 #endif
+
+char* cmShockName[4] = {"BIFF!", "POW!", "BOOM!", "WHAM!"};
+
 /*============================================================================
  * Variables
  *==========================================================================*/
@@ -275,6 +277,11 @@ bool cmUsePOVeffect;
 bool cmUseRadialSymmetry;
 bool cmUseShiftingLeds;
 bool cmUseShiftingColorWheel;
+
+bool cmPlotHP;
+bool cmPlotBPMTau;
+bool cmPlotLissajou;
+
 #ifdef COLORCHORD_DFT
     bool cmUseColorChordDFT;
 #endif
@@ -301,6 +308,10 @@ uint8_t ledOrderInd[] = {LED_UPPER_LEFT, LED_LOWER_LEFT, LED_LOWER_MID, LED_LOWE
 
 int gFRAMECOUNT_MOD_SHIFT_INTERVAL = 0;
 int gROTATIONSHIFT = 0; //Amount of spinning of pattern around a LED ring
+
+uint8_t cmXZapPos;
+uint8_t cmYZapPos;
+uint8_t cmZapWorkInx;
 
 bool shockJustHappened;
 int16_t cmShockCountDown;
@@ -860,8 +871,11 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     {
         deviations[tau] = IIRFilter(alphaSlow, abs(getCircularBufferAtIndex(cirBufHighPassNormAccel,
                                     -1) - getCircularBufferAtIndex(cirBufHighPassNormAccel, -1 - tau)), deviations[tau]);
-        //PLOTS tau vs deviations
-        //drawPixel(tau, OLED_HEIGHT - deviations[tau] / 30, WHITE);
+        if (cmPlotBPMTau)
+        {
+            //PLOTS tau vs deviations
+            drawPixel(tau, OLED_HEIGHT - deviations[tau] / 10, WHITE);
+        }
 #define TOL_TAU 50
         if (deviations[tau] < minDeviation - TOL_TAU)
         {
@@ -884,7 +898,10 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
 
     // Plot slightly smoothed less dc bias by adjusting the dots
     //PLOTS
-    AdjustAndPlotDotsSingle(cirBufHighPassNormAccel);
+    if (cmPlotHP)
+    {
+        AdjustAndPlotDotsSingle(cirBufHighPassNormAccel);
+    }
     //AdjustAndPlotLisajou(cirBufXaccel, cirBufHighPassNormAccel);
     //AdjustAndPlotDots(cirBufXaccel, cirBufLowPassXaccel);
     //AdjustAndPlotDots(cirBufYaccel, cirBufLowPassYaccel);
@@ -979,6 +996,9 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
             cmShockCountDown = cmShockRampCount;
             cmBrightnessRamp = 255; //full
             cmHue += 1;
+            cmXZapPos = 16 + (os_random() % 16);
+            cmYZapPos = 26 + (os_random() % 16);
+            cmZapWorkInx = os_random() % 4;
             //os_printf("Shock! cmShockRampCount=%d\n", cmShockRampCount);
         }
         else
@@ -1378,6 +1398,11 @@ void ICACHE_FLASH_ATTR cmGameDisplay(void)
                          (char*)subModeName[cmCurrentSubMode], IBM_VGA_8, WHITE);
     }
 
+    if ((cmBrightnessRamp > 127) && (cmCurrentSubMode == SHOCK_CHANGE))
+    {
+        plotText(cmXZapPos, cmYZapPos, cmShockName[cmZapWorkInx], RADIOSTARS, WHITE);
+    }
+
     //#define TESTING_INFO
 #ifdef TESTING_INFO
     char uiStr[32] = {0};
@@ -1434,6 +1459,9 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
     // Defaults of parameters go here used for BEAT_SPIN
     // A Colorwheel rotates in proportion to the BPM
     // Other submodes override in switch
+    cmPlotHP = false;
+    cmPlotBPMTau = false;
+    cmPlotLissajou = false;
 
     // Control of cmAccelerometerCallback
     // for finding long term moving average and remove from signal to get High Pass
@@ -1480,6 +1508,7 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
         case BEAT_SELECT:
             // BPM mapped to hue for all leds.
             // Leds display near max selected brightness while movement
+            cmPlotBPMTau = true;
             cmShowNumLeds = USE_NUM_LEDS;
             cmUseShiftingColorWheel = false;
             cmLedMethod = ALL_SAME;
@@ -1553,6 +1582,7 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
             cmLedRevsPerBeat = 1.0;
             break;
         case BEAT_SPIN:
+            cmPlotHP = true;
         default:
             // A Colorwheel rotates in proportion to the BPM
             break;
