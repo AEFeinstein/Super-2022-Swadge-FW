@@ -233,14 +233,14 @@ static const uint8_t cmBrightnesses[] =
 };
 
 #ifdef COLORCHORD_DFT
-const char* subModeName[] = {"BEAT_SPIN", "BEAT_SELECT", "SHOCK_CHANGE",
-                             "SHOCK_CHAOTIC", "ROLL_BALL", "ROLL_3_BALLS", "TILT_A_COLOR",
-                             "TWIRL_A_COLOR", "POV_EFFECT", "DFT_SHAKE", "POWER_SHAKE"
+const char* subModeName[] = {"BEAT SPIN", "BEAT SELECT", "SHOCK CHANGE",
+                             "SHOCK CHAOTIC", "ROLL BALL", "ROLL 3 BALLS", "TILT A COLOR",
+                             "TWIRL A COLOR", "POV EFFECT", "DFT SHAKE", "POWER SHAKE"
                             };
 #else
-const char* subModeName[] = {"BEAT_SPIN", "BEAT_SELECT", "SHOCK_CHANGE",
-                             "SHOCK_CHAOTIC", "ROLL_BALL", "ROLL_3_BALLS", "TILT_A_COLOR",
-                             "TWIRL_A_COLOR", "POV_EFFECT", "POWER_SHAKE"
+const char* subModeName[] = {"BEAT SPIN", "BEAT SELECT", "SHOCK CHANGE",
+                             "SHOCK CHAOTIC", "ROLL BALL", "ROLL 3 BALLS", "TILT A COLOR",
+                             "TWIRL A COLOR", "POV EFFECT", "POWER SHAKE"
                             };
 #endif
 
