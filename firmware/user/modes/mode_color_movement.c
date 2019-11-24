@@ -432,7 +432,6 @@ int cmRandLight;
 // for zero crossing measure time is number of cycles of update
 uint16_t crossIntervalCounter = 0;
 uint32_t ledPrevIncTime = 0;
-uint32_t wheelPrevIncTime = 0;
 uint32_t shockPrevIncTime = 0;
 uint32_t randomNextChangeTime = 0;
 uint16_t avePeriodMs = 5;
@@ -773,6 +772,9 @@ void ICACHE_FLASH_ATTR cmTitleUpdate(void)
 {
 }
 
+/**
+ * @brief Called every 1ms, hopefully
+ */
 void ICACHE_FLASH_ATTR cmGameUpdate(void)
 {
     float alphaFast;
@@ -1000,6 +1002,12 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
             //TODO IIR average here
         }
 
+        // static int16_t lastBpm = 0;
+        // if(lastBpm != bpmFromCrossing) {
+        //     lastBpm = bpmFromCrossing;
+        //     os_printf("%d\n", bpmFromCrossing);
+        // }
+
         //TODO compute avePeriodMs from  bpmFromTau and from smoothActivity as surogate
 
         //TODO should be in cmGameDisplay()
@@ -1185,23 +1193,22 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
 
         if (cmUseShiftingColorWheel)
         {
-            // TODO various conditions to try.
-            // Spin the color wheel syncronized to bpm while there is some shaking activity
-            // Since frame rate is 60 Hz max revs is 256/60 if incrementing by 1. So ajust by size of increment
-            // if (((modeTime - wheelPrevIncTime > MS_TO_US_FACTOR * avePeriodMs / 256 / cmColorWheelRevsPerBeat*
-            //         cmColorWheelIncPerBeat)
-            //         && (smoothActivity > ACTIVITY_BOUND )) || shockJustHappened)
+            // Keep a running count of the rotation as a float
+            static float cmColorWheelCountFloat = 0;
 
-            //if (shockJustHappened)
+            // Unoptimized calc is:
+            // amt = bpm * (256pts / 32bpm) * (1sec / 1000000us) * deltaTime_us
+            // There are 256pts in the rotation, not 360 degrees, it's a uint8_t
+            float amtToRotate = (bpmFromCrossing * deltaTime * 8) / 1000000.0f;
 
-            if (((modeTime - wheelPrevIncTime > MS_TO_US_FACTOR * avePeriodMs / 256 / cmColorWheelRevsPerBeat*
-                    cmColorWheelIncPerBeat)
-                    && (smoothActivity > ACTIVITY_BOUND )) )
-            {
-                cmColorWheelCount = cmColorWheelCount + cmColorWheelIncPerBeat; //will wrap back to 0
-                wheelPrevIncTime = modeTime;
+            // Keep a running count of the rotation
+            cmColorWheelCountFloat += amtToRotate;
+            // Never let it get greater than 255
+            if(cmColorWheelCountFloat >= 255) {
+                cmColorWheelCountFloat -= 255;
             }
-
+            // Round it to an int to be used later
+            cmColorWheelCount = roundf(cmColorWheelCountFloat);
         }
         else
         {
