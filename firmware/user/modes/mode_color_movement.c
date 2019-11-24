@@ -1502,7 +1502,7 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
     cmComputeColor = BPM2HUE; //using bpmFromCrossing
     cmLedMethod = RAINBOW;
     cmUseShiftingColorWheel = true;
-    cmShockLimit = 10;
+    cmShockLimit = 40;
     //TODO can extend to give subset to use eg 1,3,5 or 1,4
     //    rather than just how many consecutive
     cmShowNumLeds = USE_NUM_LEDS; // must be <= USE_NUM_LEDS
