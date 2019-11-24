@@ -1853,8 +1853,6 @@ void ICACHE_FLASH_ATTR PlotMagnitudeTriangle(uint8_t r, uint8_t g, uint8_t b)
     uint8_t bX = cX + (uint8_t)roundf(sinf(45) * (b / 8.0f));
     uint8_t bY = cY + (uint8_t)roundf(cosf(45) * (b / 8.0f));
 
-    os_printf("%3d %3d %3d\n", g, gX, gY);
-
     // Plot a triange
     plotLine(rX, rY, gX, gY, WHITE);
     plotLine(gX, gY, bX, bY, WHITE);
