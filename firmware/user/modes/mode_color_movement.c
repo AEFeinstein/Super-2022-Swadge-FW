@@ -124,7 +124,9 @@ typedef enum
     ROLL_3_BALLS,
     TILT_A_COLOR,
     TWIRL_A_COLOR,
+#ifdef ENABLE_POV_EFFECT
     POV_EFFECT,
+#endif
 #ifdef COLORCHORD_DFT
     DFT_SHAKE,
 #endif
@@ -232,17 +234,23 @@ static const uint8_t cmBrightnesses[] =
     0x08,
 };
 
-#ifdef COLORCHORD_DFT
-const char* subModeName[] = {"BEAT SPIN", "BEAT SELECT", "SHOCK CHANGE",
-                             "SHOCK CHAOTIC", "ROLL BALL", "ROLL 3 BALLS", "TILT A COLOR",
-                             "TWIRL A COLOR", "POV EFFECT", "DFT SHAKE", "POWER SHAKE"
-                            };
-#else
-const char* subModeName[] = {"BEAT SPIN", "BEAT SELECT", "SHOCK CHANGE",
-                             "SHOCK CHAOTIC", "ROLL BALL", "ROLL 3 BALLS", "TILT A COLOR",
-                             "TWIRL A COLOR", "POV EFFECT", "POWER SHAKE"
-                            };
+const char* subModeName[] = {
+	"BEAT SPIN",
+	"BEAT SELECT",
+	"SHOCK CHANGE",
+	"SHOCK CHAOTIC",
+	"ROLL BALL",
+	"ROLL 3 BALLS",
+	"TILT A COLOR",
+	"TWIRL A COLOR",
+#ifdef ENABLE_POV_EFFECT
+    "POV EFFECT",
 #endif
+#ifdef COLORCHORD_DFT
+	"DFT SHAKE",
+#endif
+	"POWER SHAKE"
+};
 
 char* cmShockName[4] = {"BIFF!", "POW!", "BOOM!", "WHAM!"};
 
@@ -1572,12 +1580,14 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
             cmComputeColor = ANGLE2HUE;
             cmLedMethod = ALL_SAME;
             break;
+#ifdef ENABLE_POV_EFFECT
         case POV_EFFECT:
             cmColorWheelRevsPerBeat = 0.5;
             cmColorWheelIncPerBeat = 1;
             cmUsePOVeffect = true;
             cmShowNumLeds = 3;
             break;
+#endif
 #ifdef COLORCHORD_DFT
         case DFT_SHAKE:
             cmUseColorChordDFT = true;
