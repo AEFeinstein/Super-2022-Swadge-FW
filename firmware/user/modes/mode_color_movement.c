@@ -1645,7 +1645,7 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
     cmCumulativeActivity = 0;
     cmCollectingActivity = true;
     cmShockRecoverMS = 50;
-    cmBrightnessRamp = 255;
+    cmBrightnessRamp = 0;
     shockJustHappened = false;
     cmHue = 0;
 
