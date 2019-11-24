@@ -740,8 +740,8 @@ uint32_t ICACHE_FLASH_ATTR ECCtoAdjustedHEX( int16_t note, uint8_t sat, uint8_t 
 #define hn1  255
 #define rn2  43690
 #define hn2  170
-// #define rn3  65535
-// #define hn3  43
+    // #define rn3  65535
+    // #define hn3  43
     if( renote < rn1 )
     {
         hue = hn0 - (renote - rn0) * (43) / (21845);
@@ -758,13 +758,8 @@ uint32_t ICACHE_FLASH_ATTR ECCtoAdjustedHEX( int16_t note, uint8_t sat, uint8_t 
 }
 
 
-uint32_t ICACHE_FLASH_ATTR EHSVtoHEX( uint8_t hue, uint8_t sat, uint8_t val )
+uint8_t ICACHE_FLASH_ATTR GAMMA_CORRECT(uint8_t val)
 {
-#define SIXTH1 43
-#define SIXTH2 85
-#define SIXTH3 128
-#define SIXTH4 171
-#define SIXTH5 213
     // using gamma = 2.2
     static const uint8_t gamma_correction_table[256] =
     {
@@ -785,6 +780,21 @@ uint32_t ICACHE_FLASH_ATTR EHSVtoHEX( uint8_t hue, uint8_t sat, uint8_t val )
         192, 194, 196, 197, 199, 201, 203, 205, 207, 209, 211, 213, 215, 217, 219, 221,
         223, 225, 227, 229, 231, 234, 236, 238, 240, 242, 244, 246, 248, 251, 253, 255
     };
+    return gamma_correction_table[val];
+}
+
+uint32_t ICACHE_FLASH_ATTR EHSVtoHEX( uint8_t hue, uint8_t sat, uint8_t val)
+{
+    return EHSVtoHEXhelper(hue, sat, val, true );
+}
+
+uint32_t ICACHE_FLASH_ATTR EHSVtoHEXhelper( uint8_t hue, uint8_t sat, uint8_t val, bool applyGamma)
+{
+#define SIXTH1 43
+#define SIXTH2 85
+#define SIXTH3 128
+#define SIXTH4 171
+#define SIXTH5 213
     uint16_t or = 0, og = 0, ob = 0;
 
     // move in rainbow order RYGCBM as hue from 0 to 255
@@ -845,11 +855,12 @@ uint32_t ICACHE_FLASH_ATTR EHSVtoHEX( uint8_t hue, uint8_t sat, uint8_t val )
     og = (og * val) >> 8;
     ob = (ob * val) >> 8;
     //  printf( "  hue = %d r=%d g=%d b=%d rs=%d rv=%d\n", hue, or, og, ob, rs, rv );
-
-    or = gamma_correction_table[ or ];
-    og = gamma_correction_table[og];
-    ob = gamma_correction_table[ob];
-    //  return or | (og<<8) | ((uint32_t)ob<<16);
-    return og | ( or << 8) | ((uint32_t)ob << 16); //new
+    if (applyGamma)
+    {
+        or = GAMMA_CORRECT( or );
+        og = GAMMA_CORRECT(og);
+        ob = GAMMA_CORRECT(ob);
+    }
+    return or | (og << 8) | ((uint32_t)ob << 16);
+    //return og | ( or << 8) | ((uint32_t)ob << 16); //grb
 }
-

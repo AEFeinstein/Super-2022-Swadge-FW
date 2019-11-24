@@ -69,12 +69,10 @@ uint8_t numModes = 0;
 swadgeMode** modes = NULL;
 uint8_t selectedMode = 0;
 
-#if SWADGE_VERSION != SWADGE_BBKIWI
 os_timer_t timerScreensaverStart = {0};
 os_timer_t timerScreensaverBright = {0};
 os_timer_t timerScreensaverAnimation = {0};
 uint8_t menuScreensaverIdx = 0;
-#endif
 
 uint8_t compressedStagingSpace[1000] = {0};
 uint8_t img1[((OLED_WIDTH * OLED_HEIGHT) / 8) + METADATA_LEN] = {0};
@@ -112,7 +110,6 @@ void ICACHE_FLASH_ATTR modeInit(void)
     loadImg(modes[1 + selectedMode], curImg);
     drawImgAtOffset(curImg, 0);
 
-#if SWADGE_VERSION != SWADGE_BBKIWI
     // Timer for starting a screensaver
     os_timer_disarm(&timerScreensaverStart);
     os_timer_setfn(&timerScreensaverStart, (os_timer_func_t*)menuStartScreensaver, NULL);
@@ -131,7 +128,6 @@ void ICACHE_FLASH_ATTR modeInit(void)
 
     // This starts the screensaver timer
     stopScreensaver();
-#endif
 
     // Draw to OLED at the same rate the image is panned
     setOledDrawTime(MENU_PAN_PERIOD_MS);
@@ -150,10 +146,8 @@ void ICACHE_FLASH_ATTR modeInit(void)
 void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down)
 {
-#if SWADGE_VERSION != SWADGE_BBKIWI
     // Stop the screensaver
     stopScreensaver();
-#endif
 
     // Don't accept button input if the menu is panning
     if(menuIsPanning)
@@ -371,7 +365,6 @@ static void ICACHE_FLASH_ATTR menuPanImages(void* arg __attribute__((unused)))
     }
 }
 
-#if SWADGE_VERSION != SWADGE_BBKIWI
 /*==============================================================================
  * Screensaver functions
  *============================================================================*/
@@ -433,11 +426,11 @@ void ICACHE_FLASH_ATTR stopScreensaver(void)
     led_t leds[NUM_LIN_LEDS] = {{0}};
     setLeds(leds, sizeof(leds));
 
+#if SWADGE_VERSION != SWADGE_BBKIWI
     // Start a timer to start the screensaver if there's no input
     os_timer_disarm(&timerScreensaverStart);
     os_timer_arm(&timerScreensaverStart, 5000, false);
-
+#endif
     // Stop this timer too
     os_timer_disarm(&timerScreensaverBright);
 }
-#endif

@@ -60,7 +60,7 @@ extern uint8_t gal_logo_6[19] RODATA_ATTR;
 extern uint8_t gal_logo_7[19] RODATA_ATTR;
 extern uint8_t gal_logo_8[19] RODATA_ATTR;
 extern uint8_t gal_logo_9[19] RODATA_ATTR;
-extern uint8_t gal_snort_0[2011] RODATA_ATTR;
+extern uint8_t gal_snort_0[2036] RODATA_ATTR;
 extern uint8_t gal_unlock_joust_0[361] RODATA_ATTR;
 extern uint8_t gal_unlock_maze_0[339] RODATA_ATTR;
 extern uint8_t gal_unlock_snake_0[372] RODATA_ATTR;

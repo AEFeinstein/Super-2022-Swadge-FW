@@ -41,10 +41,7 @@
 #ifdef TEST_MODE
     #include "mode_test.h"
 #endif
-//#include "mode_roll3.h"
-#include "mode_roll.h"
 #include "mode_music.h"
-#include "mode_magfestons.h"
 
 /*============================================================================
  * Defines
@@ -156,11 +153,8 @@ void ICACHE_FLASH_ATTR user_init(void)
 #else
     uart_init(BIT_RATE_74880, BIT_RATE_74880);
 #endif
-#if SWADGE_VERSION != SWADGE_2019
-    os_printf("\nSwadge 2020\n");
-#else
-    os_printf("\nSwadge 2020 mod put in 2019\n");
-#endif
+
+    os_printf("\nSwadge %d\n", SWADGE_VERSION);
 
     // Read data fom RTC memory if we're waking from deep sleep
     if(REASON_DEEP_SLEEP_AWAKE == system_get_rst_info()->reason)
@@ -209,9 +203,11 @@ void ICACHE_FLASH_ATTR user_init(void)
         }
     }
 
+#ifdef COLORCHORD_DFT
     // Sets up gConfigs in custom_commands.c
     // Could do major refactor to eliminate
     PopulategConfigs();
+#endif
     // Load configurable parameters from SPI memory
     LoadSettings();
 

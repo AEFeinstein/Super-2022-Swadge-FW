@@ -5,9 +5,6 @@
  *      Author: bbkiwi
  */
 
-//TODO lots of repeated code from mode_dance and mode_demo and had to change
-//     names. Wasting space. More common routines needed.
-
 
 /*============================================================================
  * Includes
@@ -28,12 +25,21 @@
 #include "buzzer.h" // music notes
 #include "hpatimer.h" //buzzer functions
 #include "mode_music.h"
+#include "mode_color_movement.h"
 
 
 /*============================================================================
  * Defines
  *==========================================================================*/
 //NOTE in ode_solvers.h is #define of FLOATING float    or double to test
+
+// If want to simulate 6 LED barrel on dev-kit or bbkiwi or other with more than 6 leds
+#define USE_6_LEDS
+#ifdef USE_6_LEDS
+#define USE_NUM_LEDS 6
+#else
+#define USE_NUM_LEDS NUM_LIN_LEDS
+#endif
 // LEDs relation to screen
 #define LED_UPPER_LEFT LED_1
 #define LED_UPPER_MID LED_2
@@ -56,16 +62,15 @@
 /*============================================================================
  * Prototypes
  *==========================================================================*/
-
-void ICACHE_FLASH_ATTR rollEnterMode(void);
+void ICACHE_FLASH_ATTR rollInitMode(void);
 void ICACHE_FLASH_ATTR rollExitMode(void);
 void ICACHE_FLASH_ATTR initializeConditionsForODE(uint8_t Method);
-void ICACHE_FLASH_ATTR rollSampleHandler(int32_t samp);
+void ICACHE_FLASH_ATTR roll_updateDisplay(void);
 void ICACHE_FLASH_ATTR rollButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down);
 void ICACHE_FLASH_ATTR rollAccelerometerHandler(accel_t* accel);
 
-void ICACHE_FLASH_ATTR roll_updateDisplay(void);
+
 //uint16_t ICACHE_FLASH_ATTR norm(int16_t xc, int16_t yc);
 void ICACHE_FLASH_ATTR setRollLeds(led_t* ledData, uint8_t ledDataLen);
 // other protypes in mode_roll.h and ode_solvers.h
@@ -91,15 +96,16 @@ static const uint8_t rollBrightnesses[] =
 swadgeMode rollMode =
 {
     .modeName = "roll",
-    .fnEnterMode = rollEnterMode,
+    .fnEnterMode = rollInitMode,
     .fnExitMode = rollExitMode,
     .fnButtonCallback = rollButtonCallback,
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
-    .fnAccelerometerCallback = rollAccelerometerHandler
+    .fnAccelerometerCallback = rollAccelerometerHandler,
+    .menuImageData = mnu_colorshake_0,
+    .menuImageLen = sizeof(mnu_colorshake_0)
 };
-
 
 struct
 {
@@ -182,19 +188,26 @@ const FLOATING pi = 3.15159;
 /*============================================================================
  * Functions
  *==========================================================================*/
-
 /**
  * Initializer for roll
  */
-void ICACHE_FLASH_ATTR rollEnterMode(void)
+void ICACHE_FLASH_ATTR rollInitMode(void)
 {
 
     // Start the update loop.
     os_timer_disarm(&timerHandleUpdate);
     os_timer_setfn(&timerHandleUpdate, (os_timer_func_t*)roll_updateDisplay, NULL);
     os_timer_arm(&timerHandleUpdate, UPDATE_TIME_MS, 1);
+    enableDebounce(false);
+    rollEnterMode(0);
+}
 
-    roll.currentMethod = 6;
+/**
+ * Initializer for roll
+ */
+void ICACHE_FLASH_ATTR rollEnterMode(uint8_t method)
+{
+    roll.currentMethod = method;
     roll.numMethods = 12;
     //roll.Accel = {0};
     roll.ButtonState = 0;
@@ -218,7 +231,7 @@ void ICACHE_FLASH_ATTR rollEnterMode(void)
     roll.ledOrderInd[4] = LED_UPPER_RIGHT;
     roll.ledOrderInd[5] = LED_UPPER_MID;
 
-    enableDebounce(false);
+
     roll.numNotes = 9;
     uint8_t intervals[] = {2, 3, 2, 2, 3}; // pentatonic
     generateScale(roll.midiScale, roll.numNotes, intervals, sizeof(intervals) );
@@ -446,34 +459,19 @@ void ICACHE_FLASH_ATTR dnx2dvelocity(FLOATING t, FLOATING x[], FLOATING dx[], in
 }
 
 
-
-void ICACHE_FLASH_ATTR roll_updateDisplay(void)
+led_t* ICACHE_FLASH_ATTR roll_updateDisplayComputations(int16_t xAccel, int16_t yAccel, int16_t zAccel)
 {
-    // Clear the display
-    clearDisplay();
-
     //NOTE bug in Expressif OS can't print floating point! Must cast as int
     //Save accelerometer reading in global storage
     //TODO can get values bigger than 1. here, my accelerometer has 14 bits
-    roll.xAccel = roll.Accel.x / 256.0;
-    roll.yAccel = roll.Accel.y / 256.0;
-    roll.zAccel = roll.Accel.z / 256.0;
+
+
+    roll.xAccel = xAccel / 256.0;
+    roll.yAccel = yAccel / 256.0;
+    roll.zAccel = zAccel / 256.0;
+
 
     //os_printf("%d %d %d\n", (int)(100 * roll.xAccel), (int)(100 * roll.yAccel), (int)(100 * roll.zAccel));
-    switch (roll.currentMethod)
-    {
-        case 1:
-        case 3:
-        case 5:
-        case 7:
-        case 9:
-        case 11:
-            roll.useHighPassAccel = true;
-            break;
-        default:
-            roll.useHighPassAccel = false;
-            break;
-    }
 
     switch (roll.currentMethod)
     {
@@ -685,9 +683,10 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
         default:
             (void)0;
     }
-    char uiStr[32] = {0};
-    ets_snprintf(uiStr, sizeof(uiStr), "%d", roll.currentMethod);
-    plotText(57, 31, uiStr, IBM_VGA_8, WHITE);
+    //TODO for development
+    // char uiStr[32] = {0};
+    // ets_snprintf(uiStr, sizeof(uiStr), "%d", roll.currentMethod);
+    // plotText(57, 31, uiStr, IBM_VGA_8, WHITE);
 
     switch (roll.currentMethod)
     {
@@ -703,11 +702,7 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
             plotCircle(roll.scxc, roll.scyc, 5, WHITE);
             plotCircle(roll.scxc, roll.scyc, 3, WHITE);
             plotCircle(roll.scxc, roll.scyc, 1, WHITE);
-
-
-
-            //os_printf("(%d, %d\n", (int)roll.scxc, (int)roll.scyc);
-
+            //os_printf("(%d, %d)\n", (int)roll.scxc, (int)roll.scyc);
             // LEDs, all off
             ets_memset(roll.leds, 0, sizeof(roll.leds));
 #define GAP 1
@@ -719,17 +714,21 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
                         led.color = colorsys.hsv_to_rgb(self.ball.meanspeed,1,1)
             */
 
-            for (uint8_t indLed = 0; indLed < NUM_LIN_LEDS / GAP; indLed++)
+            for (uint8_t indLed = 0; indLed < USE_NUM_LEDS / GAP; indLed++)
             {
-                int16_t ledy = Ssinonlytable[((indLed << 8) * GAP / NUM_LIN_LEDS + 0x80) % 256] * 28 / 1500; // from -1500 to 1500
-                int16_t ledx = Ssinonlytable[((indLed << 8) * GAP / NUM_LIN_LEDS + 0xC0) % 256] * 28 / 1500;
+                int16_t ledy = Ssinonlytable[((indLed << 8) * GAP / USE_NUM_LEDS + 0x80) % 256] * 28 / 1500; // from -1500 to 1500
+                int16_t ledx = Ssinonlytable[((indLed << 8) * GAP / USE_NUM_LEDS + 0xC0) % 256] * 28 / 1500;
                 roll.len = sqrt((roll.scxc - 64 - ledx) * (roll.scxc - 64 - ledx) + (-roll.scyc + 32 - ledy) *
                                 (-roll.scyc + 32 - ledy));
                 //roll.len = norm(roll.scxc - ledx, roll.scyc - ledy);
                 uint8_t glow = 255 * pow(1.0 - (roll.len / 56.0), 3);
                 //os_printf("%d %d %d %d %d %d %d \n",indLed, ledx, ledy, scxc, roll.scyc, roll.len, 255 - roll.len * 4);
-                //roll.leds[GAP*indLed].r = 255 - roll.len * 4;
+
+#ifdef USE_6_LEDS
+                roll.leds[roll.ledOrderInd[GAP * indLed]].r = glow;
+#else
                 roll.leds[GAP * indLed].r = glow;
+#endif
             }
             break;
         case 8:
@@ -757,13 +756,10 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
             (void)0;
     }
 
-#define USE_6_LEDS
-
     switch (roll.currentMethod)
     {
         case 8:
         case 9:
-            //NOTE set to  == if want to test on my mockup with 16 leds
 #ifndef USE_6_LEDS
             for (uint8_t indLed = 0; indLed < NUM_LIN_LEDS ; indLed++)
             {
@@ -783,11 +779,6 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
         case 10:
         case 11:
 #define GAP 1
-#ifdef USE_6_LEDS
-#define USE_NUM_LEDS 6
-#else
-#define USE_NUM_LEDS NUM_LIN_LEDS
-#endif
             for (uint8_t indLed = 0; indLed < USE_NUM_LEDS / GAP; indLed++)
             {
                 int16_t ledy = Ssinonlytable[((indLed << 8) * GAP / USE_NUM_LEDS + 0x80) % 256] * 28 / 1500; // from -1500 to 1500
@@ -818,7 +809,30 @@ void ICACHE_FLASH_ATTR roll_updateDisplay(void)
         default:
             (void)0;
     }
+    return roll.leds;
+}
 
+void ICACHE_FLASH_ATTR roll_updateDisplay(void)
+{
+    // Clear the display
+    clearDisplay();
+
+    switch (roll.currentMethod)
+    {
+        case 1:
+        case 3:
+        case 5:
+        case 7:
+        case 9:
+        case 11:
+            roll.useHighPassAccel = true;
+            break;
+        default:
+            roll.useHighPassAccel = false;
+            break;
+    }
+
+    (void)roll_updateDisplayComputations(roll.Accel.x, roll.Accel.y, roll.Accel.z);
     setRollLeds(roll.leds, sizeof(roll.leds));
     // Set midiNote
     //TODO are notes spread equally around circle?

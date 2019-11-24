@@ -1156,13 +1156,13 @@ void ICACHE_FLASH_ATTR mzGameoverLedDisplay(void)
             danceTimers[4].timerFn(NULL);
             break;
         case HARD_LEVEL:
-            danceTimers[12].timerFn(NULL);
+            danceTimers[11].timerFn(NULL);
             break;
         case KILLER_LEVEL:
-            danceTimers[15].timerFn(NULL);
+            danceTimers[14].timerFn(NULL);
             break;
         case IMPOSSIBLE_LEVEL:
-            danceTimers[16].timerFn(NULL);
+            danceTimers[15].timerFn(NULL);
             break;
         default:
             break;
