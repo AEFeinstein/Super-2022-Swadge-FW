@@ -353,6 +353,9 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
             case 2:
             {
                 // Right button
+                galClearImage();
+
+                // Iterate through the images
                 gal.cImage = (gal.cImage + 1) %
                              (sizeof(galImages) / sizeof(galImages[0]));
 
@@ -364,6 +367,8 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
             case 1:
             {
                 // Left Button
+                galClearImage();
+
                 // Iterate through the images
                 if(0 == gal.cImage)
                 {

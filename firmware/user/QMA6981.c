@@ -156,6 +156,12 @@ uint8_t ICACHE_FLASH_ATTR QMA6981_readreg(QMA6981_reg_addr addr, uint8_t len, ui
 int16_t ICACHE_FLASH_ATTR convertTwosComplement10bit(uint16_t in);
 
 /*============================================================================
+ * Variables
+ *==========================================================================*/
+
+accel_t lastKnownAccel = {0};
+
+/*============================================================================
  * Functions
  *==========================================================================*/
 
@@ -254,17 +260,22 @@ void ICACHE_FLASH_ATTR QMA6981_poll(accel_t* currentAccel)
     uint8_t raw_data[6];
     if(0 != QMA6981_readreg(QMA6981_DATA, 6, raw_data))
     {
-        os_printf("read xyz error!!!\n");
+        // os_printf("read xyz error!!!\n");
+        // Try reinitializing, then return last known value
         QMA6981_setup();
-        return;
     }
     else
     {
-        // Convert the data to 12-bits
-        currentAccel->x = convertTwosComplement10bit(((raw_data[0] >> 6 ) | (raw_data[1]) << 2) & 0x03FF);
-        currentAccel->y = convertTwosComplement10bit(((raw_data[2] >> 6 ) | (raw_data[3]) << 2) & 0x03FF);
-        currentAccel->z = convertTwosComplement10bit(((raw_data[4] >> 6 ) | (raw_data[5]) << 2) & 0x03FF);
+        // Convert the data to 12-bits, save it as the last known value
+        lastKnownAccel.x = convertTwosComplement10bit(((raw_data[0] >> 6 ) | (raw_data[1]) << 2) & 0x03FF);
+        lastKnownAccel.y = convertTwosComplement10bit(((raw_data[2] >> 6 ) | (raw_data[3]) << 2) & 0x03FF);
+        lastKnownAccel.z = convertTwosComplement10bit(((raw_data[4] >> 6 ) | (raw_data[5]) << 2) & 0x03FF);
     }
+
+    // Copy out the acceleration value
+    currentAccel->x = lastKnownAccel.x;
+    currentAccel->y = lastKnownAccel.y;
+    currentAccel->z = lastKnownAccel.z;
 }
 
 /**

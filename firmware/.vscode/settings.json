@@ -67,6 +67,7 @@
         "mode_test.h": "c",
         "cmath": "c",
         "cstdlib": "c",
-        "fastlz.h": "c"
+        "fastlz.h": "c",
+        "menuimages.h": "c"
     }
 }

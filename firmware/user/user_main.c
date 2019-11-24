@@ -119,6 +119,7 @@ void ICACHE_FLASH_ATTR user_init(void);
 static void ICACHE_FLASH_ATTR procTask(os_event_t* events);
 static void ICACHE_FLASH_ATTR updateDisplay(void* arg);
 static void ICACHE_FLASH_ATTR pollAccel(void* arg);
+void ICACHE_FLASH_ATTR initializeAccelerometer(void);
 
 #if SWADGE_VERSION != SWADGE_2019
     static void ICACHE_FLASH_ATTR drawChangeMenuBar(void);
@@ -227,42 +228,10 @@ void ICACHE_FLASH_ATTR user_init(void)
     os_printf("I2C initialized\n");
 
     // Initialize accel
-    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
-    {
-        if(true == MMA8452Q_setup())
-        {
-            MMA8452Q_init = true;
-            os_printf("MMA8452Q initialized\n");
-        }
-        else
-        {
-            os_printf("MMA8452Q initialization failed\n");
-        }
-    }
-    else
-    {
-        os_printf("MMA8452Q not needed\n");
-    }
-
-    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
-    {
-        if(true == QMA6981_setup())
-        {
-            QMA6981_init = true;
-            os_printf("QMA6981 initialized\n");
-        }
-        else
-        {
-            os_printf("QMA6981 initialization failed\n");
-        }
-    }
-    else
-    {
-        os_printf("QMA6981 not needed\n");
-    }
+    initializeAccelerometer();
 
 #if SWADGE_VERSION != SWADGE_2019
-    if(QMA6981_init || MMA8452Q_init)
+    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
 #else
     if(true)
 #endif
@@ -366,6 +335,12 @@ static void ICACHE_FLASH_ATTR pollAccel(void* arg __attribute__((unused)))
         {
             QMA6981_poll(&accel);
         }
+        else
+        {
+            // Initialization failed, but the accel is necessary. Try again.
+            initializeAccelerometer();
+        }
+
 #if SWADGE_VERSION == SWADGE_BBKIWI
         int16_t xarrow = TOPOLED;
         int16_t yarrow = LEFTOLED;
@@ -589,6 +564,47 @@ void setAccelPollTime(uint32_t pollTimeMs)
 {
 }
 #endif
+
+/**
+ * Attempt to initialize the accelerometers. See what we get
+ */
+void ICACHE_FLASH_ATTR initializeAccelerometer(void)
+{
+    // Initialize accel
+    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
+    {
+        if(true == MMA8452Q_setup())
+        {
+            MMA8452Q_init = true;
+            os_printf("MMA8452Q initialized\n");
+        }
+        else
+        {
+            os_printf("MMA8452Q initialization failed\n");
+        }
+    }
+    else
+    {
+        os_printf("MMA8452Q not needed\n");
+    }
+
+    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
+    {
+        if(true == QMA6981_setup())
+        {
+            QMA6981_init = true;
+            os_printf("QMA6981 initialized\n");
+        }
+        else
+        {
+            os_printf("QMA6981 initialization failed\n");
+        }
+    }
+    else
+    {
+        os_printf("QMA6981 not needed\n");
+    }
+}
 
 /*============================================================================
  * Swadge Mode Callback Functions
