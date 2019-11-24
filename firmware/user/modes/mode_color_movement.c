@@ -1010,8 +1010,8 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
             cmShockCountDown = cmShockRampCount;
             cmBrightnessRamp = 255; //full
             cmHue += 1;
-            cmXZapPos = 16 + (os_random() % 16);
-            cmYZapPos = 26 + (os_random() % 16);
+            cmXZapPos = (os_random() % (OLED_WIDTH - 47));
+            cmYZapPos = (os_random() % (OLED_HEIGHT - FONT_HEIGHT_RADIOSTARS));
             cmZapWorkInx = os_random() % 4;
             //os_printf("Shock! cmShockRampCount=%d\n", cmShockRampCount);
         }
@@ -1412,7 +1412,7 @@ void ICACHE_FLASH_ATTR cmGameDisplay(void)
                          (char*)subModeName[cmCurrentSubMode], IBM_VGA_8, WHITE);
     }
 
-    if ((cmBrightnessRamp > 127) && (cmCurrentSubMode == SHOCK_CHANGE))
+    if ((cmBrightnessRamp > 127) && ((cmCurrentSubMode == SHOCK_CHANGE) || (cmCurrentSubMode == SHOCK_CHAOTIC)))
     {
         plotText(cmXZapPos, cmYZapPos, cmShockName[cmZapWorkInx], RADIOSTARS, WHITE);
     }
