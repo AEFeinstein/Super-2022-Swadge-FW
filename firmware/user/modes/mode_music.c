@@ -4,6 +4,7 @@
 
 #include <osapi.h>
 #include <math.h>
+#include <user_interface.h>
 
 #include "user_main.h"
 #include "mode_music.h"
@@ -36,6 +37,8 @@
 #define lengthof(x) (sizeof(x) / sizeof(x[0]))
 
 #define REST_BIT 0x10000 // Largest note is 144, which is 0b10010000
+
+#define BPM_MULTIPLIER 21
 
 /*==============================================================================
  * Enums
@@ -102,13 +105,6 @@ void ICACHE_FLASH_ATTR noteToColor( led_t* led, notePeriod_t note, uint8_t brigh
  * Structs
  *============================================================================*/
 
-// A single rhythm element, either a note or a rest
-typedef struct
-{
-    uint16_t timeMs;
-    bool isRest;
-} rhythm_t;
-
 // A collection of parameters
 typedef struct
 {
@@ -118,7 +114,7 @@ typedef struct
     const notePeriod_t* notes;
     uint16_t notesLen;
     // The rhythm
-    const rhythm_t* rhythm;
+    const rhythmNote_t* rhythm;
     uint16_t rhythmLen;
     // The arpeggios
     const uint8_t* arpIntervals;
@@ -153,8 +149,8 @@ struct
 
     // Track rhythm
     os_timer_t beatTimer;
-    int32_t timeMs;
-    int16_t rhythmIdx;
+    uint32_t timeUs;
+    uint16_t rhythmIdx;
     uint8_t arpIdx;
 
     // Track the button
@@ -166,37 +162,9 @@ struct
  * Const Variables
  *============================================================================*/
 
-const rhythm_t quarterNotes[] =
-{
-    {
-        .timeMs = 175,
-        .isRest = false
-    },
-    {
-        .timeMs = 25,
-        .isRest = true
-    },
-};
-
-const rhythm_t triplets[] =
-{
-    {
-        .timeMs = 200,
-        .isRest = false
-    },
-    {
-        .timeMs = 200,
-        .isRest = false
-    },
-    {
-        .timeMs = 200,
-        .isRest = false
-    },
-    {
-        .timeMs = 200,
-        .isRest = true
-    },
-};
+// All the rhythms
+const rhythmNote_t quarterNotes[] = {QUARTER_NOTE, QUARTER_REST};
+const rhythmNote_t triplets[] = {TRIPLET_EIGHTH_NOTE, TRIPLET_EIGHTH_NOTE, TRIPLET_EIGHTH_NOTE, TRIPLET_EIGHTH_REST};
 
 // All the scales
 const notePeriod_t scl_M_Penta[] = {C_5, D_5, E_5, G_5, A_5, C_6, C_6, D_6, E_6, G_6, A_6, C_7, };
@@ -377,7 +345,7 @@ void ICACHE_FLASH_ATTR musicButtonCallback(
             {
                 // cycle params
                 music.paramIdx = (music.paramIdx + 1) % lengthof(swynthParams);
-                music.timeMs = 0;
+                music.timeUs = 0;
                 music.rhythmIdx = 0;
                 music.arpIdx = 0;
                 musicUpdateDisplay();
@@ -509,19 +477,33 @@ void ICACHE_FLASH_ATTR plotBar(uint8_t yOffset)
  */
 void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)))
 {
-    // Increment time
-    music.timeMs++;
+    // Keep track of time with microsecond precision
+    static int32_t lastCallTimeUs = 0;
+    if(0 == lastCallTimeUs)
+    {
+        // Just initialize lastCallTimeUs
+        lastCallTimeUs = system_get_time();
+        return;
+    }
+
+    // Figure out the delta between calls in microseconds, increment time
+    int32_t currentCallTimeUs = system_get_time();
+    music.timeUs += (currentCallTimeUs - lastCallTimeUs);
+    lastCallTimeUs = currentCallTimeUs;
+
     // If time crossed a rhythm boundary, do something different
-    if(music.timeMs >= swynthParams[music.paramIdx].rhythm[music.rhythmIdx].timeMs)
+    uint32_t rhythmIntervalUs = (1000 * BPM_MULTIPLIER * ((~REST_BIT) &
+                                 swynthParams[music.paramIdx].rhythm[music.rhythmIdx]));
+    if(music.timeUs >= rhythmIntervalUs)
     {
         // Reset the time
-        music.timeMs = 0;
+        music.timeUs -= rhythmIntervalUs;
         // Move to the next rhythm element
         music.rhythmIdx = (music.rhythmIdx + 1) % swynthParams[music.paramIdx].rhythmLen;
 
         // See if the note should be arpeggiated. Do this even for unplayed notes
         if(NULL != swynthParams[music.paramIdx].arpIntervals &&
-                !swynthParams[music.paramIdx].rhythm[music.rhythmIdx].isRest)
+                !(swynthParams[music.paramIdx].rhythm[music.rhythmIdx] & REST_BIT))
         {
             // Track the current arpeggio index
             music.arpIdx = (music.arpIdx + 1) % swynthParams[music.paramIdx].arpLen;
@@ -529,7 +511,7 @@ void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)))
 
         // See if we should actually play the note or not
         led_t leds[NUM_LIN_LEDS] = {{0}};
-        if(!music.shouldPlay || swynthParams[music.paramIdx].rhythm[music.rhythmIdx].isRest)
+        if(!music.shouldPlay || (swynthParams[music.paramIdx].rhythm[music.rhythmIdx] & REST_BIT))
         {
             setBuzzerNote(SILENCE);
             noteToColor(&leds[0], getCurrentNote(), 0x10);
