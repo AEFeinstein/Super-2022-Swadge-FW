@@ -1185,6 +1185,34 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                 //os_printf("ledCycle %d, modeTime %d, ledPrevIncTime %d\n", ledCycle, modeTime, ledPrevIncTime);
             }
 
+            // Draw the outline of a battery
+            plotRect(
+                0,
+                OLED_HEIGHT / 2 - 24,
+                OLED_WIDTH - 12,
+                OLED_HEIGHT / 2 + 24,
+                WHITE);
+            plotRect(
+                OLED_WIDTH - 12,
+                OLED_HEIGHT / 2 - 12,
+                OLED_WIDTH - 1,
+                OLED_HEIGHT / 2 + 12,
+                WHITE);
+
+            // Calculate a battery level from the hue
+            uint8_t battLevel = (cmHue * 106) / 256;
+            // If there is any motion, add some battery (even if the hue is 0)
+            if(smoothActivity > ACTIVITY_BOUND)
+            {
+                battLevel = CLAMP(battLevel, 8, 255);
+            }
+            // Fill up the battery
+            fillDisplayArea(
+                5,
+                OLED_HEIGHT / 2 - 19,
+                5 + battLevel,
+                OLED_HEIGHT / 2 + 19,
+                WHITE);
         }
         else
         {
