@@ -221,6 +221,7 @@ void ICACHE_FLASH_ATTR AdjustAndPlotDots(circularBuffer_t cbuf1, circularBuffer_
 void ICACHE_FLASH_ATTR AdjustAndPlotLisajou(circularBuffer_t cbuf1, circularBuffer_t cbuf2);
 void ICACHE_FLASH_ATTR AdjustAndPlotDotsSingle(circularBuffer_t cbuf);
 void ICACHE_FLASH_ATTR PlotMagnitudeTriangle(uint8_t r, uint8_t g, uint8_t b);
+void ICACHE_FLASH_ATTR PlotAngleCircle(uint8_t angle, uint8_t val);
 
 /*============================================================================
  * Static Const Variables
@@ -438,7 +439,6 @@ uint16_t avePeriodMs = 5;
 //uint16_t crossInterval = 5;
 bool showCrossOnLed = false;
 bool cmCollectingActivity = true;
-const FLOATING cmPi = 3.15159;
 // Helpers
 
 void ICACHE_FLASH_ATTR initCircularBuffer(circularBuffer_t* cirbuff,  int16_t* buffer, uint16_t length)
@@ -797,8 +797,8 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     //#define BUILT_IN_INPUT
     //#ifdef BUILT_IN_INPUT
 #define BPM_GEN 70
-    xPlot = 100 * sin(2 * cmPi * BPM_GEN / 60  * modeTime / 1000000);
-    yPlot = 100 * cos(4 * cmPi * BPM_GEN / 60  * modeTime / 1000000 + cmHue * cmPi / 255);
+    xPlot = 100 * sin(2 * M_PI * BPM_GEN / 60  * modeTime / 1000000);
+    yPlot = 100 * cos(4 * M_PI * BPM_GEN / 60  * modeTime / 1000000 + cmHue * M_PI / 255);
     //zAccel = 0;
     //#else
     // cmAccel return direct, high pass filtered and/or smoothed readings depending on
@@ -1118,7 +1118,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                 minCheck3 = min(minCheck3, zHP);
                 //os_printf("minxHP:%d  minyHP:%d  minzHP:%d maxxHP:%d  maxyHP:%d  maxzHP:%d \n", minCheck1, minCheck2, minCheck3, maxCheck1, maxCheck2, maxCheck3);
 
-                cmHue = 127 + atan2(yHP, xHP) * 127 / cmPi ;
+                cmHue = 127 + atan2(yHP, xHP) * 127 / M_PI ;
                 //os_printf("cmHue %d, yHP %d, xHP %d\n", cmHue, yHP, xHP);
                 val = CLAMP(((CLAMP( cmScaleLed * smoothActivity, 15, 1500 ) - 15 ) * 255 / (1500 - 15)), 0, 255);
                 // Don't apply gamma as is done in cmSetLeds
@@ -1128,12 +1128,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                 ledg = (colorToShow >>  8) & 0xFF;
                 ledb = (colorToShow >> 16) & 0xFF;
 
-                // Plot a triangle, always show a little of everything
-                PlotMagnitudeTriangle(
-                    CLAMP(xHP, 64, 255),
-                    CLAMP(yHP, 64, 255),
-                    CLAMP(zHP, 64, 255)
-                );
+                PlotAngleCircle(cmHue, val);
                 break;
             case BPM2HUE:
             default:
@@ -1897,4 +1892,36 @@ void ICACHE_FLASH_ATTR PlotMagnitudeTriangle(uint8_t r, uint8_t g, uint8_t b)
     plotLine(cX, cY, rX, rY, WHITE);
     plotLine(cX, cY, gX, gY, WHITE);
     plotLine(cX, cY, bX, bY, WHITE);
+}
+
+/**
+ * @brief Draw a clock with a single hand for the given angle
+ *
+ * @param angle The angle, 0 to 255. This maps to 0 to 2*PI
+ * @param val The intensity of the LEDs, if the LEDS are off, dont draw a new angle
+ */
+void ICACHE_FLASH_ATTR PlotAngleCircle(uint8_t angle, uint8_t val)
+{
+    // Plot a clock indicating the angle
+    plotCircle(
+        OLED_WIDTH / 2 - 1,
+        OLED_HEIGHT / 2 - 1,
+        OLED_HEIGHT / 2 - 1,
+        WHITE);
+
+    static uint8_t goodAngle = 0;
+    if(val >= 16)
+    {
+        goodAngle = angle;
+    }
+    float angleRad = ((goodAngle * M_TWOPI) / 256.0f);
+    angleRad += M_PI_2;
+    int16_t pointX = roundf(32 * sinf(angleRad));
+    int16_t pointY = roundf(-32 * cosf(angleRad));
+    plotLine(
+        OLED_WIDTH / 2 - 1,
+        OLED_HEIGHT / 2 - 1,
+        OLED_WIDTH / 2 - 1 + pointX,
+        OLED_HEIGHT / 2 - 1 + pointY,
+        WHITE);
 }
