@@ -36,9 +36,9 @@
 // If want to simulate 6 LED barrel on dev-kit or bbkiwi or other with more than 6 leds
 #define USE_6_LEDS
 #ifdef USE_6_LEDS
-#define USE_NUM_LEDS 6
+    #define USE_NUM_LEDS 6
 #else
-#define USE_NUM_LEDS NUM_LIN_LEDS
+    #define USE_NUM_LEDS NUM_LIN_LEDS
 #endif
 // LEDs relation to screen
 #define LED_UPPER_LEFT LED_1

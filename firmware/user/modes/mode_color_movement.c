@@ -236,22 +236,23 @@ static const uint8_t cmBrightnesses[] =
     0x08,
 };
 
-const char* subModeName[] = {
-	"BEAT SPIN",
-	"BEAT SELECT",
-	"SHOCK CHANGE",
-	"SHOCK CHAOTIC",
-	"ROLL BALL",
-	"ROLL 3 BALLS",
-	"TILT A COLOR",
-	"TWIRL A COLOR",
+const char* subModeName[] =
+{
+    "BEAT SPIN",
+    "BEAT SELECT",
+    "SHOCK CHANGE",
+    "SHOCK CHAOTIC",
+    "ROLL BALL",
+    "ROLL 3 BALLS",
+    "TILT A COLOR",
+    "TWIRL A COLOR",
 #ifdef ENABLE_POV_EFFECT
     "POV EFFECT",
 #endif
 #ifdef COLORCHORD_DFT
-	"DFT SHAKE",
+    "DFT SHAKE",
 #endif
-	"POWER SHAKE"
+    "POWER SHAKE"
 };
 
 char* cmShockName[4] = {"BIFF!", "POW!", "BOOM!", "WHAM!"};
@@ -1227,7 +1228,8 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
             // Keep a running count of the rotation
             cmColorWheelCountFloat += amtToRotate;
             // Never let it get greater than 255
-            if(cmColorWheelCountFloat >= 255) {
+            if(cmColorWheelCountFloat >= 255)
+            {
                 cmColorWheelCountFloat -= 255;
             }
             // Round it to an int to be used later

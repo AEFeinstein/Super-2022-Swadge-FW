@@ -289,7 +289,7 @@ void ICACHE_FLASH_ATTR songTimerCb(void* arg __attribute__((unused)))
 
 /**
  * @brief Sets the current note being played for negative notes in songs
- * 
+ *
  * @param note The note to play
  */
 void ICACHE_FLASH_ATTR setCurrentMusicNote(notePeriod_t note)
