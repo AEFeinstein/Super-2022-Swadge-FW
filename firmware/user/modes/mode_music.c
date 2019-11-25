@@ -35,6 +35,52 @@
 
 #define lengthof(x) (sizeof(x) / sizeof(x[0]))
 
+#define REST_BIT 0x10000 // Largest note is 144, which is 0b10010000
+
+/*==============================================================================
+ * Enums
+ *============================================================================*/
+
+typedef enum
+{
+    THIRTYSECOND_NOTE = 3,
+    THIRTYSECOND_REST = 3 | REST_BIT,
+    SIXTEENTH_NOTE    = 6,
+    SIXTEENTH_REST    = 6 | REST_BIT,
+    EIGHTH_NOTE       = 12,
+    EIGHTH_REST       = 12 | REST_BIT,
+    QUARTER_NOTE      = 24,
+    QUARTER_REST      = 24 | REST_BIT,
+    HALF_NOTE         = 48,
+    HALF_REST         = 48 | REST_BIT,
+    WHOLE_NOTE        = 96,
+    WHOLE_REST        = 96 | REST_BIT,
+
+    TRIPLET_THIRTYSECOND_NOTE = 2,
+    TRIPLET_THIRTYSECOND_REST = 2 | REST_BIT,
+    TRIPLET_SIXTEENTH_NOTE    = 4,
+    TRIPLET_SIXTEENTH_REST    = 4 | REST_BIT,
+    TRIPLET_EIGHTH_NOTE       = 8,
+    TRIPLET_EIGHTH_REST       = 8 | REST_BIT,
+    TRIPLET_QUARTER_NOTE      = 16,
+    TRIPLET_QUARTER_REST      = 16 | REST_BIT,
+    TRIPLET_HALF_NOTE         = 32,
+    TRIPLET_HALF_REST         = 32 | REST_BIT,
+    TRIPLET_WHOLE_NOTE        = 64,
+    TRIPLET_WHOLE_REST        = 64 | REST_BIT,
+
+    DOTTED_SIXTEENTH_NOTE = 9,
+    DOTTED_SIXTEENTH_REST = 9 | REST_BIT,
+    DOTTED_EIGHTH_NOTE    = 18,
+    DOTTED_EIGHTH_REST    = 18 | REST_BIT,
+    DOTTED_QUARTER_NOTE   = 36,
+    DOTTED_QUARTER_REST   = 36 | REST_BIT,
+    DOTTED_HALF_NOTE      = 72,
+    DOTTED_HALF_REST      = 72 | REST_BIT,
+    DOTTED_WHOLE_NOTE     = 144,
+    DOTTED_WHOLE_REST     = 144 | REST_BIT,
+} rhythmNote_t;
+
 /*==============================================================================
  * Prototypes
  *============================================================================*/
