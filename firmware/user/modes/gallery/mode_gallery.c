@@ -57,15 +57,15 @@ typedef enum
 
 typedef struct
 {
-    uint8_t* data;
-    uint16_t len;
+    const uint8_t* data;
+    const uint16_t len;
 } galFrame_t;
 
 typedef struct
 {
-    uint8_t nFrames;
-    panContDir_t continousPan;
-    galFrame_t frames[];
+    const uint8_t nFrames;
+    const panContDir_t continousPan;
+    const galFrame_t frames[];
 } galImage_t;
 
 /*==============================================================================
@@ -81,6 +81,7 @@ void ICACHE_FLASH_ATTR galDrawFrame(void);
 static void ICACHE_FLASH_ATTR galLoadNextFrame(void* arg);
 static void ICACHE_FLASH_ATTR galTimerPan(void* arg);
 const galImage_t* ICACHE_FLASH_ATTR galGetCurrentImage(void);
+bool ICACHE_FLASH_ATTR galIsImageUnlocked(void);
 
 /*==============================================================================
  * Variables
@@ -390,6 +391,33 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
 }
 
 /**
+ * @return true  if the image is unlocked
+ * @return false if the image is locked
+ */
+bool ICACHE_FLASH_ATTR galIsImageUnlocked(void)
+{
+    if(gal.cImage > 0)
+    {
+        // Check to see if it's unlocked
+        if(getGalleryUnlocks() & 1 << (gal.cImage - 1))
+        {
+            // unlocked
+            return true;
+        }
+        else
+        {
+            // Not unlocked
+            return false;
+        }
+    }
+    else
+    {
+        // First image always unlocked
+        return true;
+    }
+}
+
+/**
  * @return a pointer to the current image to draw, takes into account unlocks
  */
 const galImage_t* ICACHE_FLASH_ATTR galGetCurrentImage(void)
@@ -472,6 +500,13 @@ void ICACHE_FLASH_ATTR galLoadFirstFrame(void)
             gal.virtualWidth = gal.width;
             break;
         }
+    }
+
+    // But never pan the placeholder images
+    if(!galIsImageUnlocked())
+    {
+        gal.virtualWidth = gal.width;
+        gal.panDir = NONE;
     }
 
     DBG_GAL("w=%d, h=%d, nfr=%d, dur=%d repeatw=%d\n", gal.width, gal.height, gal.nFrames,
