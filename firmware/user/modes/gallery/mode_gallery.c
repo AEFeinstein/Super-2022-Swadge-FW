@@ -601,7 +601,7 @@ void ICACHE_FLASH_ATTR galDrawFrame(void)
                 //At first had this code which blows up if try and pan fast 10ms
                 //linearIdx = (OLED_HEIGHT * ((w + gal.panIdx) % gal.width)) + h;
                 wmod = w + gal.panIdx;
-                while (wmod > gal.width)
+                while (wmod >= gal.width)
                 {
                     wmod -= gal.width;
                 }
