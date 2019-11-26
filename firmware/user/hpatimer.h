@@ -18,7 +18,6 @@ void ICACHE_FLASH_ATTR initBuzzer(void);
 void ICACHE_FLASH_ATTR setBuzzerNote(notePeriod_t note);
 void ICACHE_FLASH_ATTR stopBuzzerSong(void);
 void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song);
-void ICACHE_FLASH_ATTR setCurrentMusicNote(notePeriod_t note);
 
 #endif
 

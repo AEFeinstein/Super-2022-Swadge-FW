@@ -46,8 +46,6 @@ typedef enum
  * Variables
  *==========================================================================*/
 
-notePeriod_t currentMusicNote; // settable by any mode via setCurrentMusicNote()
-
 volatile bool hpaRunning = false;
 
 struct
@@ -156,6 +154,7 @@ void ICACHE_FLASH_ATTR initBuzzer(void)
         return;
     }
 
+    memset(&bzr, 0, sizeof(bzr));
     stopBuzzerSong();
     os_timer_setfn(&bzr.songTimer, songTimerCb, NULL);
 }
@@ -171,32 +170,23 @@ void ICACHE_FLASH_ATTR initBuzzer(void)
  */
 void ICACHE_FLASH_ATTR setBuzzerNote(notePeriod_t note)
 {
-    // If it's muted, don't set anything
-    if(getIsMutedOption())
+    // If it's muted or not actually changing don't set anything
+    if(getIsMutedOption() || (bzr.note == note))
     {
         return;
     }
-
-    // Set the period count
-    if (note < 0)
-    {
-        // take note from mode_music
-        float cent = note + 1201;
-        //os_printf("note from mode_music %d currentMusicNote %d\n", note, currentMusicNote);
-        bzr.note = currentMusicNote * pow(2.0, -cent / 1200);
-    }
     else
     {
+        // Set the period count
         bzr.note = note;
-    }
 
-    // Stop the timer
-    PauseHPATimer();
-    // Start the timer if we're not playing silence
-    if(SILENCE != bzr.note)
-    {
-        //os_printf("note %d freq %d currentMusicNote %d\n", note, 2500000 / note, currentMusicNote);
-        StartHPATimer();
+        // Stop the timer
+        PauseHPATimer();
+        // Start the timer if we're not playing silence
+        if(SILENCE != bzr.note)
+        {
+            StartHPATimer();
+        }
     }
 }
 
@@ -285,14 +275,4 @@ void ICACHE_FLASH_ATTR songTimerCb(void* arg __attribute__((unused)))
             }
         }
     }
-}
-
-/**
- * @brief Sets the current note being played for negative notes in songs
- * 
- * @param note The note to play
- */
-void ICACHE_FLASH_ATTR setCurrentMusicNote(notePeriod_t note)
-{
-    currentMusicNote = note;
 }
