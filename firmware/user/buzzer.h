@@ -9,9 +9,6 @@
 //    adjusted by n + 1201 cent of an octave
 typedef enum
 {
-    CURRENT_MUSIC_MODE_NOTE = -1201,
-    CURRENT_MUSIC_MODE_NOTE_UP_3RD = 400 - 1201,
-    CURRENT_MUSIC_MODE_NOTE_UP_5TH = 700 - 1201,
     SILENCE = 0,
     C_0 = 152905,
     C_SHARP_0 = 144342,

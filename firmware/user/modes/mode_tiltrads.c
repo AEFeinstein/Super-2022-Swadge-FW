@@ -11,6 +11,7 @@
 #include <math.h> //sin
 
 #include "user_main.h"  //swadge mode
+#include "mode_tiltrads.h"
 #include "buttons.h"
 #include "oled.h"       //display functions
 #include "font.h"       //draw text
@@ -976,7 +977,6 @@ void ICACHE_FLASH_ATTR plotPerspectiveEffect(uint8_t leftSrc, uint8_t leftDst, u
         uint8_t y0, uint8_t y1, int32_t numVerticalLines, int32_t numHorizontalLines, double lineTweenTimeS,
         uint32_t currentTimeUS,
         color col);
-int16_t ICACHE_FLASH_ATTR plotCenteredText(int16_t x0, int16_t y, int16_t x1, char* text, fonts font, color col);
 uint8_t ICACHE_FLASH_ATTR getCenteredTextX(uint8_t x0, uint8_t x1, char* text, fonts font);
 uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font);
 uint8_t ICACHE_FLASH_ATTR getNumTextWidth(char* text);
