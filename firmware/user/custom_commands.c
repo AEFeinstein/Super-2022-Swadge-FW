@@ -60,27 +60,28 @@ typedef struct
     #define DUP 1
 #endif
 
-uint8_t gConfigDefaults[NUMBER_STORED_CONFIGURABLES][CONFIGURABLES] = {
-//   i  r o d d   f     f l  s j  c    a d m    a d m    m  m b   s     p  u                       s  a d    s  f    d      s w   c  n                 e
-//   a  m f i u   i     b c  b m  o    1 1 1    2 2 2    a  a r   a     r  s                       y  c r    h  l    i      r r   f  l                 q
-//      s f r p   r     p o  b p  m                      n  d i   t     o  e                       m  t v    f  p    s      t p   #  d                 u
-	{32,1,0,3,DUP,1,    5,15,0,44,0,   2,2,96,  4,4,69,  45,1,100,255, 103,DEFAULT_NUM_LEDS,       0, 1,0,   0, 0,   0,     1,1,  0, DEFAULT_NUM_LEDS, 0, 0},
-	{16,1,0,6,DUP,3,    5,14,3,85,0,   0,3,208, 0,3,102, 45,8,100,255,  55,DEFAULT_NUM_LEDS-2,     0, 1,8,   4, 32 , 1,     0,0,  1, DEFAULT_NUM_LEDS, 0, 0},
-	{16,1,0,5,DUP,3,    5,14,3,85,0,   4,4,152, 7,7,145, 82,1,255,255,  15,DEFAULT_NUM_LEDS/3,     0, 1,0,   1, 1,   2,     0,0,  2, DEFAULT_NUM_LEDS, 0, 0},
-	{ 8,0,0,6,DUP,6,    5,21,3,42,0,   2,2,124, 4,4,16,  45,1,100,255,  10,DEFAULT_NUM_LEDS,       0, 1,254, 20,0,   0,     0,0,  3, DEFAULT_NUM_LEDS, 0, 0},
-	{16,0,0,2,DUP,1,    5,14,3,85,0,   0,4,32,  0,6,16,  82,1,100,255,  55,DEFAULT_NUM_LEDS/3-2,   2, 1,4, 100, 0, 255,     0,0,  4, DEFAULT_NUM_LEDS, 0, 0},
-	{16,0,0,2,DUP,1,    5,14,3,85,0,   0,4,32,  0,6,16,  82,1,100,255,  55,DEFAULT_NUM_LEDS/3-2,   2, 1,10,  0, 0,   0,     0,0,  5, DEFAULT_NUM_LEDS, 0, 0},
-	{32,1,0,6,DUP,3,    5,15,3,44,0,   2,2,96,  4,4,69,  45,1,100,255, 103,DEFAULT_NUM_LEDS,       0, 1,10,  0, 0,   0,     0,0,  6, DEFAULT_NUM_LEDS, 0, 0},
-	{32,1,0,6,DUP,3,    5,15,3,44,0,   2,2,96,  4,4,69,  45,1,100,255, 103,DEFAULT_NUM_LEDS,       0, 1,11,  0, 0,   0,     0,0,  7, DEFAULT_NUM_LEDS, 0, 0},
-	{16,0,0,3,DUP,2,    0,11,3,42,0,   2,2,16,  4,4,81,  45,1,100,255,  15,DEFAULT_NUM_LEDS,       0, 1,255, 0, 0,   0,     0,0,  8, DEFAULT_NUM_LEDS, 0, 0},
-	{16,0,0,6,DUP,3,    5,14,3,255,0,  3,1,180, 8,7,187, 45,4,100,255,  55,DEFAULT_NUM_LEDS-2,     0, 1,8,   0, 1,   1,     0,0,  9, DEFAULT_NUM_LEDS, 0, 0},
-	{32,1,0,6,DUP,3,    5,15,3,44,0,   2,2,96,  4,4,69,  45,1,100,255, 103,DEFAULT_NUM_LEDS/2,     1, 1,0,   0, 0,   0,     1,1, 10, DEFAULT_NUM_LEDS, 0, 0},
-	{32,1,0,6,DUP,3,    5,15,3,44,0,   2,2,96,  4,4,69,  45,1,100,255, 103,DEFAULT_NUM_LEDS/3,     2, 1,0,   0, 0,   0,     1,1, 11, DEFAULT_NUM_LEDS, 0, 0},
-	{32,1,0,6,DUP,3,    5,15,3,44,0,   2,2,96,  4,4,69,  45,1,100,255, 103,DEFAULT_NUM_LEDS/4,     3, 1,0,   0, 0,   0,     1,1, 12, DEFAULT_NUM_LEDS, 0, 0},
-	{32,1,0,6,DUP,3,    5,15,3,44,0,   2,2,96,  4,4,69,  45,1,100,255, 103,DEFAULT_NUM_LEDS/2,     0, 1,0,  65,65,   0,     1,1, 13, DEFAULT_NUM_LEDS, 0, 0},
-	{32,1,0,6,DUP,3,    5,15,3,44,0,   2,2,96,  4,6,69,  45,1,100,255, 103,DEFAULT_NUM_LEDS,       0, 1,1,   0, 0,   0,     1,1,  14,DEFAULT_NUM_LEDS, 0, 0},
-	{32,1,0,6,DUP,3,    5,15,3,44,0,   2,2,96,  4,4,69,  45,1,100,255, 101,DEFAULT_NUM_LEDS/8,     0, 1,0,   1, 31,  1,     1,0,  15,DEFAULT_NUM_LEDS, 0, 0},
-	};
+uint8_t gConfigDefaults[NUMBER_STORED_CONFIGURABLES][CONFIGURABLES] =
+{
+   // i  r  o  d    d  f  f   l  s    j  c  a  d    m  a  d    m   m  m    b    s    p  u                         s  a    d    s   f    d  s  w   c  n                 e
+   // a  m  f  i    u  i  b   c  b    m  o  1  1    1  2  2    2   a  a    r    a    r  s                         y  c    r    h   l    i  r  r   f  l                 q
+   //    s  f  r    p  r  p   o  b    p  m                         n  d    i    t    o  e                         m  t    v    f   p    s  t  p   #  d                 u
+    {32, 1, 0, 3, DUP, 1, 5, 15, 0,  44, 0, 2, 2,  96, 4, 4,  69, 45, 1, 100, 255, 103, DEFAULT_NUM_LEDS,         0, 1,   0,   0,  0,   0, 1, 1,  0, DEFAULT_NUM_LEDS, 0, 0},
+    {16, 1, 0, 6, DUP, 3, 5, 14, 3,  85, 0, 0, 3, 208, 0, 3, 102, 45, 8, 100, 255,  55, DEFAULT_NUM_LEDS - 2,     0, 1,   8,   4, 32,   1, 0, 0,  1, DEFAULT_NUM_LEDS, 0, 0},
+    {16, 1, 0, 5, DUP, 3, 5, 14, 3,  85, 0, 4, 4, 152, 7, 7, 145, 82, 1, 255, 255,  15, DEFAULT_NUM_LEDS / 3,     0, 1,   0,   1,  1,   2, 0, 0,  2, DEFAULT_NUM_LEDS, 0, 0},
+    { 8, 0, 0, 6, DUP, 6, 5, 21, 3,  42, 0, 2, 2, 124, 4, 4,  16, 45, 1, 100, 255,  10, DEFAULT_NUM_LEDS,         0, 1, 254,  20,  0,   0, 0, 0,  3, DEFAULT_NUM_LEDS, 0, 0},
+    {16, 0, 0, 2, DUP, 1, 5, 14, 3,  85, 0, 0, 4,  32, 0, 6,  16, 82, 1, 100, 255,  55, DEFAULT_NUM_LEDS / 3 - 2, 2, 1,   4, 100,  0, 255, 0, 0,  4, DEFAULT_NUM_LEDS, 0, 0},
+    {16, 0, 0, 2, DUP, 1, 5, 14, 3,  85, 0, 0, 4,  32, 0, 6,  16, 82, 1, 100, 255,  55, DEFAULT_NUM_LEDS / 3 - 2, 2, 1,  10,   0,  0,   0, 0, 0,  5, DEFAULT_NUM_LEDS, 0, 0},
+    {32, 1, 0, 6, DUP, 3, 5, 15, 3,  44, 0, 2, 2,  96, 4, 4,  69, 45, 1, 100, 255, 103, DEFAULT_NUM_LEDS,         0, 1,  10,   0,  0,   0, 0, 0,  6, DEFAULT_NUM_LEDS, 0, 0},
+    {32, 1, 0, 6, DUP, 3, 5, 15, 3,  44, 0, 2, 2,  96, 4, 4,  69, 45, 1, 100, 255, 103, DEFAULT_NUM_LEDS,         0, 1,  11,   0,  0,   0, 0, 0,  7, DEFAULT_NUM_LEDS, 0, 0},
+    {16, 0, 0, 3, DUP, 2, 0, 11, 3,  42, 0, 2, 2,  16, 4, 4,  81, 45, 1, 100, 255,  15, DEFAULT_NUM_LEDS,         0, 1, 255,   0,  0,   0, 0, 0,  8, DEFAULT_NUM_LEDS, 0, 0},
+    {16, 0, 0, 6, DUP, 3, 5, 14, 3, 255, 0, 3, 1, 180, 8, 7, 187, 45, 4, 100, 255,  55, DEFAULT_NUM_LEDS - 2,     0, 1,   8,   0,  1,   1, 0, 0,  9, DEFAULT_NUM_LEDS, 0, 0},
+    {32, 1, 0, 6, DUP, 3, 5, 15, 3,  44, 0, 2, 2,  96, 4, 4,  69, 45, 1, 100, 255, 103, DEFAULT_NUM_LEDS / 2,     1, 1,   0,   0,  0,   0, 1, 1, 10, DEFAULT_NUM_LEDS, 0, 0},
+    {32, 1, 0, 6, DUP, 3, 5, 15, 3,  44, 0, 2, 2,  96, 4, 4,  69, 45, 1, 100, 255, 103, DEFAULT_NUM_LEDS / 3,     2, 1,   0,   0,  0,   0, 1, 1, 11, DEFAULT_NUM_LEDS, 0, 0},
+    {32, 1, 0, 6, DUP, 3, 5, 15, 3,  44, 0, 2, 2,  96, 4, 4,  69, 45, 1, 100, 255, 103, DEFAULT_NUM_LEDS / 4,     3, 1,   0,   0,  0,   0, 1, 1, 12, DEFAULT_NUM_LEDS, 0, 0},
+    {32, 1, 0, 6, DUP, 3, 5, 15, 3,  44, 0, 2, 2,  96, 4, 4,  69, 45, 1, 100, 255, 103, DEFAULT_NUM_LEDS / 2,     0, 1,   0,  65, 65,   0, 1, 1, 13, DEFAULT_NUM_LEDS, 0, 0},
+    {32, 1, 0, 6, DUP, 3, 5, 15, 3,  44, 0, 2, 2,  96, 4, 6,  69, 45, 1, 100, 255, 103, DEFAULT_NUM_LEDS,         0, 1,   1,   0,  0,   0, 1, 1, 14, DEFAULT_NUM_LEDS, 0, 0},
+    {32, 1, 0, 6, DUP, 3, 5, 15, 3,  44, 0, 2, 2,  96, 4, 4,  69, 45, 1, 100, 255, 101, DEFAULT_NUM_LEDS / 8,     0, 1,   0,   1, 31,   1, 1, 0, 15, DEFAULT_NUM_LEDS, 0, 0},
+};
 
 
 uint8_t* gConfigurables[CONFIGURABLES] = { &CCS.gINITIAL_AMP, &CCS.gRMUXSHIFT,  &CCS.gROOT_NOTE_OFFSET, &CCS.gDFTIIR, &CCS.gDFT_UPDATE, &CCS.gFUZZ_IIR_BITS,
@@ -143,7 +144,8 @@ void ICACHE_FLASH_ATTR PopulategConfigs(void)
         gConfigs[i].defaultVal = gConfigDefaults[0][i];
         gConfigs[i].name = gConfigurableNames[i];
         gConfigs[i].val = gConfigurables[i];
-        os_printf("i %d, defaultVal %d, name %s, val %x\n", i, gConfigs[i].defaultVal, gConfigs[i].name, (uint32_t)gConfigs[i].val);
+        os_printf("i %d, defaultVal %d, name %s, val %x\n", i, gConfigs[i].defaultVal, gConfigs[i].name,
+                  (uint32_t)gConfigs[i].val);
         //os_printf("i %d, defaultVal %d, name %s\n", i, gConfigs[i].defaultVal, gConfigs[i].name);
         //os_printf("i %d\n", i);
     }
@@ -301,9 +303,9 @@ void ICACHE_FLASH_ATTR mzSetLastScore(uint32_t newLastScore)
 }
 
 /**
- * @brief 
- * 
- * @param opt true to keep sound on, false to use the flash muted option 
+ * @brief
+ *
+ * @param opt true to keep sound on, false to use the flash muted option
  */
 void ICACHE_FLASH_ATTR setMuteOverride(bool opt)
 {
@@ -332,7 +334,7 @@ uint32_t ICACHE_FLASH_ATTR getGalleryUnlocks(void)
 
 /**
  * @brief Set a bit at the given index in the unlocked images bitmask
- * 
+ *
  * @param idx 0 - Bongos for Joust
  *            1 - Funkus for Snake
  *            2 - Gaylord for Tiltrads

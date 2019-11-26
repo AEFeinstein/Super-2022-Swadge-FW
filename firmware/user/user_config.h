@@ -40,12 +40,12 @@
     //#define FACEOLED accel.z
 #elif SWADGE_VERSION == SWADGE_DEV_KIT
     #define NUM_LIN_LEDS 8
-    #define LED_1 3
-    #define LED_2 5
-    #define LED_3 6
-    #define LED_4 7
-    #define LED_5 1
-    #define LED_6 2
+    #define LED_1 2
+    #define LED_2 4
+    #define LED_3 5
+    #define LED_4 6
+    #define LED_5 0
+    #define LED_6 1
 #elif ((SWADGE_VERSION == SWADGE_BARREL) || (SWADGE_VERSION == BARREL_1_0_0))
     #define NUM_LIN_LEDS 6
     #define LED_1 0

@@ -12,7 +12,7 @@
 typedef struct
 {
     // os_timer_t timer;       ///< This is a system timer
-    void (*timerFn)(void*); ///< This is a function which will be attached to the timer
+    void (*timerFn)(void*);  ///< This is a function which will be attached to the timer
     uint32_t period;        ///< This is the period, in ms, at which the function will be called
 } timerWithPeriod;
 
