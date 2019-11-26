@@ -59,6 +59,8 @@ typedef enum
     WHOLE_NOTE        = 96,
     WHOLE_REST        = 96 | REST_BIT,
 
+    TRIPLET_SIXTYFOURTH_NOTE  = 1,
+    TRIPLET_SIXTYFOURTH_REST  = 1 | REST_BIT,
     TRIPLET_THIRTYSECOND_NOTE = 2,
     TRIPLET_THIRTYSECOND_REST = 2 | REST_BIT,
     TRIPLET_SIXTEENTH_NOTE    = 4,
@@ -112,13 +114,15 @@ typedef struct
     char* name;
     // The notes
     const notePeriod_t* notes;
-    uint16_t notesLen;
+    const uint16_t notesLen;
     // The rhythm
     const rhythmNote_t* rhythm;
-    uint16_t rhythmLen;
+    const uint16_t rhythmLen;
     // The arpeggios
     const uint8_t* arpIntervals;
-    uint16_t arpLen;
+    const uint16_t arpLen;
+    // Inter-note pause
+    const uint16_t interNotePauseMs;
 } swynthParam_t;
 
 /*==============================================================================
@@ -163,6 +167,7 @@ struct
  *============================================================================*/
 
 // All the rhythms
+const rhythmNote_t triplet64[] = {TRIPLET_SIXTYFOURTH_NOTE};
 const rhythmNote_t quarterNotes[] = {QUARTER_NOTE, QUARTER_REST};
 const rhythmNote_t triplets[] = {TRIPLET_EIGHTH_NOTE, TRIPLET_EIGHTH_NOTE, TRIPLET_EIGHTH_NOTE, TRIPLET_EIGHTH_REST};
 
@@ -206,7 +211,8 @@ const swynthParam_t swynthParams[] =
         .rhythm = quarterNotes,
         .rhythmLen = lengthof(quarterNotes),
         .arpIntervals = NULL,
-        .arpLen = 0
+        .arpLen = 0,
+        .interNotePauseMs = 5
     },
     {
         .name = "ArpTest",
@@ -215,16 +221,18 @@ const swynthParam_t swynthParams[] =
         .rhythm = triplets,
         .rhythmLen = lengthof(triplets),
         .arpIntervals = arp_M_Triad,
-        .arpLen = lengthof(arp_M_Triad)
+        .arpLen = lengthof(arp_M_Triad),
+        .interNotePauseMs = 5
     },
     {
-        .name = "Chroma",
+        .name = "Slide Whistl",
         .notes = scl_Chromatic,
         .notesLen = lengthof(scl_Chromatic),
-        .rhythm = quarterNotes,
-        .rhythmLen = lengthof(quarterNotes),
-        .arpIntervals = arp_M7_add_9,
-        .arpLen = sizeof(arp_M7_add_9)
+        .rhythm = triplet64,
+        .rhythmLen = lengthof(triplet64),
+        .arpIntervals = NULL,
+        .arpLen = 0,
+        .interNotePauseMs = 0
     },
 };
 
@@ -334,7 +342,7 @@ void ICACHE_FLASH_ATTR musicExitMode(void)
  * @param down   true if the button was pressed, false if it was released
  */
 void ICACHE_FLASH_ATTR musicButtonCallback(
-    uint8_t state  __attribute__((unused)), int button, int down)
+    uint8_t state __attribute__((unused)), int button, int down)
 {
     switch(button)
     {
@@ -400,8 +408,8 @@ void ICACHE_FLASH_ATTR musicAccelerometerHandler(accel_t* accel)
     }
 
     // os_printf("roll %6d pitch %6d, x %4d, y %4d, z %4d, \n",
-    //           music.roll, music.pitch,
-    //           accel->x, accel->y, accel->z);
+    // music.roll, music.pitch,
+    // accel->x, accel->y, accel->z);
 
     musicUpdateDisplay();
 }
@@ -494,6 +502,7 @@ void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)))
     // If time crossed a rhythm boundary, do something different
     uint32_t rhythmIntervalUs = (1000 * BPM_MULTIPLIER * ((~REST_BIT) &
                                  swynthParams[music.paramIdx].rhythm[music.rhythmIdx]));
+    led_t leds[NUM_LIN_LEDS] = {{0}};
     if(music.timeUs >= rhythmIntervalUs)
     {
         // Reset the time
@@ -510,7 +519,6 @@ void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)))
         }
 
         // See if we should actually play the note or not
-        led_t leds[NUM_LIN_LEDS] = {{0}};
         if(!music.shouldPlay || (swynthParams[music.paramIdx].rhythm[music.rhythmIdx] & REST_BIT))
         {
             setBuzzerNote(SILENCE);
@@ -529,21 +537,31 @@ void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)))
             setBuzzerNote(noteToPlay);
             noteToColor(&leds[0], getCurrentNote(), 0x40);
         }
-
-        // Copy LED color from the first LED to all of them
-        for(uint8_t ledIdx = 1; ledIdx < NUM_LIN_LEDS; ledIdx++)
-        {
-            leds[ledIdx].r = leds[0].r;
-            leds[ledIdx].g = leds[0].g;
-            leds[ledIdx].b = leds[0].b;
-        }
-        setLeds(leds, sizeof(leds));
     }
+    else if(music.timeUs >= rhythmIntervalUs - (1000 * swynthParams[music.paramIdx].interNotePauseMs))
+    {
+        setBuzzerNote(SILENCE);
+        noteToColor(&leds[0], getCurrentNote(), 0x10);
+    }
+    else
+    {
+        // Don't set LEDs if nothing changed
+        return;
+    }
+
+    // Copy LED color from the first LED to all of them
+    for(uint8_t ledIdx = 1; ledIdx < NUM_LIN_LEDS; ledIdx++)
+    {
+        leds[ledIdx].r = leds[0].r;
+        leds[ledIdx].g = leds[0].g;
+        leds[ledIdx].b = leds[0].b;
+    }
+    setLeds(leds, sizeof(leds));
 }
 
 /**
  * @return the current note the angle coresponds to. doesn't matter if it should
- *         be played right now or not
+ * be played right now or not
  */
 notePeriod_t ICACHE_FLASH_ATTR getCurrentNote(void)
 {
