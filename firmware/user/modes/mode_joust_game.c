@@ -187,81 +187,81 @@ struct
  * Functions
  *==========================================================================*/
 
- // Music / SFX
+// Music / SFX
 
- const song_t endGameSFX RODATA_ATTR =
- {
-     .notes = {
-         {.note = C_4, .timeMs = 200},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = C_5, .timeMs = 200},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = C_4, .timeMs = 200},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = C_5, .timeMs = 200},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = C_4, .timeMs = 200},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = C_5, .timeMs = 200},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = C_4, .timeMs = 200},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = C_5, .timeMs = 200},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = C_4, .timeMs = 200},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = C_5, .timeMs = 200},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = C_4, .timeMs = 200},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = C_5, .timeMs = 200},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = C_4, .timeMs = 200},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = C_5, .timeMs = 200},
-         {.note = SILENCE, .timeMs = 1},
-     },
-     .numNotes = 28,
-     .shouldLoop = false
- };
+const song_t endGameSFX RODATA_ATTR =
+{
+    .notes = {
+        {.note = C_4, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+    },
+    .numNotes = 28,
+    .shouldLoop = false
+};
 
- const song_t endGameWinSFX RODATA_ATTR =
- {
-     .notes = {
-         {.note = C_4, .timeMs = 100},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = D_4, .timeMs = 100},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = E_4, .timeMs = 100},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = F_4, .timeMs = 100},
-         {.note = SILENCE, .timeMs = 200},
-         // {.note = G_4, .timeMs = 200},
-         // {.note = SILENCE, .timeMs = 1},
-         {.note = C_4, .timeMs = 100},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = D_4, .timeMs = 100},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = E_4, .timeMs = 100},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = F_4, .timeMs = 100},
-         // {.note = SILENCE, .timeMs = 1},
-         // {.note = G_4, .timeMs = 200},
-         {.note = SILENCE, .timeMs = 200},
-         {.note = D_4, .timeMs = 100},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = E_4, .timeMs = 100},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = F_4, .timeMs = 100},
-         {.note = SILENCE, .timeMs = 1},
-         {.note = G_4, .timeMs = 100},
-         {.note = SILENCE, .timeMs = 400},
-         {.note = C_5, .timeMs = 200},
-         {.note = SILENCE, .timeMs = 1},
-     },
-     .numNotes = 26,
-     .shouldLoop = false
- };
+const song_t endGameWinSFX RODATA_ATTR =
+{
+    .notes = {
+        {.note = C_4, .timeMs = 100},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_4, .timeMs = 100},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 100},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 100},
+        {.note = SILENCE, .timeMs = 200},
+        // {.note = G_4, .timeMs = 200},
+        // {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 100},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = D_4, .timeMs = 100},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 100},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 100},
+        // {.note = SILENCE, .timeMs = 1},
+        // {.note = G_4, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 200},
+        {.note = D_4, .timeMs = 100},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 100},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = F_4, .timeMs = 100},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_4, .timeMs = 100},
+        {.note = SILENCE, .timeMs = 400},
+        {.note = C_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+    },
+    .numNotes = 26,
+    .shouldLoop = false
+};
 
 /**
  * Get a random number from a range.
@@ -383,21 +383,21 @@ void ICACHE_FLASH_ATTR joustMsgCallbackFn(p2pInfo* p2p __attribute__((unused)), 
         }
         case R_GAME_OVER:
         {
-          if(0 == ets_memcmp(msg, "los", 3))
-          {
-              p2pSendMsg(&joust.p2pJoust, "tie", NULL, 0, joustMsgTxCbFn);
-              joustRoundResult(2);
-          }
-          else if(0 == ets_memcmp(msg, "tie", 3))
-          {
-              joustRoundResult(2);
-          }
-          else if(0 == ets_memcmp(msg, "win", 3))
-          {
-              joustRoundResult(false);
-          }
-          // Currently playing a game, if a message is sent, then update score
-          break;
+            if(0 == ets_memcmp(msg, "los", 3))
+            {
+                p2pSendMsg(&joust.p2pJoust, "tie", NULL, 0, joustMsgTxCbFn);
+                joustRoundResult(2);
+            }
+            else if(0 == ets_memcmp(msg, "tie", 3))
+            {
+                joustRoundResult(2);
+            }
+            else if(0 == ets_memcmp(msg, "win", 3))
+            {
+                joustRoundResult(false);
+            }
+            // Currently playing a game, if a message is sent, then update score
+            break;
         }
         case R_MENU:
         case R_SEARCHING:
@@ -454,22 +454,23 @@ void ICACHE_FLASH_ATTR joustInit(void)
     clearDisplay();
     if(joust.gam.joustWins < 4)
     {
-      plotText(0, 0, "Joust is a movement game where", TOM_THUMB, WHITE);
-      plotText(0, FONT_HEIGHT_TOMTHUMB+1, "you try to jostle your opponents", TOM_THUMB, WHITE);
-      plotText(0, 2*FONT_HEIGHT_TOMTHUMB+2, "swadge while keeping yours still.", TOM_THUMB, WHITE);
-      plotText(0, 4*FONT_HEIGHT_TOMTHUMB, "There are two modes Free For all", TOM_THUMB, WHITE);
-      plotText(0, 5*FONT_HEIGHT_TOMTHUMB+1, "and 2 Player, which tracks wins", TOM_THUMB, WHITE);
-      plotText(0, 7*FONT_HEIGHT_TOMTHUMB, "Press the left or right button", TOM_THUMB, WHITE);
-      plotText(0, 8*FONT_HEIGHT_TOMTHUMB+1, "to select a game type. enjoy!", TOM_THUMB, WHITE);
-      char menuStr[32] = {0};
-      ets_snprintf(menuStr, sizeof(menuStr), "wins: %d", joust.gam.joustWins);
-      plotText(0,9*FONT_HEIGHT_TOMTHUMB+3, menuStr, TOM_THUMB, WHITE);
+        plotText(0, 0, "Joust is a movement game where", TOM_THUMB, WHITE);
+        plotText(0, FONT_HEIGHT_TOMTHUMB + 1, "you try to jostle your opponents", TOM_THUMB, WHITE);
+        plotText(0, 2 * FONT_HEIGHT_TOMTHUMB + 2, "swadge while keeping yours still.", TOM_THUMB, WHITE);
+        plotText(0, 4 * FONT_HEIGHT_TOMTHUMB, "There are two modes Free For all", TOM_THUMB, WHITE);
+        plotText(0, 5 * FONT_HEIGHT_TOMTHUMB + 1, "and 2 Player, which tracks wins", TOM_THUMB, WHITE);
+        plotText(0, 7 * FONT_HEIGHT_TOMTHUMB, "Press the left or right button", TOM_THUMB, WHITE);
+        plotText(0, 8 * FONT_HEIGHT_TOMTHUMB + 1, "to select a game type. enjoy!", TOM_THUMB, WHITE);
+        char menuStr[32] = {0};
+        ets_snprintf(menuStr, sizeof(menuStr), "wins: %d", joust.gam.joustWins);
+        plotText(0, 9 * FONT_HEIGHT_TOMTHUMB + 3, menuStr, TOM_THUMB, WHITE);
     }
-    else{
-    plotText(32, 0, "Joust", RADIOSTARS, WHITE);
-    char menuStr[32] = {0};
-    ets_snprintf(menuStr, sizeof(menuStr), "wins: %d", joust.gam.joustWins);
-    plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1))-FONT_HEIGHT_TOMTHUMB-6, menuStr, TOM_THUMB, WHITE);
+    else
+    {
+        plotText(32, 0, "Joust", RADIOSTARS, WHITE);
+        char menuStr[32] = {0};
+        ets_snprintf(menuStr, sizeof(menuStr), "wins: %d", joust.gam.joustWins);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB - 6, menuStr, TOM_THUMB, WHITE);
     }
 
     uint8_t scoresAreaX0 = 0;
@@ -498,42 +499,42 @@ void ICACHE_FLASH_ATTR joustInit(void)
     else if(joust.gam.joustWins < 8)
     {
         plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Peasant Primate", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1))-FONT_HEIGHT_TOMTHUMB, "Next level: 8", TOM_THUMB, WHITE);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 8", TOM_THUMB, WHITE);
     }
     else if(joust.gam.joustWins < 12)
     {
         plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Page Probocsis", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1))-FONT_HEIGHT_TOMTHUMB, "Next level: 12", TOM_THUMB, WHITE);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 12", TOM_THUMB, WHITE);
     }
     else if(joust.gam.joustWins < 16)
     {
         plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Squire Saki", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1))-FONT_HEIGHT_TOMTHUMB, "Next level: 16", TOM_THUMB, WHITE);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 16", TOM_THUMB, WHITE);
     }
     else if(joust.gam.joustWins < 22)
     {
         plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Apprentice Ape", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1))-FONT_HEIGHT_TOMTHUMB, "Next level: 22", TOM_THUMB, WHITE);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 22", TOM_THUMB, WHITE);
     }
     else if(joust.gam.joustWins < 28)
     {
         plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Maester Mandrill", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1))-FONT_HEIGHT_TOMTHUMB, "Next level: 28", TOM_THUMB, WHITE);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 28", TOM_THUMB, WHITE);
     }
     else if(joust.gam.joustWins < 36)
     {
         plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Thane Tamarin", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1))-FONT_HEIGHT_TOMTHUMB, "Next level: 36", TOM_THUMB, WHITE);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 36", TOM_THUMB, WHITE);
     }
     else if(joust.gam.joustWins < 44)
     {
         plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Lord Lemur", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1))-FONT_HEIGHT_TOMTHUMB, "Next level: 44", TOM_THUMB, WHITE);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 44", TOM_THUMB, WHITE);
     }
     else if(joust.gam.joustWins < 60)
     {
         plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Baron Baboon", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1))-FONT_HEIGHT_TOMTHUMB, "Next level: 60", TOM_THUMB, WHITE);
+        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 60", TOM_THUMB, WHITE);
     }
     else if(joust.gam.joustWins < 100)
     {
@@ -882,31 +883,34 @@ void ICACHE_FLASH_ATTR joustUpdateDisplay(void)
 void ICACHE_FLASH_ATTR joustAccelerometerHandler(accel_t* accel)
 {
 
-    if(joust.gameState != R_MENU){
-      joust.joustAccel.x = accel->x;
-      joust.joustAccel.y = accel->y;
-      joust.joustAccel.z = accel->z;
-      uint16_t mov = (uint16_t) sqrt(pow(joust.joustAccel.x, 2) + pow(joust.joustAccel.y, 2) + pow(joust.joustAccel.z, 2));
-      joust.rolling_average = (joust.rolling_average * 2 + mov) / 3;
-
-    if (joust.gameState == R_PLAYING || joust.gameState == R_PLAYINGFFA)
+    if(joust.gameState != R_MENU)
     {
-        if(mov > joust.rolling_average + 40)
+        joust.joustAccel.x = accel->x;
+        joust.joustAccel.y = accel->y;
+        joust.joustAccel.z = accel->z;
+        uint16_t mov = (uint16_t) sqrt(pow(joust.joustAccel.x, 2) + pow(joust.joustAccel.y, 2) + pow(joust.joustAccel.z, 2));
+        joust.rolling_average = (joust.rolling_average * 2 + mov) / 3;
+
+        if (joust.gameState == R_PLAYING || joust.gameState == R_PLAYINGFFA)
         {
-          if(joust.gameState == R_PLAYING)
+            if(mov > joust.rolling_average + 40)
             {
-              joust.gameState = R_GAME_OVER;
-              joustSendRoundLossMsg();
-          }else{
-            joustRoundResultFFA();
-          }
-        }
-        else
-        {
-            joustUpdateDisplay();
+                if(joust.gameState == R_PLAYING)
+                {
+                    joust.gameState = R_GAME_OVER;
+                    joustSendRoundLossMsg();
+                }
+                else
+                {
+                    joustRoundResultFFA();
+                }
+            }
+            else
+            {
+                joustUpdateDisplay();
+            }
         }
     }
-  }
 }
 
 /**
@@ -1033,18 +1037,19 @@ void ICACHE_FLASH_ATTR joustButton( uint8_t state __attribute__((unused)),
             p2pStartConnection(&joust.p2pJoust);
             clearDisplay();
             plotText(0, 0, "Searching", IBM_VGA_8, WHITE);
-        }else if(1 == button)
+        }
+        else if(1 == button)
         {
-          joust.gameState =  R_WAITING;
-          joustDisarmAllLedTimers();
-          joust.led.currBrightness = 0;
-          joust.led.ConnLedState = LED_CONNECTED_BRIGHT;
-          os_timer_arm(&joust.tmr.ShowConnectionLedFFA, 50, true);
-          clearDisplay();
-          plotText(0, 0, "GET READY", IBM_VGA_8, WHITE);
-          plotText(0, OLED_HEIGHT - (5 * (FONT_HEIGHT_IBMVGA8 + 1))+3, "TO JOUST!", IBM_VGA_8, WHITE);
-          plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Move theirs", IBM_VGA_8, WHITE);
-          plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), "Not yours!", IBM_VGA_8, WHITE);
+            joust.gameState =  R_WAITING;
+            joustDisarmAllLedTimers();
+            joust.led.currBrightness = 0;
+            joust.led.ConnLedState = LED_CONNECTED_BRIGHT;
+            os_timer_arm(&joust.tmr.ShowConnectionLedFFA, 50, true);
+            clearDisplay();
+            plotText(0, 0, "GET READY", IBM_VGA_8, WHITE);
+            plotText(0, OLED_HEIGHT - (5 * (FONT_HEIGHT_IBMVGA8 + 1)) + 3, "TO JOUST!", IBM_VGA_8, WHITE);
+            plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Move theirs", IBM_VGA_8, WHITE);
+            plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), "Not yours!", IBM_VGA_8, WHITE);
         }
     }
 }
@@ -1224,5 +1229,5 @@ void ICACHE_FLASH_ATTR joustRoundResultFFA()
  */
 void ICACHE_FLASH_ATTR joustFFACounter(void* arg __attribute__((unused)))
 {
-  joust.FFACounter += 1;
+    joust.FFACounter += 1;
 }
