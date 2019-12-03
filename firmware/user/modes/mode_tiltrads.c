@@ -1679,7 +1679,7 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
 
     // NEXT
     currY = 4;
-    uint8_t nextHeaderTextStart = 103;//103;
+    uint8_t nextHeaderTextStart = 102;
     uint8_t nextHeaderTextEnd = nextHeaderTextStart + 14;
     fillDisplayArea(nextHeaderTextStart - xPad, currY - yPad, nextHeaderTextEnd + xPad,
                     currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
@@ -1759,7 +1759,7 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
                     currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
     plotText(linesHeaderTextStart, currY, "LINES", TOM_THUMB, WHITE);
 
-    // 999
+    //999
     currY += (FONT_HEIGHT_TOMTHUMB + 1);
     ets_snprintf(uiStr, sizeof(uiStr), "%d", linesClearedTotal);
     getNumCentering(uiStr, 0, GRID_X, &numFieldStart, &numFieldEnd);
@@ -1767,19 +1767,39 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     plotText(numFieldStart, currY, uiStr, TOM_THUMB, WHITE);
 
     //LEVEL
-    currY += FONT_HEIGHT_TOMTHUMB + (FONT_HEIGHT_TOMTHUMB - 1);
-    uint8_t levelHeaderTextStart = 10;//13;
+    currY += 1;
+    uint8_t levelHeaderTextStart = 100;
     uint8_t levelHeaderTextEnd = levelHeaderTextStart + 18;
     fillDisplayArea(levelHeaderTextStart - xPad, currY - yPad, levelHeaderTextEnd + xPad,
                     currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
     plotText(levelHeaderTextStart, currY, "LEVEL", TOM_THUMB, WHITE);
 
-    // 99
+    //99
     currY += (FONT_HEIGHT_TOMTHUMB + 1);
     ets_snprintf(uiStr, sizeof(uiStr), "%d", (currentLevel + 1)); // Levels are displayed with 1 as the base level.
-    getNumCentering(uiStr, 0, GRID_X, &numFieldStart, &numFieldEnd);
-    fillDisplayArea(numFieldStart - xPad, currY, numFieldEnd + xPad, currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
+    getNumCentering(uiStr, xFromGridCol(GRID_X, GRID_COLS, GRID_UNIT_SIZE) + 1, OLED_WIDTH - 1, &numFieldStart, &numFieldEnd);
+    fillDisplayArea(numFieldStart - xPad, currY, numFieldEnd + xPad, currY + FONT_HEIGHT_TOMTHUMB + yPad, BLACK);
     plotText(numFieldStart, currY, uiStr, TOM_THUMB, WHITE);
+
+    //DROP
+    uint8_t leftControlAreaX0 = 0;
+    uint8_t leftControlAreaY0 = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 3);
+    uint8_t leftControlAreaX1 = 15;
+    uint8_t leftControlAreaY1 = OLED_HEIGHT - 1;
+    fillDisplayArea(leftControlAreaX0, leftControlAreaY0, leftControlAreaX1, leftControlAreaY1, BLACK);
+    uint8_t leftControlTextX = 0;
+    uint8_t leftControlTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);
+    plotText(leftControlTextX, leftControlTextY, "DROP", TOM_THUMB, WHITE);
+
+    //ROTATE
+    uint8_t rightControlAreaX0 = OLED_WIDTH - 24;
+    uint8_t rightControlAreaY0 = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 3);
+    uint8_t rightControlAreaX1 = OLED_WIDTH - 1;
+    uint8_t rightControlAreaY1 = OLED_HEIGHT - 1;
+    fillDisplayArea(rightControlAreaX0, rightControlAreaY0, rightControlAreaX1, rightControlAreaY1, BLACK);
+    uint8_t rightControlTextX = OLED_WIDTH - 23;
+    uint8_t rightControlTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);
+    plotText(rightControlTextX, rightControlTextY, "ROTATE", TOM_THUMB, WHITE);
 }
 
 void ICACHE_FLASH_ATTR ttScoresDisplay(void)
@@ -1859,9 +1879,9 @@ void ICACHE_FLASH_ATTR ttGameoverDisplay(void)
         uint8_t titleTextYOffset = 3;
         uint8_t highScoreTextYOffset = titleTextYOffset + FONT_HEIGHT_IBMVGA8 + 3;
         uint8_t scoreTextYOffset = highScoreTextYOffset + FONT_HEIGHT_TOMTHUMB + 4;
-        uint8_t galleryUnlockTextYOffset = scoreTextYOffset + FONT_HEIGHT_IBMVGA8 + 3;
-        uint8_t controlTextYOffset = OLED_HEIGHT - windowYMarginBot - FONT_HEIGHT_TOMTHUMB - 3;
-        uint8_t controlTextXPadding = 4;
+        uint8_t galleryUnlockTextYOffset = scoreTextYOffset + FONT_HEIGHT_IBMVGA8 + 4;
+        uint8_t controlTextYOffset = OLED_HEIGHT - windowYMarginBot - FONT_HEIGHT_TOMTHUMB - 2;
+        uint8_t controlTextXPadding = 3;
 
         // Draw a centered bordered window.
         fillDisplayArea(windowXMargin, windowYMarginTop, OLED_WIDTH - windowXMargin, OLED_HEIGHT - windowYMarginBot, BLACK);
