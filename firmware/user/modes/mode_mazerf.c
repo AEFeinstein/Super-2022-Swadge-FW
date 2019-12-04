@@ -34,6 +34,8 @@
 #include "custom_commands.h" //saving and loading high scores and last scores
 #include "mazegen.h"
 #include "math.h"
+#include "buzzer.h"
+#include "hpatimer.h"
 
 /*============================================================================
  * Defines
@@ -124,6 +126,28 @@ uint32_t score; // The current score this game.
 uint32_t scoreauto; // The current autoscore this game.
 uint32_t mzBestTimes[NUM_MZ_LEVELS];
 bool nzNewBestTime;
+
+const song_t checkpointSfx RODATA_ATTR =
+{
+    .notes = {
+        {.note = G_5, .timeMs = 150},
+        {.note = C_6, .timeMs = 150},
+    },
+    .numNotes = 2,
+    .shouldLoop = false
+};
+
+const song_t winSfx RODATA_ATTR =
+{
+    .notes = {
+        {.note = G_5, .timeMs = 100},
+        {.note = A_5, .timeMs = 100},
+        {.note = B_5, .timeMs = 100},
+        {.note = C_6, .timeMs = 100},
+    },
+    .numNotes = 4,
+    .shouldLoop = false
+};
 
 // function prototypes go here.
 /*============================================================================
@@ -801,8 +825,13 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
         leds[ledExitInd[exitInd]].r = 255;
         leds[ledExitInd[exitInd]].g = 0;
         exitInd += 1;
-        if (exitInd > UPPER_RIGHT)
+        if(exitInd <= UPPER_RIGHT)
         {
+            startBuzzerSong(&checkpointSfx);
+        }
+        else
+        {
+            startBuzzerSong(&winSfx);
             // Compute score
             // Best performance is fast but not rolling along walls
             // So time rolling is totalhitstilldone, while time
@@ -819,8 +848,8 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
             //here use 50 %
             float adjustedTime = incorridorTime + 1.5 * rollingTime;
             maze_printf("Time to complete maze %d, in corridor %d on walls %d adj %d ratio %d \n", (int)(100 * totalTime),
-                      (int)(100 * incorridorTime), (int)(100 * rollingTime), (int)(100 * adjustedTime),
-                      (int)(100 * adjustedTime / indSolution));
+                        (int)(100 * incorridorTime), (int)(100 * rollingTime), (int)(100 * adjustedTime),
+                        (int)(100 * adjustedTime / indSolution));
 
             // could scale by length of solution
             //score = 10000 * adjustedTime / indSolution;
@@ -888,8 +917,8 @@ void ICACHE_FLASH_ATTR mzAutoGameUpdate(void)
             float incorridorTime = totalTime - rollingTime;
             float adjustedTime = incorridorTime + 1.5 * rollingTime;
             maze_printf("Auto Time to complete maze %d, in corridor %d on walls %d adj %d ratio %d \n", (int)(100 * totalTime),
-                      (int)(100 * incorridorTime), (int)(100 * rollingTime), (int)(100 * adjustedTime),
-                      (int)(100 * adjustedTime / indSolution));
+                        (int)(100 * incorridorTime), (int)(100 * rollingTime), (int)(100 * adjustedTime),
+                        (int)(100 * adjustedTime / indSolution));
             scoreauto = adjustedTime;
             // Auto game does not get counted for best times!
             score = 0x0f0f0f0f;
@@ -1244,7 +1273,7 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     wiggleroom = 2 * (min(mazescalex, mazescaley) - rballused);
 
     maze_printf("width:%d, height:%d mscx:%d mscy:%d rball:%d wiggleroom %d\n", width, height, mazescalex, mazescaley,
-              (int)rballused, (int)wiggleroom);
+                (int)rballused, (int)wiggleroom);
 
 
     // initial position in center
