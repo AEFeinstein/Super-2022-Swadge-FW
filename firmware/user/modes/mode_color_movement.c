@@ -1181,18 +1181,20 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                 //os_printf("ledCycle %d, modeTime %d, ledPrevIncTime %d\n", ledCycle, modeTime, ledPrevIncTime);
             }
 
+            plotCenteredText(0, 0, OLED_WIDTH, "SHAKE TO FILL", IBM_VGA_8, WHITE);
+
             // Draw the outline of a battery
             plotRect(
                 0,
-                OLED_HEIGHT / 2 - 24,
+                (OLED_HEIGHT / 2 - 18) + 5,
                 OLED_WIDTH - 12,
-                OLED_HEIGHT / 2 + 24,
+                (OLED_HEIGHT / 2 + 18) + 5,
                 WHITE);
             plotRect(
                 OLED_WIDTH - 12,
-                OLED_HEIGHT / 2 - 12,
+                (OLED_HEIGHT / 2 - 9) + 5,
                 OLED_WIDTH - 1,
-                OLED_HEIGHT / 2 + 12,
+                (OLED_HEIGHT / 2 + 9) + 5,
                 WHITE);
 
             // Calculate a battery level from the hue
@@ -1205,9 +1207,9 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
             // Fill up the battery
             fillDisplayArea(
                 5,
-                OLED_HEIGHT / 2 - 19,
+                (OLED_HEIGHT / 2 - 14) + 5,
                 5 + battLevel,
-                OLED_HEIGHT / 2 + 19,
+                (OLED_HEIGHT / 2 + 14) + 5,
                 WHITE);
         }
         else
