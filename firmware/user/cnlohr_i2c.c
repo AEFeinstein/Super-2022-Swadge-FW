@@ -121,6 +121,8 @@ unsigned char GetByte( uint8_t send_nak )
 void my_i2c_delay()
 {
 	asm volatile("nop\nnop\n");	 //Less than 2 causes a sad face :( 
+	asm volatile("nop\nnop\n");	
+	asm volatile("nop\nnop\n");	 //More than two gives us margin.
 	return;
 }
 
