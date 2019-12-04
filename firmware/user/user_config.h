@@ -48,12 +48,12 @@
     #define LED_6 1
 #elif ((SWADGE_VERSION == SWADGE_BARREL) || (SWADGE_VERSION == BARREL_1_0_0))
     #define NUM_LIN_LEDS 6
-    #define LED_1 0
+    #define LED_1 2
     #define LED_2 1
-    #define LED_3 2
-    #define LED_4 3
+    #define LED_3 0
+    #define LED_4 5
     #define LED_5 4
-    #define LED_6 5
+    #define LED_6 3
 #endif
 
 #endif
