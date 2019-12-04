@@ -65,6 +65,8 @@ unsigned char SendByte( unsigned char data )
 	}
 
 	//Immediately after sending last bit, open up DDDR for control.
+	//WARNING: this does mean on "read"s from the accelerometer, there is a VERY brief (should be less than 150ns) contradiction.
+	//This should have no ill effects.
 	PIN_DIR_INPUT = (1<<I2CSDA);
 	I2CDELAY
 	PIN_OUT_SET = (1<<I2CSCL);

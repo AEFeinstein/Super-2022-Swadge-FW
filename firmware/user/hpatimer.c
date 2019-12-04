@@ -198,7 +198,6 @@ void ICACHE_FLASH_ATTR setBuzzerNote(notePeriod_t note)
  */
 void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song)
 {
-	return;
     // If it's muted, don't set anything
     if(getIsMutedOption())
     {
