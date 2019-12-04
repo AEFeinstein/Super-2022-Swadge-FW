@@ -803,6 +803,18 @@ void ICACHE_FLASH_ATTR snakeProcessGame(void* arg __attribute__((unused)))
     char scoreStr[16] = {0};
     ets_snprintf(scoreStr, sizeof(scoreStr), "%04d", snake.score);
     plotText(SNAKE_FIELD_OFFSET_X, SNAKE_TEXT_OFFSET_Y, scoreStr, TOM_THUMB, WHITE);
+
+    // Plot button funcs
+    fillDisplayArea(
+        0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 2,
+        16, OLED_HEIGHT,
+        BLACK);
+    plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "LEFT", TOM_THUMB, WHITE);
+    fillDisplayArea(
+        OLED_WIDTH - 21, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 2,
+        OLED_WIDTH, OLED_HEIGHT,
+        BLACK);
+    plotText(OLED_WIDTH - 19, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "RIGHT", TOM_THUMB, WHITE);
 }
 
 /**
