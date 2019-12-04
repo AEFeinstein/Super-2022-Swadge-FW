@@ -116,12 +116,16 @@
 // this is (* count * level)
 #define SCORE_COMBO 50
 
+// gallery unlock
+#define GALLERY_UNLOCK_SCORE 10000
+#define GALLERY_UNLOCK_IMAGE_INDEX 2 // Image of the waterfront / gaylord.
+
 // difficulty scaling
-#define LINE_CLEARS_PER_LEVEL 8
+#define LINE_CLEARS_PER_LEVEL 5
 
 // LED FX
-#define NUM_LEDS 6
-#define MODE_LED_BRIGHTNESS 0.25 // Factor that decreases overall brightness of LEDs since they are a little distracting at full brightness.
+#define NUM_LEDS NUM_LIN_LEDS // This pulls from user_config that should be the right amount for the current swadge.
+#define MODE_LED_BRIGHTNESS 0.125 // Factor that decreases overall brightness of LEDs since they are a little distracting at full brightness.
 
 // Music and SFX
 #define NUM_LAND_FX 16
@@ -862,6 +866,7 @@ uint32_t currentLevel; // The current difficulty level, increments every 10 line
 uint32_t score; // The current score this game.
 uint32_t highScores[NUM_TT_HIGH_SCORES];
 bool newHighScore;
+bool galleryUnlock;
 
 // Clear animation vars.
 bool inClearAnimation;
@@ -1674,7 +1679,7 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
 
     // NEXT
     currY = 4;
-    uint8_t nextHeaderTextStart = 103;//103;
+    uint8_t nextHeaderTextStart = 102;
     uint8_t nextHeaderTextEnd = nextHeaderTextStart + 14;
     fillDisplayArea(nextHeaderTextStart - xPad, currY - yPad, nextHeaderTextEnd + xPad,
                     currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
@@ -1708,7 +1713,7 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
 
     //HIGH
     currY = 4;
-    uint8_t highScoreHeaderTextStart = newHighScore ? 0 : 12;//newHighScore ? 3 : 15;
+    uint8_t highScoreHeaderTextStart = newHighScore ? 0 : 12;
     uint8_t highScoreHeaderTextEnd = newHighScore ? highScoreHeaderTextStart + 34 : highScoreHeaderTextStart + 14;
 
     if (newHighScore)
@@ -1724,19 +1729,16 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
 
     plotText(highScoreHeaderTextStart, currY, newHighScore ? "HIGH (NEW)" : "HIGH", TOM_THUMB, WHITE);
 
-    //int32_t fallDistance = getFallDistance(&(activeTetrad), GRID_COLS, GRID_ROWS, tetradsGrid);
-
     //99999
     currY += (FONT_HEIGHT_TOMTHUMB + 1);
     ets_snprintf(uiStr, sizeof(uiStr), "%d", newHighScore ? score : highScores[0]);
-    //ets_snprintf(uiStr, sizeof(uiStr), "%d", fallDistance);
     getNumCentering(uiStr, 0, GRID_X, &numFieldStart, &numFieldEnd);
     fillDisplayArea(numFieldStart - xPad, currY, numFieldEnd + xPad, currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
     plotText(numFieldStart, currY, uiStr, TOM_THUMB, WHITE);
 
     //SCORE
     currY += FONT_HEIGHT_TOMTHUMB + (FONT_HEIGHT_TOMTHUMB - 1);
-    uint8_t scoreHeaderTextStart = 10;//13;
+    uint8_t scoreHeaderTextStart = 10;
     uint8_t scoreHeaderTextEnd = scoreHeaderTextStart + 18;
     fillDisplayArea(scoreHeaderTextStart - xPad, currY - yPad, scoreHeaderTextEnd + xPad,
                     currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
@@ -1751,13 +1753,13 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
 
     //LINES
     currY += FONT_HEIGHT_TOMTHUMB + (FONT_HEIGHT_TOMTHUMB - 1) + 1;
-    uint8_t linesHeaderTextStart = 10;//13;
+    uint8_t linesHeaderTextStart = 10;
     uint8_t linesHeaderTextEnd = linesHeaderTextStart + 18;
     fillDisplayArea(linesHeaderTextStart - xPad, currY - yPad, linesHeaderTextEnd + xPad,
                     currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
     plotText(linesHeaderTextStart, currY, "LINES", TOM_THUMB, WHITE);
 
-    // 999
+    //999
     currY += (FONT_HEIGHT_TOMTHUMB + 1);
     ets_snprintf(uiStr, sizeof(uiStr), "%d", linesClearedTotal);
     getNumCentering(uiStr, 0, GRID_X, &numFieldStart, &numFieldEnd);
@@ -1765,19 +1767,39 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     plotText(numFieldStart, currY, uiStr, TOM_THUMB, WHITE);
 
     //LEVEL
-    currY += FONT_HEIGHT_TOMTHUMB + (FONT_HEIGHT_TOMTHUMB - 1);
-    uint8_t levelHeaderTextStart = 10;//13;
+    currY += 1;
+    uint8_t levelHeaderTextStart = 100;
     uint8_t levelHeaderTextEnd = levelHeaderTextStart + 18;
     fillDisplayArea(levelHeaderTextStart - xPad, currY - yPad, levelHeaderTextEnd + xPad,
                     currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
     plotText(levelHeaderTextStart, currY, "LEVEL", TOM_THUMB, WHITE);
 
-    // 99
+    //99
     currY += (FONT_HEIGHT_TOMTHUMB + 1);
     ets_snprintf(uiStr, sizeof(uiStr), "%d", (currentLevel + 1)); // Levels are displayed with 1 as the base level.
-    getNumCentering(uiStr, 0, GRID_X, &numFieldStart, &numFieldEnd);
-    fillDisplayArea(numFieldStart - xPad, currY, numFieldEnd + xPad, currY + (FONT_HEIGHT_TOMTHUMB - 1) + yPad, BLACK);
+    getNumCentering(uiStr, xFromGridCol(GRID_X, GRID_COLS, GRID_UNIT_SIZE) + 1, OLED_WIDTH - 1, &numFieldStart, &numFieldEnd);
+    fillDisplayArea(numFieldStart - xPad, currY, numFieldEnd + xPad, currY + FONT_HEIGHT_TOMTHUMB + yPad, BLACK);
     plotText(numFieldStart, currY, uiStr, TOM_THUMB, WHITE);
+
+    //DROP
+    uint8_t leftControlAreaX0 = 0;
+    uint8_t leftControlAreaY0 = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 3);
+    uint8_t leftControlAreaX1 = 15;
+    uint8_t leftControlAreaY1 = OLED_HEIGHT - 1;
+    fillDisplayArea(leftControlAreaX0, leftControlAreaY0, leftControlAreaX1, leftControlAreaY1, BLACK);
+    uint8_t leftControlTextX = 0;
+    uint8_t leftControlTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);
+    plotText(leftControlTextX, leftControlTextY, "DROP", TOM_THUMB, WHITE);
+
+    //ROTATE
+    uint8_t rightControlAreaX0 = OLED_WIDTH - 24;
+    uint8_t rightControlAreaY0 = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 3);
+    uint8_t rightControlAreaX1 = OLED_WIDTH - 1;
+    uint8_t rightControlAreaY1 = OLED_HEIGHT - 1;
+    fillDisplayArea(rightControlAreaX0, rightControlAreaY0, rightControlAreaX1, rightControlAreaY1, BLACK);
+    uint8_t rightControlTextX = OLED_WIDTH - 23;
+    uint8_t rightControlTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);
+    plotText(rightControlTextX, rightControlTextY, "ROTATE", TOM_THUMB, WHITE);
 }
 
 void ICACHE_FLASH_ATTR ttScoresDisplay(void)
@@ -1854,11 +1876,12 @@ void ICACHE_FLASH_ATTR ttGameoverDisplay(void)
         uint8_t windowYMarginTop = 5;
         uint8_t windowYMarginBot = 5;
 
-        uint8_t titleTextYOffset = 5;
-        uint8_t highScoreTextYOffset = titleTextYOffset + FONT_HEIGHT_IBMVGA8 + 5;
-        uint8_t scoreTextYOffset = highScoreTextYOffset + FONT_HEIGHT_TOMTHUMB + 5;
-        uint8_t controlTextYOffset = OLED_HEIGHT - windowYMarginBot - FONT_HEIGHT_TOMTHUMB - 5;
-        uint8_t controlTextXPadding = 5;
+        uint8_t titleTextYOffset = 3;
+        uint8_t highScoreTextYOffset = titleTextYOffset + FONT_HEIGHT_IBMVGA8 + 3;
+        uint8_t scoreTextYOffset = highScoreTextYOffset + FONT_HEIGHT_TOMTHUMB + 4;
+        uint8_t galleryUnlockTextYOffset = scoreTextYOffset + FONT_HEIGHT_IBMVGA8 + 4;
+        uint8_t controlTextYOffset = OLED_HEIGHT - windowYMarginBot - FONT_HEIGHT_TOMTHUMB - 2;
+        uint8_t controlTextXPadding = 3;
 
         // Draw a centered bordered window.
         fillDisplayArea(windowXMargin, windowYMarginTop, OLED_WIDTH - windowXMargin, OLED_HEIGHT - windowYMarginBot, BLACK);
@@ -1882,9 +1905,15 @@ void ICACHE_FLASH_ATTR ttGameoverDisplay(void)
         ets_snprintf(scoreStr, sizeof(scoreStr), "%d", score);
         plotText(gameoverScoreX, windowYMarginTop + scoreTextYOffset, scoreStr, IBM_VGA_8, WHITE);
 
+        // GALLERY UNLOCK!
+        if (galleryUnlock)
+        {
+            plotText(35, windowYMarginTop + galleryUnlockTextYOffset, "GALLERY UNLOCK!", TOM_THUMB, WHITE);
+        }
+
         // TITLE    RESTART
         plotText(windowXMargin + controlTextXPadding, controlTextYOffset, "TITLE", TOM_THUMB, WHITE);
-        plotText(OLED_WIDTH - windowXMargin - 27 - controlTextXPadding, controlTextYOffset, "RESTART", TOM_THUMB, WHITE);
+        plotText(OLED_WIDTH - windowXMargin - 26 - controlTextXPadding, controlTextYOffset, "RESTART", TOM_THUMB, WHITE);
     }
 
     // Flash the active tetrad that was the killing tetrad.
@@ -1996,6 +2025,9 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
 
             // Save out the last score.
             ttSetLastScore(score);
+
+            // Check if we unlocked the gallery image (for the first time)
+            galleryUnlock = score >= GALLERY_UNLOCK_SCORE && unlockGallery(GALLERY_UNLOCK_IMAGE_INDEX);
 
             // Get the correct offset for the high score.
             x0 = 18;
