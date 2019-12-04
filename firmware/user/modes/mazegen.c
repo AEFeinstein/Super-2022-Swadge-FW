@@ -29,7 +29,7 @@
 #endif
 
 #define FAIL 1
-#define DEBUG 1
+#define DEBUG 0
 
 typedef struct
 {
@@ -78,7 +78,7 @@ uint8_t ICACHE_FLASH_ATTR init(uint8_t width, uint8_t height, Node** nodes )
     uint8_t i, j;
     Node* n;
     //Allocate memory for maze
-    os_printf("width = %d, height = %d, sizeofNode = %d\n", width, height, (uint8_t)sizeof(Node));
+    maze_printf("width = %d, height = %d, sizeofNode = %d\n", width, height, (uint8_t)sizeof(Node));
     *nodes = calloc( width * height, sizeof( Node ) );
     if ( *nodes == NULL )
     {
@@ -136,9 +136,9 @@ void ICACHE_FLASH_ATTR draw(uint8_t width, uint8_t height, Node* nodes)
     {
         for ( j = 0; j < width; j++ )
         {
-            os_printf( "%c", nodes[j + i * width].c );
+            maze_printf( "%c", nodes[j + i * width].c );
         }
-        os_printf( "\n" );
+        maze_printf( "\n" );
     }
 #ifdef UBUNTU
 #if DEBUG > 1
@@ -151,10 +151,10 @@ void ICACHE_FLASH_ATTR draw(uint8_t width, uint8_t height, Node* nodes)
         for ( j = 1; j < width - 1; j += 2 )
         {
             n = nodes + j + i * width;
-            //os_printf("(%d, %d) %c %x %x \n",j, i, n->c, n - nodes, (int)(n->parent) - (int)nodes);
-            os_printf("(%d, %d) %c %x %d %d \n", j, i, n->c, (0xff & n->dirs), n - n11, (Node*)(n->parent) - n11);
+            //maze_printf("(%d, %d) %c %x %x \n",j, i, n->c, n - nodes, (int)(n->parent) - (int)nodes);
+            maze_printf("(%d, %d) %c %x %d %d \n", j, i, n->c, (0xff & n->dirs), n - n11, (Node*)(n->parent) - n11);
         }
-        os_printf( "\n" );
+        maze_printf( "\n" );
     }
 #endif
 #endif
@@ -174,7 +174,7 @@ int16_t ICACHE_FLASH_ATTR wallIntervals_helper(bool usetranspose, uint8_t outerl
         for ( j = 1; j < innerlooplimit + 1; j++ )
         {
 #if DEBUG > 2
-            os_printf("%c i=%d, intervalstarted=%d, j=%d, jbegin=%d, indwall=%d\n",
+            maze_printf("%c i=%d, intervalstarted=%d, j=%d, jbegin=%d, indwall=%d\n",
                       usetranspose ? nodes[i + j * width].c : nodes[j + i * width].c,
                       i, intervalstarted, j, jbegin, indwall);
 #endif
@@ -193,7 +193,7 @@ int16_t ICACHE_FLASH_ATTR wallIntervals_helper(bool usetranspose, uint8_t outerl
                         }
                         else
                         {
-                            os_printf("indwall exceeds max of %d\n", MAXNUMWALLS);
+                            maze_printf("indwall exceeds max of %d\n", MAXNUMWALLS);
                             return 0; //give up
                         }
                     }
@@ -245,7 +245,7 @@ Node ICACHE_FLASH_ATTR* link(uint8_t width, uint8_t height, Node* nodes,  Node* 
 #if DEBUG > 2
     Node* n11;
     n11 = nodes + 1 + width;
-    os_printf("%d ", n - n11);
+    maze_printf("%d ", n - n11);
 #endif
 
     //Nothing can be done if null pointer is given - return
@@ -377,7 +377,7 @@ Node ICACHE_FLASH_ATTR* relink(uint8_t width, uint8_t __attribute__((unused))hei
 #if DEBUG > 2
     Node* n11;
     n11 = nodes + 1 + width;
-    os_printf("%d ", n - n11);
+    maze_printf("%d ", n - n11);
 #endif
     //Nothing can be done if null pointer is given - return
     if ( n == NULL )
@@ -426,18 +426,18 @@ Node ICACHE_FLASH_ATTR* relink(uint8_t width, uint8_t __attribute__((unused))hei
         //Get destination node into pointer (makes things a tiny bit faster)
         dest = nodes + x + y * width;
 #if DEBUG > 2
-        os_printf(" Went %x Try dest %d ", 0xf0 & dir,  dest - n11);
+        maze_printf(" Went %x Try dest %d ", 0xf0 & dir,  dest - n11);
 #endif
         //If destination is a linked node already - abort
         if ( dest->parent != NULL )
         {
 #if DEBUG > 2
-            os_printf(" all ready linked ");
+            maze_printf(" all ready linked ");
 #endif
             continue;
         }
 #if DEBUG > 2
-        os_printf(" Adopted \n");
+        maze_printf(" Adopted \n");
 #endif
 
         //Otherwise, adopt node
@@ -447,7 +447,7 @@ Node ICACHE_FLASH_ATTR* relink(uint8_t width, uint8_t __attribute__((unused))hei
         return dest;
     }
 #if DEBUG > 2
-    os_printf(" Returning parent %d \n", (Node*)(n->parent) - n11);
+    maze_printf(" Returning parent %d \n", (Node*)(n->parent) - n11);
 #endif
     //If nothing more can be done here - return parent's address
     return n->parent;
@@ -464,7 +464,7 @@ void ICACHE_FLASH_ATTR makeMazeNodes(uint8_t width, uint8_t height, Node* nodes 
     last = root;
     //Connect nodes until root node is reached and can't be left
     while ( ( last = link(width, height, nodes, last ) ) != root );
-    //os_printf("\n");
+    //maze_printf("\n");
 }
 
 void ICACHE_FLASH_ATTR rerootMazeNodes(uint8_t width, uint8_t height, uint8_t xroot, uint8_t yroot, Node* nodes )
@@ -482,7 +482,7 @@ void ICACHE_FLASH_ATTR rerootMazeNodes(uint8_t width, uint8_t height, uint8_t xr
     while ( ( last = relink(width, height, nodes, last ) ) != root );
     while ( ( last = relink(width, height, nodes, last ) ) != root );
     while ( ( last = relink(width, height, nodes, last ) ) != root );
-    //os_printf("\n");
+    //maze_printf("\n");
 }
 
 // Find shortest path from an arbitrary point to the root
@@ -509,16 +509,16 @@ uint16_t ICACHE_FLASH_ATTR getPathToRoot(uint8_t xsol[], uint8_t ysol[],  uint8_
         xsol[i] = x * mazescalex;
         ysol[i] = y * mazescaley;
         i++;
-        //os_printf("%d (%d, %d)", point - n11, x, y);
-        //os_printf("(%d, %d)", x, y);
+        //maze_printf("%d (%d, %d)", point - n11, x, y);
+        //maze_printf("(%d, %d)", x, y);
         if (point == (Node*)point->parent)
         {
             break;
         }
         point = (Node*)point->parent;
-        //os_printf(" -> ");
+        //maze_printf(" -> ");
     }
-    //os_printf("\n");
+    //maze_printf("\n");
     return i;
 }
 
@@ -529,7 +529,7 @@ int16_t ICACHE_FLASH_ATTR getwallsintervals(uint8_t width, uint8_t height, Node*
     // Need to check but seems walls always have odd number, so min wall length is 3
 #if DEBUG
     int16_t numwallsbound = 4 + (height / 2 - 1) * (width / 4) + (width / 2) * (height / 4); //should be upper bound
-    os_printf("Bound on number of walls = %d\n", numwallsbound);
+    maze_printf("Bound on number of walls = %d\n", numwallsbound);
 #endif
     indwall = wallIntervals(width, height, nodes, ybot, ytop, xleft, xright);
     return indwall;
@@ -557,7 +557,7 @@ get_maze_output_t ICACHE_FLASH_ATTR get_maze(uint8_t width, uint8_t height, uint
     //Allocate memory and set up nodes
     if ( init(width, height, &nodes ) )
     {
-        os_printf( "out of memory trying to init!\n");
+        maze_printf( "out of memory trying to init!\n");
         get_maze_output_t zout = {0, 0};
         return zout;
     }
@@ -579,14 +579,16 @@ get_maze_output_t ICACHE_FLASH_ATTR get_maze(uint8_t width, uint8_t height, uint
     // center point
     uint8_t xpoint = (width - 1) / 2;
     uint8_t ypoint = (height - 1) / 2;
-    os_printf("Number of walls = %d\n", indwall);
+    maze_printf("Number of walls = %d\n", indwall);
     for (uint8_t i = 0; i < 4; i++)
     {
+#if DEBUG
         // Show Maze as printed characters
         if (i == 0)
         {
             draw(width, height, nodes );
         }
+#endif
         // Make complete solution starting at center and going to each exit in turn
         // Get partial solution path to ith exit
         indSolution +=  getPathToRoot(&xsol[indSolution], &ysol[indSolution], width, height, xpoint, ypoint, nodes, mazescalex,
@@ -615,25 +617,25 @@ get_maze_output_t ICACHE_FLASH_ATTR get_maze(uint8_t width, uint8_t height, uint
             default:
                 break;
         }
-        //os_printf("%d at %d\n", indSolution, i);
+        //maze_printf("%d at %d\n", indSolution, i);
     }
 #if DEBUG > 1
     // Print solution start center, then go to four corners
-    os_printf("indSolution %d numcells %d ratio %d / 100\n", indSolution, width * height,
+    maze_printf("indSolution %d numcells %d ratio %d / 100\n", indSolution, width * height,
               100 * width * height / indSolution);
     for (__int16_t i = 0; i < indSolution; i++)
     {
-        os_printf("(%d, %d) -> ", xsol[i], ysol[i]);
+        maze_printf("(%d, %d) -> ", xsol[i], ysol[i]);
     }
-    os_printf("\n");
+    maze_printf("\n");
 #endif
 #if DEBUG > 1
     //Print wall intervals
     for (int16_t i = 0; i < indwall; i++)
     {
-        os_printf( "(%d, %d) to (%d, %d)\n", xleft[i], ybot[i], xright[i], ytop[i] );
+        maze_printf( "(%d, %d) to (%d, %d)\n", xleft[i], ybot[i], xright[i], ytop[i] );
     }
-    os_printf("\n");
+    maze_printf("\n");
 #endif
     //Deallocate memory
     deinit(nodes);
@@ -662,7 +664,7 @@ void ICACHE_FLASH_ATTR main( uint8_t argc, char** argv )
     //Check argument count
     if ( argc < 3 )
     {
-        os_printf("%s: please specify maze dimensions!\n", argv[0] );
+        maze_printf("%s: please specify maze dimensions!\n", argv[0] );
         exit( FAIL );
     }
 
@@ -670,27 +672,27 @@ void ICACHE_FLASH_ATTR main( uint8_t argc, char** argv )
     //TODO this is altering memory past &width and &height????
     if ( sscanf( argv[1], "%hhu", &width ) + sscanf( argv[2], "%hhu", &height ) < 2 )
     {
-        os_printf("%s: invalid maze size value!\n", argv[0] );
+        maze_printf("%s: invalid maze size value!\n", argv[0] );
         exit( FAIL );
     }
 
     //Allow only odd dimensions
     if ( !( width % 2 ) || !( height % 2 ) )
     {
-        os_printf("%s: dimensions must be odd!\n", argv[0] );
+        maze_printf("%s: dimensions must be odd!\n", argv[0] );
         exit( FAIL );
     }
 
     //Do not allow negative dimensions
     if ( width <= 0 || height <= 0 )
     {
-        os_printf("%s: dimensions must be greater than 0!\n", argv[0] );
+        maze_printf("%s: dimensions must be greater than 0!\n", argv[0] );
         exit( FAIL );
     }
     uint8_t mazescalex = 1;
     uint8_t mazescaley = 2;
 
-    os_printf("Scales before calling get_maze in main %d %d\n ", mazescalex, mazescaley);
+    maze_printf("Scales before calling get_maze in main %d %d\n ", mazescalex, mazescaley);
     out = get_maze(width, height, xleft, xright, ybot, ytop, xsol, ysol, scxcexits, scycexits, mazescalex, mazescaley);
 }
 #endif

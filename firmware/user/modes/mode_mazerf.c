@@ -39,14 +39,6 @@
  * Defines
  *==========================================================================*/
 
-//#define MAZE_DEBUG_PRINT
-#ifdef MAZE_DEBUG_PRINT
-    #include <stdlib.h>
-    #define maze_printf(...) os_printf(__VA_ARGS__)
-#else
-    #define maze_printf(...)
-#endif
-
 //#ifndef max
 //    #define max(a,b) ((a) > (b) ? (a) : (b))
 //#endif
@@ -826,7 +818,7 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
             //float adjustedTime = incorridorTime + wiggleroom * rollingTime;
             //here use 50 %
             float adjustedTime = incorridorTime + 1.5 * rollingTime;
-            os_printf("Time to complete maze %d, in corridor %d on walls %d adj %d ratio %d \n", (int)(100 * totalTime),
+            maze_printf("Time to complete maze %d, in corridor %d on walls %d adj %d ratio %d \n", (int)(100 * totalTime),
                       (int)(100 * incorridorTime), (int)(100 * rollingTime), (int)(100 * adjustedTime),
                       (int)(100 * adjustedTime / indSolution));
 
@@ -895,7 +887,7 @@ void ICACHE_FLASH_ATTR mzAutoGameUpdate(void)
             float rollingTime = UPDATE_TIME_MS  * (float)totalhitstilldone / S_TO_MS_FACTOR;
             float incorridorTime = totalTime - rollingTime;
             float adjustedTime = incorridorTime + 1.5 * rollingTime;
-            os_printf("Auto Time to complete maze %d, in corridor %d on walls %d adj %d ratio %d \n", (int)(100 * totalTime),
+            maze_printf("Auto Time to complete maze %d, in corridor %d on walls %d adj %d ratio %d \n", (int)(100 * totalTime),
                       (int)(100 * incorridorTime), (int)(100 * rollingTime), (int)(100 * adjustedTime),
                       (int)(100 * adjustedTime / indSolution));
             scoreauto = adjustedTime;
@@ -1241,7 +1233,7 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
 
 
     system_print_meminfo();
-    os_printf("Free Heap %d\n", system_get_free_heap_size());
+    maze_printf("Free Heap %d\n", system_get_free_heap_size());
 
     mazescalex = 127 / width;
     mazescaley = 63 / height;
@@ -1251,7 +1243,7 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     // Compute number of maximum pixels between ball and wall.
     wiggleroom = 2 * (min(mazescalex, mazescaley) - rballused);
 
-    os_printf("width:%d, height:%d mscx:%d mscy:%d rball:%d wiggleroom %d\n", width, height, mazescalex, mazescaley,
+    maze_printf("width:%d, height:%d mscx:%d mscy:%d rball:%d wiggleroom %d\n", width, height, mazescalex, mazescaley,
               (int)rballused, (int)wiggleroom);
 
 
@@ -1286,10 +1278,10 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     xadj = 0.5 + (127 - scxcexits[LOWER_RIGHT] - rballused) / 2;
     //yadj = 0.5 + (63 - scycexits[LOWER_RIGHT] - rballused)/2;
     yadj = 0;
-    os_printf("initpt (%d, %d)\n", (int)scxcprev, (int)scycprev);
+    maze_printf("initpt (%d, %d)\n", (int)scxcprev, (int)scycprev);
     for (i = 0; i < 4; i++)
     {
-        os_printf("exit corner %d (%d, %d)\n", i, (int)scxcexits[i], (int)scycexits[i]);
+        maze_printf("exit corner %d (%d, %d)\n", i, (int)scxcexits[i], (int)scycexits[i]);
     }
 
 
@@ -1302,7 +1294,7 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     // xleft, xright, ybot, ytop are lists of boundary intervals making maze
     if (numwalls > MAXNUMWALLS)
     {
-        os_printf("numwalls = %d exceeds MAXNUMWALLS = %d", numwalls, MAXNUMWALLS);
+        maze_printf("numwalls = %d exceeds MAXNUMWALLS = %d", numwalls, MAXNUMWALLS);
     }
     numwallstodraw = numwalls;
 
@@ -1314,10 +1306,10 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     }
 
     // print solutions
-    os_printf("Solution ________________\n");
+    maze_printf("Solution ________________\n");
     for (i = 0; i < indSolution; i++)
     {
-        os_printf("(%d, %d) -> ", xsol[i], ysol[i]);
+        maze_printf("(%d, %d) -> ", xsol[i], ysol[i]);
     }
 
     //Allocate some more working array memory now
@@ -1328,7 +1320,7 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     extendedScaledWallYtop = (float*)malloc (sizeof (float) * MAXNUMWALLS);
     extendedScaledWallYbot = (float*)malloc (sizeof (float) * MAXNUMWALLS);
 
-    os_printf("After Working Arrays allocated Free Heap %d\n", system_get_free_heap_size());
+    maze_printf("After Working Arrays allocated Free Heap %d\n", system_get_free_heap_size());
     // extend the scaled walls
     // extend walls by slightlyLessThanOne*rball and compute possible extra stopper walls
     // ONLY for horizontal and vertical walls. Could do for arbitrary but
@@ -1404,7 +1396,7 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     }
     if (nwi > MAXNUMWALLS)
     {
-        os_printf("nwi = %d exceeds MAXNUMWALLS = %d", nwi, MAXNUMWALLS);
+        maze_printf("nwi = %d exceeds MAXNUMWALLS = %d", nwi, MAXNUMWALLS);
     }
     maze_printf("orginal numwalls = %d, with stoppers have %d\n", numwalls, nwi);
     // update numwalls
@@ -1580,7 +1572,7 @@ uint8_t ICACHE_FLASH_ATTR intervalsmeet(float a, float c, float b, float d, floa
     //maze_printf("t = %d, s = %d\n", (int8_t) (100*t), (int8_t) (100*s));
     if (s < 0)
     {
-        os_printf("very small NEGATIVE motion parameter s = %d/10000 so said goes thru\n", (int)(10000 * s));
+        maze_printf("very small NEGATIVE motion parameter s = %d/10000 so said goes thru\n", (int)(10000 * s));
     }
     return true;
 }
@@ -1628,7 +1620,7 @@ uint8_t ICACHE_FLASH_ATTR  gonethru(float b_prev[], float b_now[], float p_1[], 
         return false;
     }
 
-    //os_printf("%d ", (int)(1000*testdir));
+    //maze_printf("%d ", (int)(1000*testdir));
 
     if (testdir > 0) // > for leading edge , < for trailing edge
     {
