@@ -16,6 +16,9 @@ LD           = $(PREFIX)ld
 AR           = $(PREFIX)ar
 CP           = cp
 
+ESP_FLASH_BITRATE=1500000
+ESP_PORT=/dev/ttyUSB0
+
 ################################################################################
 # Options for burning
 ################################################################################
@@ -127,7 +130,8 @@ DEFINES_LIST = \
 	DISABLE_CHARRX=1 \
 	USE_OPTIMIZE_PRINTF=1 \
 	ICACHE_FLASH=1 \
-	SWADGE_VERSION=$(swadgeversion)
+	SWADGE_VERSION=$(swadgeversion) \
+	TEST_MODE=1
 
 ifneq ($(ESP_GDB),)
   DEFINES_LIST += USE_ESP_GDB
@@ -325,20 +329,20 @@ clean:
 
 # Build and burn the two firmware files
 burn : $(FW_FILE1) $(FW_FILE2)
-	$(ESPTOOL_PY) -b $(ESP_FLASH_BITRATE) --port $(ESP_PORT) write_flash -fm dio $(FLASH_WRITE_FLAGS) 0x00000 $(FW_FILE1) 0x10000 $(FW_FILE2)
+	$(ESPTOOL_PY) --baud $(ESP_FLASH_BITRATE) --port $(ESP_PORT) write_flash -fm dio $(FLASH_WRITE_FLAGS) 0x00000 $(FW_FILE1) 0x10000 $(FW_FILE2)
 
 # Build everything and burn the two firmware files, and init data
 burnitall : all
-	$(ESPTOOL_PY) -b $(ESP_FLASH_BITRATE) --port $(ESP_PORT) write_flash -fm dio $(FLASH_WRITE_FLAGS) 0x00000 $(FW_FILE1) 0x10000 $(FW_FILE2) 0x1FB000 $(SDK)/bin/blank.bin 0x1FC000 $(SDK)/bin/esp_init_data_default_v08.bin 0x1FE000 $(SDK)/bin/blank.bin
+	$(ESPTOOL_PY) --baud $(ESP_FLASH_BITRATE) --port $(ESP_PORT) write_flash -fm dio $(FLASH_WRITE_FLAGS) 0x00000 $(FW_FILE1) 0x10000 $(FW_FILE2) 0x1FB000 $(SDK)/bin/blank.bin 0x1FC000 $(SDK)/bin/esp_init_data_default_v08.bin 0x1FE000 $(SDK)/bin/blank.bin
 
 # Erase the ESP8266
 erase :
-	$(ESPTOOL_PY) -b $(ESP_FLASH_BITRATE) --port $(ESP_PORT) erase_flash
+	$(ESPTOOL_PY) --baud $(ESP_FLASH_BITRATE) --port $(ESP_PORT) erase_flash
 
 # Write zeros to the ESP8266, more aggressive than erase
 wipechip :
 	dd if=/dev/zero of=/tmp/zeroes bs=1M count=1
-	$(ESPTOOL_PY) -b $(ESP_FLASH_BITRATE)  --port $(ESP_PORT) write_flash 0x0 /tmp/zeroes
+	$(ESPTOOL_PY) --baud $(ESP_FLASH_BITRATE)  --port $(ESP_PORT) write_flash 0x0 /tmp/zeroes
 
 ################################################################################
 # Targets for Debugging
@@ -352,7 +356,7 @@ debug : $(FW_FILE0)
 
 # Dump the ROM from address 0x100000 into dump.bin
 dumprom :
-	$(ESPTOOL_PY) -b $(ESP_FLASH_BITRATE) --port $(ESP_PORT) read_flash 0 1048576 dump.bin
+	$(ESPTOOL_PY) --baud $(ESP_FLASH_BITRATE) --port $(ESP_PORT) read_flash 0 1048576 dump.bin
 
 # Kill all cutecom serial terminals, burn the firmware, and open cutecom again
 # Note, this target won't technically finish until cutecom is closed
