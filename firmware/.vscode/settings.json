@@ -29,7 +29,6 @@
         "uart_register.h": "c",
         "user_config.h": "c",
         "md5.h": "c",
-        "MMA8452Q.h": "c",
         "adc.h": "c",
         "brzo_i2c.h": "c",
         "buttons.h": "c",
@@ -69,6 +68,7 @@
         "cstdlib": "c",
         "fastlz.h": "c",
         "menuimages.h": "c",
-        "math.h": "c"
+        "math.h": "c",
+        "cnlohr_i2c.h": "c"
     }
 }

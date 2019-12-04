@@ -1,3 +1,31 @@
+#ifndef _BRZO_I2C_H
+    #define _BRZO_I2C_H
+
+    #include <cnlohr_i2c.h>
+
+
+    void brzo_i2c_write(const uint8_t* data, uint32_t no_of_bytes, bool repeated_start);
+    void brzo_i2c_start_transaction(uint8_t slave_address, uint16_t SCL_frequency_KHz);
+    void brzo_i2c_read(uint8_t* data, uint32_t nr_of_bytes, bool repeated_start);
+    uint8_t brzo_i2c_end_transaction(void);
+
+    //Do nothing, will be handled on first transaction.
+    void brzo_i2c_setup(uint32_t clock_stretch_time_out_usec);
+
+#endif
+
+#if 0
+
+    void SendStart();
+    void SendStop();
+    //Return nonzero on failure.
+    unsigned char SendByte( unsigned char data );
+    unsigned char GetByte( uint8_t send_nak );
+#endif
+
+
+#if 0
+
 /*
 brzo_i2c.h -- A fast i2c master for the esp8266 written in assembly language
 
@@ -65,3 +93,5 @@ uint8_t brzo_i2c_get_error(void);
 #endif
 
 #endif
+#endif
+

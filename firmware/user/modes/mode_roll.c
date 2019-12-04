@@ -18,7 +18,6 @@
 //#include "embeddedout.h"
 #include "oled.h"
 #include "font.h"
-#include "MMA8452Q.h"
 #include "bresenham.h"
 #include "buttons.h"
 #include "math.h"

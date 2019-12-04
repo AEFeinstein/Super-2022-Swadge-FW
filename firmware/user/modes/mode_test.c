@@ -21,7 +21,6 @@
 #include "oled.h"
 #include "sprite.h"
 #include "font.h"
-#include "MMA8452Q.h"
 #include "bresenham.h"
 #include "buttons.h"
 #include "hpatimer.h"
