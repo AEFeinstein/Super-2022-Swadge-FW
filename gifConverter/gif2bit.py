@@ -98,5 +98,5 @@ def processGifFile(file):
 
 
 if __name__ == "__main__":
-    for file in glob.glob('./gifs/*.gif'):
-	processGifFile(file)
+    for file in glob.glob('./menu_gifs/*.gif'):
+        processGifFile(file)
