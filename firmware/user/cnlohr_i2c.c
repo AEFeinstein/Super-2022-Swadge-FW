@@ -1,12 +1,21 @@
 #include "cnlohr_i2c.h"
 
-#define REMAP(x) GPIO_ID_PIN(x)
-//#define REMAP(x) x
+//#define REMAP(x) GPIO_ID_PIN(x)
+#define REMAP(x) x
+
+#define PIN_OUT       ( *((uint32_t*)0x60000300) )
+#define PIN_OUT_SET   ( *((uint32_t*)0x60000304) )
+#define PIN_OUT_CLEAR ( *((uint32_t*)0x60000308) )
+#define PIN_DIR       ( *((uint32_t*)0x6000030C) )
+#define PIN_DIR_OUTPUT ( *((uint32_t*)0x60000310) )
+#define PIN_DIR_INPUT ( *((uint32_t*)0x60000314) )
+#define PIN_IN        ( *((volatile uint32_t*)0x60000318) )
+
 
 void ICACHE_FLASH_ATTR ConfigI2C()
 {
 	GPIO_DIS_OUTPUT(REMAP(I2CSDA));
-	GPIO_DIS_OUTPUT(REMAP(I2CSCL));
+	GPIO_OUTPUT_SET(REMAP(I2CSCL),1);
 }
 
 void SendStart()
@@ -16,20 +25,19 @@ void SendStart()
 	GPIO_OUTPUT_SET(REMAP(I2CSDA), 0);
 	I2CDELAY
 	GPIO_OUTPUT_SET(REMAP(I2CSCL), 0);
+	I2CDELAY
 }
 
 void SendStop()
 {
 	I2CDELAY
 	GPIO_OUTPUT_SET(REMAP(I2CSDA), 0);  //May or may not be done.
-	GPIO_OUTPUT_SET(REMAP(I2CSCL), 0);  //Should already be done.
-
 	I2CDELAY
-	//GPIO_DIS_OUTPUT(REMAP(I2CSCL));
+	GPIO_OUTPUT_SET(REMAP(I2CSCL), 0);  //Should already be done.
+	I2CDELAY
 	GPIO_OUTPUT_SET(REMAP(I2CSCL), 1);
 	I2CDELAY
 	GPIO_DIS_OUTPUT(REMAP(I2CSDA));
-	I2CDELAY
 	I2CDELAY
 }
 
@@ -37,47 +45,34 @@ void SendStop()
 unsigned char SendByte( unsigned char data )
 {
 	unsigned char i;
-	//Assume we are in a started state (DSCL = 0 & DSDA = 0)
-/*
-	DPORT |= _BV(DSDA);
-	DDDR |= _BV(DSDA);
-*/
+	PIN_OUT_SET = (1<<I2CSDA);
+	PIN_DIR_OUTPUT = 1<<I2CSDA;
+	I2CDELAY
+	PIN_DIR_OUTPUT = 1<<I2CSCL;
 	for( i = 0; i < 8; i++ )
 	{
 		I2CDELAY
-
 		if( data & 0x80 )
-			//GPIO_DIS_OUTPUT(REMAP(I2CSDA));
-			GPIO_OUTPUT_SET(REMAP(I2CSDA), 1);
+			PIN_OUT_SET = (1<<I2CSDA);
 		else
-			GPIO_OUTPUT_SET(REMAP(I2CSDA), 0);
-
+			PIN_OUT_CLEAR = (1<<I2CSDA);
 		data<<=1;
-
 		I2CDELAY
-
-		//GPIO_DIS_OUTPUT(REMAP(I2CSCL));
-		GPIO_OUTPUT_SET(REMAP(I2CSCL), 1);
-
+		PIN_OUT_SET = (1<<I2CSCL);
 		I2CDELAY
 		I2CDELAY
-
-		GPIO_OUTPUT_SET(REMAP(I2CSCL), 0);
+		PIN_OUT_CLEAR = (1<<I2CSCL);
 	}
 
 	//Immediately after sending last bit, open up DDDR for control.
-	GPIO_DIS_OUTPUT(REMAP(I2CSDA));
+	PIN_DIR_INPUT = (1<<I2CSDA);
 	I2CDELAY
-	//GPIO_DIS_OUTPUT(REMAP(I2CSCL));
-	GPIO_OUTPUT_SET(REMAP(I2CSCL), 1);
+	PIN_OUT_SET = (1<<I2CSCL);
 	I2CDELAY
 	I2CDELAY
-	i = GPIO_INPUT_GET( REMAP(I2CSDA));
-	GPIO_OUTPUT_SET(REMAP(I2CSCL), 0);
+	i = (PIN_IN & (1<<I2CSDA))?1:0; //Read in input.  See if client is there.
+	PIN_OUT_CLEAR = (1<<I2CSCL);
 	I2CDELAY
-
-//  Leave in open collector.
-
 	return (i)?1:0;
 }
 
@@ -86,62 +81,47 @@ unsigned char GetByte( uint8_t send_nak )
 	unsigned char i;
 	unsigned char ret = 0;
 
-	GPIO_DIS_OUTPUT(REMAP(I2CSDA));
+	PIN_DIR_INPUT = 1<<I2CSDA;
 
 	for( i = 0; i < 8; i++ )
 	{
 		I2CDELAY
-		//GPIO_DIS_OUTPUT(REMAP(I2CSCL));
-		GPIO_OUTPUT_SET(REMAP(I2CSCL), 1);
+		PIN_OUT_SET = (1<<I2CSCL);
 		I2CDELAY
 		I2CDELAY
-
 		ret<<=1;
-
-		if( GPIO_INPUT_GET( REMAP(I2CSDA)) )
+		if( PIN_IN & (1<<I2CSDA) )
 			ret |= 1;
-
-		GPIO_OUTPUT_SET(REMAP(I2CSCL), 0);
+		PIN_OUT_CLEAR = (1<<I2CSCL);
 		I2CDELAY
 	}
+
+	PIN_DIR_OUTPUT = 1<<I2CSDA;
 
 	//Send ack.
 	if( send_nak )
 	{
+		PIN_OUT_SET = (1<<I2CSDA);
 	}
 	else
 	{
-		GPIO_OUTPUT_SET(REMAP(I2CSDA), 0);
+		PIN_OUT_CLEAR = (1<<I2CSDA);
 	}
 	I2CDELAY
-	//GPIO_DIS_OUTPUT(REMAP(I2CSCL));
-	GPIO_OUTPUT_SET(REMAP(I2CSCL), 1);
+	PIN_OUT_SET = (1<<I2CSCL);
 	I2CDELAY
 	I2CDELAY
 	I2CDELAY
-	GPIO_OUTPUT_SET(REMAP(I2CSCL), 0);
+	PIN_OUT_CLEAR = (1<<I2CSCL);
 	I2CDELAY
-	GPIO_DIS_OUTPUT(REMAP(I2CSDA));
 
 	return ret;
 }
 
 void my_i2c_delay()
 {
-	//These are assuming 1.5k
-	//If i = 2, there are a lot of errors, with 1.5k pullups on the I2C.
-	//If i = 3, the AVR can't keep up.
-	//If i = 4, things are hokey.
-	//If i = 5, things are even worse
-	//If i = 6..8, splended, but AVR is super flakey.
-	//If i = 9, AVR is almost
-	//If i = 10, AVR is solid. Let's go above there...
-	// I like i = 15 @2.7k
-	uint8_t i = 20;
-	do
-	{
-		asm("nop");	
-	} while( i-- );
+	asm volatile("nop\nnop\n");	 //Less than 2 causes a sad face :( 
+	return;
 }
 
 

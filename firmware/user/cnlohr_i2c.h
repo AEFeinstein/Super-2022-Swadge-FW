@@ -10,8 +10,7 @@
 #define I2CSDA 2
 #define I2CSCL 0
 
-#define I2CDELAY 
-	//my_i2c_delay();
+#define I2CDELAY my_i2c_delay();
 //#define I2CDELAY ets_delay_us( 1 );
 void my_i2c_delay();
 
