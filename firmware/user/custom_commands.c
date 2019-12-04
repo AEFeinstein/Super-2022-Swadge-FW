@@ -21,7 +21,7 @@
 
 #define NUMBER_STORED_CONFIGURABLES 16
 #define CONFIGURABLES sizeof(struct CCSettings) //(plus1)
-#define SAVE_LOAD_KEY 0xB0
+#define SAVE_LOAD_KEY 0xB1
 
 /*============================================================================
  * Structs

@@ -83,15 +83,14 @@
 
 #define CLEAR_SCORES_HOLD_TIME (5 * MS_TO_US_FACTOR * S_TO_MS_FACTOR)
 
-#define NUM_MZ_LEVELS 8
-#define BOX_LEVEL 0
-#define PRACTICE_LEVEL 1
-#define NOVICE_LEVEL 2
-#define EASY_LEVEL 3
-#define MIDDLE_LEVEL 4
-#define HARD_LEVEL 5
-#define KILLER_LEVEL 6
-#define IMPOSSIBLE_LEVEL 7
+// #define NUM_MZ_LEVELS 7
+#define PRACTICE_LEVEL 0
+#define NOVICE_LEVEL 1
+#define EASY_LEVEL 2
+#define MIDDLE_LEVEL 3
+#define HARD_LEVEL 4
+#define KILLER_LEVEL 5
+#define IMPOSSIBLE_LEVEL 6
 
 // LEDs relation to screen
 #define LED_UPPER_LEFT LED_1
@@ -217,7 +216,7 @@ static const uint8_t mazeBrightnesses[] =
 };
 
 
-const char* levelName[] = {"BOX", "PRACTICE", "NOVICE",  "EASY", "MIDDLE", "HARD", "KILLER", "IMPOSSIBLE"};
+const char* levelName[NUM_MZ_LEVELS] = {"PRACTICE", "NOVICE",  "EASY", "MIDDLE", "HARD", "KILLER", "IMPOSSIBLE"};
 
 /*============================================================================
  * Variables
@@ -289,7 +288,7 @@ uint16_t totalhitstilldone;
 bool gameover;
 bool didAutoMaze;
 
-uint8_t mazeLevel = BOX_LEVEL;
+uint8_t mazeLevel = PRACTICE_LEVEL;
 uint8_t width;
 uint8_t height; //Maze dimensions must be 1 less than multiples of 4
 uint8_t mazescalex = 1;
@@ -330,7 +329,7 @@ void ICACHE_FLASH_ATTR mzInit(void)
 
 
     // Construct Random Maze
-    mazeLevel = BOX_LEVEL;
+    mazeLevel = PRACTICE_LEVEL;
     setLevel(mazeLevel);
     mzNewMazeSetUp();
 
@@ -500,7 +499,7 @@ void ICACHE_FLASH_ATTR mzTitleInput(void)
         mazeLevel++;
         if (mazeLevel > IMPOSSIBLE_LEVEL)
         {
-            mazeLevel = BOX_LEVEL;
+            mazeLevel = PRACTICE_LEVEL;
         }
         setLevel(mazeLevel);
         mazeFreeMemory();
@@ -546,11 +545,6 @@ void ICACHE_FLASH_ATTR setLevel(uint8_t mzLevel)
             width = 63;
             height = 27;
             rballused = 1;
-            break;
-        case BOX_LEVEL:
-            width = 7;
-            height = 3;
-            rballused = 9;
             break;
         default:
             break;
@@ -1036,89 +1030,79 @@ void ICACHE_FLASH_ATTR mzScoresDisplay(void)
     // 1. 99999
     if (mzBestTimes[0] < 100000)
     {
-        ets_snprintf(uiStr, sizeof(uiStr), "B %d", mzBestTimes[0]);
+        ets_snprintf(uiStr, sizeof(uiStr), "P %d", mzBestTimes[0]);
     }
     else
     {
-        ets_snprintf(uiStr, sizeof(uiStr), "B -----");
+        ets_snprintf(uiStr, sizeof(uiStr), "P -----");
     }
     plotText(0, (2 * FONT_HEIGHT_TOMTHUMB) - 3, uiStr, IBM_VGA_8, WHITE);
 
     // 2. 99999
     if (mzBestTimes[1] < 100000)
     {
-        ets_snprintf(uiStr, sizeof(uiStr), "P %d", mzBestTimes[1]);
+        ets_snprintf(uiStr, sizeof(uiStr), "N %d", mzBestTimes[1]);
     }
     else
     {
-        ets_snprintf(uiStr, sizeof(uiStr), "P -----");
+        ets_snprintf(uiStr, sizeof(uiStr), "N -----");
     }
     plotText(0, (2 * FONT_HEIGHT_TOMTHUMB) + (FONT_HEIGHT_IBMVGA8) - 2, uiStr, IBM_VGA_8, WHITE);
 
     // 3. 99999
     if (mzBestTimes[2] < 100000)
     {
-        ets_snprintf(uiStr, sizeof(uiStr), "N %d", mzBestTimes[2]);
+        ets_snprintf(uiStr, sizeof(uiStr), "E %d", mzBestTimes[2]);
     }
     else
     {
-        ets_snprintf(uiStr, sizeof(uiStr), "N -----");
+        ets_snprintf(uiStr, sizeof(uiStr), "E -----");
     }
     plotText(0, (2 * FONT_HEIGHT_TOMTHUMB) + 2 * (FONT_HEIGHT_IBMVGA8), uiStr, IBM_VGA_8, WHITE);
 
     // 4. 99999
     if (mzBestTimes[3] < 100000)
     {
-        ets_snprintf(uiStr, sizeof(uiStr), "E %d", mzBestTimes[3]);
+        ets_snprintf(uiStr, sizeof(uiStr), "M %d", mzBestTimes[3]);
     }
     else
     {
-        ets_snprintf(uiStr, sizeof(uiStr), "E -----");
+        ets_snprintf(uiStr, sizeof(uiStr), "M -----");
     }
     plotText(0, (2 * FONT_HEIGHT_TOMTHUMB) + 3 * (FONT_HEIGHT_IBMVGA8) + 2, uiStr, IBM_VGA_8, WHITE);
 
     // 5. 99999
     if (mzBestTimes[4] < 100000)
     {
-        ets_snprintf(uiStr, sizeof(uiStr), "M %d", mzBestTimes[4]);
+        ets_snprintf(uiStr, sizeof(uiStr), "H %d", mzBestTimes[4]);
     }
     else
     {
-        ets_snprintf(uiStr, sizeof(uiStr), "M -----");
+        ets_snprintf(uiStr, sizeof(uiStr), "H -----");
     }
     plotText(64, (2 * FONT_HEIGHT_TOMTHUMB) - 3, uiStr, IBM_VGA_8, WHITE);
 
     // 6. 99999
     if (mzBestTimes[5] < 100000)
     {
-        ets_snprintf(uiStr, sizeof(uiStr), "H %d", mzBestTimes[5]);
+        ets_snprintf(uiStr, sizeof(uiStr), "K %d", mzBestTimes[5]);
     }
     else
     {
-        ets_snprintf(uiStr, sizeof(uiStr), "H -----");
+        ets_snprintf(uiStr, sizeof(uiStr), "K -----");
     }
     plotText(64, (2 * FONT_HEIGHT_TOMTHUMB) + (FONT_HEIGHT_IBMVGA8) - 2, uiStr, IBM_VGA_8, WHITE);
 
     // 7. 99999
     if (mzBestTimes[6] < 100000)
     {
-        ets_snprintf(uiStr, sizeof(uiStr), "K %d", mzBestTimes[6]);
-    }
-    else
-    {
-        ets_snprintf(uiStr, sizeof(uiStr), "K -----");
-    }
-    plotText(64, (2 * FONT_HEIGHT_TOMTHUMB) + 2 * (FONT_HEIGHT_IBMVGA8), uiStr, IBM_VGA_8, WHITE);
-    // 8. 99999
-    if (mzBestTimes[7] < 100000)
-    {
-        ets_snprintf(uiStr, sizeof(uiStr), "I %d", mzBestTimes[7]);
+        ets_snprintf(uiStr, sizeof(uiStr), "I %d", mzBestTimes[6]);
     }
     else
     {
         ets_snprintf(uiStr, sizeof(uiStr), "I -----");
     }
-    plotText(64, (2 * FONT_HEIGHT_TOMTHUMB) + 3 * (FONT_HEIGHT_IBMVGA8) + 2, uiStr, IBM_VGA_8, WHITE);
+    plotText(64, (2 * FONT_HEIGHT_TOMTHUMB) + 2 * (FONT_HEIGHT_IBMVGA8), uiStr, IBM_VGA_8, WHITE);
 
     //TODO: explicitly add a hold to the text, or is the inverse effect enough.
     // (HOLD) CLEAR TIMES      TITLE
@@ -1140,9 +1124,6 @@ void ICACHE_FLASH_ATTR mzGameoverLedDisplay(void)
 {
     switch (mazeLevel)
     {
-        case BOX_LEVEL:
-            danceTimers[0].timerFn(NULL);
-            break;
         case PRACTICE_LEVEL:
             danceTimers[1].timerFn(NULL);
             break;
