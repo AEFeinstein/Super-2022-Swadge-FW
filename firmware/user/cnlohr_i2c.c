@@ -3,22 +3,22 @@
 //#define REMAP(x) GPIO_ID_PIN(x)
 #define REMAP(x) x
 
-#define PIN_OUT       ( *((uint32_t*)0x60000300) )
+// #define PIN_OUT       ( *((uint32_t*)0x60000300) )
 #define PIN_OUT_SET   ( *((uint32_t*)0x60000304) )
 #define PIN_OUT_CLEAR ( *((uint32_t*)0x60000308) )
-#define PIN_DIR       ( *((uint32_t*)0x6000030C) )
+// #define PIN_DIR       ( *((uint32_t*)0x6000030C) )
 #define PIN_DIR_OUTPUT ( *((uint32_t*)0x60000310) )
 #define PIN_DIR_INPUT ( *((uint32_t*)0x60000314) )
 #define PIN_IN        ( *((volatile uint32_t*)0x60000318) )
 
 
-void ICACHE_FLASH_ATTR ConfigI2C()
+void ICACHE_FLASH_ATTR ConfigI2C(void)
 {
 	GPIO_DIS_OUTPUT(REMAP(I2CSDA));
 	GPIO_OUTPUT_SET(REMAP(I2CSCL),1);
 }
 
-void SendStart()
+void SendStart(void)
 {
 	I2CDELAY
 	I2CDELAY
@@ -28,7 +28,7 @@ void SendStart()
 	I2CDELAY
 }
 
-void SendStop()
+void SendStop(void)
 {
 	I2CDELAY
 	GPIO_OUTPUT_SET(REMAP(I2CSDA), 0);  //May or may not be done.
@@ -120,7 +120,7 @@ unsigned char GetByte( uint8_t send_nak )
 	return ret;
 }
 
-void my_i2c_delay()
+void my_i2c_delay(void)
 {
 	asm volatile("nop\nnop\n");	 //Less than 2 causes a sad face :( 
 	asm volatile("nop\nnop\n");	

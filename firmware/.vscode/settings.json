@@ -68,6 +68,7 @@
         "cstdlib": "c",
         "fastlz.h": "c",
         "menuimages.h": "c",
-        "math.h": "c"
+        "math.h": "c",
+        "cnlohr_i2c.h": "c"
     }
 }

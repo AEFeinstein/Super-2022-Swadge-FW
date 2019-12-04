@@ -12,13 +12,13 @@
 
 #define I2CDELAY my_i2c_delay();
 //#define I2CDELAY ets_delay_us( 1 );
-void my_i2c_delay();
+void my_i2c_delay(void);
 
 //Assumes I2CGet was already called.
-void ConfigI2C();
+void ConfigI2C(void);
 
-void SendStart();
-void SendStop();
+void SendStart(void);
+void SendStop(void);
 //Return nonzero on failure.
 unsigned char SendByte( unsigned char data );
 unsigned char GetByte( uint8_t send_nak );
