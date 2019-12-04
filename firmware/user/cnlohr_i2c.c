@@ -14,118 +14,124 @@
 
 void ICACHE_FLASH_ATTR ConfigI2C(void)
 {
-	GPIO_DIS_OUTPUT(REMAP(I2CSDA));
-	GPIO_OUTPUT_SET(REMAP(I2CSCL),1);
+    GPIO_DIS_OUTPUT(REMAP(I2CSDA));
+    GPIO_OUTPUT_SET(REMAP(I2CSCL), 1);
 }
 
 void SendStart(void)
 {
-	I2CDELAY
-	I2CDELAY
-	GPIO_OUTPUT_SET(REMAP(I2CSDA), 0);
-	I2CDELAY
-	GPIO_OUTPUT_SET(REMAP(I2CSCL), 0);
-	I2CDELAY
+    I2CDELAY
+    I2CDELAY
+    GPIO_OUTPUT_SET(REMAP(I2CSDA), 0);
+    I2CDELAY
+    GPIO_OUTPUT_SET(REMAP(I2CSCL), 0);
+    I2CDELAY
 }
 
 void SendStop(void)
 {
-	I2CDELAY
-	GPIO_OUTPUT_SET(REMAP(I2CSDA), 0);  //May or may not be done.
-	I2CDELAY
-	GPIO_OUTPUT_SET(REMAP(I2CSCL), 0);  //Should already be done.
-	I2CDELAY
-	GPIO_OUTPUT_SET(REMAP(I2CSCL), 1);
-	I2CDELAY
-	GPIO_DIS_OUTPUT(REMAP(I2CSDA));
-	I2CDELAY
+    I2CDELAY
+    GPIO_OUTPUT_SET(REMAP(I2CSDA), 0);  //May or may not be done.
+    I2CDELAY
+    GPIO_OUTPUT_SET(REMAP(I2CSCL), 0);  //Should already be done.
+    I2CDELAY
+    GPIO_OUTPUT_SET(REMAP(I2CSCL), 1);
+    I2CDELAY
+    GPIO_DIS_OUTPUT(REMAP(I2CSDA));
+    I2CDELAY
 }
 
 //Return nonzero on failure.
 unsigned char SendByte( unsigned char data )
 {
-	unsigned char i;
-	PIN_OUT_SET = (1<<I2CSDA);
-	PIN_DIR_OUTPUT = 1<<I2CSDA;
-	I2CDELAY
-	PIN_DIR_OUTPUT = 1<<I2CSCL;
-	for( i = 0; i < 8; i++ )
-	{
-		I2CDELAY
-		if( data & 0x80 )
-			PIN_OUT_SET = (1<<I2CSDA);
-		else
-			PIN_OUT_CLEAR = (1<<I2CSDA);
-		data<<=1;
-		I2CDELAY
-		PIN_OUT_SET = (1<<I2CSCL);
-		I2CDELAY
-		I2CDELAY
-		PIN_OUT_CLEAR = (1<<I2CSCL);
-	}
+    unsigned char i;
+    PIN_OUT_SET = (1 << I2CSDA);
+    PIN_DIR_OUTPUT = 1 << I2CSDA;
+    I2CDELAY
+    PIN_DIR_OUTPUT = 1 << I2CSCL;
+    for( i = 0; i < 8; i++ )
+    {
+        I2CDELAY
+        if( data & 0x80 )
+        {
+            PIN_OUT_SET = (1 << I2CSDA);
+        }
+        else
+        {
+            PIN_OUT_CLEAR = (1 << I2CSDA);
+        }
+        data <<= 1;
+        I2CDELAY
+        PIN_OUT_SET = (1 << I2CSCL);
+        I2CDELAY
+        I2CDELAY
+        PIN_OUT_CLEAR = (1 << I2CSCL);
+    }
 
-	//Immediately after sending last bit, open up DDDR for control.
-	//WARNING: this does mean on "read"s from the accelerometer, there is a VERY brief (should be less than 150ns) contradiction.
-	//This should have no ill effects.
-	PIN_DIR_INPUT = (1<<I2CSDA);
-	I2CDELAY
-	PIN_OUT_SET = (1<<I2CSCL);
-	I2CDELAY
-	I2CDELAY
-	i = (PIN_IN & (1<<I2CSDA))?1:0; //Read in input.  See if client is there.
-	PIN_OUT_CLEAR = (1<<I2CSCL);
-	I2CDELAY
-	return (i)?1:0;
+    //Immediately after sending last bit, open up DDDR for control.
+    //WARNING: this does mean on "read"s from the accelerometer, there is a VERY brief (should be less than 150ns) contradiction.
+    //This should have no ill effects.
+    PIN_DIR_INPUT = (1 << I2CSDA);
+    I2CDELAY
+    PIN_OUT_SET = (1 << I2CSCL);
+    I2CDELAY
+    I2CDELAY
+    i = (PIN_IN & (1 << I2CSDA)) ? 1 : 0; //Read in input.  See if client is there.
+    PIN_OUT_CLEAR = (1 << I2CSCL);
+    I2CDELAY
+    return (i) ? 1 : 0;
 }
 
 unsigned char GetByte( uint8_t send_nak )
 {
-	unsigned char i;
-	unsigned char ret = 0;
+    unsigned char i;
+    unsigned char ret = 0;
 
-	PIN_DIR_INPUT = 1<<I2CSDA;
+    PIN_DIR_INPUT = 1 << I2CSDA;
 
-	for( i = 0; i < 8; i++ )
-	{
-		I2CDELAY
-		PIN_OUT_SET = (1<<I2CSCL);
-		I2CDELAY
-		I2CDELAY
-		ret<<=1;
-		if( PIN_IN & (1<<I2CSDA) )
-			ret |= 1;
-		PIN_OUT_CLEAR = (1<<I2CSCL);
-		I2CDELAY
-	}
+    for( i = 0; i < 8; i++ )
+    {
+        I2CDELAY
+        PIN_OUT_SET = (1 << I2CSCL);
+        I2CDELAY
+        I2CDELAY
+        ret <<= 1;
+        if( PIN_IN & (1 << I2CSDA) )
+        {
+            ret |= 1;
+        }
+        PIN_OUT_CLEAR = (1 << I2CSCL);
+        I2CDELAY
+    }
 
-	PIN_DIR_OUTPUT = 1<<I2CSDA;
+    PIN_DIR_OUTPUT = 1 << I2CSDA;
 
-	//Send ack.
-	if( send_nak )
-	{
-		PIN_OUT_SET = (1<<I2CSDA);
-	}
-	else
-	{
-		PIN_OUT_CLEAR = (1<<I2CSDA);
-	}
-	I2CDELAY
-	PIN_OUT_SET = (1<<I2CSCL);
-	I2CDELAY
-	I2CDELAY
-	I2CDELAY
-	PIN_OUT_CLEAR = (1<<I2CSCL);
-	I2CDELAY
+    //Send ack.
+    if( send_nak )
+    {
+        PIN_OUT_SET = (1 << I2CSDA);
+    }
+    else
+    {
+        PIN_OUT_CLEAR = (1 << I2CSDA);
+    }
+    I2CDELAY
+    PIN_OUT_SET = (1 << I2CSCL);
+    I2CDELAY
+    I2CDELAY
+    I2CDELAY
+    PIN_OUT_CLEAR = (1 << I2CSCL);
+    I2CDELAY
 
-	return ret;
+    return ret;
 }
 
 void my_i2c_delay(void)
 {
-	asm volatile("nop\nnop\n");	 //Less than 2 causes a sad face :( 
-	asm volatile("nop\nnop\n");	
-	asm volatile("nop\nnop\n");	 //More than two gives us margin.
-	return;
+    asm volatile("nop\nnop\n");  //Less than 2 causes a sad face :(
+    asm volatile("nop\nnop\n");
+    asm volatile("nop\nnop\n");  //More than two gives us margin.
+    return;
 }
 
 
