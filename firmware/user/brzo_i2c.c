@@ -14,63 +14,76 @@ void brzo_i2c_setup( uint32_t clock_stretch_time_out_usec)
     PIN_FUNC_SELECT(BRZO_I2C_SDA_MUX, BRZO_I2C_SDA_FUNC);
     PIN_FUNC_SELECT(BRZO_I2C_SCL_MUX, BRZO_I2C_SCL_FUNC);
 
-	//~60k resistor.  On a small PCB, with 3 I2C clients, it takes ~ 1uS to get to 2v
-	PIN_PULLUP_EN(BRZO_I2C_SDA_MUX);
-	PIN_PULLUP_EN(BRZO_I2C_SCL_MUX); 
+    //~60k resistor. On a small PCB, with 3 I2C clients, it takes ~ 1uS to get to 2v
+    PIN_PULLUP_EN(BRZO_I2C_SDA_MUX);
+    PIN_PULLUP_EN(BRZO_I2C_SCL_MUX);
 
-	ConfigI2C();
+    ConfigI2C();
 }
 
 
 void brzo_i2c_write(const uint8_t* data, uint32_t no_of_bytes, bool repeated_start)
 {
-	unsigned i;
-	if( brneed_new_stop && !repeated_start )
-	{
-		SendStop();
-		I2CDELAY
-	}
-	SendStart();
-	if( SendByte( brslave_address<<1 ) ) brz_err = 1;
-	for( i = 0; i < no_of_bytes; i++ )
-		if( SendByte( data[i] ) ) brz_err = 1;
-	brneed_new_stop = 1;
+    unsigned i;
+    if( brneed_new_stop && !repeated_start )
+    {
+        SendStop();
+        I2CDELAY
+    }
+    SendStart();
+    if( SendByte( brslave_address << 1 ) )
+    {
+        brz_err = 1;
+    }
+    for( i = 0; i < no_of_bytes; i++ )
+    {
+        if( SendByte( data[i] ) )
+        {
+            brz_err = 1;
+        }
+    }
+    brneed_new_stop = 1;
 }
 
 void brzo_i2c_start_transaction(uint8_t slave_address, uint16_t SCL_frequency_KHz)
 {
-	brz_err = 0;
-	SCL_frequency_KHz = SCL_frequency_KHz;
-//	SendStart();
-//	SendByte( slave_address<<1 );
-	brslave_address=  slave_address;
+    brz_err = 0;
+    SCL_frequency_KHz = SCL_frequency_KHz;
+    // SendStart();
+    // SendByte( slave_address << 1 );
+    brslave_address = slave_address;
 }
 
 
 void brzo_i2c_read(uint8_t* data, uint32_t nr_of_bytes, bool repeated_start)
 {
-	if( brneed_new_stop && !repeated_start )
-	{
-		SendStop();
-		I2CDELAY
-	}
+    if( brneed_new_stop && !repeated_start )
+    {
+        SendStop();
+        I2CDELAY
+    }
 
-	SendStart();
-	if( SendByte( 1 | (brslave_address<<1) ) ) brz_err = 1;
+    SendStart();
+    if( SendByte( 1 | (brslave_address << 1) ) )
+    {
+        brz_err = 1;
+    }
 
-	//	if( repeated_start ) SendStart();
-	unsigned i;
-	for( i = 0; i < nr_of_bytes-1; i++ )
-		data[i] = GetByte( 0 );
-	data[i] = GetByte( 1 );
-	SendStop();
+    // if( repeated_start ) SendStart();
+    unsigned i;
+    for( i = 0; i < nr_of_bytes - 1; i++ )
+    {
+        data[i] = GetByte( 0 );
+    }
+    data[i] = GetByte( 1 );
+    SendStop();
 }
 
 uint8_t brzo_i2c_end_transaction()
 {
-	SendStop();
-	brneed_new_stop = 0;
-	return brz_err;
+    SendStop();
+    brneed_new_stop = 0;
+    return brz_err;
 }
 
 
