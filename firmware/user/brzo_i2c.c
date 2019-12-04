@@ -3,6 +3,7 @@
 int brneed_new_stop;
 uint8_t brslave_address;
 int brz_err;
+bool brz_highSpeed;
 
 #define BRZO_I2C_SDA_MUX PERIPHS_IO_MUX_GPIO2_U
 #define BRZO_I2C_SCL_MUX PERIPHS_IO_MUX_GPIO0_U
@@ -27,17 +28,17 @@ void brzo_i2c_write(const uint8_t* data, uint32_t no_of_bytes, bool repeated_sta
     unsigned i;
     if( brneed_new_stop && !repeated_start )
     {
-        SendStop();
-        I2CDELAY
+        SendStop(brz_highSpeed);
+        I2CDELAY(brz_highSpeed);
     }
-    SendStart();
-    if( SendByte( brslave_address << 1 ) )
+    SendStart(brz_highSpeed);
+    if( SendByte( brslave_address << 1, brz_highSpeed ) )
     {
         brz_err = 1;
     }
     for( i = 0; i < no_of_bytes; i++ )
     {
-        if( SendByte( data[i] ) )
+        if( SendByte( data[i], brz_highSpeed ) )
         {
             brz_err = 1;
         }
@@ -45,8 +46,9 @@ void brzo_i2c_write(const uint8_t* data, uint32_t no_of_bytes, bool repeated_sta
     brneed_new_stop = 1;
 }
 
-void brzo_i2c_start_transaction(uint8_t slave_address, uint16_t SCL_frequency_KHz __attribute__((unused)))
+void brzo_i2c_start_transaction(uint8_t slave_address, uint16_t SCL_frequency_KHz)
 {
+    brz_highSpeed = (800 == SCL_frequency_KHz);
     brz_err = 0;
     // SendStart();
     // SendByte( slave_address << 1 );
@@ -58,12 +60,12 @@ void brzo_i2c_read(uint8_t* data, uint32_t nr_of_bytes, bool repeated_start)
 {
     if( brneed_new_stop && !repeated_start )
     {
-        SendStop();
-        I2CDELAY
+        SendStop(brz_highSpeed);
+        I2CDELAY(brz_highSpeed);
     }
 
-    SendStart();
-    if( SendByte( 1 | (brslave_address << 1) ) )
+    SendStart(brz_highSpeed);
+    if( SendByte( 1 | (brslave_address << 1), brz_highSpeed ) )
     {
         brz_err = 1;
     }
@@ -72,15 +74,15 @@ void brzo_i2c_read(uint8_t* data, uint32_t nr_of_bytes, bool repeated_start)
     unsigned i;
     for( i = 0; i < nr_of_bytes - 1; i++ )
     {
-        data[i] = GetByte( 0 );
+        data[i] = GetByte( 0, brz_highSpeed );
     }
-    data[i] = GetByte( 1 );
-    SendStop();
+    data[i] = GetByte( 1, brz_highSpeed );
+    SendStop(brz_highSpeed);
 }
 
 uint8_t brzo_i2c_end_transaction(void)
 {
-    SendStop();
+    SendStop(brz_highSpeed);
     brneed_new_stop = 0;
     return brz_err;
 }

@@ -10,17 +10,17 @@
 #define I2CSDA 2
 #define I2CSCL 0
 
-#define I2CDELAY my_i2c_delay();
+#define I2CDELAY(x) my_i2c_delay(x)
 //#define I2CDELAY ets_delay_us( 1 );
-void my_i2c_delay(void);
+void my_i2c_delay(bool);
 
 //Assumes I2CGet was already called.
 void ConfigI2C(void);
 
-void SendStart(void);
-void SendStop(void);
+void SendStart(bool);
+void SendStop(bool);
 //Return nonzero on failure.
-unsigned char SendByte( unsigned char data );
-unsigned char GetByte( uint8_t send_nak );
+unsigned char SendByte( unsigned char data, bool );
+unsigned char GetByte( uint8_t send_nak, bool );
 
 #endif

@@ -18,40 +18,40 @@ void ICACHE_FLASH_ATTR ConfigI2C(void)
     GPIO_OUTPUT_SET(REMAP(I2CSCL), 1);
 }
 
-void SendStart(void)
+void SendStart(bool highSpeed)
 {
-    I2CDELAY
-    I2CDELAY
+    I2CDELAY(highSpeed);
+    I2CDELAY(highSpeed);
     GPIO_OUTPUT_SET(REMAP(I2CSDA), 0);
-    I2CDELAY
+    I2CDELAY(highSpeed);
     GPIO_OUTPUT_SET(REMAP(I2CSCL), 0);
-    I2CDELAY
+    I2CDELAY(highSpeed);
 }
 
-void SendStop(void)
+void SendStop(bool highSpeed)
 {
-    I2CDELAY
+    I2CDELAY(highSpeed);
     GPIO_OUTPUT_SET(REMAP(I2CSDA), 0);  //May or may not be done.
-    I2CDELAY
+    I2CDELAY(highSpeed);
     GPIO_OUTPUT_SET(REMAP(I2CSCL), 0);  //Should already be done.
-    I2CDELAY
+    I2CDELAY(highSpeed);
     GPIO_OUTPUT_SET(REMAP(I2CSCL), 1);
-    I2CDELAY
+    I2CDELAY(highSpeed);
     GPIO_DIS_OUTPUT(REMAP(I2CSDA));
-    I2CDELAY
+    I2CDELAY(highSpeed);
 }
 
 //Return nonzero on failure.
-unsigned char SendByte( unsigned char data )
+unsigned char SendByte( unsigned char data, bool highSpeed )
 {
     unsigned char i;
     PIN_OUT_SET = (1 << I2CSDA);
     PIN_DIR_OUTPUT = 1 << I2CSDA;
-    I2CDELAY
+    I2CDELAY(highSpeed);
     PIN_DIR_OUTPUT = 1 << I2CSCL;
     for( i = 0; i < 8; i++ )
     {
-        I2CDELAY
+        I2CDELAY(highSpeed);
         if( data & 0x80 )
         {
             PIN_OUT_SET = (1 << I2CSDA);
@@ -61,10 +61,10 @@ unsigned char SendByte( unsigned char data )
             PIN_OUT_CLEAR = (1 << I2CSDA);
         }
         data <<= 1;
-        I2CDELAY
+        I2CDELAY(highSpeed);
         PIN_OUT_SET = (1 << I2CSCL);
-        I2CDELAY
-        I2CDELAY
+        I2CDELAY(highSpeed);
+        I2CDELAY(highSpeed);
         PIN_OUT_CLEAR = (1 << I2CSCL);
     }
 
@@ -72,17 +72,17 @@ unsigned char SendByte( unsigned char data )
     //WARNING: this does mean on "read"s from the accelerometer, there is a VERY brief (should be less than 150ns) contradiction.
     //This should have no ill effects.
     PIN_DIR_INPUT = (1 << I2CSDA);
-    I2CDELAY
+    I2CDELAY(highSpeed);
     PIN_OUT_SET = (1 << I2CSCL);
-    I2CDELAY
-    I2CDELAY
+    I2CDELAY(highSpeed);
+    I2CDELAY(highSpeed);
     i = (PIN_IN & (1 << I2CSDA)) ? 1 : 0; //Read in input.  See if client is there.
     PIN_OUT_CLEAR = (1 << I2CSCL);
-    I2CDELAY
+    I2CDELAY(highSpeed);
     return (i) ? 1 : 0;
 }
 
-unsigned char GetByte( uint8_t send_nak )
+unsigned char GetByte( uint8_t send_nak, bool highSpeed)
 {
     unsigned char i;
     unsigned char ret = 0;
@@ -91,17 +91,17 @@ unsigned char GetByte( uint8_t send_nak )
 
     for( i = 0; i < 8; i++ )
     {
-        I2CDELAY
+        I2CDELAY(highSpeed);
         PIN_OUT_SET = (1 << I2CSCL);
-        I2CDELAY
-        I2CDELAY
+        I2CDELAY(highSpeed);
+        I2CDELAY(highSpeed);
         ret <<= 1;
         if( PIN_IN & (1 << I2CSDA) )
         {
             ret |= 1;
         }
         PIN_OUT_CLEAR = (1 << I2CSCL);
-        I2CDELAY
+        I2CDELAY(highSpeed);
     }
 
     PIN_DIR_OUTPUT = 1 << I2CSDA;
@@ -115,22 +115,36 @@ unsigned char GetByte( uint8_t send_nak )
     {
         PIN_OUT_CLEAR = (1 << I2CSDA);
     }
-    I2CDELAY
+    I2CDELAY(highSpeed);
     PIN_OUT_SET = (1 << I2CSCL);
-    I2CDELAY
-    I2CDELAY
-    I2CDELAY
+    I2CDELAY(highSpeed);
+    I2CDELAY(highSpeed);
+    I2CDELAY(highSpeed);
     PIN_OUT_CLEAR = (1 << I2CSCL);
-    I2CDELAY
+    I2CDELAY(highSpeed);
 
     return ret;
 }
 
-void my_i2c_delay(void)
+void my_i2c_delay(bool highSpeed)
 {
-    asm volatile("nop\nnop\n");  //Less than 2 causes a sad face :(
-    asm volatile("nop\nnop\n");
-    asm volatile("nop\nnop\n");  //More than two gives us margin.
+    asm volatile("nop\nnop\n"); // Less than 2 causes a sad face :(
+    asm volatile("nop\nnop\n"); // More than two gives us margin.
+    if(!highSpeed)
+    {
+        asm volatile("nop\nnop\n");  // Wait a lot longer
+        asm volatile("nop\nnop\n");
+        asm volatile("nop\nnop\n");
+        asm volatile("nop\nnop\n");
+        asm volatile("nop\nnop\n");
+        asm volatile("nop\nnop\n");
+        asm volatile("nop\nnop\n");
+        asm volatile("nop\nnop\n");
+        asm volatile("nop\nnop\n");
+        asm volatile("nop\nnop\n");
+        asm volatile("nop\nnop\n");
+    }
+
     return;
 }
 
