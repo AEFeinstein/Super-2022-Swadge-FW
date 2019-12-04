@@ -328,6 +328,7 @@ float* extendedScaledWallXright = NULL;
 float* extendedScaledWallYtop = NULL;
 float* extendedScaledWallYbot = NULL;
 
+bool mazeDrawGalleryUnlock = false;
 
 void ICACHE_FLASH_ATTR mzInit(void)
 {
@@ -1210,6 +1211,27 @@ void ICACHE_FLASH_ATTR mzGameoverDisplay(void)
     }
     else
     {
+        // If the gallery image was unlocked
+        if (true == mazeDrawGalleryUnlock)
+        {
+            // Show a message that it was unlocked
+            fillDisplayArea(
+                windowXMargin,
+                windowYMarginTop - FONT_HEIGHT_IBMVGA8 - 7,
+                OLED_WIDTH - windowXMargin,
+                windowYMarginTop,
+                BLACK
+            );
+            plotRect(
+                windowXMargin,
+                windowYMarginTop - FONT_HEIGHT_IBMVGA8 - 7,
+                OLED_WIDTH - windowXMargin,
+                windowYMarginTop,
+                WHITE
+            );
+            plotCenteredText(0, windowYMarginTop - FONT_HEIGHT_IBMVGA8 - 3, OLED_WIDTH, "GALLERY UNLOCK", IBM_VGA_8, WHITE);
+        }
+
         fillDisplayArea(windowXMargin, windowYMarginTop, OLED_WIDTH - windowXMargin, OLED_HEIGHT - windowYMarginBot, BLACK);
         plotRect(windowXMargin, windowYMarginTop, OLED_WIDTH - windowXMargin, OLED_HEIGHT - windowYMarginBot, WHITE);
 
@@ -1456,6 +1478,7 @@ void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState)
     currState = newState;
     stateStartTime = system_get_time();
     stateTime = 0;
+    mazeDrawGalleryUnlock = false;
 
     switch( currState )
     {
@@ -1486,6 +1509,16 @@ void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState)
             // Update high score if needed.
             if (prevState != MZ_AUTO)
             {
+                // If an impossible maze was solved
+                if (IMPOSSIBLE_LEVEL == mazeLevel)
+                {
+                    // If the gallery image was just unlocked
+                    if(true == unlockGallery(3))
+                    {
+                        mazeDrawGalleryUnlock = true;
+                    }
+                }
+
                 nzNewBestTime = mzUpdateBestTimes(mazeLevel, score);
                 if (nzNewBestTime)
                 {
