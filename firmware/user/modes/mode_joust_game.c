@@ -25,6 +25,7 @@
 #include "embeddedout.h"
 #include "buzzer.h" // music and sfx
 #include "hpatimer.h" // buzzer functions
+#include "bresenham.h"
 
 /*============================================================================
  * Defines
@@ -314,7 +315,7 @@ void ICACHE_FLASH_ATTR joustConnectionCallback(p2pInfo* p2p __attribute__((unuse
             }
             joust_printf("connection established\n");
             clearDisplay();
-            char accelStr[32] = {0};
+            // char accelStr[32] = {0};
             plotText(0, 0, "Found Player", IBM_VGA_8, WHITE);
             plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Move theirs", IBM_VGA_8, WHITE);
             plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Not yours!", IBM_VGA_8, WHITE);
@@ -357,9 +358,6 @@ void ICACHE_FLASH_ATTR joustMsgCallbackFn(p2pInfo* p2p __attribute__((unused)), 
     {
         joust_printf("%s %s\n", __func__, msg);
     }
-
-
-
 
     switch(joust.gameState)
     {
@@ -408,12 +406,13 @@ void ICACHE_FLASH_ATTR joustMsgCallbackFn(p2pInfo* p2p __attribute__((unused)), 
             {
                 joust.con_color =  atoi((const char*)payload);
                 clearDisplay();
-                char accelStr[32] = {0};
+                // char accelStr[32] = {0};
                 plotText(0, 0, "Found Player", IBM_VGA_8, WHITE);
                 plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Move theirs", IBM_VGA_8, WHITE);
                 plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Not yours!", IBM_VGA_8, WHITE);
             }
         }
+        case R_PLAYINGFFA:
         case R_SHOW_CONNECTION:
         case R_SHOW_GAME_RESULT:
         {
