@@ -37,6 +37,7 @@ void ICACHE_FLASH_ATTR drawImgAtOffset(uint8_t* img, int8_t hOffset);
 
 void ICACHE_FLASH_ATTR startPanning(bool pLeft);
 static void ICACHE_FLASH_ATTR menuPanImages(void* arg __attribute__((unused)));
+void ICACHE_FLASH_ATTR mnuDrawArrows(void);
 
 /*============================================================================
  * Variables
@@ -109,6 +110,7 @@ void ICACHE_FLASH_ATTR modeInit(void)
     // Load and draw the first image
     loadImg(modes[1 + selectedMode], curImg);
     drawImgAtOffset(curImg, 0);
+    mnuDrawArrows();
 
     // Timer for starting a screensaver
     os_timer_disarm(&timerScreensaverStart);
@@ -181,6 +183,7 @@ void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state __attribute__((unused)),
                     // Load and draw the mute image
                     loadImg(modeToDraw, curImg);
                     drawImgAtOffset(curImg, 0);
+                    mnuDrawArrows();
                 }
                 else
                 {
@@ -349,6 +352,7 @@ static void ICACHE_FLASH_ATTR menuPanImages(void* arg __attribute__((unused)))
         drawImgAtOffset(curImg, panIdx);
         drawImgAtOffset(nextImg, panIdx - OLED_WIDTH);
     }
+    mnuDrawArrows();
 
     // Check if it's all done
     if(panIdx == -OLED_WIDTH || panIdx == OLED_WIDTH)
@@ -433,4 +437,16 @@ void ICACHE_FLASH_ATTR stopScreensaver(void)
 #endif
     // Stop this timer too
     os_timer_disarm(&timerScreensaverBright);
+}
+
+/**
+ * @brief Draw some button function arrows
+ */
+void ICACHE_FLASH_ATTR mnuDrawArrows(void)
+{
+    // Draw left and right arrows to indicate button functions
+    fillDisplayArea(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, 7, OLED_HEIGHT, BLACK);
+    plotText(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "<", IBM_VGA_8, WHITE);
+    fillDisplayArea(OLED_WIDTH - 7, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, OLED_WIDTH, OLED_HEIGHT, BLACK);
+    plotText(OLED_WIDTH - 6, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, ">", IBM_VGA_8, WHITE);
 }
