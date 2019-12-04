@@ -12,6 +12,8 @@
 #include "fastlz.h"
 #include "mode_gallery.h"
 #include "buttons.h"
+#include "bresenham.h"
+#include "font.h"
 
 /*============================================================================
  * Defines
@@ -19,6 +21,20 @@
 
 #define MENU_PAN_PERIOD_MS 20
 #define MENU_PX_PER_PAN     8
+#define SQ_WAVE_LINE_LEN 16
+
+/*============================================================================
+ * Enums
+ *==========================================================================*/
+
+typedef enum
+{
+    M_UP    = 0,
+    M_RIGHT = 1,
+    M_DOWN  = 2,
+    M_RIGHT2 = 3,
+    M_NUM_DIRS
+} sqDir_t;
 
 /*============================================================================
  * Function prototypes
@@ -404,6 +420,60 @@ static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unu
 {
     // Clear the display
     clearDisplay();
+
+    // Starting point for the line
+    uint8_t pt1x = (SQ_WAVE_LINE_LEN / 2);
+    uint8_t pt1y = (OLED_HEIGHT / 2) + (SQ_WAVE_LINE_LEN / 2);
+    // Ending point for the line
+    uint8_t pt2x = (SQ_WAVE_LINE_LEN / 2);
+    uint8_t pt2y = (OLED_HEIGHT / 2) - (SQ_WAVE_LINE_LEN / 2);
+    // Direction the square wave is traveling
+    sqDir_t sqDir = M_RIGHT;
+
+    // Draw a square wave, one line at a time
+    uint8_t segments;
+    for(segments = 0; segments < ((2 * OLED_WIDTH) / SQ_WAVE_LINE_LEN) - 1; segments++)
+    {
+        // Draw the line
+        plotLine(pt1x, pt1y, pt2x, pt2y, WHITE);
+
+        // Move the starting point of the line
+        pt1x = pt2x;
+        pt1y = pt2y;
+
+        // Move the ending point of the line
+        switch (sqDir)
+        {
+            case M_UP:
+            {
+                pt2y -= SQ_WAVE_LINE_LEN;
+                break;
+            }
+            case M_DOWN:
+            {
+                pt2y += SQ_WAVE_LINE_LEN;
+                break;
+            }
+            case M_RIGHT:
+            case M_RIGHT2:
+            {
+                pt2x += SQ_WAVE_LINE_LEN;
+                break;
+            }
+            case M_NUM_DIRS:
+            default:
+            {
+                break;
+            }
+        }
+
+        // Move to the next part of the square wave
+        sqDir = (sqDir + 1) % M_NUM_DIRS;
+    }
+
+    // Plot some tiny corner text
+    plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Swadge 2020", TOM_THUMB, WHITE);
+
     // Set the brightness to medium
     setDanceBrightness(1);
 }
