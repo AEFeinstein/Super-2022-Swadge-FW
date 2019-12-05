@@ -2,7 +2,7 @@
  * mode_joust_game.c
  *
  *  Created on: Sep 1, 2019
- *      Author: aaron
+ *      Author: Aaron Angert
  *
  */
 
@@ -150,7 +150,6 @@ struct
         bool shouldTurnOnLeds;
         bool round_winner;
         uint32_t joustWins;
-        // uint32_t otherJoustElo;
         uint32_t win_score;
         uint32_t lose_score;
     } gam;
@@ -226,6 +225,75 @@ const song_t endGameSFX RODATA_ATTR =
     .shouldLoop = false
 };
 
+const song_t tieGameSFX RODATA_ATTR =
+{
+    .notes = {
+        {.note = C_4, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_4, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_4, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 300},
+        {.note = C_4, .timeMs = 300},
+        {.note = SILENCE, .timeMs = 1},
+    },
+    .numNotes = 26,
+    .shouldLoop = false
+};
+
+const song_t endGameWin2SFX RODATA_ATTR =
+{
+    .notes = {
+        {.note = C_4, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_4, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_4, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = E_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_4, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_4, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = G_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 300},
+        {.note = C_6, .timeMs = 300},
+        {.note = SILENCE, .timeMs = 1},
+    },
+    .numNotes = 26,
+    .shouldLoop = false
+};
+
+
 const song_t endGameWinSFX RODATA_ATTR =
 {
     .notes = {
@@ -237,8 +305,6 @@ const song_t endGameWinSFX RODATA_ATTR =
         {.note = SILENCE, .timeMs = 1},
         {.note = F_4, .timeMs = 100},
         {.note = SILENCE, .timeMs = 200},
-        // {.note = G_4, .timeMs = 200},
-        // {.note = SILENCE, .timeMs = 1},
         {.note = C_4, .timeMs = 100},
         {.note = SILENCE, .timeMs = 1},
         {.note = D_4, .timeMs = 100},
@@ -246,8 +312,6 @@ const song_t endGameWinSFX RODATA_ATTR =
         {.note = E_4, .timeMs = 100},
         {.note = SILENCE, .timeMs = 1},
         {.note = F_4, .timeMs = 100},
-        // {.note = SILENCE, .timeMs = 1},
-        // {.note = G_4, .timeMs = 200},
         {.note = SILENCE, .timeMs = 200},
         {.note = D_4, .timeMs = 100},
         {.note = SILENCE, .timeMs = 1},
@@ -315,13 +379,9 @@ void ICACHE_FLASH_ATTR joustConnectionCallback(p2pInfo* p2p __attribute__((unuse
             }
             joust_printf("connection established\n");
             clearDisplay();
-            // char accelStr[32] = {0};
             plotText(0, 0, "Found Player", IBM_VGA_8, WHITE);
             plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Move theirs", IBM_VGA_8, WHITE);
             plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Not yours!", IBM_VGA_8, WHITE);
-            //joust.gameState = R_SHOW_CONNECTION;
-
-            // ets_memset(joust.led.Leds, 0, sizeof(joust.led.Leds));
 
             joustDisarmAllLedTimers();
             // 6ms * ~500 steps == 3s animation
@@ -406,7 +466,6 @@ void ICACHE_FLASH_ATTR joustMsgCallbackFn(p2pInfo* p2p __attribute__((unused)), 
             {
                 joust.con_color =  atoi((const char*)payload);
                 clearDisplay();
-                // char accelStr[32] = {0};
                 plotText(0, 0, "Found Player", IBM_VGA_8, WHITE);
                 plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Move theirs", IBM_VGA_8, WHITE);
                 plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Not yours!", IBM_VGA_8, WHITE);
@@ -854,15 +913,6 @@ void ICACHE_FLASH_ATTR joustStartPlayingFFA(void* arg __attribute__((unused)))
 }
 
 
-/**
- * Start a round of the game by picking a random action and starting
- * refGameLedTimeout()
- */
-// void ICACHE_FLASH_ATTR joustStartRound(void)
-// {
-//     joust.gameState = R_PLAYING;
-// }
-
 void ICACHE_FLASH_ATTR joustUpdateDisplay(void)
 {
     // Clear the display
@@ -1063,15 +1113,11 @@ void ICACHE_FLASH_ATTR joustButton( uint8_t state __attribute__((unused)),
  */
 void ICACHE_FLASH_ATTR joustSendRoundLossMsg(void)
 {
-    // joust_printf("Lost the round\r\n");
-
     // Send a message to that ESP that we lost the round
     // If it's acked, start a timer to reinit if another message is never received
     // If it's not acked, reinit with refRestart()
     p2pSendMsg(&joust.p2pJoust, "los", NULL, 0, joustMsgTxCbFn);
     // Show the current wins & losses
-
-    // joustRoundResult(false);
 }
 
 /**
@@ -1093,6 +1139,8 @@ void ICACHE_FLASH_ATTR joustMsgTxCbFn(p2pInfo* p2p __attribute__((unused)),
         case MSG_FAILED:
         {
             joust_printf("%s MSG_FAILED\n", __func__);
+            joustDisarmAllLedTimers();
+            os_timer_arm(&joust.tmr.RestartJoust, 100, false);
             break;
         }
         default:
@@ -1148,7 +1196,7 @@ void ICACHE_FLASH_ATTR joustRoundResult(int roundWinner)
         clearDisplay();
         plotText(0, 0, "Tie!!", IBM_VGA_8, WHITE);
         joust.gam.joustWins = joust.gam.joustWins + 1;
-        startBuzzerSong(&endGameWinSFX);
+        startBuzzerSong(&tieGameSFX);
     }
     else if(roundWinner)
     {
@@ -1188,7 +1236,16 @@ void ICACHE_FLASH_ATTR joustRoundResult(int roundWinner)
                     WHITE);
             }
         }
-        startBuzzerSong(&endGameWinSFX);
+        if(joust.gam.joustWins % 2 == 0)
+        {
+            startBuzzerSong(&endGameWinSFX);
+
+        }
+        else
+        {
+            startBuzzerSong(&endGameWin2SFX);
+
+        }
     }
     else
     {
@@ -1219,7 +1276,7 @@ void ICACHE_FLASH_ATTR joustRoundResultFFA()
     char menuStr[32] = {0};
     ets_snprintf(menuStr, sizeof(menuStr), "SCORE: %d", joust.FFACounter);
     plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), menuStr, IBM_VGA_8, WHITE);
-    os_timer_arm(&joust.tmr.RestartJoust, 10000, false);
+    os_timer_arm(&joust.tmr.RestartJoust, 6000, false);
 }
 
 
