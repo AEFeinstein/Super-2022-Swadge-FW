@@ -1238,10 +1238,12 @@ void ICACHE_FLASH_ATTR joustRoundResult(int roundWinner)
         }
         if(joust.gam.joustWins % 2 == 0)
         {
-          startBuzzerSong(&endGameWinSFX);
+            startBuzzerSong(&endGameWinSFX);
 
-        }else{
-          startBuzzerSong(&endGameWin2SFX);
+        }
+        else
+        {
+            startBuzzerSong(&endGameWin2SFX);
 
         }
     }
