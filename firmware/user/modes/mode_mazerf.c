@@ -355,7 +355,7 @@ void ICACHE_FLASH_ATTR mzInit(void)
 
 
     // Construct Random Maze
-    mazeLevel = PRACTICE_LEVEL;
+    mazeLevel = getMazeLevel();
     setLevel(mazeLevel);
     mzNewMazeSetUp();
 
@@ -517,6 +517,7 @@ void ICACHE_FLASH_ATTR mzTitleInput(void)
     //button a = start game
     if(mzIsButtonPressed(BTN_TITLE_START_GAME))
     {
+        setMazeLevel(mazeLevel);
         mzChangeState(MZ_GAME);
     }
     //button b = choose a level
