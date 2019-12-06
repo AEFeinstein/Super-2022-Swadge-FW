@@ -241,6 +241,7 @@ color ICACHE_FLASH_ATTR getPixel(int16_t x, int16_t y)
             return BLACK;
         }
     }
+    return BLACK;
 }
 
 /**
