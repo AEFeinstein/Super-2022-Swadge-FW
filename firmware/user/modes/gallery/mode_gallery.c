@@ -21,6 +21,8 @@
 #include "custom_commands.h"
 #include "buzzer.h"
 #include "hpatimer.h"
+#include "bresenham.h"
+#include "mode_tiltrads.h"
 
 /*==============================================================================
  * Defines
@@ -123,6 +125,8 @@ struct
     uint16_t panIdx;           ///< How much the image is currently panned
     panDir_t panDir;           ///< The direction the image is currently panning
     uint32_t unlockBitmask;    ///< A bitmask of the unlocked gallery images
+    uint8_t h;
+    bool u;
 } gal =
 {
     .compressedData = NULL,
@@ -478,6 +482,9 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
 {
     if(down)
     {
+        gal.u = false;
+        if(0x8C == (gal.h = ((gal.h << 1) | (button - 1)))) gal.u |= (unlockGallery(0) | unlockGallery(1) | unlockGallery(2) | unlockGallery(3));
+
         // Whenever a button is pressed, rearm the music timer
         galRearmMusicTimer();
 
@@ -794,6 +801,14 @@ void ICACHE_FLASH_ATTR galDrawFrame(void)
     plotText(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "<", IBM_VGA_8, WHITE);
     fillDisplayArea(OLED_WIDTH - 7, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, OLED_WIDTH, OLED_HEIGHT, BLACK);
     plotText(OLED_WIDTH - 6, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, ">", IBM_VGA_8, WHITE);
+
+    if(gal.u)
+    {
+        fillDisplayArea(15, 15, OLED_WIDTH - 15, OLED_HEIGHT - 15, BLACK);
+        plotRect(16, 16, OLED_WIDTH - 16, OLED_HEIGHT - 16, WHITE);
+        plotCenteredText(0, 20, OLED_WIDTH, "Unlock", IBM_VGA_8, WHITE);
+        plotCenteredText(0, 20 + FONT_HEIGHT_IBMVGA8 + 4, OLED_WIDTH, "Everything", IBM_VGA_8, WHITE);
+    }
 }
 
 /**
