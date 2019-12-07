@@ -195,7 +195,7 @@ struct
     int16_t instructionTextIdx;
 } joust;
 
-bool joustWarningShown;
+bool joustWarningShown = false;
 
 /*============================================================================
  * Functions
@@ -805,23 +805,31 @@ void ICACHE_FLASH_ATTR joustDrawMenu(void)
     textY += FONT_HEIGHT_IBMVGA8 + Y_MARGIN;
 
     // Draw button labels
-    uint8_t scoresAreaX0 = 0;
-    uint8_t scoresAreaY0 = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 3);
-    uint8_t scoresAreaX1 = 23;
-    uint8_t scoresAreaY1 = OLED_HEIGHT - 1;
-    fillDisplayArea(scoresAreaX0, scoresAreaY0, scoresAreaX1, scoresAreaY1, BLACK);
-    uint8_t scoresTextX = 0;
-    uint8_t scoresTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);
-    plotText(scoresTextX, scoresTextY, "Free For All", TOM_THUMB, WHITE);
+    plotRect(
+        -1,
+        OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 4,
+        getTextWidth("Free For All", TOM_THUMB) + 3,
+        OLED_HEIGHT + 1,
+        WHITE);
+    plotText(
+        0,
+        OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB,
+        "Free For All",
+        TOM_THUMB,
+        WHITE);
 
-    uint8_t startAreaX0 = OLED_WIDTH - 20;//39;
-    uint8_t startAreaY0 = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 3);
-    uint8_t startAreaX1 = OLED_WIDTH - 1;
-    uint8_t startAreaY1 = OLED_HEIGHT - 1;
-    fillDisplayArea(startAreaX0, startAreaY0, startAreaX1, startAreaY1, BLACK);
-    uint8_t startTextX = OLED_WIDTH - 38;//38;
-    uint8_t startTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);
-    plotText(startTextX, startTextY, "2 Player", TOM_THUMB, WHITE);
+    plotRect(
+        OLED_WIDTH - getTextWidth("2 Player", TOM_THUMB) - 4,
+        OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 4,
+        OLED_WIDTH + 1,
+        OLED_HEIGHT + 1,
+        WHITE);
+    plotText(
+        OLED_WIDTH - getTextWidth("2 Player", TOM_THUMB),
+        OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB,
+        "2 Player",
+        TOM_THUMB,
+        WHITE);
 }
 
 /**
