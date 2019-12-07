@@ -31,7 +31,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/rtttl2c",
             "args": [
-                "FourSeasons:d=16,o=5,b=95:8e,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,f#,e,4b.,32p,b,a,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,f#,e,4b.,32p,b,a,32g#,32g#,32g#,32p,a,b,8a,32g#,32g#,32g#,32p,8f#,8d#,4b4.,8e,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,f#,e,4b.,32p,b,a,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,f#,e,4b.,32p,b,a,32g#,32g#,32g#,32p,a,b,8a,32g#,32g#,32g#,32p,8f#,8d#,4b4."
+                "FourSeasons:d=16,o=5,b=105:8e,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,f#,e,4b.,32p,b,a,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,f#,e,4b.,32p,b,a,32g#,32g#,32g#,32p,a,b,8a,32g#,32g#,32g#,32p,8f#,8d#,4b4.,8e,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,f#,e,4b.,32p,b,a,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,f#,e,4b.,32p,b,a,32g#,32g#,32g#,32p,a,b,8a,32g#,32g#,32g#,32p,8f#,8d#,4b4."
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
