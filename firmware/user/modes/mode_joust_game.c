@@ -28,6 +28,7 @@
 #include "hpatimer.h" // buzzer functions
 #include "bresenham.h"
 #include "fastlz.h"
+#include "mode_tiltrads.h"
 
 /*============================================================================
  * Defines
@@ -682,29 +683,101 @@ void ICACHE_FLASH_ATTR joustInit(void)
  */
 void ICACHE_FLASH_ATTR joustDrawMenu(void)
 {
+#define Y_MARGIN 6
+    uint8_t textY = 0;
+
     clearDisplay();
 
+    // Draw title
+    plotText(32, textY, "Joust", RADIOSTARS, WHITE);
+    textY += FONT_HEIGHT_RADIOSTARS + Y_MARGIN;
+
+    // Draw level info. First figure out what level we're at
+    int16_t nextLevel = 0;
+    char lvlStr[32] = {0};
     if(joust.gam.joustWins < 4)
     {
-        plotText(0, 0, "Joust is a movement game where", TOM_THUMB, WHITE);
-        plotText(0, FONT_HEIGHT_TOMTHUMB + 1, "you try to jostle your opponents", TOM_THUMB, WHITE);
-        plotText(0, 2 * FONT_HEIGHT_TOMTHUMB + 2, "swadge while keeping yours still.", TOM_THUMB, WHITE);
-        plotText(0, 4 * FONT_HEIGHT_TOMTHUMB, "There are two modes Free For all", TOM_THUMB, WHITE);
-        plotText(0, 5 * FONT_HEIGHT_TOMTHUMB + 1, "and 2 Player, which tracks wins", TOM_THUMB, WHITE);
-        plotText(0, 7 * FONT_HEIGHT_TOMTHUMB, "Press the left or right button", TOM_THUMB, WHITE);
-        plotText(0, 8 * FONT_HEIGHT_TOMTHUMB + 1, "to select a game type. enjoy!", TOM_THUMB, WHITE);
-        char menuStr[32] = {0};
-        ets_snprintf(menuStr, sizeof(menuStr), "wins: %d", joust.gam.joustWins);
-        plotText(0, 9 * FONT_HEIGHT_TOMTHUMB + 3, menuStr, TOM_THUMB, WHITE);
+        memcpy(lvlStr, "Serf Simian", sizeof("Serf Simian"));
+        nextLevel = 4;
+    }
+    else if(joust.gam.joustWins < 8)
+    {
+        memcpy(lvlStr, "Peasant Primate", sizeof("Peasant Primate"));
+        nextLevel = 8;
+    }
+    else if(joust.gam.joustWins < 12)
+    {
+        memcpy(lvlStr, "Page Probocsis", sizeof("Page Probocsis"));
+        nextLevel = 12;
+    }
+    else if(joust.gam.joustWins < 16)
+    {
+        memcpy(lvlStr, "Squire Saki", sizeof("Squire Saki"));
+        nextLevel = 16;
+    }
+    else if(joust.gam.joustWins < 22)
+    {
+        memcpy(lvlStr, "Apprentice Ape", sizeof("Apprentice Ape"));
+        nextLevel = 22;
+    }
+    else if(joust.gam.joustWins < 28)
+    {
+        memcpy(lvlStr, "Maester Mandrill", sizeof("Maester Mandrill"));
+        nextLevel = 28;
+    }
+    else if(joust.gam.joustWins < 36)
+    {
+        memcpy(lvlStr, "Thane Tamarin", sizeof("Thane Tamarin"));
+        nextLevel = 36;
+    }
+    else if(joust.gam.joustWins < 44)
+    {
+        memcpy(lvlStr, "Lord Lemur", sizeof("Lord Lemur"));
+        nextLevel = 44;
+    }
+    else if(joust.gam.joustWins < 60)
+    {
+        memcpy(lvlStr, "Baron Baboon", sizeof("Baron Baboon"));
+        nextLevel = 60;
+    }
+    else if(joust.gam.joustWins < 100)
+    {
+        memcpy(lvlStr, "Viscount Vervet", sizeof("Viscount Vervet"));
+        nextLevel = 100;
     }
     else
     {
-        plotText(32, 0, "Joust", RADIOSTARS, WHITE);
-        char menuStr[32] = {0};
-        ets_snprintf(menuStr, sizeof(menuStr), "wins: %d", joust.gam.joustWins);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB - 6, menuStr, TOM_THUMB, WHITE);
+        memcpy(lvlStr, "Grandmaster Gorilla", sizeof("Grandmaster Gorilla"));
     }
 
+    char menuStr[64] = {0};
+    // First row, left justified
+    ets_snprintf(menuStr, sizeof(menuStr), "%d Wins!", joust.gam.joustWins);
+    plotText(0, textY, menuStr, TOM_THUMB, WHITE);
+
+    // First row, right justified, maybe
+    if(0 != nextLevel)
+    {
+        ets_snprintf(menuStr, sizeof(menuStr), "Next lvl at %d wins", nextLevel);
+        plotText(OLED_WIDTH - getTextWidth(menuStr, TOM_THUMB), textY, menuStr, TOM_THUMB, WHITE);
+    }
+    textY += FONT_HEIGHT_TOMTHUMB + Y_MARGIN;
+
+    // Second row
+    ets_snprintf(menuStr, sizeof(menuStr), "You are a %s", lvlStr);
+    plotText(0, textY, menuStr, TOM_THUMB, WHITE);
+    textY += FONT_HEIGHT_TOMTHUMB + Y_MARGIN;
+
+    // Draw instruction ticker
+    plotText(0, textY,
+             "Joust is a movement game where you try to jostle your opponents \
+             swadge while keeping yours still. There are two modes Free For all \
+             and 2 Player, which tracks wins Press the left or right button to \
+             select a game type. enjoy!",
+             IBM_VGA_8, WHITE);
+    textY += FONT_HEIGHT_IBMVGA8 + Y_MARGIN;
+
+    // Draw button labels
     uint8_t scoresAreaX0 = 0;
     uint8_t scoresAreaY0 = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 3);
     uint8_t scoresAreaX1 = 23;
@@ -722,61 +795,6 @@ void ICACHE_FLASH_ATTR joustDrawMenu(void)
     uint8_t startTextX = OLED_WIDTH - 38;//38;
     uint8_t startTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);
     plotText(startTextX, startTextY, "2 Player", TOM_THUMB, WHITE);
-
-    if(joust.gam.joustWins < 4)
-    {
-        // plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Serf Simian", IBM_VGA_8, WHITE);
-        // plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1))-FONT_HEIGHT_TOMTHUMB, "Next level: 4", TOM_THUMB, WHITE);
-    }
-    else if(joust.gam.joustWins < 8)
-    {
-        plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Peasant Primate", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 8", TOM_THUMB, WHITE);
-    }
-    else if(joust.gam.joustWins < 12)
-    {
-        plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Page Probocsis", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 12", TOM_THUMB, WHITE);
-    }
-    else if(joust.gam.joustWins < 16)
-    {
-        plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Squire Saki", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 16", TOM_THUMB, WHITE);
-    }
-    else if(joust.gam.joustWins < 22)
-    {
-        plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Apprentice Ape", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 22", TOM_THUMB, WHITE);
-    }
-    else if(joust.gam.joustWins < 28)
-    {
-        plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Maester Mandrill", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 28", TOM_THUMB, WHITE);
-    }
-    else if(joust.gam.joustWins < 36)
-    {
-        plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Thane Tamarin", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 36", TOM_THUMB, WHITE);
-    }
-    else if(joust.gam.joustWins < 44)
-    {
-        plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Lord Lemur", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 44", TOM_THUMB, WHITE);
-    }
-    else if(joust.gam.joustWins < 60)
-    {
-        plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Baron Baboon", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 60", TOM_THUMB, WHITE);
-    }
-    else if(joust.gam.joustWins < 100)
-    {
-        plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Viscount Vervet", IBM_VGA_8, WHITE);
-    }
-    else
-    {
-        plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Grandmaster", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Gorilla", IBM_VGA_8, WHITE);
-    }
 }
 
 /**
