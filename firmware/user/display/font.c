@@ -21,7 +21,7 @@
  * @param col WHITE, BLACK or INVERSE
  * @return The x position of the end of the character drawn
  */
-uint8_t ICACHE_FLASH_ATTR plotChar(uint8_t x, uint8_t y,
+int16_t ICACHE_FLASH_ATTR plotChar(int16_t x, int16_t y,
                                    char character, const sprite_t* table, color col)
 {
     if ('a' <= character && character <= 'z')
@@ -41,7 +41,7 @@ uint8_t ICACHE_FLASH_ATTR plotChar(uint8_t x, uint8_t y,
  * @param col WHITE, BLACK or INVERSE
  * @return The x position of the end of the string drawn
  */
-uint8_t ICACHE_FLASH_ATTR plotText(uint8_t x, uint8_t y, char* text, fonts font, color col)
+int16_t ICACHE_FLASH_ATTR plotText(int16_t x, int16_t y, char* text, fonts font, color col)
 {
     while (0 != *text)
     {
@@ -69,6 +69,5 @@ uint8_t ICACHE_FLASH_ATTR plotText(uint8_t x, uint8_t y, char* text, fonts font,
         }
         text++;
     }
-    uint8_t cursorEnd = x;
-    return cursorEnd;
+    return x;
 }

@@ -11,6 +11,6 @@ typedef struct
     uint16_t dummy; // round size to multiple of 32 bits
 } sprite_t;
 
-uint8_t ICACHE_FLASH_ATTR plotSprite(uint8_t x, uint8_t y, const sprite_t* sprite, color col);
+int16_t ICACHE_FLASH_ATTR plotSprite(int16_t x, int16_t y, const sprite_t* sprite, color col);
 
 #endif
