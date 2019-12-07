@@ -19,6 +19,10 @@
 #include "fastlz.h"
 #include "font.h"
 #include "custom_commands.h"
+#include "buzzer.h"
+#include "hpatimer.h"
+#include "bresenham.h"
+#include "mode_tiltrads.h"
 
 /*==============================================================================
  * Defines
@@ -80,8 +84,10 @@ void ICACHE_FLASH_ATTR galClearImage(void);
 void ICACHE_FLASH_ATTR galDrawFrame(void);
 static void ICACHE_FLASH_ATTR galLoadNextFrame(void* arg);
 static void ICACHE_FLASH_ATTR galTimerPan(void* arg);
+static void ICACHE_FLASH_ATTR galTimerMusic(void* arg);
 const galImage_t* ICACHE_FLASH_ATTR galGetCurrentImage(void);
 bool ICACHE_FLASH_ATTR galIsImageUnlocked(void);
+void ICACHE_FLASH_ATTR galRearmMusicTimer(void);
 
 /*==============================================================================
  * Variables
@@ -114,10 +120,13 @@ struct
     uint16_t durationMs;       ///< The duration each frame should be displayed
     os_timer_t timerAnimate;   ///< A timer to animate the image
     os_timer_t timerPan;       ///< A timer to pan the image
+    os_timer_t timerMusic;     ///< A timer to start music
     uint16_t cImage;           ///< The index of the current image being
     uint16_t panIdx;           ///< How much the image is currently panned
     panDir_t panDir;           ///< The direction the image is currently panning
     uint32_t unlockBitmask;    ///< A bitmask of the unlocked gallery images
+    uint8_t h;
+    bool u;
 } gal =
 {
     .compressedData = NULL,
@@ -130,6 +139,7 @@ struct
     .durationMs = 0,
     .timerAnimate = {0},
     .timerPan = {0},
+    .timerMusic = {0},
     .cImage = 0,
     .panIdx = 0,
     .panDir = RIGHT
@@ -286,6 +296,116 @@ const galImage_t* galUnlockPlaceholders[4] =
     &galUnlockMaze
 };
 
+const song_t FourSeasons RODATA_ATTR =
+{
+    .notes = {
+        {.note = E_5, .timeMs = 316},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = F_SHARP_5, .timeMs = 158},
+        {.note = E_5, .timeMs = 158},
+        {.note = B_5, .timeMs = 947},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = B_5, .timeMs = 158},
+        {.note = A_5, .timeMs = 158},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = F_SHARP_5, .timeMs = 158},
+        {.note = E_5, .timeMs = 158},
+        {.note = B_5, .timeMs = 947},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = B_5, .timeMs = 158},
+        {.note = A_5, .timeMs = 158},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = A_5, .timeMs = 158},
+        {.note = B_5, .timeMs = 158},
+        {.note = A_5, .timeMs = 316},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = F_SHARP_5, .timeMs = 316},
+        {.note = D_SHARP_5, .timeMs = 316},
+        {.note = B_4, .timeMs = 947},
+        {.note = E_5, .timeMs = 316},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = F_SHARP_5, .timeMs = 158},
+        {.note = E_5, .timeMs = 158},
+        {.note = B_5, .timeMs = 947},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = B_5, .timeMs = 158},
+        {.note = A_5, .timeMs = 158},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = F_SHARP_5, .timeMs = 158},
+        {.note = E_5, .timeMs = 158},
+        {.note = B_5, .timeMs = 947},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = B_5, .timeMs = 158},
+        {.note = A_5, .timeMs = 158},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = A_5, .timeMs = 158},
+        {.note = B_5, .timeMs = 158},
+        {.note = A_5, .timeMs = 316},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = G_SHARP_5, .timeMs = 79},
+        {.note = SILENCE, .timeMs = 79},
+        {.note = F_SHARP_5, .timeMs = 316},
+        {.note = D_SHARP_5, .timeMs = 316},
+        {.note = B_4, .timeMs = 947},
+    },
+    .numNotes = 102,
+    .shouldLoop = true
+};
+
 /*==============================================================================
  * Functions
  *============================================================================*/
@@ -304,11 +424,16 @@ void ICACHE_FLASH_ATTR galEnterMode(void)
     gal.decompressedData = os_malloc(MAX_DECOMPRESSED_SIZE);
     gal.frameData = os_malloc(MAX_DECOMPRESSED_SIZE);
 
-    //Set up software timers for animation and panning
+    // Set up software timers for animation and panning
     os_timer_disarm(&gal.timerAnimate);
     os_timer_setfn(&gal.timerAnimate, (os_timer_func_t*)galLoadNextFrame, NULL);
     os_timer_disarm(&gal.timerPan);
     os_timer_setfn(&gal.timerPan, (os_timer_func_t*)galTimerPan, NULL);
+
+    // Set up a timer to play music
+    os_timer_disarm(&gal.timerMusic);
+    os_timer_setfn(&gal.timerMusic, (os_timer_func_t*)galTimerMusic, NULL);
+    galRearmMusicTimer();
 
     // Unlock one image by default
     gal.unlockBitmask = getGalleryUnlocks();
@@ -336,6 +461,15 @@ void ICACHE_FLASH_ATTR galExitMode(void)
 }
 
 /**
+ * @brief This rearms the music timer to start playing after 10s
+ */
+void ICACHE_FLASH_ATTR galRearmMusicTimer(void)
+{
+    os_timer_disarm(&gal.timerMusic);
+    os_timer_arm(&gal.timerMusic, 10 * 1000, false);
+}
+
+/**
  * Cycle between the images to display. The flow is to clear the current image,
  * increment to the next image, and load that iamge
  *
@@ -348,6 +482,12 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
 {
     if(down)
     {
+        gal.u = false;
+        if(0x8C == (gal.h = ((gal.h << 1) | (button - 1)))) gal.u |= (unlockGallery(0) | unlockGallery(1) | unlockGallery(2) | unlockGallery(3));
+
+        // Whenever a button is pressed, rearm the music timer
+        galRearmMusicTimer();
+
         switch (button)
         {
             case 2:
@@ -661,6 +801,24 @@ void ICACHE_FLASH_ATTR galDrawFrame(void)
     plotText(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "<", IBM_VGA_8, WHITE);
     fillDisplayArea(OLED_WIDTH - 7, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, OLED_WIDTH, OLED_HEIGHT, BLACK);
     plotText(OLED_WIDTH - 6, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, ">", IBM_VGA_8, WHITE);
+
+    if(gal.u)
+    {
+        fillDisplayArea(15, 15, OLED_WIDTH - 15, OLED_HEIGHT - 15, BLACK);
+        plotRect(16, 16, OLED_WIDTH - 16, OLED_HEIGHT - 16, WHITE);
+        plotCenteredText(0, 20, OLED_WIDTH, "Unlock", IBM_VGA_8, WHITE);
+        plotCenteredText(0, 20 + FONT_HEIGHT_IBMVGA8 + 4, OLED_WIDTH, "Everything", IBM_VGA_8, WHITE);
+    }
+}
+
+/**
+ * @brief This is called when the music timer expires and starts to play Vivaldi
+ *
+ * @param arg unused
+ */
+static void ICACHE_FLASH_ATTR galTimerMusic(void* arg __attribute__((unused)))
+{
+    startBuzzerSong(&FourSeasons);
 }
 
 /**

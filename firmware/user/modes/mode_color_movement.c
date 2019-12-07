@@ -1468,6 +1468,13 @@ void ICACHE_FLASH_ATTR cmGameDisplay(void)
         plotCenteredText(0, OLED_HEIGHT - adjFlyOut, 127,
                          (char*)subModeName[cmCurrentSubMode], IBM_VGA_8, WHITE);
     }
+    else
+    {
+        // If the title isn't visible, plot button labels
+        plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Brightness", TOM_THUMB, WHITE);
+        plotText(OLED_WIDTH - 16, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Mode", TOM_THUMB, WHITE);
+    }
+
 
     if ((cmBrightnessRamp > 127) && ((cmCurrentSubMode == SHOCK_CHANGE) || (cmCurrentSubMode == SHOCK_CHAOTIC)))
     {

@@ -163,7 +163,14 @@ int main(int argc, char** argv)
             case PARSING_NOTES:
             {
                 ringtone = parseNote(ringtone, octave, duration, bpm);
-                numNotes += 2; // One for the note, one for silence
+                if(INTER_NOTE_SILENCE_MS > 0)
+                {
+                    numNotes += 2; // One for the note, one for silence
+                }
+                else
+                {
+                    numNotes++;
+                }
                 if('\0' == *ringtone)
                 {
                     goto ALL_DONE;

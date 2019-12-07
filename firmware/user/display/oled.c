@@ -133,6 +133,7 @@ uint8_t currentFb[(OLED_WIDTH * (OLED_HEIGHT / 8))] = {0};
 #ifdef DOUBLE_BUFFER
 uint8_t priorFb[(OLED_WIDTH * (OLED_HEIGHT / 8))] = {0};
 #endif
+uint8_t mBarLen = 0;
 
 //==============================================================================
 // Functions
@@ -206,6 +207,41 @@ void ICACHE_FLASH_ATTR drawPixel(int16_t x, int16_t y, color c)
             }
         }
     }
+}
+
+/**
+ * @brief Get a pixel at the current location
+ *
+ * @param x Column of display, 0 is at the left
+ * @param y Row of the display, 0 is at the top
+ * @return either BLACK or WHITE
+ */
+color ICACHE_FLASH_ATTR getPixel(int16_t x, int16_t y)
+{
+    if ((0 <= x) && (x < OLED_WIDTH) &&
+            (0 <= y) && (y < OLED_HEIGHT))
+    {
+        x = (OLED_WIDTH - 1) - x;
+        y = (OLED_HEIGHT - 1) - y;
+        if (y % 2 == 0)
+        {
+            y = (y >> 1);
+        }
+        else
+        {
+            y = (y >> 1) + (OLED_HEIGHT >> 1);
+        }
+
+        if(currentFb[(x + (y / 8) * OLED_WIDTH)] & (1 << (y & 7)))
+        {
+            return WHITE;
+        }
+        else
+        {
+            return BLACK;
+        }
+    }
+    return BLACK;
 }
 
 /**
@@ -405,6 +441,24 @@ inline void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* c
 #endif
 
 /**
+ * @brief Return the menu bar to zero length, hiding it
+ */
+void ICACHE_FLASH_ATTR zeroMenuBar(void)
+{
+    mBarLen = 0;
+}
+
+/**
+ * @brief Make the menu bar one pixel larger
+ *
+ * @return the current length of the menu bar
+ */
+uint8_t ICACHE_FLASH_ATTR incrementMenuBar(void)
+{
+    return ++mBarLen;
+}
+
+/**
  * Push data currently in RAM to SSD1306 display.
  * This takes ~12ms @ 800KHz
  *
@@ -427,6 +481,28 @@ bool ICACHE_FLASH_ATTR updateOLED(void)
         {-1, -1},
         {-1, -1},
     };
+
+    color bottomBar[OLED_WIDTH] = {0};
+    if(mBarLen > 0)
+    {
+        // Save the bottom bar's pixels
+        for(uint8_t i = 0; i < OLED_WIDTH; i++)
+        {
+            bottomBar[i] = getPixel(i, OLED_HEIGHT - 1);
+        }
+        // overwrite with menu bar
+        for(uint8_t i = 0; i < OLED_WIDTH; i++)
+        {
+            if(i <= mBarLen)
+            {
+                drawPixel(i, OLED_HEIGHT - 1, WHITE);
+            }
+            else
+            {
+                drawPixel(i, OLED_HEIGHT - 1, BLACK);
+            }
+        }
+    }
 
     // Compare the prior and current framebuffers, looking for any differences
     for (page = 0; page < SSD1306_NUM_PAGES; page++)
@@ -458,6 +534,15 @@ bool ICACHE_FLASH_ATTR updateOLED(void)
 
     // Copy the framebuffer to the prior
     memcpy(priorFb, currentFb, sizeof(currentFb));
+
+    // Restore the bottom bar
+    if(mBarLen > 0)
+    {
+        for(uint8_t i = 0; i < OLED_WIDTH; i++)
+        {
+            drawPixel(i, OLED_HEIGHT - 1, bottomBar[i]);
+        }
+    }
 
     // end i2c
     return (0 == brzo_i2c_end_transaction());

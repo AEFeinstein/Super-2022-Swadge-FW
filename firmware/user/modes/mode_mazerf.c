@@ -232,7 +232,16 @@ static const uint8_t mazeBrightnesses[] =
 };
 
 
-const char* levelName[NUM_MZ_LEVELS] = {"PRACTICE", "NOVICE",  "EASY", "MIDDLE", "HARD", "KILLER", "IMPOSSIBLE"};
+const char* levelName[NUM_MZ_LEVELS] =
+{
+    "PRACTICE Level",
+    "NOVICE Level",
+    "EASY Level",
+    "MIDDLE Level",
+    "HARD Level",
+    "KILLER Level",
+    "IMPOSSIBLE Level"
+};
 
 /*============================================================================
  * Variables
@@ -346,7 +355,7 @@ void ICACHE_FLASH_ATTR mzInit(void)
 
 
     // Construct Random Maze
-    mazeLevel = PRACTICE_LEVEL;
+    mazeLevel = getMazeLevel();
     setLevel(mazeLevel);
     mzNewMazeSetUp();
 
@@ -508,6 +517,7 @@ void ICACHE_FLASH_ATTR mzTitleInput(void)
     //button a = start game
     if(mzIsButtonPressed(BTN_TITLE_START_GAME))
     {
+        setMazeLevel(mazeLevel);
         mzChangeState(MZ_GAME);
     }
     //button b = choose a level
@@ -948,17 +958,21 @@ void ICACHE_FLASH_ATTR mzTitleDisplay(void)
     // Clear the display.
     clearDisplay();
 
-    // MAG MAZE
-    plotText(20, 5, "MAG MAZE", RADIOSTARS, WHITE);
+    // Title
+    plotCenteredText(0, 5, OLED_WIDTH, "Maze", RADIOSTARS, WHITE);
 
+    // Level
     plotCenteredText(0, OLED_HEIGHT / 2, 127, (char*)levelName[mazeLevel], IBM_VGA_8, WHITE);
 
-    // SCORES   START
-    plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "LEVEL", IBM_VGA_8, WHITE);
-    plotText(OLED_WIDTH - getTextWidth("START", IBM_VGA_8), OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "START",
-             IBM_VGA_8, WHITE);
-
-
+    // Button labels
+    plotText(0,
+             OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1)),
+             "LEVEL",
+             TOM_THUMB, WHITE);
+    plotText(OLED_WIDTH - 20,
+             OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1)),
+             "START",
+             TOM_THUMB, WHITE);
 }
 
 void ICACHE_FLASH_ATTR mzGameDisplay(void)

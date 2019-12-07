@@ -5,11 +5,34 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(gdb) Launch",
+            "name": "(gdb) Launch Metal Gear",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/rtttl2c",
-            "args": ["MetalGear:d=8,o=6,b=125:4e5,4d5,2c5,d5,e5,a4,4e5,2d5,c5,d5,4e.5,a5,g5,e5,4c5,2d5,e5,a5,2c,b5,c,d,4c,2a5,g5,a5,4b.5,c,4b5,a5,g5,1a5,4b5,4a5,2g5,a5,b5,e5,4b5,2a5,g5,a5,4b.5,e,d,b5,4g5,2a5,b5,e,2g,f#,g,a,4g,2e,d,e,4f#.,g,4f#,e,d,1e"],
+            "args": [
+                "MetalGear:d=8,o=6,b=125:4e5,4d5,2c5,d5,e5,a4,4e5,2d5,c5,d5,4e.5,a5,g5,e5,4c5,2d5,e5,a5,2c,b5,c,d,4c,2a5,g5,a5,4b.5,c,4b5,a5,g5,1a5,4b5,4a5,2g5,a5,b5,e5,4b5,2a5,g5,a5,4b.5,e,d,b5,4g5,2a5,b5,e,2g,f#,g,a,4g,2e,d,e,4f#.,g,4f#,e,d,1e"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "(gdb) Launch Vivaldi",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/rtttl2c",
+            "args": [
+                "FourSeasons:d=16,o=5,b=95:8e,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,f#,e,4b.,32p,b,a,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,f#,e,4b.,32p,b,a,32g#,32g#,32g#,32p,a,b,8a,32g#,32g#,32g#,32p,8f#,8d#,4b4.,8e,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,f#,e,4b.,32p,b,a,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,f#,e,4b.,32p,b,a,32g#,32g#,32g#,32p,a,b,8a,32g#,32g#,32g#,32p,8f#,8d#,4b4."
+            ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

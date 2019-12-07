@@ -67,6 +67,7 @@ rtcMem_t;
 
 static os_timer_t timerHandlePollAccel = {0};
 static os_timer_t timerHandleUpdateDisplay = {0};
+static os_timer_t timerHandleReturnToMenu = {0};
 
 os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
@@ -87,25 +88,23 @@ swadgeMode* swadgeModes[] =
     &menuMode,
 #endif
     /* These are the modes which are displayed in the menu */
-    &joustGameMode,
-    &snakeMode,
     &tiltradsMode,
+    &snakeMode,
+    &joustGameMode,
     &mazerfMode,
-    &colorMoveMode,
-    &musicMode,
-    &galleryMode,
     /* SWADGE_2019 doesn't have a buzzer either */
 #if SWADGE_VERSION != SWADGE_2019
     &muteOptionOff,
 #endif
+    &galleryMode,
+    &colorMoveMode,
+    &musicMode,
 };
 
 bool swadgeModeInit = false;
 rtcMem_t rtcMem = {0};
 
 bool QMA6981_init = false;
-
-uint8_t menuChangeBarProgress = 0;
 
 /*============================================================================
  * Prototypes
@@ -118,12 +117,12 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events);
 static void ICACHE_FLASH_ATTR updateDisplay(void* arg);
 static void ICACHE_FLASH_ATTR pollAccel(void* arg);
 void ICACHE_FLASH_ATTR initializeAccelerometer(void);
+static void ICACHE_FLASH_ATTR returnToMenuTimerFunc(void* arg);
 
-#if SWADGE_VERSION != SWADGE_2019
-    static void ICACHE_FLASH_ATTR drawChangeMenuBar(void);
-#else
+#if SWADGE_VERSION == SWADGE_2019
     void ICACHE_FLASH_ATTR incrementSwadgeMode(void);
 #endif
+
 /*============================================================================
  * Initialization Functions
  *==========================================================================*/
@@ -282,6 +281,10 @@ void ICACHE_FLASH_ATTR user_init(void)
     // This is faster than every 100ms
     system_os_task(procTask, PROC_TASK_PRIO, procTaskQueue, PROC_TASK_QUEUE_LEN);
     system_os_post(PROC_TASK_PRIO, 0, 0 );
+
+    // Setup a software timer to return to the menu
+    os_timer_disarm(&timerHandleReturnToMenu);
+    os_timer_setfn(&timerHandleReturnToMenu, (os_timer_func_t*)returnToMenuTimerFunc, NULL);
 }
 
 /*============================================================================
@@ -361,14 +364,24 @@ static void ICACHE_FLASH_ATTR pollAccel(void* arg __attribute__((unused)))
  */
 static void ICACHE_FLASH_ATTR updateDisplay(void* arg __attribute__((unused)))
 {
-
-#if SWADGE_VERSION != SWADGE_2019
-    // Draw the menu change bar if necessary and possibly restart in menu mode
-    drawChangeMenuBar();
-#endif
-
     // Update the display
     updateOLED();
+}
+
+/**
+ * @brief Function called on a 10ms timer when the return menu bar is being drawn
+ *
+ * @param arg unused
+ */
+static void ICACHE_FLASH_ATTR returnToMenuTimerFunc(void* arg __attribute__((unused)))
+{
+    // If the bar is full
+    if(128 == incrementMenuBar())
+    {
+        // Go back to the menu
+        switchToSwadgeMode(0);
+        os_timer_disarm(&timerHandleReturnToMenu);
+    }
 }
 
 /*============================================================================
@@ -501,32 +514,6 @@ uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr)
 }
 
 #if SWADGE_VERSION != SWADGE_2019
-/**
- * Draw a progress bar on the bottom of the display if the menu button is being held.
- * When the bar fills the display, reset the mode back to the menu
- */
-#define BAR_INCREMENT 10
-void ICACHE_FLASH_ATTR drawChangeMenuBar(void)
-{
-    if(0 < menuChangeBarProgress)
-    {
-        // Clear the bottom bar
-        fillDisplayArea(0, OLED_HEIGHT - 1, OLED_WIDTH - 1, OLED_HEIGHT - 1, BLACK);
-        // Draw the menu change progress bar
-        fillDisplayArea(0, OLED_HEIGHT - 1, menuChangeBarProgress, OLED_HEIGHT - 1, WHITE);
-        // Increment the progress for next time
-        menuChangeBarProgress += BAR_INCREMENT;
-
-        // If it was held for long enough
-        if(menuChangeBarProgress >= 131)
-        {
-            // Stop bar so will only get here once
-            menuChangeBarProgress = 0;
-            // Go back to the menu
-            switchToSwadgeMode(0);
-        }
-    }
-}
 
 /**
  * @brief Set the time between OLED frames being drawn
@@ -609,13 +596,13 @@ void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int d
         else if(down)
         {
             // Start drawing the progress bar
-            menuChangeBarProgress = 1;
+            os_timer_arm(&timerHandleReturnToMenu, 10, true);
         }
         else
         {
             // If it was released, stop drawing the progress bar and clear it
-            fillDisplayArea(0, OLED_HEIGHT - 1, menuChangeBarProgress, OLED_HEIGHT - 1, BLACK);
-            menuChangeBarProgress = 0;
+            os_timer_disarm(&timerHandleReturnToMenu);
+            zeroMenuBar();
         }
 #else
         // Switch the mode

@@ -3,7 +3,7 @@
 
 #include "user_main.h"
 
-extern uint8_t mnu_colorshake_0[530] RODATA_ATTR;
+extern uint8_t mnu_colorshake_0[552] RODATA_ATTR;
 extern uint8_t mnu_gallery_0[995] RODATA_ATTR;
 extern uint8_t mnu_joust_0[650] RODATA_ATTR;
 extern uint8_t mnu_maze_0[312] RODATA_ATTR;

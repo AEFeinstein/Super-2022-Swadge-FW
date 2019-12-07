@@ -37,4 +37,7 @@ bool ICACHE_FLASH_ATTR getIsMutedOption(void);
 bool ICACHE_FLASH_ATTR unlockGallery(uint8_t idx);
 uint32_t ICACHE_FLASH_ATTR getGalleryUnlocks(void);
 
+void ICACHE_FLASH_ATTR setMazeLevel(uint8_t level);
+uint8_t ICACHE_FLASH_ATTR getMazeLevel(void);
+
 #endif /* USER_CUSTOM_COMMANDS_H_ */
