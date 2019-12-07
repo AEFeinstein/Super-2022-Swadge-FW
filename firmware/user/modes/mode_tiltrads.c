@@ -983,7 +983,6 @@ void ICACHE_FLASH_ATTR plotPerspectiveEffect(uint8_t leftSrc, uint8_t leftDst, u
         uint32_t currentTimeUS,
         color col);
 uint8_t ICACHE_FLASH_ATTR getCenteredTextX(uint8_t x0, uint8_t x1, char* text, fonts font);
-uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font);
 uint8_t ICACHE_FLASH_ATTR getNumTextWidth(char* text);
 void ICACHE_FLASH_ATTR getNumCentering(char* text, uint8_t achorX0, uint8_t anchorX1, uint8_t* textX0, uint8_t* textX1);
 
