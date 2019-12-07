@@ -124,6 +124,7 @@ void ICACHE_FLASH_ATTR joustUpdateDisplay(void);
 void ICACHE_FLASH_ATTR joustDisplayWarning(void);
 void ICACHE_FLASH_ATTR joustClearWarning(void* arg);
 void ICACHE_FLASH_ATTR joustDrawMenu(void);
+void ICACHE_FLASH_ATTR joustScrollInstructions(void* arg);
 
 /*============================================================================
  * Variables
@@ -173,7 +174,8 @@ struct
         os_timer_t GameLed;
         os_timer_t RoundResultLed;
         os_timer_t RestartJoust;
-        os_timer_t ShowWarning;
+        os_timer_t ClearWarning;
+        os_timer_t ScrollInstructions;
     } tmr;
 
     // LED variables
@@ -189,7 +191,11 @@ struct
     } led;
 
     p2pInfo p2pJoust;
+
+    int16_t instructionTextIdx;
 } joust;
+
+bool joustWarningShown;
 
 /*============================================================================
  * Functions
@@ -439,7 +445,12 @@ void ICACHE_FLASH_ATTR joustDisplayWarning(void)
 void ICACHE_FLASH_ATTR joustClearWarning(void* arg __attribute__((unused)) )
 {
     joust.gameState = R_MENU;
+    // Draw the  menu
+    joust.instructionTextIdx = OLED_WIDTH;
     joustDrawMenu();
+    // Start the timer to scroll text
+    os_timer_arm(&joust.tmr.ScrollInstructions, 40, true);
+    setOledDrawTime(40);
 }
 
 /**
@@ -629,11 +640,29 @@ void ICACHE_FLASH_ATTR joustInit(void)
 
     clearDisplay();
 
-    // Display a warning and start a timer to clear it
-    joustDisplayWarning();
-    os_timer_disarm(&joust.tmr.ShowWarning);
-    os_timer_setfn(&joust.tmr.ShowWarning, joustClearWarning, NULL);
-    os_timer_arm(&joust.tmr.ShowWarning, 1000 * 5, false);
+    // Set up a timer to clear the warning
+    os_timer_disarm(&joust.tmr.ClearWarning);
+    os_timer_setfn(&joust.tmr.ClearWarning, joustClearWarning, NULL);
+
+    // Set up a timer to scroll the instructions
+    os_timer_disarm(&joust.tmr.ScrollInstructions);
+    os_timer_setfn(&joust.tmr.ScrollInstructions, joustScrollInstructions, NULL);
+
+    // If the warning wasn't shown yet
+    if(false == joustWarningShown)
+    {
+        // Display a warning and start a timer to clear it
+        joustDisplayWarning();
+        os_timer_arm(&joust.tmr.ClearWarning, 1000 * 5, false);
+        joustWarningShown = true;
+        joust.gameState = R_WARNING;
+    }
+    else
+    {
+        // Otherwise just show the menu
+        joustClearWarning(NULL);
+        joust.gameState = R_MENU;
+    }
 
     // Enable button debounce for consistent 1p/2p and difficulty config
     enableDebounce(true);
@@ -674,8 +703,6 @@ void ICACHE_FLASH_ATTR joustInit(void)
 
     os_timer_disarm(&joust.tmr.FFACounter);
     os_timer_setfn(&joust.tmr.FFACounter, joustFFACounter, NULL);
-
-    joust.gameState = R_WARNING;
 }
 
 /**
@@ -769,12 +796,12 @@ void ICACHE_FLASH_ATTR joustDrawMenu(void)
     textY += FONT_HEIGHT_TOMTHUMB + Y_MARGIN;
 
     // Draw instruction ticker
-    plotText(0, textY,
-             "Joust is a movement game where you try to jostle your opponents \
-             swadge while keeping yours still. There are two modes Free For all \
-             and 2 Player, which tracks wins Press the left or right button to \
-             select a game type. enjoy!",
-             IBM_VGA_8, WHITE);
+    if (0 > plotText(joust.instructionTextIdx, textY,
+                     "Joust is a movement game where you try to jostle your opponents swadge while keeping yours still. There are two modes Free For all and 2 Player, which tracks wins. Press the left or right button to select a game type. enjoy!",
+                     IBM_VGA_8, WHITE))
+    {
+        joust.instructionTextIdx = OLED_WIDTH;
+    }
     textY += FONT_HEIGHT_IBMVGA8 + Y_MARGIN;
 
     // Draw button labels
@@ -795,6 +822,17 @@ void ICACHE_FLASH_ATTR joustDrawMenu(void)
     uint8_t startTextX = OLED_WIDTH - 38;//38;
     uint8_t startTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);
     plotText(startTextX, startTextY, "2 Player", TOM_THUMB, WHITE);
+}
+
+/**
+ * @brief Decrement the index to draw the instructions at, then draw the menu
+ *
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR joustScrollInstructions(void* arg __attribute__((unused)))
+{
+    joust.instructionTextIdx--;
+    joustDrawMenu();
 }
 
 /**
@@ -1225,8 +1263,11 @@ void ICACHE_FLASH_ATTR joustButton( uint8_t state __attribute__((unused)),
         return;
     }
 
-    if(joust.gameState ==  R_MENU)
+    if(joust.gameState == R_MENU)
     {
+        // Stop the scrolling text
+        os_timer_disarm(&joust.tmr.ScrollInstructions);
+
         if(2 == button)
         {
             joust.gameState =  R_SEARCHING;
