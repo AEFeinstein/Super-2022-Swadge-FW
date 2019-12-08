@@ -618,12 +618,12 @@ void ICACHE_FLASH_ATTR musicUpdateDisplay(void)
 
     // Plot the title
     plotText(
-        0,
+        OLED_WIDTH - getTextWidth(scales[music.scaleIdx].name, IBM_VGA_8),
         0,
         scales[music.scaleIdx].name,
         IBM_VGA_8, WHITE);
     plotText(
-        OLED_WIDTH - getTextWidth(rhythms[music.rhythmIdx].name, IBM_VGA_8),
+        0,
         0,
         rhythms[music.rhythmIdx].name,
         IBM_VGA_8, WHITE);
@@ -631,8 +631,7 @@ void ICACHE_FLASH_ATTR musicUpdateDisplay(void)
     // Plot the BPM
     char bpmStr[8] = {0};
     ets_snprintf(bpmStr, sizeof(bpmStr), "%d", bpms[music.bpmIdx].bpm);
-    uint8_t bpmX = OLED_WIDTH - getTextWidth(bpmStr, IBM_VGA_8);
-    plotText(bpmX, FONT_HEIGHT_IBMVGA8 + 4, bpmStr, IBM_VGA_8, WHITE);
+    plotText(0, FONT_HEIGHT_IBMVGA8 + 4, bpmStr, IBM_VGA_8, WHITE);
 
     // Underline it if it's being modified
     if(true == music.modifyBpm)
@@ -640,9 +639,9 @@ void ICACHE_FLASH_ATTR musicUpdateDisplay(void)
         for(uint8_t i = 2; i < 4; i++)
         {
             plotLine(
-                bpmX,
+                0,
                 (2 * FONT_HEIGHT_RADIOSTARS) + 4 + i,
-                OLED_WIDTH,
+                getTextWidth(bpmStr, IBM_VGA_8),
                 (2 * FONT_HEIGHT_RADIOSTARS) + 4 + i,
                 WHITE);
         }
