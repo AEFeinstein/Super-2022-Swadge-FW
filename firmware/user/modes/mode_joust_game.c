@@ -154,6 +154,7 @@ struct
     uint32_t con_color;
     uint32_t FFACounter;
     uint16_t mov;
+    uint16_t meterSize;
     // Game state variables
     struct
     {
@@ -1165,10 +1166,41 @@ void ICACHE_FLASH_ATTR joustUpdateDisplay(void)
         OLED_WIDTH - 2,
         (OLED_HEIGHT / 2 + 18) + 5,
         WHITE);
+
+    // Find the difference from the rolling average, scale it to 118px (5px margin on each side)
+    int16_t diffFromAvg = ((joust.mov - joust.rolling_average) * 118) / 43;
+    // Clamp it to the meter's draw range
+    if(diffFromAvg < 0)
+    {
+        diffFromAvg = 0;
+    }
+    if(diffFromAvg > 118)
+    {
+        diffFromAvg = 118;
+    }
+
+    // Either set the meter if the difference is high, or slowly clear it
+    if(diffFromAvg > joust.meterSize)
+    {
+        joust.meterSize = diffFromAvg;
+    }
+    else
+    {
+        if(joust.meterSize >= 4)
+        {
+            joust.meterSize -= 4;
+        }
+        else
+        {
+            joust.meterSize = 0;
+        }
+    }
+
+    // draw it
     fillDisplayArea(
         5,
         (OLED_HEIGHT / 2 - 14) + 5,
-        5 + (int)(((float)joust.mov - (float)joust.rolling_average) / 43.0f * 128.0f),
+        5 + joust.meterSize,
         (OLED_HEIGHT / 2 + 14) + 5,
         WHITE);
 }
