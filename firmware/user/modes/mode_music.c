@@ -38,8 +38,6 @@
 
 #define REST_BIT 0x10000 // Largest note is 144, which is 0b10010000
 
-#define BPM_MULTIPLIER 21
-
 /*==============================================================================
  * Enums
  *============================================================================*/
@@ -102,10 +100,17 @@ notePeriod_t ICACHE_FLASH_ATTR getCurrentNote(void);
 char* ICACHE_FLASH_ATTR noteToStr(notePeriod_t note);
 void ICACHE_FLASH_ATTR plotBar(uint8_t yOffset);
 void ICACHE_FLASH_ATTR noteToColor( led_t* led, notePeriod_t note, uint8_t brightness);
+void ICACHE_FLASH_ATTR paramSwitchTimerFunc(void* arg __attribute__((unused)));
 
 /*==============================================================================
  * Structs
  *============================================================================*/
+
+typedef struct
+{
+    uint8_t bpmMultiplier;
+    uint8_t bpm;
+} bpm_t;
 
 // A collection of parameters
 typedef struct
@@ -156,15 +161,30 @@ struct
     uint32_t timeUs;
     uint16_t rhythmIdx;
     uint8_t arpIdx;
+    uint8_t bpmIdx;
 
     // Track the button
     bool shouldPlay;
     uint8_t paramIdx;
+    bool modifyBpm;
+    os_timer_t paramSwitchTimer;
 } music;
 
 /*==============================================================================
  * Const Variables
  *============================================================================*/
+
+const bpm_t bpms[] =
+{
+    {.bpmMultiplier = 10, .bpm = 250},
+    {.bpmMultiplier = 11, .bpm = 227},
+    {.bpmMultiplier = 13, .bpm = 192},
+    {.bpmMultiplier = 15, .bpm = 167},
+    {.bpmMultiplier = 18, .bpm = 139},
+    {.bpmMultiplier = 22, .bpm = 114},
+    {.bpmMultiplier = 29, .bpm = 86},
+    {.bpmMultiplier = 41, .bpm = 61},
+};
 
 // All the rhythms
 const rhythmNote_t triplet64[] = {TRIPLET_SIXTYFOURTH_NOTE};
@@ -225,7 +245,7 @@ const swynthParam_t swynthParams[] =
         .interNotePauseMs = 5
     },
     {
-        .name = "Slide Whistl",
+        .name = "Slide",
         .notes = scl_Chromatic,
         .notesLen = lengthof(scl_Chromatic),
         .rhythm = triplet64,
@@ -312,6 +332,9 @@ void ICACHE_FLASH_ATTR musicEnterMode(void)
     // Clear everything
     memset(&music, 0, sizeof(music));
 
+    // Set default BPM to 114
+    music.bpmIdx = 5;
+
     // Set a timer to tick every 1ms, forever
     os_timer_disarm(&music.beatTimer);
     os_timer_setfn(&music.beatTimer, musicBeatTimerFunc, NULL);
@@ -324,6 +347,10 @@ void ICACHE_FLASH_ATTR musicEnterMode(void)
     setAccelPollTime(50);
     setOledDrawTime(50);
     enableDebounce(false);
+
+    // Set up a timer to handle the parameter button
+    os_timer_disarm(&music.paramSwitchTimer);
+    os_timer_setfn(&music.paramSwitchTimer, paramSwitchTimerFunc, NULL);
 }
 
 /**
@@ -351,19 +378,43 @@ void ICACHE_FLASH_ATTR musicButtonCallback(
             // Left
             if(down)
             {
-                // cycle params
-                music.paramIdx = (music.paramIdx + 1) % lengthof(swynthParams);
-                music.timeUs = 0;
-                music.rhythmIdx = 0;
-                music.arpIdx = 0;
-                musicUpdateDisplay();
+                // Start a timer to either switch the mode or change the BPM
+                os_timer_arm(&music.paramSwitchTimer, 1000, false);
+                music.modifyBpm = false;
             }
+            else // Released
+            {
+                // Stop the timer no matter what
+                os_timer_disarm(&music.paramSwitchTimer);
+
+                // Button released while timer is still active, switch the mode
+                if(false == music.modifyBpm)
+                {
+                    // cycle params
+                    music.paramIdx = (music.paramIdx + 1) % lengthof(swynthParams);
+                    music.timeUs = 0;
+                    music.rhythmIdx = 0;
+                    music.arpIdx = 0;
+                    musicUpdateDisplay();
+                }
+                // Clear this flag on release, always
+                music.modifyBpm = false;
+            }
+
             break;
         }
         case 2:
         {
             // Right, track whether a note should be played or not
-            music.shouldPlay = down;
+            if(false == music.modifyBpm)
+            {
+                music.shouldPlay = down;
+            }
+            else
+            {
+                music.shouldPlay = false;
+            }
+
             break;
         }
         default:
@@ -371,6 +422,19 @@ void ICACHE_FLASH_ATTR musicButtonCallback(
             break;
         }
     }
+}
+
+/**
+ * Timer started when the 'choose' button is pressed.
+ * If it expires before the button is released, set the flag to modify BPM
+ * If it doesn't expire before the button is released, switch the mode params
+ *
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR paramSwitchTimerFunc(void* arg __attribute__((unused)))
+{
+    music.modifyBpm = true;
+    music.shouldPlay = false;
 }
 
 /**
@@ -407,6 +471,20 @@ void ICACHE_FLASH_ATTR musicAccelerometerHandler(accel_t* accel)
         music.pitch = OLED_WIDTH - 1;
     }
 
+    // Check if the BPM should be adjusted
+    if(true == music.modifyBpm)
+    {
+        // Get the number of BPMs
+        uint8_t numBpms = (sizeof(bpms) / sizeof(bpms[0]));
+        // Scale the roll to the BPM range and reverse it
+        music.bpmIdx = (int)(rollF * numBpms);
+        if(music.bpmIdx >= numBpms)
+        {
+            music.bpmIdx = numBpms - 1;
+        }
+        music.bpmIdx = numBpms - music.bpmIdx - 1;
+    }
+
     // os_printf("roll %6d pitch %6d, x %4d, y %4d, z %4d, \n",
     // music.roll, music.pitch,
     // accel->x, accel->y, accel->z);
@@ -425,29 +503,56 @@ void ICACHE_FLASH_ATTR musicUpdateDisplay(void)
     plotBar(OLED_HEIGHT - BAR_Y_MARGIN - 1);
     plotBar(OLED_HEIGHT - BAR_Y_MARGIN - (2 * CURSOR_HEIGHT + 5));
 
-    if(music.pitch < PITCH_THRESHOLD)
+    // Draw the cursor if the BPM isn't being modified
+    if(false == music.modifyBpm)
     {
-        // Plot the cursor
-        plotLine(music.roll, OLED_HEIGHT - BAR_Y_MARGIN - (2 * CURSOR_HEIGHT + 5) - CURSOR_HEIGHT,
-                 music.roll, OLED_HEIGHT - BAR_Y_MARGIN - (2 * CURSOR_HEIGHT + 5) + CURSOR_HEIGHT,
-                 WHITE);
-    }
-    else
-    {
-        // Plot the cursor
-        plotLine(music.roll, OLED_HEIGHT - BAR_Y_MARGIN - 1 - CURSOR_HEIGHT,
-                 music.roll, OLED_HEIGHT - BAR_Y_MARGIN - 1 + CURSOR_HEIGHT,
-                 WHITE);
+        if(music.pitch < PITCH_THRESHOLD)
+        {
+            // Plot the cursor
+            plotLine(music.roll, OLED_HEIGHT - BAR_Y_MARGIN - (2 * CURSOR_HEIGHT + 5) - CURSOR_HEIGHT,
+                     music.roll, OLED_HEIGHT - BAR_Y_MARGIN - (2 * CURSOR_HEIGHT + 5) + CURSOR_HEIGHT,
+                     WHITE);
+        }
+        else
+        {
+            // Plot the cursor
+            plotLine(music.roll, OLED_HEIGHT - BAR_Y_MARGIN - 1 - CURSOR_HEIGHT,
+                     music.roll, OLED_HEIGHT - BAR_Y_MARGIN - 1 + CURSOR_HEIGHT,
+                     WHITE);
+        }
     }
 
     // Plot the title
     plotText(0, 0, swynthParams[music.paramIdx].name, RADIOSTARS, WHITE);
 
-    // Plot the note
-    plotCenteredText(0, 20, OLED_WIDTH - 1, noteToStr(getCurrentNote()), RADIOSTARS, WHITE);
+    // Plot the BPM
+    char bpmStr[8] = {0};
+    ets_snprintf(bpmStr, sizeof(bpmStr), "%d", bpms[music.bpmIdx].bpm);
+    uint8_t bpmX = OLED_WIDTH - getTextWidth(bpmStr, RADIOSTARS);
+    plotText(bpmX, 0, bpmStr, RADIOSTARS, WHITE);
+
+    // Underline it if it's being modified
+    if(true == music.modifyBpm)
+    {
+        for(uint8_t i = 2; i < 4; i++)
+        {
+            plotLine(
+                bpmX,
+                FONT_HEIGHT_RADIOSTARS + i,
+                OLED_WIDTH,
+                FONT_HEIGHT_RADIOSTARS + i,
+                WHITE);
+        }
+    }
+
+    // Plot the note if BPM isn't being modified
+    if(false == music.modifyBpm)
+    {
+        plotCenteredText(0, 20, OLED_WIDTH - 1, noteToStr(getCurrentNote()), RADIOSTARS, WHITE);
+    }
 
     // Plot the button funcs
-    plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Choose", TOM_THUMB, WHITE);
+    plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Choose (hold for BPM)", TOM_THUMB, WHITE);
     plotText(OLED_WIDTH - 15, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Play", TOM_THUMB, WHITE);
 }
 
@@ -500,7 +605,7 @@ void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)))
     lastCallTimeUs = currentCallTimeUs;
 
     // If time crossed a rhythm boundary, do something different
-    uint32_t rhythmIntervalUs = (1000 * BPM_MULTIPLIER * ((~REST_BIT) &
+    uint32_t rhythmIntervalUs = (1000 * bpms[music.bpmIdx].bpmMultiplier * ((~REST_BIT) &
                                  swynthParams[music.paramIdx].rhythm[music.rhythmIdx]));
     led_t leds[NUM_LIN_LEDS] = {{0}};
     if(music.timeUs >= rhythmIntervalUs)
@@ -534,7 +639,11 @@ void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)))
                                  noteToPlay,
                                  swynthParams[music.paramIdx].arpIntervals[music.arpIdx]);
             }
-            setBuzzerNote(noteToPlay);
+            // Only play the note if BPM isn't being modified
+            if(false == music.modifyBpm)
+            {
+                setBuzzerNote(noteToPlay);
+            }
             noteToColor(&leds[0], getCurrentNote(), 0x40);
         }
     }
