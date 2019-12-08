@@ -45,6 +45,7 @@
 #define JOUST_FIELD_OFFSET_Y 14
 #define JOUST_FIELD_WIDTH  SPRITE_DIM * 20
 #define JOUST_FIELD_HEIGHT SPRITE_DIM * 11
+
 /*============================================================================
  * Enums
  *==========================================================================*/
@@ -152,6 +153,7 @@ struct
     uint16_t rolling_average;
     uint32_t con_color;
     uint32_t FFACounter;
+    uint16_t mov;
     // Game state variables
     struct
     {
@@ -839,7 +841,7 @@ void ICACHE_FLASH_ATTR joustDrawMenu(void)
 
     // Draw instruction ticker
     if (0 > plotText(joust.instructionTextIdx, textY,
-                     "Joust is a multiplayer movement game where you try to jostle your opponents swadge while keeping yours still. There are two modes: Free For all and 2 Player, which tracks wins. In Free For all, make sure all players press start at the same time. Press the left or right button to select a game type. enjoy!",
+                     "Joust is a multiplayer movement game where you try to jostle your opponents swadge while keeping yours still. There are two modes: Free For all and 2 Player, which tracks wins. In Free For all, make sure all players press start at the same time. Wrap your Lanyard around your wrist to prevent dropping your swadge. Press the left or right button to select a game type. enjoy!",
                      IBM_VGA_8, WHITE))
     {
         joust.instructionTextIdx = OLED_WIDTH;
@@ -1155,12 +1157,20 @@ void ICACHE_FLASH_ATTR joustUpdateDisplay(void)
     // Clear the display
     clearDisplay();
     // Draw a title
-    plotText(0, 0, "JOUST", RADIOSTARS, WHITE);
+    plotText(0, 0, "JOUST METER", RADIOSTARS, WHITE);
     // Display the acceleration on the display
-    char accelStr[32] = {0};
-
-    ets_snprintf(accelStr, sizeof(accelStr), "Acc: %d", joust.rolling_average);
-    plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8, WHITE);
+    plotRect(
+        0,
+        (OLED_HEIGHT / 2 - 18) + 5,
+        OLED_WIDTH -2,
+        (OLED_HEIGHT / 2 + 18) + 5,
+        WHITE);
+    fillDisplayArea(
+        5,
+        (OLED_HEIGHT / 2 - 14) + 5,
+        5 + (int)(((float)joust.mov-(float)joust.rolling_average)/43.0f*128.0f),
+        (OLED_HEIGHT / 2 + 14) + 5,
+        WHITE);
 }
 
 /**
@@ -1174,12 +1184,12 @@ void ICACHE_FLASH_ATTR joustAccelerometerHandler(accel_t* accel)
         joust.joustAccel.x = accel->x;
         joust.joustAccel.y = accel->y;
         joust.joustAccel.z = accel->z;
-        uint16_t mov = (uint16_t) sqrt(pow(joust.joustAccel.x, 2) + pow(joust.joustAccel.y, 2) + pow(joust.joustAccel.z, 2));
-        joust.rolling_average = (joust.rolling_average * 2 + mov) / 3;
+        joust.mov = (uint16_t) sqrt(pow(joust.joustAccel.x, 2) + pow(joust.joustAccel.y, 2) + pow(joust.joustAccel.z, 2));
+        joust.rolling_average = (joust.rolling_average * 2 + joust.mov) / 3;
 
         if (joust.gameState == R_PLAYING || joust.gameState == R_PLAYINGFFA)
         {
-            if(mov > joust.rolling_average + 43)
+            if(joust.mov > joust.rolling_average + 43)
             {
                 if(joust.gameState == R_PLAYING)
                 {
@@ -1191,7 +1201,7 @@ void ICACHE_FLASH_ATTR joustAccelerometerHandler(accel_t* accel)
                     joustRoundResultFFA();
                 }
             }
-            else if(mov > joust.rolling_average + 20)
+            else if(joust.mov > joust.rolling_average + 20)
             {
                 startBuzzerSong(&joustbeepSFX);
             }
