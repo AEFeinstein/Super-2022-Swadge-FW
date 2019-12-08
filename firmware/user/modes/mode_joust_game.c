@@ -1162,13 +1162,13 @@ void ICACHE_FLASH_ATTR joustUpdateDisplay(void)
     plotRect(
         0,
         (OLED_HEIGHT / 2 - 18) + 5,
-        OLED_WIDTH -2,
+        OLED_WIDTH - 2,
         (OLED_HEIGHT / 2 + 18) + 5,
         WHITE);
     fillDisplayArea(
         5,
         (OLED_HEIGHT / 2 - 14) + 5,
-        5 + (int)(((float)joust.mov-(float)joust.rolling_average)/43.0f*128.0f),
+        5 + (int)(((float)joust.mov - (float)joust.rolling_average) / 43.0f * 128.0f),
         (OLED_HEIGHT / 2 + 14) + 5,
         WHITE);
 }
@@ -1354,12 +1354,13 @@ void ICACHE_FLASH_ATTR joustButton( uint8_t state __attribute__((unused)),
             plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Move theirs", IBM_VGA_8, WHITE);
             plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), "Not yours!", IBM_VGA_8, WHITE);
         }
-    }else if(joust.gameState == R_SHOW_GAME_RESULT || joust.gameState == R_SEARCHING)
+    }
+    else if(joust.gameState == R_SHOW_GAME_RESULT || joust.gameState == R_SEARCHING)
     {
-      if(1 == button || 2 == button)
-      {
-        os_timer_arm(&joust.tmr.RestartJoust, 10, false);
-      }
+        if(1 == button || 2 == button)
+        {
+            os_timer_arm(&joust.tmr.RestartJoust, 10, false);
+        }
     }
 }
 
@@ -1536,9 +1537,11 @@ void ICACHE_FLASH_ATTR joustRoundResultFFA()
     //One if 15 games has the Bach sound
     if(joust.FFACounter % 15 == 0)
     {
-      startBuzzerSong(&WinGameBachSFX);
-    }else{
-      startBuzzerSong(&endGameSFX);
+        startBuzzerSong(&WinGameBachSFX);
+    }
+    else
+    {
+        startBuzzerSong(&endGameSFX);
     }
 
     os_timer_arm(&joust.tmr.RoundResultLed, 6, true);
