@@ -116,8 +116,8 @@ void ICACHE_FLASH_ATTR modeInit(void)
     // Don't count the menu as a mode
     numModes--;
 
-    // Start at mode 0
-    selectedMode = 0;
+    // Start where we left off
+    selectedMode = getMenuPos();
 
     // Set up memory for loading images into
     curImg = img1;
@@ -204,6 +204,7 @@ void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state __attribute__((unused)),
                 else
                 {
                     // Select the mode
+                    setMenuPos(selectedMode);
                     switchToSwadgeMode(1 + selectedMode);
                 }
                 break;

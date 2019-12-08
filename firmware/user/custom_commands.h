@@ -40,4 +40,7 @@ uint32_t ICACHE_FLASH_ATTR getGalleryUnlocks(void);
 void ICACHE_FLASH_ATTR setMazeLevel(uint8_t level);
 uint8_t ICACHE_FLASH_ATTR getMazeLevel(void);
 
+uint8_t ICACHE_FLASH_ATTR getMenuPos(void);
+void ICACHE_FLASH_ATTR setMenuPos(uint8_t pos);
+
 #endif /* USER_CUSTOM_COMMANDS_H_ */

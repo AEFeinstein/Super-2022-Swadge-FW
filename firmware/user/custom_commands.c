@@ -21,7 +21,7 @@
 
 #define NUMBER_STORED_CONFIGURABLES 16
 #define CONFIGURABLES sizeof(struct CCSettings) //(plus1)
-#define SAVE_LOAD_KEY 0xB2
+#define SAVE_LOAD_KEY 0xB3
 
 /*============================================================================
  * Structs
@@ -41,6 +41,7 @@ typedef struct __attribute__((aligned(4)))
     uint32_t galleryUnlocks;
     bool isMuted;
     uint8_t mazeLevel;
+    uint8_t menuPos;
 }
 settings_t;
 
@@ -333,6 +334,17 @@ uint8_t ICACHE_FLASH_ATTR getMazeLevel(void)
 void ICACHE_FLASH_ATTR setMazeLevel(uint8_t level)
 {
     settings.mazeLevel = level;
+    SaveSettings();
+}
+
+uint8_t ICACHE_FLASH_ATTR getMenuPos(void)
+{
+    return settings.menuPos;
+}
+
+void ICACHE_FLASH_ATTR setMenuPos(uint8_t pos)
+{
+    settings.menuPos = pos;
     SaveSettings();
 }
 
