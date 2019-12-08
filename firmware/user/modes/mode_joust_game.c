@@ -206,38 +206,66 @@ bool joustWarningShown = false;
 const song_t endGameSFX RODATA_ATTR =
 {
     .notes = {
-        {.note = C_4, .timeMs = 200},
+        {.note = C_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_6, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
         {.note = C_5, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
-        {.note = C_4, .timeMs = 200},
+        {.note = C_6, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
         {.note = C_5, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
-        {.note = C_4, .timeMs = 200},
+        {.note = C_6, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
         {.note = C_5, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
-        {.note = C_4, .timeMs = 200},
+        {.note = C_6, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
         {.note = C_5, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
-        {.note = C_4, .timeMs = 200},
+        {.note = C_6, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
         {.note = C_5, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
-        {.note = C_4, .timeMs = 200},
+        {.note = C_6, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
         {.note = C_5, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
-        {.note = C_4, .timeMs = 200},
-        {.note = SILENCE, .timeMs = 1},
-        {.note = C_5, .timeMs = 200},
+        {.note = C_6, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
     },
     .numNotes = 28,
     .shouldLoop = false
 };
+
+const song_t WinGameBachSFX RODATA_ATTR =
+{
+    .notes = {
+        {.note = D_6, .timeMs = 300},
+        {.note = G_5, .timeMs = 200},
+        {.note = A_5, .timeMs = 200},
+        {.note = B_5, .timeMs = 200},
+        {.note = C_6, .timeMs = 200},
+        {.note = D_6, .timeMs = 300},
+        {.note = G_5, .timeMs = 300},
+        {.note = SILENCE, .timeMs = 50},
+        {.note = G_5, .timeMs = 300},
+        {.note = E_6, .timeMs = 300},
+        {.note = C_6, .timeMs = 200},
+        {.note = D_6, .timeMs = 200},
+        {.note = E_6, .timeMs = 200},
+        {.note = F_SHARP_6, .timeMs = 200},
+        {.note = G_6, .timeMs = 300},
+        {.note = G_5, .timeMs = 300},
+        {.note = SILENCE, .timeMs = 50},
+        {.note = G_5, .timeMs = 500},
+
+    },
+    .numNotes = 18,
+    .shouldLoop = false
+};
+
 
 const song_t tieGameSFX RODATA_ATTR =
 {
@@ -341,6 +369,21 @@ const song_t endGameWinSFX RODATA_ATTR =
     .numNotes = 26,
     .shouldLoop = false
 };
+
+const song_t joustbeepSFX RODATA_ATTR =
+{
+    .notes = {
+        {.note = C_8, .timeMs = 40},
+        {.note = SILENCE, .timeMs = 40},
+        {.note = C_8, .timeMs = 40},
+        {.note = SILENCE, .timeMs = 40},
+        {.note = C_8, .timeMs = 40},
+        {.note = SILENCE, .timeMs = 1},
+    },
+    .numNotes = 6,
+    .shouldLoop = false
+};
+
 
 const uint8_t JoustWarning[666] RODATA_ATTR =
 {
@@ -770,7 +813,6 @@ void ICACHE_FLASH_ATTR joustDrawMenu(void)
     else if(joust.gam.joustWins < 100)
     {
         memcpy(lvlStr, "Viscount Vervet", sizeof("Viscount Vervet"));
-        nextLevel = 100;
     }
     else
     {
@@ -797,7 +839,7 @@ void ICACHE_FLASH_ATTR joustDrawMenu(void)
 
     // Draw instruction ticker
     if (0 > plotText(joust.instructionTextIdx, textY,
-                     "Joust is a movement game where you try to jostle your opponents swadge while keeping yours still. There are two modes Free For all and 2 Player, which tracks wins. Press the left or right button to select a game type. enjoy!",
+                     "Joust is a multiplayer movement game where you try to jostle your opponents swadge while keeping yours still. There are two modes: Free For all and 2 Player, which tracks wins. In Free For all, make sure all players press start at the same time. Press the left or right button to select a game type. enjoy!",
                      IBM_VGA_8, WHITE))
     {
         joust.instructionTextIdx = OLED_WIDTH;
@@ -1137,7 +1179,7 @@ void ICACHE_FLASH_ATTR joustAccelerometerHandler(accel_t* accel)
 
         if (joust.gameState == R_PLAYING || joust.gameState == R_PLAYINGFFA)
         {
-            if(mov > joust.rolling_average + 40)
+            if(mov > joust.rolling_average + 43)
             {
                 if(joust.gameState == R_PLAYING)
                 {
@@ -1148,6 +1190,10 @@ void ICACHE_FLASH_ATTR joustAccelerometerHandler(accel_t* accel)
                 {
                     joustRoundResultFFA();
                 }
+            }
+            else if(mov > joust.rolling_average + 20)
+            {
+                startBuzzerSong(&joustbeepSFX);
             }
             else
             {
@@ -1298,6 +1344,12 @@ void ICACHE_FLASH_ATTR joustButton( uint8_t state __attribute__((unused)),
             plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Move theirs", IBM_VGA_8, WHITE);
             plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), "Not yours!", IBM_VGA_8, WHITE);
         }
+    }else if(joust.gameState == R_SHOW_GAME_RESULT || joust.gameState == R_SEARCHING)
+    {
+      if(1 == button || 2 == button)
+      {
+        os_timer_arm(&joust.tmr.RestartJoust, 10, false);
+      }
     }
 }
 
@@ -1434,7 +1486,12 @@ void ICACHE_FLASH_ATTR joustRoundResult(int roundWinner)
                     WHITE);
             }
         }
-        if(joust.gam.joustWins % 2 == 0)
+        if(joust.gam.joustWins % 10 == 0)
+        {
+            startBuzzerSong(&WinGameBachSFX);
+
+        }
+        else if(joust.gam.joustWins % 2 == 0)
         {
             startBuzzerSong(&endGameWinSFX);
 
@@ -1466,7 +1523,14 @@ void ICACHE_FLASH_ATTR joustRoundResultFFA()
 {
     joust.gameState = R_SHOW_GAME_RESULT;
     joustDisarmAllLedTimers();
-    startBuzzerSong(&endGameSFX);
+    //One if 15 games has the Bach sound
+    if(joust.FFACounter % 15 == 0)
+    {
+      startBuzzerSong(&WinGameBachSFX);
+    }else{
+      startBuzzerSong(&endGameSFX);
+    }
+
     os_timer_arm(&joust.tmr.RoundResultLed, 6, true);
 
     clearDisplay();
