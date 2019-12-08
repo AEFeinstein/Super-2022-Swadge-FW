@@ -15,6 +15,7 @@
 #include <p2pConnection.h>
 #include <math.h>
 #include <stdlib.h>
+#include <mem.h>
 
 #include "user_main.h"
 #include "mode_joust_game.h"
@@ -26,6 +27,8 @@
 #include "buzzer.h" // music and sfx
 #include "hpatimer.h" // buzzer functions
 #include "bresenham.h"
+#include "fastlz.h"
+#include "mode_tiltrads.h"
 
 /*============================================================================
  * Defines
@@ -42,6 +45,7 @@
 #define JOUST_FIELD_OFFSET_Y 14
 #define JOUST_FIELD_WIDTH  SPRITE_DIM * 20
 #define JOUST_FIELD_HEIGHT SPRITE_DIM * 11
+
 /*============================================================================
  * Enums
  *==========================================================================*/
@@ -56,7 +60,8 @@ typedef enum
     R_PLAYINGFFA,
     R_WAITING,
     R_SHOW_GAME_RESULT,
-    R_GAME_OVER
+    R_GAME_OVER,
+    R_WARNING
 } joustGameState_t;
 
 typedef enum
@@ -117,6 +122,10 @@ void ICACHE_FLASH_ATTR joustRoundResult(int);
 void ICACHE_FLASH_ATTR joustRoundResultFFA(void);
 
 void ICACHE_FLASH_ATTR joustUpdateDisplay(void);
+void ICACHE_FLASH_ATTR joustDisplayWarning(void);
+void ICACHE_FLASH_ATTR joustClearWarning(void* arg);
+void ICACHE_FLASH_ATTR joustDrawMenu(void);
+void ICACHE_FLASH_ATTR joustScrollInstructions(void* arg);
 
 /*============================================================================
  * Variables
@@ -144,6 +153,8 @@ struct
     uint16_t rolling_average;
     uint32_t con_color;
     uint32_t FFACounter;
+    uint16_t mov;
+    uint16_t meterSize;
     // Game state variables
     struct
     {
@@ -166,6 +177,8 @@ struct
         os_timer_t GameLed;
         os_timer_t RoundResultLed;
         os_timer_t RestartJoust;
+        os_timer_t ClearWarning;
+        os_timer_t ScrollInstructions;
     } tmr;
 
     // LED variables
@@ -181,7 +194,11 @@ struct
     } led;
 
     p2pInfo p2pJoust;
+
+    int16_t instructionTextIdx;
 } joust;
+
+bool joustWarningShown = false;
 
 /*============================================================================
  * Functions
@@ -192,38 +209,66 @@ struct
 const song_t endGameSFX RODATA_ATTR =
 {
     .notes = {
-        {.note = C_4, .timeMs = 200},
+        {.note = C_5, .timeMs = 200},
+        {.note = SILENCE, .timeMs = 1},
+        {.note = C_6, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
         {.note = C_5, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
-        {.note = C_4, .timeMs = 200},
+        {.note = C_6, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
         {.note = C_5, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
-        {.note = C_4, .timeMs = 200},
+        {.note = C_6, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
         {.note = C_5, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
-        {.note = C_4, .timeMs = 200},
+        {.note = C_6, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
         {.note = C_5, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
-        {.note = C_4, .timeMs = 200},
+        {.note = C_6, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
         {.note = C_5, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
-        {.note = C_4, .timeMs = 200},
+        {.note = C_6, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
         {.note = C_5, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
-        {.note = C_4, .timeMs = 200},
-        {.note = SILENCE, .timeMs = 1},
-        {.note = C_5, .timeMs = 200},
+        {.note = C_6, .timeMs = 200},
         {.note = SILENCE, .timeMs = 1},
     },
     .numNotes = 28,
     .shouldLoop = false
 };
+
+const song_t WinGameBachSFX RODATA_ATTR =
+{
+    .notes = {
+        {.note = D_6, .timeMs = 300},
+        {.note = G_5, .timeMs = 200},
+        {.note = A_5, .timeMs = 200},
+        {.note = B_5, .timeMs = 200},
+        {.note = C_6, .timeMs = 200},
+        {.note = D_6, .timeMs = 300},
+        {.note = G_5, .timeMs = 300},
+        {.note = SILENCE, .timeMs = 50},
+        {.note = G_5, .timeMs = 300},
+        {.note = E_6, .timeMs = 300},
+        {.note = C_6, .timeMs = 200},
+        {.note = D_6, .timeMs = 200},
+        {.note = E_6, .timeMs = 200},
+        {.note = F_SHARP_6, .timeMs = 200},
+        {.note = G_6, .timeMs = 300},
+        {.note = G_5, .timeMs = 300},
+        {.note = SILENCE, .timeMs = 50},
+        {.note = G_5, .timeMs = 500},
+
+    },
+    .numNotes = 18,
+    .shouldLoop = false
+};
+
 
 const song_t tieGameSFX RODATA_ATTR =
 {
@@ -328,6 +373,132 @@ const song_t endGameWinSFX RODATA_ATTR =
     .shouldLoop = false
 };
 
+const song_t joustbeepSFX RODATA_ATTR =
+{
+    .notes = {
+        {.note = C_8, .timeMs = 40},
+        {.note = SILENCE, .timeMs = 40},
+        {.note = C_8, .timeMs = 40},
+        {.note = SILENCE, .timeMs = 40},
+        {.note = C_8, .timeMs = 40},
+        {.note = SILENCE, .timeMs = 1},
+    },
+    .numNotes = 6,
+    .shouldLoop = false
+};
+
+
+const uint8_t JoustWarning[666] RODATA_ATTR =
+{
+    0x06, 0x00, 0x80, 0x00, 0x40, 0x00, 0x01, 0x00, 0xe0, 0x3e, 0x00, 0x01, 0x07, 0xc0, 0xa0, 0x48,
+    0x00, 0x70, 0x80, 0x07, 0x01, 0x07, 0xe0, 0x80, 0x07, 0xe0, 0x00, 0x0f, 0xc0, 0x1f, 0xe0, 0x06,
+    0x00, 0x01, 0x07, 0xf0, 0x80, 0x10, 0x03, 0x04, 0x20, 0x03, 0x83, 0x40, 0x22, 0x04, 0x07, 0xf0,
+    0x07, 0xc7, 0xf8, 0x60, 0x12, 0x09, 0x07, 0xe7, 0xfc, 0x00, 0x3f, 0x03, 0x00, 0x00, 0x07, 0xff,
+    0x20, 0x00, 0x04, 0x83, 0x04, 0x00, 0x07, 0xef, 0x20, 0x07, 0x16, 0xfe, 0x07, 0xf0, 0x02, 0xd7,
+    0xff, 0xff, 0x80, 0xfe, 0x04, 0x00, 0x01, 0x17, 0x3f, 0xff, 0x00, 0x0c, 0x00, 0x00, 0x21, 0x16,
+    0xb9, 0xfe, 0x40, 0x30, 0x03, 0x19, 0x95, 0x76, 0xff, 0x20, 0x2d, 0x15, 0xf0, 0x0d, 0xfa, 0xef,
+    0x7f, 0xc0, 0x00, 0x04, 0x10, 0x07, 0xfe, 0x1f, 0xbf, 0xf0, 0x00, 0x06, 0xe0, 0x07, 0xff, 0xdf,
+    0xbf, 0xfc, 0x20, 0x20, 0x03, 0x1f, 0xff, 0x33, 0xc7, 0x20, 0x20, 0x06, 0x00, 0x07, 0xfe, 0x21,
+    0xc0, 0x07, 0xc0, 0x20, 0x67, 0x13, 0xfe, 0x20, 0xe0, 0x03, 0xe0, 0x00, 0x80, 0x0f, 0xff, 0x00,
+    0xe0, 0x00, 0xfc, 0x87, 0xf0, 0x3f, 0xfe, 0xc0, 0xe0, 0x00, 0x20, 0x39, 0x09, 0x01, 0x64, 0x20,
+    0x70, 0x00, 0x07, 0x80, 0x00, 0x02, 0x24, 0x80, 0xbb, 0x01, 0x04, 0x44, 0x80, 0x07, 0x21, 0x2f,
+    0x00, 0x30, 0x20, 0x3d, 0x00, 0x00, 0x20, 0x00, 0x20, 0x07, 0x00, 0x00, 0x40, 0xb7, 0x20, 0x07,
+    0x60, 0x0f, 0x00, 0x38, 0x20, 0x0f, 0x40, 0x00, 0x00, 0x18, 0x40, 0x04, 0x01, 0x00, 0x03, 0x40,
+    0x07, 0x20, 0xd7, 0x01, 0x07, 0x80, 0x20, 0x0f, 0x03, 0x04, 0x10, 0x00, 0x00, 0x40, 0x07, 0x20,
+    0x0f, 0x01, 0x00, 0xc0, 0x20, 0x0f, 0x40, 0x00, 0x00, 0x40, 0xa0, 0x07, 0x00, 0x60, 0x20, 0x07,
+    0x40, 0x17, 0x40, 0x07, 0x16, 0x00, 0x10, 0x07, 0x00, 0xe0, 0x18, 0xf8, 0x06, 0x07, 0xf0, 0x0f,
+    0xc3, 0xe0, 0x1b, 0xff, 0xcc, 0x00, 0x00, 0x0f, 0xe7, 0xff, 0xdb, 0xff, 0x20, 0xb8, 0x01, 0x0f,
+    0xff, 0x40, 0x07, 0x20, 0xaf, 0x20, 0x07, 0x0b, 0xf0, 0x18, 0x04, 0x80, 0x00, 0x3f, 0xff, 0xdb,
+    0x80, 0x00, 0x07, 0x70, 0x40, 0x07, 0x20, 0x37, 0x00, 0x00, 0xe0, 0x00, 0x07, 0x02, 0x1f, 0xff,
+    0xd7, 0x41, 0x41, 0x20, 0x30, 0x00, 0xd7, 0x20, 0x6c, 0x20, 0x5a, 0x01, 0x8f, 0xd7, 0x20, 0x3e,
+    0x20, 0x8f, 0x14, 0x80, 0x57, 0xff, 0x00, 0x07, 0x30, 0x00, 0x01, 0xc0, 0x10, 0x1f, 0xc0, 0x04,
+    0x90, 0x00, 0x00, 0xf0, 0x10, 0x0f, 0xf0, 0x06, 0x20, 0x22, 0x02, 0x38, 0x00, 0x03, 0x40, 0x20,
+    0x04, 0x02, 0x1c, 0x00, 0x00, 0x7e, 0x20, 0x27, 0x01, 0x02, 0x0e, 0x20, 0x43, 0x20, 0x8f, 0x00,
+    0x02, 0x20, 0x0b, 0x04, 0x07, 0x00, 0x10, 0x00, 0x06, 0x20, 0x07, 0x00, 0x03, 0x20, 0x0f, 0x40,
+    0x07, 0x40, 0x00, 0xe0, 0x04, 0x07, 0xc0, 0x17, 0x20, 0x8f, 0x60, 0x17, 0x20, 0x8f, 0x60, 0x07,
+    0x20, 0x00, 0xe0, 0x04, 0x07, 0x60, 0x27, 0x20, 0xc2, 0x20, 0x27, 0x00, 0x03, 0x20, 0xa1, 0x06,
+    0xff, 0x87, 0x70, 0x00, 0x03, 0x80, 0x3f, 0x21, 0xc1, 0x20, 0x5b, 0xc0, 0x07, 0x00, 0x84, 0x20,
+    0x0f, 0x04, 0x87, 0xf0, 0x00, 0x83, 0x88, 0x20, 0x07, 0x04, 0x84, 0x10, 0x00, 0x47, 0xd0, 0x20,
+    0x07, 0x20, 0x0f, 0x02, 0x3f, 0xe0, 0xbf, 0x60, 0x27, 0x01, 0x1f, 0xf3, 0x20, 0x0f, 0x20, 0x2f,
+    0x01, 0x9f, 0xfc, 0x20, 0x07, 0x20, 0x17, 0x01, 0x7f, 0xfa, 0x20, 0x07, 0x04, 0x80, 0x10, 0x00,
+    0x1f, 0xfb, 0x20, 0x07, 0x20, 0x0f, 0x01, 0x3f, 0xfb, 0x80, 0x27, 0x01, 0x7f, 0xe5, 0x22, 0x20,
+    0x20, 0x27, 0x02, 0x8f, 0xeb, 0xdf, 0x60, 0x17, 0x04, 0x13, 0x2f, 0x9f, 0xff, 0xff, 0x22, 0xe0,
+    0x01, 0x02, 0xdf, 0x20, 0x94, 0x21, 0xbd, 0x02, 0x05, 0xf8, 0x00, 0x60, 0x8f, 0x01, 0x0f, 0xe0,
+    0x20, 0x07, 0x20, 0x00, 0x00, 0x1f, 0x61, 0x2d, 0x02, 0x00, 0x00, 0x0f, 0x20, 0x33, 0x40, 0xa7,
+    0x00, 0x0f, 0x20, 0x06, 0x61, 0xaf, 0x40, 0x00, 0x22, 0x19, 0xe0, 0x0c, 0x00, 0x20, 0xcf, 0xa0,
+    0x00, 0x00, 0x08, 0x20, 0x52, 0x40, 0x00, 0x01, 0x1c, 0x01, 0x40, 0x47, 0x02, 0x07, 0xf0, 0x3e,
+    0x60, 0x32, 0x00, 0x01, 0x21, 0x42, 0x40, 0x0f, 0x22, 0x57, 0x00, 0x8f, 0x40, 0x1f, 0x21, 0xb7,
+    0x60, 0x7e, 0x20, 0x51, 0x62, 0xa5, 0x20, 0x21, 0x41, 0x73, 0x20, 0x17, 0x00, 0x00, 0x40, 0x8e,
+    0x02, 0x00, 0x04, 0x50, 0xa0, 0x0f, 0x00, 0x60, 0xc0, 0x1f, 0xc0, 0x2f, 0xa0, 0x3f, 0x00, 0x30,
+    0x80, 0x4f, 0x01, 0x04, 0x90, 0x80, 0x5f, 0x01, 0x06, 0xf0, 0x80, 0x6f, 0xc0, 0x7f, 0x01, 0x07,
+    0xd0, 0x20, 0x0a, 0xe0, 0x31, 0x00, 0x02, 0x00, 0x00, 0x00
+};
+
+/**
+ * @brief Helper function to display the warning image
+ */
+void ICACHE_FLASH_ATTR joustDisplayWarning(void)
+{
+    /* Read the compressed image from ROM into RAM, and make sure to do a
+     * 32 bit aligned read. The arrays are all __attribute__((aligned(4)))
+     * so this is safe, not out of bounds
+     */
+    uint32_t alignedSize = sizeof(JoustWarning);
+    while(alignedSize % 4 != 0)
+    {
+        alignedSize++;
+    }
+    uint8_t* compressedStagingSpace = (uint8_t*)os_malloc(alignedSize);
+    memcpy(compressedStagingSpace, JoustWarning, alignedSize);
+
+    // Decompress the image from one RAM area to another
+    uint8_t* decompressedImage = (uint8_t*)os_malloc(1024 + 8);
+    fastlz_decompress(compressedStagingSpace,
+                      sizeof(JoustWarning),
+                      decompressedImage,
+                      1024 + 8);
+
+    // Draw the decompressed image to the OLED
+    for (int w = 0; w < OLED_WIDTH; w++)
+    {
+        for (int h = 0; h < OLED_HEIGHT; h++)
+        {
+            uint16_t linearIdx = (OLED_HEIGHT * w) + h;
+            uint16_t byteIdx = linearIdx / 8;
+            uint8_t bitIdx = linearIdx % 8;
+
+            if (decompressedImage[8 + byteIdx] & (0x80 >> bitIdx))
+            {
+                drawPixel(w, h, WHITE);
+            }
+            else
+            {
+                drawPixel(w, h, BLACK);
+            }
+        }
+    }
+
+    // Free memory
+    os_free(compressedStagingSpace);
+    os_free(decompressedImage);
+}
+
+/**
+ * @brief Switch the game mode to R_MENU from R_WARNING and draw the menu
+ *
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR joustClearWarning(void* arg __attribute__((unused)) )
+{
+    joust.gameState = R_MENU;
+    // Draw the  menu
+    joust.instructionTextIdx = OLED_WIDTH;
+    joustDrawMenu();
+    // Start the timer to scroll text
+    os_timer_arm(&joust.tmr.ScrollInstructions, 40, true);
+    setOledDrawTime(40);
+}
+
 /**
  * Get a random number from a range.
  *
@@ -421,6 +592,10 @@ void ICACHE_FLASH_ATTR joustMsgCallbackFn(p2pInfo* p2p __attribute__((unused)), 
 
     switch(joust.gameState)
     {
+        case R_WARNING:
+        {
+            break;
+        }
         case R_CONNECTING:
         {
             break;
@@ -510,98 +685,29 @@ void ICACHE_FLASH_ATTR joustInit(void)
     }
 
     clearDisplay();
-    if(joust.gam.joustWins < 4)
+
+    // Set up a timer to clear the warning
+    os_timer_disarm(&joust.tmr.ClearWarning);
+    os_timer_setfn(&joust.tmr.ClearWarning, joustClearWarning, NULL);
+
+    // Set up a timer to scroll the instructions
+    os_timer_disarm(&joust.tmr.ScrollInstructions);
+    os_timer_setfn(&joust.tmr.ScrollInstructions, joustScrollInstructions, NULL);
+
+    // If the warning wasn't shown yet
+    if(false == joustWarningShown)
     {
-        plotText(0, 0, "Joust is a movement game where", TOM_THUMB, WHITE);
-        plotText(0, FONT_HEIGHT_TOMTHUMB + 1, "you try to jostle your opponents", TOM_THUMB, WHITE);
-        plotText(0, 2 * FONT_HEIGHT_TOMTHUMB + 2, "swadge while keeping yours still.", TOM_THUMB, WHITE);
-        plotText(0, 4 * FONT_HEIGHT_TOMTHUMB, "There are two modes Free For all", TOM_THUMB, WHITE);
-        plotText(0, 5 * FONT_HEIGHT_TOMTHUMB + 1, "and 2 Player, which tracks wins", TOM_THUMB, WHITE);
-        plotText(0, 7 * FONT_HEIGHT_TOMTHUMB, "Press the left or right button", TOM_THUMB, WHITE);
-        plotText(0, 8 * FONT_HEIGHT_TOMTHUMB + 1, "to select a game type. enjoy!", TOM_THUMB, WHITE);
-        char menuStr[32] = {0};
-        ets_snprintf(menuStr, sizeof(menuStr), "wins: %d", joust.gam.joustWins);
-        plotText(0, 9 * FONT_HEIGHT_TOMTHUMB + 3, menuStr, TOM_THUMB, WHITE);
+        // Display a warning and start a timer to clear it
+        joustDisplayWarning();
+        os_timer_arm(&joust.tmr.ClearWarning, 1000 * 5, false);
+        joustWarningShown = true;
+        joust.gameState = R_WARNING;
     }
     else
     {
-        plotText(32, 0, "Joust", RADIOSTARS, WHITE);
-        char menuStr[32] = {0};
-        ets_snprintf(menuStr, sizeof(menuStr), "wins: %d", joust.gam.joustWins);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB - 6, menuStr, TOM_THUMB, WHITE);
-    }
-
-    uint8_t scoresAreaX0 = 0;
-    uint8_t scoresAreaY0 = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 3);
-    uint8_t scoresAreaX1 = 23;
-    uint8_t scoresAreaY1 = OLED_HEIGHT - 1;
-    fillDisplayArea(scoresAreaX0, scoresAreaY0, scoresAreaX1, scoresAreaY1, BLACK);
-    uint8_t scoresTextX = 0;
-    uint8_t scoresTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);
-    plotText(scoresTextX, scoresTextY, "Free For All", TOM_THUMB, WHITE);
-
-    uint8_t startAreaX0 = OLED_WIDTH - 20;//39;
-    uint8_t startAreaY0 = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 3);
-    uint8_t startAreaX1 = OLED_WIDTH - 1;
-    uint8_t startAreaY1 = OLED_HEIGHT - 1;
-    fillDisplayArea(startAreaX0, startAreaY0, startAreaX1, startAreaY1, BLACK);
-    uint8_t startTextX = OLED_WIDTH - 38;//38;
-    uint8_t startTextY = OLED_HEIGHT - (FONT_HEIGHT_TOMTHUMB + 1);
-    plotText(startTextX, startTextY, "2 Player", TOM_THUMB, WHITE);
-
-    if(joust.gam.joustWins < 4)
-    {
-        // plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Serf Simian", IBM_VGA_8, WHITE);
-        // plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1))-FONT_HEIGHT_TOMTHUMB, "Next level: 4", TOM_THUMB, WHITE);
-    }
-    else if(joust.gam.joustWins < 8)
-    {
-        plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Peasant Primate", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 8", TOM_THUMB, WHITE);
-    }
-    else if(joust.gam.joustWins < 12)
-    {
-        plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Page Probocsis", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 12", TOM_THUMB, WHITE);
-    }
-    else if(joust.gam.joustWins < 16)
-    {
-        plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Squire Saki", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 16", TOM_THUMB, WHITE);
-    }
-    else if(joust.gam.joustWins < 22)
-    {
-        plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Apprentice Ape", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 22", TOM_THUMB, WHITE);
-    }
-    else if(joust.gam.joustWins < 28)
-    {
-        plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Maester Mandrill", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 28", TOM_THUMB, WHITE);
-    }
-    else if(joust.gam.joustWins < 36)
-    {
-        plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Thane Tamarin", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 36", TOM_THUMB, WHITE);
-    }
-    else if(joust.gam.joustWins < 44)
-    {
-        plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Lord Lemur", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 44", TOM_THUMB, WHITE);
-    }
-    else if(joust.gam.joustWins < 60)
-    {
-        plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Baron Baboon", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)) - FONT_HEIGHT_TOMTHUMB, "Next level: 60", TOM_THUMB, WHITE);
-    }
-    else if(joust.gam.joustWins < 100)
-    {
-        plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Viscount Vervet", IBM_VGA_8, WHITE);
-    }
-    else
-    {
-        plotText(0, OLED_HEIGHT - (4 * (FONT_HEIGHT_IBMVGA8 + 1)), "Grandmaster", IBM_VGA_8, WHITE);
-        plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Gorilla", IBM_VGA_8, WHITE);
+        // Otherwise just show the menu
+        joustClearWarning(NULL);
+        joust.gameState = R_MENU;
     }
 
     // Enable button debounce for consistent 1p/2p and difficulty config
@@ -643,9 +749,143 @@ void ICACHE_FLASH_ATTR joustInit(void)
 
     os_timer_disarm(&joust.tmr.FFACounter);
     os_timer_setfn(&joust.tmr.FFACounter, joustFFACounter, NULL);
+}
 
+/**
+ * @brief Draw the Joust menu with a title, levels, instructions, and button labels
+ */
+void ICACHE_FLASH_ATTR joustDrawMenu(void)
+{
+#define Y_MARGIN 6
+    uint8_t textY = 0;
 
-    joust.gameState = R_MENU;
+    clearDisplay();
+
+    // Draw title
+    plotText(32, textY, "Joust", RADIOSTARS, WHITE);
+    textY += FONT_HEIGHT_RADIOSTARS + Y_MARGIN;
+
+    // Draw level info. First figure out what level we're at
+    int16_t nextLevel = 0;
+    char lvlStr[32] = {0};
+    if(joust.gam.joustWins < 4)
+    {
+        memcpy(lvlStr, "Serf Simian", sizeof("Serf Simian"));
+        nextLevel = 4;
+    }
+    else if(joust.gam.joustWins < 8)
+    {
+        memcpy(lvlStr, "Peasant Primate", sizeof("Peasant Primate"));
+        nextLevel = 8;
+    }
+    else if(joust.gam.joustWins < 12)
+    {
+        memcpy(lvlStr, "Page Probocsis", sizeof("Page Probocsis"));
+        nextLevel = 12;
+    }
+    else if(joust.gam.joustWins < 16)
+    {
+        memcpy(lvlStr, "Squire Saki", sizeof("Squire Saki"));
+        nextLevel = 16;
+    }
+    else if(joust.gam.joustWins < 22)
+    {
+        memcpy(lvlStr, "Apprentice Ape", sizeof("Apprentice Ape"));
+        nextLevel = 22;
+    }
+    else if(joust.gam.joustWins < 28)
+    {
+        memcpy(lvlStr, "Maester Mandrill", sizeof("Maester Mandrill"));
+        nextLevel = 28;
+    }
+    else if(joust.gam.joustWins < 36)
+    {
+        memcpy(lvlStr, "Thane Tamarin", sizeof("Thane Tamarin"));
+        nextLevel = 36;
+    }
+    else if(joust.gam.joustWins < 44)
+    {
+        memcpy(lvlStr, "Lord Lemur", sizeof("Lord Lemur"));
+        nextLevel = 44;
+    }
+    else if(joust.gam.joustWins < 60)
+    {
+        memcpy(lvlStr, "Baron Baboon", sizeof("Baron Baboon"));
+        nextLevel = 60;
+    }
+    else if(joust.gam.joustWins < 100)
+    {
+        memcpy(lvlStr, "Viscount Vervet", sizeof("Viscount Vervet"));
+    }
+    else
+    {
+        memcpy(lvlStr, "Grandmaster Gorilla", sizeof("Grandmaster Gorilla"));
+    }
+
+    char menuStr[64] = {0};
+    // First row, left justified
+    ets_snprintf(menuStr, sizeof(menuStr), "%d Wins!", joust.gam.joustWins);
+    plotText(0, textY, menuStr, TOM_THUMB, WHITE);
+
+    // First row, right justified, maybe
+    if(0 != nextLevel)
+    {
+        ets_snprintf(menuStr, sizeof(menuStr), "Next lvl at %d wins", nextLevel);
+        plotText(OLED_WIDTH - getTextWidth(menuStr, TOM_THUMB), textY, menuStr, TOM_THUMB, WHITE);
+    }
+    textY += FONT_HEIGHT_TOMTHUMB + Y_MARGIN;
+
+    // Second row
+    ets_snprintf(menuStr, sizeof(menuStr), "You are a %s", lvlStr);
+    plotText(0, textY, menuStr, TOM_THUMB, WHITE);
+    textY += FONT_HEIGHT_TOMTHUMB + Y_MARGIN;
+
+    // Draw instruction ticker
+    if (0 > plotText(joust.instructionTextIdx, textY,
+                     "Joust is a multiplayer movement game where you try to jostle your opponents swadge while keeping yours still. There are two modes: Free For all and 2 Player, which tracks wins. In Free For all, make sure all players press start at the same time. Wrap your Lanyard around your wrist to prevent dropping your swadge. Press the left or right button to select a game type. enjoy!",
+                     IBM_VGA_8, WHITE))
+    {
+        joust.instructionTextIdx = OLED_WIDTH;
+    }
+    textY += FONT_HEIGHT_IBMVGA8 + Y_MARGIN;
+
+    // Draw button labels
+    plotRect(
+        -1,
+        OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 4,
+        getTextWidth("Free For All", TOM_THUMB) + 3,
+        OLED_HEIGHT + 1,
+        WHITE);
+    plotText(
+        0,
+        OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB,
+        "Free For All",
+        TOM_THUMB,
+        WHITE);
+
+    plotRect(
+        OLED_WIDTH - getTextWidth("2 Player", TOM_THUMB) - 4,
+        OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 4,
+        OLED_WIDTH + 1,
+        OLED_HEIGHT + 1,
+        WHITE);
+    plotText(
+        OLED_WIDTH - getTextWidth("2 Player", TOM_THUMB),
+        OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB,
+        "2 Player",
+        TOM_THUMB,
+        WHITE);
+}
+
+/**
+ * @brief Decrement the index to draw the instructions at, then draw the menu
+ *
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR joustScrollInstructions(void* arg __attribute__((unused)))
+{
+    joust.instructionTextIdx--;
+    joustDrawMenu();
 }
 
 /**
@@ -918,12 +1158,51 @@ void ICACHE_FLASH_ATTR joustUpdateDisplay(void)
     // Clear the display
     clearDisplay();
     // Draw a title
-    plotText(0, 0, "JOUST", RADIOSTARS, WHITE);
+    plotText(0, 0, "JOUST METER", RADIOSTARS, WHITE);
     // Display the acceleration on the display
-    char accelStr[32] = {0};
+    plotRect(
+        0,
+        (OLED_HEIGHT / 2 - 18) + 5,
+        OLED_WIDTH - 2,
+        (OLED_HEIGHT / 2 + 18) + 5,
+        WHITE);
 
-    ets_snprintf(accelStr, sizeof(accelStr), "Acc: %d", joust.rolling_average);
-    plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8, WHITE);
+    // Find the difference from the rolling average, scale it to 118px (5px margin on each side)
+    int16_t diffFromAvg = ((joust.mov - joust.rolling_average) * 118) / 43;
+    // Clamp it to the meter's draw range
+    if(diffFromAvg < 0)
+    {
+        diffFromAvg = 0;
+    }
+    if(diffFromAvg > 118)
+    {
+        diffFromAvg = 118;
+    }
+
+    // Either set the meter if the difference is high, or slowly clear it
+    if(diffFromAvg > joust.meterSize)
+    {
+        joust.meterSize = diffFromAvg;
+    }
+    else
+    {
+        if(joust.meterSize >= 4)
+        {
+            joust.meterSize -= 4;
+        }
+        else
+        {
+            joust.meterSize = 0;
+        }
+    }
+
+    // draw it
+    fillDisplayArea(
+        5,
+        (OLED_HEIGHT / 2 - 14) + 5,
+        5 + joust.meterSize,
+        (OLED_HEIGHT / 2 + 14) + 5,
+        WHITE);
 }
 
 /**
@@ -937,12 +1216,12 @@ void ICACHE_FLASH_ATTR joustAccelerometerHandler(accel_t* accel)
         joust.joustAccel.x = accel->x;
         joust.joustAccel.y = accel->y;
         joust.joustAccel.z = accel->z;
-        uint16_t mov = (uint16_t) sqrt(pow(joust.joustAccel.x, 2) + pow(joust.joustAccel.y, 2) + pow(joust.joustAccel.z, 2));
-        joust.rolling_average = (joust.rolling_average * 2 + mov) / 3;
+        joust.mov = (uint16_t) sqrt(pow(joust.joustAccel.x, 2) + pow(joust.joustAccel.y, 2) + pow(joust.joustAccel.z, 2));
+        joust.rolling_average = (joust.rolling_average * 2 + joust.mov) / 3;
 
         if (joust.gameState == R_PLAYING || joust.gameState == R_PLAYINGFFA)
         {
-            if(mov > joust.rolling_average + 40)
+            if(joust.mov > joust.rolling_average + 43)
             {
                 if(joust.gameState == R_PLAYING)
                 {
@@ -953,6 +1232,10 @@ void ICACHE_FLASH_ATTR joustAccelerometerHandler(accel_t* accel)
                 {
                     joustRoundResultFFA();
                 }
+            }
+            else if(joust.mov > joust.rolling_average + 20)
+            {
+                startBuzzerSong(&joustbeepSFX);
             }
             else
             {
@@ -1076,8 +1359,11 @@ void ICACHE_FLASH_ATTR joustButton( uint8_t state __attribute__((unused)),
         return;
     }
 
-    if(joust.gameState ==  R_MENU)
+    if(joust.gameState == R_MENU)
     {
+        // Stop the scrolling text
+        os_timer_disarm(&joust.tmr.ScrollInstructions);
+
         if(2 == button)
         {
             joust.gameState =  R_SEARCHING;
@@ -1099,6 +1385,13 @@ void ICACHE_FLASH_ATTR joustButton( uint8_t state __attribute__((unused)),
             plotText(0, OLED_HEIGHT - (5 * (FONT_HEIGHT_IBMVGA8 + 1)) + 3, "TO JOUST!", IBM_VGA_8, WHITE);
             plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1)), "Move theirs", IBM_VGA_8, WHITE);
             plotText(0, OLED_HEIGHT - (2 * (FONT_HEIGHT_IBMVGA8 + 1)), "Not yours!", IBM_VGA_8, WHITE);
+        }
+    }
+    else if(joust.gameState == R_SHOW_GAME_RESULT || joust.gameState == R_SEARCHING)
+    {
+        if(1 == button || 2 == button)
+        {
+            os_timer_arm(&joust.tmr.RestartJoust, 10, false);
         }
     }
 }
@@ -1236,7 +1529,12 @@ void ICACHE_FLASH_ATTR joustRoundResult(int roundWinner)
                     WHITE);
             }
         }
-        if(joust.gam.joustWins % 2 == 0)
+        if(joust.gam.joustWins % 10 == 0)
+        {
+            startBuzzerSong(&WinGameBachSFX);
+
+        }
+        else if(joust.gam.joustWins % 2 == 0)
         {
             startBuzzerSong(&endGameWinSFX);
 
@@ -1268,7 +1566,16 @@ void ICACHE_FLASH_ATTR joustRoundResultFFA()
 {
     joust.gameState = R_SHOW_GAME_RESULT;
     joustDisarmAllLedTimers();
-    startBuzzerSong(&endGameSFX);
+    //One if 15 games has the Bach sound
+    if(joust.FFACounter % 15 == 0)
+    {
+        startBuzzerSong(&WinGameBachSFX);
+    }
+    else
+    {
+        startBuzzerSong(&endGameSFX);
+    }
+
     os_timer_arm(&joust.tmr.RoundResultLed, 6, true);
 
     clearDisplay();

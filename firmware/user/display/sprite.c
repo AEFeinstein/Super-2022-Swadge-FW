@@ -11,7 +11,7 @@
  * @param col WHITE, BLACK or INVERSE
  * @return The x position of the end of the sprite drawn
  */
-uint8_t ICACHE_FLASH_ATTR plotSprite(uint8_t x, uint8_t y, const sprite_t* p_sprite, color col)
+int16_t ICACHE_FLASH_ATTR plotSprite(int16_t x, int16_t y, const sprite_t* p_sprite, color col)
 {
     uint8_t xIdx, yIdx;
     color foreground, background;
@@ -47,8 +47,8 @@ uint8_t ICACHE_FLASH_ATTR plotSprite(uint8_t x, uint8_t y, const sprite_t* p_spr
     {
         for (yIdx = 0; yIdx < sprite_ram.height; yIdx++)
         {
-            uint8_t xPx = (uint8_t) (x + (sprite_ram.width - xIdx) - 1);
-            uint8_t yPx = (uint8_t) (y + yIdx);
+            int16_t xPx = (int16_t) (x + (sprite_ram.width - xIdx) - 1);
+            int16_t yPx = (int16_t) (y + yIdx);
             if (0 != (sprite_ram.data[yIdx] & (1 << xIdx)))
             {
                 drawPixel(xPx, yPx, foreground);
@@ -59,5 +59,5 @@ uint8_t ICACHE_FLASH_ATTR plotSprite(uint8_t x, uint8_t y, const sprite_t* p_spr
             }
         }
     }
-    return (uint8_t) (x + sprite_ram.width + 1);
+    return (int16_t) (x + sprite_ram.width + 1);
 }

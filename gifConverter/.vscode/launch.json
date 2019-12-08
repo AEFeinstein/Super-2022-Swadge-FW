@@ -63,6 +63,27 @@
             ]
         },
         {
+            "name": "lzCompressor Launch Joust",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/lzCompressor",
+            "args": [
+                "bins/Joust_Warning.gif"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",

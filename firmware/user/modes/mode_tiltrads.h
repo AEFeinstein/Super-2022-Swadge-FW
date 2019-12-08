@@ -13,5 +13,6 @@
 extern swadgeMode tiltradsMode;
 
 int16_t ICACHE_FLASH_ATTR plotCenteredText(int16_t x0, int16_t y, int16_t x1, char* text, fonts font, color col);
+uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font);
 
 #endif
