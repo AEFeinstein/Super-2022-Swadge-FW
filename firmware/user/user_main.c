@@ -608,6 +608,12 @@ void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int d
         // Switch the mode
         incrementSwadgeMode();
 #endif
+        // And also pass this to the music mode, and only the music mode
+        if(8 == rtcMem.currentSwadgeMode &&
+                swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
+        {
+            swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(state, button, down);
+        }
     }
     //NOTE for 2020 button 0 can only be used for menu, if want to be able to use momentary press in other modes
     //     change 'else if' to 'if'
