@@ -112,14 +112,10 @@ typedef struct
     uint8_t bpm;
 } bpm_t;
 
-// A collection of parameters
 typedef struct
 {
     // The parameter's name
     char* name;
-    // The notes
-    const notePeriod_t* notes;
-    const uint16_t notesLen;
     // The rhythm
     const rhythmNote_t* rhythm;
     const uint16_t rhythmLen;
@@ -128,7 +124,16 @@ typedef struct
     const uint16_t arpLen;
     // Inter-note pause
     const uint16_t interNotePauseMs;
-} swynthParam_t;
+} rhythm_t;
+
+typedef struct
+{
+    // The parameter's name
+    char* name;
+    // The notes
+    const notePeriod_t* notes;
+    const uint16_t notesLen;
+} scale_t;
 
 /*==============================================================================
  * Variables
@@ -159,13 +164,14 @@ struct
     // Track rhythm
     os_timer_t beatTimer;
     uint32_t timeUs;
-    uint16_t rhythmIdx;
+    uint16_t rhythmNoteIdx;
     uint8_t arpIdx;
     uint8_t bpmIdx;
 
     // Track the button
     bool shouldPlay;
-    uint8_t paramIdx;
+    uint8_t rhythmIdx;
+    uint8_t scaleIdx;
     bool modifyBpm;
     os_timer_t paramSwitchTimer;
 } music;
@@ -222,12 +228,94 @@ const uint8_t arp_Dim7[] = {1, 4, 7, 10};
 const uint8_t arp_M7_add_9[] = {1, 5, 8, 12, 15};
 const uint8_t arp_Sans[] = {1, 1, 13, 8, 7, 6, 4, 1, 4, 6};
 
-const swynthParam_t swynthParams[] =
+const scale_t scales[] =
 {
     {
-        .name = "Test",
+        .name = "Ma Penta",
         .notes = scl_M_Penta,
-        .notesLen = lengthof(scl_M_Penta),
+        .notesLen = lengthof(scl_M_Penta)
+    },
+    {
+        .name = "mi Penta",
+        .notes = scl_m_Penta,
+        .notesLen = lengthof(scl_m_Penta)
+    },
+    {
+        .name = "Ma Blues",
+        .notes = scl_M_Blues,
+        .notesLen = lengthof(scl_M_Blues)
+    },
+    {
+        .name = "mi Blues",
+        .notes = scl_m_Blues,
+        .notesLen = lengthof(scl_m_Blues)
+    },
+    {
+        .name = "Major",
+        .notes = scl_Major,
+        .notesLen = lengthof(scl_Major)
+    },
+    {
+        .name = "Mi Aeolian",
+        .notes = scl_Minor_Aeolian,
+        .notesLen = lengthof(scl_Minor_Aeolian)
+    },
+    {
+        .name = "Harm Minor",
+        .notes = scl_Harm_Minor,
+        .notesLen = lengthof(scl_Harm_Minor)
+    },
+    {
+        .name = "Dorian",
+        .notes = scl_Dorian,
+        .notesLen = lengthof(scl_Dorian)
+    },
+    {
+        .name = "Phrygian",
+        .notes = scl_Phrygian,
+        .notesLen = lengthof(scl_Phrygian)
+    },
+    {
+        .name = "Lydian",
+        .notes = scl_Lydian,
+        .notesLen = lengthof(scl_Lydian)
+    },
+    {
+        .name = "Mixolydian",
+        .notes = scl_Mixolydian,
+        .notesLen = lengthof(scl_Mixolydian)
+    },
+    {
+        .name = "Locrian",
+        .notes = scl_Locrian,
+        .notesLen = lengthof(scl_Locrian)
+    },
+    {
+        .name = "Dom Bebop",
+        .notes = scl_Dom_Bebop,
+        .notesLen = lengthof(scl_Dom_Bebop)
+    },
+    {
+        .name = "Ma Bebop",
+        .notes = scl_M_Bebop,
+        .notesLen = lengthof(scl_M_Bebop)
+    },
+    {
+        .name = "Whole Tone",
+        .notes = scl_Whole_Tone,
+        .notesLen = lengthof(scl_Whole_Tone)
+    },
+    {
+        .name = "Chromatic",
+        .notes = scl_Chromatic,
+        .notesLen = lengthof(scl_Chromatic)
+    },
+};
+
+const rhythm_t rhythms[] =
+{
+    {
+        .name = "Quarter",
         .rhythm = quarterNotes,
         .rhythmLen = lengthof(quarterNotes),
         .arpIntervals = NULL,
@@ -235,9 +323,7 @@ const swynthParam_t swynthParams[] =
         .interNotePauseMs = 5
     },
     {
-        .name = "ArpTest",
-        .notes = scl_M_Penta,
-        .notesLen = lengthof(scl_M_Penta),
+        .name = "Triplet",
         .rhythm = triplets,
         .rhythmLen = lengthof(triplets),
         .arpIntervals = arp_M_Triad,
@@ -246,8 +332,6 @@ const swynthParam_t swynthParams[] =
     },
     {
         .name = "Slide",
-        .notes = scl_Chromatic,
-        .notesLen = lengthof(scl_Chromatic),
         .rhythm = triplet64,
         .rhythmLen = lengthof(triplet64),
         .arpIntervals = NULL,
@@ -373,6 +457,16 @@ void ICACHE_FLASH_ATTR musicButtonCallback(
 {
     switch(button)
     {
+        case 0:
+        {
+            // Center
+            if(down)
+            {
+                // Cycle the scale
+                music.scaleIdx = (music.scaleIdx + 1) % lengthof(scales);
+            }
+            break;
+        }
         case 1:
         {
             // Left
@@ -391,9 +485,9 @@ void ICACHE_FLASH_ATTR musicButtonCallback(
                 if(false == music.modifyBpm)
                 {
                     // cycle params
-                    music.paramIdx = (music.paramIdx + 1) % lengthof(swynthParams);
+                    music.rhythmIdx = (music.rhythmIdx + 1) % lengthof(rhythms);
                     music.timeUs = 0;
-                    music.rhythmIdx = 0;
+                    music.rhythmNoteIdx = 0;
                     music.arpIdx = 0;
                     musicUpdateDisplay();
                 }
@@ -475,7 +569,7 @@ void ICACHE_FLASH_ATTR musicAccelerometerHandler(accel_t* accel)
     if(true == music.modifyBpm)
     {
         // Get the number of BPMs
-        uint8_t numBpms = (sizeof(bpms) / sizeof(bpms[0]));
+        uint8_t numBpms = lengthof(bpms);
         // Scale the roll to the BPM range and reverse it
         music.bpmIdx = (int)(rollF * numBpms);
         if(music.bpmIdx >= numBpms)
@@ -523,13 +617,22 @@ void ICACHE_FLASH_ATTR musicUpdateDisplay(void)
     }
 
     // Plot the title
-    plotText(0, 0, swynthParams[music.paramIdx].name, RADIOSTARS, WHITE);
+    plotText(
+        0,
+        0,
+        scales[music.scaleIdx].name,
+        IBM_VGA_8, WHITE);
+    plotText(
+        OLED_WIDTH - getTextWidth(rhythms[music.rhythmIdx].name, IBM_VGA_8),
+        0,
+        rhythms[music.rhythmIdx].name,
+        IBM_VGA_8, WHITE);
 
     // Plot the BPM
     char bpmStr[8] = {0};
     ets_snprintf(bpmStr, sizeof(bpmStr), "%d", bpms[music.bpmIdx].bpm);
-    uint8_t bpmX = OLED_WIDTH - getTextWidth(bpmStr, RADIOSTARS);
-    plotText(bpmX, 0, bpmStr, RADIOSTARS, WHITE);
+    uint8_t bpmX = OLED_WIDTH - getTextWidth(bpmStr, IBM_VGA_8);
+    plotText(bpmX, FONT_HEIGHT_IBMVGA8 + 4, bpmStr, IBM_VGA_8, WHITE);
 
     // Underline it if it's being modified
     if(true == music.modifyBpm)
@@ -538,9 +641,9 @@ void ICACHE_FLASH_ATTR musicUpdateDisplay(void)
         {
             plotLine(
                 bpmX,
-                FONT_HEIGHT_RADIOSTARS + i,
+                (2 * FONT_HEIGHT_RADIOSTARS) + 4 + i,
                 OLED_WIDTH,
-                FONT_HEIGHT_RADIOSTARS + i,
+                (2 * FONT_HEIGHT_RADIOSTARS) + 4 + i,
                 WHITE);
         }
     }
@@ -552,8 +655,9 @@ void ICACHE_FLASH_ATTR musicUpdateDisplay(void)
     }
 
     // Plot the button funcs
-    plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Choose (hold for BPM)", TOM_THUMB, WHITE);
-    plotText(OLED_WIDTH - 15, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Play", TOM_THUMB, WHITE);
+    plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Rhythm (BPM)", TOM_THUMB, WHITE);
+    plotCenteredText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, OLED_WIDTH, "Scale", TOM_THUMB, WHITE);
+    plotText(OLED_WIDTH - getTextWidth("Play", TOM_THUMB), OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Play", TOM_THUMB, WHITE);
 }
 
 /**
@@ -573,10 +677,10 @@ void ICACHE_FLASH_ATTR plotBar(uint8_t yOffset)
 
     // Plot tick marks at each of the note boundaries
     uint8_t tick;
-    for(tick = 0; tick < (swynthParams[music.paramIdx].notesLen / 2) + 1; tick++)
+    for(tick = 0; tick < (scales[music.scaleIdx].notesLen / 2) + 1; tick++)
     {
         uint8_t x = BAR_X_MARGIN + ( (tick * ((OLED_WIDTH - 1) - (BAR_X_MARGIN * 2))) /
-                                     (swynthParams[music.paramIdx].notesLen / 2)) ;
+                                     (scales[music.scaleIdx].notesLen / 2)) ;
         plotLine(x, yOffset - TICK_HEIGHT,
                  x, yOffset + TICK_HEIGHT,
                  WHITE);
@@ -606,25 +710,25 @@ void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)))
 
     // If time crossed a rhythm boundary, do something different
     uint32_t rhythmIntervalUs = (1000 * bpms[music.bpmIdx].bpmMultiplier * ((~REST_BIT) &
-                                 swynthParams[music.paramIdx].rhythm[music.rhythmIdx]));
+                                 rhythms[music.rhythmIdx].rhythm[music.rhythmNoteIdx]));
     led_t leds[NUM_LIN_LEDS] = {{0}};
     if(music.timeUs >= rhythmIntervalUs)
     {
         // Reset the time
         music.timeUs -= rhythmIntervalUs;
         // Move to the next rhythm element
-        music.rhythmIdx = (music.rhythmIdx + 1) % swynthParams[music.paramIdx].rhythmLen;
+        music.rhythmNoteIdx = (music.rhythmNoteIdx + 1) % rhythms[music.rhythmIdx].rhythmLen;
 
         // See if the note should be arpeggiated. Do this even for unplayed notes
-        if(NULL != swynthParams[music.paramIdx].arpIntervals &&
-                !(swynthParams[music.paramIdx].rhythm[music.rhythmIdx] & REST_BIT))
+        if(NULL != rhythms[music.rhythmIdx].arpIntervals &&
+                !(rhythms[music.rhythmIdx].rhythm[music.rhythmNoteIdx] & REST_BIT))
         {
             // Track the current arpeggio index
-            music.arpIdx = (music.arpIdx + 1) % swynthParams[music.paramIdx].arpLen;
+            music.arpIdx = (music.arpIdx + 1) % rhythms[music.rhythmIdx].arpLen;
         }
 
         // See if we should actually play the note or not
-        if(!music.shouldPlay || (swynthParams[music.paramIdx].rhythm[music.rhythmIdx] & REST_BIT))
+        if(!music.shouldPlay || (rhythms[music.rhythmIdx].rhythm[music.rhythmNoteIdx] & REST_BIT))
         {
             setBuzzerNote(SILENCE);
             noteToColor(&leds[0], getCurrentNote(), 0x10);
@@ -632,12 +736,12 @@ void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)))
         else
         {
             notePeriod_t noteToPlay = getCurrentNote();
-            if(NULL != swynthParams[music.paramIdx].arpIntervals)
+            if(NULL != rhythms[music.rhythmIdx].arpIntervals)
             {
                 // This mode has an arpeggio, so modify the current note
                 noteToPlay = arpModify(
                                  noteToPlay,
-                                 swynthParams[music.paramIdx].arpIntervals[music.arpIdx]);
+                                 rhythms[music.rhythmIdx].arpIntervals[music.arpIdx]);
             }
             // Only play the note if BPM isn't being modified
             if(false == music.modifyBpm)
@@ -647,7 +751,7 @@ void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)))
             noteToColor(&leds[0], getCurrentNote(), 0x40);
         }
     }
-    else if(music.timeUs >= rhythmIntervalUs - (1000 * swynthParams[music.paramIdx].interNotePauseMs))
+    else if(music.timeUs >= rhythmIntervalUs - (1000 * rhythms[music.rhythmIdx].interNotePauseMs))
     {
         setBuzzerNote(SILENCE);
         noteToColor(&leds[0], getCurrentNote(), 0x10);
@@ -675,16 +779,16 @@ void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)))
 notePeriod_t ICACHE_FLASH_ATTR getCurrentNote(void)
 {
     // Get the index of the note to play based on roll
-    uint8_t noteIdx = (music.roll * (swynthParams[music.paramIdx].notesLen / 2)) / OLED_WIDTH;
+    uint8_t noteIdx = (music.roll * (scales[music.scaleIdx].notesLen / 2)) / OLED_WIDTH;
     // See if we should play the higher note
     if(music.pitch < PITCH_THRESHOLD)
     {
-        uint8_t offset = swynthParams[music.paramIdx].notesLen / 2;
-        return swynthParams[music.paramIdx].notes[noteIdx + offset];
+        uint8_t offset = scales[music.scaleIdx].notesLen / 2;
+        return scales[music.scaleIdx].notes[noteIdx + offset];
     }
     else
     {
-        return swynthParams[music.paramIdx].notes[noteIdx];
+        return scales[music.scaleIdx].notes[noteIdx];
     }
 }
 
