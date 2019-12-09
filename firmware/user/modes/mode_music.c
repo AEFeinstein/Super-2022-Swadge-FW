@@ -38,6 +38,8 @@
 
 #define REST_BIT 0x10000 // Largest note is 144, which is 0b10010000
 
+#define DEFAULT_PAUSE 5
+
 /*==============================================================================
  * Enums
  *============================================================================*/
@@ -95,7 +97,7 @@ void ICACHE_FLASH_ATTR musicButtonCallback(uint8_t state __attribute__((unused))
 void ICACHE_FLASH_ATTR musicAccelerometerHandler(accel_t* accel);
 void ICACHE_FLASH_ATTR musicUpdateDisplay(void);
 void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)));
-notePeriod_t ICACHE_FLASH_ATTR arpModify(notePeriod_t note, uint8_t arpInterval);
+notePeriod_t ICACHE_FLASH_ATTR arpModify(notePeriod_t note, int8_t arpInterval);
 notePeriod_t ICACHE_FLASH_ATTR getCurrentNote(void);
 char* ICACHE_FLASH_ATTR noteToStr(notePeriod_t note);
 void ICACHE_FLASH_ATTR plotBar(uint8_t yOffset);
@@ -114,14 +116,17 @@ typedef struct
 
 typedef struct
 {
+    rhythmNote_t note;
+    int8_t arp;
+} rhythmArp_t;
+
+typedef struct
+{
     // The parameter's name
     char* name;
     // The rhythm
-    const rhythmNote_t* rhythm;
+    const rhythmArp_t* rhythm;
     const uint16_t rhythmLen;
-    // The arpeggios
-    const uint8_t* arpIntervals;
-    const uint16_t arpLen;
     // Inter-note pause
     const uint16_t interNotePauseMs;
 } rhythm_t;
@@ -165,7 +170,6 @@ struct
     os_timer_t beatTimer;
     uint32_t timeUs;
     uint16_t rhythmNoteIdx;
-    uint8_t arpIdx;
     uint8_t bpmIdx;
 
     // Track the button
@@ -179,23 +183,6 @@ struct
 /*==============================================================================
  * Const Variables
  *============================================================================*/
-
-const bpm_t bpms[] =
-{
-    {.bpmMultiplier = 10, .bpm = 250},
-    {.bpmMultiplier = 11, .bpm = 227},
-    {.bpmMultiplier = 13, .bpm = 192},
-    {.bpmMultiplier = 15, .bpm = 167},
-    {.bpmMultiplier = 18, .bpm = 139},
-    {.bpmMultiplier = 22, .bpm = 114},
-    {.bpmMultiplier = 29, .bpm = 86},
-    {.bpmMultiplier = 41, .bpm = 61},
-};
-
-// All the rhythms
-const rhythmNote_t triplet64[] = {TRIPLET_SIXTYFOURTH_NOTE};
-const rhythmNote_t quarterNotes[] = {QUARTER_NOTE, QUARTER_REST};
-const rhythmNote_t triplets[] = {TRIPLET_EIGHTH_NOTE, TRIPLET_EIGHTH_NOTE, TRIPLET_EIGHTH_NOTE, TRIPLET_EIGHTH_REST};
 
 // All the scales
 const notePeriod_t scl_M_Penta[] = {C_5, D_5, E_5, G_5, A_5, C_6, C_6, D_6, E_6, G_6, A_6, C_7, };
@@ -214,19 +201,6 @@ const notePeriod_t scl_Dom_Bebop[] = {C_5, D_5, E_5, F_5, G_5, A_5, A_SHARP_5, B
 const notePeriod_t scl_M_Bebop[] = {C_5, D_5, E_5, F_5, G_5, G_SHARP_5, A_SHARP_5, B_5, C_6, C_6, D_6, E_6, F_6, G_6, G_SHARP_6, A_SHARP_6, B_6, C_7, };
 const notePeriod_t scl_Whole_Tone[] = {C_5, D_5, E_5, F_SHARP_5, G_SHARP_5, A_SHARP_5, C_6, C_6, D_6, E_6, F_SHARP_6, G_SHARP_6, A_SHARP_6, C_7, };
 const notePeriod_t scl_Chromatic[] = {C_5, C_SHARP_5, D_5, D_SHARP_5, E_5, F_5, F_SHARP_5, G_5, G_SHARP_5, A_5, A_SHARP_5, B_5, C_6, C_6, C_SHARP_6, D_6, D_SHARP_6, E_6, F_6, F_SHARP_6, G_6, G_SHARP_6, A_6, A_SHARP_6, B_6, C_7, };
-
-// All the arpeggios
-const uint8_t arp_M_Triad[] = {1, 5, 8};
-const uint8_t arp_m_Triad[] = {1, 4, 8};
-const uint8_t arp_M7[] = {1, 5, 8, 11};
-const uint8_t arp_m7[] = {1, 4, 8, 10};
-const uint8_t arp_Dom7[] = {1, 5, 8, 10};
-const uint8_t arp_Octave[] = {1, 13};
-const uint8_t arp_Fifth[] = {1, 8};
-const uint8_t arp_Dim[] = {1, 4, 7};
-const uint8_t arp_Dim7[] = {1, 4, 7, 10};
-const uint8_t arp_M7_add_9[] = {1, 5, 8, 12, 15};
-const uint8_t arp_Sans[] = {1, 1, 13, 8, 7, 6, 4, 1, 4, 6};
 
 const scale_t scales[] =
 {
@@ -312,36 +286,475 @@ const scale_t scales[] =
     },
 };
 
+// All the rhythms
+const bpm_t bpms[] =
+{
+    {.bpmMultiplier = 10, .bpm = 250},
+    {.bpmMultiplier = 11, .bpm = 227},
+    {.bpmMultiplier = 13, .bpm = 192},
+    {.bpmMultiplier = 15, .bpm = 167},
+    {.bpmMultiplier = 18, .bpm = 139},
+    {.bpmMultiplier = 22, .bpm = 114},
+    {.bpmMultiplier = 29, .bpm = 86},
+    {.bpmMultiplier = 41, .bpm = 61},
+};
+
+const rhythmArp_t one_note[] =
+{
+    {.note = EIGHTH_NOTE, .arp = 1},
+};
+
+const rhythmArp_t octaves[] =
+{
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 13},
+};
+
+const rhythmArp_t fifth[] =
+{
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 8},
+};
+
+const rhythmArp_t major_tri[] =
+{
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 5},
+    {.note = EIGHTH_NOTE, .arp = 8},
+};
+
+const rhythmArp_t minor_tri[] =
+{
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 4},
+    {.note = EIGHTH_NOTE, .arp = 8},
+};
+
+const rhythmArp_t major_7[] =
+{
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 1},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 5},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 8},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 11},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 8},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 5},
+};
+
+const rhythmArp_t minor_7[] =
+{
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 1},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 4},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 8},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 10},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 8},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 4},
+};
+
+const rhythmArp_t dom_7[] =
+{
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 1},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 5},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 8},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 10},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 8},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 4},
+};
+
+const rhythmArp_t swing[] =
+{
+    {.note = TRIPLET_QUARTER_NOTE, .arp = 1},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 1},
+};
+
+const rhythmArp_t syncopa[] =
+{
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_REST, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_REST, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_REST, .arp = 1},
+};
+
+const rhythmArp_t dw_stabs[] =
+{
+    {.note = SIXTEENTH_REST, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_REST, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+};
+
+const rhythmArp_t legendary[] =
+{
+    {.note = DOTTED_EIGHTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_REST, .arp = 1},
+    {.note = TRIPLET_QUARTER_NOTE, .arp = 1},
+    {.note = TRIPLET_QUARTER_NOTE, .arp = 1},
+    {.note = TRIPLET_QUARTER_NOTE, .arp = 1},
+};
+
+const rhythmArp_t j_dawg[] =
+{
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_REST, .arp = 1},
+    {.note = EIGHTH_REST, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_REST, .arp = 1},
+    {.note = EIGHTH_REST, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_REST, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_REST, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+};
+
+const rhythmArp_t fight[] =
+{
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+};
+
+const rhythmArp_t the_goat[] =
+{
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_REST, .arp = 1},
+    {.note = DOTTED_EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+};
+
+const rhythmArp_t sgp[] =
+{
+    {.note = DOTTED_EIGHTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = DOTTED_QUARTER_NOTE, .arp = 1},
+    {.note = DOTTED_EIGHTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+};
+
+const rhythmArp_t fourth_rock[] =
+{
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 1},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 1},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 1},
+    {.note = QUARTER_NOTE, .arp = 1},
+    {.note = QUARTER_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = QUARTER_NOTE, .arp = 1},
+};
+
+const rhythmArp_t dub[] =
+{
+    {.note = QUARTER_NOTE, .arp = 1},
+    {.note = QUARTER_NOTE, .arp = 1},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 13},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 13},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 13},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 13},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 13},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 13},
+};
+
+const rhythmArp_t octavio[] =
+{
+    {.note = EIGHTH_NOTE, .arp = 13},
+    {.note = EIGHTH_NOTE, .arp = 13},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 13},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 8},
+    {.note = EIGHTH_NOTE, .arp = 1},
+};
+
+const rhythmArp_t cha_cha[] =
+{
+    {.note = EIGHTH_NOTE, .arp = 8},
+    {.note = SIXTEENTH_NOTE, .arp = 4},
+    {.note = EIGHTH_NOTE, .arp = 9},
+    {.note = EIGHTH_NOTE, .arp = 4},
+    {.note = EIGHTH_NOTE, .arp = 8},
+    {.note = EIGHTH_NOTE, .arp = 4},
+    {.note = SIXTEENTH_NOTE, .arp = 9},
+    {.note = EIGHTH_NOTE, .arp = 9},
+    {.note = EIGHTH_NOTE, .arp = 4},
+};
+
+const rhythmArp_t its_a_me[] =
+{
+    {.note = EIGHTH_NOTE, .arp = 5},
+    {.note = EIGHTH_NOTE, .arp = 5},
+    {.note = EIGHTH_REST, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 5},
+    {.note = EIGHTH_REST, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 5},
+    {.note = EIGHTH_REST, .arp = 1},
+    {.note = QUARTER_NOTE, .arp = 8},
+    {.note = QUARTER_REST, .arp = 1},
+    {.note = QUARTER_NOTE, .arp = -4},
+    {.note = QUARTER_REST, .arp = 1},
+};
+
+const rhythmArp_t so_strange[] =
+{
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 5},
+    {.note = EIGHTH_NOTE, .arp = 8},
+    {.note = EIGHTH_NOTE, .arp = 12},
+    {.note = EIGHTH_NOTE, .arp = 13},
+    {.note = EIGHTH_NOTE, .arp = 12},
+    {.note = EIGHTH_NOTE, .arp = 8},
+    {.note = EIGHTH_NOTE, .arp = 5},
+};
+
+const rhythmArp_t sans[] =
+{
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 13},
+    {.note = SIXTEENTH_REST, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 8},
+    {.note = SIXTEENTH_REST, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 7},
+    {.note = EIGHTH_NOTE, .arp = 6},
+    {.note = EIGHTH_NOTE, .arp = 4},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 4},
+    {.note = SIXTEENTH_NOTE, .arp = 6},
+};
+
+const rhythmArp_t fifteen_sixteen[] =
+{
+    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 8},
+    {.note = EIGHTH_NOTE, .arp = 13},
+    {.note = EIGHTH_NOTE, .arp = 15},
+    {.note = EIGHTH_NOTE, .arp = 8},
+    {.note = EIGHTH_NOTE, .arp = 13},
+    {.note = EIGHTH_NOTE, .arp = 15},
+    {.note = EIGHTH_NOTE, .arp = 18},
+    {.note = EIGHTH_NOTE, .arp = 8},
+    {.note = EIGHTH_NOTE, .arp = 18},
+    {.note = EIGHTH_NOTE, .arp = 17},
+    {.note = EIGHTH_NOTE, .arp = 8},
+    {.note = EIGHTH_NOTE, .arp = 17},
+    {.note = EIGHTH_NOTE, .arp = 15},
+    {.note = EIGHTH_NOTE, .arp = 13},
+};
+
+const rhythmArp_t sb[] =
+{
+    {.note = EIGHTH_REST, .arp = 1},
+    {.note = EIGHTH_NOTE, .arp = 12},
+    {.note = DOTTED_EIGHTH_NOTE, .arp = 13},
+    {.note = DOTTED_EIGHTH_NOTE, .arp = 12},
+    {.note = EIGHTH_NOTE, .arp = 13},
+    {.note = DOTTED_EIGHTH_NOTE, .arp = 8},
+    {.note = SIXTEENTH_REST, .arp = 1},
+};
+
 const rhythm_t rhythms[] =
 {
     {
-        .name = "Quarter",
-        .rhythm = quarterNotes,
-        .rhythmLen = lengthof(quarterNotes),
-        .arpIntervals = NULL,
-        .arpLen = 0,
-        .interNotePauseMs = 5
+        .name = "one_note",
+        .rhythm = one_note,
+        .rhythmLen = lengthof(one_note),
+        .interNotePauseMs = DEFAULT_PAUSE
     },
     {
-        .name = "Triplet",
-        .rhythm = triplets,
-        .rhythmLen = lengthof(triplets),
-        .arpIntervals = arp_M_Triad,
-        .arpLen = lengthof(arp_M_Triad),
-        .interNotePauseMs = 5
+        .name = "octaves",
+        .rhythm = octaves,
+        .rhythmLen = lengthof(octaves),
+        .interNotePauseMs = DEFAULT_PAUSE
     },
     {
-        .name = "Slide",
-        .rhythm = triplet64,
-        .rhythmLen = lengthof(triplet64),
-        .arpIntervals = NULL,
-        .arpLen = 0,
-        .interNotePauseMs = 0
+        .name = "fifth",
+        .rhythm = fifth,
+        .rhythmLen = lengthof(fifth),
+        .interNotePauseMs = DEFAULT_PAUSE
     },
+    {
+        .name = "major_tri",
+        .rhythm = major_tri,
+        .rhythmLen = lengthof(major_tri),
+        .interNotePauseMs = DEFAULT_PAUSE
+    },
+    {
+        .name = "minor_tri",
+        .rhythm = minor_tri,
+        .rhythmLen = lengthof(minor_tri),
+        .interNotePauseMs = DEFAULT_PAUSE
+    },
+    {
+        .name = "major_7",
+        .rhythm = major_7,
+        .rhythmLen = lengthof(major_7),
+        .interNotePauseMs = DEFAULT_PAUSE
+    },
+    {
+        .name = "minor_7",
+        .rhythm = minor_7,
+        .rhythmLen = lengthof(minor_7),
+        .interNotePauseMs = DEFAULT_PAUSE
+    },
+    {
+        .name = "dom_7",
+        .rhythm = dom_7,
+        .rhythmLen = lengthof(dom_7),
+        .interNotePauseMs = DEFAULT_PAUSE
+    },
+    {
+        .name = "swing",
+        .rhythm = swing,
+        .rhythmLen = lengthof(swing),
+        .interNotePauseMs = DEFAULT_PAUSE
+    },
+    {
+        .name = "syncopa",
+        .rhythm = syncopa,
+        .rhythmLen = lengthof(syncopa),
+        .interNotePauseMs = DEFAULT_PAUSE
+    },
+    {
+        .name = "dw_stabs",
+        .rhythm = dw_stabs,
+        .rhythmLen = lengthof(dw_stabs),
+        .interNotePauseMs = DEFAULT_PAUSE
+    },
+    {
+        .name = "legendary",
+        .rhythm = legendary,
+        .rhythmLen = lengthof(legendary),
+        .interNotePauseMs = DEFAULT_PAUSE
+    },
+    {
+        .name = "j-dawg",
+        .rhythm = j_dawg,
+        .rhythmLen = lengthof(j_dawg),
+        .interNotePauseMs = DEFAULT_PAUSE
+    },
+    {
+        .name = "fight!",
+        .rhythm = fight,
+        .rhythmLen = lengthof(fight),
+        .interNotePauseMs = DEFAULT_PAUSE
+    },
+    {
+        .name = "the_goat",
+        .rhythm = the_goat,
+        .rhythmLen = lengthof(the_goat),
+        .interNotePauseMs = DEFAULT_PAUSE
+    },
+    {
+        .name = "sgp",
+        .rhythm = sgp,
+        .rhythmLen = lengthof(sgp),
+        .interNotePauseMs = DEFAULT_PAUSE
+    },
+    {
+        .name = "4th_rock",
+        .rhythm = fourth_rock,
+        .rhythmLen = lengthof(fourth_rock),
+        .interNotePauseMs = DEFAULT_PAUSE
+    },
+    {
+        .name = "dub",
+        .rhythm = dub,
+        .rhythmLen = lengthof(dub),
+        .interNotePauseMs = DEFAULT_PAUSE
+    },
+    {
+        .name = "octavio",
+        .rhythm = octavio,
+        .rhythmLen = lengthof(octavio),
+        .interNotePauseMs = DEFAULT_PAUSE
+    },
+    {
+        .name = "cha-cha",
+        .rhythm = cha_cha,
+        .rhythmLen = lengthof(cha_cha),
+        .interNotePauseMs = DEFAULT_PAUSE
+    },
+    {
+        .name = "its-a-me",
+        .rhythm = its_a_me,
+        .rhythmLen = lengthof(its_a_me),
+        .interNotePauseMs = DEFAULT_PAUSE
+    },
+    {
+        .name = "so_strange",
+        .rhythm = so_strange,
+        .rhythmLen = lengthof(so_strange),
+        .interNotePauseMs = DEFAULT_PAUSE
+    },
+    {
+        .name = "sans?",
+        .rhythm = sans,
+        .rhythmLen = lengthof(sans),
+        .interNotePauseMs = DEFAULT_PAUSE
+    },
+    {
+        .name = "15/16",
+        .rhythm = fifteen_sixteen,
+        .rhythmLen = lengthof(fifteen_sixteen),
+        .interNotePauseMs = DEFAULT_PAUSE
+    },
+    {
+        .name = "sb",
+        .rhythm = sb,
+        .rhythmLen = lengthof(sb),
+        .interNotePauseMs = DEFAULT_PAUSE
+    }
 };
 
 const notePeriod_t allNotes[] =
 {
+    C_4,
+    C_SHARP_4,
+    D_4,
+    D_SHARP_4,
+    E_4,
+    F_4,
+    F_SHARP_4,
+    G_4,
+    G_SHARP_4,
+    A_4,
+    A_SHARP_4,
+    B_4,
+
     C_5,
     C_SHARP_5,
     D_5,
@@ -488,7 +901,6 @@ void ICACHE_FLASH_ATTR musicButtonCallback(
                     music.rhythmIdx = (music.rhythmIdx + 1) % lengthof(rhythms);
                     music.timeUs = 0;
                     music.rhythmNoteIdx = 0;
-                    music.arpIdx = 0;
                     musicUpdateDisplay();
                 }
                 // Clear this flag on release, always
@@ -709,7 +1121,7 @@ void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)))
 
     // If time crossed a rhythm boundary, do something different
     uint32_t rhythmIntervalUs = (1000 * bpms[music.bpmIdx].bpmMultiplier * ((~REST_BIT) &
-                                 rhythms[music.rhythmIdx].rhythm[music.rhythmNoteIdx]));
+                                 rhythms[music.rhythmIdx].rhythm[music.rhythmNoteIdx].note));
     led_t leds[NUM_LIN_LEDS] = {{0}};
     if(music.timeUs >= rhythmIntervalUs)
     {
@@ -718,16 +1130,8 @@ void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)))
         // Move to the next rhythm element
         music.rhythmNoteIdx = (music.rhythmNoteIdx + 1) % rhythms[music.rhythmIdx].rhythmLen;
 
-        // See if the note should be arpeggiated. Do this even for unplayed notes
-        if(NULL != rhythms[music.rhythmIdx].arpIntervals &&
-                !(rhythms[music.rhythmIdx].rhythm[music.rhythmNoteIdx] & REST_BIT))
-        {
-            // Track the current arpeggio index
-            music.arpIdx = (music.arpIdx + 1) % rhythms[music.rhythmIdx].arpLen;
-        }
-
         // See if we should actually play the note or not
-        if(!music.shouldPlay || (rhythms[music.rhythmIdx].rhythm[music.rhythmNoteIdx] & REST_BIT))
+        if(!music.shouldPlay || (rhythms[music.rhythmIdx].rhythm[music.rhythmNoteIdx].note & REST_BIT))
         {
             setBuzzerNote(SILENCE);
             noteToColor(&leds[0], getCurrentNote(), 0x10);
@@ -735,13 +1139,10 @@ void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)))
         else
         {
             notePeriod_t noteToPlay = getCurrentNote();
-            if(NULL != rhythms[music.rhythmIdx].arpIntervals)
-            {
-                // This mode has an arpeggio, so modify the current note
-                noteToPlay = arpModify(
-                                 noteToPlay,
-                                 rhythms[music.rhythmIdx].arpIntervals[music.arpIdx]);
-            }
+            // This mode has an arpeggio, so modify the current note
+            noteToPlay = arpModify(
+                             noteToPlay,
+                             rhythms[music.rhythmIdx].rhythm[music.rhythmNoteIdx].arp);
             // Only play the note if BPM isn't being modified
             if(false == music.modifyBpm)
             {
@@ -798,18 +1199,36 @@ notePeriod_t ICACHE_FLASH_ATTR getCurrentNote(void)
  * @param arpInterval The interval to arpeggiate it by
  * @return notePeriod_t The arpeggiated note
  */
-notePeriod_t ICACHE_FLASH_ATTR arpModify(notePeriod_t note, uint8_t arpInterval)
+notePeriod_t ICACHE_FLASH_ATTR arpModify(notePeriod_t note, int8_t arpInterval)
 {
+    // Don't need to do anything for these
+    if(1 == arpInterval || 0 == arpInterval)
+    {
+        return note;
+    }
+
     // First find the note in the list of all notes
     for(uint16_t i = 0; i < lengthof(allNotes); i++)
     {
         if(note == allNotes[i])
         {
-            // Then shift up by arpInterval
-            while(--arpInterval)
+            if(arpInterval < 0)
             {
-                i++;
+                // Then shift down by arpInterval
+                while(++arpInterval)
+                {
+                    i--;
+                }
             }
+            else if(arpInterval > 0)
+            {
+                // Then shift up by arpInterval
+                while(--arpInterval)
+                {
+                    i++;
+                }
+            }
+
             // Then return the arpeggiated note
             return allNotes[i];
         }
