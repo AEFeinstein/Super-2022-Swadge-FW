@@ -186,6 +186,25 @@ struct
  *============================================================================*/
 
 // All the scales
+#define LOWER_OCTAVE
+#ifdef LOWER_OCTAVE
+const notePeriod_t scl_M_Penta[] = {C_4, D_4, E_4, G_4, A_4, C_5, C_5, D_5, E_5, G_5, A_5, C_6, };
+const notePeriod_t scl_m_Penta[] = {C_4, D_SHARP_4, F_4, G_4, A_SHARP_4, C_5, C_5, D_SHARP_5, F_5, G_5, A_SHARP_5, C_6, };
+const notePeriod_t scl_m_Blues[] = {C_4, D_SHARP_4, F_4, F_SHARP_4, G_4, A_SHARP_4, C_5, C_5, D_SHARP_5, F_5, F_SHARP_5, G_5, A_SHARP_5, C_6, };
+const notePeriod_t scl_M_Blues[] = {C_4, D_4, D_SHARP_4, E_4, G_4, A_4, C_5, C_5, D_5, D_SHARP_5, E_5, G_5, A_5, C_6, };
+const notePeriod_t scl_Major[] = {C_4, D_4, E_4, F_4, G_4, A_4, B_4, C_5, C_5, D_5, E_5, F_5, G_5, A_5, B_5, C_6, };
+const notePeriod_t scl_Minor_Aeolian[] = {C_4, D_4, D_SHARP_4, F_4, G_4, G_SHARP_4, A_SHARP_4, C_5, C_5, D_5, D_SHARP_5, F_5, G_5, G_SHARP_5, A_SHARP_5, C_6, };
+const notePeriod_t scl_Harm_Minor[] = {C_4, D_4, D_SHARP_4, F_4, G_4, G_SHARP_4, B_4, C_5, C_5, D_5, D_SHARP_5, F_5, G_5, G_SHARP_5, B_5, C_6, };
+const notePeriod_t scl_Dorian[] = {C_4, D_4, D_SHARP_4, F_4, G_4, A_4, A_SHARP_4, C_5, C_5, D_5, D_SHARP_5, F_5, G_5, A_5, A_SHARP_5, C_6, };
+const notePeriod_t scl_Phrygian[] = {C_4, C_SHARP_4, D_SHARP_4, F_4, G_4, G_SHARP_4, A_SHARP_4, C_5, C_5, C_SHARP_5, D_SHARP_5, F_5, G_5, G_SHARP_5, A_SHARP_5, C_6, };
+const notePeriod_t scl_Lydian[] = {C_4, D_4, E_4, F_SHARP_4, G_4, A_4, B_4, C_5, C_5, D_5, E_5, F_SHARP_5, G_5, A_5, B_5, C_6, };
+const notePeriod_t scl_Mixolydian[] = {C_4, D_4, E_4, F_4, G_4, A_4, A_SHARP_4, C_5, C_5, D_5, E_5, F_5, G_5, A_5, A_SHARP_5, C_6, };
+const notePeriod_t scl_Locrian[] = {C_4, C_SHARP_4, D_SHARP_4, F_4, F_SHARP_4, G_SHARP_4, A_SHARP_4, C_5, C_5, C_SHARP_5, D_SHARP_5, F_5, F_SHARP_5, G_SHARP_5, A_SHARP_5, C_6, };
+const notePeriod_t scl_Dom_Bebop[] = {C_4, D_4, E_4, F_4, G_4, A_4, A_SHARP_4, B_4, C_5, C_5, D_5, E_5, F_5, G_5, A_5, A_SHARP_5, B_5, C_6, };
+const notePeriod_t scl_M_Bebop[] = {C_4, D_4, E_4, F_4, G_4, G_SHARP_4, A_SHARP_4, B_4, C_5, C_5, D_5, E_5, F_5, G_5, G_SHARP_5, A_SHARP_5, B_5, C_6, };
+const notePeriod_t scl_Whole_Tone[] = {C_4, D_4, E_4, F_SHARP_4, G_SHARP_4, A_SHARP_4, C_5, C_5, D_5, E_5, F_SHARP_5, G_SHARP_5, A_SHARP_5, C_6, };
+const notePeriod_t scl_Chromatic[] = {C_4, C_SHARP_4, D_4, D_SHARP_4, E_4, F_4, F_SHARP_4, G_4, G_SHARP_4, A_4, A_SHARP_4, B_4, C_5, C_5, C_SHARP_5, D_5, D_SHARP_5, E_5, F_5, F_SHARP_5, G_5, G_SHARP_5, A_5, A_SHARP_5, B_5, C_6, };
+#else
 const notePeriod_t scl_M_Penta[] = {C_5, D_5, E_5, G_5, A_5, C_6, C_6, D_6, E_6, G_6, A_6, C_7, };
 const notePeriod_t scl_m_Penta[] = {C_5, D_SHARP_5, F_5, G_5, A_SHARP_5, C_6, C_6, D_SHARP_6, F_6, G_6, A_SHARP_6, C_7, };
 const notePeriod_t scl_m_Blues[] = {C_5, D_SHARP_5, F_5, F_SHARP_5, G_5, A_SHARP_5, C_6, C_6, D_SHARP_6, F_6, F_SHARP_6, G_6, A_SHARP_6, C_7, };
@@ -202,6 +221,7 @@ const notePeriod_t scl_Dom_Bebop[] = {C_5, D_5, E_5, F_5, G_5, A_5, A_SHARP_5, B
 const notePeriod_t scl_M_Bebop[] = {C_5, D_5, E_5, F_5, G_5, G_SHARP_5, A_SHARP_5, B_5, C_6, C_6, D_6, E_6, F_6, G_6, G_SHARP_6, A_SHARP_6, B_6, C_7, };
 const notePeriod_t scl_Whole_Tone[] = {C_5, D_5, E_5, F_SHARP_5, G_SHARP_5, A_SHARP_5, C_6, C_6, D_6, E_6, F_SHARP_6, G_SHARP_6, A_SHARP_6, C_7, };
 const notePeriod_t scl_Chromatic[] = {C_5, C_SHARP_5, D_5, D_SHARP_5, E_5, F_5, F_SHARP_5, G_5, G_SHARP_5, A_5, A_SHARP_5, B_5, C_6, C_6, C_SHARP_6, D_6, D_SHARP_6, E_6, F_6, F_SHARP_6, G_6, G_SHARP_6, A_6, A_SHARP_6, B_6, C_7, };
+#endif
 
 const scale_t scales[] =
 {
