@@ -775,6 +775,32 @@ const rhythm_t rhythms[] =
 
 const notePeriod_t allNotes[] =
 {
+    C_2,
+    C_SHARP_2,
+    D_2,
+    D_SHARP_2,
+    E_2,
+    F_2,
+    F_SHARP_2,
+    G_2,
+    G_SHARP_2,
+    A_2,
+    A_SHARP_2,
+    B_2,
+
+    C_3,
+    C_SHARP_3,
+    D_3,
+    D_SHARP_3,
+    E_3,
+    F_3,
+    F_SHARP_3,
+    G_3,
+    G_SHARP_3,
+    A_3,
+    A_SHARP_3,
+    B_3,
+
     C_4,
     C_SHARP_4,
     D_4,
