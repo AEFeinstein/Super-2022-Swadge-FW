@@ -170,7 +170,7 @@ struct
     os_timer_t beatTimer;
     uint32_t timeUs;
     uint32_t lastCallTimeUs;
-    uint16_t rhythmNoteIdx;
+    int16_t rhythmNoteIdx;
     uint8_t bpmIdx;
 
     // Track the button
@@ -959,7 +959,7 @@ void ICACHE_FLASH_ATTR musicButtonCallback(
                     // cycle params
                     music.rhythmIdx = (music.rhythmIdx + 1) % lengthof(rhythms);
                     music.timeUs = 0;
-                    music.rhythmNoteIdx = 0;
+                    music.rhythmNoteIdx = -1;
                     music.lastCallTimeUs = 0;
                     musicUpdateDisplay();
                 }
@@ -974,7 +974,7 @@ void ICACHE_FLASH_ATTR musicButtonCallback(
             // Right, track whether a note should be played or not
             if(false == music.modifyBpm)
             {
-                music.rhythmNoteIdx = 0;
+                music.rhythmNoteIdx = -1;
                 music.lastCallTimeUs = 0;
                 music.shouldPlay = down;
             }
@@ -1174,26 +1174,34 @@ void ICACHE_FLASH_ATTR plotBar(uint8_t yOffset)
 void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)))
 {
     // Keep track of time with microsecond precision
+    int32_t currentCallTimeUs = system_get_time();
+
+    // There's some special handling if we're playing the first note of a rhythm
+    bool playFirstNote = false;
     if(0 == music.lastCallTimeUs)
     {
-        // Just initialize lastCallTimeUs
-        music.lastCallTimeUs = system_get_time();
-        return;
+        // Initialize lastCallTimeUs, play the first note
+        music.lastCallTimeUs = currentCallTimeUs;
+        playFirstNote = true;
+    }
+    else
+    {
+        // Figure out the delta between calls in microseconds, increment time
+        music.timeUs += (currentCallTimeUs - music.lastCallTimeUs);
+        music.lastCallTimeUs = currentCallTimeUs;
     }
 
-    // Figure out the delta between calls in microseconds, increment time
-    int32_t currentCallTimeUs = system_get_time();
-    music.timeUs += (currentCallTimeUs - music.lastCallTimeUs);
-    music.lastCallTimeUs = currentCallTimeUs;
-
-    // If time crossed a rhythm boundary, do something different
+    // If time crossed a rhythm boundary, or is the first note, do something different
     uint32_t rhythmIntervalUs = (1000 * bpms[music.bpmIdx].bpmMultiplier * ((~REST_BIT) &
                                  rhythms[music.rhythmIdx].rhythm[music.rhythmNoteIdx].note));
     led_t leds[NUM_LIN_LEDS] = {{0}};
-    if(music.timeUs >= rhythmIntervalUs)
+    if(music.timeUs >= rhythmIntervalUs || true == playFirstNote)
     {
-        // Reset the time
-        music.timeUs -= rhythmIntervalUs;
+        if(music.timeUs >= rhythmIntervalUs)
+        {
+            // Reset the time, but not for the first note
+            music.timeUs -= rhythmIntervalUs;
+        }
         // Move to the next rhythm element
         music.rhythmNoteIdx = (music.rhythmNoteIdx + 1) % rhythms[music.rhythmIdx].rhythmLen;
 
@@ -1205,15 +1213,12 @@ void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)))
         }
         else
         {
-            notePeriod_t noteToPlay = getCurrentNote();
-            // This mode has an arpeggio, so modify the current note
-            noteToPlay = arpModify(
-                             noteToPlay,
-                             rhythms[music.rhythmIdx].rhythm[music.rhythmNoteIdx].arp);
             // Only play the note if BPM isn't being modified
             if(false == music.modifyBpm)
             {
-                setBuzzerNote(noteToPlay);
+                // Arpeggiate as necessary
+                setBuzzerNote(arpModify(getCurrentNote(),
+                                        rhythms[music.rhythmIdx].rhythm[music.rhythmNoteIdx].arp));
             }
             noteToColor(&leds[0], getCurrentNote(), 0x40);
         }
