@@ -76,3 +76,14 @@ This repo has project files for both Eclipse and Visual Studio Code. The project
 The I2S Out (WS2812 in) pin is the same as RX1 (pin 25), which means if you are programming via the UART, the LEDs will blink wildly.
 
 The UART is used for both programming and printing debug statements, so any serial terminal must be closed before programming. For WSL, the ```burn``` task calls ```burn-dbg.sh```, which kills all instances of [```putty.exe```](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html), flashes the new firmware, and restarts ```putty.exe```. Similar scripts may be written for other environments and serial terminals. You cannot start a serial terminal from a makefile, since the makefile requires all programs it started to finish in order to finish.
+
+# 5. Programming with the Programmer
+
+The Swadge programmer is a breakout for all the ESP8266 pins, a USB-UART chip, and some useful buttons and switches. It can be used in conjunction with [pyFlashGui](https://github.com/AEFeinstein/Swadge-Devkit-Fw/tree/master/piflash/pyFlashGui) to program lots of Swadges quickly. To program a Swadge with the programmer:
+1. Connect the programmer to your computer and note what serial port is created.
+1. Set the Swadge to USB power
+2. Set the programmer to "OFF" and "5V"
+3. Plug the Swadge into the programmer
+4. Either hold the `GPIO0` button or put a jumper between `GND` and `SCL` breakout pins
+5. Set the programmer to "ON"
+6. Program your Swadge with the serial port noted in step 1.
