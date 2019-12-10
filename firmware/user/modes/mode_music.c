@@ -169,6 +169,7 @@ struct
     // Track rhythm
     os_timer_t beatTimer;
     uint32_t timeUs;
+    uint32_t lastCallTimeUs;
     uint16_t rhythmNoteIdx;
     uint8_t bpmIdx;
 
@@ -901,6 +902,7 @@ void ICACHE_FLASH_ATTR musicButtonCallback(
                     music.rhythmIdx = (music.rhythmIdx + 1) % lengthof(rhythms);
                     music.timeUs = 0;
                     music.rhythmNoteIdx = 0;
+                    music.lastCallTimeUs = 0;
                     musicUpdateDisplay();
                 }
                 // Clear this flag on release, always
@@ -914,6 +916,8 @@ void ICACHE_FLASH_ATTR musicButtonCallback(
             // Right, track whether a note should be played or not
             if(false == music.modifyBpm)
             {
+                music.rhythmNoteIdx = 0;
+                music.lastCallTimeUs = 0;
                 music.shouldPlay = down;
             }
             else
@@ -1106,18 +1110,17 @@ void ICACHE_FLASH_ATTR plotBar(uint8_t yOffset)
 void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)))
 {
     // Keep track of time with microsecond precision
-    static int32_t lastCallTimeUs = 0;
-    if(0 == lastCallTimeUs)
+    if(0 == music.lastCallTimeUs)
     {
         // Just initialize lastCallTimeUs
-        lastCallTimeUs = system_get_time();
+        music.lastCallTimeUs = system_get_time();
         return;
     }
 
     // Figure out the delta between calls in microseconds, increment time
     int32_t currentCallTimeUs = system_get_time();
-    music.timeUs += (currentCallTimeUs - lastCallTimeUs);
-    lastCallTimeUs = currentCallTimeUs;
+    music.timeUs += (currentCallTimeUs - music.lastCallTimeUs);
+    music.lastCallTimeUs = currentCallTimeUs;
 
     // If time crossed a rhythm boundary, do something different
     uint32_t rhythmIntervalUs = (1000 * bpms[music.bpmIdx].bpmMultiplier * ((~REST_BIT) &
