@@ -258,7 +258,7 @@ const scale_t scales[] =
         .notesLen = lengthof(scl_Minor_Aeolian)
     },
     {
-        .name = "Harm Minor",
+        .name = "H Minor",
         .notes = scl_Harm_Minor,
         .notesLen = lengthof(scl_Harm_Minor)
     },
@@ -278,7 +278,7 @@ const scale_t scales[] =
         .notesLen = lengthof(scl_Lydian)
     },
     {
-        .name = "Mixolydian",
+        .name = "Mixolyd",
         .notes = scl_Mixolydian,
         .notesLen = lengthof(scl_Mixolydian)
     },
@@ -288,27 +288,27 @@ const scale_t scales[] =
         .notesLen = lengthof(scl_Locrian)
     },
     {
-        .name = "Dom Bebop",
+        .name = "D Bebop",
         .notes = scl_Dom_Bebop,
         .notesLen = lengthof(scl_Dom_Bebop)
     },
     {
-        .name = "Ma Bebop",
+        .name = "M Bebop",
         .notes = scl_M_Bebop,
         .notesLen = lengthof(scl_M_Bebop)
     },
     {
-        .name = "Whole Tone",
+        .name = "Whole T",
         .notes = scl_Whole_Tone,
         .notesLen = lengthof(scl_Whole_Tone)
     },
     {
         .name = "DACs",
         .notes = scl_Dacs,
-        .notesLen = lengthof(scl_Dacs)
+        .notesLen = lengthof(scl_Whole_Tone)
     },
     {
-        .name = "Chromatic",
+        .name = "Chroma",
         .notes = scl_Chromatic,
         .notesLen = lengthof(scl_Chromatic)
     },
