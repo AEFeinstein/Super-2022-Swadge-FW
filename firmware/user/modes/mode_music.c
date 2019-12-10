@@ -320,6 +320,11 @@ const bpm_t bpms[] =
     {.bpmMultiplier = 41, .bpm = 61},
 };
 
+const rhythmArp_t constant[] =
+{
+    {.note = TRIPLET_SIXTYFOURTH_NOTE, .arp = 1},
+};
+
 const rhythmArp_t one_note[] =
 {
     {.note = EIGHTH_NOTE, .arp = 1},
@@ -417,11 +422,12 @@ const rhythmArp_t dw_stabs[] =
 
 const rhythmArp_t legendary[] =
 {
-    {.note = DOTTED_EIGHTH_NOTE, .arp = 1},
-    {.note = SIXTEENTH_REST, .arp = 1},
-    {.note = TRIPLET_QUARTER_NOTE, .arp = 1},
-    {.note = TRIPLET_QUARTER_NOTE, .arp = 1},
-    {.note = TRIPLET_QUARTER_NOTE, .arp = 1},
+    {.note = QUARTER_NOTE, .arp = 1},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 1},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 1},
+    {.note = TRIPLET_EIGHTH_NOTE, .arp = 1},
+    {.note = QUARTER_NOTE, .arp = 1},
+    {.note = QUARTER_NOTE, .arp = 1},
 };
 
 const rhythmArp_t j_dawg[] =
@@ -522,15 +528,15 @@ const rhythmArp_t octavio[] =
 
 const rhythmArp_t cha_cha[] =
 {
-    {.note = EIGHTH_NOTE, .arp = 8},
-    {.note = SIXTEENTH_NOTE, .arp = 4},
+    {.note = QUARTER_NOTE, .arp = 8},
+    {.note = EIGHTH_NOTE, .arp = 4},
+    {.note = QUARTER_NOTE, .arp = 9},
+    {.note = QUARTER_NOTE, .arp = 4},
+    {.note = QUARTER_NOTE, .arp = 8},
+    {.note = QUARTER_NOTE, .arp = 4},
     {.note = EIGHTH_NOTE, .arp = 9},
-    {.note = EIGHTH_NOTE, .arp = 4},
-    {.note = EIGHTH_NOTE, .arp = 8},
-    {.note = EIGHTH_NOTE, .arp = 4},
-    {.note = SIXTEENTH_NOTE, .arp = 9},
-    {.note = EIGHTH_NOTE, .arp = 9},
-    {.note = EIGHTH_NOTE, .arp = 4},
+    {.note = QUARTER_NOTE, .arp = 9},
+    {.note = QUARTER_NOTE, .arp = 4},
 };
 
 const rhythmArp_t its_a_me[] =
@@ -545,20 +551,20 @@ const rhythmArp_t its_a_me[] =
     {.note = EIGHTH_REST, .arp = 1},
     {.note = QUARTER_NOTE, .arp = 8},
     {.note = QUARTER_REST, .arp = 1},
-    {.note = QUARTER_NOTE, .arp = -4},
+    {.note = QUARTER_NOTE, .arp = -6},
     {.note = QUARTER_REST, .arp = 1},
 };
 
 const rhythmArp_t so_strange[] =
 {
-    {.note = EIGHTH_NOTE, .arp = 1},
-    {.note = EIGHTH_NOTE, .arp = 5},
-    {.note = EIGHTH_NOTE, .arp = 8},
-    {.note = EIGHTH_NOTE, .arp = 12},
-    {.note = EIGHTH_NOTE, .arp = 13},
-    {.note = EIGHTH_NOTE, .arp = 12},
-    {.note = EIGHTH_NOTE, .arp = 8},
-    {.note = EIGHTH_NOTE, .arp = 5},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 5},
+    {.note = SIXTEENTH_NOTE, .arp = 8},
+    {.note = SIXTEENTH_NOTE, .arp = 12},
+    {.note = SIXTEENTH_NOTE, .arp = 13},
+    {.note = SIXTEENTH_NOTE, .arp = 12},
+    {.note = SIXTEENTH_NOTE, .arp = 8},
+    {.note = SIXTEENTH_NOTE, .arp = 5},
 };
 
 const rhythmArp_t sans[] =
@@ -579,21 +585,21 @@ const rhythmArp_t sans[] =
 
 const rhythmArp_t fifteen_sixteen[] =
 {
-    {.note = EIGHTH_NOTE, .arp = 1},
-    {.note = EIGHTH_NOTE, .arp = 8},
-    {.note = EIGHTH_NOTE, .arp = 13},
-    {.note = EIGHTH_NOTE, .arp = 15},
-    {.note = EIGHTH_NOTE, .arp = 8},
-    {.note = EIGHTH_NOTE, .arp = 13},
-    {.note = EIGHTH_NOTE, .arp = 15},
-    {.note = EIGHTH_NOTE, .arp = 18},
-    {.note = EIGHTH_NOTE, .arp = 8},
-    {.note = EIGHTH_NOTE, .arp = 18},
-    {.note = EIGHTH_NOTE, .arp = 17},
-    {.note = EIGHTH_NOTE, .arp = 8},
-    {.note = EIGHTH_NOTE, .arp = 17},
-    {.note = EIGHTH_NOTE, .arp = 15},
-    {.note = EIGHTH_NOTE, .arp = 13},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 8},
+    {.note = SIXTEENTH_NOTE, .arp = 13},
+    {.note = SIXTEENTH_NOTE, .arp = 15},
+    {.note = SIXTEENTH_NOTE, .arp = 8},
+    {.note = SIXTEENTH_NOTE, .arp = 13},
+    {.note = SIXTEENTH_NOTE, .arp = 15},
+    {.note = SIXTEENTH_NOTE, .arp = 18},
+    {.note = SIXTEENTH_NOTE, .arp = 8},
+    {.note = SIXTEENTH_NOTE, .arp = 18},
+    {.note = SIXTEENTH_NOTE, .arp = 17},
+    {.note = SIXTEENTH_NOTE, .arp = 8},
+    {.note = SIXTEENTH_NOTE, .arp = 17},
+    {.note = SIXTEENTH_NOTE, .arp = 15},
+    {.note = SIXTEENTH_NOTE, .arp = 13},
 };
 
 const rhythmArp_t sb[] =
@@ -609,6 +615,12 @@ const rhythmArp_t sb[] =
 
 const rhythm_t rhythms[] =
 {
+    {
+        .name = "constant",
+        .rhythm = constant,
+        .rhythmLen = lengthof(constant),
+        .interNotePauseMs = 0
+    },
     {
         .name = "one_note",
         .rhythm = one_note,
