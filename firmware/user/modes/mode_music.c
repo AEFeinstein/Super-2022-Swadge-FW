@@ -203,6 +203,7 @@ const notePeriod_t scl_Locrian[] = {C_4, C_SHARP_4, D_SHARP_4, F_4, F_SHARP_4, G
 const notePeriod_t scl_Dom_Bebop[] = {C_4, D_4, E_4, F_4, G_4, A_4, A_SHARP_4, B_4, C_5, C_5, D_5, E_5, F_5, G_5, A_5, A_SHARP_5, B_5, C_6, };
 const notePeriod_t scl_M_Bebop[] = {C_4, D_4, E_4, F_4, G_4, G_SHARP_4, A_SHARP_4, B_4, C_5, C_5, D_5, E_5, F_5, G_5, G_SHARP_5, A_SHARP_5, B_5, C_6, };
 const notePeriod_t scl_Whole_Tone[] = {C_4, D_4, E_4, F_SHARP_4, G_SHARP_4, A_SHARP_4, C_5, C_5, D_5, E_5, F_SHARP_5, G_SHARP_5, A_SHARP_5, C_6, };
+const notePeriod_t scl_Dacs[] = {C_4, D_SHARP_4, F_4, F_SHARP_4, G_4, A_4, A_SHARP_4, C_5, D_SHARP_5, F_5, F_SHARP_5, G_5, A_5, A_SHARP_5, C_6};
 const notePeriod_t scl_Chromatic[] = {C_4, C_SHARP_4, D_4, D_SHARP_4, E_4, F_4, F_SHARP_4, G_4, G_SHARP_4, A_4, A_SHARP_4, B_4, C_5, C_5, C_SHARP_5, D_5, D_SHARP_5, E_5, F_5, F_SHARP_5, G_5, G_SHARP_5, A_5, A_SHARP_5, B_5, C_6, };
 #else
 const notePeriod_t scl_M_Penta[] = {C_5, D_5, E_5, G_5, A_5, C_6, C_6, D_6, E_6, G_6, A_6, C_7, };
@@ -220,28 +221,29 @@ const notePeriod_t scl_Locrian[] = {C_5, C_SHARP_5, D_SHARP_5, F_5, F_SHARP_5, G
 const notePeriod_t scl_Dom_Bebop[] = {C_5, D_5, E_5, F_5, G_5, A_5, A_SHARP_5, B_5, C_6, C_6, D_6, E_6, F_6, G_6, A_6, A_SHARP_6, B_6, C_7, };
 const notePeriod_t scl_M_Bebop[] = {C_5, D_5, E_5, F_5, G_5, G_SHARP_5, A_SHARP_5, B_5, C_6, C_6, D_6, E_6, F_6, G_6, G_SHARP_6, A_SHARP_6, B_6, C_7, };
 const notePeriod_t scl_Whole_Tone[] = {C_5, D_5, E_5, F_SHARP_5, G_SHARP_5, A_SHARP_5, C_6, C_6, D_6, E_6, F_SHARP_6, G_SHARP_6, A_SHARP_6, C_7, };
+const notePeriod_t scl_Dacs[] = {C_5, D_SHARP_5, F_5, F_SHARP_5, G_5, A_5, A_SHARP_5, C_6, D_SHARP_6, F_6, F_SHARP_6, G_6, A_6, A_SHARP_6, C_7};
 const notePeriod_t scl_Chromatic[] = {C_5, C_SHARP_5, D_5, D_SHARP_5, E_5, F_5, F_SHARP_5, G_5, G_SHARP_5, A_5, A_SHARP_5, B_5, C_6, C_6, C_SHARP_6, D_6, D_SHARP_6, E_6, F_6, F_SHARP_6, G_6, G_SHARP_6, A_6, A_SHARP_6, B_6, C_7, };
 #endif
 
 const scale_t scales[] =
 {
     {
-        .name = "Ma Penta",
+        .name = "Ma Pent",
         .notes = scl_M_Penta,
         .notesLen = lengthof(scl_M_Penta)
     },
     {
-        .name = "mi Penta",
+        .name = "mi Pent",
         .notes = scl_m_Penta,
         .notesLen = lengthof(scl_m_Penta)
     },
     {
-        .name = "Ma Blues",
+        .name = "Ma Blu",
         .notes = scl_M_Blues,
         .notesLen = lengthof(scl_M_Blues)
     },
     {
-        .name = "mi Blues",
+        .name = "mi Blu",
         .notes = scl_m_Blues,
         .notesLen = lengthof(scl_m_Blues)
     },
@@ -251,7 +253,7 @@ const scale_t scales[] =
         .notesLen = lengthof(scl_Major)
     },
     {
-        .name = "Mi Aeolian",
+        .name = "Minor",
         .notes = scl_Minor_Aeolian,
         .notesLen = lengthof(scl_Minor_Aeolian)
     },
@@ -299,6 +301,11 @@ const scale_t scales[] =
         .name = "Whole Tone",
         .notes = scl_Whole_Tone,
         .notesLen = lengthof(scl_Whole_Tone)
+    },
+    {
+        .name = "DACs",
+        .notes = scl_Dacs,
+        .notesLen = lengthof(scl_Dacs)
     },
     {
         .name = "Chromatic",
@@ -616,19 +623,19 @@ const rhythmArp_t sb[] =
 const rhythm_t rhythms[] =
 {
     {
-        .name = "constant",
+        .name = "Slide",
         .rhythm = constant,
         .rhythmLen = lengthof(constant),
         .interNotePauseMs = 0
     },
     {
-        .name = "one_note",
+        .name = "Qrtr",
         .rhythm = one_note,
         .rhythmLen = lengthof(one_note),
         .interNotePauseMs = DEFAULT_PAUSE
     },
     {
-        .name = "octaves",
+        .name = "octave",
         .rhythm = octaves,
         .rhythmLen = lengthof(octaves),
         .interNotePauseMs = DEFAULT_PAUSE
@@ -640,31 +647,31 @@ const rhythm_t rhythms[] =
         .interNotePauseMs = DEFAULT_PAUSE
     },
     {
-        .name = "major_tri",
+        .name = "Maj 3",
         .rhythm = major_tri,
         .rhythmLen = lengthof(major_tri),
         .interNotePauseMs = DEFAULT_PAUSE
     },
     {
-        .name = "minor_tri",
+        .name = "Min 3",
         .rhythm = minor_tri,
         .rhythmLen = lengthof(minor_tri),
         .interNotePauseMs = DEFAULT_PAUSE
     },
     {
-        .name = "major_7",
+        .name = "Maj 7",
         .rhythm = major_7,
         .rhythmLen = lengthof(major_7),
         .interNotePauseMs = DEFAULT_PAUSE
     },
     {
-        .name = "minor_7",
+        .name = "Min 7",
         .rhythm = minor_7,
         .rhythmLen = lengthof(minor_7),
         .interNotePauseMs = DEFAULT_PAUSE
     },
     {
-        .name = "dom_7",
+        .name = "Dom 7",
         .rhythm = dom_7,
         .rhythmLen = lengthof(dom_7),
         .interNotePauseMs = DEFAULT_PAUSE
@@ -676,7 +683,7 @@ const rhythm_t rhythms[] =
         .interNotePauseMs = DEFAULT_PAUSE
     },
     {
-        .name = "syncopa",
+        .name = "syncop",
         .rhythm = syncopa,
         .rhythmLen = lengthof(syncopa),
         .interNotePauseMs = DEFAULT_PAUSE
@@ -688,7 +695,7 @@ const rhythm_t rhythms[] =
         .interNotePauseMs = DEFAULT_PAUSE
     },
     {
-        .name = "legendary",
+        .name = "lgnd",
         .rhythm = legendary,
         .rhythmLen = lengthof(legendary),
         .interNotePauseMs = DEFAULT_PAUSE
@@ -706,7 +713,7 @@ const rhythm_t rhythms[] =
         .interNotePauseMs = DEFAULT_PAUSE
     },
     {
-        .name = "the_goat",
+        .name = "goat",
         .rhythm = the_goat,
         .rhythmLen = lengthof(the_goat),
         .interNotePauseMs = DEFAULT_PAUSE
@@ -718,7 +725,7 @@ const rhythm_t rhythms[] =
         .interNotePauseMs = DEFAULT_PAUSE
     },
     {
-        .name = "4th_rock",
+        .name = "Mars",
         .rhythm = fourth_rock,
         .rhythmLen = lengthof(fourth_rock),
         .interNotePauseMs = DEFAULT_PAUSE
@@ -736,7 +743,7 @@ const rhythm_t rhythms[] =
         .interNotePauseMs = DEFAULT_PAUSE
     },
     {
-        .name = "cha-cha",
+        .name = "chacha",
         .rhythm = cha_cha,
         .rhythmLen = lengthof(cha_cha),
         .interNotePauseMs = DEFAULT_PAUSE
@@ -748,7 +755,7 @@ const rhythm_t rhythms[] =
         .interNotePauseMs = DEFAULT_PAUSE
     },
     {
-        .name = "so_strange",
+        .name = "strange",
         .rhythm = so_strange,
         .rhythmLen = lengthof(so_strange),
         .interNotePauseMs = DEFAULT_PAUSE
