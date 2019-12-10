@@ -970,10 +970,16 @@ void ICACHE_FLASH_ATTR musicAccelerometerHandler(accel_t* accel)
     pitchF = ((pitchF) / M_PI) + 0.5f;
 
     // Round and scale to OLED_WIDTH
-    music.roll = roundf(rollF * OLED_WIDTH);
+    // this maps 30 degrees to the far left and 150 degrees to the far right
+    // (30 / 180) == 0.167, (180 - (2 * 30)) / 180 == 0.666
+    music.roll = roundf(((rollF - 0.167f) * OLED_WIDTH) / 0.666f);
     if(music.roll >= OLED_WIDTH)
     {
         music.roll = OLED_WIDTH - 1;
+    }
+    else if(music.roll < 0)
+    {
+        music.roll = 0;
     }
     music.pitch = roundf(pitchF * OLED_WIDTH);
     if(music.pitch >= OLED_WIDTH)
