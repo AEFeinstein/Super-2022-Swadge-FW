@@ -943,6 +943,7 @@ void ICACHE_FLASH_ATTR musicButtonCallback(
             {
                 // Cycle the scale
                 music.scaleIdx = (music.scaleIdx + 1) % lengthof(scales);
+                musicUpdateDisplay();
             }
             break;
         }
