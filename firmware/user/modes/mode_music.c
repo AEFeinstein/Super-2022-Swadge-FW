@@ -966,7 +966,7 @@ void ICACHE_FLASH_ATTR musicButtonCallback(
                     // cycle params
                     music.rhythmIdx = (music.rhythmIdx + 1) % lengthof(rhythms);
                     music.timeUs = 0;
-                    music.rhythmNoteIdx = -1;
+                    music.rhythmNoteIdx = 0;
                     music.lastCallTimeUs = 0;
                     musicUpdateDisplay();
                 }
@@ -981,7 +981,7 @@ void ICACHE_FLASH_ATTR musicButtonCallback(
             // Right, track whether a note should be played or not
             if(false == music.modifyBpm)
             {
-                music.rhythmNoteIdx = -1;
+                music.rhythmNoteIdx = 0;
                 music.lastCallTimeUs = 0;
                 music.shouldPlay = down;
             }
@@ -1181,63 +1181,86 @@ void ICACHE_FLASH_ATTR plotBar(uint8_t yOffset)
 void ICACHE_FLASH_ATTR musicBeatTimerFunc(void* arg __attribute__((unused)))
 {
     // Keep track of time with microsecond precision
-    int32_t currentCallTimeUs = system_get_time();
+    uint32_t currentCallTimeUs = system_get_time();
 
-    // There's some special handling if we're playing the first note of a rhythm
-    bool playFirstNote = false;
+    // These bools control what we should do
+    bool shouldPlayNote = false;
+    bool isFirstNote = false;
+    bool isInterNotePause = false;
+
+    // Figure out what to do based on the time
     if(0 == music.lastCallTimeUs)
     {
-        // Initialize lastCallTimeUs, play the first note
+        // Being called for the fist time, start playing the first note
+        music.timeUs = 0;
         music.lastCallTimeUs = currentCallTimeUs;
-        playFirstNote = true;
+        shouldPlayNote = true;
+        isFirstNote = true;
     }
     else
     {
-        // Figure out the delta between calls in microseconds, increment time
+        // Figure out the delta between calls in microseconds, then increment time
         music.timeUs += (currentCallTimeUs - music.lastCallTimeUs);
         music.lastCallTimeUs = currentCallTimeUs;
-    }
 
-    // If time crossed a rhythm boundary, or is the first note, do something different
-    uint32_t rhythmIntervalUs = (1000 * bpms[music.bpmIdx].bpmMultiplier * ((~REST_BIT) &
-                                 rhythms[music.rhythmIdx].rhythm[music.rhythmNoteIdx].note));
-    led_t leds[NUM_LIN_LEDS] = {{0}};
-    if(music.timeUs >= rhythmIntervalUs || true == playFirstNote)
-    {
+        // Find the time where we should change notes
+        uint32_t rhythmIntervalUs = (1000 * bpms[music.bpmIdx].bpmMultiplier * ((~REST_BIT) &
+                                     rhythms[music.rhythmIdx].rhythm[music.rhythmNoteIdx].note));
+        // If time crossed a rhythm boundary do something different
         if(music.timeUs >= rhythmIntervalUs)
         {
-            // Reset the time, but not for the first note
             music.timeUs -= rhythmIntervalUs;
+            shouldPlayNote = true;
         }
-        // Move to the next rhythm element
-        music.rhythmNoteIdx = (music.rhythmNoteIdx + 1) % rhythms[music.rhythmIdx].rhythmLen;
-
-        // See if we should actually play the note or not
-        if(!music.shouldPlay || (rhythms[music.rhythmIdx].rhythm[music.rhythmNoteIdx].note & REST_BIT))
+        // Or if it crossed the boundary into an inter-note pause
+        else if(music.timeUs >= rhythmIntervalUs - (1000 * rhythms[music.rhythmIdx].interNotePauseMs))
         {
-            setBuzzerNote(SILENCE);
-            noteToColor(&leds[0], getCurrentNote(), 0x10);
+            shouldPlayNote = true;
+            isInterNotePause = true;
         }
         else
         {
-            // Only play the note if BPM isn't being modified
-            if(false == music.modifyBpm)
-            {
-                // Arpeggiate as necessary
-                setBuzzerNote(arpModify(getCurrentNote(),
-                                        rhythms[music.rhythmIdx].rhythm[music.rhythmNoteIdx].arp));
-            }
+            // Nothing to do here
+            return;
+        }
+    }
+
+    led_t leds[NUM_LIN_LEDS] = {{0}};
+    // If this is an internote pause
+    if(isInterNotePause)
+    {
+        // Turn off the buzzer and set the LEDs to dim
+        setBuzzerNote(SILENCE);
+        noteToColor(&leds[0], getCurrentNote(), 0x20);
+    }
+    else if(true == shouldPlayNote)
+    {
+        // If this isn't the first note (we need to start the first note sometime)
+        if(false == isFirstNote)
+        {
+            // Move to play the next note
+            music.rhythmNoteIdx = (music.rhythmNoteIdx + 1) % rhythms[music.rhythmIdx].rhythmLen;
+        }
+
+        // If the button isn't held, or the BPM is being modified, or this is a rest
+        if(!music.shouldPlay || true == music.modifyBpm ||
+                (rhythms[music.rhythmIdx].rhythm[music.rhythmNoteIdx].note & REST_BIT))
+        {
+            // Turn off the buzzer and set the LEDs to dim
+            setBuzzerNote(SILENCE);
+            noteToColor(&leds[0], getCurrentNote(), 0x20);
+        }
+        else
+        {
+            // Arpeggiate as necessary
+            setBuzzerNote(arpModify(getCurrentNote(),
+                                    rhythms[music.rhythmIdx].rhythm[music.rhythmNoteIdx].arp));
+            // Set LEDs to bright
             noteToColor(&leds[0], getCurrentNote(), 0x40);
         }
     }
-    else if(music.timeUs >= rhythmIntervalUs - (1000 * rhythms[music.rhythmIdx].interNotePauseMs))
-    {
-        setBuzzerNote(SILENCE);
-        noteToColor(&leds[0], getCurrentNote(), 0x10);
-    }
     else
     {
-        // Don't set LEDs if nothing changed
         return;
     }
 
