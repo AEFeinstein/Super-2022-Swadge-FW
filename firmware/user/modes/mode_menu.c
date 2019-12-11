@@ -43,9 +43,11 @@ typedef enum
 void ICACHE_FLASH_ATTR modeInit(void);
 void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state, int button, int down);
 
+void ICACHE_FLASH_ATTR plotSquareWave(int16_t x, int16_t y);
 static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unused)));
-static void ICACHE_FLASH_ATTR menuAnimateScreensaver(void* arg __attribute__((unused)));
+static void ICACHE_FLASH_ATTR menuAnimateScreensaverLEDs(void* arg __attribute__((unused)));
+static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR stopScreensaver(void);
 
 void ICACHE_FLASH_ATTR loadImg(swadgeMode* mode, uint8_t* decompressedImage);
@@ -88,8 +90,12 @@ uint8_t selectedMode = 0;
 
 os_timer_t timerScreensaverStart = {0};
 os_timer_t timerScreensaverBright = {0};
-os_timer_t timerScreensaverAnimation = {0};
+os_timer_t timerScreensaverLEDAnimation = {0}; // animation for the LEDs.
+os_timer_t timerScreensaverOLEDAnimation = {0}; // animation for the OLED.
 uint8_t menuScreensaverIdx = 0;
+int16_t squareWaveScrollOffset = 0;
+int16_t squareWaveScrollSpeed = -2; // expressed as pixels per frame.
+uint8_t drawOLEDScreensaver = 0; // only draw after bright screensaver.
 
 uint8_t compressedStagingSpace[1000] = {0};
 uint8_t img1[((OLED_WIDTH * OLED_HEIGHT) / 8) + METADATA_LEN] = {0};
@@ -137,8 +143,12 @@ void ICACHE_FLASH_ATTR modeInit(void)
     os_timer_setfn(&timerScreensaverBright, (os_timer_func_t*)menuBrightScreensaver, NULL);
 
     // Timer for running a screensaver
-    os_timer_disarm(&timerScreensaverAnimation);
-    os_timer_setfn(&timerScreensaverAnimation, (os_timer_func_t*)menuAnimateScreensaver, NULL);
+    os_timer_disarm(&timerScreensaverLEDAnimation);
+    os_timer_setfn(&timerScreensaverLEDAnimation, (os_timer_func_t*)menuAnimateScreensaverLEDs, NULL);
+
+    // Timer for running a screensaver
+    os_timer_disarm(&timerScreensaverOLEDAnimation);
+    os_timer_setfn(&timerScreensaverOLEDAnimation, (os_timer_func_t*)menuAnimateScreensaverOLED, NULL);
 
     // Timer for running a screensaver
     os_timer_disarm(&timerPanning);
@@ -390,50 +400,23 @@ static void ICACHE_FLASH_ATTR menuPanImages(void* arg __attribute__((unused)))
  * Screensaver functions
  *============================================================================*/
 
-/**
- * @brief Called on a timer if there's no user input to start a screensaver
- *
- * @param arg unused
- */
-static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unused)))
+void ICACHE_FLASH_ATTR plotSquareWave (int16_t x, int16_t y)
 {
-    // Pick a random screensaver from a reduced list of dances (missing 12, 13, 18, 19)
-    static const uint8_t acceptableDances[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 17};
-    menuScreensaverIdx = acceptableDances[os_random() % sizeof(acceptableDances)];
-
-    // Set the brightness to low
-    setDanceBrightness(2);
-
-    // Animate it at the given period
-    os_timer_arm(&timerScreensaverAnimation, danceTimers[menuScreensaverIdx].period, true);
-
-    // Start a timer to turn the screensaver brighter
-    os_timer_arm(&timerScreensaverBright, 5000, false);
-}
-
-/**
- * @brief Five seconds after starting the screensaver, clear the OLED and
- *        make the LEDs one step brighter
- *
- * @param arg unused
- */
-static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unused)))
-{
-    // Clear the display
-    clearDisplay();
-
     // Starting point for the line
-    uint8_t pt1x = (SQ_WAVE_LINE_LEN / 2);
-    uint8_t pt1y = (OLED_HEIGHT / 2) + (SQ_WAVE_LINE_LEN / 2);
+    int16_t pt1x = x;
+    int16_t pt1y = y + (OLED_HEIGHT / 2) + (SQ_WAVE_LINE_LEN / 2);
+    
     // Ending point for the line
-    uint8_t pt2x = (SQ_WAVE_LINE_LEN / 2);
-    uint8_t pt2y = (OLED_HEIGHT / 2) - (SQ_WAVE_LINE_LEN / 2);
+    int16_t pt2x = x;
+    int16_t pt2y = y + (OLED_HEIGHT / 2) - (SQ_WAVE_LINE_LEN / 2);
+    
     // Direction the square wave is traveling
     sqDir_t sqDir = M_RIGHT;
 
     // Draw a square wave, one line at a time
-    uint8_t segments;
-    for(segments = 0; segments < ((2 * OLED_WIDTH) / SQ_WAVE_LINE_LEN) - 1; segments++)
+    //uint8_t segments;
+    //for(segments = 0; segments < ((2 * OLED_WIDTH) / SQ_WAVE_LINE_LEN) - 1; segments++)
+    while (pt1x <= OLED_WIDTH)
     {
         // Draw the line
         plotLine(pt1x, pt1y, pt2x, pt2y, WHITE);
@@ -471,23 +454,88 @@ static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unu
         // Move to the next part of the square wave
         sqDir = (sqDir + 1) % M_NUM_DIRS;
     }
+}
+
+/**
+ * @brief Called on a timer if there's no user input to start a screensaver
+ *
+ * @param arg unused
+ */
+static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unused)))
+{
+    // Pick a random screensaver from a reduced list of dances (missing 12, 13, 18, 19)
+    static const uint8_t acceptableDances[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 17};
+    menuScreensaverIdx = acceptableDances[os_random() % sizeof(acceptableDances)];
+
+    // Set the brightness to low
+    setDanceBrightness(2);
+
+    // Animate it at the given period
+    os_timer_arm(&timerScreensaverLEDAnimation, danceTimers[menuScreensaverIdx].period, true);
+
+    // Animate the OLED at the given period
+    os_timer_arm(&timerScreensaverOLEDAnimation, MENU_PAN_PERIOD_MS, true);
+
+    drawOLEDScreensaver = 0;
+
+    // Start a timer to turn the screensaver brighter
+    os_timer_arm(&timerScreensaverBright, 5000, false);
+}
+
+/**
+ * @brief Five seconds after starting the screensaver, clear the OLED and
+ *        make the LEDs one step brighter
+ *
+ * @param arg unused
+ */
+static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unused)))
+{
+    // Clear the display
+    clearDisplay();
+
+    squareWaveScrollOffset = 0;
+    plotSquareWave(squareWaveScrollOffset, 0);
 
     // Plot some tiny corner text
     plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Swadge 2020", TOM_THUMB, WHITE);
+
+    drawOLEDScreensaver = 1;
 
     // Set the brightness to medium
     setDanceBrightness(1);
 }
 
 /**
- * @brief Called on a timer to animate a screensaver
+ * @brief Called on a timer to animate a screensaver (the LEDs portion)
  *
  * @param arg unused
  */
-static void ICACHE_FLASH_ATTR menuAnimateScreensaver(void* arg __attribute__((unused)))
+static void ICACHE_FLASH_ATTR menuAnimateScreensaverLEDs(void* arg __attribute__((unused)))
 {
     // Animation!
     danceTimers[menuScreensaverIdx].timerFn(NULL);
+}
+
+/**
+ * @brief Called on a timer to animate a screensaver (the OLED portion)
+ *
+ * @param arg unused
+ */
+static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__((unused)))
+{
+    if (drawOLEDScreensaver) 
+    {
+        // Clear the display
+        clearDisplay();
+
+        // Plot scrolling square wave
+        squareWaveScrollOffset += squareWaveScrollSpeed;
+        squareWaveScrollOffset = squareWaveScrollOffset % (SQ_WAVE_LINE_LEN * 2);
+        plotSquareWave(squareWaveScrollOffset, 0);
+
+        // Plot some tiny corner text
+        plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Swadge 2020", TOM_THUMB, WHITE);
+    }
 }
 
 /**
@@ -497,9 +545,11 @@ static void ICACHE_FLASH_ATTR menuAnimateScreensaver(void* arg __attribute__((un
 void ICACHE_FLASH_ATTR stopScreensaver(void)
 {
     // Stop the current screensaver
-    os_timer_disarm(&timerScreensaverAnimation);
+    os_timer_disarm(&timerScreensaverLEDAnimation);
+    os_timer_disarm(&timerScreensaverOLEDAnimation);
     led_t leds[NUM_LIN_LEDS] = {{0}};
     setLeds(leds, sizeof(leds));
+    drawOLEDScreensaver = 0;
 
 #if SWADGE_VERSION != SWADGE_BBKIWI
     // Start a timer to start the screensaver if there's no input
