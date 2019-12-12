@@ -94,7 +94,7 @@ os_timer_t timerScreensaverLEDAnimation = {0}; // animation for the LEDs.
 os_timer_t timerScreensaverOLEDAnimation = {0}; // animation for the OLED.
 uint8_t menuScreensaverIdx = 0;
 int16_t squareWaveScrollOffset = 0;
-int16_t squareWaveScrollSpeed = -2; // expressed as pixels per frame.
+int16_t squareWaveScrollSpeed = -1; // expressed as pixels per frame.
 uint8_t drawOLEDScreensaver = 0; // only draw after bright screensaver.
 
 uint8_t compressedStagingSpace[1000] = {0};
@@ -405,11 +405,11 @@ void ICACHE_FLASH_ATTR plotSquareWave (int16_t x, int16_t y)
     // Starting point for the line
     int16_t pt1x = x;
     int16_t pt1y = y + (OLED_HEIGHT / 2) + (SQ_WAVE_LINE_LEN / 2);
-    
+
     // Ending point for the line
     int16_t pt2x = x;
     int16_t pt2y = y + (OLED_HEIGHT / 2) - (SQ_WAVE_LINE_LEN / 2);
-    
+
     // Direction the square wave is traveling
     sqDir_t sqDir = M_RIGHT;
 
@@ -523,7 +523,7 @@ static void ICACHE_FLASH_ATTR menuAnimateScreensaverLEDs(void* arg __attribute__
  */
 static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__((unused)))
 {
-    if (drawOLEDScreensaver) 
+    if (drawOLEDScreensaver)
     {
         // Clear the display
         clearDisplay();
