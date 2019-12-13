@@ -734,7 +734,7 @@ void ICACHE_FLASH_ATTR cmTitleInput(void)
     //button a = start sub mode
     if(cmIsButtonPressed(BTN_TITLE_START_SUBMODE))
     {
-        //os_printf("%s should start game?\n", __func__);
+        //CM_printf("%s should start game?\n", __func__);
         cmChangeState(CM_GAME);
     }
     //button b = choose a sub mode
@@ -742,7 +742,7 @@ void ICACHE_FLASH_ATTR cmTitleInput(void)
         // Cycle movement methods
     {
         cmCurrentSubMode = (cmCurrentSubMode + 1) % cmNumSubModes;
-        os_printf("currentSubMode = %d\n", cmCurrentSubMode);
+        CM_printf("currentSubMode = %d\n", cmCurrentSubMode);
         //reset init conditions for new method
         cmNewSetup(cmCurrentSubMode);
         cmChangeState(CM_TITLE);
@@ -755,7 +755,7 @@ void ICACHE_FLASH_ATTR cmGameInput(void)
     if(cmIsButtonPressed(BTN_GAME_NEXT_SUB_MODE))
     {
         cmCurrentSubMode = (cmCurrentSubMode + 1) % cmNumSubModes;
-        os_printf("currentSubMode = %d\n", cmCurrentSubMode);
+        CM_printf("currentSubMode = %d\n", cmCurrentSubMode);
         //reset init conditions for new method
         cmNewSetup(cmCurrentSubMode);
         cmChangeState(CM_GAME);
@@ -782,7 +782,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     // static struct maxtime_t CM_updatedisplay_timer = { .name = "CM_updateDisplay"};
     // maxTimeBegin(&CM_updatedisplay_timer);
 
-    //os_printf("modeTime %d\n", modeTime);
+    //CM_printf("modeTime %d\n", modeTime);
 
     crossIntervalCounter++;
 
@@ -817,7 +817,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     int16_t normAccel = sqrt( (double)xAccel * (double)xAccel + (double)yAccel * (double)yAccel + (double)zAccel *
                               (double)zAccel  );
 
-    //os_printf("%d %d %d %d\n", xAccel, yAccel, zAccel,   normAccel);
+    //CM_printf("%d %d %d %d\n", xAccel, yAccel, zAccel,   normAccel);
     if (cmUseDirectAccel)
     {
         // intertwine raw signal with smoothed
@@ -838,7 +838,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     }
     smoothNormAccel = IIRFilter(alphaFast, normAccel, smoothNormAccel);
     circularPush(smoothNormAccel, &cirBufNormAccel);
-    //os_printf("sm = %d, n=%d, absd = %d\n", smoothNormAccel, normAccel, abs(smoothNormAccel - normAccel) );
+    //CM_printf("sm = %d, n=%d, absd = %d\n", smoothNormAccel, normAccel, abs(smoothNormAccel - normAccel) );
 
     //TODO make this an option
     // Inactive as now filtering accel readings directly
@@ -944,9 +944,9 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         for (uint8_t  i = 0; i < FIXBINS; i++)
         {
             drawPixel(i, OLED_HEIGHT - fuzzed_bins[i] / 2000, WHITE);
-            //os_printf("%d ", fuzzed_bins[i]);
+            //CM_printf("%d ", fuzzed_bins[i]);
         }
-        //os_printf("fuzzed_bins[0] = %d\n", fuzzed_bins[0]);
+        //CM_printf("fuzzed_bins[0] = %d\n", fuzzed_bins[0]);
     }
     //TODO should be else here if COLORCHORD_DFT is defined, but it leave astyle messes up
 #endif
@@ -955,7 +955,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         // send this to be dealt with by roll mode routines
         // computes light pattern and OLED display
         led_t* outLeds = roll_updateDisplayComputations(xAccel, yAccel, zAccel);
-        //os_printf("Size of outLeds %d\n",sizeof(outLeds) );
+        //CM_printf("Size of outLeds %d\n",sizeof(outLeds) );
         cmSetLeds(outLeds, NUM_LIN_LEDS * 3);
     }
     else
@@ -1006,7 +1006,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         // static int16_t lastBpm = 0;
         // if(lastBpm != bpmFromCrossing) {
         //     lastBpm = bpmFromCrossing;
-        //     os_printf("%d\n", bpmFromCrossing);
+        //     CM_printf("%d\n", bpmFromCrossing);
         // }
 
         //TODO compute avePeriodMs from  bpmFromTau and from smoothActivity as surogate
@@ -1031,7 +1031,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
             cmXZapPos = (os_random() % (OLED_WIDTH - 47));
             cmYZapPos = (os_random() % (OLED_HEIGHT - FONT_HEIGHT_RADIOSTARS));
             cmZapWorkInx = os_random() % 4;
-            //os_printf("Shock! cmShockRampCount=%d\n", cmShockRampCount);
+            //CM_printf("Shock! cmShockRampCount=%d\n", cmShockRampCount);
         }
         else
         {
@@ -1042,7 +1042,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                 cmBrightnessRamp = 255 * cmShockCountDown / cmShockRampCount;
             }
         }
-        //os_printf(" hue %d,  cmShockCD %d, ramp %d\n", cmHue, cmShockCountDown, cmBrightnessRamp);
+        //CM_printf(" hue %d,  cmShockCD %d, ramp %d\n", cmHue, cmShockCountDown, cmBrightnessRamp);
 
         if (SOUND_ON)
         {
@@ -1052,7 +1052,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         //Clear leds
         memset(leds, 0, sizeof(leds));
 
-        //os_printf("bpmFromCrossing %d, bpmFromTau %d, tauArgMin %d, activity %d\n", bpmFromCrossing, bpmFromTau, tauArgMin,
+        //CM_printf("bpmFromCrossing %d, bpmFromTau %d, tauArgMin %d, activity %d\n", bpmFromCrossing, bpmFromTau, tauArgMin,
         //          smoothActivity);
         uint8_t val;
         uint32_t colorToShow;
@@ -1088,7 +1088,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                 minCheck1 = min(minCheck1, xHP);
                 minCheck2 = min(minCheck2, yHP);
                 minCheck3 = min(minCheck3, zHP);
-                //os_printf("minxHP:%d  minyHP:%d  minzHP:%d maxxHP:%d  maxyHP:%d  maxzHP:%d \n", minCheck1, minCheck2, minCheck3, maxCheck1, maxCheck2, maxCheck3);
+                //CM_printf("minxHP:%d  minyHP:%d  minzHP:%d maxxHP:%d  maxyHP:%d  maxzHP:%d \n", minCheck1, minCheck2, minCheck3, maxCheck1, maxCheck2, maxCheck3);
 
                 // Violent shaking can give xHP just over 600 but then hard to just
                 // shake only in one direction x,y,z
@@ -1117,10 +1117,10 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                 minCheck1 = min(minCheck1, xHP);
                 minCheck2 = min(minCheck2, yHP);
                 minCheck3 = min(minCheck3, zHP);
-                //os_printf("minxHP:%d  minyHP:%d  minzHP:%d maxxHP:%d  maxyHP:%d  maxzHP:%d \n", minCheck1, minCheck2, minCheck3, maxCheck1, maxCheck2, maxCheck3);
+                //CM_printf("minxHP:%d  minyHP:%d  minzHP:%d maxxHP:%d  maxyHP:%d  maxzHP:%d \n", minCheck1, minCheck2, minCheck3, maxCheck1, maxCheck2, maxCheck3);
 
                 cmHue = 127 + atan2(yHP, xHP) * 127 / M_PI ;
-                //os_printf("cmHue %d, yHP %d, xHP %d\n", cmHue, yHP, xHP);
+                //CM_printf("cmHue %d, yHP %d, xHP %d\n", cmHue, yHP, xHP);
                 val = CLAMP(((CLAMP( cmScaleLed * smoothActivity, 15, 1500 ) - 15 ) * 255 / (1500 - 15)), 0, 255);
                 // Don't apply gamma as is done in cmSetLeds
                 colorToShow = EHSVtoHEXhelper(cmHue, 0xFF, val, false);
@@ -1149,7 +1149,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                 minCheck1 = min(minCheck1, bpmFromTau);
                 minCheck2 = min(minCheck2, bpmFromCrossing);
                 minCheck3 = min(minCheck3, smoothActivity);
-                //os_printf("bpmFromTau: min %d  max %d, bpmFromCrossing min %d max:%d, smoothAct min %d max %d \n", minCheck1, maxCheck1,
+                //CM_printf("bpmFromTau: min %d  max %d, bpmFromCrossing min %d max:%d, smoothAct min %d max %d \n", minCheck1, maxCheck1,
                 //          minCheck2, maxCheck2, minCheck3, maxCheck3);
 
                 // Don't apply gamma as is done in cmSetLeds
@@ -1164,7 +1164,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         // Gamma correction corrects washed out look
         //   Done in cmSetLeds
 
-        //os_printf("r:%d  g:%d  b:%d \n", ledr, ledg, ledb);
+        //CM_printf("r:%d  g:%d  b:%d \n", ledr, ledg, ledb);
 
 #define USE_NUM_LEDS 6
         //TODO do I want || shockJustHappened here. If so will need to supress shock above if dont want
@@ -1178,7 +1178,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                 ledPrevIncTime = modeTime;
                 ledCycle += ledDirection;
                 ledCycle = (ledCycle + USE_NUM_LEDS) % USE_NUM_LEDS;
-                //os_printf("ledCycle %d, modeTime %d, ledPrevIncTime %d\n", ledCycle, modeTime, ledPrevIncTime);
+                //CM_printf("ledCycle %d, modeTime %d, ledPrevIncTime %d\n", ledCycle, modeTime, ledPrevIncTime);
             }
 
             plotCenteredText(0, 0, OLED_WIDTH, "SHAKE TO FILL", IBM_VGA_8, WHITE);
@@ -1272,7 +1272,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                     randomNextChangeTime = modeTime + (os_random() % (2 * MEAN_START)) * (8 - (cmBrightnessRamp >> 5)) * MS_TO_US_FACTOR;
                     cmRandColor = EHSVtoHEXhelper( os_random() % 255, 0xFF, cmBrightnessRamp, false);
                     cmRandLight = os_random() % USE_NUM_LEDS;
-                    //os_printf("after shock rand at %d\n", cmRandLight);
+                    //CM_printf("after shock rand at %d\n", cmRandLight);
                 }
 #if USE_NUM_LEDS == 6
                 indLed = ledOrderInd[cmRandLight];
@@ -1310,7 +1310,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                     ledr = (colorToShow >>  0) & 0xFF;
                     ledg = (colorToShow >>  8) & 0xFF;
                     ledb = (colorToShow >> 16) & 0xFF;
-                    //os_printf("cmCW %d, ledCy %d\n", cmColorWheelCount, ledCycle);
+                    //CM_printf("cmCW %d, ledCy %d\n", cmColorWheelCount, ledCycle);
 
 #if USE_NUM_LEDS == 6
                     indLed = ledOrderInd[(i + ledCycle) % USE_NUM_LEDS];
@@ -1531,7 +1531,7 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
     minCheck3 = 32767;
 
     CM_printf("%d leds\n", NUM_LIN_LEDS);
-    //os_printf("%d %d sum: %d\n", getCircularBufferAtIndex(cirBufCrossings, 0), getCircularBufferAtIndex(cirBufCrossings,
+    //CM_printf("%d %d sum: %d\n", getCircularBufferAtIndex(cirBufCrossings, 0), getCircularBufferAtIndex(cirBufCrossings,
     //         -1), sumOfBuffer(cirBufCrossings));
     memset(leds, 0, sizeof(leds));
     memset(deviations, 0, sizeof(deviations));
@@ -1705,12 +1705,12 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
     shockJustHappened = false;
     cmHue = 0;
 
-    os_printf("SwageVersion %d ", SWADGE_VERSION);
+    CM_printf("SwageVersion %d ", SWADGE_VERSION);
     for (uint8_t i = 0; i < 6; i++)
     {
-        os_printf("%d ", ledOrderInd[i]);
+        CM_printf("%d ", ledOrderInd[i]);
     }
-    os_printf("\n");
+    CM_printf("\n");
 }
 void ICACHE_FLASH_ATTR cmChangeState(cmState_t newState)
 {
@@ -1802,7 +1802,7 @@ int32_t mzMinSamp = 30000;
  */
 void ICACHE_FLASH_ATTR cmSampleHandler(int32_t samp)
 {
-    //os_printf("%d\n", samp);
+    //CM_printf("%d\n", samp);
     if (abs(samp) > 0)
     {
         PushSample32( samp );
@@ -1810,18 +1810,18 @@ void ICACHE_FLASH_ATTR cmSampleHandler(int32_t samp)
     else
     {
         PushSample32(0);
-        //os_printf("%d ", samp);
+        //CM_printf("%d ", samp);
     }
     // Here  -2700 < samp < 2780 from audio in demo mode
     // if (samp < mzMinSamp)
     // {
     //     mzMinSamp = samp;
-    //     os_printf("range %d to %d\n", mzMinSamp, mzMaxSamp);
+    //     CM_printf("range %d to %d\n", mzMinSamp, mzMaxSamp);
     // }
     // if (samp > mzMaxSamp)
     // {
     //     mzMaxSamp = samp;
-    //     os_printf("range %d to %d\n", mzMinSamp, mzMaxSamp);
+    //     CM_printf("range %d to %d\n", mzMinSamp, mzMaxSamp);
     // }
 
     cmSamplesProcessed++;
@@ -1829,7 +1829,7 @@ void ICACHE_FLASH_ATTR cmSampleHandler(int32_t samp)
     // If at least NUM_SAMPLES_PER_FRAME samples have been processed
     if( cmSamplesProcessed >= NUM_SAMPLES_PER_FRAME )
     {
-        //os_printf("COLORCHORD_ACTIVE %d DFTIIR %d\n", COLORCHORD_ACTIVE, DFTIIR);
+        //CM_printf("COLORCHORD_ACTIVE %d DFTIIR %d\n", COLORCHORD_ACTIVE, DFTIIR);
         // Don't bother if colorchord is inactive
         if( !COLORCHORD_ACTIVE )
         {
