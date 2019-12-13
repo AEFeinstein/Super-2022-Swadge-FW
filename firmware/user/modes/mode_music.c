@@ -203,7 +203,7 @@ const notePeriod_t scl_Locrian[] = {C_4, C_SHARP_4, D_SHARP_4, F_4, F_SHARP_4, G
 const notePeriod_t scl_Dom_Bebop[] = {C_4, D_4, E_4, F_4, G_4, A_4, A_SHARP_4, B_4, C_5, C_5, D_5, E_5, F_5, G_5, A_5, A_SHARP_5, B_5, C_6, };
 const notePeriod_t scl_M_Bebop[] = {C_4, D_4, E_4, F_4, G_4, G_SHARP_4, A_SHARP_4, B_4, C_5, C_5, D_5, E_5, F_5, G_5, G_SHARP_5, A_SHARP_5, B_5, C_6, };
 const notePeriod_t scl_Whole_Tone[] = {C_4, D_4, E_4, F_SHARP_4, G_SHARP_4, A_SHARP_4, C_5, C_5, D_5, E_5, F_SHARP_5, G_SHARP_5, A_SHARP_5, C_6, };
-const notePeriod_t scl_Dacs[] = {C_4, D_SHARP_4, F_4, F_SHARP_4, G_4, A_4, A_SHARP_4, C_5, D_SHARP_5, F_5, F_SHARP_5, G_5, A_5, A_SHARP_5, C_6};
+const notePeriod_t scl_Dacs[] = {C_4, D_SHARP_4, F_4, F_SHARP_4, G_4, A_4, A_SHARP_4, C_5, D_SHARP_5, F_5, F_SHARP_5, G_5, A_5, C_6};
 const notePeriod_t scl_Chromatic[] = {C_4, C_SHARP_4, D_4, D_SHARP_4, E_4, F_4, F_SHARP_4, G_4, G_SHARP_4, A_4, A_SHARP_4, B_4, C_5, C_5, C_SHARP_5, D_5, D_SHARP_5, E_5, F_5, F_SHARP_5, G_5, G_SHARP_5, A_5, A_SHARP_5, B_5, C_6, };
 #else
 const notePeriod_t scl_M_Penta[] = {C_5, D_5, E_5, G_5, A_5, C_6, C_6, D_6, E_6, G_6, A_6, C_7, };
@@ -221,7 +221,7 @@ const notePeriod_t scl_Locrian[] = {C_5, C_SHARP_5, D_SHARP_5, F_5, F_SHARP_5, G
 const notePeriod_t scl_Dom_Bebop[] = {C_5, D_5, E_5, F_5, G_5, A_5, A_SHARP_5, B_5, C_6, C_6, D_6, E_6, F_6, G_6, A_6, A_SHARP_6, B_6, C_7, };
 const notePeriod_t scl_M_Bebop[] = {C_5, D_5, E_5, F_5, G_5, G_SHARP_5, A_SHARP_5, B_5, C_6, C_6, D_6, E_6, F_6, G_6, G_SHARP_6, A_SHARP_6, B_6, C_7, };
 const notePeriod_t scl_Whole_Tone[] = {C_5, D_5, E_5, F_SHARP_5, G_SHARP_5, A_SHARP_5, C_6, C_6, D_6, E_6, F_SHARP_6, G_SHARP_6, A_SHARP_6, C_7, };
-const notePeriod_t scl_Dacs[] = {C_5, D_SHARP_5, F_5, F_SHARP_5, G_5, A_5, A_SHARP_5, C_6, D_SHARP_6, F_6, F_SHARP_6, G_6, A_6, A_SHARP_6, C_7};
+const notePeriod_t scl_Dacs[] = {C_5, D_SHARP_5, F_5, F_SHARP_5, G_5, A_5, A_SHARP_5, C_6, D_SHARP_6, F_6, F_SHARP_6, G_6, A_6, C_7};
 const notePeriod_t scl_Chromatic[] = {C_5, C_SHARP_5, D_5, D_SHARP_5, E_5, F_5, F_SHARP_5, G_5, G_SHARP_5, A_5, A_SHARP_5, B_5, C_6, C_6, C_SHARP_6, D_6, D_SHARP_6, E_6, F_6, F_SHARP_6, G_6, G_SHARP_6, A_6, A_SHARP_6, B_6, C_7, };
 #endif
 
@@ -339,28 +339,28 @@ const rhythmArp_t one_note[] =
 
 const rhythmArp_t octaves[] =
 {
-    {.note = EIGHTH_NOTE, .arp = 1},
-    {.note = EIGHTH_NOTE, .arp = 13},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 13},
 };
 
 const rhythmArp_t fifth[] =
 {
-    {.note = EIGHTH_NOTE, .arp = 1},
-    {.note = EIGHTH_NOTE, .arp = 8},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 8},
 };
 
 const rhythmArp_t major_tri[] =
 {
-    {.note = EIGHTH_NOTE, .arp = 1},
-    {.note = EIGHTH_NOTE, .arp = 5},
-    {.note = EIGHTH_NOTE, .arp = 8},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 5},
+    {.note = SIXTEENTH_NOTE, .arp = 8},
 };
 
 const rhythmArp_t minor_tri[] =
 {
-    {.note = EIGHTH_NOTE, .arp = 1},
-    {.note = EIGHTH_NOTE, .arp = 4},
-    {.note = EIGHTH_NOTE, .arp = 8},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 4},
+    {.note = SIXTEENTH_NOTE, .arp = 8},
 };
 
 const rhythmArp_t major_7[] =
@@ -455,19 +455,18 @@ const rhythmArp_t j_dawg[] =
     {.note = EIGHTH_NOTE, .arp = 1},
 };
 
-const rhythmArp_t fight[] =
+const rhythmArp_t eightBMT[] =
 {
-    {.note = SIXTEENTH_NOTE, .arp = 1},
     {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = EIGHTH_REST, .arp = 1},
     {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_REST, .arp = 1},
+    {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = EIGHTH_REST, .arp = 1},
     {.note = EIGHTH_NOTE, .arp = 1},
-    {.note = SIXTEENTH_NOTE, .arp = 1},
-    {.note = EIGHTH_NOTE, .arp = 1},
-    {.note = SIXTEENTH_NOTE, .arp = 1},
-    {.note = EIGHTH_NOTE, .arp = 1},
-    {.note = SIXTEENTH_NOTE, .arp = 1},
-    {.note = SIXTEENTH_NOTE, .arp = 1},
-    {.note = EIGHTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_REST, .arp = 1},
+    {.note = DOTTED_EIGHTH_NOTE, .arp = 1},
 };
 
 const rhythmArp_t the_goat[] =
@@ -707,9 +706,9 @@ const rhythm_t rhythms[] =
         .interNotePauseMs = DEFAULT_PAUSE
     },
     {
-        .name = "fight!",
-        .rhythm = fight,
-        .rhythmLen = lengthof(fight),
+        .name = "8BMT",
+        .rhythm = eightBMT,
+        .rhythmLen = lengthof(eightBMT),
         .interNotePauseMs = DEFAULT_PAUSE
     },
     {
