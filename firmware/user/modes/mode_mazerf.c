@@ -20,6 +20,7 @@
 #include <osapi.h>
 #include <user_interface.h>
 #include <stdlib.h>
+#include <mem.h>
 #include "maxtime.h"
 #include "user_main.h"  //swadge mode
 #include "mode_mazerf.h"
@@ -209,9 +210,6 @@ bool ICACHE_FLASH_ATTR mzUpdateBestTimes(uint8_t levelInd,  uint32_t newScore);
 
 // Additional Helper
 void ICACHE_FLASH_ATTR setmazeLeds(led_t* ledData, uint8_t ledDataLen);
-get_maze_output_t ICACHE_FLASH_ATTR get_maze(uint8_t width, uint8_t height, uint8_t xleft[], uint8_t xright[],
-        uint8_t ybot[], uint8_t ytop[], uint8_t xsol[], uint8_t ysol[], float scxcexits[], float scycexits[],
-        uint8_t mazescalex, uint8_t mazescaley);
 uint8_t ICACHE_FLASH_ATTR intervalsmeet(float a, float c, float b, float d, float e, float f, float param[]);
 uint8_t ICACHE_FLASH_ATTR  gonethru(float b_prev[], float b_now[], float p_1[], float p_2[], float rball,
                                     float b_nowadjusted[], float param[]);
@@ -652,10 +650,12 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
 {
     float param[2];
     bool gonethruany;
+
+#ifdef MAZE_DEBUG_PRINT
     static struct maxtime_t maze_updatedisplay_timer = { .name = "maze_updateDisplay"};
-
-
     maxTimeBegin(&maze_updatedisplay_timer);
+#endif
+
     //#define USE_SMOOTHED_ACCEL
 #ifdef USE_SMOOTHED_ACCEL
     // Smooth accelerometer readings
@@ -877,7 +877,9 @@ void ICACHE_FLASH_ATTR mzGameUpdate(void)
         }
     }
 
+#ifdef MAZE_DEBUG_PRINT
     maxTimeEnd(&maze_updatedisplay_timer);
+#endif
 }
 
 #define NUM_SUB_STEPS 5
@@ -1280,12 +1282,12 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
 {
     //Allocate some working array memory now
     //TODO is memory being freed up appropriately?
-    xleft = (uint8_t*)malloc (sizeof (uint8_t) * MAXNUMWALLS);
-    xright = (uint8_t*)malloc (sizeof (uint8_t) * MAXNUMWALLS);
-    ytop = (uint8_t*)malloc (sizeof (uint8_t) * MAXNUMWALLS);
-    ybot = (uint8_t*)malloc (sizeof (uint8_t) * MAXNUMWALLS);
-    xsol = (uint8_t*)malloc (sizeof (uint8_t) * width * (height + 1) / 2);
-    ysol = (uint8_t*)malloc (sizeof (uint8_t) * width * (height + 1) / 2);
+    xleft = (uint8_t*)os_malloc (sizeof (uint8_t) * MAXNUMWALLS);
+    xright = (uint8_t*)os_malloc (sizeof (uint8_t) * MAXNUMWALLS);
+    ytop = (uint8_t*)os_malloc (sizeof (uint8_t) * MAXNUMWALLS);
+    ybot = (uint8_t*)os_malloc (sizeof (uint8_t) * MAXNUMWALLS);
+    xsol = (uint8_t*)os_malloc (sizeof (uint8_t) * width * (height + 1) / 2);
+    ysol = (uint8_t*)os_malloc (sizeof (uint8_t) * width * (height + 1) / 2);
     int16_t i;
     int16_t startvert = 0;
     get_maze_output_t out;
@@ -1296,8 +1298,9 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     gameover = false;
     memset(leds, 0, sizeof(leds));
 
-
+#ifdef MAZE_DEBUG_PRINT
     system_print_meminfo();
+#endif
     maze_printf("Free Heap %d\n", system_get_free_heap_size());
 
     mazescalex = 127 / width;
@@ -1380,10 +1383,10 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
     //Allocate some more working array memory now
     //TODO is memory being freed up appropriately?
 
-    extendedScaledWallXleft = (float*)malloc (sizeof (float) * MAXNUMWALLS);
-    extendedScaledWallXright = (float*)malloc (sizeof (float) * MAXNUMWALLS);
-    extendedScaledWallYtop = (float*)malloc (sizeof (float) * MAXNUMWALLS);
-    extendedScaledWallYbot = (float*)malloc (sizeof (float) * MAXNUMWALLS);
+    extendedScaledWallXleft = (float*)os_malloc (sizeof (float) * MAXNUMWALLS);
+    extendedScaledWallXright = (float*)os_malloc (sizeof (float) * MAXNUMWALLS);
+    extendedScaledWallYtop = (float*)os_malloc (sizeof (float) * MAXNUMWALLS);
+    extendedScaledWallYbot = (float*)os_malloc (sizeof (float) * MAXNUMWALLS);
 
     maze_printf("After Working Arrays allocated Free Heap %d\n", system_get_free_heap_size());
     // extend the scaled walls
@@ -1473,16 +1476,16 @@ void ICACHE_FLASH_ATTR mzNewMazeSetUp(void)
  */
 void ICACHE_FLASH_ATTR mazeFreeMemory(void)
 {
-    free(xleft);
-    free(xright);
-    free(ytop);
-    free(ybot);
-    free(xsol);
-    free(ysol);
-    free(extendedScaledWallXleft);
-    free(extendedScaledWallXright);
-    free(extendedScaledWallYbot);
-    free(extendedScaledWallYtop);
+    os_free(xleft);
+    os_free(xright);
+    os_free(ytop);
+    os_free(ybot);
+    os_free(xsol);
+    os_free(ysol);
+    os_free(extendedScaledWallXleft);
+    os_free(extendedScaledWallXright);
+    os_free(extendedScaledWallYbot);
+    os_free(extendedScaledWallYtop);
 }
 
 

@@ -3,9 +3,8 @@
 // Code by Jacek Wieczorek
 // modified by bbkiwi
 
-
-#include <stdlib.h>
-#include <time.h>
+#include <osapi.h>
+#include <mem.h>
 #include "mazegen.h"
 
 
@@ -60,9 +59,6 @@ uint16_t ICACHE_FLASH_ATTR getPathToRoot(uint8_t xsol[], uint8_t ysol[],  uint8_
         uint8_t ypoint, Node* nodes, uint8_t mazescalex, uint8_t mazescaley );
 int16_t ICACHE_FLASH_ATTR getwallsintervals(uint8_t width, uint8_t height, Node* nodes, uint8_t xleft[],
         uint8_t xright[], uint8_t ybot[], uint8_t ytop[]);
-get_maze_output_t ICACHE_FLASH_ATTR get_maze(uint8_t width, uint8_t height, uint8_t xleft[], uint8_t xright[],
-        uint8_t ybot[], uint8_t ytop[], uint8_t xsol1[], uint8_t ysol1[], float scxcexits[], float scycexits[],
-        uint8_t mazescalex, uint8_t mazescaley);
 void ICACHE_FLASH_ATTR removeParents(uint8_t width, uint8_t height, Node* nodes);
 #if DEBUG
     void ICACHE_FLASH_ATTR draw(uint8_t width, uint8_t height, Node* nodes);
@@ -79,7 +75,7 @@ uint8_t ICACHE_FLASH_ATTR init(uint8_t width, uint8_t height, Node** nodes )
     Node* n;
     //Allocate memory for maze
     maze_printf("width = %d, height = %d, sizeofNode = %d\n", width, height, (uint8_t)sizeof(Node));
-    *nodes = calloc( width * height, sizeof( Node ) );
+    *nodes = os_calloc( width * height, sizeof( Node ) );
     if ( *nodes == NULL )
     {
         return FAIL;
@@ -109,7 +105,7 @@ uint8_t ICACHE_FLASH_ATTR init(uint8_t width, uint8_t height, Node** nodes )
 
 uint8_t ICACHE_FLASH_ATTR deinit(Node* nodes )
 {
-    free(nodes);
+    os_free(nodes);
     return 0;
 }
 

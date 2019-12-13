@@ -19,7 +19,7 @@
 #include <osapi.h>
 #include <user_interface.h>
 #include <stdlib.h>
-#include "maxtime.h"
+// #include "maxtime.h"
 #include "user_main.h"  //swadge mode
 #include "mode_color_movement.h"
 #include "mode_dance.h"
@@ -779,8 +779,8 @@ void ICACHE_FLASH_ATTR cmTitleUpdate(void)
 void ICACHE_FLASH_ATTR cmGameUpdate(void)
 {
     float alphaFast;
-    static struct maxtime_t CM_updatedisplay_timer = { .name = "CM_updateDisplay"};
-    maxTimeBegin(&CM_updatedisplay_timer);
+    // static struct maxtime_t CM_updatedisplay_timer = { .name = "CM_updateDisplay"};
+    // maxTimeBegin(&CM_updatedisplay_timer);
 
     //os_printf("modeTime %d\n", modeTime);
 
@@ -1437,7 +1437,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
 
     // Richard's test. The max time in this loop prints on serial
     // Must stay away from UPDATE_TIME_MS
-    maxTimeEnd(&CM_updatedisplay_timer);
+    // maxTimeEnd(&CM_updatedisplay_timer);
 }
 
 

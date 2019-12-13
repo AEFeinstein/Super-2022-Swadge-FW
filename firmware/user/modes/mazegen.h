@@ -18,11 +18,14 @@
  * Function Prototypes
  *==========================================================================*/
 
-typedef signed short int16_t;
 typedef struct
 {
     int16_t indwall;
     int16_t indSolution;
 } get_maze_output_t;
+
+get_maze_output_t ICACHE_FLASH_ATTR get_maze(uint8_t width, uint8_t height, uint8_t xleft[], uint8_t xright[],
+        uint8_t ybot[], uint8_t ytop[], uint8_t xsol[], uint8_t ysol[], float scxcexits[], float scycexits[],
+        uint8_t mazescalex, uint8_t mazescaley);
 
 #endif /* _MAZEGEN_H_ */
