@@ -1,0 +1,1 @@
+MetalGear:d=8,o=6,b=125:4e5,4d5,2c5,8p,d5,e5,a4,4e5,2d5,c5,d5,2e5,8p,a5,g5,e5,4c5,2d5,e5,a5,2c,8p,b5,c,d,4c,2a5,g5,a5,4b5,8p,c,4b5,a5,g5,1a5,4p,4p,4b5,4a5,2g5,8p,a5,b5,e5,4b5,2a5,g5,a5,2b5,8p,e,d,b5,4g5,2a5,b5,e,2g,8p,f#,g,a,4g,2e,d,e,4f#,8p,g,4f#,e,d,1e,4p,4p
