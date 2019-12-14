@@ -568,6 +568,8 @@ void ICACHE_FLASH_ATTR mnuDrawArrows(void)
     // Draw left and right arrows to indicate button functions
     fillDisplayArea(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, 7, OLED_HEIGHT, BLACK);
     plotText(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "<", IBM_VGA_8, WHITE);
+    fillDisplayArea(OLED_WIDTH / 2 - 12, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, OLED_WIDTH / 2 + 8, OLED_HEIGHT, BLACK);
+    plotText(OLED_WIDTH / 2 - 11, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "START", TOM_THUMB, WHITE);
     fillDisplayArea(OLED_WIDTH - 7, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, OLED_WIDTH, OLED_HEIGHT, BLACK);
     plotText(OLED_WIDTH - 6, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, ">", IBM_VGA_8, WHITE);
 }
