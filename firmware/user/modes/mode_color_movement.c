@@ -1201,7 +1201,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                 //CM_printf("ledCycle %d, modeTime %d, ledPrevIncTime %d\n", ledCycle, modeTime, ledPrevIncTime);
             }
 
-            plotCenteredText(0, 0, OLED_WIDTH, "SHAKE TO FILL", IBM_VGA_8, WHITE);
+            plotCenteredText(0, 0, OLED_WIDTH, "SHAKE GENTLY", IBM_VGA_8, WHITE);
 
             // Draw the outline of a battery
             plotRect(
