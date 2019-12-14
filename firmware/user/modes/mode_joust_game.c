@@ -1401,6 +1401,10 @@ void ICACHE_FLASH_ATTR joustButton( uint8_t state __attribute__((unused)),
             p2pStartConnection(&joust.p2pJoust);
             clearDisplay();
             plotText(0, 0, "Searching", IBM_VGA_8, WHITE);
+            plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1) - 3), "Touch swadges", IBM_VGA_8, WHITE);
+            plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "to start!", IBM_VGA_8, WHITE);
+
+
         }
         else if(1 == button)
         {
