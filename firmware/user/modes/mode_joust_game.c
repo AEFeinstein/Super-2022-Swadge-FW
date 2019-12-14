@@ -668,15 +668,6 @@ void ICACHE_FLASH_ATTR joustMsgCallbackFn(p2pInfo* p2p __attribute__((unused)), 
  */
 void ICACHE_FLASH_ATTR joustInit(void)
 {
-    // If the swadge is muted
-    if(getIsMutedOption())
-    {
-        // Unmute it and init the buzzer
-        setMuteOverride(true);
-        initBuzzer();
-        setBuzzerNote(SILENCE);
-    }
-    
     uint8_t i;
     for(i = 0; i < 6; i++)
     {
