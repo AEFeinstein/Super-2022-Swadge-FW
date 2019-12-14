@@ -240,23 +240,21 @@ static const uint8_t cmBrightnesses[] =
 
 const char* subModeName[] =
 {
-
-
-    "SHOCK CHANGE",
-    "SHOCK CHAOTIC",
+    "BEAT SPIN",
+    "BEAT SELECT",
+    "SHOCK REACT",
+    "SHOCK CHAOS",
     "ROLL BALL",
-  //  "ROLL 3 BALLS",
-    "TILT A COLOR",
-    "TWIRL A COLOR",
+    "ROLL RGB",
+    "TILT COLOR",
+    "TWIRL COLOR",
 #ifdef ENABLE_POV_EFFECT
     "POV EFFECT",
 #endif
 #ifdef COLORCHORD_DFT
     "DFT SHAKE",
 #endif
-    "POWER SHAKE",
-    "BEAT SPIN",
-    "BEAT SELECT",
+    "POW SHAKE"
 };
 
 char* cmShockName[4] = {"BIFF!", "POW!", "BOOM!", "WHAM!"};
@@ -1484,9 +1482,9 @@ void ICACHE_FLASH_ATTR cmGameDisplay(void)
 
     if (stateTime < TITLE_VISIBLE_DURATION)
     {
-        uint8_t adjFlyOut = 4 * (FONT_HEIGHT_IBMVGA8 + 1) * min(1.0 - (float)stateTime / TITLE_VISIBLE_DURATION, 0.25);
+        uint8_t adjFlyOut = 4 * (FONT_HEIGHT_RADIOSTARS + 1) * min(1.0 - (float)stateTime / TITLE_VISIBLE_DURATION, 0.25);
         plotCenteredText(0, OLED_HEIGHT / 2 - adjFlyOut, 127,
-                         (char*)subModeName[cmCurrentSubMode], IBM_VGA_8, WHITE);
+                         (char*)subModeName[cmCurrentSubMode], RADIOSTARS, WHITE);
     }
     // always plot button labels
     plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "<", TOM_THUMB, WHITE);
