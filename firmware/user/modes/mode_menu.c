@@ -186,6 +186,7 @@ void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state __attribute__((unused)),
     // Menu is not panning
     if(down)
     {
+        os_printf("Button press %d\n", button);
         switch(button)
         {
             case 0:
