@@ -876,7 +876,10 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
         snake.score += snake.scoreMultiplier;
 
         // Play a jingle
+        led_t leds[NUM_LIN_LEDS] = {{0}};
+        setLeds(leds, sizeof(leds));
         startBuzzerSong(&foodSfx);
+        setLeds(leds, sizeof(leds));
 
         // Draw a new food somewhere else
         snakePlaceFood();
@@ -892,8 +895,10 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
         snake.score += (snake.scoreMultiplier * snake.critterTimerCount);
 
         // Play a jingle
+        led_t leds[NUM_LIN_LEDS] = {{0}};
+        setLeds(leds, sizeof(leds));
         startBuzzerSong(&critterSfx);
-
+        setLeds(leds, sizeof(leds));
         // Clear the criter
         snake.critterTimerCount = 0;
         snake.posCritter.x = -1;
