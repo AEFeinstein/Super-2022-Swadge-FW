@@ -298,8 +298,7 @@ const galImage_t* galUnlockPlaceholders[4] =
 
 const song_t FourSeasons RODATA_ATTR =
 {
-    .notes =
-    {
+    .notes = {
         {.note = E_5, .timeMs = 286},
         {.note = G_SHARP_5, .timeMs = 71},
         {.note = G_SHARP_5, .timeMs = 71},
@@ -350,7 +349,7 @@ const song_t FourSeasons RODATA_ATTR =
         {.note = SILENCE, .timeMs = 71},
         {.note = F_SHARP_5, .timeMs = 286},
         {.note = D_SHARP_5, .timeMs = 286},
-        {.note = B_4, .timeMs = 857},
+        {.note = B_4, .timeMs = 429},
         {.note = E_5, .timeMs = 286},
         {.note = G_SHARP_5, .timeMs = 71},
         {.note = G_SHARP_5, .timeMs = 71},
@@ -401,7 +400,7 @@ const song_t FourSeasons RODATA_ATTR =
         {.note = SILENCE, .timeMs = 71},
         {.note = F_SHARP_5, .timeMs = 286},
         {.note = D_SHARP_5, .timeMs = 286},
-        {.note = B_4, .timeMs = 857},
+        {.note = B_4, .timeMs = 429},
     },
     .numNotes = 102,
     .shouldLoop = true
