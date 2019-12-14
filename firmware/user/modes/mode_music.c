@@ -129,6 +129,8 @@ typedef struct
     const uint16_t rhythmLen;
     // Inter-note pause
     const uint16_t interNotePauseMs;
+    // Default BPM
+    const uint8_t defaultBpm;
 } rhythm_t;
 
 typedef struct
@@ -203,7 +205,7 @@ const notePeriod_t scl_Locrian[] = {C_4, C_SHARP_4, D_SHARP_4, F_4, F_SHARP_4, G
 const notePeriod_t scl_Dom_Bebop[] = {C_4, D_4, E_4, F_4, G_4, A_4, A_SHARP_4, B_4, C_5, C_5, D_5, E_5, F_5, G_5, A_5, A_SHARP_5, B_5, C_6, };
 const notePeriod_t scl_M_Bebop[] = {C_4, D_4, E_4, F_4, G_4, G_SHARP_4, A_SHARP_4, B_4, C_5, C_5, D_5, E_5, F_5, G_5, G_SHARP_5, A_SHARP_5, B_5, C_6, };
 const notePeriod_t scl_Whole_Tone[] = {C_4, D_4, E_4, F_SHARP_4, G_SHARP_4, A_SHARP_4, C_5, C_5, D_5, E_5, F_SHARP_5, G_SHARP_5, A_SHARP_5, C_6, };
-const notePeriod_t scl_Dacs[] = {C_4, D_SHARP_4, F_4, F_SHARP_4, G_4, A_4, A_SHARP_4, C_5, D_SHARP_5, F_5, F_SHARP_5, G_5, A_5, C_6};
+const notePeriod_t scl_Dacs[] = {C_4, D_SHARP_4, F_4, F_SHARP_4, G_4, A_4, C_5, D_SHARP_5, F_5, F_SHARP_5, G_5, A_5};
 const notePeriod_t scl_Chromatic[] = {C_4, C_SHARP_4, D_4, D_SHARP_4, E_4, F_4, F_SHARP_4, G_4, G_SHARP_4, A_4, A_SHARP_4, B_4, C_5, C_5, C_SHARP_5, D_5, D_SHARP_5, E_5, F_5, F_SHARP_5, G_5, G_SHARP_5, A_5, A_SHARP_5, B_5, C_6, };
 #else
 const notePeriod_t scl_M_Penta[] = {C_5, D_5, E_5, G_5, A_5, C_6, C_6, D_6, E_6, G_6, A_6, C_7, };
@@ -221,7 +223,7 @@ const notePeriod_t scl_Locrian[] = {C_5, C_SHARP_5, D_SHARP_5, F_5, F_SHARP_5, G
 const notePeriod_t scl_Dom_Bebop[] = {C_5, D_5, E_5, F_5, G_5, A_5, A_SHARP_5, B_5, C_6, C_6, D_6, E_6, F_6, G_6, A_6, A_SHARP_6, B_6, C_7, };
 const notePeriod_t scl_M_Bebop[] = {C_5, D_5, E_5, F_5, G_5, G_SHARP_5, A_SHARP_5, B_5, C_6, C_6, D_6, E_6, F_6, G_6, G_SHARP_6, A_SHARP_6, B_6, C_7, };
 const notePeriod_t scl_Whole_Tone[] = {C_5, D_5, E_5, F_SHARP_5, G_SHARP_5, A_SHARP_5, C_6, C_6, D_6, E_6, F_SHARP_6, G_SHARP_6, A_SHARP_6, C_7, };
-const notePeriod_t scl_Dacs[] = {C_5, D_SHARP_5, F_5, F_SHARP_5, G_5, A_5, A_SHARP_5, C_6, D_SHARP_6, F_6, F_SHARP_6, G_6, A_6, C_7};
+const notePeriod_t scl_Dacs[] = {C_5, D_SHARP_5, F_5, F_SHARP_5, G_5, A_5, C_6, D_SHARP_6, F_6, F_SHARP_6, G_6, A_6};
 const notePeriod_t scl_Chromatic[] = {C_5, C_SHARP_5, D_5, D_SHARP_5, E_5, F_5, F_SHARP_5, G_5, G_SHARP_5, A_5, A_SHARP_5, B_5, C_6, C_6, C_SHARP_6, D_6, D_SHARP_6, E_6, F_6, F_SHARP_6, G_6, G_SHARP_6, A_6, A_SHARP_6, B_6, C_7, };
 #endif
 
@@ -413,7 +415,6 @@ const rhythmArp_t syncopa[] =
 
 const rhythmArp_t dw_stabs[] =
 {
-    {.note = SIXTEENTH_REST, .arp = 1},
     {.note = SIXTEENTH_NOTE, .arp = 1},
     {.note = EIGHTH_NOTE, .arp = 1},
     {.note = EIGHTH_NOTE, .arp = 1},
@@ -425,6 +426,7 @@ const rhythmArp_t dw_stabs[] =
     {.note = EIGHTH_NOTE, .arp = 1},
     {.note = SIXTEENTH_NOTE, .arp = 1},
     {.note = SIXTEENTH_NOTE, .arp = 1},
+    {.note = SIXTEENTH_REST, .arp = 1},
 };
 
 const rhythmArp_t legendary[] =
@@ -610,13 +612,13 @@ const rhythmArp_t fifteen_sixteen[] =
 
 const rhythmArp_t sb[] =
 {
-    {.note = EIGHTH_REST, .arp = 1},
     {.note = EIGHTH_NOTE, .arp = 12},
     {.note = DOTTED_EIGHTH_NOTE, .arp = 13},
     {.note = DOTTED_EIGHTH_NOTE, .arp = 12},
     {.note = EIGHTH_NOTE, .arp = 13},
     {.note = DOTTED_EIGHTH_NOTE, .arp = 8},
     {.note = SIXTEENTH_REST, .arp = 1},
+    {.note = EIGHTH_REST, .arp = 1},
 };
 
 const rhythm_t rhythms[] =
@@ -625,157 +627,183 @@ const rhythm_t rhythms[] =
         .name = "Slide",
         .rhythm = constant,
         .rhythmLen = lengthof(constant),
-        .interNotePauseMs = 0
+        .interNotePauseMs = 0,
+        .defaultBpm = 0 // 250
     },
     {
         .name = "Qrtr",
         .rhythm = one_note,
         .rhythmLen = lengthof(one_note),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 5 // 114
     },
     {
         .name = "octave",
         .rhythm = octaves,
         .rhythmLen = lengthof(octaves),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 4 // 139
     },
     {
         .name = "fifth",
         .rhythm = fifth,
         .rhythmLen = lengthof(fifth),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 4 // 139
     },
     {
         .name = "Maj 3",
         .rhythm = major_tri,
         .rhythmLen = lengthof(major_tri),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 3 // 167
     },
     {
         .name = "Min 3",
         .rhythm = minor_tri,
         .rhythmLen = lengthof(minor_tri),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 3 // 167
     },
     {
         .name = "Maj 7",
         .rhythm = major_7,
         .rhythmLen = lengthof(major_7),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 4 // 139
     },
     {
         .name = "Min 7",
         .rhythm = minor_7,
         .rhythmLen = lengthof(minor_7),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 4 // 139
     },
     {
         .name = "Dom 7",
         .rhythm = dom_7,
         .rhythmLen = lengthof(dom_7),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 4 // 139
     },
     {
         .name = "swing",
         .rhythm = swing,
         .rhythmLen = lengthof(swing),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 3 // 167
     },
     {
         .name = "syncop",
         .rhythm = syncopa,
         .rhythmLen = lengthof(syncopa),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 2 // 192
     },
     {
         .name = "dw_stabs",
         .rhythm = dw_stabs,
         .rhythmLen = lengthof(dw_stabs),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 6 // 86
     },
     {
         .name = "lgnd",
         .rhythm = legendary,
         .rhythmLen = lengthof(legendary),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 4 // 139
     },
     {
         .name = "j-dawg",
         .rhythm = j_dawg,
         .rhythmLen = lengthof(j_dawg),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 1 // 227
     },
     {
         .name = "8BMT",
         .rhythm = eightBMT,
         .rhythmLen = lengthof(eightBMT),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 3 // 167
     },
     {
         .name = "goat",
         .rhythm = the_goat,
         .rhythmLen = lengthof(the_goat),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 5 // 114
     },
     {
         .name = "sgp",
         .rhythm = sgp,
         .rhythmLen = lengthof(sgp),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 3 // 167
     },
     {
         .name = "Mars",
         .rhythm = fourth_rock,
         .rhythmLen = lengthof(fourth_rock),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 4 // 139
     },
     {
         .name = "dub",
         .rhythm = dub,
         .rhythmLen = lengthof(dub),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 4 // 139
     },
     {
         .name = "octavio",
         .rhythm = octavio,
         .rhythmLen = lengthof(octavio),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 0 // 250
     },
     {
         .name = "chacha",
         .rhythm = cha_cha,
         .rhythmLen = lengthof(cha_cha),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 3 // 167
     },
     {
         .name = "its-a-me",
         .rhythm = its_a_me,
         .rhythmLen = lengthof(its_a_me),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 3 // 167
     },
     {
         .name = "strange",
         .rhythm = so_strange,
         .rhythmLen = lengthof(so_strange),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 4 // 139
     },
     {
         .name = "sans?",
         .rhythm = sans,
         .rhythmLen = lengthof(sans),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 5 // 114
     },
     {
         .name = "15/16",
         .rhythm = fifteen_sixteen,
         .rhythmLen = lengthof(fifteen_sixteen),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 6 // 86
     },
     {
         .name = "sb",
         .rhythm = sb,
         .rhythmLen = lengthof(sb),
-        .interNotePauseMs = DEFAULT_PAUSE
+        .interNotePauseMs = DEFAULT_PAUSE,
+        .defaultBpm = 6 // 86
     }
 };
 
@@ -894,8 +922,8 @@ void ICACHE_FLASH_ATTR musicEnterMode(void)
     // Clear everything
     memset(&music, 0, sizeof(music));
 
-    // Set default BPM to 114
-    music.bpmIdx = 5;
+    // Set default BPM to default
+    music.bpmIdx = rhythms[music.rhythmIdx].defaultBpm;
 
     // Set a timer to tick every 1ms, forever
     os_timer_disarm(&music.beatTimer);
@@ -968,6 +996,7 @@ void ICACHE_FLASH_ATTR musicButtonCallback(
                     music.timeUs = 0;
                     music.rhythmNoteIdx = 0;
                     music.lastCallTimeUs = 0;
+                    music.bpmIdx = rhythms[music.rhythmIdx].defaultBpm;
                     musicUpdateDisplay();
                 }
                 // Clear this flag on release, always
