@@ -617,7 +617,7 @@ void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int d
     }
     //NOTE for 2020 button 0 can only be used for menu, if want to be able to use momentary press in other modes
     //     change 'else if' to 'if'
-    else if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
+    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
     {
         // Pass the button event to the mode
         swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(state, button, down);
