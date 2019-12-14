@@ -65,8 +65,9 @@
 #define BTN_TITLE_START_SUBMODE RIGHT
 
 // controls (game)
-#define BTN_GAME_CYCLE_BRIGHTNESS LEFT
+#define BTN_GAME_CYCLE_BRIGHTNESS UP
 #define BTN_GAME_NEXT_SUB_MODE RIGHT
+#define BTN_GAME_PREV_SUB_MODE LEFT
 
 // update task (16 would give 60 fps like ipad, need read accel that fast too?)
 //TODO note cant handle 120 fps using 8ms
@@ -754,7 +755,7 @@ void ICACHE_FLASH_ATTR cmTitleInput(void)
 
 void ICACHE_FLASH_ATTR cmGameInput(void)
 {
-    //button b = back change submode
+    //button b next submode
     if(cmIsButtonPressed(BTN_GAME_NEXT_SUB_MODE))
     {
         cmCurrentSubMode = (cmCurrentSubMode + 1) % cmNumSubModes;
@@ -763,7 +764,23 @@ void ICACHE_FLASH_ATTR cmGameInput(void)
         cmNewSetup(cmCurrentSubMode);
         cmChangeState(CM_GAME);
     }
-    //button a = cycle brightness
+    //button a previous submode
+    else  if(cmIsButtonPressed(BTN_GAME_PREV_SUB_MODE))
+    {
+        if (0 == cmCurrentSubMode)
+        {
+            cmCurrentSubMode = cmNumSubModes - 1;
+        }
+        else
+        {
+            cmCurrentSubMode--;
+        }
+        CM_printf("currentSubMode = %d\n", cmCurrentSubMode);
+        //reset init conditions for new method
+        cmNewSetup(cmCurrentSubMode);
+        cmChangeState(CM_GAME);
+    }
+    //start button cycle brightness
     else if(cmIsButtonPressed(BTN_GAME_CYCLE_BRIGHTNESS))
     {
         // Cycle brightnesses
@@ -1468,15 +1485,13 @@ void ICACHE_FLASH_ATTR cmGameDisplay(void)
     if (stateTime < TITLE_VISIBLE_DURATION)
     {
         uint8_t adjFlyOut = 4 * (FONT_HEIGHT_IBMVGA8 + 1) * min(1.0 - (float)stateTime / TITLE_VISIBLE_DURATION, 0.25);
-        plotCenteredText(0, OLED_HEIGHT - adjFlyOut, 127,
+        plotCenteredText(0, OLED_HEIGHT / 2 - adjFlyOut, 127,
                          (char*)subModeName[cmCurrentSubMode], IBM_VGA_8, WHITE);
     }
-    else
-    {
-        // If the title isn't visible, plot button labels
-        plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Brightness", TOM_THUMB, WHITE);
-        plotText(OLED_WIDTH - 16, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Mode", TOM_THUMB, WHITE);
-    }
+    // always plot button labels
+    plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "<", TOM_THUMB, WHITE);
+    plotText(OLED_WIDTH / 2 - 20, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "BRIGHTNESS", TOM_THUMB, WHITE);
+    plotText(OLED_WIDTH - 3, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, ">", TOM_THUMB, WHITE);
 
 
     if ((cmBrightnessRamp > 127) && ((cmCurrentSubMode == SHOCK_CHANGE) || (cmCurrentSubMode == SHOCK_CHAOTIC)))
