@@ -466,8 +466,9 @@ void ICACHE_FLASH_ATTR galExitMode(void)
  */
 void ICACHE_FLASH_ATTR galRearmMusicTimer(void)
 {
+    stopBuzzerSong();
     os_timer_disarm(&gal.timerMusic);
-    os_timer_arm(&gal.timerMusic, 10 * 1000, false);
+    os_timer_arm(&gal.timerMusic, 7 * 1000, false);
 }
 
 /**
@@ -822,7 +823,10 @@ void ICACHE_FLASH_ATTR galDrawFrame(void)
  */
 static void ICACHE_FLASH_ATTR galTimerMusic(void* arg __attribute__((unused)))
 {
-    startBuzzerSong(getRandSong());
+    if(0 == gal.cImage)
+    {
+        startBuzzerSong(getRandSong());
+    }
 }
 
 /**
