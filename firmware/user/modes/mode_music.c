@@ -307,7 +307,7 @@ const scale_t scales[] =
     {
         .name = "DACs",
         .notes = scl_Dacs,
-        .notesLen = lengthof(scl_Whole_Tone)
+        .notesLen = lengthof(scl_Dacs)
     },
     {
         .name = "Chroma",
