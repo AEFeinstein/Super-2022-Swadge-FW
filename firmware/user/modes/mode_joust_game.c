@@ -1071,7 +1071,7 @@ void ICACHE_FLASH_ATTR joustGameLedTimeout(void* arg __attribute__((unused)) )
         case LED_CONNECTED_BRIGHT:
         {
             joust.led.currBrightness++;
-            if(joust.led.currBrightness == 30)
+            if(joust.led.currBrightness == 64)
             {
                 joust.led.ConnLedState = LED_CONNECTED_DIM;
             }
@@ -1098,12 +1098,22 @@ void ICACHE_FLASH_ATTR joustGameLedTimeout(void* arg __attribute__((unused)) )
             break;
         }
     }
+
+    // When there's a warning, flash the LEDs
+    uint32_t ledColor = joust.con_color;
+    uint8_t ledBright = joust.led.currBrightness;
+    if(joust.mov > joust.rolling_average + WARNING_THRESHOLD)
+    {
+        ledBright = 255;
+        ledColor = 0;
+    }
+
     uint8_t i;
     for(i = 0; i < 6; i++)
     {
-        joust.led.Leds[i].r = (EHSVtoHEX(joust.con_color, 255,  joust.led.currBrightness) >>  0) & 0xFF;
-        joust.led.Leds[i].g = (EHSVtoHEX(joust.con_color, 255,  joust.led.currBrightness) >>  8) & 0xFF;
-        joust.led.Leds[i].b = (EHSVtoHEX(joust.con_color, 255,  joust.led.currBrightness) >> 16) & 0xFF;
+        joust.led.Leds[i].r = (EHSVtoHEX(ledColor, 255, ledBright) >>  0) & 0xFF;
+        joust.led.Leds[i].g = (EHSVtoHEX(ledColor, 255, ledBright) >>  8) & 0xFF;
+        joust.led.Leds[i].b = (EHSVtoHEX(ledColor, 255, ledBright) >> 16) & 0xFF;
     }
 
     setLeds(joust.led.Leds, sizeof(joust.led.Leds));
@@ -1383,6 +1393,7 @@ void ICACHE_FLASH_ATTR joustButton( uint8_t state __attribute__((unused)),
     {
         // Stop the scrolling text
         os_timer_disarm(&joust.tmr.ScrollInstructions);
+        setOledDrawTime(100);
 
         if(2 == button)
         {
@@ -1399,6 +1410,7 @@ void ICACHE_FLASH_ATTR joustButton( uint8_t state __attribute__((unused)),
             joustDisarmAllLedTimers();
             joust.led.currBrightness = 0;
             joust.led.ConnLedState = LED_CONNECTED_BRIGHT;
+            joust.con_color = 140; // blue-green
             os_timer_arm(&joust.tmr.ShowConnectionLedFFA, 50, true);
             clearDisplay();
             plotText(0, 0, "GET READY", IBM_VGA_8, WHITE);
