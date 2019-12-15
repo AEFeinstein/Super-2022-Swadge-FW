@@ -23,6 +23,7 @@
 #include "hpatimer.h"
 #include "bresenham.h"
 #include "mode_tiltrads.h"
+#include "songs.h"
 
 /*==============================================================================
  * Defines
@@ -404,116 +405,6 @@ const galImage_t* galUnlockPlaceholders[4] =
     &galUnlockSnake,
     &galUnlockTiltrads,
     &galUnlockMaze
-};
-
-const song_t FourSeasons RODATA_ATTR =
-{
-    .notes = {
-        {.note = E_5, .timeMs = 286},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = SILENCE, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = SILENCE, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = SILENCE, .timeMs = 71},
-        {.note = F_SHARP_5, .timeMs = 143},
-        {.note = E_5, .timeMs = 143},
-        {.note = B_5, .timeMs = 857},
-        {.note = SILENCE, .timeMs = 71},
-        {.note = B_5, .timeMs = 143},
-        {.note = A_5, .timeMs = 143},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = SILENCE, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = SILENCE, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = SILENCE, .timeMs = 71},
-        {.note = F_SHARP_5, .timeMs = 143},
-        {.note = E_5, .timeMs = 143},
-        {.note = B_5, .timeMs = 857},
-        {.note = SILENCE, .timeMs = 71},
-        {.note = B_5, .timeMs = 143},
-        {.note = A_5, .timeMs = 143},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = SILENCE, .timeMs = 71},
-        {.note = A_5, .timeMs = 143},
-        {.note = B_5, .timeMs = 143},
-        {.note = A_5, .timeMs = 286},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = SILENCE, .timeMs = 71},
-        {.note = F_SHARP_5, .timeMs = 286},
-        {.note = D_SHARP_5, .timeMs = 286},
-        {.note = B_4, .timeMs = 429},
-        {.note = E_5, .timeMs = 286},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = SILENCE, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = SILENCE, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = SILENCE, .timeMs = 71},
-        {.note = F_SHARP_5, .timeMs = 143},
-        {.note = E_5, .timeMs = 143},
-        {.note = B_5, .timeMs = 857},
-        {.note = SILENCE, .timeMs = 71},
-        {.note = B_5, .timeMs = 143},
-        {.note = A_5, .timeMs = 143},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = SILENCE, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = SILENCE, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = SILENCE, .timeMs = 71},
-        {.note = F_SHARP_5, .timeMs = 143},
-        {.note = E_5, .timeMs = 143},
-        {.note = B_5, .timeMs = 857},
-        {.note = SILENCE, .timeMs = 71},
-        {.note = B_5, .timeMs = 143},
-        {.note = A_5, .timeMs = 143},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = SILENCE, .timeMs = 71},
-        {.note = A_5, .timeMs = 143},
-        {.note = B_5, .timeMs = 143},
-        {.note = A_5, .timeMs = 286},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = G_SHARP_5, .timeMs = 71},
-        {.note = SILENCE, .timeMs = 71},
-        {.note = F_SHARP_5, .timeMs = 286},
-        {.note = D_SHARP_5, .timeMs = 286},
-        {.note = B_4, .timeMs = 429},
-    },
-    .numNotes = 102,
-    .shouldLoop = true
 };
 
 /*==============================================================================
@@ -931,7 +822,7 @@ void ICACHE_FLASH_ATTR galDrawFrame(void)
  */
 static void ICACHE_FLASH_ATTR galTimerMusic(void* arg __attribute__((unused)))
 {
-    startBuzzerSong(&FourSeasons);
+    startBuzzerSong(getRandSong());
 }
 
 /**
