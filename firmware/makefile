@@ -184,7 +184,7 @@ LINKER_SCRIPTS = \
 	eagle.rom.addr.v6.ld
 
 # This adds the flags and directories to the linker scripts
-LINKER_SCRIPT_FLAGS = $(patsubst %, -T $(SDK)/ld/%, $(LINKER_SCRIPTS))
+LINKER_SCRIPT_FLAGS = $(patsubst %, -T ./ld/%, $(LINKER_SCRIPTS))
 
 ################################################################################
 # Build Filenames

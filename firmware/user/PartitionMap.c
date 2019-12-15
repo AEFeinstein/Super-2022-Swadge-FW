@@ -38,7 +38,7 @@
 static const partition_item_t partition_table_opt2[] =
 {
     { EAGLE_FLASH_BIN_ADDR,              0x00000,                                     0x10000},
-    { EAGLE_IROM0TEXT_BIN_ADDR,          0x10000,                                     0x60000},
+    { EAGLE_IROM0TEXT_BIN_ADDR,          0x10000,                                     0xBC000},
     { SYSTEM_PARTITION_RF_CAL,           SYSTEM_PARTITION_RF_CAL_ADDR_OPT2,           0x1000},
     { SYSTEM_PARTITION_PHY_DATA,         SYSTEM_PARTITION_PHY_DATA_ADDR_OPT2,         0x1000},
     { SYSTEM_PARTITION_SYSTEM_PARAMETER, SYSTEM_PARTITION_SYSTEM_PARAMETER_ADDR_OPT2, 0x3000},
@@ -47,7 +47,7 @@ static const partition_item_t partition_table_opt2[] =
 static const partition_item_t partition_table_opt3[] =
 {
     { EAGLE_FLASH_BIN_ADDR,              0x00000,                                     0x10000},
-    { EAGLE_IROM0TEXT_BIN_ADDR,          0x10000,                                     0x60000},
+    { EAGLE_IROM0TEXT_BIN_ADDR,          0x10000,                                     0xC0000},
     { SYSTEM_PARTITION_RF_CAL,           SYSTEM_PARTITION_RF_CAL_ADDR_OPT3,           0x1000},
     { SYSTEM_PARTITION_PHY_DATA,         SYSTEM_PARTITION_PHY_DATA_ADDR_OPT3,         0x1000},
     { SYSTEM_PARTITION_SYSTEM_PARAMETER, SYSTEM_PARTITION_SYSTEM_PARAMETER_ADDR_OPT3, 0x3000},
@@ -56,7 +56,7 @@ static const partition_item_t partition_table_opt3[] =
 static const partition_item_t partition_table_opt4[] =
 {
     { EAGLE_FLASH_BIN_ADDR,              0x00000,                                     0x10000},
-    { EAGLE_IROM0TEXT_BIN_ADDR,          0x10000,                                     0x60000},
+    { EAGLE_IROM0TEXT_BIN_ADDR,          0x10000,                                     0xC0000},
     { SYSTEM_PARTITION_RF_CAL,           SYSTEM_PARTITION_RF_CAL_ADDR_OPT4,           0x1000},
     { SYSTEM_PARTITION_PHY_DATA,         SYSTEM_PARTITION_PHY_DATA_ADDR_OPT4,         0x1000},
     { SYSTEM_PARTITION_SYSTEM_PARAMETER, SYSTEM_PARTITION_SYSTEM_PARAMETER_ADDR_OPT4, 0x3000},
