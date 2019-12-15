@@ -7,14 +7,14 @@
 //
 // Created 28 September 2019 Author Richard Jones
 
-void maxTimeBegin( struct maxtime_t* mymaxtime )
+void ICACHE_FLASH_ATTR maxTimeBegin( struct maxtime_t* mymaxtime )
 {
     uint32_t time_now_us = system_get_time();
     mymaxtime->period_us = time_now_us - mymaxtime->start_us ;
     mymaxtime->start_us  = time_now_us;
 }
 
-void maxTimeEnd  ( struct maxtime_t* mymaxtime )
+void ICACHE_FLASH_ATTR maxTimeEnd  ( struct maxtime_t* mymaxtime )
 {
     uint32_t time_now_us = system_get_time();
     if ( ( time_now_us - mymaxtime->start_us ) > mymaxtime->max_us  )

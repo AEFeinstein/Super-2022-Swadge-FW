@@ -1759,7 +1759,7 @@ void ICACHE_FLASH_ATTR plotCenteredText(uint8_t x0, uint8_t y, uint8_t x1, char*
     plotText(centeredX, y, text, font, col);
 }
 
-uint8_t getTextWidth(char* text, fonts font)
+uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font)
 {
     // NOTE: The inverse, inverse is cute, but 2 draw calls, could we draw it outside of the display area but still in bounds of a uint8_t?
 
@@ -1777,7 +1777,7 @@ uint8_t getTextWidth(char* text, fonts font)
 
 
 // Fisher–Yates Shuffle
-void mzshuffle(int length, int array[length])
+void ICACHE_FLASH_ATTR mzshuffle(int length, int array[length])
 {
     for (int i = length - 1; i > 0; i--)
     {

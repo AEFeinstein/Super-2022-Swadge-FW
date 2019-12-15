@@ -520,7 +520,7 @@ uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr)
  *
  * @param drawTimeMs
  */
-void setOledDrawTime(uint32_t drawTimeMs)
+void ICACHE_FLASH_ATTR setOledDrawTime(uint32_t drawTimeMs)
 {
     os_timer_disarm(&timerHandleUpdateDisplay);
     os_timer_arm(&timerHandleUpdateDisplay, drawTimeMs, true);
@@ -531,17 +531,17 @@ void setOledDrawTime(uint32_t drawTimeMs)
  *
  * @param drawTimeMs
  */
-void setAccelPollTime(uint32_t pollTimeMs)
+void ICACHE_FLASH_ATTR setAccelPollTime(uint32_t pollTimeMs)
 {
     os_timer_disarm(&timerHandlePollAccel);
     os_timer_arm(&timerHandlePollAccel, pollTimeMs, true);
 }
 
 #else
-void setOledDrawTime(uint32_t drawTimeMs)
+void ICACHE_FLASH_ATTR setOledDrawTime(uint32_t drawTimeMs)
 {
 }
-void setAccelPollTime(uint32_t pollTimeMs)
+void ICACHE_FLASH_ATTR setAccelPollTime(uint32_t pollTimeMs)
 {
 }
 #endif
