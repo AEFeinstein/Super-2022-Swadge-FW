@@ -5,13 +5,22 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(gdb) Launch Metal Gear",
+            "name": "(gdb) Launch Gallery",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/rtttl2c",
             "args": [
+                "Swadgetones/bubble.txt",
+                "Swadgetones/dkc2title.txt",
+                "Swadgetones/gerudo.txt",
+                "Swadgetones/mkombat.txt",
+                "Swadgetones/tetris.txt",
+                "Swadgetones/ctfrog.txt",
+                "Swadgetones/dkcjung.txt",
+                "Swadgetones/kraid.txt",
+                "Swadgetones/sm2dac.txt",
+                "Swadgetones/wario.txt",
                 "Swadgetones/FourSeasons.txt",
-                "Swadgetones/MetalGear.txt",
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
@@ -28,12 +37,12 @@
             "preLaunchTask": "make"
         },
         {
-            "name": "(gdb) Launch Vivaldi",
+            "name": "(gdb) Launch Metal Gear",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/rtttl2c",
             "args": [
-                "FourSeasons:d=16,o=5,b=105:8e,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,f#,e,4b.,32p,b,a,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,f#,e,4b.,32p,b,a,32g#,32g#,32g#,32p,a,b,8a,32g#,32g#,32g#,32p,8f#,8d#,4b4.,8e,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,f#,e,4b.,32p,b,a,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,32g#,32g#,32g#,32p,f#,e,4b.,32p,b,a,32g#,32g#,32g#,32p,a,b,8a,32g#,32g#,32g#,32p,8f#,8d#,4b4."
+                "Swadgetones/MetalGear.txt",
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
@@ -46,7 +55,8 @@
                     "text": "-enable-pretty-printing",
                     "ignoreFailures": true
                 }
-            ]
+            ],
+            "preLaunchTask": "make"
         }
     ]
 }
