@@ -46,6 +46,8 @@
 #define JOUST_FIELD_WIDTH  SPRITE_DIM * 20
 #define JOUST_FIELD_HEIGHT SPRITE_DIM * 11
 
+#define WARNING_THRESHOLD 20
+
 /*============================================================================
  * Enums
  *==========================================================================*/
@@ -1157,8 +1159,30 @@ void ICACHE_FLASH_ATTR joustUpdateDisplay(void)
 {
     // Clear the display
     clearDisplay();
+
+    // Figure out what title to draw
+    static uint8_t showWarningFrames = 0;
+    if(joust.mov > joust.rolling_average + WARNING_THRESHOLD)
+    {
+        // Buzz a little as a warning
+        startBuzzerSong(&joustbeepSFX);
+        showWarningFrames = 15;
+    }
+    else if(0 < showWarningFrames)
+    {
+        showWarningFrames--;
+    }
+
     // Draw a title
-    plotText(0, 0, "JOUST METER", RADIOSTARS, WHITE);
+    if(0 < showWarningFrames)
+    {
+        plotCenteredText(0, 0, OLED_WIDTH, "!! Warning !!", RADIOSTARS, WHITE);
+    }
+    else
+    {
+        plotCenteredText(0, 0, OLED_WIDTH, "Joust Meter", RADIOSTARS, WHITE);
+    }
+
     // Display the acceleration on the display
     plotRect(
         0,
@@ -1232,10 +1256,6 @@ void ICACHE_FLASH_ATTR joustAccelerometerHandler(accel_t* accel)
                 {
                     joustRoundResultFFA();
                 }
-            }
-            else if(joust.mov > joust.rolling_average + 20)
-            {
-                startBuzzerSong(&joustbeepSFX);
             }
             else
             {
