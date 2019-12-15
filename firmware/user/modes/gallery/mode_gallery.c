@@ -278,10 +278,120 @@ const galImage_t galUnlockSnake =
     }
 };
 
+const galImage_t wink =
+{
+    .nFrames = 16,
+    .frames =
+    {
+        {.data = gal_wink_0, .len = sizeof(gal_wink_0)},
+        {.data = gal_wink_1, .len = sizeof(gal_wink_1)},
+        {.data = gal_wink_2, .len = sizeof(gal_wink_2)},
+        {.data = gal_wink_3, .len = sizeof(gal_wink_3)},
+        {.data = gal_wink_4, .len = sizeof(gal_wink_4)},
+        {.data = gal_wink_5, .len = sizeof(gal_wink_5)},
+        {.data = gal_wink_6, .len = sizeof(gal_wink_6)},
+        {.data = gal_wink_7, .len = sizeof(gal_wink_7)},
+        {.data = gal_wink_8, .len = sizeof(gal_wink_8)},
+        {.data = gal_wink_9, .len = sizeof(gal_wink_9)},
+        {.data = gal_wink_10, .len = sizeof(gal_wink_10)},
+        {.data = gal_wink_11, .len = sizeof(gal_wink_11)},
+        {.data = gal_wink_12, .len = sizeof(gal_wink_12)},
+        {.data = gal_wink_13, .len = sizeof(gal_wink_13)},
+        {.data = gal_wink_14, .len = sizeof(gal_wink_14)},
+        {.data = gal_wink_15, .len = sizeof(gal_wink_15)},
+
+
+        {.data = gal_magsquare_0, .len = sizeof(gal_magsquare_0)},
+        {.data = gal_magsquare_1, .len = sizeof(gal_magsquare_1)},
+        {.data = gal_magsquare_2, .len = sizeof(gal_magsquare_2)},
+        {.data = gal_magsquare_3, .len = sizeof(gal_magsquare_3)},
+        {.data = gal_magvania_0, .len = sizeof(gal_magvania_0)},
+        {.data = gal_magvania_1, .len = sizeof(gal_magvania_1)},
+        {.data = gal_magvania_10, .len = sizeof(gal_magvania_10)},
+        {.data = gal_magvania_11, .len = sizeof(gal_magvania_11)},
+        {.data = gal_magvania_12, .len = sizeof(gal_magvania_12)},
+        {.data = gal_magvania_13, .len = sizeof(gal_magvania_13)},
+        {.data = gal_magvania_14, .len = sizeof(gal_magvania_14)},
+        {.data = gal_magvania_15, .len = sizeof(gal_magvania_15)},
+        {.data = gal_magvania_2, .len = sizeof(gal_magvania_2)},
+        {.data = gal_magvania_3, .len = sizeof(gal_magvania_3)},
+        {.data = gal_magvania_4, .len = sizeof(gal_magvania_4)},
+        {.data = gal_magvania_5, .len = sizeof(gal_magvania_5)},
+        {.data = gal_magvania_6, .len = sizeof(gal_magvania_6)},
+        {.data = gal_magvania_7, .len = sizeof(gal_magvania_7)},
+        {.data = gal_magvania_8, .len = sizeof(gal_magvania_8)},
+        {.data = gal_magvania_9, .len = sizeof(gal_magvania_9)},
+
+    }
+};
+
+const galImage_t galWink =
+{
+    .nFrames = 16,
+    .frames =
+    {
+        {.data = gal_wink_0, .len = sizeof(gal_wink_0)},
+        {.data = gal_wink_1, .len = sizeof(gal_wink_1)},
+        {.data = gal_wink_2, .len = sizeof(gal_wink_2)},
+        {.data = gal_wink_3, .len = sizeof(gal_wink_3)},
+        {.data = gal_wink_4, .len = sizeof(gal_wink_4)},
+        {.data = gal_wink_5, .len = sizeof(gal_wink_5)},
+        {.data = gal_wink_6, .len = sizeof(gal_wink_6)},
+        {.data = gal_wink_7, .len = sizeof(gal_wink_7)},
+        {.data = gal_wink_8, .len = sizeof(gal_wink_8)},
+        {.data = gal_wink_9, .len = sizeof(gal_wink_9)},
+        {.data = gal_wink_10, .len = sizeof(gal_wink_10)},
+        {.data = gal_wink_11, .len = sizeof(gal_wink_11)},
+        {.data = gal_wink_12, .len = sizeof(gal_wink_12)},
+        {.data = gal_wink_13, .len = sizeof(gal_wink_13)},
+        {.data = gal_wink_14, .len = sizeof(gal_wink_14)},
+        {.data = gal_wink_15, .len = sizeof(gal_wink_15)}
+    }
+};
+
+const galImage_t galMagsquare =
+{
+    .nFrames = 4,
+    .frames =
+    {
+        {.data = gal_magsquare_0, .len = sizeof(gal_magsquare_0)},
+        {.data = gal_magsquare_1, .len = sizeof(gal_magsquare_1)},
+        {.data = gal_magsquare_2, .len = sizeof(gal_magsquare_2)},
+        {.data = gal_magsquare_3, .len = sizeof(gal_magsquare_3)},
+    }
+};
+
+const galImage_t galMagvania =
+{
+    .nFrames = 16,
+    .frames =
+    {
+        {.data = gal_magvania_0, .len = sizeof(gal_magvania_0)},
+        {.data = gal_magvania_1, .len = sizeof(gal_magvania_1)},
+        {.data = gal_magvania_2, .len = sizeof(gal_magvania_2)},
+        {.data = gal_magvania_3, .len = sizeof(gal_magvania_3)},
+        {.data = gal_magvania_4, .len = sizeof(gal_magvania_4)},
+        {.data = gal_magvania_5, .len = sizeof(gal_magvania_5)},
+        {.data = gal_magvania_6, .len = sizeof(gal_magvania_6)},
+        {.data = gal_magvania_7, .len = sizeof(gal_magvania_7)},
+        {.data = gal_magvania_8, .len = sizeof(gal_magvania_8)},
+        {.data = gal_magvania_9, .len = sizeof(gal_magvania_9)},
+        {.data = gal_magvania_10, .len = sizeof(gal_magvania_10)},
+        {.data = gal_magvania_11, .len = sizeof(gal_magvania_11)},
+        {.data = gal_magvania_12, .len = sizeof(gal_magvania_12)},
+        {.data = gal_magvania_13, .len = sizeof(gal_magvania_13)},
+        {.data = gal_magvania_14, .len = sizeof(gal_magvania_14)},
+        {.data = gal_magvania_15, .len = sizeof(gal_magvania_15)},
+    }
+};
+
 // Order matters, must match galUnlockPlaceholders
-const galImage_t* galImages[5] =
+const galImage_t* galImages[8] =
 {
     &galLogo,    // Already unlocked
+    &galMagsquare,
+    &galMagvania,
+    &galWink,
     &galBongo,   // Joust
     &galFunkus,  // Snake
     &galGaylord, // Tiltrads
@@ -567,10 +677,10 @@ const galImage_t* ICACHE_FLASH_ATTR galGetCurrentImage(void)
 {
     const galImage_t* imageToLoad;
     // If we're not on the first image
-    if(gal.cImage > 0)
+    if(gal.cImage > 3)
     {
         // Check to see if it's unlocked
-        if(getGalleryUnlocks() & 1 << (gal.cImage - 1))
+        if(getGalleryUnlocks() & 1 << (gal.cImage - 4))
         {
             // unlocked
             imageToLoad = galImages[gal.cImage];
@@ -578,7 +688,7 @@ const galImage_t* ICACHE_FLASH_ATTR galGetCurrentImage(void)
         else
         {
             // Not unlocked
-            imageToLoad = galUnlockPlaceholders[gal.cImage - 1];
+            imageToLoad = galUnlockPlaceholders[gal.cImage - 4];
         }
     }
     else
