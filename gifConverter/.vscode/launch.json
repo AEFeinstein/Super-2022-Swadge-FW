@@ -34,6 +34,29 @@
             ]
         },
         {
+            "name": "lzCompressor Launch Gallery2",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/lzCompressor",
+            "args": [
+                "bins/magsquare.bin",
+                "bins/magvania.bin",
+                "bins/wink.bin",
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
             "name": "lzCompressor Launch Menu",
             "type": "cppdbg",
             "request": "launch",
