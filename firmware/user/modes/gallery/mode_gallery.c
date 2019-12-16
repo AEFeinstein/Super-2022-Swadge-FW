@@ -706,7 +706,6 @@ void ICACHE_FLASH_ATTR galExitMode(void)
  */
 void ICACHE_FLASH_ATTR galRearmMusicTimer(void)
 {
-    stopBuzzerSong();
     os_timer_disarm(&gal.timerMusic);
     os_timer_arm(&gal.timerMusic, 7 * 1000, false);
 }
@@ -781,7 +780,7 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
  */
 bool ICACHE_FLASH_ATTR galIsImageUnlocked(void)
 {
-    if(gal.cImage > 0)
+    if(gal.cImage > 11)
     {
         // Check to see if it's unlocked
         if(getGalleryUnlocks() & 1 << (gal.cImage - 12))
@@ -1013,7 +1012,7 @@ void ICACHE_FLASH_ATTR galDrawFrame(void)
             uint16_t linearIdx;
             if(galImages[gal.cImage]->continousPan == NONE)
             {
-                
+
                 linearIdx = (OLED_HEIGHT * (w + gal.panIdx)) + h;
             }
             else
@@ -1063,10 +1062,7 @@ void ICACHE_FLASH_ATTR galDrawFrame(void)
  */
 static void ICACHE_FLASH_ATTR galTimerMusic(void* arg __attribute__((unused)))
 {
-    if(0 == gal.cImage)
-    {
-        startBuzzerSong(getRandSong());
-    }
+    startBuzzerSong(getRandSong());
 }
 
 /**
