@@ -279,120 +279,308 @@ const galImage_t galUnlockSnake =
     }
 };
 
+const galImage_t bananas_animals =
+{
+    .nFrames = 30,
+    .continousPan = NONE,
+    .frames = {
+        {.data = gal_bananas_animals_00, .len = sizeof(gal_bananas_animals_00)},
+        {.data = gal_bananas_animals_01, .len = sizeof(gal_bananas_animals_01)},
+        {.data = gal_bananas_animals_02, .len = sizeof(gal_bananas_animals_02)},
+        {.data = gal_bananas_animals_03, .len = sizeof(gal_bananas_animals_03)},
+        {.data = gal_bananas_animals_04, .len = sizeof(gal_bananas_animals_04)},
+        {.data = gal_bananas_animals_05, .len = sizeof(gal_bananas_animals_05)},
+        {.data = gal_bananas_animals_06, .len = sizeof(gal_bananas_animals_06)},
+        {.data = gal_bananas_animals_07, .len = sizeof(gal_bananas_animals_07)},
+        {.data = gal_bananas_animals_08, .len = sizeof(gal_bananas_animals_08)},
+    }
+};
+
+const galImage_t colossus =
+{
+    .nFrames = 30,
+    .continousPan = NONE,
+    .frames = {
+        {.data = gal_colossus_00, .len = sizeof(gal_colossus_00)},
+        {.data = gal_colossus_01, .len = sizeof(gal_colossus_01)},
+        {.data = gal_colossus_02, .len = sizeof(gal_colossus_02)},
+        {.data = gal_colossus_03, .len = sizeof(gal_colossus_03)},
+        {.data = gal_colossus_04, .len = sizeof(gal_colossus_04)},
+        {.data = gal_colossus_05, .len = sizeof(gal_colossus_05)},
+        {.data = gal_colossus_06, .len = sizeof(gal_colossus_06)},
+        {.data = gal_colossus_07, .len = sizeof(gal_colossus_07)},
+        {.data = gal_colossus_08, .len = sizeof(gal_colossus_08)},
+        {.data = gal_colossus_09, .len = sizeof(gal_colossus_09)},
+        {.data = gal_colossus_10, .len = sizeof(gal_colossus_10)},
+        {.data = gal_colossus_11, .len = sizeof(gal_colossus_11)},
+        {.data = gal_colossus_12, .len = sizeof(gal_colossus_12)},
+        {.data = gal_colossus_13, .len = sizeof(gal_colossus_13)},
+        {.data = gal_colossus_14, .len = sizeof(gal_colossus_14)},
+        {.data = gal_colossus_15, .len = sizeof(gal_colossus_15)},
+        {.data = gal_colossus_16, .len = sizeof(gal_colossus_16)},
+        {.data = gal_colossus_17, .len = sizeof(gal_colossus_17)},
+        {.data = gal_colossus_18, .len = sizeof(gal_colossus_18)},
+        {.data = gal_colossus_19, .len = sizeof(gal_colossus_19)},
+        {.data = gal_colossus_20, .len = sizeof(gal_colossus_20)},
+        {.data = gal_colossus_21, .len = sizeof(gal_colossus_21)},
+        {.data = gal_colossus_22, .len = sizeof(gal_colossus_22)},
+        {.data = gal_colossus_23, .len = sizeof(gal_colossus_23)},
+        {.data = gal_colossus_24, .len = sizeof(gal_colossus_24)},
+        {.data = gal_colossus_25, .len = sizeof(gal_colossus_25)},
+        {.data = gal_colossus_26, .len = sizeof(gal_colossus_26)},
+        {.data = gal_colossus_27, .len = sizeof(gal_colossus_27)},
+        {.data = gal_colossus_28, .len = sizeof(gal_colossus_28)},
+        {.data = gal_colossus_29, .len = sizeof(gal_colossus_29)},
+        {.data = gal_colossus_30, .len = sizeof(gal_colossus_30)},
+        {.data = gal_colossus_31, .len = sizeof(gal_colossus_31)},
+        {.data = gal_colossus_32, .len = sizeof(gal_colossus_32)},
+        {.data = gal_colossus_33, .len = sizeof(gal_colossus_33)},
+        {.data = gal_colossus_34, .len = sizeof(gal_colossus_34)},
+        {.data = gal_colossus_35, .len = sizeof(gal_colossus_35)},
+        {.data = gal_colossus_36, .len = sizeof(gal_colossus_36)},
+        {.data = gal_colossus_37, .len = sizeof(gal_colossus_37)},
+        {.data = gal_colossus_38, .len = sizeof(gal_colossus_38)},
+        {.data = gal_colossus_39, .len = sizeof(gal_colossus_39)},
+        {.data = gal_colossus_40, .len = sizeof(gal_colossus_40)},
+        {.data = gal_colossus_41, .len = sizeof(gal_colossus_41)},
+        {.data = gal_colossus_42, .len = sizeof(gal_colossus_42)},
+        {.data = gal_colossus_43, .len = sizeof(gal_colossus_43)},
+        {.data = gal_colossus_44, .len = sizeof(gal_colossus_44)},
+        {.data = gal_colossus_45, .len = sizeof(gal_colossus_45)},
+        {.data = gal_colossus_46, .len = sizeof(gal_colossus_46)},
+        {.data = gal_colossus_47, .len = sizeof(gal_colossus_47)},
+        {.data = gal_colossus_48, .len = sizeof(gal_colossus_48)},
+        {.data = gal_colossus_49, .len = sizeof(gal_colossus_49)},
+        {.data = gal_colossus_50, .len = sizeof(gal_colossus_50)},
+        {.data = gal_colossus_51, .len = sizeof(gal_colossus_51)},
+        {.data = gal_colossus_52, .len = sizeof(gal_colossus_52)},
+        {.data = gal_colossus_53, .len = sizeof(gal_colossus_53)},
+        {.data = gal_colossus_54, .len = sizeof(gal_colossus_54)},
+        {.data = gal_colossus_55, .len = sizeof(gal_colossus_55)},
+        {.data = gal_colossus_56, .len = sizeof(gal_colossus_56)},
+        {.data = gal_colossus_57, .len = sizeof(gal_colossus_57)},
+        {.data = gal_colossus_58, .len = sizeof(gal_colossus_58)},
+        {.data = gal_colossus_59, .len = sizeof(gal_colossus_59)},
+        {.data = gal_colossus_60, .len = sizeof(gal_colossus_60)},
+        {.data = gal_colossus_61, .len = sizeof(gal_colossus_61)},
+        {.data = gal_colossus_62, .len = sizeof(gal_colossus_62)},
+        {.data = gal_colossus_63, .len = sizeof(gal_colossus_63)},
+        {.data = gal_colossus_64, .len = sizeof(gal_colossus_64)},
+        {.data = gal_colossus_65, .len = sizeof(gal_colossus_65)},
+        {.data = gal_colossus_66, .len = sizeof(gal_colossus_66)},
+        {.data = gal_colossus_67, .len = sizeof(gal_colossus_67)},
+        {.data = gal_colossus_68, .len = sizeof(gal_colossus_68)},
+        {.data = gal_colossus_69, .len = sizeof(gal_colossus_69)},
+        {.data = gal_colossus_70, .len = sizeof(gal_colossus_70)},
+        {.data = gal_colossus_71, .len = sizeof(gal_colossus_71)},
+        {.data = gal_colossus_72, .len = sizeof(gal_colossus_72)},
+        {.data = gal_colossus_73, .len = sizeof(gal_colossus_73)},
+        {.data = gal_colossus_74, .len = sizeof(gal_colossus_74)},
+    }
+};
+
+const galImage_t frank =
+{
+    .nFrames = 30,
+    .continousPan = NONE,
+    .frames = {
+        {.data = gal_frank_00, .len = sizeof(gal_frank_00)},
+        {.data = gal_frank_01, .len = sizeof(gal_frank_01)},
+        {.data = gal_frank_02, .len = sizeof(gal_frank_02)},
+        {.data = gal_frank_03, .len = sizeof(gal_frank_03)},
+        {.data = gal_frank_04, .len = sizeof(gal_frank_04)},
+        {.data = gal_frank_05, .len = sizeof(gal_frank_05)},
+        {.data = gal_frank_06, .len = sizeof(gal_frank_06)},
+        {.data = gal_frank_07, .len = sizeof(gal_frank_07)},
+        {.data = gal_frank_08, .len = sizeof(gal_frank_08)},
+    }
+};
+
+const galImage_t funky =
+{
+    .nFrames = 30,
+    .continousPan = NONE,
+    .frames = {
+        {.data = gal_funky_00, .len = sizeof(gal_funky_00)},
+        {.data = gal_funky_01, .len = sizeof(gal_funky_01)},
+        {.data = gal_funky_02, .len = sizeof(gal_funky_02)},
+        {.data = gal_funky_03, .len = sizeof(gal_funky_03)},
+        {.data = gal_funky_04, .len = sizeof(gal_funky_04)},
+        {.data = gal_funky_05, .len = sizeof(gal_funky_05)},
+        {.data = gal_funky_06, .len = sizeof(gal_funky_06)},
+        {.data = gal_funky_07, .len = sizeof(gal_funky_07)},
+        {.data = gal_funky_08, .len = sizeof(gal_funky_08)},
+        {.data = gal_funky_09, .len = sizeof(gal_funky_09)},
+        {.data = gal_funky_10, .len = sizeof(gal_funky_10)},
+        {.data = gal_funky_11, .len = sizeof(gal_funky_11)},
+        {.data = gal_funky_12, .len = sizeof(gal_funky_12)},
+        {.data = gal_funky_13, .len = sizeof(gal_funky_13)},
+        {.data = gal_funky_14, .len = sizeof(gal_funky_14)},
+        {.data = gal_funky_15, .len = sizeof(gal_funky_15)},
+        {.data = gal_funky_16, .len = sizeof(gal_funky_16)},
+        {.data = gal_funky_17, .len = sizeof(gal_funky_17)},
+        {.data = gal_funky_18, .len = sizeof(gal_funky_18)},
+        {.data = gal_funky_19, .len = sizeof(gal_funky_19)},
+        {.data = gal_funky_20, .len = sizeof(gal_funky_20)},
+        {.data = gal_funky_21, .len = sizeof(gal_funky_21)},
+        {.data = gal_funky_22, .len = sizeof(gal_funky_22)},
+        {.data = gal_funky_23, .len = sizeof(gal_funky_23)},
+        {.data = gal_funky_24, .len = sizeof(gal_funky_24)},
+        {.data = gal_funky_25, .len = sizeof(gal_funky_25)},
+        {.data = gal_funky_26, .len = sizeof(gal_funky_26)},
+        {.data = gal_funky_27, .len = sizeof(gal_funky_27)},
+        {.data = gal_funky_28, .len = sizeof(gal_funky_28)},
+        {.data = gal_funky_29, .len = sizeof(gal_funky_29)},
+        {.data = gal_funky_30, .len = sizeof(gal_funky_30)},
+        {.data = gal_funky_31, .len = sizeof(gal_funky_31)},
+        {.data = gal_funky_32, .len = sizeof(gal_funky_32)},
+        {.data = gal_funky_33, .len = sizeof(gal_funky_33)},
+        {.data = gal_funky_34, .len = sizeof(gal_funky_34)},
+        {.data = gal_funky_35, .len = sizeof(gal_funky_35)},
+        {.data = gal_funky_36, .len = sizeof(gal_funky_36)},
+        {.data = gal_funky_37, .len = sizeof(gal_funky_37)},
+        {.data = gal_funky_38, .len = sizeof(gal_funky_38)},
+        {.data = gal_funky_39, .len = sizeof(gal_funky_39)},
+    }
+};
+
+const galImage_t josiah =
+{
+    .nFrames = 30,
+    .continousPan = NONE,
+    .frames = {
+        {.data = gal_josiah_00, .len = sizeof(gal_josiah_00)},
+        {.data = gal_josiah_01, .len = sizeof(gal_josiah_01)},
+        {.data = gal_josiah_02, .len = sizeof(gal_josiah_02)},
+        {.data = gal_josiah_03, .len = sizeof(gal_josiah_03)},
+        {.data = gal_josiah_04, .len = sizeof(gal_josiah_04)},
+        {.data = gal_josiah_05, .len = sizeof(gal_josiah_05)},
+        {.data = gal_josiah_06, .len = sizeof(gal_josiah_06)},
+        {.data = gal_josiah_07, .len = sizeof(gal_josiah_07)},
+        {.data = gal_josiah_08, .len = sizeof(gal_josiah_08)},
+        {.data = gal_josiah_09, .len = sizeof(gal_josiah_09)},
+    }
+};
+
+const galImage_t magsquare =
+{
+    .nFrames = 30,
+    .continousPan = NONE,
+    .frames = {
+        {.data = gal_magsquare_00, .len = sizeof(gal_magsquare_00)},
+        {.data = gal_magsquare_01, .len = sizeof(gal_magsquare_01)},
+        {.data = gal_magsquare_02, .len = sizeof(gal_magsquare_02)},
+        {.data = gal_magsquare_03, .len = sizeof(gal_magsquare_03)},
+    }
+};
+
+const galImage_t magvania =
+{
+    .nFrames = 30,
+    .continousPan = NONE,
+    .frames = {
+        {.data = gal_magvania_00, .len = sizeof(gal_magvania_00)},
+        {.data = gal_magvania_01, .len = sizeof(gal_magvania_01)},
+        {.data = gal_magvania_02, .len = sizeof(gal_magvania_02)},
+        {.data = gal_magvania_03, .len = sizeof(gal_magvania_03)},
+        {.data = gal_magvania_04, .len = sizeof(gal_magvania_04)},
+        {.data = gal_magvania_05, .len = sizeof(gal_magvania_05)},
+        {.data = gal_magvania_06, .len = sizeof(gal_magvania_06)},
+        {.data = gal_magvania_07, .len = sizeof(gal_magvania_07)},
+        {.data = gal_magvania_08, .len = sizeof(gal_magvania_08)},
+        {.data = gal_magvania_09, .len = sizeof(gal_magvania_09)},
+        {.data = gal_magvania_10, .len = sizeof(gal_magvania_10)},
+        {.data = gal_magvania_11, .len = sizeof(gal_magvania_11)},
+        {.data = gal_magvania_12, .len = sizeof(gal_magvania_12)},
+        {.data = gal_magvania_13, .len = sizeof(gal_magvania_13)},
+        {.data = gal_magvania_14, .len = sizeof(gal_magvania_14)},
+        {.data = gal_magvania_15, .len = sizeof(gal_magvania_15)},
+    }
+};
+
+const galImage_t mivs =
+{
+    .nFrames = 30,
+    .continousPan = NONE,
+    .frames = {
+        {.data = gal_mivs_00, .len = sizeof(gal_mivs_00)},
+        {.data = gal_mivs_01, .len = sizeof(gal_mivs_01)},
+        {.data = gal_mivs_02, .len = sizeof(gal_mivs_02)},
+        {.data = gal_mivs_03, .len = sizeof(gal_mivs_03)},
+        {.data = gal_mivs_04, .len = sizeof(gal_mivs_04)},
+        {.data = gal_mivs_05, .len = sizeof(gal_mivs_05)},
+        {.data = gal_mivs_06, .len = sizeof(gal_mivs_06)},
+        {.data = gal_mivs_07, .len = sizeof(gal_mivs_07)},
+        {.data = gal_mivs_08, .len = sizeof(gal_mivs_08)},
+        {.data = gal_mivs_09, .len = sizeof(gal_mivs_09)},
+        {.data = gal_mivs_10, .len = sizeof(gal_mivs_10)},
+        {.data = gal_mivs_11, .len = sizeof(gal_mivs_11)},
+        {.data = gal_mivs_12, .len = sizeof(gal_mivs_12)},
+        {.data = gal_mivs_13, .len = sizeof(gal_mivs_13)},
+        {.data = gal_mivs_14, .len = sizeof(gal_mivs_14)},
+        {.data = gal_mivs_15, .len = sizeof(gal_mivs_15)},
+        {.data = gal_mivs_16, .len = sizeof(gal_mivs_16)},
+        {.data = gal_mivs_17, .len = sizeof(gal_mivs_17)},
+        {.data = gal_mivs_18, .len = sizeof(gal_mivs_18)},
+        {.data = gal_mivs_19, .len = sizeof(gal_mivs_19)},
+    }
+};
+
+const galImage_t pillar =
+{
+    .nFrames = 30,
+    .continousPan = NONE,
+    .frames = {
+        {.data = gal_pillar_00, .len = sizeof(gal_pillar_00)},
+        {.data = gal_pillar_01, .len = sizeof(gal_pillar_01)},
+        {.data = gal_pillar_02, .len = sizeof(gal_pillar_02)},
+        {.data = gal_pillar_03, .len = sizeof(gal_pillar_03)},
+        {.data = gal_pillar_04, .len = sizeof(gal_pillar_04)},
+        {.data = gal_pillar_05, .len = sizeof(gal_pillar_05)},
+        {.data = gal_pillar_06, .len = sizeof(gal_pillar_06)},
+        {.data = gal_pillar_07, .len = sizeof(gal_pillar_07)},
+        {.data = gal_pillar_08, .len = sizeof(gal_pillar_08)},
+    }
+};
+
 const galImage_t wink =
 {
-    .nFrames = 16,
-    .frames =
-    {
-        {.data = gal_wink_0, .len = sizeof(gal_wink_0)},
-        {.data = gal_wink_1, .len = sizeof(gal_wink_1)},
-        {.data = gal_wink_2, .len = sizeof(gal_wink_2)},
-        {.data = gal_wink_3, .len = sizeof(gal_wink_3)},
-        {.data = gal_wink_4, .len = sizeof(gal_wink_4)},
-        {.data = gal_wink_5, .len = sizeof(gal_wink_5)},
-        {.data = gal_wink_6, .len = sizeof(gal_wink_6)},
-        {.data = gal_wink_7, .len = sizeof(gal_wink_7)},
-        {.data = gal_wink_8, .len = sizeof(gal_wink_8)},
-        {.data = gal_wink_9, .len = sizeof(gal_wink_9)},
+    .nFrames = 30,
+    .continousPan = NONE,
+    .frames = {
+        {.data = gal_wink_00, .len = sizeof(gal_wink_00)},
+        {.data = gal_wink_01, .len = sizeof(gal_wink_01)},
+        {.data = gal_wink_02, .len = sizeof(gal_wink_02)},
+        {.data = gal_wink_03, .len = sizeof(gal_wink_03)},
+        {.data = gal_wink_04, .len = sizeof(gal_wink_04)},
+        {.data = gal_wink_05, .len = sizeof(gal_wink_05)},
+        {.data = gal_wink_06, .len = sizeof(gal_wink_06)},
+        {.data = gal_wink_07, .len = sizeof(gal_wink_07)},
+        {.data = gal_wink_08, .len = sizeof(gal_wink_08)},
+        {.data = gal_wink_09, .len = sizeof(gal_wink_09)},
         {.data = gal_wink_10, .len = sizeof(gal_wink_10)},
         {.data = gal_wink_11, .len = sizeof(gal_wink_11)},
         {.data = gal_wink_12, .len = sizeof(gal_wink_12)},
         {.data = gal_wink_13, .len = sizeof(gal_wink_13)},
         {.data = gal_wink_14, .len = sizeof(gal_wink_14)},
         {.data = gal_wink_15, .len = sizeof(gal_wink_15)},
-
-
-        {.data = gal_magsquare_0, .len = sizeof(gal_magsquare_0)},
-        {.data = gal_magsquare_1, .len = sizeof(gal_magsquare_1)},
-        {.data = gal_magsquare_2, .len = sizeof(gal_magsquare_2)},
-        {.data = gal_magsquare_3, .len = sizeof(gal_magsquare_3)},
-        {.data = gal_magvania_0, .len = sizeof(gal_magvania_0)},
-        {.data = gal_magvania_1, .len = sizeof(gal_magvania_1)},
-        {.data = gal_magvania_10, .len = sizeof(gal_magvania_10)},
-        {.data = gal_magvania_11, .len = sizeof(gal_magvania_11)},
-        {.data = gal_magvania_12, .len = sizeof(gal_magvania_12)},
-        {.data = gal_magvania_13, .len = sizeof(gal_magvania_13)},
-        {.data = gal_magvania_14, .len = sizeof(gal_magvania_14)},
-        {.data = gal_magvania_15, .len = sizeof(gal_magvania_15)},
-        {.data = gal_magvania_2, .len = sizeof(gal_magvania_2)},
-        {.data = gal_magvania_3, .len = sizeof(gal_magvania_3)},
-        {.data = gal_magvania_4, .len = sizeof(gal_magvania_4)},
-        {.data = gal_magvania_5, .len = sizeof(gal_magvania_5)},
-        {.data = gal_magvania_6, .len = sizeof(gal_magvania_6)},
-        {.data = gal_magvania_7, .len = sizeof(gal_magvania_7)},
-        {.data = gal_magvania_8, .len = sizeof(gal_magvania_8)},
-        {.data = gal_magvania_9, .len = sizeof(gal_magvania_9)},
-
-    }
-};
-
-const galImage_t galWink =
-{
-    .nFrames = 16,
-    .frames =
-    {
-        {.data = gal_wink_0, .len = sizeof(gal_wink_0)},
-        {.data = gal_wink_1, .len = sizeof(gal_wink_1)},
-        {.data = gal_wink_2, .len = sizeof(gal_wink_2)},
-        {.data = gal_wink_3, .len = sizeof(gal_wink_3)},
-        {.data = gal_wink_4, .len = sizeof(gal_wink_4)},
-        {.data = gal_wink_5, .len = sizeof(gal_wink_5)},
-        {.data = gal_wink_6, .len = sizeof(gal_wink_6)},
-        {.data = gal_wink_7, .len = sizeof(gal_wink_7)},
-        {.data = gal_wink_8, .len = sizeof(gal_wink_8)},
-        {.data = gal_wink_9, .len = sizeof(gal_wink_9)},
-        {.data = gal_wink_10, .len = sizeof(gal_wink_10)},
-        {.data = gal_wink_11, .len = sizeof(gal_wink_11)},
-        {.data = gal_wink_12, .len = sizeof(gal_wink_12)},
-        {.data = gal_wink_13, .len = sizeof(gal_wink_13)},
-        {.data = gal_wink_14, .len = sizeof(gal_wink_14)},
-        {.data = gal_wink_15, .len = sizeof(gal_wink_15)}
-    }
-};
-
-const galImage_t galMagsquare =
-{
-    .nFrames = 4,
-    .frames =
-    {
-        {.data = gal_magsquare_0, .len = sizeof(gal_magsquare_0)},
-        {.data = gal_magsquare_1, .len = sizeof(gal_magsquare_1)},
-        {.data = gal_magsquare_2, .len = sizeof(gal_magsquare_2)},
-        {.data = gal_magsquare_3, .len = sizeof(gal_magsquare_3)},
-    }
-};
-
-const galImage_t galMagvania =
-{
-    .nFrames = 16,
-    .frames =
-    {
-        {.data = gal_magvania_0, .len = sizeof(gal_magvania_0)},
-        {.data = gal_magvania_1, .len = sizeof(gal_magvania_1)},
-        {.data = gal_magvania_2, .len = sizeof(gal_magvania_2)},
-        {.data = gal_magvania_3, .len = sizeof(gal_magvania_3)},
-        {.data = gal_magvania_4, .len = sizeof(gal_magvania_4)},
-        {.data = gal_magvania_5, .len = sizeof(gal_magvania_5)},
-        {.data = gal_magvania_6, .len = sizeof(gal_magvania_6)},
-        {.data = gal_magvania_7, .len = sizeof(gal_magvania_7)},
-        {.data = gal_magvania_8, .len = sizeof(gal_magvania_8)},
-        {.data = gal_magvania_9, .len = sizeof(gal_magvania_9)},
-        {.data = gal_magvania_10, .len = sizeof(gal_magvania_10)},
-        {.data = gal_magvania_11, .len = sizeof(gal_magvania_11)},
-        {.data = gal_magvania_12, .len = sizeof(gal_magvania_12)},
-        {.data = gal_magvania_13, .len = sizeof(gal_magvania_13)},
-        {.data = gal_magvania_14, .len = sizeof(gal_magvania_14)},
-        {.data = gal_magvania_15, .len = sizeof(gal_magvania_15)},
     }
 };
 
 // Order matters, must match galUnlockPlaceholders
-const galImage_t* galImages[8] =
+const galImage_t* galImages[15] =
 {
     &galLogo,    // Already unlocked
-    &galMagsquare,
-    &galMagvania,
-    &galWink,
+    &colossus,
+    &magvania,
+    &funky,
+    &frank,
+    &magsquare,
+    &josiah,
+    &mivs,
+    &pillar,
+    &bananas_animals,
+    &wink,
     &galBongo,   // Joust
     &galFunkus,  // Snake
     &galGaylord, // Tiltrads
@@ -569,10 +757,10 @@ const galImage_t* ICACHE_FLASH_ATTR galGetCurrentImage(void)
 {
     const galImage_t* imageToLoad;
     // If we're not on the first image
-    if(gal.cImage > 3)
+    if(gal.cImage > 10)
     {
         // Check to see if it's unlocked
-        if(getGalleryUnlocks() & 1 << (gal.cImage - 4))
+        if(getGalleryUnlocks() & 1 << (gal.cImage - 11))
         {
             // unlocked
             imageToLoad = galImages[gal.cImage];
@@ -580,7 +768,7 @@ const galImage_t* ICACHE_FLASH_ATTR galGetCurrentImage(void)
         else
         {
             // Not unlocked
-            imageToLoad = galUnlockPlaceholders[gal.cImage - 4];
+            imageToLoad = galUnlockPlaceholders[gal.cImage - 11];
         }
     }
     else
@@ -802,10 +990,10 @@ void ICACHE_FLASH_ATTR galDrawFrame(void)
     }
 
     // Draw left and right arrows to indicate button functions
-    fillDisplayArea(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, 7, OLED_HEIGHT, BLACK);
-    plotText(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "<", IBM_VGA_8, WHITE);
-    fillDisplayArea(OLED_WIDTH - 7, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, OLED_WIDTH, OLED_HEIGHT, BLACK);
-    plotText(OLED_WIDTH - 6, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, ">", IBM_VGA_8, WHITE);
+    fillDisplayArea(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, 4, OLED_HEIGHT, BLACK);
+    plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "<", TOM_THUMB, WHITE);
+    fillDisplayArea(OLED_WIDTH - 4, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, OLED_WIDTH, OLED_HEIGHT, BLACK);
+    plotText(OLED_WIDTH - 3, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, ">", TOM_THUMB, WHITE);
 
     if(gal.u)
     {
