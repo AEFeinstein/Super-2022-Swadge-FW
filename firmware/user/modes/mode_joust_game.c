@@ -498,7 +498,6 @@ void ICACHE_FLASH_ATTR joustClearWarning(void* arg __attribute__((unused)) )
     joustDrawMenu();
     // Start the timer to scroll text
     os_timer_arm(&joust.tmr.ScrollInstructions, 34, true);
-    setOledDrawTime(34);
 }
 
 /**
@@ -1393,7 +1392,6 @@ void ICACHE_FLASH_ATTR joustButton( uint8_t state __attribute__((unused)),
     {
         // Stop the scrolling text
         os_timer_disarm(&joust.tmr.ScrollInstructions);
-        setOledDrawTime(100);
 
         if(2 == button)
         {

@@ -66,7 +66,6 @@ rtcMem_t;
  *==========================================================================*/
 
 static os_timer_t timerHandlePollAccel = {0};
-static os_timer_t timerHandleUpdateDisplay = {0};
 static os_timer_t timerHandleReturnToMenu = {0};
 
 os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
@@ -114,7 +113,6 @@ void ICACHE_FLASH_ATTR user_pre_init(void);
 void ICACHE_FLASH_ATTR user_init(void);
 
 static void ICACHE_FLASH_ATTR procTask(os_event_t* events);
-static void ICACHE_FLASH_ATTR updateDisplay(void* arg);
 static void ICACHE_FLASH_ATTR pollAccel(void* arg);
 void ICACHE_FLASH_ATTR initializeAccelerometer(void);
 static void ICACHE_FLASH_ATTR returnToMenuTimerFunc(void* arg);
@@ -243,11 +241,6 @@ void ICACHE_FLASH_ATTR user_init(void)
     if(true == initOLED(true))
     {
         os_printf("OLED initialized\n");
-
-        // Start a software timer to run every 100ms
-        os_timer_disarm(&timerHandleUpdateDisplay);
-        os_timer_setfn(&timerHandleUpdateDisplay, (os_timer_func_t*)updateDisplay, NULL);
-        os_timer_arm(&timerHandleUpdateDisplay, 100, 1);
     }
     else
     {
@@ -313,6 +306,10 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events __attribute__((unused)
     // Process queued button presses synchronously
     HandleButtonEventSynchronous();
 
+    // Update the display as fast as possible.
+    // This only sends I2C data if there was some pixel change
+    updateOLED();
+
 #ifdef PROFILE
     WRITE_PERI_REG( PERIPHS_GPIO_BASEADDR + GPIO_ID_PIN(0), 0 );
 #endif
@@ -355,17 +352,6 @@ static void ICACHE_FLASH_ATTR pollAccel(void* arg __attribute__((unused)))
 
         swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback(&accel);
     }
-}
-
-/**
- * @brief Updated the OLED display every 100ms
- *
- * @param arg unused
- */
-static void ICACHE_FLASH_ATTR updateDisplay(void* arg __attribute__((unused)))
-{
-    // Update the display
-    updateOLED();
 }
 
 /**
@@ -516,17 +502,6 @@ uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr)
 #if SWADGE_VERSION != SWADGE_2019
 
 /**
- * @brief Set the time between OLED frames being drawn
- *
- * @param drawTimeMs
- */
-void ICACHE_FLASH_ATTR setOledDrawTime(uint32_t drawTimeMs)
-{
-    os_timer_disarm(&timerHandleUpdateDisplay);
-    os_timer_arm(&timerHandleUpdateDisplay, drawTimeMs, true);
-}
-
-/**
  * @brief Set the time between accelerometer polls
  *
  * @param drawTimeMs
@@ -538,9 +513,6 @@ void ICACHE_FLASH_ATTR setAccelPollTime(uint32_t pollTimeMs)
 }
 
 #else
-void ICACHE_FLASH_ATTR setOledDrawTime(uint32_t drawTimeMs)
-{
-}
 void ICACHE_FLASH_ATTR setAccelPollTime(uint32_t pollTimeMs)
 {
 }

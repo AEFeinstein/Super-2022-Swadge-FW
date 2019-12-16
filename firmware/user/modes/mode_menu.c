@@ -157,9 +157,6 @@ void ICACHE_FLASH_ATTR modeInit(void)
     // This starts the screensaver timer
     stopScreensaver();
 
-    // Draw to OLED at the same rate the image is panned
-    setOledDrawTime(MENU_PAN_PERIOD_MS);
-
     // Make buttons sensitive, they're ignored during animation anyway
     enableDebounce(false);
 }

@@ -682,9 +682,6 @@ void ICACHE_FLASH_ATTR galEnterMode(void)
     // Unlock one image by default
     gal.unlockBitmask = getGalleryUnlocks();
 
-    // Draw the OLED as fast as the pan timer
-    setOledDrawTime(25);
-
     // Load the image
     galLoadFirstFrame();
 }

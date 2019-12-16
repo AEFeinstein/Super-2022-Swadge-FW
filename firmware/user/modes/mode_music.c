@@ -935,7 +935,6 @@ void ICACHE_FLASH_ATTR musicEnterMode(void)
 
     // Request to do everything faster
     setAccelPollTime(50);
-    setOledDrawTime(50);
     enableDebounce(false);
 
     // Set up a timer to handle the parameter button
