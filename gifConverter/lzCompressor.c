@@ -86,7 +86,7 @@ int main(void)
                 char fPathMem[64] = {0};
                 char* fPath = fPathMem;
                 sprintf(fPath, "./%s", ent->fts_accpath);
-                printf("%s\n", fPath);
+                // printf("%s\n", fPath);
                 FILE* binFile = fopen(fPath, "r");
                 if (NULL != binFile)
                 {
@@ -94,11 +94,29 @@ int main(void)
                     fPath = rindex(fPath, '/') + 1;
                     *(rindex(fPath, '.')) = 0;
 
-                    printf("opened %s.bin\n", fPath);
+
+                    if(strstr(fPath, "_00") != NULL)
+                    {
+                        char name[64] = {0};
+                        strcat(name, fPath);
+                        name[strlen(name) - 3] = 0;
+
+                        printf("    }\n");
+                        printf("};\n");
+                        printf("\n");
+                        printf("const galImage_t %s =\n", name);
+                        printf("{\n");
+                        printf("    .nFrames = 30,\n");
+                        printf("    .continousPan = NONE,\n");
+                        printf("    .frames = {\n");
+                    }
+                    printf("        {.data = gal_%s, .len = sizeof(gal_%s)},\n", fPath, fPath);
+
+                    // printf("opened %s.bin\n", fPath);
                     fseek(binFile, 0, SEEK_END);
                     long fsize = ftell(binFile);
                     fseek(binFile, 0, SEEK_SET); /* same as rewind(f); */
-                    printf("  %s.bin is %ld bytes long\n", fPath, fsize);
+                    // printf("  %s.bin is %ld bytes long\n", fPath, fsize);
 
                     uint8_t* bytes = malloc(fsize);
                     fread(bytes, sizeof(uint8_t), fsize, binFile);
@@ -108,7 +126,7 @@ int main(void)
                     uint8_t* compressedBytes = (uint8_t*)malloc(fsize);
                     uint32_t compressedLen = fastlz_compress(bytes, fsize, compressedBytes);
 
-                    printf("  Compressed %ld bytes into %d bytes\n", fsize, compressedLen);
+                    // printf("  Compressed %ld bytes into %d bytes\n", fsize, compressedLen);
                     totalCompressedSize += compressedLen;
 
                     // Pad it out
@@ -144,7 +162,7 @@ int main(void)
         }
     }
 
-    printf("totalCompressedSize = %d\n", totalCompressedSize);
+    // printf("totalCompressedSize = %d\n", totalCompressedSize);
 
     fprintf(galleryImagesH, "\n#endif // _GALLERY_IMAGES_H_\n");
     fclose(galleryImagesC);

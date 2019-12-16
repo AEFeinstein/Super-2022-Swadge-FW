@@ -33,9 +33,9 @@ def frameToBits(frame):
     for x in range(frame.width):
         for y in range(frame.height):
             if(isBlackPixel(pix[x, y])):
-                frameBits.append(1)
-            else:
                 frameBits.append(0)
+            else:
+                frameBits.append(1)
     return frameBits
 
 
@@ -82,7 +82,7 @@ def processGifFile(file):
             metadata.append((duration >> 0) & 0xFF)
 
             outFile = open("./bins/" + Path(file).stem +
-                           "_" + str(index) + ".bin", "wb+")
+                           "_" + str(index).zfill(2) + ".bin", "wb+")
             # Print out the first frame and metadata
             outFile.write(metadata)
             writeBinArray(outFile, currentFrame)
@@ -90,7 +90,7 @@ def processGifFile(file):
         else:
             # Just print the difference
             outFile = open("./bins/" + Path(file).stem +
-                           "_" + str(index) + ".bin", "wb+")
+                           "_" + str(index).zfill(2) + ".bin", "wb+")
             writeBinArray(outFile, diffFrame(prevFrame, currentFrame))
             outFile.close
         prevFrame = currentFrame
@@ -98,5 +98,5 @@ def processGifFile(file):
 
 
 if __name__ == "__main__":
-    for file in glob.glob('./menu_gifs/*.gif'):
+    for file in glob.glob('./gal_gifs/*.gif'):
         processGifFile(file)
