@@ -116,12 +116,11 @@ typedef enum
 
 typedef enum
 {
-    BEAT_SPIN,
-    BEAT_SELECT,
+
     SHOCK_CHANGE,
     SHOCK_CHAOTIC,
     ROLL_BALL,
-    ROLL_3_BALLS,
+    //ROLL_3_BALLS,
     TILT_A_COLOR,
     TWIRL_A_COLOR,
 #ifdef ENABLE_POV_EFFECT
@@ -130,7 +129,9 @@ typedef enum
 #ifdef COLORCHORD_DFT
     DFT_SHAKE,
 #endif
-    POWER_SHAKE
+    POWER_SHAKE,
+    BEAT_SPIN,
+    BEAT_SELECT,
 } subMethod_t;
 
 typedef enum
@@ -238,12 +239,12 @@ static const uint8_t cmBrightnesses[] =
 
 const char* subModeName[] =
 {
-    "BEAT SPIN",
-    "BEAT SELECT",
+
+
     "SHOCK CHANGE",
     "SHOCK CHAOTIC",
     "ROLL BALL",
-    "ROLL 3 BALLS",
+  //  "ROLL 3 BALLS",
     "TILT A COLOR",
     "TWIRL A COLOR",
 #ifdef ENABLE_POV_EFFECT
@@ -252,7 +253,9 @@ const char* subModeName[] =
 #ifdef COLORCHORD_DFT
     "DFT SHAKE",
 #endif
-    "POWER SHAKE"
+    "POWER SHAKE",
+    "BEAT SPIN",
+    "BEAT SELECT",
 };
 
 char* cmShockName[4] = {"BIFF!", "POW!", "BOOM!", "WHAM!"};
@@ -581,7 +584,7 @@ void ICACHE_FLASH_ATTR cmInit(void)
     cmChangeState(CM_GAME);
 
     // Set up all initialization
-    cmCurrentSubMode =  BEAT_SPIN;
+    cmCurrentSubMode =  SHOCK_CHANGE;
     cmNewSetup(cmCurrentSubMode);
     // Start the update loop.
     os_timer_disarm(&timerHandleUpdate);
@@ -950,7 +953,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     }
     //TODO should be else here if COLORCHORD_DFT is defined, but it leave astyle messes up
 #endif
-    if ((cmCurrentSubMode == ROLL_BALL) || (cmCurrentSubMode == ROLL_3_BALLS))
+    if ((cmCurrentSubMode == ROLL_BALL)) //|| (cmCurrentSubMode == ROLL_3_BALLS))
     {
         // send this to be dealt with by roll mode routines
         // computes light pattern and OLED display
@@ -1566,7 +1569,7 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
     cmComputeColor = BPM2HUE; //using bpmFromCrossing
     cmLedMethod = RAINBOW;
     cmUseShiftingColorWheel = true;
-    cmShockLimit = 40;
+    cmShockLimit = 20;
     //TODO can extend to give subset to use eg 1,3,5 or 1,4
     //    rather than just how many consecutive
     cmShowNumLeds = USE_NUM_LEDS; // must be <= USE_NUM_LEDS
@@ -1616,9 +1619,9 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
         case ROLL_BALL:
             rollEnterMode(0);
             break;
-        case ROLL_3_BALLS:
-            rollEnterMode(11);
-            break;
+        // case ROLL_3_BALLS:
+        //     rollEnterMode(11);
+        //     break;
         case TILT_A_COLOR:
             cmUseSmooth = false;
             cmUseHighPassAccel = false;
@@ -1700,7 +1703,7 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
     ledDirection = 1;
     cmCumulativeActivity = 0;
     cmCollectingActivity = true;
-    cmShockRecoverMS = 50;
+    cmShockRecoverMS = 20;
     cmBrightnessRamp = 0;
     shockJustHappened = false;
     cmHue = 0;
