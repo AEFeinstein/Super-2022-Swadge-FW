@@ -543,6 +543,60 @@ const galImage_t pillar =
     }
 };
 
+const galImage_t ragequit =
+{
+    .nFrames = 30,
+    .continousPan = NONE,
+    .frames = {
+        {.data = gal_ragequit_00, .len = sizeof(gal_ragequit_00)},
+        {.data = gal_ragequit_01, .len = sizeof(gal_ragequit_01)},
+        {.data = gal_ragequit_02, .len = sizeof(gal_ragequit_02)},
+        {.data = gal_ragequit_03, .len = sizeof(gal_ragequit_03)},
+        {.data = gal_ragequit_04, .len = sizeof(gal_ragequit_04)},
+        {.data = gal_ragequit_05, .len = sizeof(gal_ragequit_05)},
+        {.data = gal_ragequit_06, .len = sizeof(gal_ragequit_06)},
+        {.data = gal_ragequit_07, .len = sizeof(gal_ragequit_07)},
+        {.data = gal_ragequit_08, .len = sizeof(gal_ragequit_08)},
+        {.data = gal_ragequit_09, .len = sizeof(gal_ragequit_09)},
+        {.data = gal_ragequit_10, .len = sizeof(gal_ragequit_10)},
+        {.data = gal_ragequit_11, .len = sizeof(gal_ragequit_11)},
+        {.data = gal_ragequit_12, .len = sizeof(gal_ragequit_12)},
+        {.data = gal_ragequit_13, .len = sizeof(gal_ragequit_13)},
+        {.data = gal_ragequit_14, .len = sizeof(gal_ragequit_14)},
+        {.data = gal_ragequit_15, .len = sizeof(gal_ragequit_15)},
+        {.data = gal_ragequit_16, .len = sizeof(gal_ragequit_16)},
+        {.data = gal_ragequit_17, .len = sizeof(gal_ragequit_17)},
+        {.data = gal_ragequit_18, .len = sizeof(gal_ragequit_18)},
+        {.data = gal_ragequit_19, .len = sizeof(gal_ragequit_19)},
+        {.data = gal_ragequit_20, .len = sizeof(gal_ragequit_20)},
+        {.data = gal_ragequit_21, .len = sizeof(gal_ragequit_21)},
+        {.data = gal_ragequit_22, .len = sizeof(gal_ragequit_22)},
+        {.data = gal_ragequit_23, .len = sizeof(gal_ragequit_23)},
+        {.data = gal_ragequit_24, .len = sizeof(gal_ragequit_24)},
+        {.data = gal_ragequit_25, .len = sizeof(gal_ragequit_25)},
+        {.data = gal_ragequit_26, .len = sizeof(gal_ragequit_26)},
+        {.data = gal_ragequit_27, .len = sizeof(gal_ragequit_27)},
+        {.data = gal_ragequit_28, .len = sizeof(gal_ragequit_28)},
+        {.data = gal_ragequit_29, .len = sizeof(gal_ragequit_29)},
+        {.data = gal_ragequit_30, .len = sizeof(gal_ragequit_30)},
+        {.data = gal_ragequit_31, .len = sizeof(gal_ragequit_31)},
+        {.data = gal_ragequit_32, .len = sizeof(gal_ragequit_32)},
+        {.data = gal_ragequit_33, .len = sizeof(gal_ragequit_33)},
+        {.data = gal_ragequit_34, .len = sizeof(gal_ragequit_34)},
+        {.data = gal_ragequit_35, .len = sizeof(gal_ragequit_35)},
+        {.data = gal_ragequit_36, .len = sizeof(gal_ragequit_36)},
+        {.data = gal_ragequit_37, .len = sizeof(gal_ragequit_37)},
+        {.data = gal_ragequit_38, .len = sizeof(gal_ragequit_38)},
+        {.data = gal_ragequit_39, .len = sizeof(gal_ragequit_39)},
+        {.data = gal_ragequit_40, .len = sizeof(gal_ragequit_40)},
+        {.data = gal_ragequit_41, .len = sizeof(gal_ragequit_41)},
+        {.data = gal_ragequit_42, .len = sizeof(gal_ragequit_42)},
+        {.data = gal_ragequit_43, .len = sizeof(gal_ragequit_43)},
+        {.data = gal_ragequit_44, .len = sizeof(gal_ragequit_44)},
+        {.data = gal_ragequit_45, .len = sizeof(gal_ragequit_45)},
+    }
+};
+
 const galImage_t wink =
 {
     .nFrames = 30,
@@ -568,7 +622,7 @@ const galImage_t wink =
 };
 
 // Order matters, must match galUnlockPlaceholders
-const galImage_t* galImages[15] =
+const galImage_t* galImages[16] =
 {
     &galLogo,    // Already unlocked
     &colossus,
@@ -580,6 +634,7 @@ const galImage_t* galImages[15] =
     &mivs,
     &pillar,
     &bananas_animals,
+    &ragequit,
     &wink,
     &galBongo,   // Joust
     &galFunkus,  // Snake
@@ -757,10 +812,10 @@ const galImage_t* ICACHE_FLASH_ATTR galGetCurrentImage(void)
 {
     const galImage_t* imageToLoad;
     // If we're not on the first image
-    if(gal.cImage > 10)
+    if(gal.cImage > 11)
     {
         // Check to see if it's unlocked
-        if(getGalleryUnlocks() & 1 << (gal.cImage - 11))
+        if(getGalleryUnlocks() & 1 << (gal.cImage - 12))
         {
             // unlocked
             imageToLoad = galImages[gal.cImage];
@@ -768,7 +823,7 @@ const galImage_t* ICACHE_FLASH_ATTR galGetCurrentImage(void)
         else
         {
             // Not unlocked
-            imageToLoad = galUnlockPlaceholders[gal.cImage - 11];
+            imageToLoad = galUnlockPlaceholders[gal.cImage - 12];
         }
     }
     else
