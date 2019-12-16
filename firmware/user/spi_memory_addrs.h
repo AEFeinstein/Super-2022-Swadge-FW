@@ -13,7 +13,7 @@
  * SYSTEM_PARTITION_CUSTOMER_PRIV_PARAM_ADDR in user_main.c
  * system_param_load() requires three sectors (3 * 0x1000)
  */
-#define COMMON_SERVICES_SETTINGS_ADDR 0x7C000
+#define COMMON_SERVICES_SETTINGS_ADDR 0xBA000
 #define COMMON_SERVICES_SETTINGS_SIZE  0x3000
 /**
  * Settings used in custom_commands.c. Comes 3 sectors after COMMON_SERVICES_SETTINGS_ADDR
