@@ -1104,7 +1104,7 @@ void ICACHE_FLASH_ATTR joustGameLedTimeout(void* arg __attribute__((unused)) )
     uint8_t ledBright = joust.led.currBrightness;
     if(joust.mov > joust.rolling_average + WARNING_THRESHOLD)
     {
-        ledBright = 255;
+        ledBright = 150;
         ledColor = 0;
     }
 
