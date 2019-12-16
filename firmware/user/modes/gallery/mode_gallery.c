@@ -784,7 +784,7 @@ bool ICACHE_FLASH_ATTR galIsImageUnlocked(void)
     if(gal.cImage > 0)
     {
         // Check to see if it's unlocked
-        if(getGalleryUnlocks() & 1 << (gal.cImage - 1))
+        if(getGalleryUnlocks() & 1 << (gal.cImage - 12))
         {
             // unlocked
             return true;
@@ -1013,7 +1013,7 @@ void ICACHE_FLASH_ATTR galDrawFrame(void)
             uint16_t linearIdx;
             if(galImages[gal.cImage]->continousPan == NONE)
             {
-
+                
                 linearIdx = (OLED_HEIGHT * (w + gal.panIdx)) + h;
             }
             else
