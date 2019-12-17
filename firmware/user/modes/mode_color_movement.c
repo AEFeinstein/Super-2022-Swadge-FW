@@ -252,7 +252,7 @@ const char* subModeName[] =
 #ifdef COLORCHORD_DFT
     "DFT SHAKE",
 #endif
-    "POW SHAKE",
+    "SHAKE IT",
     "BEAT SPIN",
     "BEAT SELECT"
 };
@@ -1031,7 +1031,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
             cmBrightnessRamp = 255; //full
             cmHue += 1;
             cmXZapPos = (os_random() % (OLED_WIDTH - 47));
-            cmYZapPos = (os_random() % (OLED_HEIGHT - FONT_HEIGHT_RADIOSTARS));
+            cmYZapPos = (os_random() % (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8));
             cmZapWorkInx = os_random() % 4;
             //CM_printf("Shock! cmShockRampCount=%d\n", cmShockRampCount);
         }
@@ -1183,20 +1183,20 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                 //CM_printf("ledCycle %d, modeTime %d, ledPrevIncTime %d\n", ledCycle, modeTime, ledPrevIncTime);
             }
 
-            plotCenteredText(0, 0, OLED_WIDTH, "SHAKE GENTLY", IBM_VGA_8, WHITE);
+            plotCenteredText(0, 0, OLED_WIDTH, "SHAKE TO CHARGE", IBM_VGA_8, WHITE);
 
             // Draw the outline of a battery
             plotRect(
                 0,
-                (OLED_HEIGHT / 2 - 18) + 5,
+                (OLED_HEIGHT / 2 - 18) + 3,
                 OLED_WIDTH - 12,
-                (OLED_HEIGHT / 2 + 18) + 5,
+                (OLED_HEIGHT / 2 + 18) + 3,
                 WHITE);
             plotRect(
                 OLED_WIDTH - 12,
-                (OLED_HEIGHT / 2 - 9) + 5,
+                (OLED_HEIGHT / 2 - 9) + 3,
                 OLED_WIDTH - 1,
-                (OLED_HEIGHT / 2 + 9) + 5,
+                (OLED_HEIGHT / 2 + 9) + 3,
                 WHITE);
 
             // Calculate a battery level from the hue
@@ -1209,9 +1209,9 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
             // Fill up the battery
             fillDisplayArea(
                 5,
-                (OLED_HEIGHT / 2 - 14) + 5,
+                (OLED_HEIGHT / 2 - 14) + 3,
                 5 + battLevel,
-                (OLED_HEIGHT / 2 + 14) + 5,
+                (OLED_HEIGHT / 2 + 14) + 3,
                 WHITE);
         }
         else
@@ -1464,6 +1464,12 @@ void ICACHE_FLASH_ATTR cmTitleDisplay(void)
 void ICACHE_FLASH_ATTR cmGameDisplay(void)
 {
 
+    // do this first so it won't overwrite the mode name display
+    if ((cmBrightnessRamp > 127) && ((cmCurrentSubMode == SHOCK_CHANGE) || (cmCurrentSubMode == SHOCK_CHAOTIC)))
+    {
+        plotText(cmXZapPos, cmYZapPos, cmShockName[cmZapWorkInx], IBM_VGA_8, WHITE);
+    }
+    //now show the mode name if we recently entered the mode
     if (stateTime < TITLE_VISIBLE_DURATION)
     {
         uint8_t adjFlyOut = 4 * (FONT_HEIGHT_RADIOSTARS + 1) * min(1.0 - (float)stateTime / TITLE_VISIBLE_DURATION, 0.25);
@@ -1473,11 +1479,6 @@ void ICACHE_FLASH_ATTR cmGameDisplay(void)
     // always plot button labels
         plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Brightness", TOM_THUMB, WHITE);
         plotText(OLED_WIDTH - 16, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Mode", TOM_THUMB, WHITE);
-
-    if ((cmBrightnessRamp > 127) && ((cmCurrentSubMode == SHOCK_CHANGE) || (cmCurrentSubMode == SHOCK_CHAOTIC)))
-    {
-        plotText(cmXZapPos, cmYZapPos, cmShockName[cmZapWorkInx], RADIOSTARS, WHITE);
-    }
 
     //#define TESTING_INFO
 #ifdef TESTING_INFO
