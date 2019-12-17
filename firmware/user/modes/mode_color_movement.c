@@ -120,7 +120,7 @@ typedef enum
     SHOCK_CHANGE,
     SHOCK_CHAOTIC,
     ROLL_BALL,
-    //ROLL_3_BALLS,
+    ROLL_3_BALLS,
     TILT_A_COLOR,
     TWIRL_A_COLOR,
 #ifdef ENABLE_POV_EFFECT
@@ -951,7 +951,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
     }
     //TODO should be else here if COLORCHORD_DFT is defined, but it leave astyle messes up
 #endif
-    if ((cmCurrentSubMode == ROLL_BALL)) //|| (cmCurrentSubMode == ROLL_3_BALLS))
+    if ((cmCurrentSubMode == ROLL_BALL) || (cmCurrentSubMode == ROLL_3_BALLS))
     {
         // send this to be dealt with by roll mode routines
         // computes light pattern and OLED display
@@ -1613,9 +1613,9 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
         case ROLL_BALL:
             rollEnterMode(0);
             break;
-        // case ROLL_3_BALLS:
-        //     rollEnterMode(11);
-        //     break;
+         case ROLL_3_BALLS:
+             rollEnterMode(11);
+             break;
         case TILT_A_COLOR:
             cmUseSmooth = false;
             cmUseHighPassAccel = false;
