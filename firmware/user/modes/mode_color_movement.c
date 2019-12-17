@@ -239,8 +239,7 @@ static const uint8_t cmBrightnesses[] =
 
 const char* subModeName[] =
 {
-    "BEAT SPIN",
-    "BEAT SELECT",
+    
     "SHOCK REACT",
     "SHOCK CHAOS",
     "ROLL BALL",
@@ -253,7 +252,9 @@ const char* subModeName[] =
 #ifdef COLORCHORD_DFT
     "DFT SHAKE",
 #endif
-    "POW SHAKE"
+    "POW SHAKE",
+    "BEAT SPIN",
+    "BEAT SELECT"
 };
 
 char* cmShockName[4] = {"BIFF!", "POW!", "BOOM!", "WHAM!"};
