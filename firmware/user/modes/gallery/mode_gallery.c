@@ -895,10 +895,10 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
  */
 bool ICACHE_FLASH_ATTR galIsImageUnlocked(void)
 {
-    if(gal.cImage > NUM_IMAGES - 5)
+    if(gal.cImage > (NUM_IMAGES - 5))
     {
         // Check to see if it's unlocked
-        if(getGalleryUnlocks() & 1 << (gal.cImage - NUM_IMAGES - 4))
+        if(getGalleryUnlocks() & 1 << (gal.cImage - (NUM_IMAGES - 4)))
         {
             // unlocked
             return true;
@@ -923,10 +923,10 @@ const galImage_t* ICACHE_FLASH_ATTR galGetCurrentImage(void)
 {
     const galImage_t* imageToLoad;
     // If we're not on the first image
-    if(gal.cImage > NUM_IMAGES - 5)
+    if(gal.cImage > (NUM_IMAGES - 5))
     {
         // Check to see if it's unlocked
-        if(getGalleryUnlocks() & 1 << (gal.cImage - NUM_IMAGES - 4))
+        if(getGalleryUnlocks() & 1 << (gal.cImage - (NUM_IMAGES - 4)))
         {
             // unlocked
             imageToLoad = galImages[gal.cImage];
@@ -934,7 +934,7 @@ const galImage_t* ICACHE_FLASH_ATTR galGetCurrentImage(void)
         else
         {
             // Not unlocked
-            imageToLoad = galUnlockPlaceholders[gal.cImage - NUM_IMAGES - 4];
+            imageToLoad = galUnlockPlaceholders[gal.cImage - (NUM_IMAGES - 4)];
         }
     }
     else
