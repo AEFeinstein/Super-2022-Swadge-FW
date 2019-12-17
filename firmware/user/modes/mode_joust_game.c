@@ -497,8 +497,8 @@ void ICACHE_FLASH_ATTR joustClearWarning(void* arg __attribute__((unused)) )
     joust.instructionTextIdx = OLED_WIDTH;
     joustDrawMenu();
     // Start the timer to scroll text
-    os_timer_arm(&joust.tmr.ScrollInstructions, 24, true);
-    setOledDrawTime(24);
+    os_timer_arm(&joust.tmr.ScrollInstructions, 34, true);
+    setOledDrawTime(34);
 }
 
 /**
