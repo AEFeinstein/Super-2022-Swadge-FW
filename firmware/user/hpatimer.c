@@ -12,7 +12,6 @@
 #include <ets_sys.h>
 #include <math.h>
 
-
 #include "hpatimer.h"
 #include "adc.h"
 #include "missingEspFnPrototypes.h"
@@ -199,7 +198,6 @@ void ICACHE_FLASH_ATTR setBuzzerNote(notePeriod_t note)
  */
 void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song)
 {
-    os_printf("startBuzzerSong: %p\n",song);
     // If it's muted, don't set anything
     if(getIsMutedOption())
     {
@@ -224,14 +222,12 @@ void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song)
  */
 void ICACHE_FLASH_ATTR stopBuzzerSong(void)
 {
-    //os_printf("stopBuzzerSong: begin\n");
     bzr.note = SILENCE;
     bzr.song = NULL;
     bzr.noteTime = 0;
     bzr.noteIdx = 0;
     os_timer_disarm(&bzr.songTimer);
     setBuzzerNote(SILENCE);
-    os_printf("stopBuzzerSong: Stopped.\n");
 }
 
 /**
@@ -257,33 +253,26 @@ void ICACHE_FLASH_ATTR songTimerCb(void* arg __attribute__((unused)))
         // This note's time elapsed, try playing the next one
         bzr.noteIdx++;
         bzr.noteTime = 0;
-        os_printf("songTimerCb: Prepare to play note %d of %d.\n",bzr.noteIdx,bzr.song->numNotes);
         if(bzr.noteIdx < bzr.song->numNotes)
         {
             // There's another note to play, so play it
-            os_printf("songTimerCb: Playing note %d\n",bzr.noteIdx);
             setBuzzerNote(bzr.song->notes[bzr.noteIdx].note);
         }
         else
         {
             // No more notes
-            os_printf("songTimerCb: No more notes to play.\n");
             if(bzr.song->shouldLoop)
             {
                 // Song over, but should loop, so start again
-                //os_printf("songTimerCb: Restarting song.\n");
                 bzr.noteIdx = 0;
                 setBuzzerNote(bzr.song->notes[bzr.noteIdx].note);
-                os_printf("songTimerCb: Song restarted.\n");
             }
             else
             {
                 // Song over, not looping, stop the timer and the note
-                os_printf("songTimerCb: Silencing and stopping timer.\n");
                 setBuzzerNote(SILENCE);
                 os_timer_disarm(&bzr.songTimer);
-                //os_printf("songTimerCb: Silenced and timer stopped.\n");
             }
         }
-    } 
+    }
 }
