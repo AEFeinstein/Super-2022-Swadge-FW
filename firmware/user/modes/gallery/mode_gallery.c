@@ -1177,7 +1177,12 @@ void ICACHE_FLASH_ATTR galDrawFrame(void)
  */
 static void ICACHE_FLASH_ATTR galTimerMusic(void* arg __attribute__((unused)))
 {
-    startBuzzerSong(getRandSong());
+    static bool isPlaying = false;
+    if(false == isPlaying)
+    {
+        startBuzzerSong(getRandSong());
+        isPlaying = true;
+    }
 }
 
 /**

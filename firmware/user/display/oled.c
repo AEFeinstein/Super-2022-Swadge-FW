@@ -134,6 +134,7 @@ uint8_t currentFb[(OLED_WIDTH * (OLED_HEIGHT / 8))] = {0};
 uint8_t priorFb[(OLED_WIDTH * (OLED_HEIGHT / 8))] = {0};
 #endif
 uint8_t mBarLen = 0;
+bool fbChanges = false;
 
 //==============================================================================
 // Functions
@@ -145,6 +146,7 @@ uint8_t mBarLen = 0;
 void ICACHE_FLASH_ATTR clearDisplay(void)
 {
     ets_memset(currentFb, 0, sizeof(currentFb));
+    fbChanges = true;
 }
 
 /**
@@ -180,6 +182,7 @@ void ICACHE_FLASH_ATTR drawPixel(int16_t x, int16_t y, color c)
     if ((0 <= x) && (x < OLED_WIDTH) &&
             (0 <= y) && (y < OLED_HEIGHT))
     {
+        fbChanges = true;
         x = (OLED_WIDTH - 1) - x;
         y = (OLED_HEIGHT - 1) - y;
         if (y % 2 == 0)
@@ -466,6 +469,17 @@ uint8_t ICACHE_FLASH_ATTR incrementMenuBar(void)
  */
 bool ICACHE_FLASH_ATTR updateOLED(void)
 {
+    if(false == fbChanges)
+    {
+        // We know nothing happened, just return
+        return true;
+    }
+    else
+    {
+        // Clear this bool and draw to the OLED
+        fbChanges = false;
+    }
+
 #ifdef DOUBLE_BUFFER
 
     int16_t page;
