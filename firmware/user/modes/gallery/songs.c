@@ -942,7 +942,7 @@ const song_t * allSongs[] = {
 	&FourSeasons,
 };
 
-const song_t* ICACHE_FLASH_ATTR getRandSong(void)
+const song_t* ICACHE_FLASH_ATTR getSong(uint8_t idx)
 {
-    return allSongs[(os_random() % (sizeof(allSongs) / sizeof(allSongs[0])))];
+    return allSongs[idx % (sizeof(allSongs) / sizeof(allSongs[0]))];
 }
