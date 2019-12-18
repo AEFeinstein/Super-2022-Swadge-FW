@@ -148,6 +148,9 @@ bool ICACHE_FLASH_ATTR isHpaRunning(void)
  */
 void ICACHE_FLASH_ATTR initBuzzer(void)
 {
+    // Keep it high in the idle state
+    setBuzzerGpio(false);
+
     // If it's muted, don't set anything
     if(getIsMutedOption())
     {
@@ -186,6 +189,11 @@ void ICACHE_FLASH_ATTR setBuzzerNote(notePeriod_t note)
         if(SILENCE != bzr.note)
         {
             StartHPATimer();
+        }
+        else
+        {
+            // Keep it high when SILENCED
+            setBuzzerGpio(false);
         }
     }
 }

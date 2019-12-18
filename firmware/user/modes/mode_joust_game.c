@@ -767,9 +767,7 @@ void ICACHE_FLASH_ATTR joustDrawMenu(void)
     plotText(32, textY, "Joust", RADIOSTARS, WHITE);
     textY += FONT_HEIGHT_RADIOSTARS + Y_MARGIN;
     // Draw instruction ticker
-    if (0 > plotText(joust.instructionTextIdx, textY,
-                     "Joust is a multiplayer movement game where you try to jostle your opponents swadge while keeping yours still. There are two modes: Free For all and 2 Player, which tracks wins. In Free For all, make sure all players press start at the same time. Wrap your Lanyard around your wrist to prevent dropping your swadge. Press the left or right button to select a game type. enjoy!",
-                     IBM_VGA_8, WHITE))
+    if (0 > plotText(joust.instructionTextIdx, textY, "Joust is a multiplayer movement game where you try to jostle your opponents swadge while keeping yours still. 2 Player mode tracks your wins. Free For All does not, but supports any number of players - make sure everyone presses Start at the same time! Wrap your lanyard around your wrist to prevent dropping your swadge. Sound ON is highly recommended. Enjoy!", IBM_VGA_8, WHITE))
     {
         joust.instructionTextIdx = OLED_WIDTH;
     }
@@ -1403,6 +1401,10 @@ void ICACHE_FLASH_ATTR joustButton( uint8_t state __attribute__((unused)),
             p2pStartConnection(&joust.p2pJoust);
             clearDisplay();
             plotText(0, 0, "Searching", IBM_VGA_8, WHITE);
+            plotText(0, OLED_HEIGHT - (3 * (FONT_HEIGHT_IBMVGA8 + 1) - 3), "Stand near your", IBM_VGA_8, WHITE);
+            plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), "opponent now!", IBM_VGA_8, WHITE);
+
+
         }
         else if(1 == button)
         {
