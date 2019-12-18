@@ -448,6 +448,7 @@ inline void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* c
  */
 void ICACHE_FLASH_ATTR zeroMenuBar(void)
 {
+    fbChanges = true;
     mBarLen = 0;
 }
 
@@ -458,6 +459,7 @@ void ICACHE_FLASH_ATTR zeroMenuBar(void)
  */
 uint8_t ICACHE_FLASH_ATTR incrementMenuBar(void)
 {
+    fbChanges = true;
     return ++mBarLen;
 }
 
