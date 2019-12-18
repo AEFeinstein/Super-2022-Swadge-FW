@@ -51,7 +51,7 @@
 #define LEN_PENDULUMG sqrt(3.0)
 #define LEN_PENDULUMB sqrt(5.0)
 #define SPRINGCONSTR 5.0
-#define SPRINGCONSTG 20.0
+#define SPRINGCONSTG 2.0
 #define SPRINGCONSTB 45.0
 
 #define MAX_NUM_NOTES 30
@@ -276,7 +276,7 @@ void ICACHE_FLASH_ATTR initializeConditionsForODE(uint8_t Method)
             roll.rhs_fun_ptr = &dnxdampedpendulum;
             roll.pendulumParameters = (pendParam)
             {
-                .damping = 0.05,
+                .damping = 0.9,
                 .lenPendulum = 1,
                 .gravity  = 9.81,
                 .force = 0
@@ -347,21 +347,21 @@ void ICACHE_FLASH_ATTR initializeConditionsForODE(uint8_t Method)
             roll.rhs_fun_ptr = &dnxdampedpendulum;
             roll.pendulumParametersRed = (pendParam)
             {
-                .damping = 0.05,
+                .damping = 0.9,
                 .lenPendulum = LEN_PENDULUMR,
                 .gravity  = 9.81,
                 .force = 0
             };
             roll.pendulumParametersGreen = (pendParam)
             {
-                .damping = 0.05,
+                .damping = 0.9,
                 .lenPendulum = LEN_PENDULUMG,
                 .gravity  = 9.81,
                 .force = 0
             };
             roll.pendulumParametersBlue = (pendParam)
             {
-                .damping = 0.05,
+                .damping = 0.9,
                 .lenPendulum = LEN_PENDULUMB,
                 .gravity  = 9.81,
                 .force = 0
@@ -942,5 +942,3 @@ void ICACHE_FLASH_ATTR setRollLeds(led_t* ledData, uint8_t ledDataLen)
     }
     setLeds(ledData, ledDataLen);
 }
-
-

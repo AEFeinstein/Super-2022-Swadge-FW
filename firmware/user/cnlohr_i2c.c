@@ -129,7 +129,7 @@ unsigned char GetByte( uint8_t send_nak, bool highSpeed)
 void my_i2c_delay(bool highSpeed)
 {
     asm volatile("nop\nnop\n"); // Less than 2 causes a sad face :(
-    asm volatile("nop\nnop\n"); // More than two gives us margin.
+    asm volatile("nop\nnop\n"); // More than 2 makes Snortmelon crash.
     if(!highSpeed)
     {
         asm volatile("nop\nnop\n");  // Wait a lot longer

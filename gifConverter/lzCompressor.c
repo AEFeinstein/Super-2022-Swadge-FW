@@ -106,7 +106,7 @@ int main(void)
                         printf("\n");
                         printf("const galImage_t %s =\n", name);
                         printf("{\n");
-                        printf("    .nFrames = 30,\n");
+                        printf("    .nFrames = XXX,\n");
                         printf("    .continousPan = NONE,\n");
                         printf("    .frames = {\n");
                     }
