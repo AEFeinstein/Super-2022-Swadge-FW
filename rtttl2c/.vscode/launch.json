@@ -20,6 +20,12 @@
                 "Swadgetones/kraid.txt",
                 "Swadgetones/sm2dac.txt",
                 "Swadgetones/wario.txt",
+                "Swadgetones/ghouls.txt",
+                "Swadgetones/smw2map.txt",
+                "Swadgetones/dkongstg.txt",
+                "Swadgetones/iceclim.txt",
+                "Swadgetones/pacman.txt",
+                "Swadgetones/bomber.txt"
                 "Swadgetones/FourSeasons.txt",
             ],
             "stopAtEntry": false,
