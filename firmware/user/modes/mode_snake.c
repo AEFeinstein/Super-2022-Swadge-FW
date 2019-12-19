@@ -558,6 +558,7 @@ struct
     uint32_t score;
     uint16_t scoreMultiplier;
     os_timer_t timerHandleSnakeLogic;
+    uint8_t ledBlinkCountdown;
 
     // Blinking State
     os_timer_t timerHandeleSnakeBlink;
@@ -851,8 +852,6 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
     snakeMoveSnakePos(&newHead->pos, newHead->dir);
     newHead->ttl = oldHead->ttl + 1;
 
-    snakeSetLeds();
-
     // Figure out the sprite based on the food location and direction
     newHead->sprite = headTransitionTable[isFoodAheadOfHead()][newHead->dir];
 
@@ -873,9 +872,8 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
         // Food is points
         snake.score += snake.scoreMultiplier;
 
-        // Blink the LEDs
-        led_t leds[NUM_LIN_LEDS] = {{0}};
-        setLeds(leds, sizeof(leds));
+        // Start the LED blinker countdown
+        snake.ledBlinkCountdown = 4;
         // Play a jingle
         startBuzzerSong(&foodSfx);
 
@@ -892,9 +890,8 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
         // Critters are more points
         snake.score += (snake.scoreMultiplier * snake.critterTimerCount);
 
-        // Blink the LEDs
-        led_t leds[NUM_LIN_LEDS] = {{0}};
-        setLeds(leds, sizeof(leds));
+        // Start the LED blinker countdown
+        snake.ledBlinkCountdown = 4;
         // Play a jingle
         startBuzzerSong(&critterSfx);
         // Clear the criter
@@ -983,6 +980,9 @@ void ICACHE_FLASH_ATTR snakeMoveSnake(void)
         // Request debounced buttons
         enableDebounce(true);
     }
+    // finally, update the LEDs display
+    // we do this last so LED state updates this tick will be applied this tick
+    snakeSetLeds();
 }
 
 /**
@@ -1517,44 +1517,57 @@ void ICACHE_FLASH_ATTR snakeSetLeds(void)
 {
     led_t leds[NUM_LIN_LEDS] = {{0}};
     uint8_t i;
-    for(i = 0; i < NUM_LIN_LEDS; i++)
+
+    if (snake.ledBlinkCountdown > 0)
     {
-        leds[i].r = 0;
-        leds[i].g = 1;
-        leds[i].b = 0;
-    }
-    switch(snake.dir)
+        for(i = 0; i < NUM_LIN_LEDS; i++)
+        {
+            leds[i].r = 4;
+            leds[i].g = 0;
+            leds[i].b = 4;
+        }
+        snake.ledBlinkCountdown--;
+    } else
     {
-        case S_UP:
+        for(i = 0; i < NUM_LIN_LEDS; i++)
         {
-            leds[0].b = 1;
-            leds[1].b = 4;
-            leds[2].b = 1;
-            break;
+            leds[i].r = 0;
+            leds[i].g = 6;
+            leds[i].b = 0;
         }
-        case S_RIGHT:
+        switch(snake.dir)
         {
-            leds[0].b = 4;
-            leds[5].b = 4;
-            break;
-        }
-        case S_DOWN:
-        {
-            leds[3].b = 1;
-            leds[4].b = 4;
-            leds[5].b = 1;
-            break;
-        }
-        case S_LEFT:
-        {
-            leds[2].b = 4;
-            leds[3].b = 4;
-            break;
-        }
-        default:
-        case S_NUM_DIRECTIONS:
-        {
-            break;
+            case S_UP:
+            {
+                leds[0].b = 2;
+                leds[1].b = 6;
+                leds[2].b = 2;
+                break;
+            }
+            case S_RIGHT:
+            {
+                leds[0].b = 6;
+                leds[5].b = 6;
+                break;
+            }
+            case S_DOWN:
+            {
+                leds[3].b = 2;
+                leds[4].b = 6;
+                leds[5].b = 2;
+                break;
+            }
+            case S_LEFT:
+            {
+                leds[2].b = 6;
+                leds[3].b = 6;
+                break;
+            }
+            default:
+            case S_NUM_DIRECTIONS:
+            {
+                break;
+            }
         }
     }
     setLeds(leds, sizeof(leds));
