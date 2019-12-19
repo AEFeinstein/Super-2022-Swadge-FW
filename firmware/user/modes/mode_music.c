@@ -1,3 +1,10 @@
+/*
+ * mode_music.c
+ *
+ *  Created on: 21 Nov 2019
+ *      Author: adam and bbkiwi
+ */
+
 /*==============================================================================
  * Includes
  *============================================================================*/
@@ -1049,7 +1056,7 @@ void ICACHE_FLASH_ATTR paramSwitchTimerFunc(void* arg __attribute__((unused)))
 void ICACHE_FLASH_ATTR musicAccelerometerHandler(accel_t* accel)
 {
     // Only find values when the swadge is pointed up
-    if(accel-> x < 0)
+    if(accel-> x <= 0)
     {
         return;
     }
