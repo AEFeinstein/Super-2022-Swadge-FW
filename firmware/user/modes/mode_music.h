@@ -2,7 +2,7 @@
  * mode_music.h
  *
  *  Created on: 21 Nov 2019
- *      Author: adam
+ *      Author: adam and bbkiwi
  */
 
 #ifndef MODES_MODE_MUSIC_H_
