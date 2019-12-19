@@ -1297,7 +1297,7 @@ void ICACHE_FLASH_ATTR snakeBlinkField(void* arg __attribute__((unused)))
             // Blink Red for losing
             for(i = 0; i < NUM_LIN_LEDS; i++)
             {
-                leds[i].r = 1;
+                leds[i].r = 6;
                 leds[i].g = 0;
                 leds[i].b = 0;
             }
@@ -1522,45 +1522,45 @@ void ICACHE_FLASH_ATTR snakeSetLeds(void)
     {
         for(i = 0; i < NUM_LIN_LEDS; i++)
         {
-            leds[i].r = 4;
-            leds[i].g = 0;
-            leds[i].b = 4;
+            //leds[i].r = 4;
+            //leds[i].g = 6;
+            leds[i].b = 6;
         }
         snake.ledBlinkCountdown--;
     } else
     {
-        for(i = 0; i < NUM_LIN_LEDS; i++)
+        /*for(i = 0; i < NUM_LIN_LEDS; i++)
         {
             leds[i].r = 0;
             leds[i].g = 6;
             leds[i].b = 0;
-        }
+        }*/
         switch(snake.dir)
         {
             case S_UP:
             {
-                leds[0].b = 2;
-                leds[1].b = 6;
-                leds[2].b = 2;
+                //leds[0].g = 4;
+                leds[1].g = 4;
+                //leds[2].g = 4;
                 break;
             }
             case S_RIGHT:
             {
-                leds[0].b = 6;
-                leds[5].b = 6;
+                leds[0].g = 4;
+                leds[5].g = 4;
                 break;
             }
             case S_DOWN:
             {
-                leds[3].b = 2;
-                leds[4].b = 6;
-                leds[5].b = 2;
+                //leds[3].g = 4;
+                leds[4].g = 4;
+                //leds[5].g = 4;
                 break;
             }
             case S_LEFT:
             {
-                leds[2].b = 6;
-                leds[3].b = 6;
+                leds[2].g = 4;
+                leds[3].g = 4;
                 break;
             }
             default:
