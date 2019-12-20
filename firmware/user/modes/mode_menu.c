@@ -97,7 +97,6 @@ int16_t squareWaveScrollOffset = 0;
 int16_t squareWaveScrollSpeed = -1; // expressed as pixels per frame.
 uint8_t drawOLEDScreensaver = 0; // only draw after bright screensaver.
 
-uint8_t compressedStagingSpace[1000] = {0};
 uint8_t img1[((OLED_WIDTH * OLED_HEIGHT) / 8) + METADATA_LEN] = {0};
 uint8_t img2[((OLED_WIDTH * OLED_HEIGHT) / 8) + METADATA_LEN] = {0};
 uint8_t* curImg = img1;
@@ -260,6 +259,7 @@ void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state __attribute__((unused)),
  */
 void ICACHE_FLASH_ATTR loadImg(swadgeMode* mode, uint8_t* decompressedImage)
 {
+    uint8_t compressedStagingSpace[1000] = {0};
     /* Read the compressed image from ROM into RAM, and make sure to do a
      * 32 bit aligned read. The arrays are all __attribute__((aligned(4)))
      * so this is safe, not out of bounds
