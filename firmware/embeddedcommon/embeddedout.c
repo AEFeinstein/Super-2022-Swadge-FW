@@ -1,11 +1,12 @@
 //Copyright 2015 <>< Charles Lohr under the ColorChord License.
 #include <osapi.h>
 #include "embeddedout.h"
+#include "user_main.h"
 
 uint8_t ICACHE_FLASH_ATTR GAMMA_CORRECT(uint8_t val)
 {
     // using gamma = 2.2
-    static const uint8_t gamma_correction_table[256] =
+    static const uint32_t gamma_correction_table[256] RODATA_ATTR =
     {
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2,

@@ -814,7 +814,7 @@ const rhythm_t rhythms[] =
     }
 };
 
-const notePeriod_t allNotes[] =
+const notePeriod_t allNotes[] RODATA_ATTR =
 {
     C_2,
     C_SHARP_2,

@@ -3,7 +3,7 @@
 #ifndef _DFT32_H
 #define _DFT32_H
 
-extern const int16_t Ssinonlytable[];
+extern const int32_t Ssinonlytable[];
 
 #endif
 

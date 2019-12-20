@@ -1,10 +1,11 @@
 //Copyright 2015 <>< Charles Lohr under the ColorChord License.
 #include <osapi.h>
 #include "DFT32.h"
+#include "user_main.h"
 
 //A table of precomputed sin() values.  Ranging -1500 to +1500
 //If we increase this, it may cause overflows elsewhere in code.
-const int16_t Ssinonlytable[256] =
+const int32_t Ssinonlytable[256] RODATA_ATTR =
 {
     0,    36,    73,   110,   147,   183,   220,   256,
     292,   328,   364,   400,   435,   470,   505,   539,
