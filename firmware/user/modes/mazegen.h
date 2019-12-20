@@ -9,7 +9,7 @@
 //#define MAZE_DEBUG_PRINT
 #ifdef MAZE_DEBUG_PRINT
     #include <stdlib.h>
-    #define maze_printf(...) maze_printf(__VA_ARGS__)
+    #define maze_printf(...) os_printf(__VA_ARGS__)
 #else
     #define maze_printf(...)
 #endif
