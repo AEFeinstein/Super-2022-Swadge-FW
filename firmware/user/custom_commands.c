@@ -9,7 +9,6 @@
 
 #include "ccconfig.h"
 #include "DFT32.h"
-#include "embeddednf.h"
 #include "embeddedout.h"
 #include "custom_commands.h"
 #include "user_main.h"
