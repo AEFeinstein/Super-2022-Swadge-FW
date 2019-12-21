@@ -229,7 +229,6 @@ static const uint8_t cmBrightnesses[] =
 
 const char* subModeName[] =
 {
-    
     "SHOCK REACT",
     "SHOCK CHAOS",
     "ROLL BALL",
@@ -1440,8 +1439,8 @@ void ICACHE_FLASH_ATTR cmGameDisplay(void)
                          (char*)subModeName[cmCurrentSubMode], RADIOSTARS, WHITE);
     }
     // always plot button labels
-        plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Brightness", TOM_THUMB, WHITE);
-        plotText(OLED_WIDTH - 16, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Mode", TOM_THUMB, WHITE);
+    plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Brightness", TOM_THUMB, WHITE);
+    plotText(OLED_WIDTH - 16, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Mode", TOM_THUMB, WHITE);
 
     //#define TESTING_INFO
 #ifdef TESTING_INFO
@@ -1575,9 +1574,9 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
         case ROLL_BALL:
             rollEnterMode(0);
             break;
-         case ROLL_3_BALLS:
-             rollEnterMode(11);
-             break;
+        case ROLL_3_BALLS:
+            rollEnterMode(11);
+            break;
         case TILT_A_COLOR:
             cmUseSmooth = false;
             cmUseHighPassAccel = false;

@@ -1776,7 +1776,8 @@ void ICACHE_FLASH_ATTR ttGameDisplay(void)
     //99
     currY += (FONT_HEIGHT_TOMTHUMB + 1);
     ets_snprintf(uiStr, sizeof(uiStr), "%d", (currentLevel + 1)); // Levels are displayed with 1 as the base level.
-    getNumCentering(uiStr, xFromGridCol(GRID_X, GRID_COLS, GRID_UNIT_SIZE) + 1, OLED_WIDTH - 1, &numFieldStart, &numFieldEnd);
+    getNumCentering(uiStr, xFromGridCol(GRID_X, GRID_COLS, GRID_UNIT_SIZE) + 1, OLED_WIDTH - 1, &numFieldStart,
+                    &numFieldEnd);
     fillDisplayArea(numFieldStart - xPad, currY, numFieldEnd + xPad, currY + FONT_HEIGHT_TOMTHUMB + yPad, BLACK);
     plotText(numFieldStart, currY, uiStr, TOM_THUMB, WHITE);
 

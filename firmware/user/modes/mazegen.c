@@ -171,8 +171,8 @@ int16_t ICACHE_FLASH_ATTR wallIntervals_helper(bool usetranspose, uint8_t outerl
         {
 #if DEBUG > 2
             maze_printf("%c i=%d, intervalstarted=%d, j=%d, jbegin=%d, indwall=%d\n",
-                      usetranspose ? nodes[i + j * width].c : nodes[j + i * width].c,
-                      i, intervalstarted, j, jbegin, indwall);
+                        usetranspose ? nodes[i + j * width].c : nodes[j + i * width].c,
+                        i, intervalstarted, j, jbegin, indwall);
 #endif
             if ((j == innerlooplimit) || (usetranspose ? nodes[i + j * width].c : nodes[j + i * width].c)  == ' ')
             {
@@ -618,7 +618,7 @@ get_maze_output_t ICACHE_FLASH_ATTR get_maze(uint8_t width, uint8_t height, uint
 #if DEBUG > 1
     // Print solution start center, then go to four corners
     maze_printf("indSolution %d numcells %d ratio %d / 100\n", indSolution, width * height,
-              100 * width * height / indSolution);
+                100 * width * height / indSolution);
     for (__int16_t i = 0; i < indSolution; i++)
     {
         maze_printf("(%d, %d) -> ", xsol[i], ysol[i]);

@@ -1527,7 +1527,8 @@ void ICACHE_FLASH_ATTR snakeSetLeds(void)
             leds[i].b = 6;
         }
         snake.ledBlinkCountdown--;
-    } else
+    }
+    else
     {
         /*for(i = 0; i < NUM_LIN_LEDS; i++)
         {
