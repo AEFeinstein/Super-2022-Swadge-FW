@@ -282,7 +282,7 @@ void ICACHE_FLASH_ATTR initializeConditionsForODE(uint8_t Method)
             roll.rhs_fun_ptr = &dnxdampedpendulum;
             roll.pendulumParameters = (pendParam)
             {
-                .damping = 0.01,
+                .damping = 0.20,
                 .lenPendulum = 1,
                 .gravity  = 9.81,
                 .force = 0

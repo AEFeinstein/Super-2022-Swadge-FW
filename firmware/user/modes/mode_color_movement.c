@@ -83,7 +83,8 @@
 //#define ALPHA_CROSS 0.1
 #define ALPHA_ACTIVE 0.03
 // #define CROSS_TOL 0
-#define BATTERY_VERY_GOOD 1700
+#define MAX_BATTERY 16384
+#define BATTERY_VERY_GOOD (MAX_BATTERY * 3 / 4)
 
 // LEDs relation to screen
 #define LED_UPPER_LEFT LED_1
@@ -1098,10 +1099,12 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                 PlotAngleCircle(cmHue, val);
                 break;
             case CUMULATIVE_ACTIVITY2HUE:
-                cmHue = CLAMP(cmCumulativeActivity * 255 / 2048, 0, 255);
+                // Pick the hue based on the battery charge
+                cmHue = CLAMP(cmCumulativeActivity * 255 / MAX_BATTERY, 0, 255);
+                // If the battery is charged over 75%, cycle the hues faster
                 if (cmCumulativeActivity > BATTERY_VERY_GOOD)
                 {
-                    cmHue += cmCumulativeActivity;
+                    cmHue += (modeTime / (1024 * 4));
                 }
                 val = 255;
                 // Don't apply gamma as is done in cmSetLeds
@@ -1152,21 +1155,27 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         //This is used only for POWER SHAKE added cmCumulativeActivity to make battery look better
         if (cmUseShiftingLeds)
         {
-            // Spin the leds syncronized to bpm while there is some shaking activity
-            if (((modeTime - ledPrevIncTime > MS_TO_US_FACTOR * avePeriodMs / USE_NUM_LEDS / cmLedRevsPerBeat)
-                    //         && (smoothActivity > ACTIVITY_BOUND )) || shockJustHappened)
-                    //&& (smoothActivity > ACTIVITY_BOUND )) )
-                    && (smoothActivity > ACTIVITY_BOUND ) && (cmCumulativeActivity > BATTERY_VERY_GOOD)) )
-
-            {
-                ledPrevIncTime = modeTime;
-                ledCycle += ledDirection;
-                ledCycle = (ledCycle + USE_NUM_LEDS) % USE_NUM_LEDS;
-                //CM_printf("ledCycle %d, modeTime %d, ledPrevIncTime %d\n", ledCycle, modeTime, ledPrevIncTime);
-            }
-
+            // Plot instructions
             plotCenteredText(0, 0, OLED_WIDTH, "SHAKE TO CHARGE", IBM_VGA_8, WHITE);
 
+            // Keep a summation of smoothActivity, 0 to 16384
+            cmCumulativeActivity = CLAMP((int64_t)cmCumulativeActivity + smoothActivity / 32 - 8, 0, MAX_BATTERY);
+
+            // Spin the LED proportional to the cumulative activity (battery charge)
+            if(cmCumulativeActivity >= (1 << 6))
+            {
+                uint32_t timeBetweenSpinUs = 1024000000 / cmCumulativeActivity;
+
+                if ((modeTime - ledPrevIncTime) > timeBetweenSpinUs ) // time in microseconds
+                {
+                    ledPrevIncTime = modeTime;
+                    ledCycle += ledDirection;
+                    ledCycle = (ledCycle + USE_NUM_LEDS) % USE_NUM_LEDS;
+                }
+            }
+
+            // Calculate battery level from cumulative activity
+            uint8_t battLevel = CLAMP(cmCumulativeActivity * 112 / MAX_BATTERY, 5, 112);
             // Draw the outline of a battery
             plotRect(
                 0,
@@ -1180,22 +1189,11 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                 OLED_WIDTH - 1,
                 (OLED_HEIGHT / 2 + 9) + 3,
                 WHITE);
-
-            cmCumulativeActivity = CLAMP((int64_t)cmCumulativeActivity + smoothActivity / 32 - 8, 0, 60000);
-            // Calculate a battery level from the hue
-            uint8_t battLevel = CLAMP(cmCumulativeActivity * 112 / 2048, 5, 112);
-            //os_printf("SMA = %d, CA = %d, BL = %d\n", smoothActivity, cmCumulativeActivity, battLevel);
-            //uint8_t battLevel = CLAMP(smoothActivity >> 4, 0, 112); //CLAMP(cmHue, 0, 112); //(cmHue * 106) / 256;
-            // If there is any motion, add some battery (even if the hue is 0)
-            if(smoothActivity > ACTIVITY_BOUND)
-            {
-                battLevel = CLAMP(battLevel, 5, 112);
-            }
             // Fill up the battery
             fillDisplayArea(
                 5,
                 (OLED_HEIGHT / 2 - 14) + 3,
-                5 + battLevel,
+                battLevel,
                 (OLED_HEIGHT / 2 + 14) + 3,
                 WHITE);
         }
