@@ -83,6 +83,7 @@
 //#define ALPHA_CROSS 0.1
 #define ALPHA_ACTIVE 0.03
 // #define CROSS_TOL 0
+#define BATTERY_VERY_GOOD 1700
 
 // LEDs relation to screen
 #define LED_UPPER_LEFT LED_1
@@ -133,6 +134,7 @@ typedef enum
     XYZ2RGB,
     ANGLE2HUE,
     BPM2HUE,
+    CUMULATIVE_ACTIVITY2HUE,
 } colorMethod_t;
 
 typedef enum
@@ -1095,6 +1097,21 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
 
                 PlotAngleCircle(cmHue, val);
                 break;
+            case CUMULATIVE_ACTIVITY2HUE:
+                cmHue = CLAMP(cmCumulativeActivity * 255 / 2048, 0, 255);
+                if (cmCumulativeActivity > BATTERY_VERY_GOOD)
+                {
+                    cmHue += cmCumulativeActivity;
+                }
+                val = 255;
+                // Don't apply gamma as is done in cmSetLeds
+                colorToShow = EHSVtoHEXhelper(cmHue, 0xFF, val, false);
+
+                ledr = (colorToShow >>  0) & 0xFF;
+                ledg = (colorToShow >>  8) & 0xFF;
+                ledb = (colorToShow >> 16) & 0xFF;
+
+                break;
             case BPM2HUE:
             default:
                 //Color and intensity related to bpm and amount of shaking using color wheel
@@ -1132,12 +1149,15 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
 
 #define USE_NUM_LEDS 6
         //TODO do I want || shockJustHappened here. If so will need to supress shock above if dont want
+        //This is used only for POWER SHAKE added cmCumulativeActivity to make battery look better
         if (cmUseShiftingLeds)
         {
             // Spin the leds syncronized to bpm while there is some shaking activity
             if (((modeTime - ledPrevIncTime > MS_TO_US_FACTOR * avePeriodMs / USE_NUM_LEDS / cmLedRevsPerBeat)
                     //         && (smoothActivity > ACTIVITY_BOUND )) || shockJustHappened)
-                    && (smoothActivity > ACTIVITY_BOUND )) )
+                    //&& (smoothActivity > ACTIVITY_BOUND )) )
+                    && (smoothActivity > ACTIVITY_BOUND ) && (cmCumulativeActivity > BATTERY_VERY_GOOD)) )
+
             {
                 ledPrevIncTime = modeTime;
                 ledCycle += ledDirection;
@@ -1161,12 +1181,15 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
                 (OLED_HEIGHT / 2 + 9) + 3,
                 WHITE);
 
+            cmCumulativeActivity = CLAMP((int64_t)cmCumulativeActivity + smoothActivity / 32 - 8, 0, 60000);
             // Calculate a battery level from the hue
-            uint8_t battLevel = (cmHue * 106) / 256;
+            uint8_t battLevel = CLAMP(cmCumulativeActivity * 112 / 2048, 5, 112);
+            //os_printf("SMA = %d, CA = %d, BL = %d\n", smoothActivity, cmCumulativeActivity, battLevel);
+            //uint8_t battLevel = CLAMP(smoothActivity >> 4, 0, 112); //CLAMP(cmHue, 0, 112); //(cmHue * 106) / 256;
             // If there is any motion, add some battery (even if the hue is 0)
             if(smoothActivity > ACTIVITY_BOUND)
             {
-                battLevel = CLAMP(battLevel, 8, 255);
+                battLevel = CLAMP(battLevel, 5, 112);
             }
             // Fill up the battery
             fillDisplayArea(
@@ -1292,7 +1315,7 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
         //Flip direction on crossing
         if (showCrossOnLed && crossIntervalCounter == 0)
         {
-            //ledDirection *= -1;
+            ledDirection *= -1;
         }
 
         //Brighten on crossing
@@ -1612,8 +1635,9 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
             cmUseRadialSymmetry = true;
             cmUseShiftingColorWheel = false;
             cmUseShiftingLeds = true;
+            cmComputeColor = CUMULATIVE_ACTIVITY2HUE;
             cmLedMethod = ALL_SAME;
-            cmScaleLed = 1000; // scaling for intensity and want to keep alive until very quiet
+            cmScaleLed = 65000; // scaling for intensity and want to keep alive until very quiet
             cmLedRevsPerBeat = 1.0;
             break;
         case BEAT_SPIN:
