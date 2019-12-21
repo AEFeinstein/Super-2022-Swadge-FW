@@ -14,6 +14,7 @@
 #include "buttons.h"
 #include "bresenham.h"
 #include "font.h"
+#include <mem.h>
 
 /*============================================================================
  * Defines
@@ -40,8 +41,9 @@ typedef enum
  * Function prototypes
  *==========================================================================*/
 
-void ICACHE_FLASH_ATTR modeInit(void);
-void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state, int button, int down);
+void ICACHE_FLASH_ATTR menuInit(void);
+void ICACHE_FLASH_ATTR menuExit(void);
+void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state, int button, int down);
 
 void ICACHE_FLASH_ATTR plotSquareWave(int16_t x, int16_t y);
 static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unused)));
@@ -64,9 +66,9 @@ void ICACHE_FLASH_ATTR mnuDrawArrows(void);
 swadgeMode menuMode =
 {
     .modeName = "menu",
-    .fnEnterMode = modeInit,
-    .fnExitMode = NULL,
-    .fnButtonCallback = modeButtonCallback,
+    .fnEnterMode = menuInit,
+    .fnExitMode = menuExit,
+    .fnButtonCallback = menuButtonCallback,
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
@@ -97,10 +99,10 @@ int16_t squareWaveScrollOffset = 0;
 int16_t squareWaveScrollSpeed = -1; // expressed as pixels per frame.
 uint8_t drawOLEDScreensaver = 0; // only draw after bright screensaver.
 
-uint8_t img1[((OLED_WIDTH * OLED_HEIGHT) / 8) + METADATA_LEN] = {0};
-uint8_t img2[((OLED_WIDTH * OLED_HEIGHT) / 8) + METADATA_LEN] = {0};
-uint8_t* curImg = img1;
-uint8_t* nextImg = img2;
+uint8_t* img1 = NULL;
+uint8_t* img2 = NULL;
+uint8_t* curImg = NULL;
+uint8_t* nextImg = NULL;
 
 os_timer_t timerPanning = {0};
 bool menuIsPanning = false;
@@ -114,8 +116,15 @@ int16_t panIdx = 0;
 /**
  * Initialize the menu by getting the list of modes from user_main.c
  */
-void ICACHE_FLASH_ATTR modeInit(void)
+void ICACHE_FLASH_ATTR menuInit(void)
 {
+    // Allocate space
+    img1 = (uint8_t*)os_malloc(sizeof(uint8_t) * ((OLED_WIDTH * OLED_HEIGHT) / 8) + METADATA_LEN);
+    img2 = (uint8_t*)os_malloc(sizeof(uint8_t) * ((OLED_WIDTH * OLED_HEIGHT) / 8) + METADATA_LEN);
+    // Assign pointers
+    curImg = img1;
+    nextImg = img2;
+
     // Get the list of modes
     numModes = getSwadgeModes(&modes);
     // Don't count the menu as a mode
@@ -161,13 +170,29 @@ void ICACHE_FLASH_ATTR modeInit(void)
 }
 
 /**
+ * @brief Free memory and disarm timers
+ *
+ */
+void ICACHE_FLASH_ATTR menuExit(void)
+{
+    os_timer_disarm(&timerScreensaverStart);
+    os_timer_disarm(&timerScreensaverBright);
+    os_timer_disarm(&timerScreensaverLEDAnimation);
+    os_timer_disarm(&timerScreensaverOLEDAnimation);
+    os_timer_disarm(&timerPanning);
+
+    os_free(img1);
+    os_free(img2);
+}
+
+/**
  * Handle the button. Left press selects the mode, right press starts it
  *
  * @param state  A bitmask of all buttons, unused
  * @param button The button that was just pressed or released
  * @param down   true if the button was pressed, false if it was released
  */
-void ICACHE_FLASH_ATTR modeButtonCallback(uint8_t state __attribute__((unused)),
+void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down)
 {
     // Stop the screensaver
