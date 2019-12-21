@@ -125,6 +125,9 @@ void ICACHE_FLASH_ATTR setUpperColAddrPagingMode(uint8_t col);
     void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* curr, int16_t* bounds);
 #endif
 
+void ICACHE_FLASH_ATTR saveOverwriteMenuBar(color* bottomBar);
+void ICACHE_FLASH_ATTR restoreMenuBar(color* bottomBar);
+
 //==============================================================================
 // Variables
 //==============================================================================
@@ -471,7 +474,6 @@ uint8_t ICACHE_FLASH_ATTR incrementMenuBar(void)
  */
 bool ICACHE_FLASH_ATTR updateOLED(void)
 {
-    bool knownChanges = false;
     if(false == fbChanges)
     {
         // We know nothing happened, just return
@@ -481,7 +483,6 @@ bool ICACHE_FLASH_ATTR updateOLED(void)
     {
         // Clear this bool and draw to the OLED
         fbChanges = false;
-        knownChanges = true;
     }
 
 #ifdef DOUBLE_BUFFER
@@ -501,26 +502,7 @@ bool ICACHE_FLASH_ATTR updateOLED(void)
     };
 
     color bottomBar[OLED_WIDTH] = {0};
-    if(mBarLen > 0)
-    {
-        // Save the bottom bar's pixels
-        for(uint8_t i = 0; i < OLED_WIDTH; i++)
-        {
-            bottomBar[i] = getPixel(i, OLED_HEIGHT - 1);
-        }
-        // overwrite with menu bar
-        for(uint8_t i = 0; i < OLED_WIDTH; i++)
-        {
-            if(i <= mBarLen)
-            {
-                drawPixel(i, OLED_HEIGHT - 1, WHITE);
-            }
-            else
-            {
-                drawPixel(i, OLED_HEIGHT - 1, BLACK);
-            }
-        }
-    }
+    saveOverwriteMenuBar(bottomBar);
 
     // Compare the prior and current framebuffers, looking for any differences
     for (page = 0; page < SSD1306_NUM_PAGES; page++)
@@ -532,8 +514,9 @@ bool ICACHE_FLASH_ATTR updateOLED(void)
     }
 
     // No framebuffer updates, just return
-    if (false == anyDiffs && false == knownChanges)
+    if (false == anyDiffs)
     {
+        restoreMenuBar(bottomBar);
         return true;
     }
 
@@ -554,13 +537,7 @@ bool ICACHE_FLASH_ATTR updateOLED(void)
     memcpy(priorFb, currentFb, sizeof(currentFb));
 
     // Restore the bottom bar
-    if(mBarLen > 0)
-    {
-        for(uint8_t i = 0; i < OLED_WIDTH; i++)
-        {
-            drawPixel(i, OLED_HEIGHT - 1, bottomBar[i]);
-        }
-    }
+    restoreMenuBar(bottomBar);
 
     // end i2c
     return (0 == brzo_i2c_end_transaction());
@@ -589,6 +566,53 @@ bool ICACHE_FLASH_ATTR updateOLED(void)
     return (0 == brzo_i2c_end_transaction());
 
 #endif
+}
+
+/**
+ * Copy the bottom bar into the bottomBar arg, then overwrite
+ * the pixels in the framebuffer with the menu progress bar.
+ * Only do this if there is a menu to draw
+ *
+ * @param bottomBar The array to copy the pixels into
+ */
+void ICACHE_FLASH_ATTR saveOverwriteMenuBar(color* bottomBar)
+{
+    if(mBarLen > 0)
+    {
+        // Save the bottom bar's pixels
+        for(uint8_t i = 0; i < OLED_WIDTH; i++)
+        {
+            bottomBar[i] = getPixel(i, OLED_HEIGHT - 1);
+        }
+        // overwrite with menu bar
+        for(uint8_t i = 0; i < OLED_WIDTH; i++)
+        {
+            if(i <= mBarLen)
+            {
+                drawPixel(i, OLED_HEIGHT - 1, WHITE);
+            }
+            else
+            {
+                drawPixel(i, OLED_HEIGHT - 1, BLACK);
+            }
+        }
+    }
+}
+
+/**
+ * Restore the bottom bar of pixels from bottomBar
+ *
+ * @param bottomBar The original pixels to write into the framebuffer
+ */
+void ICACHE_FLASH_ATTR restoreMenuBar(color* bottomBar)
+{
+    if(mBarLen > 0)
+    {
+        for(uint8_t i = 0; i < OLED_WIDTH; i++)
+        {
+            drawPixel(i, OLED_HEIGHT - 1, bottomBar[i]);
+        }
+    }
 }
 
 //==============================================================================
