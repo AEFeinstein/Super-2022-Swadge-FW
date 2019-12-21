@@ -471,6 +471,7 @@ uint8_t ICACHE_FLASH_ATTR incrementMenuBar(void)
  */
 bool ICACHE_FLASH_ATTR updateOLED(void)
 {
+    bool knownChanges = false;
     if(false == fbChanges)
     {
         // We know nothing happened, just return
@@ -480,6 +481,7 @@ bool ICACHE_FLASH_ATTR updateOLED(void)
     {
         // Clear this bool and draw to the OLED
         fbChanges = false;
+        knownChanges = true;
     }
 
 #ifdef DOUBLE_BUFFER
@@ -530,7 +532,7 @@ bool ICACHE_FLASH_ATTR updateOLED(void)
     }
 
     // No framebuffer updates, just return
-    if (false == anyDiffs)
+    if (false == anyDiffs && false == knownChanges)
     {
         return true;
     }
