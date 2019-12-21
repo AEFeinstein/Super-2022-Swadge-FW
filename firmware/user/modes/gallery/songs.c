@@ -1365,7 +1365,74 @@ const song_t bomberman RODATA_ATTR =
     .shouldLoop = true
 };
 
-const song_t* allSongs[17] =
+const song_t sax RODATA_ATTR =
+{
+    .notes = {
+        {.note = E_5, .timeMs = 96},
+        {.note = F_5, .timeMs = 96},
+        {.note = G_5, .timeMs = 96},
+        {.note = A_5, .timeMs = 96},
+        {.note = E_6, .timeMs = 385},
+        {.note = D_6, .timeMs = 192},
+        {.note = A_5, .timeMs = 385},
+        {.note = F_5, .timeMs = 385},
+        {.note = E_6, .timeMs = 577},
+        {.note = D_6, .timeMs = 192},
+        {.note = A_5, .timeMs = 385},
+        {.note = F_5, .timeMs = 577},
+        {.note = C_6, .timeMs = 385},
+        {.note = A_SHARP_5, .timeMs = 192},
+        {.note = F_5, .timeMs = 385},
+        {.note = D_5, .timeMs = 385},
+        {.note = C_6, .timeMs = 577},
+        {.note = A_SHARP_5, .timeMs = 192},
+        {.note = F_5, .timeMs = 1026},
+        {.note = A_SHARP_5, .timeMs = 385},
+        {.note = A_5, .timeMs = 192},
+        {.note = F_5, .timeMs = 385},
+        {.note = D_5, .timeMs = 385},
+        {.note = A_SHARP_4, .timeMs = 1538},
+        {.note = A_4, .timeMs = 385},
+        {.note = A_SHARP_4, .timeMs = 385},
+        {.note = C_5, .timeMs = 385},
+        {.note = D_5, .timeMs = 385},
+        {.note = E_5, .timeMs = 385},
+        {.note = F_5, .timeMs = 385},
+        {.note = G_5, .timeMs = 385},
+        {.note = A_5, .timeMs = 385},
+        {.note = E_6, .timeMs = 385},
+        {.note = D_6, .timeMs = 192},
+        {.note = A_5, .timeMs = 385},
+        {.note = F_5, .timeMs = 385},
+        {.note = E_6, .timeMs = 577},
+        {.note = D_6, .timeMs = 192},
+        {.note = A_5, .timeMs = 385},
+        {.note = F_5, .timeMs = 577},
+        {.note = C_6, .timeMs = 385},
+        {.note = A_SHARP_5, .timeMs = 192},
+        {.note = F_5, .timeMs = 385},
+        {.note = D_5, .timeMs = 385},
+        {.note = C_6, .timeMs = 577},
+        {.note = A_SHARP_5, .timeMs = 192},
+        {.note = F_5, .timeMs = 1026},
+        {.note = A_SHARP_5, .timeMs = 385},
+        {.note = A_5, .timeMs = 192},
+        {.note = F_5, .timeMs = 385},
+        {.note = D_5, .timeMs = 385},
+        {.note = A_SHARP_4, .timeMs = 1538},
+        {.note = A_4, .timeMs = 385},
+        {.note = A_SHARP_4, .timeMs = 385},
+        {.note = C_5, .timeMs = 385},
+        {.note = D_5, .timeMs = 385},
+        {.note = E_5, .timeMs = 385},
+        {.note = F_5, .timeMs = 385},
+        {.note = G_5, .timeMs = 385},
+    },
+    .numNotes = 60,
+    .shouldLoop = true
+};
+
+const song_t* allSongs[18] =
 {
     &Bubble_Bobble,
     &dkc2,
@@ -1384,6 +1451,7 @@ const song_t* allSongs[17] =
     &pacman,
     &bomberman,
     &FourSeasons,
+    &sax
 };
 
 const song_t* ICACHE_FLASH_ATTR getSong(uint8_t idx)
