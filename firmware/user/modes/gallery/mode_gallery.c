@@ -734,8 +734,17 @@ const galImage_t wink =
     }
 };
 
+const galImage_t credits =
+{
+    .nFrames = 1,
+    .continousPan = ALWAYS_RIGHT,
+    .frames = {
+        {.data = gal_credits_00, .len = sizeof(gal_credits_00)},
+    }
+};
+
 // Order matters, must match galUnlockPlaceholders
-#define NUM_IMAGES 17
+#define NUM_IMAGES 18
 const galImage_t* galImages[NUM_IMAGES] =
 {
     &galLogo,    // Already unlocked
@@ -754,7 +763,8 @@ const galImage_t* galImages[NUM_IMAGES] =
     &galBongo,   // Joust
     &galFunkus,  // Snake
     &galGaylord, // Tiltrads
-    &galSnort    // Maze
+    &galSnort,   // Maze
+    &credits
 };
 
 const galImage_t* galUnlockPlaceholders[4] =
@@ -895,7 +905,7 @@ void ICACHE_FLASH_ATTR galButtonCallback(uint8_t state __attribute__((unused)),
  */
 bool ICACHE_FLASH_ATTR galIsImageUnlocked(void)
 {
-    if(gal.cImage > (NUM_IMAGES - 5))
+    if(gal.cImage > (NUM_IMAGES - 5) && gal.cImage != NUM_IMAGES - 1)
     {
         // Check to see if it's unlocked
         if(getGalleryUnlocks() & 1 << (gal.cImage - (NUM_IMAGES - 4)))
@@ -923,7 +933,7 @@ const galImage_t* ICACHE_FLASH_ATTR galGetCurrentImage(void)
 {
     const galImage_t* imageToLoad;
     // If we're not on the first image
-    if(gal.cImage > (NUM_IMAGES - 5))
+    if(gal.cImage > (NUM_IMAGES - 5) && gal.cImage != NUM_IMAGES - 1)
     {
         // Check to see if it's unlocked
         if(getGalleryUnlocks() & 1 << (gal.cImage - (NUM_IMAGES - 4)))
@@ -1029,8 +1039,16 @@ void ICACHE_FLASH_ATTR galLoadFirstFrame(void)
     os_timer_disarm(&gal.timerPan);
     if(gal.virtualWidth > OLED_WIDTH)
     {
-        // Pan one pixel every 25 ms for a faster pan
-        os_timer_arm(&gal.timerPan, 25, true);
+        if(gal.cImage == NUM_IMAGES - 1)
+        {
+            // Pan one pixel every 75 ms for the credits
+            os_timer_arm(&gal.timerPan, 75, true);
+        }
+        else
+        {
+            // Pan one pixel every 25 ms for a faster pan
+            os_timer_arm(&gal.timerPan, 25, true);
+        }
     }
 
     // Draw the first frame in it's entirety to the OLED
