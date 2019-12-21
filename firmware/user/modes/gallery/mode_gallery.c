@@ -737,7 +737,7 @@ const galImage_t wink =
 const galImage_t credits =
 {
     .nFrames = 1,
-    .continousPan = ALWAYS_RIGHT,
+    .continousPan = ALWAYS_LEFT,
     .frames = {
         {.data = gal_credits_00, .len = sizeof(gal_credits_00)},
     }

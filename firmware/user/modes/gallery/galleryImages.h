@@ -425,6 +425,6 @@ extern uint8_t gal_wink_12[56] RODATA_ATTR;
 extern uint8_t gal_wink_13[39] RODATA_ATTR;
 extern uint8_t gal_wink_14[39] RODATA_ATTR;
 extern uint8_t gal_wink_15[56] RODATA_ATTR;
-extern uint8_t gal_credits_00[749] RODATA_ATTR;
+extern uint8_t gal_credits_00[783] RODATA_ATTR;
 
 #endif // _GALLERY_IMAGES_H_
