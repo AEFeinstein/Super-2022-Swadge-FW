@@ -23,10 +23,6 @@
 #include "user_main.h"  //swadge mode
 #include "mode_color_movement.h"
 #include "mode_dance.h"
-#ifdef COLORCHORD_DFT
-    #include "ccconfig.h"
-    #include "embeddednf.h"
-#endif
 #include "DFT32.h"
 #include "buttons.h"
 #include "oled.h"       //display functions
@@ -126,9 +122,6 @@ typedef enum
 #ifdef ENABLE_POV_EFFECT
     POV_EFFECT,
 #endif
-#ifdef COLORCHORD_DFT
-    DFT_SHAKE,
-#endif
     POWER_SHAKE,
     BEAT_SPIN,
     BEAT_SELECT,
@@ -174,9 +167,6 @@ void ICACHE_FLASH_ATTR cmInit(void);
 void ICACHE_FLASH_ATTR cmDeInit(void);
 void ICACHE_FLASH_ATTR cmButtonCallback(uint8_t state, int button, int down);
 void ICACHE_FLASH_ATTR cmAccelerometerCallback(accel_t* accel);
-#ifdef COLORCHORD_DFT
-    void ICACHE_FLASH_ATTR cmSampleHandler(int32_t samp);
-#endif
 // game loop functions.
 void ICACHE_FLASH_ATTR cmUpdate(void* arg);
 
@@ -249,9 +239,6 @@ const char* subModeName[] =
 #ifdef ENABLE_POV_EFFECT
     "POV EFFECT",
 #endif
-#ifdef COLORCHORD_DFT
-    "DFT SHAKE",
-#endif
     "SHAKE IT",
     "BEAT SPIN",
     "BEAT SELECT"
@@ -296,10 +283,6 @@ bool cmUseShiftingColorWheel;
 bool cmPlotHP;
 bool cmPlotBPMTau;
 bool cmPlotLissajou;
-
-#ifdef COLORCHORD_DFT
-    bool cmUseColorChordDFT;
-#endif
 
 uint16_t cmNumSum;
 uint16_t cmScaleLed;
@@ -564,11 +547,6 @@ void ICACHE_FLASH_ATTR cmInit(void)
     // External from mode_dance to set brightness when using dance mode display
     // Start half brightness
     setDanceBrightness(2);
-
-#ifdef COLORCHORD_DFT
-    // Use ColorChord code to process accelerometer samples
-    InitColorChord();
-#endif
 
     cmSamplesProcessed = 0;
 
@@ -937,21 +915,6 @@ void ICACHE_FLASH_ATTR cmGameUpdate(void)
 
 
     // Sub mode sections
-#ifdef COLORCHORD_DFT
-    if (cmCurrentSubMode == DFT_SHAKE)
-    {
-        // send this to be dealt with by color chord
-        // computes light pattern and OLED display
-        cmSampleHandler(sample);
-        for (uint8_t  i = 0; i < FIXBINS; i++)
-        {
-            drawPixel(i, OLED_HEIGHT - fuzzed_bins[i] / 2000, WHITE);
-            //CM_printf("%d ", fuzzed_bins[i]);
-        }
-        //CM_printf("fuzzed_bins[0] = %d\n", fuzzed_bins[0]);
-    }
-    //TODO should be else here if COLORCHORD_DFT is defined, but it leave astyle messes up
-#endif
     if ((cmCurrentSubMode == ROLL_BALL) || (cmCurrentSubMode == ROLL_3_BALLS))
     {
         // send this to be dealt with by roll mode routines
@@ -1573,9 +1536,6 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
     cmUsePOVeffect = false; // possible to shift hue angle
     cmUseRadialSymmetry = false; // possible to force radial symmetry
     cmShockRampCount = 500 / UPDATE_TIME_MS;
-#ifdef COLORCHORD_DFT
-    cmUseColorChordDFT = false;
-#endif
     cmLedRevsPerBeat = 2.0;
     cmColorWheelRevsPerBeat = 1.0;
     cmColorWheelIncPerBeat = 4;
@@ -1641,11 +1601,6 @@ void ICACHE_FLASH_ATTR cmNewSetup(subMethod_t subMode)
             cmColorWheelIncPerBeat = 1;
             cmUsePOVeffect = true;
             cmShowNumLeds = 3;
-            break;
-#endif
-#ifdef COLORCHORD_DFT
-        case DFT_SHAKE:
-            cmUseColorChordDFT = true;
             break;
 #endif
         case POWER_SHAKE:
@@ -1788,88 +1743,6 @@ uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font)
     plotText(0, 0, text, font, INVERSE);
     return textWidth;
 }
-
-#ifdef COLORCHORD_DFT
-int32_t mzMaxSamp = -30000;
-int32_t mzMinSamp = 30000;
-
-
-/**
- * Just run colorchord but will be given accelerometer samples
- *
- * @param samp A 32 bit sample
- */
-void ICACHE_FLASH_ATTR cmSampleHandler(int32_t samp)
-{
-    //CM_printf("%d\n", samp);
-    if (abs(samp) > 0)
-    {
-        PushSample32( samp );
-    }
-    else
-    {
-        PushSample32(0);
-        //CM_printf("%d ", samp);
-    }
-    // Here  -2700 < samp < 2780 from audio in demo mode
-    // if (samp < mzMinSamp)
-    // {
-    //     mzMinSamp = samp;
-    //     CM_printf("range %d to %d\n", mzMinSamp, mzMaxSamp);
-    // }
-    // if (samp > mzMaxSamp)
-    // {
-    //     mzMaxSamp = samp;
-    //     CM_printf("range %d to %d\n", mzMinSamp, mzMaxSamp);
-    // }
-
-    cmSamplesProcessed++;
-
-    // If at least NUM_SAMPLES_PER_FRAME samples have been processed
-    if( cmSamplesProcessed >= NUM_SAMPLES_PER_FRAME )
-    {
-        //CM_printf("COLORCHORD_ACTIVE %d DFTIIR %d\n", COLORCHORD_ACTIVE, DFTIIR);
-        // Don't bother if colorchord is inactive
-        if( !COLORCHORD_ACTIVE )
-        {
-            return;
-        }
-
-
-        // Colorchord magic
-        HandleFrameInfo();
-
-        // Set LEDs
-
-
-        gFRAMECOUNT_MOD_SHIFT_INTERVAL++;
-        if ( gFRAMECOUNT_MOD_SHIFT_INTERVAL >= COLORCHORD_SHIFT_INTERVAL )
-        {
-            gFRAMECOUNT_MOD_SHIFT_INTERVAL = 0;
-        }
-        //printf("MOD FRAME %d ******\n", gFRAMECOUNT_MOD_SHIFT_INTERVAL);
-
-        switch( COLORCHORD_OUTPUT_DRIVER )
-        {
-            case 254:
-                PureRotatingLEDs();
-                break;
-            case 255:
-                DFTInLights();
-                break;
-            default:
-                UpdateLinearLEDs(); // have variety of display options and uses COLORCHORD_OUTPUT_DRIVER to select them
-        };
-
-        // could use this if want overall brightness control
-        //cmSetLeds( (led_t*)ledOut, NUM_LIN_LEDS * 3 );
-        setLeds( (led_t*)ledOut, NUM_LIN_LEDS * 3 );
-
-        // Reset the sample count
-        cmSamplesProcessed = 0;
-    }
-}
-#endif
 
 /**
  * Plot a triangle where each vertex represents the magnitude of a color vector

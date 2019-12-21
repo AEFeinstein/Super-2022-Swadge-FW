@@ -12,7 +12,6 @@
 #define NUM_MZ_LEVELS 7 //Track best times for each level
 
 void ICACHE_FLASH_ATTR LoadSettings( void );
-void ICACHE_FLASH_ATTR PopulategConfigs( void );
 
 uint32_t* ICACHE_FLASH_ATTR ttGetHighScores(void);
 void ICACHE_FLASH_ATTR ttSetHighScores(uint32_t* newHighScores);
