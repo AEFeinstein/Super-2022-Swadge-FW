@@ -1515,6 +1515,7 @@ void ICACHE_FLASH_ATTR mzChangeState(mazeState_t newState)
             indSolutionStep = 0;
             indSolutionSubStep = 0;
             totalcyclestilldone = 0;
+            totalhitstilldone = 0;
             exitInd = UPPER_LEFT;
             break;
         case MZ_SCORES:
