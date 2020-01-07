@@ -879,8 +879,9 @@ int16_t score1X;
 int16_t score2X;
 //int16_t lastScoreX;
 
-// Gameover ui vars.
+// Gameover vars.
 int16_t gameoverScoreX;
+int32_t gameoverLEDAnimCycle;
 
 // Input vars.
 accel_t ttAccel = {0};
@@ -1916,10 +1917,13 @@ void ICACHE_FLASH_ATTR ttGameoverDisplay(void)
         plotText(OLED_WIDTH - windowXMargin - 26 - controlTextXPadding, controlTextYOffset, "RESTART", TOM_THUMB, WHITE);
     }
 
+    gameoverLEDAnimCycle = ((double)stateTime * US_TO_MS_FACTOR) / DISPLAY_REFRESH_MS;
+    color killTetradColor = gameoverLEDAnimCycle % 2 == 0 ? WHITE : BLACK;
+
     // Flash the active tetrad that was the killing tetrad.
     plotTetrad(xFromGridCol(GRID_X, activeTetrad.topLeft.c, GRID_UNIT_SIZE),
                yFromGridRow(GRID_Y, activeTetrad.topLeft.r, GRID_UNIT_SIZE), GRID_UNIT_SIZE, TETRAD_GRID_SIZE, TETRAD_GRID_SIZE,
-               activeTetrad.shape, activeTetrad.type, activeTetrad.rotation, INVERSE);
+               activeTetrad.shape, activeTetrad.type, activeTetrad.rotation, killTetradColor);
 }
 
 // helper functions.
@@ -2034,6 +2038,7 @@ void ICACHE_FLASH_ATTR ttChangeState(tiltradsState_t newState)
             x1 = OLED_WIDTH - x0;
             ets_snprintf(uiStr, sizeof(uiStr), "%d", score);
             gameoverScoreX = getCenteredTextX(x0, x1, uiStr, IBM_VGA_8);
+            gameoverLEDAnimCycle = ((double)stateTime * US_TO_MS_FACTOR) / DISPLAY_REFRESH_MS;
 
             clearLEDs(NUM_LEDS);
 
