@@ -22,4 +22,4 @@ Once your environment is set up, read the [Contribution Guide](https://github.co
 
 The Super 2020 Swadge uses [cnlohr's exp8266 environment](https://github.com/cnlohr/esp82xx), which in turn uses the ESP8266 Non-OS SDK. You may find the [ESP8266 Non-OS SDK API Reference](https://www.espressif.com/sites/default/files/documentation/2c-esp8266_non_os_sdk_api_reference_en.pdf) useful.
 
-[piflash](https://github.com/AEFeinstein/Swadge-Devkit-Fw/blob/master/piflash/README.md) is used for flashing Swadges. It's called from the makefile.
+[pyFlashGui](https://github.com/AEFeinstein/Super-2020-Swadge-FW/tree/master/piflash/pyFlashGui) is used for flashing Swadges. It's a Python GUI program.
