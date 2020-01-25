@@ -14,7 +14,7 @@
 
 #include "hpatimer.h"
 #include "adc.h"
-#include "missingEspFnPrototypes.h"
+#include "esp_niceness.h"
 #include "gpio_user.h"
 #include "nvm_interface.h"
 

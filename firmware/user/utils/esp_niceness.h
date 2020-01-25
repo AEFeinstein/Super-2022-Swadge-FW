@@ -1,5 +1,5 @@
-#ifndef _CCCONFIG_H
-#define _CCCONFIG_H
+#ifndef _ESP_NICENESS_H
+#define _ESP_NICENESS_H
 
 // Prototypes missing from the SDK
 void rom_i2c_writeReg_Mask(uint8_t block, uint8_t host_id, uint8_t reg_add, uint8_t msb, uint8_t lsb, uint8_t data);

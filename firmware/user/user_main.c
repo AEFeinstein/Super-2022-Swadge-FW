@@ -19,7 +19,7 @@
 
 #include "ws2812_i2s.h"
 #include "hpatimer.h"
-#include "ccconfig.h"
+#include "esp_niceness.h"
 #include "gpio_user.h"
 #include "buttons.h"
 #include "nvm_interface.h"

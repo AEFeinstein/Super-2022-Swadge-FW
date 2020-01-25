@@ -40,7 +40,7 @@ Extra copyright info:
 #include <driver/slc_register.h>
 
 #include "ws2812_i2s.h"
-#include "missingEspFnPrototypes.h"
+#include "esp_niceness.h"
 
 // This should be defined in the cfg file, but if the eclipse indexer can't see that...
 #if !defined(WS2812_THREE_SAMPLE) && !defined(WS2812_FOUR_SAMPLE)

@@ -7,7 +7,7 @@
 #include <gpio.h>
 #include <eagle_soc.h>
 
-#include "ccconfig.h"
+#include "esp_niceness.h"
 #include "DFT32.h"
 #include "embeddedout.h"
 #include "nvm_interface.h"

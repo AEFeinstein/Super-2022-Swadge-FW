@@ -11,7 +11,7 @@
 #include <osapi.h>
 
 #include "adc.h"
-#include "missingEspFnPrototypes.h"
+#include "esp_niceness.h"
 
 /*============================================================================
  * Defines
