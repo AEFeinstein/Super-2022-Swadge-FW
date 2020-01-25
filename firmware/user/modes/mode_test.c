@@ -5,7 +5,6 @@
  *      Author: adam
  */
 #include "user_config.h"
-#ifdef TEST_MODE
 
 /*============================================================================
  * Includes
@@ -496,5 +495,3 @@ void ICACHE_FLASH_ATTR testAccelerometerHandler(accel_t* accel)
     test.Accel.z = accel->z;
     testUpdateDisplay();
 }
-
-#endif

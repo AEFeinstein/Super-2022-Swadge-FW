@@ -30,17 +30,7 @@
 #include "PartitionMap.h"
 #include "QMA6981.h"
 
-#include "mode_menu.h"
-#include "mode_joust_game.h"
-#include "mode_snake.h"
-#include "mode_gallery.h"
-#include "mode_tiltrads.h"
-#include "mode_mazerf.h"
-#include "mode_color_movement.h"
-#ifdef TEST_MODE
-    #include "mode_test.h"
-#endif
-#include "mode_music.h"
+#include "mode_test.h"
 
 /*============================================================================
  * Defines
@@ -72,32 +62,7 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
 {
-    /* This MUST NOT be defined for production firmware. It should only be
-     * enabled from the makefile when building test firmware for manufacturing.
-     * It uses all hardware features to quickly validate if hardware is functional.
-     * This comes before menuMode so the menu does not have to be navigated.
-     */
-#ifdef TEST_MODE
     &testMode,
-#endif
-    /* SWADGE_2019 doesn't have an OLED, so this is useless.
-     * For all other swadges, it comes first so the swadge boots into the menu.
-     */
-#if SWADGE_VERSION != SWADGE_2019
-    &menuMode,
-#endif
-    /* These are the modes which are displayed in the menu */
-    &tiltradsMode,
-    &snakeMode,
-    &joustGameMode,
-    &mazerfMode,
-    /* SWADGE_2019 doesn't have a buzzer either */
-#if SWADGE_VERSION != SWADGE_2019
-    &muteOptionOff,
-#endif
-    &galleryMode,
-    &colorMoveMode,
-    &musicMode,
 };
 
 bool swadgeModeInit = false;

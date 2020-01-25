@@ -8,8 +8,6 @@
 #ifndef MODES_MODE_TEST_H_
 #define MODES_MODE_TEST_H_
 
-#ifdef TEST_MODE
-    extern swadgeMode testMode;
-#endif
+extern swadgeMode testMode;
 
 #endif /* MODES_MODE_TEST_H_ */
