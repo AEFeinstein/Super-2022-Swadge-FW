@@ -1,6 +1,0 @@
-{
-    "files.associations": {
-        "tinywav.h": "c",
-        "buzzer.h": "c"
-    }
-}
