@@ -4,3 +4,6 @@
 [submodule "piflash/pyFlashGui/esptool"]
 	path = pyFlashGui/esptool
 	url = https://github.com/AEFeinstein/esptool.git
+[submodule "ESP-Asset-Packer"]
+	path = ESP-Asset-Packer
+	url = https://github.com/AEFeinstein/ESP-Asset-Packer
