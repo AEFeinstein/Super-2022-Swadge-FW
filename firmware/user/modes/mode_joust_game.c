@@ -19,7 +19,7 @@
 
 #include "user_main.h"
 #include "mode_joust_game.h"
-#include "custom_commands.h"
+#include "nvm_interface.h"
 #include "buttons.h"
 #include "oled.h"
 #include "font.h"

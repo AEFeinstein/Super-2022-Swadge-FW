@@ -18,7 +18,7 @@
 
 #include "hpatimer.h"
 #include "buzzer.h"
-#include "custom_commands.h"
+#include "nvm_interface.h"
 
 #include "oled.h"
 #include "bresenham.h"

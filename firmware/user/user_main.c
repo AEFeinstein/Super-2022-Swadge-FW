@@ -22,7 +22,7 @@
 #include "ccconfig.h"
 #include "gpio_user.h"
 #include "buttons.h"
-#include "custom_commands.h"
+#include "nvm_interface.h"
 #include "user_main.h"
 #include "espNowUtils.h"
 #include "cnlohr_i2c.h"

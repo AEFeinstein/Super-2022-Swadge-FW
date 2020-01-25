@@ -30,7 +30,7 @@
 #include "bresenham.h"  //draw shapes
 #include "hpatimer.h"   //for sound
 #include "linked_list.h" //custom linked list
-#include "custom_commands.h" //saving and loading high scores and last scores
+#include "nvm_interface.h" //saving and loading high scores and last scores
 #include "math.h"
 #include "embeddedout.h"
 #include "mode_roll.h"

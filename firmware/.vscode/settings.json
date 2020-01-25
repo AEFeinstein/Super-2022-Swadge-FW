@@ -32,7 +32,7 @@
         "adc.h": "c",
         "buttons.h": "c",
         "ccconfig.h": "c",
-        "custom_commands.h": "c",
+        "nvm_interface.h": "c",
         "bresenham.h": "c",
         "font.h": "c",
         "oled.h": "c",

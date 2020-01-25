@@ -16,7 +16,7 @@
 #define COMMON_SERVICES_SETTINGS_ADDR 0xBA000
 #define COMMON_SERVICES_SETTINGS_SIZE  0x3000
 /**
- * Settings used in custom_commands.c. Comes 3 sectors after COMMON_SERVICES_SETTINGS_ADDR
+ * Settings used in nvm_interface.c. Comes 3 sectors after COMMON_SERVICES_SETTINGS_ADDR
  * Currently 0x7F000
  */
 #define USER_SETTINGS_ADDR            (COMMON_SERVICES_SETTINGS_ADDR + COMMON_SERVICES_SETTINGS_SIZE)

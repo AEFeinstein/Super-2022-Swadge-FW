@@ -17,7 +17,7 @@
 #include "user_main.h"
 #include "user_main.h"
 #include "embeddedout.h"
-#include "custom_commands.h"
+#include "nvm_interface.h"
 #include "mode_dance.h"
 
 /*============================================================================

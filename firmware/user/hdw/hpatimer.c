@@ -16,7 +16,7 @@
 #include "adc.h"
 #include "missingEspFnPrototypes.h"
 #include "gpio_user.h"
-#include "custom_commands.h"
+#include "nvm_interface.h"
 
 /*============================================================================
  * Defines

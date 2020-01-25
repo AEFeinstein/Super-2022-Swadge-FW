@@ -18,7 +18,7 @@
 #include "galleryImages.h"
 #include "fastlz.h"
 #include "font.h"
-#include "custom_commands.h"
+#include "nvm_interface.h"
 #include "buzzer.h"
 #include "hpatimer.h"
 #include "bresenham.h"

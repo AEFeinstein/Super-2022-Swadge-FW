@@ -7,7 +7,7 @@
 #include "mode_menu.h"
 #include "display/oled.h"
 #include "display/font.h"
-#include "custom_commands.h"
+#include "nvm_interface.h"
 #include "mode_dance.h"
 #include "fastlz.h"
 #include "mode_gallery.h"

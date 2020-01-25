@@ -32,7 +32,7 @@
 #include "font.h"       //draw text
 #include "bresenham.h"  //draw shapes
 #include "linked_list.h" //custom linked list
-#include "custom_commands.h" //saving and loading high scores and last scores
+#include "nvm_interface.h" //saving and loading high scores and last scores
 #include "mazegen.h"
 #include "math.h"
 #include "buzzer.h"

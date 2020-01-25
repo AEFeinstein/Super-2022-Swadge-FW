@@ -10,7 +10,7 @@
 #include "ccconfig.h"
 #include "DFT32.h"
 #include "embeddedout.h"
-#include "custom_commands.h"
+#include "nvm_interface.h"
 #include "user_main.h"
 #include "spi_memory_addrs.h"
 

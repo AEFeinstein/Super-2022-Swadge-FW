@@ -18,7 +18,7 @@
 #include "font.h"
 #include "buzzer.h"
 #include "hpatimer.h"
-#include "custom_commands.h"
+#include "nvm_interface.h"
 #include "buttons.h"
 #include "bresenham.h"
 
