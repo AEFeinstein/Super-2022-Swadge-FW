@@ -195,6 +195,8 @@ FW_FILE2 = image.elf-0x10000.bin
 LIBGCC_STRIPPED = libgcc_stripped.a
 DBG_MAP=image.map
 DBG_LST=image.lst
+ASSETS_FILE=assets.bin
+ASSETS_DIR=assets
 
 ################################################################################
 # Targets for Building
@@ -204,7 +206,7 @@ DBG_LST=image.lst
 .PHONY: all clean debug bump_submodule erase dumprom wipechip burnitall burn burn_cutecom docs print-%
 
 # Build everything!
-all: $(FW_FILE1) $(FW_FILE2)
+all: $(FW_FILE1) $(FW_FILE2) $(ASSETS_FILE)
 
 # To build the two firmware files for flashing, you have to build the main file
 $(FW_FILE1) $(FW_FILE2) : $(FW_FILE0)
@@ -305,6 +307,10 @@ $(LIBGCC_STRIPPED) :
 	$(AR) dv libgcc_stripped.a _umodsi3.o
 	$(AR) dv libgcc_stripped.a _umulsidi3.o
 
+# To build the assets, run a python script
+$(ASSETS_FILE):
+	python3 ../ESP-Asset-Packer/espAssetPacker.py -d $(ASSETS_DIR) -o $(ASSETS_FILE)
+
 # This clean everything
 clean:
 	-@find ./ -type f -name '$(FW_FILE0)' -delete
@@ -316,18 +322,28 @@ clean:
 	-@find ./$(OBJ_DIR)/ -type f -name '*.o' -delete
 	-@find ./$(OBJ_DIR)/ -type f -name '*.d' -delete
 	-@rm -rf docs
+	-@find ./ -type f -name '$(ASSETS_FILE)' -delete
 
 ################################################################################
 # Targets for Flashing
 ################################################################################
 
 # Build and burn the two firmware files
-burn : $(FW_FILE1) $(FW_FILE2)
-	$(ESPTOOL_PY) --baud $(ESP_FLASH_BITRATE) --port $(ESP_PORT) write_flash -fm dio $(FLASH_WRITE_FLAGS) 0x00000 $(FW_FILE1) 0x10000 $(FW_FILE2)
+burn : all
+	$(ESPTOOL_PY) --baud $(ESP_FLASH_BITRATE) --port $(ESP_PORT) write_flash -fm dio $(FLASH_WRITE_FLAGS) \
+		0x00000 $(FW_FILE1) \
+		0x10000 $(FW_FILE2) \
+		0x6C000 $(ASSETS_FILE)
 
 # Build everything and burn the two firmware files, and init data
 burnitall : all
-	$(ESPTOOL_PY) --baud $(ESP_FLASH_BITRATE) --port $(ESP_PORT) write_flash -fm dio $(FLASH_WRITE_FLAGS) 0x00000 $(FW_FILE1) 0x10000 $(FW_FILE2) 0x1FB000 $(SDK)/bin/blank.bin 0x1FC000 $(SDK)/bin/esp_init_data_default_v08.bin 0x1FE000 $(SDK)/bin/blank.bin
+	$(ESPTOOL_PY) --baud $(ESP_FLASH_BITRATE) --port $(ESP_PORT) write_flash -fm dio $(FLASH_WRITE_FLAGS) \
+		0x00000 $(FW_FILE1) \
+		0x10000 $(FW_FILE2) \
+		0x6C000 $(ASSETS_FILE) \
+		0x1FB000 $(SDK)/bin/blank.bin \
+		0x1FC000 $(SDK)/bin/esp_init_data_default_v08.bin \
+		0x1FE000 $(SDK)/bin/blank.bin
 
 # Erase the ESP8266
 erase :

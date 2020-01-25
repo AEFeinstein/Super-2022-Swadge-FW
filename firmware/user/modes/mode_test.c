@@ -23,6 +23,8 @@
 #include "buttons.h"
 #include "hpatimer.h"
 
+#include "assets.h"
+
 /*============================================================================
  * Defines
  *==========================================================================*/
@@ -463,6 +465,9 @@ void ICACHE_FLASH_ATTR testUpdateDisplay(void)
 
     // Draw the banana
     plotSprite(50, 32, &rotating_banana[test.BananaIdx], WHITE);
+
+    // Draw a slug
+    drawBitmapFromAsset("slug.png", 72, 24);
 }
 
 /**
