@@ -14,7 +14,7 @@
     "files.associations": {
         "DFT32.h": "c",
         "embeddednf.h": "c",
-        "embeddedout.h": "c",
+        "hsv_utils.h": "c",
         "vars.h": "c",
         "commonservices.h": "c",
         "esp8266_rom.h": "c",

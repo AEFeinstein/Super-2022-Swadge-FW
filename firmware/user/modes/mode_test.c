@@ -15,8 +15,7 @@
 
 #include "user_main.h"
 #include "mode_test.h"
-#include "DFT32.h"
-#include "embeddedout.h"
+#include "hsv_utils.h"
 #include "oled.h"
 #include "sprite.h"
 #include "font.h"

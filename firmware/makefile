@@ -27,9 +27,7 @@ FLASH_WRITE_FLAGS = # --verify
 ################################################################################
 
 # This is a list of directories to scan for c files recursively
-SRC_DIRS_RECURSIVE = \
-	user \
-	embeddedcommon
+SRC_DIRS_RECURSIVE = user
 # Add the gdbstub directory if applicable
 ifneq ($(ESP_GDB),)
   SRC_DIRS_RECURSIVE += gdbstub

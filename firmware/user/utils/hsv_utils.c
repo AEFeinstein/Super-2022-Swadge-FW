@@ -1,6 +1,6 @@
 //Copyright 2015 <>< Charles Lohr under the ColorChord License.
 #include <osapi.h>
-#include "embeddedout.h"
+#include "hsv_utils.h"
 #include "user_main.h"
 
 uint8_t ICACHE_FLASH_ATTR GAMMA_CORRECT(uint8_t val)

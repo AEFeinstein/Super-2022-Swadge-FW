@@ -15,7 +15,7 @@
     // button, then start up xtensa-lx106-elf-gdb -x gdbstub/gdbcmds -b 115200
     #include <../gdbstub/gdbstub.h>
 #endif
-#include "embeddedout.h"
+#include "hsv_utils.h"
 
 #include "ws2812_i2s.h"
 #include "hpatimer.h"

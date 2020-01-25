@@ -8,8 +8,7 @@
 #include <eagle_soc.h>
 
 #include "esp_niceness.h"
-#include "DFT32.h"
-#include "embeddedout.h"
+#include "hsv_utils.h"
 #include "nvm_interface.h"
 #include "user_main.h"
 #include "spi_memory_addrs.h"

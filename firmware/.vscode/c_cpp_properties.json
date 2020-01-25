@@ -12,7 +12,6 @@
                 "${workspaceFolder}/user/utils",
                 "${workspaceFolder}/user/utils/spi_mem",
                 "${workspaceFolder}/user/utils/wireless",
-                "${workspaceFolder}/embeddedcommon/",
                 "${workspaceFolder}/ESP8266_NONOS_SDK/include",
                 "${workspaceFolder}/ESP8266_NONOS_SDK/driver_lib/include/",
                 "${workspaceFolder}/ESP8266_NONOS_SDK/driver_lib/include/driver/",
