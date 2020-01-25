@@ -13,7 +13,7 @@
 
 #include <osapi.h>
 #include "user_main.h"
-#include "brzo_i2c.h"
+#include "cnlohr_i2c.h"
 #include "QMA6981.h"
 
 #define QMA6981_ADDR 0x12
@@ -174,10 +174,10 @@ accel_t lastKnownAccel = {0};
  */
 uint8_t ICACHE_FLASH_ATTR QMA6981_writereg(QMA6981_reg_addr addr, uint8_t data)
 {
-    brzo_i2c_start_transaction(QMA6981_ADDR, QMA6981_FREQ);
+    cnlohr_i2c_start_transaction(QMA6981_ADDR, QMA6981_FREQ);
     uint8_t writeCmd[2] = {addr, data};
-    brzo_i2c_write(writeCmd, sizeof(writeCmd), false);
-    return brzo_i2c_end_transaction();
+    cnlohr_i2c_write(writeCmd, sizeof(writeCmd), false);
+    return cnlohr_i2c_end_transaction();
 }
 
 /**
@@ -190,11 +190,11 @@ uint8_t ICACHE_FLASH_ATTR QMA6981_writereg(QMA6981_reg_addr addr, uint8_t data)
  */
 uint8_t ICACHE_FLASH_ATTR QMA6981_readreg(QMA6981_reg_addr addr, uint8_t len, uint8_t* data)
 {
-    brzo_i2c_start_transaction(QMA6981_ADDR, QMA6981_FREQ);
+    cnlohr_i2c_start_transaction(QMA6981_ADDR, QMA6981_FREQ);
     uint8_t reg[1] = {addr};
-    brzo_i2c_write(reg, sizeof(reg), false);
-    brzo_i2c_read(data, len, false);
-    return brzo_i2c_end_transaction();
+    cnlohr_i2c_write(reg, sizeof(reg), false);
+    cnlohr_i2c_read(data, len, false);
+    return cnlohr_i2c_end_transaction();
 }
 
 /**

@@ -11,6 +11,15 @@
 #define PIN_DIR_INPUT ( *((uint32_t*)0x60000314) )
 #define PIN_IN        ( *((volatile uint32_t*)0x60000318) )
 
+#define CNLOHR_I2C_SDA_MUX PERIPHS_IO_MUX_GPIO2_U
+#define CNLOHR_I2C_SCL_MUX PERIPHS_IO_MUX_GPIO0_U
+#define CNLOHR_I2C_SDA_FUNC FUNC_GPIO2
+#define CNLOHR_I2C_SCL_FUNC FUNC_GPIO0
+
+int cnl_need_new_stop;
+uint8_t cnl_slave_address;
+int cnl_err;
+bool cnl_highSpeed;
 
 void ICACHE_FLASH_ATTR ConfigI2C(void)
 {
@@ -148,4 +157,79 @@ void my_i2c_delay(bool highSpeed)
     return;
 }
 
+void cnlohr_i2c_setup( uint32_t clock_stretch_time_out_usec __attribute__((unused)))
+{
+    PIN_FUNC_SELECT(CNLOHR_I2C_SDA_MUX, CNLOHR_I2C_SDA_FUNC);
+    PIN_FUNC_SELECT(CNLOHR_I2C_SCL_MUX, CNLOHR_I2C_SCL_FUNC);
 
+    //~60k resistor. On a small PCB, with 3 I2C clients, it takes ~ 1uS to get to 2v
+    PIN_PULLUP_EN(CNLOHR_I2C_SDA_MUX);
+    PIN_PULLUP_EN(CNLOHR_I2C_SCL_MUX);
+
+    ConfigI2C();
+}
+
+
+void cnlohr_i2c_write(const uint8_t* data, uint32_t no_of_bytes, bool repeated_start)
+{
+    unsigned i;
+    if( cnl_need_new_stop && !repeated_start )
+    {
+        SendStop(cnl_highSpeed);
+        I2CDELAY(cnl_highSpeed);
+    }
+    SendStart(cnl_highSpeed);
+    if( SendByte( cnl_slave_address << 1, cnl_highSpeed ) )
+    {
+        cnl_err = 1;
+    }
+    for( i = 0; i < no_of_bytes; i++ )
+    {
+        if( SendByte( data[i], cnl_highSpeed ) )
+        {
+            cnl_err = 1;
+        }
+    }
+    cnl_need_new_stop = 1;
+}
+
+void cnlohr_i2c_start_transaction(uint8_t slave_address, uint16_t SCL_frequency_KHz)
+{
+    cnl_highSpeed = (800 == SCL_frequency_KHz);
+    cnl_err = 0;
+    // SendStart();
+    // SendByte( slave_address << 1 );
+    cnl_slave_address = slave_address;
+}
+
+
+void cnlohr_i2c_read(uint8_t* data, uint32_t nr_of_bytes, bool repeated_start)
+{
+    if( cnl_need_new_stop && !repeated_start )
+    {
+        SendStop(cnl_highSpeed);
+        I2CDELAY(cnl_highSpeed);
+    }
+
+    SendStart(cnl_highSpeed);
+    if( SendByte( 1 | (cnl_slave_address << 1), cnl_highSpeed ) )
+    {
+        cnl_err = 1;
+    }
+
+    // if( repeated_start ) SendStart();
+    unsigned i;
+    for( i = 0; i < nr_of_bytes - 1; i++ )
+    {
+        data[i] = GetByte( 0, cnl_highSpeed );
+    }
+    data[i] = GetByte( 1, cnl_highSpeed );
+    SendStop(cnl_highSpeed);
+}
+
+uint8_t cnlohr_i2c_end_transaction(void)
+{
+    SendStop(cnl_highSpeed);
+    cnl_need_new_stop = 0;
+    return cnl_err;
+}

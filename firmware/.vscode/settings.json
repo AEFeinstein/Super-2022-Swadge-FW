@@ -30,7 +30,6 @@
         "user_config.h": "c",
         "md5.h": "c",
         "adc.h": "c",
-        "brzo_i2c.h": "c",
         "buttons.h": "c",
         "ccconfig.h": "c",
         "custom_commands.h": "c",

@@ -12,7 +12,7 @@
 #include <osapi.h>
 
 #include "oled.h"
-#include "brzo_i2c.h"
+#include "cnlohr_i2c.h"
 #include "gpio_user.h"
 
 //==============================================================================
@@ -272,7 +272,7 @@ bool ICACHE_FLASH_ATTR initOLED(bool reset)
     }
 
     // Start i2c
-    brzo_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
+    cnlohr_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
 
     // Init sequence
     setDisplayOn(false);
@@ -310,11 +310,11 @@ bool ICACHE_FLASH_ATTR initOLED(bool reset)
         setUpperColAddrPagingMode(0);
 
         // Write the data
-        brzo_i2c_write(clearPage, sizeof(clearPage), false);
+        cnlohr_i2c_write(clearPage, sizeof(clearPage), false);
     }
 
     // End i2c
-    return (0 == brzo_i2c_end_transaction());
+    return (0 == cnlohr_i2c_end_transaction());
 }
 
 #ifdef DOUBLE_BUFFER
@@ -384,7 +384,7 @@ inline void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* c
     memcpy(&diffs[1], &curr[bounds[0]], numBytesDifferent);
 
     // Write the data
-    brzo_i2c_write(diffs, sizeof(diffs), false);
+    cnlohr_i2c_write(diffs, sizeof(diffs), false);
 
 #else
 
@@ -434,7 +434,7 @@ inline void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* c
             memcpy(&diffs[1], &curr[colAddr], numBytesDifferent);
 
             // Write the data
-            brzo_i2c_write(diffs, sizeof(diffs), false);
+            cnlohr_i2c_write(diffs, sizeof(diffs), false);
 
             numBytesDifferent = 0;
             numBytesSame = 0;
@@ -521,7 +521,7 @@ bool ICACHE_FLASH_ATTR updateOLED(void)
     }
 
     // Start i2c
-    brzo_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
+    cnlohr_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
 
     // Find the actual differences and push them out
     for (page = 0; page < SSD1306_NUM_PAGES; page++)
@@ -540,12 +540,12 @@ bool ICACHE_FLASH_ATTR updateOLED(void)
     restoreMenuBar(bottomBar);
 
     // end i2c
-    return (0 == brzo_i2c_end_transaction());
+    return (0 == cnlohr_i2c_end_transaction());
 
 #else
 
     // Start i2c
-    brzo_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
+    cnlohr_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
 
     // Find the actual differences and push them out
     uint8_t page;
@@ -559,11 +559,11 @@ bool ICACHE_FLASH_ATTR updateOLED(void)
         setPageAddressPagingMode(page);
         setLowerColAddrPagingMode(0);
         setUpperColAddrPagingMode(0);
-        brzo_i2c_write(wholePage, sizeof(wholePage), false);
+        cnlohr_i2c_write(wholePage, sizeof(wholePage), false);
     }
 
     // end i2c
-    return (0 == brzo_i2c_end_transaction());
+    return (0 == cnlohr_i2c_end_transaction());
 
 #endif
 }
@@ -636,7 +636,7 @@ void ICACHE_FLASH_ATTR setContrastControl(uint8_t contrast)
         SSD1306_SETCONTRAST,
         contrast
     };
-    brzo_i2c_write(data, sizeof(data), false);
+    cnlohr_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -652,7 +652,7 @@ void ICACHE_FLASH_ATTR entireDisplayOn(bool ignoreRAM)
         SSD1306_CMD,
         ignoreRAM ? SSD1306_DISPLAYALLON : SSD1306_DISPLAYALLON_RESUME
     };
-    brzo_i2c_write(data, sizeof(data), false);
+    cnlohr_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -672,7 +672,7 @@ void ICACHE_FLASH_ATTR setInverseDisplay(bool inverse)
         SSD1306_CMD,
         inverse ? SSD1306_INVERTDISPLAY : SSD1306_NORMALDISPLAY
     };
-    brzo_i2c_write(data, sizeof(data), false);
+    cnlohr_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -688,7 +688,7 @@ void ICACHE_FLASH_ATTR setDisplayOn(bool on)
         SSD1306_CMD,
         on ? SSD1306_DISPLAYON : SSD1306_DISPLAYOFF
     };
-    brzo_i2c_write(data, sizeof(data), false);
+    cnlohr_i2c_write(data, sizeof(data), false);
 }
 
 //==============================================================================
@@ -714,7 +714,7 @@ void ICACHE_FLASH_ATTR activateScroll(bool on)
         SSD1306_CMD,
         on ? SSD1306_ACTIVATE_SCROLL : SSD1306_DEACTIVATE_SCROLL
     };
-    brzo_i2c_write(data, sizeof(data), false);
+    cnlohr_i2c_write(data, sizeof(data), false);
 }
 
 //==============================================================================
@@ -736,7 +736,7 @@ void ICACHE_FLASH_ATTR setMemoryAddressingMode(memoryAddressingMode mode)
         SSD1306_MEMORYMODE,
         mode
     };
-    brzo_i2c_write(data, sizeof(data), false);
+    cnlohr_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -760,7 +760,7 @@ void ICACHE_FLASH_ATTR setColumnAddress(uint8_t startAddr, uint8_t endAddr)
         startAddr,
         endAddr
     };
-    brzo_i2c_write(data, sizeof(data), false);
+    cnlohr_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -784,7 +784,7 @@ void ICACHE_FLASH_ATTR setPageAddress(uint8_t startAddr, uint8_t endAddr)
         startAddr,
         endAddr
     };
-    brzo_i2c_write(data, sizeof(data), false);
+    cnlohr_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -803,7 +803,7 @@ void ICACHE_FLASH_ATTR setPageAddressPagingMode(uint8_t page)
         SSD1306_CMD,
         SSD1306_PAGEADDRPAGING + page,
     };
-    brzo_i2c_write(data, sizeof(data), false);
+    cnlohr_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -822,7 +822,7 @@ void ICACHE_FLASH_ATTR setLowerColAddrPagingMode(uint8_t col)
         SSD1306_CMD,
         SSD1306_SETLOWCOLUMN + col,
     };
-    brzo_i2c_write(data, sizeof(data), false);
+    cnlohr_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -841,7 +841,7 @@ void ICACHE_FLASH_ATTR setUpperColAddrPagingMode(uint8_t col)
         SSD1306_CMD,
         SSD1306_SETHIGHCOLUMN + col,
     };
-    brzo_i2c_write(data, sizeof(data), false);
+    cnlohr_i2c_write(data, sizeof(data), false);
 }
 
 //==============================================================================
@@ -865,7 +865,7 @@ void ICACHE_FLASH_ATTR setDisplayStartLine(uint8_t startLineRegister)
         SSD1306_CMD,
         SSD1306_SETSTARTLINE | (startLineRegister & 0x3F)
     };
-    brzo_i2c_write(data, sizeof(data), false);
+    cnlohr_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -881,7 +881,7 @@ void ICACHE_FLASH_ATTR setSegmentRemap(bool colAddr)
         SSD1306_CMD,
         SSD1306_SEGREMAP | (colAddr ? 0x01 : 0x00)
     };
-    brzo_i2c_write(data, sizeof(data), false);
+    cnlohr_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -902,7 +902,7 @@ void ICACHE_FLASH_ATTR setMultiplexRatio(uint8_t ratio)
         SSD1306_SETMULTIPLEX,
         ratio
     };
-    brzo_i2c_write(data, sizeof(data), false);
+    cnlohr_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -918,7 +918,7 @@ void ICACHE_FLASH_ATTR setComOutputScanDirection(bool increment)
         SSD1306_CMD,
         increment ? SSD1306_COMSCANINC : SSD1306_COMSCANDEC
     };
-    brzo_i2c_write(data, sizeof(data), false);
+    cnlohr_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -938,7 +938,7 @@ void ICACHE_FLASH_ATTR setDisplayOffset(uint8_t offset)
         SSD1306_SETDISPLAYOFFSET,
         offset
     };
-    brzo_i2c_write(data, sizeof(data), false);
+    cnlohr_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -956,7 +956,7 @@ void ICACHE_FLASH_ATTR setComPinsHardwareConfig(bool sequential, bool remap)
         SSD1306_SETCOMPINS,
         (sequential ? 0x00 : 0x10) | (remap ? 0x20 : 0x00) | 0x02
     };
-    brzo_i2c_write(data, sizeof(data), false);
+    cnlohr_i2c_write(data, sizeof(data), false);
 }
 
 //==============================================================================
@@ -985,7 +985,7 @@ void ICACHE_FLASH_ATTR setDisplayClockDivideRatio(uint8_t divideRatio, uint8_t o
         SSD1306_SETDISPLAYCLOCKDIV,
         (divideRatio & 0x0F) | ((oscFreq << 4) & 0xF0)
     };
-    brzo_i2c_write(data, sizeof(data), false);
+    cnlohr_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -1008,7 +1008,7 @@ void ICACHE_FLASH_ATTR setPrechargePeriod(uint8_t phase1period, uint8_t phase2pe
         SSD1306_SETPRECHARGE,
         (phase1period & 0x0F) | ((phase2period << 4) & 0xF0)
     };
-    brzo_i2c_write(data, sizeof(data), false);
+    cnlohr_i2c_write(data, sizeof(data), false);
 }
 
 /**
@@ -1024,7 +1024,7 @@ void ICACHE_FLASH_ATTR setVcomhDeselectLevel(VcomhDeselectLevel level)
         SSD1306_SETVCOMDETECT,
         level
     };
-    brzo_i2c_write(data, sizeof(data), false);
+    cnlohr_i2c_write(data, sizeof(data), false);
 }
 
 //==============================================================================
@@ -1050,5 +1050,5 @@ void ICACHE_FLASH_ATTR setChargePumpSetting(bool enable)
         SSD1306_CHARGEPUMP,
         0x10 | (enable ? 0x04 : 0x00)
     };
-    brzo_i2c_write(data, sizeof(data), false);
+    cnlohr_i2c_write(data, sizeof(data), false);
 }
