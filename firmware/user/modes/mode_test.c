@@ -52,39 +52,6 @@ static void ICACHE_FLASH_ATTR testLedFunc(void* arg __attribute__((unused)));
  * Const data
  *==========================================================================*/
 
-const song_t BlackDog ICACHE_RODATA_ATTR =
-{
-    .notes = {
-        {.note = E_5, .timeMs = 188},
-        {.note = G_5, .timeMs = 188},
-        {.note = G_SHARP_5, .timeMs = 188},
-        {.note = A_5, .timeMs = 188},
-        {.note = E_5, .timeMs = 188},
-        {.note = C_6, .timeMs = 375},
-        {.note = A_5, .timeMs = 375},
-        {.note = D_6, .timeMs = 188},
-        {.note = E_6, .timeMs = 188},
-        {.note = C_6, .timeMs = 94},
-        {.note = D_6, .timeMs = 94},
-        {.note = C_6, .timeMs = 188},
-        {.note = A_5, .timeMs = 188},
-        {.note = A_5, .timeMs = 188},
-        {.note = C_6, .timeMs = 375},
-        {.note = A_5, .timeMs = 375},
-        {.note = G_5, .timeMs = 188},
-        {.note = A_5, .timeMs = 188},
-        {.note = A_5, .timeMs = 188},
-        {.note = D_5, .timeMs = 188},
-        {.note = E_5, .timeMs = 188},
-        {.note = C_5, .timeMs = 188},
-        {.note = D_5, .timeMs = 188},
-        {.note = A_4, .timeMs = 375},
-        {.note = A_4, .timeMs = 750},
-    },
-    .numNotes = 25,
-    .shouldLoop = true
-};
-
 const sprite_t rotating_banana[] ICACHE_RODATA_ATTR =
 {
     // frame_0_delay-0.07s.png
@@ -324,7 +291,8 @@ void ICACHE_FLASH_ATTR testEnterMode(void)
     memset(&test, 0, sizeof(test));
 
     // Test the buzzer
-    startBuzzerSong(&BlackDog);
+    uint32_t songLen;
+    startBuzzerSong((song_t*)getAsset("carmen.rtl", &songLen));
 
     // Test the display with a rotating banana
     os_timer_disarm(&test.timerHandleBanana);
