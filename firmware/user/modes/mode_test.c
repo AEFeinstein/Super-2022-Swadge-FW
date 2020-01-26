@@ -464,10 +464,38 @@ void ICACHE_FLASH_ATTR testUpdateDisplay(void)
     }
 
     // Draw the banana
-    plotSprite(50, 32, &rotating_banana[test.BananaIdx], WHITE);
+    plotSprite(58 - 18, 32, &rotating_banana[test.BananaIdx], WHITE);
 
-    // Draw a slug
-    drawBitmapFromAsset("slug.png", 72, 24);
+    // Draw some monsters
+    int8_t hMod;
+    if(test.BananaIdx < (sizeof(rotating_banana) / sizeof(rotating_banana[0]) / 2))
+    {
+        hMod = 2;
+    }
+    else
+    {
+        hMod = -2;
+    }
+
+    static bool flip = false;
+    static bool flipped = false;
+    if(test.BananaIdx == 0 && !flipped)
+    {
+        flip = !flip;
+        flipped = true;
+    }
+    else
+    {
+        flipped = false;
+    }
+
+
+    drawBitmapFromAsset("slug.png", 58 + (18 * 0), 24 + hMod, flip);
+    drawBitmapFromAsset("dragon.png", 58 + (18 * 1), 24 - hMod, flip);
+    drawBitmapFromAsset("bear.png", 58 + (18 * 2), 24 + hMod, flip);
+    drawBitmapFromAsset("serpent.png", 58 + (18 * 3), 24 - hMod, flip);
+    // This should fail gracefully
+    drawBitmapFromAsset("asd.png", 58 + (18 * 3), 24 - hMod, flip);
 }
 
 /**

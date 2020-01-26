@@ -13,7 +13,7 @@
 
 /**
  * @brief Get a pointer to an asset
- * 
+ *
  * @param name   The name of the asset to fetch
  * @param retLen A pointer to a uint32_t where the asset length will be written
  * @return A pointer to the asset, or NULL if not found
@@ -60,13 +60,13 @@ uint32_t* getAsset(char* name, uint32_t* retLen)
 }
 
 /**
- * @brief Draw a bitmap asset to the OLED 
- * 
+ * @brief Draw a bitmap asset to the OLED
+ *
  * @param name The name of the asset to draw
  * @param x The x coordinate of the asset
  * @param y The y coordinate of the asset
  */
-void drawBitmapFromAsset(char* name, uint16_t x, uint16_t y)
+void drawBitmapFromAsset(char* name, int16_t x, int16_t y, bool flipLR)
 {
     // Get the image from the packed assets
     uint32_t assetLen = 0;
@@ -88,19 +88,29 @@ void drawBitmapFromAsset(char* name, uint16_t x, uint16_t y)
         chunk = reverseByteOrder(chunk);
         uint32_t bitIdx = 0;
         // Draw the image's pixels
-        for(uint32_t h = 0; h < height; h++)
+        for(uint16_t h = 0; h < height; h++)
         {
-            for(uint32_t w = 0; w < width; w++)
+            for(uint16_t w = 0; w < width; w++)
             {
+                int16_t xPos;
+                if(flipLR)
+                {
+                    xPos = x + (width - w - 1);
+                }
+                else
+                {
+                    xPos = x + w;
+                }
+
                 if(chunk & (0x80000000 >> (bitIdx++)))
                 {
                     assetDbg("X");
-                    drawPixel(x + w, y + h, WHITE);
+                    drawPixel(xPos, y + h, WHITE);
                 }
                 else
                 {
                     assetDbg(" ");
-                    drawPixel(x + w, y + h, BLACK);
+                    drawPixel(xPos, y + h, BLACK);
                 }
 
                 if(bitIdx == 32)
