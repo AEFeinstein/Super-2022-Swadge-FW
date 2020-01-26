@@ -6,11 +6,6 @@
 // #define assetDbg(...) os_printf(__VA_ARGS__)
 #define assetDbg(...)
 
-#define reverseByteOrder(a) ( ((a >> 24) & 0x000000FF) | \
-                              ((a >> 8)  & 0x0000FF00) | \
-                              ((a << 8)  & 0x00FF0000) | \
-                              ((a << 24) & 0xFF000000) )
-
 /**
  * @brief Get a pointer to an asset
  *
@@ -27,7 +22,6 @@ uint32_t* getAsset(char* name, uint32_t* retLen)
     uint32_t* assets = (uint32_t*)(0x40210000 + 0x5C000);
     uint32_t idx = 0;
     uint32_t numIndexItems = assets[idx++];
-    numIndexItems = reverseByteOrder(numIndexItems);
     assetDbg("Scanning %d items\n", numIndexItems);
 
     for(uint32_t ni = 0; ni < numIndexItems; ni++)
@@ -39,11 +33,9 @@ uint32_t* getAsset(char* name, uint32_t* retLen)
 
         // Read the address from the index
         uint32_t assetAddress = assets[idx++];
-        assetAddress = reverseByteOrder(assetAddress);
 
         // Read the length from the index
         uint32_t assetLen = assets[idx++];
-        assetLen = reverseByteOrder(assetLen);
 
         assetDbg("%s, addr: %d, len: %d\n", assetName, assetAddress, assetLen);
 
@@ -78,14 +70,11 @@ void drawBitmapFromAsset(char* name, int16_t x, int16_t y, bool flipLR)
 
         // Get the width and height
         uint32_t width = assetPtr[idx++];
-        width = reverseByteOrder(width);
         uint32_t height = assetPtr[idx++];
-        height = reverseByteOrder(height);
         assetDbg("Width: %d, height: %d\n", width, height);
 
         // Read 32 bits at a time
         uint32_t chunk = assetPtr[idx++];
-        chunk = reverseByteOrder(chunk);
         uint32_t bitIdx = 0;
         // Draw the image's pixels
         for(uint16_t h = 0; h < height; h++)
@@ -116,7 +105,6 @@ void drawBitmapFromAsset(char* name, int16_t x, int16_t y, bool flipLR)
                 if(bitIdx == 32)
                 {
                     chunk = assetPtr[idx++];
-                    chunk = reverseByteOrder(chunk);
                     bitIdx = 0;
                 }
             }
