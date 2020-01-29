@@ -115,7 +115,6 @@
 
 typedef struct
 {
-    uint32_t shouldLoop;
     uint32_t numNotes;
     uint32_t interNotePause;
     uint32_t notes[];

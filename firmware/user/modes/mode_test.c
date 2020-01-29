@@ -292,7 +292,7 @@ void ICACHE_FLASH_ATTR testEnterMode(void)
 
     // Test the buzzer
     uint32_t songLen;
-    startBuzzerSong((song_t*)getAsset("carmen.rtl", &songLen));
+    startBuzzerSong((song_t*)getAsset("carmen.rtl", &songLen), false);
 
     // Test the display with a rotating banana
     os_timer_disarm(&test.timerHandleBanana);

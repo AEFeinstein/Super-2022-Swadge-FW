@@ -17,7 +17,7 @@ bool ICACHE_FLASH_ATTR isHpaRunning(void);
 void ICACHE_FLASH_ATTR initBuzzer(void);
 void ICACHE_FLASH_ATTR setBuzzerNote(uint16_t note);
 void ICACHE_FLASH_ATTR stopBuzzerSong(void);
-void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song);
+void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song, bool shouldLoop);
 
 #endif
 

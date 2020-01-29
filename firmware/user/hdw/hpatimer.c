@@ -56,6 +56,7 @@ struct
     uint16_t currNote; // Actually a clock divisor
     uint16_t currDuration;
     const song_t* song;
+    bool songShouldLoop;
     uint32_t noteTime;
     uint32_t noteIdx;
     os_timer_t songTimer;
@@ -209,8 +210,9 @@ void ICACHE_FLASH_ATTR setBuzzerNote(uint16_t note)
  * no memory will be copied, so don't modify it!
  *
  * @param song A pointer to the song_t struct to be played
+ * @param shouldLoop true to loop the song, false otherwise
  */
-void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song)
+void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song, bool shouldLoop)
 {
     BZR_DBG("%s, %d notes, %d internote pause\n", __func__, song->numNotes, song->interNotePause);
     // If it's muted, don't set anything
@@ -224,6 +226,7 @@ void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song)
 
     // Save the song pointer
     bzr.song = song;
+    bzr.songShouldLoop = shouldLoop;
 
     // Set the timer to call every 1ms
     os_timer_arm(&bzr.songTimer, 1, true);
@@ -289,7 +292,7 @@ void ICACHE_FLASH_ATTR songTimerCb(void* arg __attribute__((unused)))
         else
         {
             // No more notes
-            if(bzr.song->shouldLoop)
+            if(bzr.songShouldLoop)
             {
                 BZR_DBG("Loop\n");
                 // Song over, but should loop, so start again
