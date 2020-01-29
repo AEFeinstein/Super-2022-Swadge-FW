@@ -25,6 +25,9 @@
 #define FRC1_ENABLE_TIMER  BIT7
 #define FRC1_AUTO_RELOAD 64
 
+// #define BZR_DBG(...) os_printf(__VA_ARGS__)
+#define BZR_DBG(...)
+
 /*============================================================================
  * Enums
  *==========================================================================*/
@@ -50,7 +53,8 @@ volatile bool hpaRunning = false;
 
 struct
 {
-    notePeriod_t note;
+    uint16_t currNote; // Actually a clock divisor
+    uint16_t currDuration;
     const song_t* song;
     uint32_t noteTime;
     uint32_t noteIdx;
@@ -65,6 +69,7 @@ static void timerhandle( void* v );
 
 void ICACHE_FLASH_ATTR setBuzzerOn(bool on);
 void ICACHE_FLASH_ATTR songTimerCb(void* arg __attribute__((unused)));
+void ICACHE_FLASH_ATTR loadNextNote(void);
 
 /*============================================================================
  * Functions
@@ -81,7 +86,7 @@ void ICACHE_FLASH_ATTR songTimerCb(void* arg __attribute__((unused)));
 static void timerhandle( void* v __attribute__((unused)))
 {
     RTC_CLR_REG_MASK(FRC1_INT_ADDRESS, FRC1_INT_CLR_MASK);
-    if(SILENCE != bzr.note)
+    if(SILENCE != bzr.currNote)
     {
         setBuzzerGpio(!getBuzzerGpio());
     }
@@ -95,15 +100,15 @@ static void timerhandle( void* v __attribute__((unused)))
  */
 void ICACHE_FLASH_ATTR StartHPATimer(void)
 {
-    if(SILENCE != bzr.note)
+    if(SILENCE != bzr.currNote)
     {
         RTC_REG_WRITE(FRC1_CTRL_ADDRESS,  FRC1_AUTO_RELOAD |
                       DIVDED_BY_16 | //5MHz main clock.
                       FRC1_ENABLE_TIMER |
                       TM_EDGE_INT );
 
-        RTC_REG_WRITE(FRC1_LOAD_ADDRESS,  bzr.note);
-        RTC_REG_WRITE(FRC1_COUNT_ADDRESS, bzr.note);
+        RTC_REG_WRITE(FRC1_LOAD_ADDRESS,  bzr.currNote);
+        RTC_REG_WRITE(FRC1_COUNT_ADDRESS, bzr.currNote);
 
         ETS_FRC_TIMER1_INTR_ATTACH(timerhandle, NULL);
 
@@ -171,22 +176,23 @@ void ICACHE_FLASH_ATTR initBuzzer(void)
  *             The numerical value is 5000000/(2*freq).
  *             It's written to registers in StartHPATimer()
  */
-void ICACHE_FLASH_ATTR setBuzzerNote(notePeriod_t note)
+void ICACHE_FLASH_ATTR setBuzzerNote(uint16_t note)
 {
+    BZR_DBG("%s %d\n", __func__, noteClockDivisor);
     // If it's muted or not actually changing don't set anything
-    if(getIsMutedOption() || (bzr.note == note))
+    if(getIsMutedOption() || (bzr.currNote == note))
     {
         return;
     }
     else
     {
         // Set the period count
-        bzr.note = note;
+        bzr.currNote = note;
 
         // Stop the timer
         PauseHPATimer();
         // Start the timer if we're not playing silence
-        if(SILENCE != bzr.note)
+        if(SILENCE != bzr.currNote)
         {
             StartHPATimer();
         }
@@ -206,6 +212,7 @@ void ICACHE_FLASH_ATTR setBuzzerNote(notePeriod_t note)
  */
 void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song)
 {
+    BZR_DBG("%s, %d notes, %d internote pause\n", __func__, song->numNotes, song->interNotePause);
     // If it's muted, don't set anything
     if(getIsMutedOption())
     {
@@ -222,7 +229,19 @@ void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song)
     os_timer_arm(&bzr.songTimer, 1, true);
 
     // Start playing the first note
-    setBuzzerNote(bzr.song->notes[bzr.noteIdx].note);
+    loadNextNote();
+}
+
+/**
+ * @brief Load the next note from the song's ROM and play it
+ */
+void ICACHE_FLASH_ATTR loadNextNote(void)
+{
+    uint32_t noteAndDuration = bzr.song->notes[bzr.noteIdx];
+    bzr.currDuration = (noteAndDuration >> 16) & 0xFFFF;
+    setBuzzerNote(noteAndDuration & 0xFFFF);
+
+    BZR_DBG("%s n:%5d d:%5d\n", __func__, bzr.currNote, bzr.currDuration);
 }
 
 /**
@@ -230,12 +249,13 @@ void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song)
  */
 void ICACHE_FLASH_ATTR stopBuzzerSong(void)
 {
-    bzr.note = SILENCE;
+    BZR_DBG("%s\n", __func__);
+
+    setBuzzerNote(SILENCE);
     bzr.song = NULL;
     bzr.noteTime = 0;
     bzr.noteIdx = 0;
     os_timer_disarm(&bzr.songTimer);
-    setBuzzerNote(SILENCE);
 }
 
 /**
@@ -256,7 +276,7 @@ void ICACHE_FLASH_ATTR songTimerCb(void* arg __attribute__((unused)))
     bzr.noteTime++;
 
     // Check if it's time for a new note
-    if(bzr.noteTime >= bzr.song->notes[bzr.noteIdx].timeMs)
+    if(bzr.noteTime >= bzr.currDuration)
     {
         // This note's time elapsed, try playing the next one
         bzr.noteIdx++;
@@ -264,23 +284,31 @@ void ICACHE_FLASH_ATTR songTimerCb(void* arg __attribute__((unused)))
         if(bzr.noteIdx < bzr.song->numNotes)
         {
             // There's another note to play, so play it
-            setBuzzerNote(bzr.song->notes[bzr.noteIdx].note);
+            loadNextNote();
         }
         else
         {
             // No more notes
             if(bzr.song->shouldLoop)
             {
+                BZR_DBG("Loop\n");
                 // Song over, but should loop, so start again
                 bzr.noteIdx = 0;
-                setBuzzerNote(bzr.song->notes[bzr.noteIdx].note);
+                loadNextNote();
             }
             else
             {
+                BZR_DBG("Don't loop\n");
                 // Song over, not looping, stop the timer and the note
                 setBuzzerNote(SILENCE);
                 os_timer_disarm(&bzr.songTimer);
             }
         }
+    }
+    else if ((bzr.currDuration > bzr.song->interNotePause) &&
+             (bzr.noteTime >= bzr.currDuration - bzr.song->interNotePause))
+    {
+        // Pause a little between notes
+        setBuzzerNote(SILENCE);
     }
 }
