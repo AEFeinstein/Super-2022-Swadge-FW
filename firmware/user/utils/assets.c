@@ -91,25 +91,46 @@ void drawBitmapFromAsset(char* name, int16_t x, int16_t y, bool flipLR)
                     xPos = x + w;
                 }
 
+                bool isZero = true;
                 if(chunk & (0x80000000 >> (bitIdx++)))
-                {
-                    assetDbg("X");
-                    drawPixel(xPos, y + h, WHITE);
-                }
-                else
                 {
                     assetDbg(" ");
                     drawPixel(xPos, y + h, BLACK);
+                    isZero = false;
                 }
 
+                // After bitIdx was incremented, check it
                 if(bitIdx == 32)
                 {
                     chunk = assetPtr[idx++];
                     bitIdx = 0;
                 }
+
+                // A zero can be followed by a zero or a one
+                if(isZero)
+                {
+                    if(chunk & (0x80000000 >> (bitIdx++)))
+                    {
+                        // Transparent
+                        assetDbg(".");
+                    }
+                    else
+                    {
+                        // Transparent
+                        assetDbg("X");
+                        drawPixel(xPos, y + h, WHITE);
+                    }
+
+                    // After bitIdx was incremented, check it
+                    if(bitIdx == 32)
+                    {
+                        chunk = assetPtr[idx++];
+                        bitIdx = 0;
+                    }
+                }
             }
-            assetDbg("\n");
         }
         assetDbg("\n");
     }
+    assetDbg("\n");
 }
