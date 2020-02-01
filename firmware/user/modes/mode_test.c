@@ -248,6 +248,24 @@ const sprite_t rotating_banana[] ICACHE_RODATA_ATTR =
     },
 };
 
+const char sprites[][16] =
+{
+    "baby_dino.png",
+    "blacky.png",
+    "coldhead.png",
+    "dino.png",
+    "horn_dino.png",
+    "serpent.png",
+    "turd.png",
+    "bear.png",
+    "blob.png",
+    "crouch.png",
+    "dragon.png",
+    "hothead.png",
+    "slug.png",
+    "wing_snake.png"
+};
+
 /*============================================================================
  * Variables
  *==========================================================================*/
@@ -371,15 +389,15 @@ void ICACHE_FLASH_ATTR testUpdateDisplay(void)
         // X is biggest
         if(test.Accel.x > 0)
         {
-            plotText(64, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "+X", IBM_VGA_8, WHITE);
+            plotText(OLED_WIDTH - 16, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "+X", IBM_VGA_8, WHITE);
         }
         else if(test.Accel.x < 0)
         {
-            plotText(64, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "-X", IBM_VGA_8, WHITE);
+            plotText(OLED_WIDTH - 16, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "-X", IBM_VGA_8, WHITE);
         }
         else
         {
-            plotText(64, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, " X", IBM_VGA_8, WHITE);
+            plotText(OLED_WIDTH - 16, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, " X", IBM_VGA_8, WHITE);
         }
     }
     else if (abs(test.Accel.y) > abs(test.Accel.z))
@@ -387,15 +405,15 @@ void ICACHE_FLASH_ATTR testUpdateDisplay(void)
         // Y is biggest
         if(test.Accel.y > 0)
         {
-            plotText(64, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "+Y", IBM_VGA_8, WHITE);
+            plotText(OLED_WIDTH - 16, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "+Y", IBM_VGA_8, WHITE);
         }
         else if(test.Accel.y < 0)
         {
-            plotText(64, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "-Y", IBM_VGA_8, WHITE);
+            plotText(OLED_WIDTH - 16, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "-Y", IBM_VGA_8, WHITE);
         }
         else
         {
-            plotText(64, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, " Y", IBM_VGA_8, WHITE);
+            plotText(OLED_WIDTH - 16, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, " Y", IBM_VGA_8, WHITE);
         }
     }
     else
@@ -403,15 +421,15 @@ void ICACHE_FLASH_ATTR testUpdateDisplay(void)
         // Z is biggest
         if(test.Accel.z > 0)
         {
-            plotText(64, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "+Z", IBM_VGA_8, WHITE);
+            plotText(OLED_WIDTH - 16, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "+Z", IBM_VGA_8, WHITE);
         }
         else if(test.Accel.z < 0)
         {
-            plotText(64, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "-Z", IBM_VGA_8, WHITE);
+            plotText(OLED_WIDTH - 16, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, "-Z", IBM_VGA_8, WHITE);
         }
         else
         {
-            plotText(64, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, " Z", IBM_VGA_8, WHITE);
+            plotText(OLED_WIDTH - 16, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, " Z", IBM_VGA_8, WHITE);
         }
     }
 
@@ -432,7 +450,7 @@ void ICACHE_FLASH_ATTR testUpdateDisplay(void)
     }
 
     // Draw the banana
-    plotSprite(58 - 18, 32, &rotating_banana[test.BananaIdx], WHITE);
+    plotSprite(50, 28, &rotating_banana[test.BananaIdx], WHITE);
 
     // Draw some monsters
     int8_t hMod;
@@ -457,13 +475,17 @@ void ICACHE_FLASH_ATTR testUpdateDisplay(void)
         flipped = false;
     }
 
+    uint8_t spIdx = 0;
+    for(spIdx = 0; spIdx < 14; spIdx++)
+    {
+        uint8_t x = spIdx % 5;
+        uint8_t y = spIdx / 5;
 
-    drawBitmapFromAsset("slug.png", 58 + (18 * 0), 24 + hMod, flip);
-    drawBitmapFromAsset("dragon.png", 58 + (18 * 1), 24 - hMod, flip);
-    drawBitmapFromAsset("bear.png", 58 + (18 * 2), 24 + hMod, flip);
-    drawBitmapFromAsset("serpent.png", 58 + (18 * 3), 24 - hMod, flip);
-    // This should fail gracefully
-    drawBitmapFromAsset("asd.png", 58 + (18 * 3), 24 - hMod, flip);
+        drawBitmapFromAsset(sprites[spIdx],
+                            38 + (18 * x) + hMod,
+                            14 + (17 * y),
+                            flip);
+    }
 }
 
 /**
