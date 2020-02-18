@@ -321,6 +321,10 @@ void ICACHE_FLASH_ATTR testEnterMode(void)
     os_timer_disarm(&test.TimerHandleLeds);
     os_timer_setfn(&test.TimerHandleLeds, (os_timer_func_t*)testLedFunc, NULL);
     os_timer_arm(&test.TimerHandleLeds, 1000, 1);
+
+    // Draw a gif
+    // static gifHandle gHandle;
+    // drawGifFromAsset("ragequit.gif", 64, 0, &gHandle);
 }
 
 /**
