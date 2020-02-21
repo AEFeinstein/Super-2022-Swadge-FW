@@ -4,6 +4,13 @@
 #include "bresenham.h"
 #include "font.h"
 
+typedef struct
+{
+    p2pInfo p2p;
+    button_mask side;
+    char lbl[4];
+} ringCon_t;
+
 void ringEnterMode(void);
 void ringExitMode(void);
 void ringButtonCallback(uint8_t state, int button, int down);
@@ -18,6 +25,9 @@ void ringMsgTxCbFn(p2pInfo* p2p, messageStatus_t status);
 void ringUpdateDisplay(void);
 void ringAnimationTimer(void* arg __attribute__((unused)));
 
+ringCon_t* ICACHE_FLASH_ATTR getSideConnection(button_mask side);
+ringCon_t* ICACHE_FLASH_ATTR getRingConnection(p2pInfo* p2p);
+
 swadgeMode ringMode =
 {
     .modeName = "ring",
@@ -30,11 +40,9 @@ swadgeMode ringMode =
     .fnAccelerometerCallback = ringAccelerometerCallback
 };
 
-p2pInfo cn0;
-p2pInfo cn1;
 
-button_mask cn0connectedSide;
-button_mask cn1connectedSide;
+ringCon_t connections[3];
+#define NUM_CONNECTIONS (sizeof(connections) / sizeof(connections[0]))
 
 button_mask connectionSide;
 
@@ -44,20 +52,50 @@ os_timer_t animationTimer;
 uint8_t radiusLeft = 0;
 uint8_t radiusRight = 0;
 
+ringCon_t* ICACHE_FLASH_ATTR getSideConnection(button_mask side)
+{
+    uint8_t i;
+    for(i = 0; i < NUM_CONNECTIONS; i++)
+    {
+        if(side == connections[i].side)
+        {
+            return &connections[i];
+        }
+    }
+    return NULL;
+}
+
+ringCon_t* ICACHE_FLASH_ATTR getRingConnection(p2pInfo* p2p)
+{
+    uint8_t i;
+    for(i = 0; i < NUM_CONNECTIONS; i++)
+    {
+        if(p2p == &connections[i].p2p)
+        {
+            return &connections[i];
+        }
+    }
+    return NULL;
+}
+
 /**
  * @brief TODO
  *
  */
 void ICACHE_FLASH_ATTR ringEnterMode(void)
 {
-    cn0connectedSide = 0xFF;
-    cn1connectedSide = 0xFF;
+    ets_memset(&connections, 0, sizeof(connections));
 
-    ets_memset(&cn0, 0, sizeof(p2pInfo));
-    ets_memset(&cn1, 0, sizeof(p2pInfo));
+    memcpy(connections[0].lbl, "cn0", 3);
+    memcpy(connections[1].lbl, "cn1", 3);
+    memcpy(connections[2].lbl, "cn2", 3);
 
-    p2pInitialize(&cn0, "cn0", ringConCbFn, ringMsgRxCbFn, 0);
-    p2pInitialize(&cn1, "cn1", ringConCbFn, ringMsgRxCbFn, 0);
+    uint8_t i;
+    for(i = 0; i < NUM_CONNECTIONS; i++)
+    {
+        connections[i].side = 0xFF;
+        p2pInitialize(&connections[i].p2p, connections[i].lbl, ringConCbFn, ringMsgRxCbFn, 0);
+    }
 
     os_timer_setfn(&animationTimer, ringAnimationTimer, NULL);
     os_timer_arm(&animationTimer, 50, true);
@@ -71,8 +109,11 @@ void ICACHE_FLASH_ATTR ringEnterMode(void)
  */
 void ICACHE_FLASH_ATTR ringExitMode(void)
 {
-    p2pDeinit(&cn0);
-    p2pDeinit(&cn1);
+    uint8_t i;
+    for(i = 0; i < NUM_CONNECTIONS; i++)
+    {
+        p2pDeinit(&connections[i].p2p);
+    }
 }
 
 /**
@@ -98,32 +139,24 @@ void ICACHE_FLASH_ATTR ringButtonCallback(uint8_t state __attribute__((unused)),
             {
                 button_mask side = (button == 1) ? LEFT : RIGHT;
 
-                // If no one's connected on the left
-                if(cn0connectedSide != side && cn1connectedSide != side)
+                // If no one's connected on this side
+                if(NULL == getSideConnection(side))
                 {
                     // Start connections for unconnected p2ps
                     connectionSide = side;
-                    if(0xFF == cn0connectedSide)
+                    uint8_t i;
+                    for(i = 0; i < NUM_CONNECTIONS; i++)
                     {
-                        p2pStartConnection(&cn0);
-                    }
-                    if(0xFF == cn1connectedSide)
-                    {
-                        p2pStartConnection(&cn1);
+                        if(0xFF == connections[i].side)
+                        {
+                            p2pStartConnection(&(connections[i].p2p));
+                        }
                     }
                 }
                 else
                 {
                     // Otherwise send a message
-                    if(side == cn0connectedSide)
-                    {
-                        p2pSendMsg(&cn0, "tst", "CN0 Test", sizeof("CN0 Test"), ringMsgTxCbFn);
-
-                    }
-                    else
-                    {
-                        p2pSendMsg(&cn1, "tst", "CN1 Test", sizeof("CN1 Test"), ringMsgTxCbFn);
-                    }
+                    p2pSendMsg(&(getSideConnection(side)->p2p), "tst", "Tst Msg", sizeof("Tst Msg"), ringMsgTxCbFn);
                 }
                 break;
             }
@@ -142,8 +175,11 @@ void ICACHE_FLASH_ATTR ringButtonCallback(uint8_t state __attribute__((unused)),
  */
 void ICACHE_FLASH_ATTR ringEspNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t len, uint8_t rssi)
 {
-    p2pRecvCb(&cn0, mac_addr, data, len, rssi);
-    p2pRecvCb(&cn1, mac_addr, data, len, rssi);
+    uint8_t i;
+    for(i = 0; i < NUM_CONNECTIONS; i++)
+    {
+        p2pRecvCb(&(connections[i].p2p), mac_addr, data, len, rssi);
+    }
     ringUpdateDisplay();
 }
 
@@ -155,8 +191,11 @@ void ICACHE_FLASH_ATTR ringEspNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_
  */
 void ICACHE_FLASH_ATTR ringEspNowSendCb(uint8_t* mac_addr, mt_tx_status status)
 {
-    p2pSendCb(&cn0, mac_addr, status);
-    p2pSendCb(&cn1, mac_addr, status);
+    uint8_t i;
+    for(i = 0; i < NUM_CONNECTIONS; i++)
+    {
+        p2pSendCb(&(connections[i].p2p), mac_addr, status);
+    }
     ringUpdateDisplay();
 }
 
@@ -179,7 +218,7 @@ void ICACHE_FLASH_ATTR ringAccelerometerCallback(accel_t* accel __attribute__((u
  */
 void ICACHE_FLASH_ATTR ringConCbFn(p2pInfo* p2p, connectionEvt_t evt)
 {
-    char* conStr = (p2p == &cn0) ? "cn0" : "cn1";
+    char* conStr = getRingConnection(p2p)->lbl;
 
     switch(evt)
     {
@@ -195,13 +234,13 @@ void ICACHE_FLASH_ATTR ringConCbFn(p2pInfo* p2p, connectionEvt_t evt)
         }
         case RX_GAME_START_ACK:
         {
-            if(p2p == &cn0)
+            uint8_t i;
+            for(i = 0; i < NUM_CONNECTIONS; i++)
             {
-                p2pStopConnection(&cn1);
-            }
-            else
-            {
-                p2pStopConnection(&cn0);
+                if(p2p != &connections[i].p2p)
+                {
+                    p2pStopConnection(&connections[i].p2p);
+                }
             }
 
             os_snprintf(lastMsg, sizeof(lastMsg), "%s: RX_GAME_START_ACK\n", conStr);
@@ -209,13 +248,13 @@ void ICACHE_FLASH_ATTR ringConCbFn(p2pInfo* p2p, connectionEvt_t evt)
         }
         case RX_GAME_START_MSG:
         {
-            if(p2p == &cn0)
+            uint8_t i;
+            for(i = 0; i < NUM_CONNECTIONS; i++)
             {
-                p2pStopConnection(&cn1);
-            }
-            else
-            {
-                p2pStopConnection(&cn0);
+                if(p2p != &connections[i].p2p)
+                {
+                    p2pStopConnection(&connections[i].p2p);
+                }
             }
 
             os_snprintf(lastMsg, sizeof(lastMsg), "%s: RX_GAME_START_MSG\n", conStr);
@@ -223,27 +262,13 @@ void ICACHE_FLASH_ATTR ringConCbFn(p2pInfo* p2p, connectionEvt_t evt)
         }
         case CON_ESTABLISHED:
         {
-            if(p2p == &cn0)
-            {
-                cn0connectedSide = connectionSide;
-            }
-            else
-            {
-                cn1connectedSide = connectionSide;
-            }
+            getRingConnection(p2p)->side = connectionSide;
             os_snprintf(lastMsg, sizeof(lastMsg), "%s: CON_ESTABLISHED\n", conStr);
             break;
         }
         case CON_LOST:
         {
-            if(p2p == &cn0)
-            {
-                cn0connectedSide = 0xFF;
-            }
-            else
-            {
-                cn1connectedSide = 0xFF;
-            }
+            getRingConnection(p2p)->side = 0xFF;
             os_snprintf(lastMsg, sizeof(lastMsg), "%s: CON_LOST\n", conStr);
             break;
         }
@@ -266,20 +291,21 @@ void ICACHE_FLASH_ATTR ringConCbFn(p2pInfo* p2p, connectionEvt_t evt)
  * @param payload
  * @param len
  */
-void ICACHE_FLASH_ATTR ringMsgRxCbFn(p2pInfo* p2p, char* msg, uint8_t* payload, uint8_t len)
+void ICACHE_FLASH_ATTR ringMsgRxCbFn(p2pInfo* p2p, char* msg, uint8_t* payload __attribute__((unused)), uint8_t len)
 {
-    if(((p2p == &cn0) && (cn0connectedSide == RIGHT)) ||
-            ((p2p == &cn1) && (cn1connectedSide == RIGHT)))
+    if(0 == strcmp(msg, "tst"))
     {
-        radiusRight = 1;
-    }
-    else if(((p2p == &cn0) && (cn0connectedSide == LEFT)) ||
-            ((p2p == &cn1) && (cn1connectedSide == LEFT)))
-    {
-        radiusLeft = 1;
+        if(RIGHT == getRingConnection(p2p)->side)
+        {
+            radiusRight = 1;
+        }
+        else if(LEFT == getRingConnection(p2p)->side)
+        {
+            radiusLeft = 1;
+        }
     }
 
-    os_snprintf(lastMsg, sizeof(lastMsg), "Received %d bytes from %s\n", len, (p2p == &cn0) ? "cn0" : "cn1");
+    os_snprintf(lastMsg, sizeof(lastMsg), "Received %d bytes from %s\n", len, getRingConnection(p2p)->lbl);
     os_printf("%s", lastMsg);
     ringUpdateDisplay();
     return;
@@ -293,7 +319,7 @@ void ICACHE_FLASH_ATTR ringMsgRxCbFn(p2pInfo* p2p, char* msg, uint8_t* payload, 
  */
 void ICACHE_FLASH_ATTR ringMsgTxCbFn(p2pInfo* p2p, messageStatus_t status)
 {
-    char* conStr = (p2p == &cn0) ? "cn0" : "cn1";
+    char* conStr = getRingConnection(p2p)->lbl;
 
     switch(status)
     {
@@ -305,16 +331,7 @@ void ICACHE_FLASH_ATTR ringMsgTxCbFn(p2pInfo* p2p, messageStatus_t status)
         case MSG_FAILED:
         {
             os_snprintf(lastMsg, sizeof(lastMsg), "%s: MSG_FAILED\n", conStr);
-
-            if(p2p == &cn0)
-            {
-                cn0connectedSide = 0xFF;
-            }
-            else
-            {
-                cn1connectedSide = 0xFF;
-            }
-
+            getRingConnection(p2p)->side = 0xFF;
             break;
         }
         default:
@@ -338,12 +355,12 @@ void ICACHE_FLASH_ATTR ringUpdateDisplay(void)
 
     plotText(6, 0, lastMsg, IBM_VGA_8, WHITE);
 
-    if(cn0connectedSide == RIGHT || cn1connectedSide == RIGHT)
+    if(NULL != getSideConnection(RIGHT))
     {
         plotRect(OLED_WIDTH - 5, 0, OLED_WIDTH - 1, OLED_HEIGHT - 1, WHITE);
     }
 
-    if(cn0connectedSide == LEFT || cn1connectedSide == LEFT)
+    if(NULL != getSideConnection(LEFT))
     {
         plotRect(0, 0, 4, OLED_HEIGHT - 1, WHITE);
     }
