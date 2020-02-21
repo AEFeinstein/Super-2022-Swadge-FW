@@ -24,11 +24,15 @@
 int16_t ICACHE_FLASH_ATTR plotChar(int16_t x, int16_t y,
                                    char character, const sprite_t* table, color col)
 {
-    if ('a' <= character && character <= 'z')
+    if(character >= ' ')
     {
-        character = (char) (character - 'a' + 'A');
+        if ('a' <= character && character <= 'z')
+        {
+            character = (char) (character - 'a' + 'A');
+        }
+        return plotSprite(x, y, &table[character - ' '], col);
     }
-    return plotSprite(x, y, &table[character - ' '], col);
+    return 0;
 }
 
 /**
