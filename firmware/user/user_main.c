@@ -31,6 +31,7 @@
 #include "QMA6981.h"
 
 #include "mode_test.h"
+#include "mode_ring.h"
 
 /*============================================================================
  * Defines
@@ -62,6 +63,7 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
 {
+    &ringMode,
     &testMode,
 };
 
@@ -114,7 +116,7 @@ void ICACHE_FLASH_ATTR user_init(void)
     uart_init(BIT_RATE_74880, BIT_RATE_74880);
 #endif
 
-    os_printf("\nSwadge %d\n", SWADGE_VERSION);
+    os_printf("\nSwadge 2021\n");
 
     // Read data fom RTC memory if we're waking from deep sleep
     if(REASON_DEEP_SLEEP_AWAKE == system_get_rst_info()->reason)

@@ -17,7 +17,8 @@ typedef enum
     RX_GAME_START_ACK,
     RX_GAME_START_MSG,
     CON_ESTABLISHED,
-    CON_LOST
+    CON_LOST,
+    CON_STOPPED
 } connectionEvt_t;
 
 typedef enum
@@ -63,6 +64,7 @@ typedef struct _p2pInfo
     struct
     {
         bool isConnected;
+        bool isConnecting;
         bool broadcastReceived;
         bool rxGameStartMsg;
         bool rxGameStartAck;
@@ -90,6 +92,7 @@ void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId,
 void ICACHE_FLASH_ATTR p2pDeinit(p2pInfo* p2p);
 
 void ICACHE_FLASH_ATTR p2pStartConnection(p2pInfo* p2p);
+void ICACHE_FLASH_ATTR p2pStopConnection(p2pInfo* p2p);
 
 void ICACHE_FLASH_ATTR p2pSendMsg(p2pInfo* p2p, char* msg, char* payload, uint16_t len, p2pMsgTxCbFn msgTxCbFn);
 void ICACHE_FLASH_ATTR p2pSendCb(p2pInfo* p2p, uint8_t* mac_addr, mt_tx_status status);
