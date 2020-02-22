@@ -260,8 +260,6 @@ void ICACHE_FLASH_ATTR p2pDeinit(p2pInfo* p2p)
  */
 void ICACHE_FLASH_ATTR p2pConnectionTimeout(void* arg)
 {
-    p2p_printf("%s\r\n", __func__);
-
     p2pInfo* p2p = (p2pInfo*)arg;
     // Send a connection broadcast
     p2pSendMsgEx(p2p, p2p->conMsg, ets_strlen(p2p->conMsg), false, NULL, NULL);
@@ -595,9 +593,11 @@ void ICACHE_FLASH_ATTR p2pRecvCb(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data,
                     ets_strlen(p2p->conMsg) == len &&
                     0 == ets_memcmp(data, p2p->conMsg, len))
             {
-
                 // We received a broadcast, don't allow another
                 p2p->cnc.broadcastReceived = true;
+
+                // And process this connection event
+                p2pProcConnectionEvt(p2p, RX_BROADCAST);
 
                 // Save the other ESP's MAC
                 ets_memcpy(p2p->cnc.otherMac, mac_addr, sizeof(p2p->cnc.otherMac));
@@ -724,6 +724,7 @@ void ICACHE_FLASH_ATTR p2pProcConnectionEvt(p2pInfo* p2p, connectionEvt_t event)
             break;
         }
         case CON_STARTED:
+        case RX_BROADCAST:
         case CON_ESTABLISHED:
         case CON_LOST:
         case CON_STOPPED:
@@ -813,8 +814,6 @@ void ICACHE_FLASH_ATTR p2pRestart(void* arg)
  */
 void ICACHE_FLASH_ATTR p2pSendCb(p2pInfo* p2p, uint8_t* mac_addr __attribute__((unused)), mt_tx_status status)
 {
-    p2p_printf("%s\r\n", __func__);
-
     switch(status)
     {
         case MT_TX_STATUS_OK:

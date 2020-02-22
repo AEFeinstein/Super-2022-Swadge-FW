@@ -14,6 +14,7 @@ typedef enum
 typedef enum
 {
     CON_STARTED,
+    RX_BROADCAST,
     RX_GAME_START_ACK,
     RX_GAME_START_MSG,
     CON_ESTABLISHED,

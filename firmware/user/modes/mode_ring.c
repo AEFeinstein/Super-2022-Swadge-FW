@@ -232,22 +232,11 @@ void ICACHE_FLASH_ATTR ringConCbFn(p2pInfo* p2p, connectionEvt_t evt)
             os_snprintf(lastMsg, sizeof(lastMsg), "%s: CON_STOPPED\n", conStr);
             break;
         }
+        case RX_BROADCAST:
         case RX_GAME_START_ACK:
-        {
-            uint8_t i;
-            for(i = 0; i < NUM_CONNECTIONS; i++)
-            {
-                if(p2p != &connections[i].p2p)
-                {
-                    p2pStopConnection(&connections[i].p2p);
-                }
-            }
-
-            os_snprintf(lastMsg, sizeof(lastMsg), "%s: RX_GAME_START_ACK\n", conStr);
-            break;
-        }
         case RX_GAME_START_MSG:
         {
+            // As soon as one connection starts, stop the others
             uint8_t i;
             for(i = 0; i < NUM_CONNECTIONS; i++)
             {
@@ -256,8 +245,7 @@ void ICACHE_FLASH_ATTR ringConCbFn(p2pInfo* p2p, connectionEvt_t evt)
                     p2pStopConnection(&connections[i].p2p);
                 }
             }
-
-            os_snprintf(lastMsg, sizeof(lastMsg), "%s: RX_GAME_START_MSG\n", conStr);
+            os_snprintf(lastMsg, sizeof(lastMsg), "%s: %s\n", conStr, (evt == RX_BROADCAST) ? "RX_BROADCAST" : ((evt == RX_GAME_START_ACK) ? "RX_GAME_START_ACK" : "RX_GAME_START_MSG") );
             break;
         }
         case CON_ESTABLISHED:
