@@ -324,15 +324,18 @@ void ICACHE_FLASH_ATTR p2pTxAllRetriesTimeout(void* arg)
     os_timer_disarm(&p2p->tmr.TxRetry);
     os_timer_disarm(&p2p->tmr.TxAllRetries);
 
-    // Call the failure function
-    p2p_printf("Message totally failed \"%s\"\r\n", p2p->ack.msgToAck);
-    if(NULL != p2p->ack.FailureFn)
-    {
-        p2p->ack.FailureFn(p2p);
-    }
+    // Save the failure function
+    void (*FailureFn)(void*) = p2p->ack.FailureFn;
+    p2p_printf("Message totally failed \"%s\"\n", p2p->ack.msgToAck);
 
     // Clear out the ack variables
     ets_memset(&p2p->ack, 0, sizeof(p2p->ack));
+
+    // Call the failure function
+    if(NULL != FailureFn)
+    {
+        FailureFn(p2p);
+    }
 }
 
 /**
@@ -576,20 +579,20 @@ void ICACHE_FLASH_ATTR p2pRecvCb(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data,
         {
             p2p_printf("ACK Received\n");
 
-            // Call the function after receiving the ack
-            if(NULL != p2p->ack.SuccessFn)
-            {
-                p2p->ack.SuccessFn(p2p);
-            }
-
             // Clear ack timeout variables
             os_timer_disarm(&p2p->tmr.TxRetry);
             // Disarm the whole transmission ack timer
             os_timer_disarm(&p2p->tmr.TxAllRetries);
+            // Save the success function
+            void (*successFn)(void*) = p2p->ack.SuccessFn;
             // Clear out ACK variables
             ets_memset(&p2p->ack, 0, sizeof(p2p->ack));
 
-            p2p->ack.isWaitingForAck = false;
+            // Call the function after receiving the ack
+            if(NULL != successFn)
+            {
+                successFn(p2p);
+            }
         }
         // Don't process anything else when waiting for an ack
         return;
