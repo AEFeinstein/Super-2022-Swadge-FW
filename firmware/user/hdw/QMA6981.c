@@ -181,7 +181,7 @@ uint8_t ICACHE_FLASH_ATTR QMA6981_writereg(QMA6981_reg_addr addr, uint8_t data)
 }
 
 /**
- * @brief TODO Read a number of bytes from the given QMA6981 register
+ * Read a number of bytes from the given QMA6981 register
  *
  * @param addr The address to read from
  * @param len  The number of bytes to read
