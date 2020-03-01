@@ -88,7 +88,6 @@ const char p2pMacFmt[] = "%02X:%02X:%02X:%02X:%02X:%02X";
 void ICACHE_FLASH_ATTR p2pConnectionTimeout(void* arg);
 void ICACHE_FLASH_ATTR p2pTxAllRetriesTimeout(void* arg);
 void ICACHE_FLASH_ATTR p2pTxRetryTimeout(void* arg);
-void ICACHE_FLASH_ATTR p2pRestart(void* arg);
 void ICACHE_FLASH_ATTR p2pStartRestartTimer(void* arg);
 void ICACHE_FLASH_ATTR p2pProcConnectionEvt(p2pInfo* p2p, connectionEvt_t event);
 void ICACHE_FLASH_ATTR p2pGameStartAckRecv(void* arg);
@@ -242,6 +241,19 @@ void ICACHE_FLASH_ATTR p2pStopConnection(p2pInfo* p2p)
 void ICACHE_FLASH_ATTR p2pDeinit(p2pInfo* p2p)
 {
     p2p_printf("%s\r\n", __func__);
+
+    memset(&(p2p->msgId), 0, sizeof(p2p->msgId));
+    memset(&(p2p->conMsg), 0, sizeof(p2p->conMsg));
+    memset(&(p2p->ackMsg), 0, sizeof(p2p->ackMsg));
+    memset(&(p2p->startMsg), 0, sizeof(p2p->startMsg));
+
+    p2p->conCbFn = NULL;
+    p2p->msgRxCbFn = NULL;
+    p2p->msgTxCbFn = NULL;
+    p2p->connectionRssi = 0;
+
+    memset(&(p2p->cnc), 0, sizeof(p2p->cnc));
+    memset(&(p2p->ack), 0, sizeof(p2p->ack));
 
     os_timer_disarm(&p2p->tmr.Connection);
     os_timer_disarm(&p2p->tmr.TxRetry);
@@ -794,10 +806,16 @@ void ICACHE_FLASH_ATTR p2pRestart(void* arg)
         p2p->conCbFn(p2p, CON_LOST);
     }
 
+    // Save what's necessary for init
     char msgId[4] = {0};
     ets_strncpy(msgId, p2p->msgId, sizeof(msgId));
+    p2pConCbFn conCbFn = p2p->conCbFn;
+    p2pMsgRxCbFn msgRxCbFn = p2p->msgRxCbFn;
+    uint8_t connectionRssi = p2p->connectionRssi;
+    // Stop and clear everything
     p2pDeinit(p2p);
-    p2pInitialize(p2p, msgId, p2p->conCbFn, p2p->msgRxCbFn, p2p->connectionRssi);
+    // Start it up again
+    p2pInitialize(p2p, msgId, conCbFn, msgRxCbFn, connectionRssi);
 }
 
 /**
