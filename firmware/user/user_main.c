@@ -32,6 +32,7 @@
 
 #include "mode_test.h"
 #include "mode_ring.h"
+#include "mode_magpet.h"
 
 /*============================================================================
  * Defines
@@ -63,6 +64,7 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
 {
+    &magpetMode,
     &ringMode,
     &testMode,
 };
@@ -571,8 +573,10 @@ void ICACHE_FLASH_ATTR swadgeModeEspNowRecvCb(uint8_t* mac_addr, uint8_t* data, 
  */
 void ICACHE_FLASH_ATTR swadgeModeEspNowSendCb(uint8_t* mac_addr, mt_tx_status status)
 {
+    os_printf("%s::%d\n", __func__, __LINE__);
     if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowSendCb)
     {
+        os_printf("%s::%d\n", __func__, __LINE__);
         swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowSendCb(mac_addr, (mt_tx_status)status);
     }
 }
