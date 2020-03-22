@@ -69,6 +69,9 @@ const uint32_t cos1024[] RODATA_ATTR =
 };
 
 void ICACHE_FLASH_ATTR gifTimerFn(void* arg);
+void ICACHE_FLASH_ATTR transformPixel(int16_t* x, int16_t* y, int16_t transX,
+                                      int16_t transY, bool flipLR, bool flipUD,
+                                      int16_t rotateDeg, int16_t width, int16_t height);
 
 /**
  * @brief Get a pointer to an asset
@@ -116,14 +119,63 @@ uint32_t* ICACHE_FLASH_ATTR getAsset(const char* name, uint32_t* retLen)
 }
 
 /**
+ * Transform a pixel's coordinates by rotation around the sprite's center point,
+ * then reflection over Y axis, then reflection over X axis, then translation
+ *
+ * @param x The x coordinate of the pixel location to transform
+ * @param y The y coordinate of the pixel location to trasform
+ * @param transX The number of pixels to translate X by
+ * @param transY The number of pixels to translate Y by
+ * @param flipLR true to flip over the Y axis, false to do nothing
+ * @param flipUD true to flip over the X axis, false to do nothing
+ * @param rotateDeg The number of degrees to rotate clockwise, must be 0-359
+ * @param width  The width of the image
+ * @param height The height of the image
+ */
+void ICACHE_FLASH_ATTR transformPixel(int16_t* x, int16_t* y, int16_t transX,
+                                      int16_t transY, bool flipLR, bool flipUD,
+                                      int16_t rotateDeg, int16_t width, int16_t height)
+{
+    // First rotate the sprite around the sprite's center point
+    if (0 < rotateDeg && rotateDeg < 360)
+    {
+        // Center around (0, 0)
+        (*x) -= (width / 2);
+        (*y) -= (height / 2);
+        // Apply rotation matrix
+        int16_t nX = ((*x) * cos1024[rotateDeg] - (*y) * sin1024[rotateDeg]) / 1024;
+        int16_t nY = ((*x) * sin1024[rotateDeg] + (*y) * cos1024[rotateDeg]) / 1024;
+        // Return sprite to original position
+        (*x) = nX + (width / 2);
+        (*y) = nY + (height / 2);
+    }
+
+    // Then reflect over Y axis
+    if (flipLR)
+    {
+        (*x) = width - 1 - (*x);
+    }
+
+    // Then reflect over X axis
+    if(flipUD)
+    {
+        (*y) = height - 1 - (*y);
+    }
+
+    // Then translate
+    (*x) += transX;
+    (*y) += transY;
+}
+
+/**
  * @brief Draw a bitmap asset to the OLED
  *
  * @param name The name of the asset to draw
  * @param xp The x coordinate to draw the asset at
  * @param yp The y coordinate to draw the asset at
- * @param flipLR
- * @param flipUD
- * @param rotateDeg
+ * @param flipLR true to flip over the Y axis, false to do nothing
+ * @param flipUD true to flip over the X axis, false to do nothing
+ * @param rotateDeg The number of degrees to rotate clockwise, must be 0-359
  */
 void ICACHE_FLASH_ATTR drawBitmapFromAsset(const char* name, int16_t xp, int16_t yp,
         bool flipLR, bool flipUD, int16_t rotateDeg)
@@ -150,35 +202,10 @@ void ICACHE_FLASH_ATTR drawBitmapFromAsset(const char* name, int16_t xp, int16_t
         {
             for(int16_t w = 0; w < width; w++)
             {
-                // Make modifiable copies of the coordinates
+                // Transform this pixel's draw location as necessary
                 int16_t x = w;
                 int16_t y = h;
-
-                // Rotate the coordinate if requested
-                if (0 < rotateDeg && rotateDeg < 360)
-                {
-                    // Center around (0, 0)
-                    x -= (width / 2);
-                    y -= (height / 2);
-                    // Apply rotation matrix
-                    int16_t nX = (x * cos1024[rotateDeg] - y * sin1024[rotateDeg]) / 1024;
-                    int16_t nY = (x * sin1024[rotateDeg] + y * cos1024[rotateDeg]) / 1024;
-                    // Return sprite to original position
-                    x = nX + (width / 2);
-                    y = nY + (height / 2);
-                }
-
-                // Flip left/right if requested
-                if (flipLR)
-                {
-                    x = width - 1 - x;
-                }
-
-                // Flip up/down if requested
-                if(flipUD)
-                {
-                    y = height - 1 - y;
-                }
+                transformPixel(&x, &y, xp, yp, flipLR, flipUD, rotateDeg, width, height);
 
                 // 'Traverse' the huffman tree to find out what to do
                 bool isZero = true;
@@ -186,7 +213,7 @@ void ICACHE_FLASH_ATTR drawBitmapFromAsset(const char* name, int16_t xp, int16_t
                 {
                     // If it's a one, draw a black pixel
                     assetDbg(" ");
-                    drawPixel(xp + x, yp + y, BLACK);
+                    drawPixel(x, y, BLACK);
                     isZero = false;
                 }
 
@@ -209,7 +236,7 @@ void ICACHE_FLASH_ATTR drawBitmapFromAsset(const char* name, int16_t xp, int16_t
                     {
                         // zero-zero means white, draw a pixel
                         assetDbg("X");
-                        drawPixel(xp + x, yp + y, WHITE);
+                        drawPixel(x, y, WHITE);
                     }
 
                     // After bitIdx was incremented, check it
@@ -228,13 +255,18 @@ void ICACHE_FLASH_ATTR drawBitmapFromAsset(const char* name, int16_t xp, int16_t
 
 /**
  * @brief Start drawing a gif from an asset
- *
+ * 
  * @param name The name of the asset to draw
- * @param x The x coordinate of the asset
- * @param y The y coordinate of the asset
+ * @param xp The x coordinate to draw the asset at
+ * @param yp The y coordinate to draw the asset at
+ * @param flipLR true to flip over the Y axis, false to do nothing
+ * @param flipUD true to flip over the X axis, false to do nothing
+ * @param rotateDeg The number of degrees to rotate clockwise, must be 0-359
  * @param handle A handle to store the gif state
  */
-void ICACHE_FLASH_ATTR drawGifFromAsset(const char* name, int16_t x, int16_t y, gifHandle* handle)
+void ICACHE_FLASH_ATTR drawGifFromAsset(const char* name, int16_t xp, int16_t yp,
+                                        bool flipLR, bool flipUD, int16_t rotateDeg,
+                                        gifHandle* handle)
 {
     // Only do anything if the handle is uninitialized
     if(NULL == handle->compressed)
@@ -245,9 +277,12 @@ void ICACHE_FLASH_ATTR drawGifFromAsset(const char* name, int16_t x, int16_t y, 
 
         if(NULL != handle->assetPtr)
         {
-            // Save where to draw the gif
-            handle->x = x;
-            handle->y = y;
+            // Save gif transformation params
+            handle->xp = xp;
+            handle->yp = yp;
+            handle->flipLR = flipLR;
+            handle->flipUD = flipUD;
+            handle->rotateDeg = rotateDeg;
             // Read metadata from memory
             handle->idx = 0;
             handle->width    = handle->assetPtr[handle->idx++];
@@ -350,15 +385,20 @@ void ICACHE_FLASH_ATTR gifTimerFn(void* arg)
     {
         for(w = 0; w < handle->width; w++)
         {
+            int16_t x = w;
+            int16_t y = h;
+            transformPixel(&x, &y, handle->xp, handle->yp, handle->flipLR,
+                           handle->flipUD, handle->rotateDeg,
+                           handle->width, handle->height);
             int16_t byteIdx = (w + (h * handle->width)) / 8;
             int16_t bitIdx  = (w + (h * handle->width)) % 8;
             if(handle->frame[byteIdx] & (0x80 >> bitIdx))
             {
-                drawPixel(w + handle->x, h + handle->y, WHITE);
+                drawPixel(x, y, WHITE);
             }
             else
             {
-                drawPixel(w + handle->x, h + handle->y, BLACK);
+                drawPixel(x, y, BLACK);
             }
         }
     }
