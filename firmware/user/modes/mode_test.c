@@ -47,6 +47,7 @@ void ICACHE_FLASH_ATTR testAccelerometerHandler(accel_t* accel);
 void ICACHE_FLASH_ATTR testUpdateDisplay(void);
 static void ICACHE_FLASH_ATTR testRotateBanana(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR testLedFunc(void* arg __attribute__((unused)));
+static void ICACHE_FLASH_ATTR testAnimateSprite(void* arg __attribute__((unused)));
 
 /*============================================================================
  * Const data
@@ -291,7 +292,10 @@ struct
     // Timer variables
     os_timer_t TimerHandleLeds;
     os_timer_t timerHandleBanana;
+    os_timer_t timerHandleSpriteAnim;
+
     uint8_t BananaIdx;
+    uint16_t rotation;
 } test;
 
 /*============================================================================
@@ -309,13 +313,17 @@ void ICACHE_FLASH_ATTR testEnterMode(void)
     memset(&test, 0, sizeof(test));
 
     // Test the buzzer
-    uint32_t songLen;
-    startBuzzerSong((song_t*)getAsset("carmen.rtl", &songLen), false);
+    // uint32_t songLen;
+    // startBuzzerSong((song_t*)getAsset("carmen.rtl", &songLen), false);
 
     // Test the display with a rotating banana
     os_timer_disarm(&test.timerHandleBanana);
     os_timer_setfn(&test.timerHandleBanana, (os_timer_func_t*)testRotateBanana, NULL);
     os_timer_arm(&test.timerHandleBanana, 100, 1);
+
+    os_timer_disarm(&test.timerHandleSpriteAnim);
+    os_timer_setfn(&test.timerHandleSpriteAnim, (os_timer_func_t*)testAnimateSprite, NULL);
+    os_timer_arm(&test.timerHandleSpriteAnim, 8, 1);
 
     // Test the LEDs
     os_timer_disarm(&test.TimerHandleLeds);
@@ -351,6 +359,18 @@ static void ICACHE_FLASH_ATTR testLedFunc(void* arg __attribute__((unused)))
     leds[(ledPos + 1) % NUM_LIN_LEDS].g = 16;
     leds[(ledPos + 2) % NUM_LIN_LEDS].b = 16;
     setLeds(leds, sizeof(leds));
+}
+
+/**
+ * @brief Called on a timer, this rotates the banana by picking the next sprite
+ *
+ * @param arg unused
+ */
+static void ICACHE_FLASH_ATTR testAnimateSprite(void* arg __attribute__((unused)))
+{
+    // test.rotation = (test.rotation + 90) % 360;
+    test.rotation = (test.rotation + 1) % 360;
+    testUpdateDisplay();
 }
 
 /**
@@ -457,38 +477,16 @@ void ICACHE_FLASH_ATTR testUpdateDisplay(void)
     plotSprite(50, 28, &rotating_banana[test.BananaIdx], WHITE);
 
     // Draw some monsters
-    int8_t hMod;
-    if(test.BananaIdx < (sizeof(rotating_banana) / sizeof(rotating_banana[0]) / 2))
-    {
-        hMod = 2;
-    }
-    else
-    {
-        hMod = -2;
-    }
-
-    static bool flip = false;
-    static bool flipped = false;
-    if(test.BananaIdx == 0 && !flipped)
-    {
-        flip = !flip;
-        flipped = true;
-    }
-    else
-    {
-        flipped = false;
-    }
-
     uint8_t spIdx = 0;
-    for(spIdx = 0; spIdx < 14; spIdx++)
+    for(spIdx = 0; spIdx < 5; spIdx++)
     {
         uint8_t x = spIdx % 5;
         uint8_t y = spIdx / 5;
 
         drawBitmapFromAsset(sprites[spIdx],
-                            38 + (18 * x) + hMod,
+                            38 + (18 * x),
                             14 + (17 * y),
-                            flip);
+                            false, false, test.rotation);
     }
 }
 

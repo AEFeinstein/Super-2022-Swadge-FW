@@ -23,7 +23,8 @@ typedef struct
 } gifHandle;
 
 uint32_t* getAsset(const char* name, uint32_t* retLen);
-void drawBitmapFromAsset(const char* name, int16_t x, int16_t y, bool flipLR);
+void ICACHE_FLASH_ATTR drawBitmapFromAsset(const char* name, int16_t xp, int16_t yp,
+        bool flipLR, bool flipUD, int16_t rotateDeg);
 void drawGifFromAsset(const char* name, int16_t x, int16_t y, gifHandle* handle);
 void freeGifMemory(gifHandle* handle);
 

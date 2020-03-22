@@ -353,12 +353,12 @@ void ICACHE_FLASH_ATTR magpetUpdateDisplay(void)
     plotText(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, lastMsg, IBM_VGA_8, WHITE);
 
     // Draw our pet
-    drawBitmapFromAsset(petSprites[myPet], OLED_WIDTH / 4, OLED_HEIGHT / 2 - 8 + myPetOffset, false);
+    drawBitmapFromAsset(petSprites[myPet], OLED_WIDTH / 4, OLED_HEIGHT / 2 - 8 + myPetOffset, false, false, 0);
 
     // Draw their pet, maybe
     if(0xFF != theirPet && theirPetOffset > 0)
     {
-        drawBitmapFromAsset(petSprites[theirPet], theirPetOffset, OLED_HEIGHT / 2 - 8, false);
+        drawBitmapFromAsset(petSprites[theirPet], theirPetOffset, OLED_HEIGHT / 2 - 8, false, false, 0);
     }
 
     switch(connection.cnc.playOrder)

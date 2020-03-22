@@ -4,8 +4,69 @@
 #include "assets.h"
 #include "oled.h"
 #include "fastlz.h"
+#include "user_main.h"
 
 #define assetDbg(...) // os_printf(__VA_ARGS__)
+
+const uint32_t sin1024[] RODATA_ATTR =
+{
+    0, 18, 36, 54, 71, 89, 107, 125, 143, 160, 178, 195, 213,
+    230, 248, 265, 282, 299, 316, 333, 350, 367, 384, 400, 416, 433, 449, 465, 481,
+    496, 512, 527, 543, 558, 573, 587, 602, 616, 630, 644, 658, 672, 685, 698, 711,
+    724, 737, 749, 761, 773, 784, 796, 807, 818, 828, 839, 849, 859, 868, 878, 887,
+    896, 904, 912, 920, 928, 935, 943, 949, 956, 962, 968, 974, 979, 984, 989, 994,
+    998, 1002, 1005, 1008, 1011, 1014, 1016, 1018, 1020, 1022, 1023, 1023, 1024,
+    1024, 1024, 1023, 1023, 1022, 1020, 1018, 1016, 1014, 1011, 1008, 1005, 1002, 998,
+    994, 989, 984, 979, 974, 968, 962, 956, 949, 943, 935, 928, 920, 912, 904, 896,
+    887, 878, 868, 859, 849, 839, 828, 818, 807, 796, 784, 773, 761, 749, 737, 724,
+    711, 698, 685, 672, 658, 644, 630, 616, 602, 587, 573, 558, 543, 527, 512, 496,
+    481, 465, 449, 433, 416, 400, 384, 367, 350, 333, 316, 299, 282, 265, 248, 230,
+    213, 195, 178, 160, 143, 125, 107, 89, 71, 54, 36, 18, 0, -18, -36, -54, -71,
+    -89, -107, -125, -143, -160, -178, -195, -213, -230, -248, -265, -282, -299, -316,
+    -333, -350, -367, -384, -400, -416, -433, -449, -465, -481, -496, -512, -527,
+    -543, -558, -573, -587, -602, -616, -630, -644, -658, -672, -685, -698, -711,
+    -724, -737, -749, -761, -773, -784, -796, -807, -818, -828, -839, -849, -859, -868,
+    -878, -887, -896, -904, -912, -920, -928, -935, -943, -949, -956, -962, -968,
+    -974, -979, -984, -989, -994, -998, -1002, -1005, -1008, -1011, -1014, -1016,
+    -1018, -1020, -1022, -1023, -1023, -1024, -1024, -1024, -1023, -1023, -1022, -1020,
+    -1018, -1016, -1014, -1011, -1008, -1005, -1002, -998, -994, -989, -984, -979,
+    -974, -968, -962, -956, -949, -943, -935, -928, -920, -912, -904, -896, -887,
+    -878, -868, -859, -849, -839, -828, -818, -807, -796, -784, -773, -761, -749,
+    -737, -724, -711, -698, -685, -672, -658, -644, -630, -616, -602, -587, -573, -558,
+    -543, -527, -512, -496, -481, -465, -449, -433, -416, -400, -384, -367, -350,
+    -333, -316, -299, -282, -265, -248, -230, -213, -195, -178, -160, -143, -125,
+    -107, -89, -71, -54, -36, -18
+};
+
+const uint32_t cos1024[] RODATA_ATTR =
+{
+    1024, 1024, 1023, 1023, 1022, 1020, 1018, 1016, 1014, 1011, 1008, 1005, 1002,
+    998, 994, 989, 984, 979, 974, 968, 962, 956, 949, 943, 935,
+    928, 920, 912, 904, 896, 887, 878, 868, 859, 849, 839, 828, 818, 807, 796, 784,
+    773, 761, 749, 737, 724, 711, 698, 685, 672, 658, 644, 630, 616, 602, 587, 573,
+    558, 543, 527, 512, 496, 481, 465, 449, 433, 416, 400, 384, 367, 350, 333, 316,
+    299, 282, 265, 248, 230, 213, 195, 178, 160, 143, 125, 107, 89, 71, 54, 36, 18,
+    0, -18, -36, -54, -71, -89, -107, -125, -143, -160, -178, -195, -213, -230,
+    -248, -265, -282, -299, -316, -333, -350, -367, -384, -400, -416, -433, -449, -465,
+    -481, -496, -512, -527, -543, -558, -573, -587, -602, -616, -630, -644, -658,
+    -672, -685, -698, -711, -724, -737, -749, -761, -773, -784, -796, -807, -818,
+    -828, -839, -849, -859, -868, -878, -887, -896, -904, -912, -920, -928, -935, -943,
+    -949, -956, -962, -968, -974, -979, -984, -989, -994, -998, -1002, -1005, -1008,
+    -1011, -1014, -1016, -1018, -1020, -1022, -1023, -1023, -1024, -1024, -1024,
+    -1023, -1023, -1022, -1020, -1018, -1016, -1014, -1011, -1008, -1005, -1002, -998,
+    -994, -989, -984, -979, -974, -968, -962, -956, -949, -943, -935, -928, -920,
+    -912, -904, -896, -887, -878, -868, -859, -849, -839, -828, -818, -807, -796,
+    -784, -773, -761, -749, -737, -724, -711, -698, -685, -672, -658, -644, -630, -616,
+    -602, -587, -573, -558, -543, -527, -512, -496, -481, -465, -449, -433, -416,
+    -400, -384, -367, -350, -333, -316, -299, -282, -265, -248, -230, -213, -195,
+    -178, -160, -143, -125, -107, -89, -71, -54, -36, -18, 0, 18, 36, 54, 71, 89, 107,
+    125, 143, 160, 178, 195, 213, 230, 248, 265, 282, 299, 316, 333, 350, 367, 384,
+    400, 416, 433, 449, 465, 481, 496, 512, 527, 543, 558, 573, 587, 602, 616, 630,
+    644, 658, 672, 685, 698, 711, 724, 737, 749, 761, 773, 784, 796, 807, 818, 828,
+    839, 849, 859, 868, 878, 887, 896, 904, 912, 920, 928, 935, 943, 949, 956, 962,
+    968, 974, 979, 984, 989, 994, 998, 1002, 1005, 1008, 1011, 1014, 1016, 1018,
+    1020, 1022, 1023, 1023, 1024
+};
 
 void ICACHE_FLASH_ATTR gifTimerFn(void* arg);
 
@@ -58,10 +119,14 @@ uint32_t* ICACHE_FLASH_ATTR getAsset(const char* name, uint32_t* retLen)
  * @brief Draw a bitmap asset to the OLED
  *
  * @param name The name of the asset to draw
- * @param x The x coordinate of the asset
- * @param y The y coordinate of the asset
+ * @param xp The x coordinate to draw the asset at
+ * @param yp The y coordinate to draw the asset at
+ * @param flipLR
+ * @param flipUD
+ * @param rotateDeg
  */
-void ICACHE_FLASH_ATTR drawBitmapFromAsset(const char* name, int16_t x, int16_t y, bool flipLR)
+void ICACHE_FLASH_ATTR drawBitmapFromAsset(const char* name, int16_t xp, int16_t yp,
+        bool flipLR, bool flipUD, int16_t rotateDeg)
 {
     // Get the image from the packed assets
     uint32_t assetLen = 0;
@@ -72,33 +137,56 @@ void ICACHE_FLASH_ATTR drawBitmapFromAsset(const char* name, int16_t x, int16_t 
         uint32_t idx = 0;
 
         // Get the width and height
-        uint32_t width = assetPtr[idx++];
-        uint32_t height = assetPtr[idx++];
+        int32_t width = assetPtr[idx++];
+        int32_t height = assetPtr[idx++];
         assetDbg("Width: %d, height: %d\n", width, height);
 
         // Read 32 bits at a time
         uint32_t chunk = assetPtr[idx++];
         uint32_t bitIdx = 0;
+
         // Draw the image's pixels
-        for(uint16_t h = 0; h < height; h++)
+        for(int16_t h = 0; h < height; h++)
         {
-            for(uint16_t w = 0; w < width; w++)
+            for(int16_t w = 0; w < width; w++)
             {
-                int16_t xPos;
-                if(flipLR)
+                // Make modifiable copies of the coordinates
+                int16_t x = w;
+                int16_t y = h;
+
+                // Rotate the coordinate if requested
+                if (0 < rotateDeg && rotateDeg < 360)
                 {
-                    xPos = x + (width - w - 1);
-                }
-                else
-                {
-                    xPos = x + w;
+                    // Center around (0, 0)
+                    x -= (width / 2);
+                    y -= (height / 2);
+                    // Apply rotation matrix
+                    int16_t nX = (x * cos1024[rotateDeg] - y * sin1024[rotateDeg]) / 1024;
+                    int16_t nY = (x * sin1024[rotateDeg] + y * cos1024[rotateDeg]) / 1024;
+                    // Return sprite to original position
+                    x = nX + (width / 2);
+                    y = nY + (height / 2);
                 }
 
+                // Flip left/right if requested
+                if (flipLR)
+                {
+                    x = width - 1 - x;
+                }
+
+                // Flip up/down if requested
+                if(flipUD)
+                {
+                    y = height - 1 - y;
+                }
+
+                // 'Traverse' the huffman tree to find out what to do
                 bool isZero = true;
                 if(chunk & (0x80000000 >> (bitIdx++)))
                 {
+                    // If it's a one, draw a black pixel
                     assetDbg(" ");
-                    drawPixel(xPos, y + h, BLACK);
+                    drawPixel(xp + x, yp + y, BLACK);
                     isZero = false;
                 }
 
@@ -114,14 +202,14 @@ void ICACHE_FLASH_ATTR drawBitmapFromAsset(const char* name, int16_t x, int16_t 
                 {
                     if(chunk & (0x80000000 >> (bitIdx++)))
                     {
-                        // Transparent
+                        // zero-one means transparent, so don't do anything
                         assetDbg(".");
                     }
                     else
                     {
-                        // Transparent
+                        // zero-zero means white, draw a pixel
                         assetDbg("X");
-                        drawPixel(xPos, y + h, WHITE);
+                        drawPixel(xp + x, yp + y, WHITE);
                     }
 
                     // After bitIdx was incremented, check it
