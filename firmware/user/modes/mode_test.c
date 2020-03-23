@@ -296,6 +296,7 @@ struct
 
     uint8_t BananaIdx;
     uint16_t rotation;
+    gifHandle gHandle;
 } test;
 
 /*============================================================================
@@ -323,7 +324,7 @@ void ICACHE_FLASH_ATTR testEnterMode(void)
 
     os_timer_disarm(&test.timerHandleSpriteAnim);
     os_timer_setfn(&test.timerHandleSpriteAnim, (os_timer_func_t*)testAnimateSprite, NULL);
-    os_timer_arm(&test.timerHandleSpriteAnim, 8, 1);
+    os_timer_arm(&test.timerHandleSpriteAnim, 17, 1);
 
     // Test the LEDs
     os_timer_disarm(&test.TimerHandleLeds);
@@ -331,8 +332,7 @@ void ICACHE_FLASH_ATTR testEnterMode(void)
     os_timer_arm(&test.TimerHandleLeds, 1000, 1);
 
     // Draw a gif
-    // static gifHandle gHandle;
-    // drawGifFromAsset("ragequit.gif", 64, 0, &gHandle);
+    // drawGifFromAsset("ragequit.gif", 0, 0, false, false, 0, &test.gHandle);
 }
 
 /**
@@ -369,8 +369,10 @@ static void ICACHE_FLASH_ATTR testLedFunc(void* arg __attribute__((unused)))
 static void ICACHE_FLASH_ATTR testAnimateSprite(void* arg __attribute__((unused)))
 {
     // test.rotation = (test.rotation + 90) % 360;
-    test.rotation = (test.rotation + 1) % 360;
+    test.rotation = (test.rotation + 5) % 360;
     testUpdateDisplay();
+
+    test.gHandle.rotateDeg = test.rotation;
 }
 
 /**
@@ -486,7 +488,9 @@ void ICACHE_FLASH_ATTR testUpdateDisplay(void)
         drawBitmapFromAsset(sprites[spIdx],
                             38 + (18 * x),
                             14 + (17 * y),
-                            false, false, test.rotation);
+                            false,
+                            false,
+                            test.rotation);
     }
 }
 
@@ -500,9 +504,14 @@ void ICACHE_FLASH_ATTR testUpdateDisplay(void)
 void ICACHE_FLASH_ATTR testButtonCallback( uint8_t state,
         int button __attribute__((unused)), int down __attribute__((unused)))
 {
-    os_printf("btn: %d\n", state);
-    test.ButtonState = state;
-    testUpdateDisplay();
+    if(down)
+    {
+        os_printf("btn: %d [%d]\n", state, test.rotation);
+        test.ButtonState = state;
+
+        test.rotation = (test.rotation + 1) % 360;
+        testUpdateDisplay();
+    }
 }
 
 /**
