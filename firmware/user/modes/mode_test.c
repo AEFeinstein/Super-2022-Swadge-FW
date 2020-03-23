@@ -324,7 +324,7 @@ void ICACHE_FLASH_ATTR testEnterMode(void)
 
     os_timer_disarm(&test.timerHandleSpriteAnim);
     os_timer_setfn(&test.timerHandleSpriteAnim, (os_timer_func_t*)testAnimateSprite, NULL);
-    os_timer_arm(&test.timerHandleSpriteAnim, 17, 1);
+    os_timer_arm(&test.timerHandleSpriteAnim, 200, 1);
 
     // Test the LEDs
     os_timer_disarm(&test.TimerHandleLeds);
@@ -368,11 +368,12 @@ static void ICACHE_FLASH_ATTR testLedFunc(void* arg __attribute__((unused)))
  */
 static void ICACHE_FLASH_ATTR testAnimateSprite(void* arg __attribute__((unused)))
 {
-    // test.rotation = (test.rotation + 90) % 360;
-    test.rotation = (test.rotation + 5) % 360;
-    testUpdateDisplay();
+    // // test.rotation = (test.rotation + 90) % 360;
+    // test.rotation = (test.rotation + 1) % 360;
 
-    test.gHandle.rotateDeg = test.rotation;
+    // testUpdateDisplay();
+
+    // test.gHandle.rotateDeg = test.rotation;
 }
 
 /**
@@ -383,7 +384,7 @@ static void ICACHE_FLASH_ATTR testAnimateSprite(void* arg __attribute__((unused)
 static void ICACHE_FLASH_ATTR testRotateBanana(void* arg __attribute__((unused)))
 {
     test.BananaIdx = (test.BananaIdx + 1) % (sizeof(rotating_banana) / sizeof(rotating_banana[0]));
-    testUpdateDisplay();
+    // testUpdateDisplay();
 }
 
 /**
@@ -526,5 +527,5 @@ void ICACHE_FLASH_ATTR testAccelerometerHandler(accel_t* accel)
     test.Accel.x = accel->x;
     test.Accel.y = accel->y;
     test.Accel.z = accel->z;
-    testUpdateDisplay();
+    // testUpdateDisplay();
 }

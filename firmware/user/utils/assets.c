@@ -38,6 +38,7 @@ const uint32_t sin1024[] RODATA_ATTR =
     -107, -89, -71, -54, -36, -18
 };
 
+#define ROTATION_BY_SHEARING
 #ifdef ROTATION_BY_SHEARING
 
 const uint32_t tan1024[] =
@@ -157,6 +158,7 @@ uint32_t* ICACHE_FLASH_ATTR getAsset(const char* name, uint32_t* retLen)
     return NULL;
 }
 
+int16_t last_dont_care = 0;
 /**
  * Transform a pixel's coordinates by rotation around the sprite's center point,
  * then reflection over Y axis, then reflection over X axis, then translation
@@ -175,34 +177,67 @@ void ICACHE_FLASH_ATTR transformPixel(int16_t* x, int16_t* y, int16_t transX,
                                       int16_t transY, bool flipLR, bool flipUD,
                                       int16_t rotateDeg, int16_t width, int16_t height)
 {
+    int16_t origRot = rotateDeg;
     // First rotate the sprite around the sprite's center point
     if (0 < rotateDeg && rotateDeg < 360)
     {
 #ifdef ROTATION_BY_SHEARING
-        // This solves the aliasing problem, but feels choppier
+        // This solves the aliasing problem, but because of tan() it's only safe
+        // to rotate by 0 to 90 degrees. So rotate by a multiple of 90 degrees
+        // first, which doesn't need trig, then rotate the rest with shears
         // See http://datagenetics.com/blog/august32013/index.html
-        if(rotateDeg > 90 && rotateDeg < 270)
-        {
-            rotateDeg = (rotateDeg + 180) % 360;
-            flipLR = !flipLR;
-            flipUD = !flipUD;
-            transX++;
-            transY++;
-        }
+        // See https://graphicsinterface.org/wp-content/uploads/gi1986-15.pdf
 
         // Center around (0, 0)
         (*x) -= (width / 2);
         (*y) -= (height / 2);
 
-        // Apply three shear matrices to rotate
-        // 1st shear
-        (*x) = (*x) - ((*y) * tan1024[rotateDeg / 2]) / 1024;
-        // 2nd shear
-        (*y) = ((*x) * sin1024[rotateDeg]) / 1024 + (*y);
-        // 3rd shear
-        (*x) = (*x) - ((*y) * tan1024[rotateDeg / 2]) / 1024;
+        // First rotate to the nearest 90 degree boundary, which is trivial
+        if(rotateDeg >= 270)
+        {
+            // (x, y) -> (y, -x)
+            int16_t tmp = (*x);
+            (*x) = (*y);
+            (*y) = -tmp;
+        }
+        else if(rotateDeg >= 180)
+        {
+            // (x, y) -> (-x, -y)
+            (*x) = -(*x);
+            (*y) = -(*y);
+        }
+        else if(rotateDeg >= 90)
+        {
+            // (x, y) -> (-y, x)
+            int16_t tmp = (*x);
+            (*x) = -(*y);
+            (*y) = tmp;
+        }
+        // Now that it's rotated to a 90 degree boundary, find out how much more
+        // there is to rotate by shearing
+        rotateDeg = rotateDeg % 90;
 
-        // Return sprite to original position
+        // If there's any more to rotate, apply three shear matrices in order
+        // if(rotateDeg > 1 && rotateDeg < 89)
+        if(rotateDeg > 0)
+        {
+            // 1st shear
+            (*x) = (*x) - ((*y) * tan1024[rotateDeg / 2]) / 1024;
+            // 2nd shear
+            (*y) = ((*x) * sin1024[rotateDeg]) / 1024 + (*y);
+            // 3rd shear
+            (*x) = (*x) - ((*y) * tan1024[rotateDeg / 2]) / 1024;
+        }
+        else
+        {
+            if(origRot != last_dont_care)
+            {
+                os_printf("Dont bother %d\n", origRot);
+                last_dont_care = origRot;
+            }
+        }
+
+        // Return pixel to original position
         (*x) = (*x) + (width / 2);
         (*y) = (*y) + (height / 2);
 #else
