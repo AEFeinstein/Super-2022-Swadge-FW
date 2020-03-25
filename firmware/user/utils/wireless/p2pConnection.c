@@ -242,18 +242,18 @@ void ICACHE_FLASH_ATTR p2pDeinit(p2pInfo* p2p)
 {
     p2p_printf("\n");
 
-    memset(&(p2p->msgId), 0, sizeof(p2p->msgId));
-    memset(&(p2p->conMsg), 0, sizeof(p2p->conMsg));
-    memset(&(p2p->ackMsg), 0, sizeof(p2p->ackMsg));
-    memset(&(p2p->startMsg), 0, sizeof(p2p->startMsg));
+    ets_memset(&(p2p->msgId), 0, sizeof(p2p->msgId));
+    ets_memset(&(p2p->conMsg), 0, sizeof(p2p->conMsg));
+    ets_memset(&(p2p->ackMsg), 0, sizeof(p2p->ackMsg));
+    ets_memset(&(p2p->startMsg), 0, sizeof(p2p->startMsg));
 
     p2p->conCbFn = NULL;
     p2p->msgRxCbFn = NULL;
     p2p->msgTxCbFn = NULL;
     p2p->connectionRssi = 0;
 
-    memset(&(p2p->cnc), 0, sizeof(p2p->cnc));
-    memset(&(p2p->ack), 0, sizeof(p2p->ack));
+    ets_memset(&(p2p->cnc), 0, sizeof(p2p->cnc));
+    ets_memset(&(p2p->ack), 0, sizeof(p2p->ack));
 
     syncedTimerDisarm(&p2p->tmr.Connection);
     syncedTimerDisarm(&p2p->tmr.TxRetry);

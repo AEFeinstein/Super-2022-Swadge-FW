@@ -77,7 +77,7 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
     {
         os_printf("Settings not found\r\n");
         // Zero everything
-        memset(&settings, 0, sizeof(settings));
+        ets_memset(&settings, 0, sizeof(settings));
         // Set the key
         settings.SaveLoadKey = SAVE_LOAD_KEY;
         // Load in default values

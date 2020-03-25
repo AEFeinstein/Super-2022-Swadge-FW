@@ -164,7 +164,7 @@ void ICACHE_FLASH_ATTR initBuzzer(void)
         return;
     }
 
-    memset(&bzr, 0, sizeof(bzr));
+    ets_memset(&bzr, 0, sizeof(bzr));
     stopBuzzerSong();
     syncedTimerSetFn(&bzr.songTimer, songTimerCb, NULL);
 }

@@ -312,7 +312,7 @@ void ICACHE_FLASH_ATTR testEnterMode(void)
     enableDebounce(false);
 
     // Clear everything
-    memset(&test, 0, sizeof(test));
+    ets_memset(&test, 0, sizeof(test));
 
     // Test the buzzer
     // uint32_t songLen;
