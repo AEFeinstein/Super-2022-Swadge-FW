@@ -29,48 +29,46 @@ static list_t syncedTimerList = {0};
  * os_timers should be quick, so this allows us to register slow functions to
  * timers
  *
- * @param arg A pointer, equivalent to this timer's  &(timer->shouldRunCnt)
+ * @param arg A pointer to the syncedTimer
  */
 static void ICACHE_FLASH_ATTR incShouldRun(void* arg)
 {
-    // The arg is &(newTimer->shouldRunCnt), so dereference and increment it
-    (*((uint8_t*)arg))++;
+    ((syncedTimer_t*)arg)->shouldRunCnt++;
 }
 
 /**
  * Set timer callback function. The timer callback function must be set before
  * arming a timer.
- * 
+ *
  * syncedTimerSetFn() can only be invoked when the timer is not enabled, i.e.,
  * after syncedTimerDisarm() or before syncedTimerArm().
  *
  * This is a wrapper for os_timer_setfn().
  *
- * @param newTimer  The timer struct
+ * @param timer     The timer struct
  * @param timerFunc The timer callback function
  * @param arg       An arg to pass to the timer callback function
  */
-void ICACHE_FLASH_ATTR syncedTimerSetFn(syncedTimer_t* newTimer,
+void ICACHE_FLASH_ATTR syncedTimerSetFn(syncedTimer_t* timer,
                                         os_timer_func_t* timerFunc, void* arg)
 {
     // Save the function parameters
-    newTimer->timerFunc = timerFunc;
-    newTimer->arg = arg;
+    timer->timerFunc = timerFunc;
+    timer->arg = arg;
 
     // Zero out the variables
-    newTimer->shouldRunCnt = 0;
-    memset(&(newTimer->osTimer), 0, sizeof(os_timer_t));
+    timer->shouldRunCnt = 0;
+    ets_memset(&(timer->osTimer), 0, sizeof(os_timer_t));
 
     // Set the timer function
-    os_timer_setfn(&(newTimer->osTimer), incShouldRun,
-                   &(newTimer->shouldRunCnt));
+    os_timer_setfn(&(timer->osTimer), incShouldRun, timer);
 }
 
 /**
  * Arm a timer callback function to be called at some time or interval.
- * 
+ *
  * For the same timer, syncedTimerArm() cannot be invoked repeatedly.
- * syncedTimerDisarm() should be invoked first. 
+ * syncedTimerDisarm() should be invoked first.
  *
  * This is a wrapper for os_timer_arm();
  *
@@ -105,7 +103,7 @@ void ICACHE_FLASH_ATTR syncedTimerArm(syncedTimer_t* timer, uint32_t time,
 
 /**
  * Disarm a timer.
- * 
+ *
  * This is a wrapper for os_timer_disarm()
  *
  * @param timer The timer struct
@@ -136,7 +134,7 @@ void ICACHE_FLASH_ATTR syncedTimerDisarm(syncedTimer_t* timer)
 /**
  * Check each synced timer and call it's respective function as many times as
  * necessary.
- * 
+ *
  * This must be called from procTask(), where functions can run for long times
  * without disrupting the system.
  */
@@ -148,11 +146,15 @@ void ICACHE_FLASH_ATTR syncedTimersCheck(void)
     {
         syncedTimer_t* timer = (syncedTimer_t*) currentNode->val;
         // For as many times as the function should be called
-        while(timer->shouldRunCnt > 0)
+        while(0 < timer->shouldRunCnt)
         {
             // Call it
             timer->timerFunc(timer->arg);
-            timer->shouldRunCnt--;
+            // Decrement, making sure not to underflow
+            if(0 < timer->shouldRunCnt)
+            {
+                timer->shouldRunCnt--;
+            }
         }
         // Iterate to the next timer
         currentNode = currentNode->next;
