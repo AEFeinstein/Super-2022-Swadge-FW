@@ -38,9 +38,6 @@ const uint32_t sin1024[] RODATA_ATTR =
     -107, -89, -71, -54, -36, -18
 };
 
-#define ROTATION_BY_SHEARING
-#ifdef ROTATION_BY_SHEARING
-
 const uint32_t tan1024[] =
 {
     0, 18, 36, 54, 72, 90, 108, 126, 144, 162, 181, 199, 218, 236, 255, 274, 294,
@@ -73,40 +70,6 @@ const uint32_t tan1024[] =
     -353, -333, -313, -294, -274, -255, -236, -218, -199, -181, -162, -144, -126,
     -108, -90, -72, -54, -36, -18
 };
-
-#else
-
-const uint32_t cos1024[] RODATA_ATTR =
-{
-    1024, 1024, 1023, 1023, 1022, 1020, 1018, 1016, 1014, 1011, 1008, 1005, 1002,
-    998, 994, 989, 984, 979, 974, 968, 962, 956, 949, 943, 935,
-    928, 920, 912, 904, 896, 887, 878, 868, 859, 849, 839, 828, 818, 807, 796, 784,
-    773, 761, 749, 737, 724, 711, 698, 685, 672, 658, 644, 630, 616, 602, 587, 573,
-    558, 543, 527, 512, 496, 481, 465, 449, 433, 416, 400, 384, 367, 350, 333, 316,
-    299, 282, 265, 248, 230, 213, 195, 178, 160, 143, 125, 107, 89, 71, 54, 36, 18,
-    0, -18, -36, -54, -71, -89, -107, -125, -143, -160, -178, -195, -213, -230,
-    -248, -265, -282, -299, -316, -333, -350, -367, -384, -400, -416, -433, -449, -465,
-    -481, -496, -512, -527, -543, -558, -573, -587, -602, -616, -630, -644, -658,
-    -672, -685, -698, -711, -724, -737, -749, -761, -773, -784, -796, -807, -818,
-    -828, -839, -849, -859, -868, -878, -887, -896, -904, -912, -920, -928, -935, -943,
-    -949, -956, -962, -968, -974, -979, -984, -989, -994, -998, -1002, -1005, -1008,
-    -1011, -1014, -1016, -1018, -1020, -1022, -1023, -1023, -1024, -1024, -1024,
-    -1023, -1023, -1022, -1020, -1018, -1016, -1014, -1011, -1008, -1005, -1002, -998,
-    -994, -989, -984, -979, -974, -968, -962, -956, -949, -943, -935, -928, -920,
-    -912, -904, -896, -887, -878, -868, -859, -849, -839, -828, -818, -807, -796,
-    -784, -773, -761, -749, -737, -724, -711, -698, -685, -672, -658, -644, -630, -616,
-    -602, -587, -573, -558, -543, -527, -512, -496, -481, -465, -449, -433, -416,
-    -400, -384, -367, -350, -333, -316, -299, -282, -265, -248, -230, -213, -195,
-    -178, -160, -143, -125, -107, -89, -71, -54, -36, -18, 0, 18, 36, 54, 71, 89, 107,
-    125, 143, 160, 178, 195, 213, 230, 248, 265, 282, 299, 316, 333, 350, 367, 384,
-    400, 416, 433, 449, 465, 481, 496, 512, 527, 543, 558, 573, 587, 602, 616, 630,
-    644, 658, 672, 685, 698, 711, 724, 737, 749, 761, 773, 784, 796, 807, 818, 828,
-    839, 849, 859, 868, 878, 887, 896, 904, 912, 920, 928, 935, 943, 949, 956, 962,
-    968, 974, 979, 984, 989, 994, 998, 1002, 1005, 1008, 1011, 1014, 1016, 1018,
-    1020, 1022, 1023, 1023, 1024
-};
-
-#endif
 
 void ICACHE_FLASH_ATTR gifTimerFn(void* arg);
 void ICACHE_FLASH_ATTR transformPixel(int16_t* x, int16_t* y, int16_t transX,
@@ -158,7 +121,6 @@ uint32_t* ICACHE_FLASH_ATTR getAsset(const char* name, uint32_t* retLen)
     return NULL;
 }
 
-int16_t last_dont_care = 0;
 /**
  * Transform a pixel's coordinates by rotation around the sprite's center point,
  * then reflection over Y axis, then reflection over X axis, then translation
@@ -177,11 +139,9 @@ void ICACHE_FLASH_ATTR transformPixel(int16_t* x, int16_t* y, int16_t transX,
                                       int16_t transY, bool flipLR, bool flipUD,
                                       int16_t rotateDeg, int16_t width, int16_t height)
 {
-    int16_t origRot = rotateDeg;
     // First rotate the sprite around the sprite's center point
     if (0 < rotateDeg && rotateDeg < 360)
     {
-#ifdef ROTATION_BY_SHEARING
         // This solves the aliasing problem, but because of tan() it's only safe
         // to rotate by 0 to 90 degrees. So rotate by a multiple of 90 degrees
         // first, which doesn't need trig, then rotate the rest with shears
@@ -222,35 +182,16 @@ void ICACHE_FLASH_ATTR transformPixel(int16_t* x, int16_t* y, int16_t transX,
         if(rotateDeg > 0)
         {
             // 1st shear
-            (*x) = (*x) - ((*y) * tan1024[rotateDeg / 2]) / 1024;
+            (*x) = (*x) - (((*y) * tan1024[rotateDeg / 2]) + 512) / 1024;
             // 2nd shear
-            (*y) = ((*x) * sin1024[rotateDeg]) / 1024 + (*y);
+            (*y) = (((*x) * sin1024[rotateDeg]) + 512) / 1024 + (*y);
             // 3rd shear
-            (*x) = (*x) - ((*y) * tan1024[rotateDeg / 2]) / 1024;
-        }
-        else
-        {
-            if(origRot != last_dont_care)
-            {
-                os_printf("Dont bother %d\n", origRot);
-                last_dont_care = origRot;
-            }
+            (*x) = (*x) - (((*y) * tan1024[rotateDeg / 2]) + 512) / 1024;
         }
 
         // Return pixel to original position
         (*x) = (*x) + (width / 2);
         (*y) = (*y) + (height / 2);
-#else
-        // Center around (0, 0)
-        (*x) -= (width / 2);
-        (*y) -= (height / 2);
-        // Apply rotation matrix
-        int16_t nX = ((*x) * cos1024[rotateDeg] - (*y) * sin1024[rotateDeg]) / 1024;
-        int16_t nY = ((*x) * sin1024[rotateDeg] + (*y) * cos1024[rotateDeg]) / 1024;
-        // Return sprite to original position
-        (*x) = nX + (width / 2);
-        (*y) = nY + (height / 2);
-#endif
     }
 
     // Then reflect over Y axis
