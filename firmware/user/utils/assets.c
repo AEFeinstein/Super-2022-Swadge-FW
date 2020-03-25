@@ -348,8 +348,8 @@ void ICACHE_FLASH_ATTR drawGifFromAsset(const char* name, int16_t xp, int16_t yp
             handle->frame = (uint8_t*)os_malloc(handle->allocedSize);
 
             // Set up a timer to draw the other frames of the gif
-            os_timer_setfn(&handle->timer, gifTimerFn, handle);
-            os_timer_arm(&handle->timer, handle->duration, true);
+            syncedTimerSetFn(&handle->timer, gifTimerFn, handle);
+            syncedTimerArm(&handle->timer, handle->duration, true);
         }
     }
 }
@@ -361,7 +361,7 @@ void ICACHE_FLASH_ATTR drawGifFromAsset(const char* name, int16_t xp, int16_t yp
  */
 void ICACHE_FLASH_ATTR freeGifMemory(gifHandle* handle)
 {
-    os_timer_disarm(&handle->timer);
+    syncedTimerDisarm(&handle->timer);
     os_free(handle->compressed);
     os_free(handle->decompressed);
     os_free(handle->frame);

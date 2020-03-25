@@ -62,7 +62,7 @@ swadgeMode magpetMode =
 
 p2pInfo connection;
 char lastMsg[256] = {0};
-os_timer_t animationTimer;
+syncedTimer_t animationTimer;
 
 uint8_t myPet = 0;
 int8_t myPetOffset = 0;
@@ -109,8 +109,8 @@ void ICACHE_FLASH_ATTR magpetEnterMode(void)
     resetTheirPet(false);
 
     // Set up an animation timer
-    os_timer_setfn(&animationTimer, magpetAnimationTimer, NULL);
-    os_timer_arm(&animationTimer, 50, true);
+    syncedTimerSetFn(&animationTimer, magpetAnimationTimer, NULL);
+    syncedTimerArm(&animationTimer, 50, true);
 
     // Draw the initial display
     magpetUpdateDisplay();

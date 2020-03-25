@@ -17,6 +17,7 @@
 #include "esp_niceness.h"
 #include "gpio_user.h"
 #include "nvm_interface.h"
+#include "synced_timer.h"
 
 /*============================================================================
  * Defines
@@ -59,7 +60,7 @@ struct
     bool songShouldLoop;
     uint32_t noteTime;
     uint32_t noteIdx;
-    os_timer_t songTimer;
+    syncedTimer_t songTimer;
 } bzr = {0};
 
 /*============================================================================
@@ -165,7 +166,7 @@ void ICACHE_FLASH_ATTR initBuzzer(void)
 
     memset(&bzr, 0, sizeof(bzr));
     stopBuzzerSong();
-    os_timer_setfn(&bzr.songTimer, songTimerCb, NULL);
+    syncedTimerSetFn(&bzr.songTimer, songTimerCb, NULL);
 }
 
 /**
@@ -229,7 +230,7 @@ void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song, bool shouldLoop)
     bzr.songShouldLoop = shouldLoop;
 
     // Set the timer to call every 1ms
-    os_timer_arm(&bzr.songTimer, 1, true);
+    syncedTimerArm(&bzr.songTimer, 1, true);
 
     // Start playing the first note
     loadNextNote();
@@ -258,7 +259,7 @@ void ICACHE_FLASH_ATTR stopBuzzerSong(void)
     bzr.song = NULL;
     bzr.noteTime = 0;
     bzr.noteIdx = 0;
-    os_timer_disarm(&bzr.songTimer);
+    syncedTimerDisarm(&bzr.songTimer);
 }
 
 /**
@@ -304,7 +305,7 @@ void ICACHE_FLASH_ATTR songTimerCb(void* arg __attribute__((unused)))
                 BZR_DBG("Don't loop\n");
                 // Song over, not looping, stop the timer and the note
                 setBuzzerNote(SILENCE);
-                os_timer_disarm(&bzr.songTimer);
+                syncedTimerDisarm(&bzr.songTimer);
             }
         }
     }

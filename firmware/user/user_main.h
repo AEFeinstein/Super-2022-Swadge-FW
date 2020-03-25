@@ -20,9 +20,8 @@
  * Includes
  *==========================================================================*/
 
-#include <c_types.h>
-#include <stdint.h>
-#include <stddef.h>
+#include <osapi.h>
+#include "synced_timer.h"
 
 /*============================================================================
 * Enums

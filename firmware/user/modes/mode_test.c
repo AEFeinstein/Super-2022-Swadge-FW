@@ -24,6 +24,7 @@
 #include "hpatimer.h"
 
 #include "assets.h"
+#include "synced_timer.h"
 
 /*============================================================================
  * Defines
@@ -290,9 +291,9 @@ struct
     uint8_t ButtonState;
 
     // Timer variables
-    os_timer_t TimerHandleLeds;
-    os_timer_t timerHandleBanana;
-    os_timer_t timerHandleSpriteAnim;
+    syncedTimer_t TimerHandleLeds;
+    syncedTimer_t timerHandleBanana;
+    syncedTimer_t timerHandleSpriteAnim;
 
     uint8_t BananaIdx;
     uint16_t rotation;
@@ -318,18 +319,18 @@ void ICACHE_FLASH_ATTR testEnterMode(void)
     // startBuzzerSong((song_t*)getAsset("carmen.rtl", &songLen), false);
 
     // Test the display with a rotating banana
-    os_timer_disarm(&test.timerHandleBanana);
-    os_timer_setfn(&test.timerHandleBanana, (os_timer_func_t*)testRotateBanana, NULL);
-    os_timer_arm(&test.timerHandleBanana, 100, 1);
+    syncedTimerDisarm(&test.timerHandleBanana);
+    syncedTimerSetFn(&test.timerHandleBanana, testRotateBanana, NULL);
+    syncedTimerArm(&test.timerHandleBanana, 100, true);
 
-    os_timer_disarm(&test.timerHandleSpriteAnim);
-    os_timer_setfn(&test.timerHandleSpriteAnim, (os_timer_func_t*)testAnimateSprite, NULL);
-    os_timer_arm(&test.timerHandleSpriteAnim, 15, 1);
+    syncedTimerDisarm(&test.timerHandleSpriteAnim);
+    syncedTimerSetFn(&test.timerHandleSpriteAnim, testAnimateSprite, NULL);
+    syncedTimerArm(&test.timerHandleSpriteAnim, 15, true);
 
     // Test the LEDs
-    os_timer_disarm(&test.TimerHandleLeds);
-    os_timer_setfn(&test.TimerHandleLeds, (os_timer_func_t*)testLedFunc, NULL);
-    os_timer_arm(&test.TimerHandleLeds, 1000, 1);
+    syncedTimerDisarm(&test.TimerHandleLeds);
+    syncedTimerSetFn(&test.TimerHandleLeds, testLedFunc, NULL);
+    syncedTimerArm(&test.TimerHandleLeds, 1000, true);
 
     // Draw a gif
     // drawGifFromAsset("ragequit.gif", 0, 0, false, false, 0, &test.gHandle);
@@ -341,8 +342,8 @@ void ICACHE_FLASH_ATTR testEnterMode(void)
 void ICACHE_FLASH_ATTR testExitMode(void)
 {
     stopBuzzerSong();
-    os_timer_disarm(&test.timerHandleBanana);
-    os_timer_disarm(&test.TimerHandleLeds);
+    syncedTimerDisarm(&test.timerHandleBanana);
+    syncedTimerDisarm(&test.TimerHandleLeds);
 }
 
 /**

@@ -77,7 +77,7 @@ button_mask connectionSide;
 
 char lastMsg[256];
 
-os_timer_t animationTimer;
+syncedTimer_t animationTimer;
 uint8_t radiusLeft = 0;
 uint8_t radiusRight = 0;
 
@@ -108,8 +108,8 @@ void ICACHE_FLASH_ATTR ringEnterMode(void)
     }
 
     // Set up an animation timer
-    os_timer_setfn(&animationTimer, ringAnimationTimer, NULL);
-    os_timer_arm(&animationTimer, 50, true);
+    syncedTimerSetFn(&animationTimer, ringAnimationTimer, NULL);
+    syncedTimerArm(&animationTimer, 50, true);
 
     // Draw the initial display
     ringUpdateDisplay();

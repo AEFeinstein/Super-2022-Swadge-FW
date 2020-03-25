@@ -1,6 +1,8 @@
 #ifndef _ASSETS_H_
 #define _ASSETS_H_
 
+#include "synced_timer.h"
+
 typedef struct
 {
     uint32_t* assetPtr;
@@ -22,7 +24,7 @@ typedef struct
     uint16_t nFrames;
     uint16_t cFrame;
     uint16_t duration;
-    os_timer_t timer;
+    syncedTimer_t timer;
 } gifHandle;
 
 uint32_t* getAsset(const char* name, uint32_t* retLen);

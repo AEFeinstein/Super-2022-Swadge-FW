@@ -177,20 +177,20 @@ void ICACHE_FLASH_ATTR p2pInitialize(p2pInfo* p2p, char* msgId,
                  0xFF);
 
     // Set up a timer for acking messages
-    os_timer_disarm(&p2p->tmr.TxRetry);
-    os_timer_setfn(&p2p->tmr.TxRetry, p2pTxRetryTimeout, p2p);
+    syncedTimerDisarm(&p2p->tmr.TxRetry);
+    syncedTimerSetFn(&p2p->tmr.TxRetry, p2pTxRetryTimeout, p2p);
 
     // Set up a timer for when a message never gets ACKed
-    os_timer_disarm(&p2p->tmr.TxAllRetries);
-    os_timer_setfn(&p2p->tmr.TxAllRetries, p2pTxAllRetriesTimeout, p2p);
+    syncedTimerDisarm(&p2p->tmr.TxAllRetries);
+    syncedTimerSetFn(&p2p->tmr.TxAllRetries, p2pTxAllRetriesTimeout, p2p);
 
     // Set up a timer to restart after abject failure
-    os_timer_disarm(&p2p->tmr.Reinit);
-    os_timer_setfn(&p2p->tmr.Reinit, p2pRestart, p2p);
+    syncedTimerDisarm(&p2p->tmr.Reinit);
+    syncedTimerSetFn(&p2p->tmr.Reinit, p2pRestart, p2p);
 
     // Set up a timer to do an initial connection
-    os_timer_disarm(&p2p->tmr.Connection);
-    os_timer_setfn(&p2p->tmr.Connection, p2pConnectionTimeout, p2p);
+    syncedTimerDisarm(&p2p->tmr.Connection);
+    syncedTimerSetFn(&p2p->tmr.Connection, p2pConnectionTimeout, p2p);
 }
 
 /**
@@ -202,7 +202,7 @@ void ICACHE_FLASH_ATTR p2pStartConnection(p2pInfo* p2p)
 {
     p2p_printf("\n");
     p2p->cnc.isConnecting = true;
-    os_timer_arm(&p2p->tmr.Connection, 1, false);
+    syncedTimerArm(&p2p->tmr.Connection, 1, false);
 
     if(NULL != p2p->conCbFn)
     {
@@ -222,7 +222,7 @@ void ICACHE_FLASH_ATTR p2pStopConnection(p2pInfo* p2p)
     {
         p2p_printf("\n");
         p2p->cnc.isConnecting = false;
-        os_timer_disarm(&p2p->tmr.Connection);
+        syncedTimerDisarm(&p2p->tmr.Connection);
 
         if(NULL != p2p->conCbFn)
         {
@@ -255,10 +255,10 @@ void ICACHE_FLASH_ATTR p2pDeinit(p2pInfo* p2p)
     memset(&(p2p->cnc), 0, sizeof(p2p->cnc));
     memset(&(p2p->ack), 0, sizeof(p2p->ack));
 
-    os_timer_disarm(&p2p->tmr.Connection);
-    os_timer_disarm(&p2p->tmr.TxRetry);
-    os_timer_disarm(&p2p->tmr.Reinit);
-    os_timer_disarm(&p2p->tmr.TxAllRetries);
+    syncedTimerDisarm(&p2p->tmr.Connection);
+    syncedTimerDisarm(&p2p->tmr.TxRetry);
+    syncedTimerDisarm(&p2p->tmr.Reinit);
+    syncedTimerDisarm(&p2p->tmr.TxAllRetries);
 }
 
 /**
@@ -281,7 +281,7 @@ void ICACHE_FLASH_ATTR p2pConnectionTimeout(void* arg)
 
     // Start the timer again
     p2p_printf("retry broadcast in %dms\n", timeoutMs);
-    os_timer_arm(&p2p->tmr.Connection, timeoutMs, false);
+    syncedTimerArm(&p2p->tmr.Connection, timeoutMs, false);
 }
 
 /**
@@ -321,8 +321,8 @@ void ICACHE_FLASH_ATTR p2pTxAllRetriesTimeout(void* arg)
     p2pInfo* p2p = (p2pInfo*)arg;
 
     // Disarm all timers
-    os_timer_disarm(&p2p->tmr.TxRetry);
-    os_timer_disarm(&p2p->tmr.TxAllRetries);
+    syncedTimerDisarm(&p2p->tmr.TxRetry);
+    syncedTimerDisarm(&p2p->tmr.TxAllRetries);
 
     // Save the failure function
     void (*FailureFn)(void*) = p2p->ack.FailureFn;
@@ -477,8 +477,8 @@ void ICACHE_FLASH_ATTR p2pSendMsgEx(p2pInfo* p2p, char* msg, uint16_t len,
             p2p->ack.FailureFn = failure;
 
             // Start a timer to retry for 3s total
-            os_timer_disarm(&p2p->tmr.TxAllRetries);
-            os_timer_arm(&p2p->tmr.TxAllRetries, RETRY_TIME_MS, false);
+            syncedTimerDisarm(&p2p->tmr.TxAllRetries);
+            syncedTimerArm(&p2p->tmr.TxAllRetries, RETRY_TIME_MS, false);
         }
         else
         {
@@ -580,9 +580,9 @@ void ICACHE_FLASH_ATTR p2pRecvCb(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data,
             p2p_printf("ACK Received\n");
 
             // Clear ack timeout variables
-            os_timer_disarm(&p2p->tmr.TxRetry);
+            syncedTimerDisarm(&p2p->tmr.TxRetry);
             // Disarm the whole transmission ack timer
-            os_timer_disarm(&p2p->tmr.TxAllRetries);
+            syncedTimerDisarm(&p2p->tmr.TxAllRetries);
             // Save the success function
             void (*successFn)(void*) = p2p->ack.SuccessFn;
             // Clear out ACK variables
@@ -642,7 +642,7 @@ void ICACHE_FLASH_ATTR p2pRecvCb(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data,
 
                 // This is another swadge trying to start a game, which means
                 // they received our p2p->conMsg. First disable our p2p->conMsg
-                os_timer_disarm(&p2p->tmr.Connection);
+                syncedTimerDisarm(&p2p->tmr.Connection);
 
                 // And process this connection event
                 p2pProcConnectionEvt(p2p, RX_GAME_START_MSG);
@@ -758,7 +758,7 @@ void ICACHE_FLASH_ATTR p2pProcConnectionEvt(p2pInfo* p2p, connectionEvt_t event)
     if(p2p->cnc.rxGameStartMsg && p2p->cnc.rxGameStartAck)
     {
         // Connection was successful, so disarm the failure timer
-        os_timer_disarm(&p2p->tmr.Reinit);
+        syncedTimerDisarm(&p2p->tmr.Reinit);
 
         p2p->cnc.isConnecting = false;
         p2p->cnc.isConnected = true;
@@ -789,7 +789,7 @@ void ICACHE_FLASH_ATTR p2pStartRestartTimer(void* arg)
 
     p2pInfo* p2p = (p2pInfo*)arg;
     // If the connection isn't established in FAILURE_RESTART_MS, restart
-    os_timer_arm(&p2p->tmr.Reinit, FAILURE_RESTART_MS, false);
+    syncedTimerArm(&p2p->tmr.Reinit, FAILURE_RESTART_MS, false);
 }
 
 /**
@@ -857,7 +857,7 @@ void ICACHE_FLASH_ATTR p2pSendCb(p2pInfo* p2p, uint8_t* mac_addr __attribute__((
 
                 // Start the timer
                 p2p_printf("ack timer set for %dms\n", waitTimeMs);
-                os_timer_arm(&p2p->tmr.TxRetry, waitTimeMs, false);
+                syncedTimerArm(&p2p->tmr.TxRetry, waitTimeMs, false);
             }
             break;
         }
@@ -867,7 +867,7 @@ void ICACHE_FLASH_ATTR p2pSendCb(p2pInfo* p2p, uint8_t* mac_addr __attribute__((
             if(p2p->ack.msgToAckLen > 0)
             {
                 // try again in 1ms
-                os_timer_arm(&p2p->tmr.TxRetry, 1, false);
+                syncedTimerArm(&p2p->tmr.TxRetry, 1, false);
             }
             break;
         }

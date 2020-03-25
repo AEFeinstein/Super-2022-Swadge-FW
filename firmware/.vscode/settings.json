@@ -70,6 +70,8 @@
         "cnlohr_i2c.h": "c",
         "mode_ring.h": "c",
         "assert.h": "c",
-        "assets.h": "c"
+        "assets.h": "c",
+        "linked_list.h": "c",
+        "synced_timer.h": "c"
     }
 }
