@@ -13,7 +13,7 @@
 
 /**
  * @brief Draw a single character to the OLED display
- *
+ *        Special characters (< ' ') not drawn
  * @param x The x position where to draw the character
  * @param y The y position where to draw the character
  * @param character The character to print
@@ -32,12 +32,12 @@ int16_t ICACHE_FLASH_ATTR plotChar(int16_t x, int16_t y,
         }
         return plotSprite(x, y, &table[character - ' '], col);
     }
-    return 0;
+    return x;
 }
 
 /**
  * @brief Draw a string to the display
- *
+ *        Special characters (< ' ') skipped
  * @param x The x position where to draw the string
  * @param y The y position where to draw the string
  * @param text The string to draw
