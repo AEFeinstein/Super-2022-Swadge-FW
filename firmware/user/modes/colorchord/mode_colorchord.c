@@ -52,7 +52,7 @@ swadgeMode colorchordMode =
 
 static int samplesProcessed = 0;
 
-os_timer_t ccLedOverrideTimer = {0};
+syncedTimer_t ccLedOverrideTimer = {0};
 bool ccOverrideLeds = false;
 
 struct CCSettings CCS =
@@ -93,9 +93,9 @@ void ICACHE_FLASH_ATTR colorchordEnterMode(void)
     ccOverrideLeds = false;
 
     // Setup the LED override timer, but don't arm it
-    ets_memset(&ccLedOverrideTimer, 0, sizeof(os_timer_t));
-    os_timer_disarm(&ccLedOverrideTimer);
-    os_timer_setfn(&ccLedOverrideTimer, ccLedOverrideReset, NULL);
+    ets_memset(&ccLedOverrideTimer, 0, sizeof(syncedTimer_t));
+    syncedTimerDisarm(&ccLedOverrideTimer);
+    syncedTimerSetFn(&ccLedOverrideTimer, ccLedOverrideReset, NULL);
 }
 
 /**
@@ -104,7 +104,7 @@ void ICACHE_FLASH_ATTR colorchordEnterMode(void)
 void ICACHE_FLASH_ATTR colorchordExitMode(void)
 {
     // Disarm the timer
-    os_timer_disarm(&ccLedOverrideTimer);
+    syncedTimerDisarm(&ccLedOverrideTimer);
 }
 
 /**
@@ -173,8 +173,8 @@ void ICACHE_FLASH_ATTR colorchordButtonCallback(
     {
         // Start a timer to restore LED functionality to colorchord
         ccOverrideLeds = true;
-        os_timer_disarm(&ccLedOverrideTimer);
-        os_timer_arm(&ccLedOverrideTimer, 1000, false);
+        syncedTimerDisarm(&ccLedOverrideTimer);
+        syncedTimerArm(&ccLedOverrideTimer, 1000, false);
 
         switch(button)
         {
