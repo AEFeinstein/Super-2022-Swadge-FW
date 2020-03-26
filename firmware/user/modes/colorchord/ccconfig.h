@@ -29,7 +29,7 @@
 #define INITIAL_AMP          CCS.gINITIAL_AMP
 
 //We are not enabling these for the ESP8266 port.
-#define LIN_WRAPAROUND 0 
+#define LIN_WRAPAROUND 0
 #define SORT_NOTES     0
 
 struct CCSettings

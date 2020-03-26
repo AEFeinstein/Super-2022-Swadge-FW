@@ -3,59 +3,61 @@
 #include "DFT32.h"
 
 #ifndef CCEMBEDDED
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
-static float * goutbins;
+    #include <string.h>
+    #include <stdlib.h>
+    #include <stdio.h>
+    #include <math.h>
+    static float* goutbins;
 #endif
 
-uint16_t embeddedbins32[FIXBINS]; 
+uint16_t embeddedbins32[FIXBINS];
 
 //NOTES to self:
 //
 // Let's say we want to try this on an AVR.
 //  24 bins, 5 octaves = 120 bins.
 // 20 MHz clock / 4.8k sps = 4096 IPS = 34 clocks per bin = :(
-//  We can do two at the same time, this frees us up some 
+//  We can do two at the same time, this frees us up some
 
 static uint8_t Sdonefirstrun;
 
 //A table of precomputed sin() values.  Ranging -1500 to +1500
 //If we increase this, it may cause overflows elsewhere in code.
-const int16_t Ssinonlytable[256] = {
-             0,    36,    73,   110,   147,   183,   220,   256,
-           292,   328,   364,   400,   435,   470,   505,   539,
-           574,   607,   641,   674,   707,   739,   771,   802,
-           833,   863,   893,   922,   951,   979,  1007,  1034,
-          1060,  1086,  1111,  1135,  1159,  1182,  1204,  1226,
-          1247,  1267,  1286,  1305,  1322,  1339,  1355,  1371,
-          1385,  1399,  1412,  1424,  1435,  1445,  1455,  1463,
-          1471,  1477,  1483,  1488,  1492,  1495,  1498,  1499,
-          1500,  1499,  1498,  1495,  1492,  1488,  1483,  1477,
-          1471,  1463,  1455,  1445,  1435,  1424,  1412,  1399,
-          1385,  1371,  1356,  1339,  1322,  1305,  1286,  1267,
-          1247,  1226,  1204,  1182,  1159,  1135,  1111,  1086,
-          1060,  1034,  1007,   979,   951,   922,   893,   863,
-           833,   802,   771,   739,   707,   674,   641,   607,
-           574,   539,   505,   470,   435,   400,   364,   328,
-           292,   256,   220,   183,   147,   110,    73,    36,
-             0,   -36,   -73,  -110,  -146,  -183,  -219,  -256,
-          -292,  -328,  -364,  -399,  -435,  -470,  -505,  -539,
-          -573,  -607,  -641,  -674,  -706,  -739,  -771,  -802,
-          -833,  -863,  -893,  -922,  -951,  -979, -1007, -1034,
-         -1060, -1086, -1111, -1135, -1159, -1182, -1204, -1226,
-         -1247, -1267, -1286, -1305, -1322, -1339, -1355, -1371,
-         -1385, -1399, -1412, -1424, -1435, -1445, -1454, -1463,
-         -1471, -1477, -1483, -1488, -1492, -1495, -1498, -1499,
-         -1500, -1499, -1498, -1495, -1492, -1488, -1483, -1477,
-         -1471, -1463, -1455, -1445, -1435, -1424, -1412, -1399,
-         -1385, -1371, -1356, -1339, -1322, -1305, -1286, -1267,
-         -1247, -1226, -1204, -1182, -1159, -1135, -1111, -1086,
-         -1060, -1034, -1007,  -979,  -951,  -923,  -893,  -863,
-          -833,  -802,  -771,  -739,  -707,  -674,  -641,  -608,
-          -574,  -540,  -505,  -470,  -435,  -400,  -364,  -328,
-          -292,  -256,  -220,  -183,  -147,  -110,   -73,   -37,};
+const int16_t Ssinonlytable[256] =
+{
+    0,    36,    73,   110,   147,   183,   220,   256,
+    292,   328,   364,   400,   435,   470,   505,   539,
+    574,   607,   641,   674,   707,   739,   771,   802,
+    833,   863,   893,   922,   951,   979,  1007,  1034,
+    1060,  1086,  1111,  1135,  1159,  1182,  1204,  1226,
+    1247,  1267,  1286,  1305,  1322,  1339,  1355,  1371,
+    1385,  1399,  1412,  1424,  1435,  1445,  1455,  1463,
+    1471,  1477,  1483,  1488,  1492,  1495,  1498,  1499,
+    1500,  1499,  1498,  1495,  1492,  1488,  1483,  1477,
+    1471,  1463,  1455,  1445,  1435,  1424,  1412,  1399,
+    1385,  1371,  1356,  1339,  1322,  1305,  1286,  1267,
+    1247,  1226,  1204,  1182,  1159,  1135,  1111,  1086,
+    1060,  1034,  1007,   979,   951,   922,   893,   863,
+    833,   802,   771,   739,   707,   674,   641,   607,
+    574,   539,   505,   470,   435,   400,   364,   328,
+    292,   256,   220,   183,   147,   110,    73,    36,
+    0,   -36,   -73,  -110,  -146,  -183,  -219,  -256,
+    -292,  -328,  -364,  -399,  -435,  -470,  -505,  -539,
+    -573,  -607,  -641,  -674,  -706,  -739,  -771,  -802,
+    -833,  -863,  -893,  -922,  -951,  -979, -1007, -1034,
+    -1060, -1086, -1111, -1135, -1159, -1182, -1204, -1226,
+    -1247, -1267, -1286, -1305, -1322, -1339, -1355, -1371,
+    -1385, -1399, -1412, -1424, -1435, -1445, -1454, -1463,
+    -1471, -1477, -1483, -1488, -1492, -1495, -1498, -1499,
+    -1500, -1499, -1498, -1495, -1492, -1488, -1483, -1477,
+    -1471, -1463, -1455, -1445, -1435, -1424, -1412, -1399,
+    -1385, -1371, -1356, -1339, -1322, -1305, -1286, -1267,
+    -1247, -1226, -1204, -1182, -1159, -1135, -1111, -1086,
+    -1060, -1034, -1007,  -979,  -951,  -923,  -893,  -863,
+    -833,  -802,  -771,  -739,  -707,  -674,  -641,  -608,
+    -574,  -540,  -505,  -470,  -435,  -400,  -364,  -328,
+    -292,  -256,  -220,  -183,  -147,  -110,   -73,   -37,
+};
 
 
 /** The above table was created using the following code:
@@ -67,31 +69,31 @@ int16_t Ssintable[256]; //Actually, just [sin].
 
 int main()
 {
-	int i;
-	for( i = 0; i < 256; i++ )
-	{
-		Ssintable[i] = (int16_t)((sinf( i / 256.0 * 6.283 ) * 1500.0));
-	}
+    int i;
+    for( i = 0; i < 256; i++ )
+    {
+        Ssintable[i] = (int16_t)((sinf( i / 256.0 * 6.283 ) * 1500.0));
+    }
 
-	printf( "const int16_t Ssinonlytable[256] = {" );
-	for( i = 0; i < 256; i++ )
-	{
-		if( !(i & 0x7 ) )
-		{
-			printf( "\n\t" );
-		}
-		printf( "%6d," ,Ssintable[i] );
-	}
-	printf( "};\n" );
+    printf( "const int16_t Ssinonlytable[256] = {" );
+    for( i = 0; i < 256; i++ )
+    {
+        if( !(i & 0x7 ) )
+        {
+            printf( "\n\t" );
+        }
+        printf( "%6d," ,Ssintable[i] );
+    }
+    printf( "};\n" );
 } */
 
 
 
-uint16_t Sdatspace32A[FIXBINS*2];  //(advances,places)
-int32_t Sdatspace32B[FIXBINS*2];  //(isses,icses)
+uint16_t Sdatspace32A[FIXBINS * 2]; //(advances,places)
+int32_t Sdatspace32B[FIXBINS * 2]; //(isses,icses)
 
 //This is updated every time the DFT hits the octavecount, or 1/32 updates.
-int32_t Sdatspace32BOut[FIXBINS*2];  //(isses,icses)
+int32_t Sdatspace32BOut[FIXBINS * 2]; //(isses,icses)
 
 //Sdo_this_octave is a scheduling state for the running SIN/COS states for
 //each bin.  We have to execute the highest octave every time, however, we can
@@ -104,7 +106,7 @@ static int32_t Saccum_octavebins[OCTAVES];
 static uint8_t Swhichoctaveplace;
 
 //
-uint16_t embeddedbins[FIXBINS]; 
+uint16_t embeddedbins[FIXBINS];
 
 //From: http://stackoverflow.com/questions/1100090/looking-for-an-efficient-integer-square-root-algorithm-for-arm-thumb2
 /**
@@ -160,195 +162,198 @@ static uint16_t SquareRootRounded(uint32_t a_nInput)
 
 void UpdateOutputBins32()
 {
-	int i;
-	int32_t * ipt = &Sdatspace32BOut[0];
-	for( i = 0; i < FIXBINS; i++ )
-	{
-		int16_t isps = *(ipt++)>>16;
-		int16_t ispc = *(ipt++)>>16;
+    int i;
+    int32_t* ipt = &Sdatspace32BOut[0];
+    for( i = 0; i < FIXBINS; i++ )
+    {
+        int16_t isps = *(ipt++) >> 16;
+        int16_t ispc = *(ipt++) >> 16;
 
-		int octave = i / FIXBPERO;
+        int octave = i / FIXBPERO;
 
-		//If we are running DFT32 on regular ColorChord, then we will need to
-		//also update goutbins[]... But if we're on embedded systems, we only
-		//update embeddedbins32.
+        //If we are running DFT32 on regular ColorChord, then we will need to
+        //also update goutbins[]... But if we're on embedded systems, we only
+        //update embeddedbins32.
 #ifndef CCEMBEDDED
-		uint32_t mux = ( (isps) * (isps)) + ((ispc) * (ispc));
-		goutbins[i] = sqrtf( (float)mux );
-		//reasonable (but arbitrary amplification)
-		goutbins[i] /= (78<<DFTIIR)*(1<<octave); 
+        uint32_t mux = ( (isps) * (isps)) + ((ispc) * (ispc));
+        goutbins[i] = sqrtf( (float)mux );
+        //reasonable (but arbitrary amplification)
+        goutbins[i] /= (78 << DFTIIR) * (1 << octave);
 #endif
 
-		uint32_t rmux = ( (isps) * (isps)) + ((ispc) * (ispc));
+        uint32_t rmux = ( (isps) * (isps)) + ((ispc) * (ispc));
 
-		//bump up all outputs here, so when we nerf it by bit shifting by
-		//ctave we don't lose a lot of detail.
-		rmux = SquareRootRounded( rmux ) << 1; 
+        //bump up all outputs here, so when we nerf it by bit shifting by
+        //ctave we don't lose a lot of detail.
+        rmux = SquareRootRounded( rmux ) << 1;
 
-		embeddedbins32[i] = rmux >> octave;
-	}
+        embeddedbins32[i] = rmux >> octave;
+    }
 }
 
 static void HandleInt( int16_t sample )
 {
-	int i;
+    int i;
 
-	uint8_t oct = Sdo_this_octave[Swhichoctaveplace];
-	Swhichoctaveplace ++;
-	Swhichoctaveplace &= BINCYCLE-1;
+    uint8_t oct = Sdo_this_octave[Swhichoctaveplace];
+    Swhichoctaveplace ++;
+    Swhichoctaveplace &= BINCYCLE - 1;
 
-	if( oct > 128 )
-	{
-		//Special: This is when we can update everything.
-		//This gets run one out of every 1/(1<<OCTAVES) times.
-		//It handles updating part of the DFT.
-		int32_t * bins = &Sdatspace32B[0];
-		int32_t * binsOut = &Sdatspace32BOut[0];
+    if( oct > 128 )
+    {
+        //Special: This is when we can update everything.
+        //This gets run one out of every 1/(1<<OCTAVES) times.
+        //It handles updating part of the DFT.
+        int32_t* bins = &Sdatspace32B[0];
+        int32_t* binsOut = &Sdatspace32BOut[0];
 
-		for( i = 0; i < FIXBINS; i++ )
-		{
-			//First for the SIN then the COS.
-			int32_t val = *(bins);
-			*(binsOut++) = val;
-			*(bins++) -= val>>DFTIIR;
+        for( i = 0; i < FIXBINS; i++ )
+        {
+            //First for the SIN then the COS.
+            int32_t val = *(bins);
+            *(binsOut++) = val;
+            *(bins++) -= val >> DFTIIR;
 
-			val = *(bins);
-			*(binsOut++) = val;
-			*(bins++) -= val>>DFTIIR;
-		}
-		return;
-	}
-	else if(oct < OCTAVES)
-	{
-		for( i = 0; i < OCTAVES;i++ )
-		{
-			Saccum_octavebins[i] += sample;
-		}
+            val = *(bins);
+            *(binsOut++) = val;
+            *(bins++) -= val >> DFTIIR;
+        }
+        return;
+    }
+    else if(oct < OCTAVES)
+    {
+        for( i = 0; i < OCTAVES; i++ )
+        {
+            Saccum_octavebins[i] += sample;
+        }
 
-		uint16_t * dsA = &Sdatspace32A[oct*FIXBPERO*2];
-		int32_t * dsB = &Sdatspace32B[oct*FIXBPERO*2];
+        uint16_t* dsA = &Sdatspace32A[oct * FIXBPERO * 2];
+        int32_t* dsB = &Sdatspace32B[oct * FIXBPERO * 2];
 
-		sample = Saccum_octavebins[oct]>>(OCTAVES-oct);
-		Saccum_octavebins[oct] = 0;
+        sample = Saccum_octavebins[oct] >> (OCTAVES - oct);
+        Saccum_octavebins[oct] = 0;
 
-		for( i = 0; i < FIXBPERO; i++ )
-		{
-			uint16_t adv = *(dsA++);
-			uint8_t localipl = *(dsA) >> 8;
-			*(dsA++) += adv;
+        for( i = 0; i < FIXBPERO; i++ )
+        {
+            uint16_t adv = *(dsA++);
+            uint8_t localipl = *(dsA) >> 8;
+            *(dsA++) += adv;
 
-			*(dsB++) += (Ssinonlytable[localipl] * sample);
-			//Get the cosine (1/4 wavelength out-of-phase with sin)
-			localipl += 64;
-			*(dsB++) += (Ssinonlytable[localipl] * sample);
-		}
-	}
+            *(dsB++) += (Ssinonlytable[localipl] * sample);
+            //Get the cosine (1/4 wavelength out-of-phase with sin)
+            localipl += 64;
+            *(dsB++) += (Ssinonlytable[localipl] * sample);
+        }
+    }
 }
 
 int SetupDFTProgressive32()
 {
-	int i;
-	int j;
+    int i;
+    int j;
 
-	Sdonefirstrun = 1;
+    Sdonefirstrun = 1;
 
-	for( i = 0; i < BINCYCLE; i++ )
-	{
-		// Sdo_this_octave = 
-		// 4 3 4 2 4 3 4 ...
-		//search for "first" zero
+    for( i = 0; i < BINCYCLE; i++ )
+    {
+        // Sdo_this_octave =
+        // 4 3 4 2 4 3 4 ...
+        //search for "first" zero
 
-		for( j = 0; j <= OCTAVES; j++ )
-		{
-			if( ((1<<j) & i) == 0 ) break;
-		}
-		if( j > OCTAVES )
-		{
+        for( j = 0; j <= OCTAVES; j++ )
+        {
+            if( ((1 << j) & i) == 0 )
+            {
+                break;
+            }
+        }
+        if( j > OCTAVES )
+        {
 #ifndef CCEMBEDDED
-			fprintf( stderr, "Error: algorithm fault.\n" );
-			exit( -1 );
+            fprintf( stderr, "Error: algorithm fault.\n" );
+            exit( -1 );
 #endif
-			return -1;
-		}
-		Sdo_this_octave[i] = OCTAVES-j-1;
-	}
-	return 0;
+            return -1;
+        }
+        Sdo_this_octave[i] = OCTAVES - j - 1;
+    }
+    return 0;
 }
 
 
 
-void UpdateBins32( const uint16_t * frequencies )
+void UpdateBins32( const uint16_t* frequencies )
 {
-	int i;	
-	for( i = 0; i < FIXBINS; i++ )
-	{
-		uint16_t freq = frequencies[i%FIXBPERO];
-		Sdatspace32A[i*2] = freq;// / oneoveroctave;
-	}
+    int i;
+    for( i = 0; i < FIXBINS; i++ )
+    {
+        uint16_t freq = frequencies[i % FIXBPERO];
+        Sdatspace32A[i * 2] = freq; // / oneoveroctave;
+    }
 }
 
 void PushSample32( int16_t dat )
 {
-	HandleInt( dat );
-	HandleInt( dat );
+    HandleInt( dat );
+    HandleInt( dat );
 }
 
 
 #ifndef CCEMBEDDED
 
-//void UpdateBinsForDFT32( const float * frequencies )
-//{
-//	int i;
-//	for( i = 0; i < FIXBINS; i++ )
-//	{
-//		float freq = frequencies[(i%FIXBPERO) + (FIXBPERO*(OCTAVES-1))];
-//		Sdatspace32A[i*2] = (65536.0/freq);// / oneoveroctave;
-//	}
-//}
+    //void UpdateBinsForDFT32( const float * frequencies )
+    //{
+    //    int i;
+    //    for( i = 0; i < FIXBINS; i++ )
+    //    {
+    //        float freq = frequencies[(i%FIXBPERO) + (FIXBPERO*(OCTAVES-1))];
+    //        Sdatspace32A[i*2] = (65536.0/freq);// / oneoveroctave;
+    //    }
+    //}
 
 #endif
 
 
 #ifndef CCEMBEDDED
 
-//void DoDFTProgressive32( float * outbins, float * frequencies, int bins, const float * databuffer, int place_in_data_buffer, int size_of_data_buffer, float q, float speedup )
-//{
-//	static float backupbins[FIXBINS];
-//	int i;
-//	static int last_place;
-//
-//	memset( outbins, 0, bins * sizeof( float ) );
-//	goutbins = outbins;
-//
-//	memcpy( outbins, backupbins, FIXBINS*4 );
-//
-//	if( FIXBINS != bins )
-//	{
-//		fprintf( stderr, "Error: Bins was reconfigured.  skippy requires a constant number of bins (%d != %d).\n", FIXBINS, bins );
-//		return;
-//	}
-//
-//	if( !Sdonefirstrun )
-//	{
-//		SetupDFTProgressive32();
-//		Sdonefirstrun = 1;
-//	}
-//
-//	UpdateBinsForDFT32( frequencies );
-//
-//	for( i = last_place; i != place_in_data_buffer; i = (i+1)%size_of_data_buffer )
-//	{
-//		int16_t ifr1 = (int16_t)( ((databuffer[i]) ) * 4095 );
-//		HandleInt( ifr1 );
-//		HandleInt( ifr1 );
-//	}
-//
-//	UpdateOutputBins32();
-//
-//	last_place = place_in_data_buffer;
-//
-//	memcpy( backupbins, outbins, FIXBINS*4 );
-//}
+    //void DoDFTProgressive32( float * outbins, float * frequencies, int bins, const float * databuffer, int place_in_data_buffer, int size_of_data_buffer, float q, float speedup )
+    //{
+    //    static float backupbins[FIXBINS];
+    //    int i;
+    //    static int last_place;
+    //
+    //    memset( outbins, 0, bins * sizeof( float ) );
+    //    goutbins = outbins;
+    //
+    //    memcpy( outbins, backupbins, FIXBINS*4 );
+    //
+    //    if( FIXBINS != bins )
+    //    {
+    //        fprintf( stderr, "Error: Bins was reconfigured.  skippy requires a constant number of bins (%d != %d).\n", FIXBINS, bins );
+    //        return;
+    //    }
+    //
+    //    if( !Sdonefirstrun )
+    //    {
+    //        SetupDFTProgressive32();
+    //        Sdonefirstrun = 1;
+    //    }
+    //
+    //    UpdateBinsForDFT32( frequencies );
+    //
+    //    for( i = last_place; i != place_in_data_buffer; i = (i+1)%size_of_data_buffer )
+    //    {
+    //        int16_t ifr1 = (int16_t)( ((databuffer[i]) ) * 4095 );
+    //        HandleInt( ifr1 );
+    //        HandleInt( ifr1 );
+    //    }
+    //
+    //    UpdateOutputBins32();
+    //
+    //    last_place = place_in_data_buffer;
+    //
+    //    memcpy( backupbins, outbins, FIXBINS*4 );
+    //}
 
 #endif
 
