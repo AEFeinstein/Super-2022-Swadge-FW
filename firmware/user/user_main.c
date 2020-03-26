@@ -34,6 +34,9 @@
 #include "mode_test.h"
 #include "mode_ring.h"
 #include "mode_magpet.h"
+#include "mode_colorchord.h"
+
+#include "ccconfig.h"
 
 /*============================================================================
  * Defines
@@ -65,6 +68,7 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
 {
+    &colorchordMode,
     &testMode,
     &magpetMode,
     &ringMode,
@@ -172,7 +176,7 @@ void ICACHE_FLASH_ATTR user_init(void)
     LoadSettings();
 
     // Initialize GPIOs
-    SetupGPIO(false);
+    SetupGPIO(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback);
 #ifdef PROFILE
     GPIO_OUTPUT_SET(GPIO_ID_PIN(0), 0);
 #endif
@@ -212,12 +216,17 @@ void ICACHE_FLASH_ATTR user_init(void)
         os_printf("OLED initialization failed\n");
     }
 
-    // Start the HPA timer, used for PWMing the buzzer
-    StartHPATimer();
-
-    // Initialize the buzzer
-    initBuzzer();
-    setBuzzerNote(SILENCE);
+    // Initialize either the buzzer or the mic
+    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
+    {
+        initMic();
+    }
+    else
+    {
+        // Initialize the buzzer
+        initBuzzer();
+        setBuzzerNote(SILENCE);
+    }
 
     // Turn LEDs off
     led_t leds[NUM_LIN_LEDS] = {{0}};
@@ -270,6 +279,25 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events __attribute__((unused)
 
     // Process queued button presses synchronously
     HandleButtonEventSynchronous();
+
+    // While there are samples available from the ADC
+    while( sampleAvailable() )
+    {
+        // Get the sample
+        int32_t samp = getSample();
+        // Run the sample through an IIR filter
+        static uint32_t samp_iir = 0;
+        samp_iir = samp_iir - (samp_iir >> 10) + samp;
+        samp = (samp - (samp_iir >> 10)) * 16;
+        // Amplify the sample
+        samp = (samp * CCS.gINITIAL_AMP) >> 4;
+
+        // Pass the button to the mode
+        if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
+        {
+            swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback(samp);
+        }
+    }
 
     // Process all the synchronous timers
     syncedTimersCheck();

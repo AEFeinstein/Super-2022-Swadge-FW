@@ -72,6 +72,8 @@
         "assert.h": "c",
         "assets.h": "c",
         "linked_list.h": "c",
-        "synced_timer.h": "c"
+        "synced_timer.h": "c",
+        "ccconfig.h": "c",
+        "embeddedout.h": "c"
     }
 }

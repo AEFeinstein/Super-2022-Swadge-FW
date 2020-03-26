@@ -18,6 +18,7 @@
 #include "gpio_user.h"
 #include "nvm_interface.h"
 #include "synced_timer.h"
+#include "ccconfig.h"
 
 /*============================================================================
  * Defines
@@ -46,9 +47,17 @@ typedef enum
     TM_EDGE_INT   = 0,
 } TIMER_INT_MODE;
 
+typedef enum
+{
+    BZR,
+    MIC
+} hpaMode_t;
+
 /*============================================================================
  * Variables
  *==========================================================================*/
+
+hpaMode_t hpaMode = BZR;
 
 volatile bool hpaRunning = false;
 
@@ -62,6 +71,18 @@ struct
     uint32_t noteIdx;
     syncedTimer_t songTimer;
 } bzr = {0};
+
+volatile struct
+{
+    volatile uint8_t sounddata[HPABUFFSIZE];
+    volatile uint16_t soundhead;
+    volatile uint16_t soundtail;
+} mic =
+{
+    .soundhead = 0,
+    .soundtail = 0,
+    .sounddata = {0}
+};
 
 /*============================================================================
  * Prototypes
@@ -88,9 +109,24 @@ void ICACHE_FLASH_ATTR loadNextNote(void);
 static void timerhandle( void* v __attribute__((unused)))
 {
     RTC_CLR_REG_MASK(FRC1_INT_ADDRESS, FRC1_INT_CLR_MASK);
-    if(SILENCE != bzr.currNote)
+    switch(hpaMode)
     {
-        setBuzzerGpio(!getBuzzerGpio());
+        default:
+        case MIC:
+        {
+            uint16_t r = hs_adc_read();
+            mic.sounddata[mic.soundhead] = r >> 6;
+            mic.soundhead = (mic.soundhead + 1) & (HPABUFFSIZE - 1);
+            break;
+        }
+        case BZR:
+        {
+            if(SILENCE != bzr.currNote)
+            {
+                setBuzzerGpio(!getBuzzerGpio());
+            }
+            break;
+        }
     }
 }
 
@@ -102,16 +138,31 @@ static void timerhandle( void* v __attribute__((unused)))
  */
 void ICACHE_FLASH_ATTR StartHPATimer(void)
 {
-    if(SILENCE != bzr.currNote)
+    // MIC mode always runs. BZR only runs if it's not silent
+    if((MIC == hpaMode) || ((BZR == hpaMode) && (SILENCE != bzr.currNote)))
     {
         RTC_REG_WRITE(FRC1_CTRL_ADDRESS,  FRC1_AUTO_RELOAD |
                       DIVDED_BY_16 | //5MHz main clock.
                       FRC1_ENABLE_TIMER |
                       TM_EDGE_INT );
 
-        RTC_REG_WRITE(FRC1_LOAD_ADDRESS,  bzr.currNote);
-        RTC_REG_WRITE(FRC1_COUNT_ADDRESS, bzr.currNote);
-
+        // MIC has a fixed frequency (DFREQ), BZR uses the note frequency
+        switch(hpaMode)
+        {
+            default:
+            case MIC:
+            {
+                RTC_REG_WRITE(FRC1_LOAD_ADDRESS,  5000000 / DFREQ);
+                RTC_REG_WRITE(FRC1_COUNT_ADDRESS, 5000000 / DFREQ);
+                break;
+            }
+            case BZR:
+            {
+                RTC_REG_WRITE(FRC1_LOAD_ADDRESS,  bzr.currNote);
+                RTC_REG_WRITE(FRC1_COUNT_ADDRESS, bzr.currNote);
+                break;
+            }
+        }
         ETS_FRC_TIMER1_INTR_ATTACH(timerhandle, NULL);
 
         ContinueHPATimer();
@@ -135,6 +186,10 @@ void ContinueHPATimer(void)
 {
     TM1_EDGE_INT_ENABLE();
     ETS_FRC1_INTR_ENABLE();
+    if(MIC == hpaMode)
+    {
+        hs_adc_start();
+    }
     hpaRunning = true;
 }
 
@@ -147,6 +202,42 @@ bool ICACHE_FLASH_ATTR isHpaRunning(void)
 }
 
 /*============================================================================
+ * Microphone Functions
+ *==========================================================================*/
+
+/**
+ * Initialize the microphone
+ */
+void ICACHE_FLASH_ATTR initMic(void)
+{
+    hpaMode = MIC;
+    setBuzzerGpio(false);
+    StartHPATimer();
+}
+
+/**
+ * @return true if a sample has been read from the ADC and is queued for
+ * processing
+ */
+bool ICACHE_FLASH_ATTR sampleAvailable(void)
+{
+    return mic.soundhead != mic.soundtail;
+}
+
+/**
+ * Get a sample from the ADC in the queue, return it, and increment the queue so
+ * the next sample is returned the next time this is called
+ *
+ * @return the sample which was read from the ADC
+ */
+uint8_t ICACHE_FLASH_ATTR getSample(void)
+{
+    uint8_t samp = mic.sounddata[mic.soundtail];
+    mic.soundtail = (mic.soundtail + 1) % (HPABUFFSIZE);
+    return samp;
+}
+
+/*============================================================================
  * Buzzer Functions
  *==========================================================================*/
 
@@ -155,6 +246,8 @@ bool ICACHE_FLASH_ATTR isHpaRunning(void)
  */
 void ICACHE_FLASH_ATTR initBuzzer(void)
 {
+    hpaMode = BZR;
+
     // Keep it high in the idle state
     setBuzzerGpio(false);
 
@@ -167,6 +260,7 @@ void ICACHE_FLASH_ATTR initBuzzer(void)
     ets_memset(&bzr, 0, sizeof(bzr));
     stopBuzzerSong();
     syncedTimerSetFn(&bzr.songTimer, songTimerCb, NULL);
+    StartHPATimer();
 }
 
 /**
