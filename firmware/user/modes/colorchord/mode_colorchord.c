@@ -14,6 +14,8 @@
 #include "DFT32.h"
 #include "embeddedout.h"
 #include "osapi.h"
+#include "assets.h"
+#include "oled.h"
 
 /*============================================================================
  * Defines
@@ -33,6 +35,7 @@ void ICACHE_FLASH_ATTR colorchordSampleHandler(int32_t samp);
 void ICACHE_FLASH_ATTR colorchordButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down);
 void ICACHE_FLASH_ATTR ccLedOverrideReset(void* timer_arg __attribute__((unused)));
+void ICACHE_FLASH_ATTR ccAnimation(void* arg __attribute__((unused)));
 
 /*============================================================================
  * Variables
@@ -45,7 +48,7 @@ swadgeMode colorchordMode =
     .fnExitMode = colorchordExitMode,
     .fnButtonCallback = colorchordButtonCallback,
     .fnAudioCallback = colorchordSampleHandler,
-    .wifiMode = SOFT_AP,
+    .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
 };
@@ -54,6 +57,8 @@ static int samplesProcessed = 0;
 
 syncedTimer_t ccLedOverrideTimer = {0};
 bool ccOverrideLeds = false;
+
+syncedTimer_t ccAnimationTimer = {0};
 
 struct CCSettings CCS =
 {
@@ -96,6 +101,18 @@ void ICACHE_FLASH_ATTR colorchordEnterMode(void)
     ets_memset(&ccLedOverrideTimer, 0, sizeof(syncedTimer_t));
     syncedTimerDisarm(&ccLedOverrideTimer);
     syncedTimerSetFn(&ccLedOverrideTimer, ccLedOverrideReset, NULL);
+
+    // Set up an animation timer
+    syncedTimerSetFn(&ccAnimationTimer, ccAnimation, NULL);
+    syncedTimerArm(&ccAnimationTimer, 25, true); // 40fps updates
+}
+
+void ICACHE_FLASH_ATTR ccAnimation(void* arg __attribute__((unused)))
+{
+    clearDisplay();
+    static uint16_t rotation = 0;
+    rotation = (rotation + 4) % 360;
+    drawBitmapFromAsset("king.png", (128 - 37) / 2, 0, false, false, rotation);
 }
 
 /**
