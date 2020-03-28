@@ -79,7 +79,7 @@ struct CCSettings CCS =
     .gUSE_NUM_LIN_LEDS     = NUM_LIN_LEDS,
     .gCOLORCHORD_ACTIVE    = 1,
     .gCOLORCHORD_OUTPUT_DRIVER = 1,
-    .gINITIAL_AMP          = 20
+    .gINITIAL_AMP          = 80
 };
 
 /*============================================================================
@@ -113,6 +113,16 @@ void ICACHE_FLASH_ATTR ccAnimation(void* arg __attribute__((unused)))
     static uint16_t rotation = 0;
     rotation = (rotation + 4) % 360;
     drawBitmapFromAsset("king.png", (128 - 37) / 2, 0, false, false, rotation);
+
+    // Draw a bar graph
+    uint8_t numBins = sizeof(folded_bins) / sizeof(folded_bins[0]);
+    uint8_t binWidth = OLED_WIDTH / numBins;
+    uint8_t i;
+    for(i = 0; i < numBins; i++)
+    {
+        uint8_t height = (16 * folded_bins[i]) / 2048;
+        fillDisplayArea(i * binWidth, OLED_HEIGHT - height, (i + 1) * binWidth, OLED_HEIGHT, WHITE);
+    }
 }
 
 /**
