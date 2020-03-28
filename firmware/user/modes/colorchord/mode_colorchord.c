@@ -16,6 +16,8 @@
 #include "osapi.h"
 #include "assets.h"
 #include "oled.h"
+#include "embeddednf.h"
+#include "embeddedout.h"
 
 /*============================================================================
  * Defines
@@ -53,12 +55,13 @@ swadgeMode colorchordMode =
     .fnEspNowSendCb = NULL,
 };
 
-static int samplesProcessed = 0;
-
-syncedTimer_t ccLedOverrideTimer = {0};
-bool ccOverrideLeds = false;
-
-syncedTimer_t ccAnimationTimer = {0};
+struct
+{
+    int samplesProcessed;
+    syncedTimer_t ccLedOverrideTimer;
+    bool ccOverrideLeds;
+    syncedTimer_t ccAnimationTimer;
+} cc;
 
 struct CCSettings CCS =
 {
@@ -93,18 +96,20 @@ void ICACHE_FLASH_ATTR colorchordEnterMode(void)
 {
     InitColorChord();
 
-    samplesProcessed = 0;
+    memset(&cc, 0, sizeof(cc));
 
-    ccOverrideLeds = false;
+    cc.samplesProcessed = 0;
+
+    cc.ccOverrideLeds = false;
 
     // Setup the LED override timer, but don't arm it
-    ets_memset(&ccLedOverrideTimer, 0, sizeof(syncedTimer_t));
-    syncedTimerDisarm(&ccLedOverrideTimer);
-    syncedTimerSetFn(&ccLedOverrideTimer, ccLedOverrideReset, NULL);
+    ets_memset(&cc.ccLedOverrideTimer, 0, sizeof(syncedTimer_t));
+    syncedTimerDisarm(&cc.ccLedOverrideTimer);
+    syncedTimerSetFn(&cc.ccLedOverrideTimer, ccLedOverrideReset, NULL);
 
     // Set up an animation timer
-    syncedTimerSetFn(&ccAnimationTimer, ccAnimation, NULL);
-    syncedTimerArm(&ccAnimationTimer, 25, true); // 40fps updates
+    syncedTimerSetFn(&cc.ccAnimationTimer, ccAnimation, NULL);
+    syncedTimerArm(&cc.ccAnimationTimer, 25, true); // 40fps updates
 }
 
 void ICACHE_FLASH_ATTR ccAnimation(void* arg __attribute__((unused)))
@@ -131,7 +136,7 @@ void ICACHE_FLASH_ATTR ccAnimation(void* arg __attribute__((unused)))
 void ICACHE_FLASH_ATTR colorchordExitMode(void)
 {
     // Disarm the timer
-    syncedTimerDisarm(&ccLedOverrideTimer);
+    syncedTimerDisarm(&cc.ccLedOverrideTimer);
 }
 
 /**
@@ -145,10 +150,10 @@ void ICACHE_FLASH_ATTR colorchordSampleHandler(int32_t samp)
 {
     // os_printf("%s %d\n", __func__, samp);
     PushSample32( samp );
-    samplesProcessed++;
+    cc.samplesProcessed++;
 
     // If at least 128 samples have been processed
-    if( samplesProcessed >= 128 )
+    if( cc.samplesProcessed >= 128 )
     {
         // Don't bother if colorchord is inactive
         if( !COLORCHORD_ACTIVE )
@@ -172,16 +177,20 @@ void ICACHE_FLASH_ATTR colorchordSampleHandler(int32_t samp)
                 UpdateAllSameLEDs();
                 break;
             }
+            default:
+            {
+                break;
+            }
         };
 
         // Push out the LED data
-        if(!ccOverrideLeds)
+        if(!cc.ccOverrideLeds)
         {
             setLeds( (led_t*)ledOut, NUM_LIN_LEDS * 3 );
         }
 
         // Reset the sample count
-        samplesProcessed = 0;
+        cc.samplesProcessed = 0;
     }
 }
 
@@ -199,9 +208,9 @@ void ICACHE_FLASH_ATTR colorchordButtonCallback(
     if(down)
     {
         // Start a timer to restore LED functionality to colorchord
-        ccOverrideLeds = true;
-        syncedTimerDisarm(&ccLedOverrideTimer);
-        syncedTimerArm(&ccLedOverrideTimer, 1000, false);
+        cc.ccOverrideLeds = true;
+        syncedTimerDisarm(&cc.ccLedOverrideTimer);
+        syncedTimerArm(&cc.ccLedOverrideTimer, 1000, false);
 
         switch(button)
         {
@@ -230,10 +239,10 @@ void ICACHE_FLASH_ATTR colorchordButtonCallback(
                     uint8_t i;
                     for(i = 0; i < 6; i++)
                     {
-                        uint32_t color = getLedColorPerNumber(i, 0xFF);
-                        leds[i].r = (color >>  0) & 0xFF;
-                        leds[i].g = (color >>  8) & 0xFF;
-                        leds[i].b = (color >> 16) & 0xFF;
+                        uint32_t ledColor = getLedColorPerNumber(i, 0xFF);
+                        leds[i].r = (ledColor >>  0) & 0xFF;
+                        leds[i].g = (ledColor >>  8) & 0xFF;
+                        leds[i].b = (ledColor >> 16) & 0xFF;
                     }
                 }
                 setLeds(leds, sizeof(leds));
@@ -242,6 +251,10 @@ void ICACHE_FLASH_ATTR colorchordButtonCallback(
             case 2:
             {
                 cycleColorchordSensitivity();
+                break;
+            }
+            default:
+            {
                 break;
             }
         }
@@ -278,5 +291,5 @@ void ICACHE_FLASH_ATTR cycleColorchordSensitivity(void)
  */
 void ICACHE_FLASH_ATTR ccLedOverrideReset(void* timer_arg __attribute__((unused)))
 {
-    ccOverrideLeds = false;
+    cc.ccOverrideLeds = false;
 }

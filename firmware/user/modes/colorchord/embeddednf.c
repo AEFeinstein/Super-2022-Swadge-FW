@@ -2,6 +2,7 @@
 
 #include "embeddednf.h"
 #include "osapi.h"
+#include "DFT32.h"
 
 uint16_t folded_bins[FIXBPERO];
 uint16_t fuzzed_bins[FIXBINS];
@@ -43,13 +44,15 @@ int main()
 
 #endif
 
-#define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
 
 
 void ICACHE_FLASH_ATTR UpdateFreqs()
 {
 
 #ifndef PRECOMPUTE_FREQUENCY_TABLE
+
+#define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
+
     uint16_t fbins[FIXBPERO];
     int i;
 
@@ -85,7 +88,7 @@ void ICACHE_FLASH_ATTR UpdateFreqs()
 #endif
 }
 
-void ICACHE_FLASH_ATTR InitColorChord()
+void ICACHE_FLASH_ATTR InitColorChord(void)
 {
     int i;
     //Set up and initialize arrays.
@@ -111,7 +114,7 @@ void ICACHE_FLASH_ATTR InitColorChord()
     UpdateFreqs();
 }
 
-void ICACHE_FLASH_ATTR HandleFrameInfo()
+void ICACHE_FLASH_ATTR HandleFrameInfo(void)
 {
     int i, j, k;
     uint8_t hitnotes[MAXNOTES];

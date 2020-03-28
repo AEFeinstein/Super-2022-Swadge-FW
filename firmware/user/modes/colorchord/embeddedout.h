@@ -40,10 +40,10 @@ extern uint8_t ledOut[]; //[NUM_LIN_LEDS*3]
 extern uint8_t RootNoteOffset; //Set to define what the root note is.  0 = A.
 
 //For doing the nice linear strip LED updates
-void ICACHE_FLASH_ATTR UpdateLinearLEDs();
+void ICACHE_FLASH_ATTR UpdateLinearLEDs(void);
 
 //For making all the LEDs the same and quickest.  Good for solo instruments?
-void ICACHE_FLASH_ATTR UpdateAllSameLEDs();
+void ICACHE_FLASH_ATTR UpdateAllSameLEDs(void);
 
 uint32_t ICACHE_FLASH_ATTR ECCtoHEX( uint8_t note, uint8_t sat, uint8_t val );
 
