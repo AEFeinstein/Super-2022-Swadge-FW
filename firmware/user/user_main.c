@@ -34,6 +34,7 @@
 #include "mode_test.h"
 #include "mode_ring.h"
 #include "mode_magpet.h"
+#include "mode_swadgepass.h"
 #include "mode_colorchord.h"
 
 #include "ccconfig.h"
@@ -68,9 +69,10 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
 {
+    &testMode,
+    &passMode,
     &magpetMode,
     &colorchordMode,
-    &testMode,
     &ringMode,
 };
 
@@ -148,6 +150,7 @@ void ICACHE_FLASH_ATTR user_init(void)
     // Set the current WiFi mode based on what the swadge mode wants
     switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
     {
+        case SWADGE_PASS:
         case ESP_NOW:
         {
             if(!(wifi_set_opmode_current( SOFTAP_MODE ) &&
@@ -160,7 +163,6 @@ void ICACHE_FLASH_ATTR user_init(void)
             break;
         }
         default:
-        case SOFT_AP:
         case NO_WIFI:
         {
             if(!(wifi_set_opmode_current( NULL_MODE ) &&
@@ -176,63 +178,67 @@ void ICACHE_FLASH_ATTR user_init(void)
     // Load configurable parameters from SPI memory
     LoadSettings();
 
-    // Initialize GPIOs
-    SetupGPIO(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback);
+    if(SWADGE_PASS != swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
+    {
+        // Initialize GPIOs
+        SetupGPIO(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback);
+
 #ifdef PROFILE
-    GPIO_OUTPUT_SET(GPIO_ID_PIN(0), 0);
+        GPIO_OUTPUT_SET(GPIO_ID_PIN(0), 0);
 #endif
 
-    // Initialize LEDs
+        // Initialize LEDs
 #ifndef USE_ESP_GDB
-    ws2812_init();
-    os_printf("LEDs initialized\n");
+        ws2812_init();
+        os_printf("LEDs initialized\n");
 #endif
 
-    // Initialize i2c
-    cnlohr_i2c_setup(100);
-    os_printf("I2C initialized\n");
+        // Initialize i2c
+        cnlohr_i2c_setup(100);
+        os_printf("I2C initialized\n");
 
-    // Initialize accel
-    initializeAccelerometer();
+        // Initialize accel
+        initializeAccelerometer();
 
 #if SWADGE_VERSION != SWADGE_2019
-    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
+        if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
 #else
-    if(true)
+        if(true)
 #endif
-    {
-        // Start a software timer to run every 100ms
-        syncedTimerDisarm(&timerHandlePollAccel);
-        syncedTimerSetFn(&timerHandlePollAccel, pollAccel, NULL);
-        syncedTimerArm(&timerHandlePollAccel, 100, 1);
-    }
+        {
+            // Start a software timer to run every 100ms
+            syncedTimerDisarm(&timerHandlePollAccel);
+            syncedTimerSetFn(&timerHandlePollAccel, pollAccel, NULL);
+            syncedTimerArm(&timerHandlePollAccel, 100, 1);
+        }
 
-    // Initialize display
-    if(true == initOLED(true))
-    {
-        os_printf("OLED initialized\n");
-    }
-    else
-    {
-        os_printf("OLED initialization failed\n");
-    }
-    framesDrawn = 0;
+        // Initialize display
+        if(true == initOLED(true))
+        {
+            os_printf("OLED initialized\n");
+        }
+        else
+        {
+            os_printf("OLED initialization failed\n");
+        }
+        framesDrawn = 0;
 
-    // Initialize either the buzzer or the mic
-    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
-    {
-        initMic();
-    }
-    else
-    {
-        // Initialize the buzzer
-        initBuzzer();
-        setBuzzerNote(SILENCE);
-    }
+        // Initialize either the buzzer or the mic
+        if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
+        {
+            initMic();
+        }
+        else
+        {
+            // Initialize the buzzer
+            initBuzzer();
+            setBuzzerNote(SILENCE);
+        }
 
-    // Turn LEDs off
-    led_t leds[NUM_LIN_LEDS] = {{0}};
-    setLeds(leds, sizeof(leds));
+        // Turn LEDs off
+        led_t leds[NUM_LIN_LEDS] = {{0}};
+        setLeds(leds, sizeof(leds));
+    }
 
     // Initialize the current mode
     if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEnterMode)
@@ -452,13 +458,13 @@ void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
         // Clean up ESP NOW if that's where we were at
         switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
         {
+            case SWADGE_PASS:
             case ESP_NOW:
             {
                 espNowDeinit();
                 break;
             }
             default:
-            case SOFT_AP:
             case NO_WIFI:
             {
                 break;
@@ -473,39 +479,57 @@ void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
 #else
     rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
 #endif
+
+    enterDeepSleep(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode, 1000);
+}
+
+/**
+ * @brief TODO
+ *
+ * @param wifiMode
+ * @param timeUs
+ */
+void ICACHE_FLASH_ATTR enterDeepSleep(wifiMode_t wifiMode, uint32_t timeUs)
+{
     // Write the RTC memory so it knows what mode to be in when waking up
     system_rtc_mem_write(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem));
-    os_printf("rtc mem written\n");
+
+    // Be extra sure the GPIOs are in the right state for boot
+    setGpiosForBoot();
 
     // Check if the next mode wants wifi or not
-    switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
+    switch(wifiMode)
     {
+        case SWADGE_PASS:
+        {
+            // The chip will not perform the RF calibration during waking up from
+            // Deep-sleep. Power consumption is low.
+            system_deep_sleep_set_option(2);
+            // Sleeeeep. It calls user_init() on wake, which will use the new mode
+            system_deep_sleep_instant(timeUs);
+            break;
+        }
         case ESP_NOW:
         {
             // Radio calibration is done after deep-sleep wake up; this increases
             // the current consumption.
             system_deep_sleep_set_option(1);
-            os_printf("deep sleep option set 1\n");
+            // Sleeeeep. It calls user_init() on wake, which will use the new mode
+            system_deep_sleep(timeUs);
             break;
         }
         default:
-        case SOFT_AP:
         case NO_WIFI:
         {
             // Disable RF after deep-sleep wake up, just like modem sleep; this
             // has the least current consumption; the device is not able to
             // transmit or receive data after wake up.
             system_deep_sleep_set_option(4);
-            os_printf("deep sleep option set 4\n");
+            // Sleeeeep. It calls user_init() on wake, which will use the new mode
+            system_deep_sleep(timeUs);
             break;
         }
     }
-
-    // Be extra sure the GPIOs are in the right state for boot
-    setGpiosForBoot();
-
-    // Sleeeeep. It calls user_init() on wake, which will use the new mode
-    system_deep_sleep(1000);
 }
 
 /**

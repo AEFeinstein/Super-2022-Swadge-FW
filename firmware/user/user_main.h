@@ -30,8 +30,8 @@
 typedef enum
 {
     NO_WIFI,
-    SOFT_AP,
-    ESP_NOW
+    ESP_NOW,
+    SWADGE_PASS
 } wifiMode_t;
 
 typedef enum
@@ -105,9 +105,8 @@ typedef struct _swadgeMode
      * This is a setting, not a function pointer. Set it to one of these
      * values to have the system configure the swadge's WiFi
      * NO_WIFI - Don't use WiFi at all. This saves power.
-     * SOFT_AP - Become a WiFi access point serving up the colorchord
-     *           configuration website
      * ESP_NOW - Send and receive packets to and from all swadges in range
+     * SWADGE_PASS - Low power, mostly sleeping, passive connectivity
      */
     wifiMode_t wifiMode;
     /**
@@ -182,5 +181,7 @@ uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr);
 void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode);
 
 void setAccelPollTime(uint32_t pollTimeMs);
+
+void ICACHE_FLASH_ATTR enterDeepSleep(wifiMode_t wifiMode, uint32_t timeUs);
 
 #endif /* USER_USER_MAIN_H_ */
