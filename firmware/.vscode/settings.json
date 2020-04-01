@@ -75,6 +75,6 @@
         "synced_timer.h": "c",
         "ccconfig.h": "c",
         "embeddedout.h": "c",
-        "mode_swadgepass.h": "c"
+        "printcontrol.h": "c"
     }
 }

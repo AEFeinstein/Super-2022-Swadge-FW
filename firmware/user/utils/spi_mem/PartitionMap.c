@@ -2,6 +2,7 @@
 #include <user_interface.h>
 
 #include "PartitionMap.h"
+#include "printControl.h"
 
 /*==============================================================================
  * Partition Map Data
@@ -74,25 +75,25 @@ void ICACHE_FLASH_ATTR LoadDefaultPartitionMap(void)
                 sizeof(partition_table_opt2) / sizeof(partition_table_opt2[0]),
                 SPI_FLASH_SIZE_MAP_OPT2))
     {
-        os_printf("system_partition_table_regist 2 success!!\r\n");
+        INIT_PRINTF("system_partition_table_regist 2 success!!\r\n");
     }
     else if(system_partition_table_regist(
                 partition_table_opt3,
                 sizeof(partition_table_opt3) / sizeof(partition_table_opt3[0]),
                 SPI_FLASH_SIZE_MAP_OPT3))
     {
-        os_printf("system_partition_table_regist 3 success!!\r\n");
+        INIT_PRINTF("system_partition_table_regist 3 success!!\r\n");
     }
     else if(system_partition_table_regist(
                 partition_table_opt4,
                 sizeof(partition_table_opt4) / sizeof(partition_table_opt4[0]),
                 SPI_FLASH_SIZE_MAP_OPT4))
     {
-        os_printf("system_partition_table_regist 4 success!!\r\n");
+        INIT_PRINTF("system_partition_table_regist 4 success!!\r\n");
     }
     else
     {
-        os_printf("system_partition_table_regist all fail\r\n");
+        INIT_PRINTF("system_partition_table_regist all fail\r\n");
         while(1);
     }
 }

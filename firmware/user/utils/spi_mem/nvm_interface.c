@@ -12,6 +12,7 @@
 #include "nvm_interface.h"
 #include "user_main.h"
 #include "spi_memory_addrs.h"
+#include "printControl.h"
 
 /*============================================================================
  * Defines
@@ -71,11 +72,11 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
     spi_flash_read( USER_SETTINGS_ADDR, (uint32*)&settings, sizeof( settings ) );
     if( settings.SaveLoadKey == SAVE_LOAD_KEY )
     {
-        os_printf("Settings found\r\n");
+        INIT_PRINTF("Settings found\r\n");
     }
     else
     {
-        os_printf("Settings not found\r\n");
+        INIT_PRINTF("Settings not found\r\n");
         // Zero everything
         ets_memset(&settings, 0, sizeof(settings));
         // Set the key
@@ -110,7 +111,6 @@ void ICACHE_FLASH_ATTR setMuteOverride(bool opt)
 
 bool ICACHE_FLASH_ATTR getIsMutedOption(void)
 {
-    //os_printf("%d %d %d\n", muteOverride, settings.isMuted, settings.isMuted && !muteOverride);
     return settings.isMuted && !muteOverride;
 }
 
