@@ -72,6 +72,7 @@
         "assert.h": "c",
         "assets.h": "c",
         "linked_list.h": "c",
-        "synced_timer.h": "c"
+        "synced_timer.h": "c",
+        "mode_swadgepass.h": "c"
     }
 }
