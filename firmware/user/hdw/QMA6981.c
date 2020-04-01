@@ -15,6 +15,7 @@
 #include "user_main.h"
 #include "cnlohr_i2c.h"
 #include "QMA6981.h"
+#include "printControl.h"
 
 #define QMA6981_ADDR 0x12
 #define QMA6981_FREQ  400
@@ -260,7 +261,7 @@ void ICACHE_FLASH_ATTR QMA6981_poll(accel_t* currentAccel)
     uint8_t raw_data[6];
     if(0 != QMA6981_readreg(QMA6981_DATA, 6, raw_data))
     {
-        // os_printf("read xyz error!!!\n");
+        ACC_PRINTF("read xyz error!!!\n");
         // Try reinitializing, then return last known value
         QMA6981_setup();
     }

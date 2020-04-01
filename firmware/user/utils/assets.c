@@ -5,8 +5,7 @@
 #include "oled.h"
 #include "fastlz.h"
 #include "user_main.h"
-
-#define assetDbg(...) // os_printf(__VA_ARGS__)
+#include "printControl.h"
 
 const uint32_t sin1024[] RODATA_ATTR =
 {
@@ -92,7 +91,7 @@ uint32_t* ICACHE_FLASH_ATTR getAsset(const char* name, uint32_t* retLen)
     uint32_t* assets = (uint32_t*)(0x40210000 + 0x5C000);
     uint32_t idx = 0;
     uint32_t numIndexItems = assets[idx++];
-    assetDbg("Scanning %d items\n", numIndexItems);
+    AST_PRINTF("Scanning %d items\n", numIndexItems);
 
     for(uint32_t ni = 0; ni < numIndexItems; ni++)
     {
@@ -107,12 +106,12 @@ uint32_t* ICACHE_FLASH_ATTR getAsset(const char* name, uint32_t* retLen)
         // Read the length from the index
         uint32_t assetLen = assets[idx++];
 
-        assetDbg("%s, addr: %d, len: %d\n", assetName, assetAddress, assetLen);
+        AST_PRINTF("%s, addr: %d, len: %d\n", assetName, assetAddress, assetLen);
 
         // Compare names
         if(0 == ets_strcmp(name, assetName))
         {
-            assetDbg("Found asset\n");
+            AST_PRINTF("Found asset\n");
             *retLen = assetLen;
             return &assets[assetAddress / sizeof(uint32_t)];
         }
@@ -235,7 +234,7 @@ void ICACHE_FLASH_ATTR drawBitmapFromAsset(const char* name, int16_t xp, int16_t
         // Get the width and height
         int32_t width = assetPtr[idx++];
         int32_t height = assetPtr[idx++];
-        assetDbg("Width: %d, height: %d\n", width, height);
+        AST_PRINTF("Width: %d, height: %d\n", width, height);
 
         // Read 32 bits at a time
         uint32_t chunk = assetPtr[idx++];
@@ -256,7 +255,6 @@ void ICACHE_FLASH_ATTR drawBitmapFromAsset(const char* name, int16_t xp, int16_t
                 if(chunk & (0x80000000 >> (bitIdx++)))
                 {
                     // If it's a one, draw a black pixel
-                    assetDbg(" ");
                     drawPixel(x, y, BLACK);
                     isZero = false;
                 }
@@ -274,12 +272,10 @@ void ICACHE_FLASH_ATTR drawBitmapFromAsset(const char* name, int16_t xp, int16_t
                     if(chunk & (0x80000000 >> (bitIdx++)))
                     {
                         // zero-one means transparent, so don't do anything
-                        assetDbg(".");
                     }
                     else
                     {
                         // zero-zero means white, draw a pixel
-                        assetDbg("X");
                         drawPixel(x, y, WHITE);
                     }
 
@@ -292,9 +288,7 @@ void ICACHE_FLASH_ATTR drawBitmapFromAsset(const char* name, int16_t xp, int16_t
                 }
             }
         }
-        assetDbg("\n");
     }
-    assetDbg("\n");
 }
 
 /**
@@ -334,7 +328,7 @@ void ICACHE_FLASH_ATTR drawGifFromAsset(const char* name, int16_t xp, int16_t yp
             handle->nFrames  = handle->assetPtr[handle->idx++];
             handle->duration = handle->assetPtr[handle->idx++];
 
-            assetDbg("%s\n  w: %d\n  h: %d\n  f: %d\n  d: %d\n", __func__,
+            AST_PRINTF("%s\n  w: %d\n  h: %d\n  f: %d\n  d: %d\n", __func__,
                      handle->width,
                      handle->height,
                      handle->nFrames,
@@ -388,7 +382,7 @@ void ICACHE_FLASH_ATTR gifTimerFn(void* arg)
     {
         paddedLen++;
     }
-    assetDbg("%s\n  frame: %d\n  cLen: %d\n  pLen: %d\n", __func__,
+    AST_PRINTF("%s\n  frame: %d\n  cLen: %d\n  pLen: %d\n", __func__,
              handle->cFrame, compressedLen, paddedLen);
 
     // Copy the compressed data from flash to RAM

@@ -10,6 +10,7 @@
 #include "assets.h"
 #include "buzzer.h"
 #include "hpatimer.h"
+#include "printControl.h"
 
 /*==============================================================================
  * Defines
@@ -17,7 +18,7 @@
 
 #define magpetPrintf(...) do { \
         os_snprintf(lastMsg, sizeof(lastMsg), __VA_ARGS__); \
-        os_printf("%s", lastMsg); \
+        PET_PRINTF("%s", lastMsg); \
         magpetUpdateDisplay(); \
     } while(0)
 
@@ -194,7 +195,7 @@ void ICACHE_FLASH_ATTR magpetEspNowRecvCb(uint8_t* mac_addr, uint8_t* data,
  */
 void ICACHE_FLASH_ATTR magpetEspNowSendCb(uint8_t* mac_addr, mt_tx_status status)
 {
-    os_printf("%s::%d\n", __func__, __LINE__);
+    PET_PRINTF("%s::%d\n", __func__, __LINE__);
     p2pSendCb(&connection, mac_addr, status);
     magpetUpdateDisplay();
 }

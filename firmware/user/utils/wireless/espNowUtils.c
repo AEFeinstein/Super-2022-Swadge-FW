@@ -16,6 +16,7 @@
 
 #include "espNowUtils.h"
 #include "user_main.h"
+#include "printControl.h"
 
 /*============================================================================
  * Variables
@@ -43,7 +44,7 @@ void ICACHE_FLASH_ATTR espNowInit(void)
     // Set up all the wifi softAP mode configs
     if(false == wifi_set_opmode_current(SOFTAP_MODE))
     {
-        os_printf("Could not set as station mode\r\n");
+        ENOW_PRINTF("Could not set as station mode\r\n");
         return;
     }
 
@@ -60,19 +61,19 @@ void ICACHE_FLASH_ATTR espNowInit(void)
     };
     if(false == wifi_softap_set_config_current(&config))
     {
-        os_printf("Couldn't set softap config\r\n");
+        ENOW_PRINTF("Couldn't set softap config\r\n");
         return;
     }
 
     if(false == wifi_softap_dhcps_stop())
     {
-        os_printf("Couldn't stop dhcp\r\n");
+        ENOW_PRINTF("Couldn't stop dhcp\r\n");
         return;
     }
 
     if(false == wifi_set_phy_mode(PHY_MODE_11G))
     {
-        os_printf("Couldn't set phy mode\r\n");
+        ENOW_PRINTF("Couldn't set phy mode\r\n");
         return;
     }
 
@@ -85,50 +86,50 @@ void ICACHE_FLASH_ATTR espNowInit(void)
     };
     if(false == wifi_set_country(&wc))
     {
-        os_printf("Couldn't set country info\r\n");
+        ENOW_PRINTF("Couldn't set country info\r\n");
         return;
     }
 
     // Set the channel
     if(false == wifi_set_channel( SOFTAP_CHANNEL ))
     {
-        os_printf("Couldn't set channel\r\n");
+        ENOW_PRINTF("Couldn't set channel\r\n");
         return;
     }
 
     if(0 == esp_now_init())
     {
-        os_printf("ESP NOW init!\r\n");
+        ENOW_PRINTF("ESP NOW init!\r\n");
         if(0 == esp_now_set_self_role(ESP_NOW_ROLE_COMBO))
         {
-            os_printf("set as combo\r\n");
+            ENOW_PRINTF("set as combo\r\n");
         }
         else
         {
-            os_printf("esp now mode set fail\r\n");
+            ENOW_PRINTF("esp now mode set fail\r\n");
         }
 
         if(0 == esp_now_register_recv_cb(espNowRecvCb))
         {
-            os_printf("recvCb registered\r\n");
+            ENOW_PRINTF("recvCb registered\r\n");
         }
         else
         {
-            os_printf("recvCb NOT registered\r\n");
+            ENOW_PRINTF("recvCb NOT registered\r\n");
         }
 
         if(0 == esp_now_register_send_cb(espNowSendCb))
         {
-            os_printf("sendCb registered\r\n");
+            ENOW_PRINTF("sendCb registered\r\n");
         }
         else
         {
-            os_printf("sendCb NOT registered\r\n");
+            ENOW_PRINTF("sendCb NOT registered\r\n");
         }
     }
     else
     {
-        os_printf("esp now fail\r\n");
+        ENOW_PRINTF("esp now fail\r\n");
     }
 }
 
@@ -154,7 +155,7 @@ void ICACHE_FLASH_ATTR espNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t le
         ets_sprintf(tmp, "%02X ", data[i]);
         strcat(dbg, tmp);
     }
-    os_printf("%s, MAC [%02X:%02X:%02X:%02X:%02X:%02X], RSSI [%d], Bytes [%s]\r\n",
+    ENOW_PRINTF("%s, MAC [%02X:%02X:%02X:%02X:%02X:%02X], RSSI [%d], Bytes [%s]\r\n",
               __func__,
               mac_addr[0],
               mac_addr[1],
@@ -197,7 +198,7 @@ void ICACHE_FLASH_ATTR espNowSend(const uint8_t* data, uint8_t len)
 void ICACHE_FLASH_ATTR espNowSendCb(uint8_t* mac_addr, uint8_t status)
 {
 #ifdef EXTRA_DEBUG
-    os_printf("SEND MAC %02X:%02X:%02X:%02X:%02X:%02X\r\n",
+    ENOW_PRINTF("SEND MAC %02X:%02X:%02X:%02X:%02X:%02X\r\n",
               mac_addr[0],
               mac_addr[1],
               mac_addr[2],
@@ -210,17 +211,17 @@ void ICACHE_FLASH_ATTR espNowSendCb(uint8_t* mac_addr, uint8_t status)
     {
         case MT_TX_STATUS_OK:
         {
-            // os_printf("ESP NOW MT_TX_STATUS_OK\r\n");
+            // ENOW_PRINTF("ESP NOW MT_TX_STATUS_OK\r\n");
             break;
         }
         case MT_TX_STATUS_FAILED:
         {
-            os_printf("ESP NOW MT_TX_STATUS_FAILED\r\n");
+            ENOW_PRINTF("ESP NOW MT_TX_STATUS_FAILED\r\n");
             break;
         }
         default:
         {
-            os_printf("ESP UNKNOWN STATUS %d\r\n", (mt_tx_status)status);
+            ENOW_PRINTF("ESP UNKNOWN STATUS %d\r\n", (mt_tx_status)status);
             break;
         }
     }

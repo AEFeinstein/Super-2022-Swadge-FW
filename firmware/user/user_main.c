@@ -30,6 +30,7 @@
 #include "PartitionMap.h"
 #include "QMA6981.h"
 #include "synced_timer.h"
+#include "printControl.h"
 
 #include "mode_test.h"
 #include "mode_ring.h"
@@ -121,25 +122,25 @@ void ICACHE_FLASH_ATTR user_init(void)
     uart_init(BIT_RATE_74880, BIT_RATE_74880);
 #endif
 
-    os_printf("\nSwadge 2021\n");
+    INIT_PRINTF("\nSwadge 2021\n");
 
     // Read data fom RTC memory if we're waking from deep sleep
     if(REASON_DEEP_SLEEP_AWAKE == system_get_rst_info()->reason)
     {
-        os_printf("read rtc mem\n");
+        INIT_PRINTF("read rtc mem\n");
         // Try to read from rtc memory
         if(!system_rtc_mem_read(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem)))
         {
             // if it fails, zero it out instead
             ets_memset(&rtcMem, 0, sizeof(rtcMem));
-            os_printf("rtc mem read fail\n");
+            INIT_PRINTF("rtc mem read fail\n");
         }
     }
     else
     {
         // if it fails, zero it out instead
         ets_memset(&rtcMem, 0, sizeof(rtcMem));
-        os_printf("zero rtc mem\n");
+        INIT_PRINTF("zero rtc mem\n");
     }
 
     // Set the current WiFi mode based on what the swadge mode wants
@@ -151,10 +152,10 @@ void ICACHE_FLASH_ATTR user_init(void)
             if(!(wifi_set_opmode_current( SOFTAP_MODE ) &&
                     wifi_set_opmode( SOFTAP_MODE )))
             {
-                os_printf("Set SOFTAP_MODE before boot failed\n");
+                INIT_PRINTF("Set SOFTAP_MODE before boot failed\n");
             }
             espNowInit();
-            os_printf( "Booting in ESP-NOW\n" );
+            INIT_PRINTF( "Booting in ESP-NOW\n" );
             break;
         }
         default:
@@ -163,9 +164,9 @@ void ICACHE_FLASH_ATTR user_init(void)
             if(!(wifi_set_opmode_current( NULL_MODE ) &&
                     wifi_set_opmode( NULL_MODE )))
             {
-                os_printf("Set NULL_MODE before boot failed\n");
+                INIT_PRINTF("Set NULL_MODE before boot failed\n");
             }
-            os_printf( "Booting with no wifi\n" );
+            INIT_PRINTF( "Booting with no wifi\n" );
             break;
         }
     }
@@ -184,12 +185,12 @@ void ICACHE_FLASH_ATTR user_init(void)
         // Initialize LEDs
 #ifndef USE_ESP_GDB
         ws2812_init();
-        os_printf("LEDs initialized\n");
+        INIT_PRINTF("LEDs initialized\n");
 #endif
 
         // Initialize i2c
         cnlohr_i2c_setup(100);
-        os_printf("I2C initialized\n");
+        INIT_PRINTF("I2C initialized\n");
 
         // Initialize accel
         initializeAccelerometer();
@@ -209,11 +210,11 @@ void ICACHE_FLASH_ATTR user_init(void)
         // Initialize display
         if(true == initOLED(true))
         {
-            os_printf("OLED initialized\n");
+            INIT_PRINTF("OLED initialized\n");
         }
         else
         {
-            os_printf("OLED initialization failed\n");
+            INIT_PRINTF("OLED initialization failed\n");
         }
 
         // Start the HPA timer, used for PWMing the buzzer
@@ -236,7 +237,7 @@ void ICACHE_FLASH_ATTR user_init(void)
     swadgeModeInit = true;
 
     // Debug print
-    os_printf("mode: %d: %s initialized\n", rtcMem.currentSwadgeMode,
+    INIT_PRINTF("mode: %d: %s initialized\n", rtcMem.currentSwadgeMode,
               (NULL != swadgeModes[rtcMem.currentSwadgeMode]->modeName) ?
               (swadgeModes[rtcMem.currentSwadgeMode]->modeName) : ("No Name"));
 
@@ -520,16 +521,16 @@ void ICACHE_FLASH_ATTR initializeAccelerometer(void)
         if(true == QMA6981_setup())
         {
             QMA6981_init = true;
-            os_printf("QMA6981 initialized\n");
+            INIT_PRINTF("QMA6981 initialized\n");
         }
         else
         {
-            os_printf("QMA6981 initialization failed\n");
+            INIT_PRINTF("QMA6981 initialization failed\n");
         }
     }
     else
     {
-        os_printf("QMA6981 not needed\n");
+        INIT_PRINTF("QMA6981 not needed\n");
     }
 }
 
@@ -600,10 +601,10 @@ void ICACHE_FLASH_ATTR swadgeModeEspNowRecvCb(uint8_t* mac_addr, uint8_t* data, 
  */
 void ICACHE_FLASH_ATTR swadgeModeEspNowSendCb(uint8_t* mac_addr, mt_tx_status status)
 {
-    os_printf("%s::%d\n", __func__, __LINE__);
+    ENOW_PRINTF("%s::%d\n", __func__, __LINE__);
     if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowSendCb)
     {
-        os_printf("%s::%d\n", __func__, __LINE__);
+        ENOW_PRINTF("%s::%d\n", __func__, __LINE__);
         swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowSendCb(mac_addr, (mt_tx_status)status);
     }
 }
@@ -624,7 +625,6 @@ void ICACHE_FLASH_ATTR swadgeModeEspNowSendCb(uint8_t* mac_addr, mt_tx_status st
 void ICACHE_FLASH_ATTR setLeds(led_t* ledData, uint16_t ledDataLen)
 {
     ws2812_push( (uint8_t*) ledData, ledDataLen );
-    //os_printf("%s, %d LEDs\n", __func__, ledDataLen / 3);
 }
 
 /**

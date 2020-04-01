@@ -18,6 +18,7 @@
 #include "gpio_user.h"
 #include "nvm_interface.h"
 #include "synced_timer.h"
+#include "printControl.h"
 
 /*============================================================================
  * Defines
@@ -25,9 +26,6 @@
 
 #define FRC1_ENABLE_TIMER  BIT7
 #define FRC1_AUTO_RELOAD 64
-
-// #define BZR_DBG(...) os_printf(__VA_ARGS__)
-#define BZR_DBG(...)
 
 /*============================================================================
  * Enums
@@ -180,7 +178,7 @@ void ICACHE_FLASH_ATTR initBuzzer(void)
  */
 void ICACHE_FLASH_ATTR setBuzzerNote(uint16_t note)
 {
-    BZR_DBG("%s %d\n", __func__, noteClockDivisor);
+    BZR_PRINTF("%d\n", bzr.currNote);
     // If it's muted or not actually changing don't set anything
     if(getIsMutedOption() || (bzr.currNote == note))
     {
@@ -215,7 +213,7 @@ void ICACHE_FLASH_ATTR setBuzzerNote(uint16_t note)
  */
 void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song, bool shouldLoop)
 {
-    BZR_DBG("%s, %d notes, %d internote pause\n", __func__, song->numNotes, song->interNotePause);
+    BZR_PRINTF("%s, %d notes, %d internote pause\n", __func__, song->numNotes, song->interNotePause);
     // If it's muted, don't set anything
     if(getIsMutedOption())
     {
@@ -245,7 +243,7 @@ void ICACHE_FLASH_ATTR loadNextNote(void)
     bzr.currDuration = (noteAndDuration >> 16) & 0xFFFF;
     setBuzzerNote(noteAndDuration & 0xFFFF);
 
-    BZR_DBG("%s n:%5d d:%5d\n", __func__, bzr.currNote, bzr.currDuration);
+    BZR_PRINTF("%s n:%5d d:%5d\n", __func__, bzr.currNote, bzr.currDuration);
 }
 
 /**
@@ -253,7 +251,7 @@ void ICACHE_FLASH_ATTR loadNextNote(void)
  */
 void ICACHE_FLASH_ATTR stopBuzzerSong(void)
 {
-    BZR_DBG("%s\n", __func__);
+    BZR_PRINTF("%s\n", __func__);
 
     setBuzzerNote(SILENCE);
     bzr.song = NULL;
@@ -295,14 +293,14 @@ void ICACHE_FLASH_ATTR songTimerCb(void* arg __attribute__((unused)))
             // No more notes
             if(bzr.songShouldLoop)
             {
-                BZR_DBG("Loop\n");
+                BZR_PRINTF("Loop\n");
                 // Song over, but should loop, so start again
                 bzr.noteIdx = 0;
                 loadNextNote();
             }
             else
             {
-                BZR_DBG("Don't loop\n");
+                BZR_PRINTF("Don't loop\n");
                 // Song over, not looping, stop the timer and the note
                 setBuzzerNote(SILENCE);
                 syncedTimerDisarm(&bzr.songTimer);
