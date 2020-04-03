@@ -330,14 +330,14 @@ clean:
 
 # Build and burn the two firmware files
 burn : all
-	$(ESPTOOL_PY) --baud $(ESP_FLASH_BITRATE) --port $(ESP_PORT) write_flash -fm dio $(FLASH_WRITE_FLAGS) \
+	$(ESPTOOL_PY) --baud $(ESP_FLASH_BITRATE) --port $(ESP_PORT) write_flash --flash_size 16m -fm dio $(FLASH_WRITE_FLAGS) \
 		0x00000 $(FW_FILE1) \
 		0x10000 $(FW_FILE2) \
 		0x6C000 $(ASSETS_FILE)
 
 # Build everything and burn the two firmware files, and init data
 burnitall : all
-	$(ESPTOOL_PY) --baud $(ESP_FLASH_BITRATE) --port $(ESP_PORT) write_flash -fm dio $(FLASH_WRITE_FLAGS) \
+	$(ESPTOOL_PY) --baud $(ESP_FLASH_BITRATE) --port $(ESP_PORT) write_flash --flash_size 16m -fm dio $(FLASH_WRITE_FLAGS) \
 		0x00000 $(FW_FILE1) \
 		0x10000 $(FW_FILE2) \
 		0x6C000 $(ASSETS_FILE) \
