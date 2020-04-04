@@ -11,7 +11,6 @@
 #include "hsv_utils.h"
 #include "nvm_interface.h"
 #include "user_main.h"
-#include "spi_memory_addrs.h"
 #include "printControl.h"
 
 /*============================================================================

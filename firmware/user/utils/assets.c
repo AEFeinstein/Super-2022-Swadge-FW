@@ -1,6 +1,5 @@
 #include <osapi.h>
 #include <mem.h>
-#include "spi_memory_addrs.h"
 #include "assets.h"
 #include "oled.h"
 #include "fastlz.h"
@@ -88,7 +87,7 @@ uint32_t* ICACHE_FLASH_ATTR getAsset(const char* name, uint32_t* retLen)
      * See "irom0_0_seg" in "eagle.app.v6.ld" for where this value comes from
      * The makefile flashes ASSETS_FILE to 0x6C000
      */
-    uint32_t* assets = (uint32_t*)(0x40210000 + 0x5C000);
+    uint32_t* assets = (uint32_t*)(0x40200000 + ASSETS_ADDR);
     uint32_t idx = 0;
     uint32_t numIndexItems = assets[idx++];
     AST_PRINTF("Scanning %d items\n", numIndexItems);
