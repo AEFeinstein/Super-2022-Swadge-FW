@@ -103,6 +103,9 @@ static void ICACHE_FLASH_ATTR returnToMenuTimerFunc(void* arg);
  */
 void ICACHE_FLASH_ATTR user_pre_init(void)
 {
+#ifndef ALL_OS_PRINTF
+    system_set_os_print(false);
+#endif
     LoadDefaultPartitionMap();
 }
 
@@ -238,8 +241,8 @@ void ICACHE_FLASH_ATTR user_init(void)
 
     // Debug print
     INIT_PRINTF("mode: %d: %s initialized\n", rtcMem.currentSwadgeMode,
-              (NULL != swadgeModes[rtcMem.currentSwadgeMode]->modeName) ?
-              (swadgeModes[rtcMem.currentSwadgeMode]->modeName) : ("No Name"));
+                (NULL != swadgeModes[rtcMem.currentSwadgeMode]->modeName) ?
+                (swadgeModes[rtcMem.currentSwadgeMode]->modeName) : ("No Name"));
 
     // Add a process to filter queued ADC samples and output LED signals
     // This is faster than every 100ms

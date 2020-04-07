@@ -3,6 +3,12 @@
 
 #include "osapi.h"
 
+/*==============================================================================
+ * These defines turn debugging on
+ *============================================================================*/
+
+// #define ALL_OS_PRINTF
+// #define SWADGEPASS_DBG
 // #define INIT_PRINTF(fmt, ...) os_printf("%s::%d " fmt, __func__, __LINE__, ##__VA_ARGS__)
 // #define ENOW_PRINTF(fmt, ...) os_printf("%s::%d " fmt, __func__, __LINE__, ##__VA_ARGS__)
 // #define P2P_PRINTF(fmt, ...) os_printf("%s::%d " fmt, __func__, __LINE__, ##__VA_ARGS__)
@@ -12,6 +18,10 @@
 // #define RING_PRINTF(fmt, ...) os_printf("%s::%d " fmt, __func__, __LINE__, ##__VA_ARGS__)
 // #define PET_PRINTF(fmt, ...) os_printf("%s::%d " fmt, __func__, __LINE__, ##__VA_ARGS__)
 // #define TIME_PRINTF(fmt, ...) os_printf("%s::%d " fmt, __func__, __LINE__, ##__VA_ARGS__)
+
+/*==============================================================================
+ * These defines turn debugging off
+ *============================================================================*/
 
 #define INIT_PRINTF(fmt, ...)
 #define ENOW_PRINTF(fmt, ...)
