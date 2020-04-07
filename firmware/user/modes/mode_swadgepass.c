@@ -15,6 +15,11 @@
 #include "user_main.h"
 #include "synced_timer.h"
 #include "mode_swadgepass.h"
+#include "printControl.h"
+
+#ifdef SWADGEPASS_DBG
+#include "driver/uart.h"
+#endif
 
 /*============================================================================
  * Defines
@@ -84,6 +89,7 @@ void ICACHE_FLASH_ATTR passEnterMode(void)
 void ICACHE_FLASH_ATTR passExitMode(void)
 {
     syncedTimerDisarm(&pass.sleepTimer);
+    syncedTimerDisarm(&pass.sendTimer);
 }
 
 /**
@@ -98,7 +104,10 @@ void ICACHE_FLASH_ATTR passExitMode(void)
 void ICACHE_FLASH_ATTR passEspNowRecvCb(uint8_t* mac_addr, uint8_t* data,
                                         uint8_t len, uint8_t rssi)
 {
-    syncedTimerDisarm(&pass.sleepTimer);
+#ifdef SWADGEPASS_DBG
+    // This is for higher precision timing
+    uart_tx_one_char_no_wait(UART0, '!');
+#endif
 }
 
 /**
@@ -114,7 +123,7 @@ void ICACHE_FLASH_ATTR passEspNowSendCb(uint8_t* mac_addr, mt_tx_status status)
     {
         case MT_TX_STATUS_OK:
         {
-            syncedTimerArm(&pass.sleepTimer, 100, false);
+            syncedTimerArm(&pass.sleepTimer, 227, false);
             break;
         }
         default:
@@ -133,6 +142,9 @@ void ICACHE_FLASH_ATTR passEspNowSendCb(uint8_t* mac_addr, mt_tx_status status)
  */
 void ICACHE_FLASH_ATTR passSendMsg(void* arg)
 {
+#ifdef SWADGEPASS_DBG
+    uart_tx_one_char_no_wait(UART0, '?');
+#endif
     char testData[] = "test message";
     espNowSend((const uint8_t*)testData, strlen(testData));
 }
@@ -144,5 +156,8 @@ void ICACHE_FLASH_ATTR passSendMsg(void* arg)
  */
 void ICACHE_FLASH_ATTR passDeepSleep(void* arg)
 {
-    enterDeepSleep(SWADGE_PASS, 5000000);
+#ifdef SWADGEPASS_DBG
+    uart_tx_one_char_no_wait(UART0, 'z');
+#endif
+    enterDeepSleep(SWADGE_PASS, 2509000 + (os_random() % 2227000));
 }
