@@ -18,7 +18,7 @@
 #include "printControl.h"
 
 #ifdef SWADGEPASS_DBG
-#include "driver/uart.h"
+    #include "driver/uart.h"
 #endif
 
 /*============================================================================
@@ -101,8 +101,10 @@ void ICACHE_FLASH_ATTR passExitMode(void)
  * @param len      The length of the data
  * @param rssi     The RSSI of th received message, a proxy for distance
  */
-void ICACHE_FLASH_ATTR passEspNowRecvCb(uint8_t* mac_addr, uint8_t* data,
-                                        uint8_t len, uint8_t rssi)
+void ICACHE_FLASH_ATTR passEspNowRecvCb(uint8_t* mac_addr __attribute__((unused)),
+                                        uint8_t* data __attribute__((unused)),
+                                        uint8_t len __attribute__((unused)),
+                                        uint8_t rssi __attribute__((unused)))
 {
 #ifdef SWADGEPASS_DBG
     // This is for higher precision timing
@@ -117,7 +119,8 @@ void ICACHE_FLASH_ATTR passEspNowRecvCb(uint8_t* mac_addr, uint8_t* data,
  * @param mac_addr unused
  * @param status   Whether the transmission succeeded or failed
  */
-void ICACHE_FLASH_ATTR passEspNowSendCb(uint8_t* mac_addr, mt_tx_status status)
+void ICACHE_FLASH_ATTR passEspNowSendCb(uint8_t* mac_addr __attribute__((unused)),
+                                        mt_tx_status status)
 {
     switch(status)
     {
@@ -140,7 +143,7 @@ void ICACHE_FLASH_ATTR passEspNowSendCb(uint8_t* mac_addr, mt_tx_status status)
  *
  * @param arg
  */
-void ICACHE_FLASH_ATTR passSendMsg(void* arg)
+void ICACHE_FLASH_ATTR passSendMsg(void* arg __attribute__((unused)))
 {
 #ifdef SWADGEPASS_DBG
     uart_tx_one_char_no_wait(UART0, '?');
@@ -154,7 +157,7 @@ void ICACHE_FLASH_ATTR passSendMsg(void* arg)
  *
  * @param arg
  */
-void ICACHE_FLASH_ATTR passDeepSleep(void* arg)
+void ICACHE_FLASH_ATTR passDeepSleep(void* arg __attribute__((unused)))
 {
 #ifdef SWADGEPASS_DBG
     uart_tx_one_char_no_wait(UART0, 'z');
