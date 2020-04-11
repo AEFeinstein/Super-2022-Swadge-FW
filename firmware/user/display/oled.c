@@ -19,9 +19,6 @@
 // Defines and Enums
 //==============================================================================
 
-#define DOUBLE_BUFFER
-#define PARTIAL_DOUBLE_BUFFER
-
 #define OLED_ADDRESS (0x78 >> 1)
 #define OLED_FREQ 800
 
@@ -120,10 +117,8 @@ void ICACHE_FLASH_ATTR setPageAddressPagingMode(uint8_t page);
 void ICACHE_FLASH_ATTR setLowerColAddrPagingMode(uint8_t col);
 void ICACHE_FLASH_ATTR setUpperColAddrPagingMode(uint8_t col);
 
-#ifdef DOUBLE_BUFFER
-    bool ICACHE_FLASH_ATTR findDiffBounds(uint8_t* prior, uint8_t* curr, int16_t* bounds);
-    void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* curr, int16_t* bounds);
-#endif
+bool ICACHE_FLASH_ATTR findDiffBounds(uint8_t* prior, uint8_t* curr, int16_t* bounds);
+void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* curr, int16_t* bounds);
 
 void ICACHE_FLASH_ATTR saveOverwriteMenuBar(color* bottomBar);
 void ICACHE_FLASH_ATTR restoreMenuBar(color* bottomBar);
@@ -133,9 +128,7 @@ void ICACHE_FLASH_ATTR restoreMenuBar(color* bottomBar);
 //==============================================================================
 
 uint8_t currentFb[(OLED_WIDTH * (OLED_HEIGHT / 8))] = {0};
-#ifdef DOUBLE_BUFFER
 uint8_t priorFb[(OLED_WIDTH * (OLED_HEIGHT / 8))] = {0};
-#endif
 uint8_t mBarLen = 0;
 bool fbChanges = false;
 
@@ -298,26 +291,15 @@ bool ICACHE_FLASH_ATTR initOLED(bool reset)
     activateScroll(false);
     setDisplayOn(true);
 
-    // Also clear the display's RAM on boot
-    uint8_t page;
-    uint8_t clearPage[1 + SSD1306_NUM_COLS] = {0};
-    clearPage[0] = SSD1306_DATA;
-    for (page = 0; page < SSD1306_NUM_PAGES; page++)
+    // End i2c
+    if (!(0 == cnlohr_i2c_end_transaction()))
     {
-        // Address the page
-        setPageAddressPagingMode(page);
-        setLowerColAddrPagingMode(0);
-        setUpperColAddrPagingMode(0);
-
-        // Write the data
-        cnlohr_i2c_write(clearPage, sizeof(clearPage), false);
+        return false;
     }
 
-    // End i2c
-    return (0 == cnlohr_i2c_end_transaction());
+    // Also clear the display's RAM on boot
+    return updateOLED(false);
 }
-
-#ifdef DOUBLE_BUFFER
 
 /**
  * @brief Find the first and last differences in a page
@@ -370,8 +352,6 @@ inline void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* c
     // Address the page
     setPageAddressPagingMode(page);
 
-#ifdef PARTIAL_DOUBLE_BUFFER
-
     // Suppresses a warning
     (void)prior;
 
@@ -385,66 +365,7 @@ inline void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* c
 
     // Write the data
     cnlohr_i2c_write(diffs, sizeof(diffs), false);
-
-#else
-
-    int16_t col;
-    uint8_t numBytesDifferent = 0;
-    uint8_t numBytesSame = 0;
-    int16_t colAddr = -1;
-
-    // For the range of bytes with differences
-    for (col = bounds[0]; col <= bounds[1]; col++)
-    {
-        // Check if the bytes are different
-        if (prior[col] != curr[col])
-        {
-            // No colAddr yet, so just starting
-            if (-1 == colAddr)
-            {
-                numBytesDifferent = 0;
-                colAddr = col;
-            }
-
-            // Take into account same bytes that weren't counted here
-            if (numBytesSame > 0)
-            {
-                numBytesDifferent += numBytesSame;
-                numBytesSame = 0;
-            }
-
-            numBytesDifferent++;
-        }
-        else
-        {
-            // Bytes are the same
-            numBytesSame++;
-        }
-
-        // If there are at least two bytes that haven't changed, write them
-        // Addressing takes two bytes, so this is the break-even point
-        // Also write bytes when we're at the end of the page
-        if (((-1 != colAddr) && numBytesSame >= 2) || (col == bounds[1]))
-        {
-            setLowerColAddrPagingMode(colAddr & 0x0F);
-            setUpperColAddrPagingMode((colAddr >> 4) & 0x0F);
-
-            uint8_t diffs[1 + numBytesDifferent];
-            diffs[0] = SSD1306_DATA;
-            memcpy(&diffs[1], &curr[colAddr], numBytesDifferent);
-
-            // Write the data
-            cnlohr_i2c_write(diffs, sizeof(diffs), false);
-
-            numBytesDifferent = 0;
-            numBytesSame = 0;
-            colAddr = -1;
-        }
-    }
-#endif
 }
-
-#endif
 
 /**
  * @brief Return the menu bar to zero length, hiding it
@@ -468,16 +389,18 @@ uint8_t ICACHE_FLASH_ATTR incrementMenuBar(void)
 
 /**
  * Push data currently in RAM to SSD1306 display.
- * This takes ~12ms @ 800KHz
  *
- * @return true if the data was sent, false if it failed
+ * @param drawDifference true to only draw differences from the prior frame
+ *                       false to draw the entire frame
+ * @return true  the data was sent
+ *         false there was some I2C error
  */
-bool ICACHE_FLASH_ATTR updateOLED(void)
+oledResult_t ICACHE_FLASH_ATTR updateOLED(bool drawDifference)
 {
-    if(false == fbChanges)
+    if(true == drawDifference && false == fbChanges)
     {
         // We know nothing happened, just return
-        return true;
+        return NOTHING_TO_DO;
     }
     else
     {
@@ -485,87 +408,111 @@ bool ICACHE_FLASH_ATTR updateOLED(void)
         fbChanges = false;
     }
 
-#ifdef DOUBLE_BUFFER
-
-    int16_t page;
-    bool anyDiffs = false;
-    int16_t diffBounds[SSD1306_NUM_PAGES][2] =
+    if(drawDifference)
     {
-        {-1, -1},
-        {-1, -1},
-        {-1, -1},
-        {-1, -1},
-        {-1, -1},
-        {-1, -1},
-        {-1, -1},
-        {-1, -1},
-    };
-
-    color bottomBar[OLED_WIDTH] = {0};
-    saveOverwriteMenuBar(bottomBar);
-
-    // Compare the prior and current framebuffers, looking for any differences
-    for (page = 0; page < SSD1306_NUM_PAGES; page++)
-    {
-        if (findDiffBounds(&priorFb[page * SSD1306_NUM_COLS], &currentFb[page * SSD1306_NUM_COLS], diffBounds[page]))
+        // Just draw the differences
+        int16_t page;
+        bool anyDiffs = false;
+        int16_t diffBounds[SSD1306_NUM_PAGES][2] =
         {
-            anyDiffs = true;
-        }
-    }
+            {-1, -1},
+            {-1, -1},
+            {-1, -1},
+            {-1, -1},
+            {-1, -1},
+            {-1, -1},
+            {-1, -1},
+            {-1, -1},
+        };
 
-    // No framebuffer updates, just return
-    if (false == anyDiffs)
-    {
+        color bottomBar[OLED_WIDTH] = {0};
+        saveOverwriteMenuBar(bottomBar);
+
+        // Compare the prior and current framebuffers, looking for any differences
+        for (page = 0; page < SSD1306_NUM_PAGES; page++)
+        {
+            if (findDiffBounds(&priorFb[page * SSD1306_NUM_COLS], &currentFb[page * SSD1306_NUM_COLS], diffBounds[page]))
+            {
+                anyDiffs = true;
+            }
+        }
+
+        // No framebuffer updates, just return
+        if (true == drawDifference && false == anyDiffs)
+        {
+            restoreMenuBar(bottomBar);
+            return NOTHING_TO_DO;
+        }
+
+        // Start i2c
+        cnlohr_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
+
+        // Find the actual differences and push them out
+        for (page = 0; page < SSD1306_NUM_PAGES; page++)
+        {
+            // If there's a difference in this page, look harder
+            if (0 <= diffBounds[page][0])
+            {
+                checkPage(page, &priorFb[page * SSD1306_NUM_COLS], &currentFb[page * SSD1306_NUM_COLS], diffBounds[page]);
+            }
+        }
+
+        // Copy the framebuffer to the prior
+        memcpy(priorFb, currentFb, sizeof(currentFb));
+
+        // Restore the bottom bar
         restoreMenuBar(bottomBar);
-        return true;
-    }
 
-    // Start i2c
-    cnlohr_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
-
-    // Find the actual differences and push them out
-    for (page = 0; page < SSD1306_NUM_PAGES; page++)
-    {
-        // If there's a difference in this page, look harder
-        if (0 <= diffBounds[page][0])
+        // end i2c
+        if (0 == cnlohr_i2c_end_transaction())
         {
-            checkPage(page, &priorFb[page * SSD1306_NUM_COLS], &currentFb[page * SSD1306_NUM_COLS], diffBounds[page]);
+            return FRAME_DRAWN;
+        }
+        else
+        {
+            return FRAME_NOT_DRAWN;
         }
     }
-
-    // Copy the framebuffer to the prior
-    memcpy(priorFb, currentFb, sizeof(currentFb));
-
-    // Restore the bottom bar
-    restoreMenuBar(bottomBar);
-
-    // end i2c
-    return (0 == cnlohr_i2c_end_transaction());
-
-#else
-
-    // Start i2c
-    cnlohr_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
-
-    // Find the actual differences and push them out
-    uint8_t page;
-    for (page = 0; page < SSD1306_NUM_PAGES; page++)
+    else // Draw the entire OLED
     {
+        // Draw the menu bar
+        color bottomBar[OLED_WIDTH] = {0};
+        saveOverwriteMenuBar(bottomBar);
+
+        // Start i2c
+        cnlohr_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
+
+        // Draw every page
         uint8_t wholePage[1 + SSD1306_NUM_COLS] = {0};
         wholePage[0] = SSD1306_DATA;
-        memcpy(&wholePage[1], &currentFb[page * SSD1306_NUM_COLS], sizeof(wholePage) - 1);
+        uint8_t page;
+        for (page = 0; page < SSD1306_NUM_PAGES; page++)
+        {
+            // Address the page
+            setPageAddressPagingMode(page);
+            setLowerColAddrPagingMode(0);
+            setUpperColAddrPagingMode(0);
+            // Write the page
+            memcpy(&wholePage[1], &currentFb[page * SSD1306_NUM_COLS], sizeof(wholePage) - 1);
+            cnlohr_i2c_write(wholePage, sizeof(wholePage), false);
+        }
 
-        // Address the page
-        setPageAddressPagingMode(page);
-        setLowerColAddrPagingMode(0);
-        setUpperColAddrPagingMode(0);
-        cnlohr_i2c_write(wholePage, sizeof(wholePage), false);
+        // Copy the framebuffer to the prior
+        memcpy(priorFb, currentFb, sizeof(currentFb));
+
+        // Restore the bottom bar
+        restoreMenuBar(bottomBar);
+
+        // end i2c
+        if (0 == cnlohr_i2c_end_transaction())
+        {
+            return FRAME_DRAWN;
+        }
+        else
+        {
+            return FRAME_NOT_DRAWN;
+        }
     }
-
-    // end i2c
-    return (0 == cnlohr_i2c_end_transaction());
-
-#endif
 }
 
 /**

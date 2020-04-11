@@ -74,6 +74,7 @@ bool swadgeModeInit = false;
 rtcMem_t rtcMem = {0};
 
 bool QMA6981_init = false;
+uint16_t framesDrawn = 0;
 
 /*============================================================================
  * Prototypes
@@ -211,6 +212,7 @@ void ICACHE_FLASH_ATTR user_init(void)
     {
         os_printf("OLED initialization failed\n");
     }
+    framesDrawn = 0;
 
     // Start the HPA timer, used for PWMing the buzzer
     StartHPATimer();
@@ -275,8 +277,30 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events __attribute__((unused)
     syncedTimersCheck();
 
     // Update the display as fast as possible.
-    // This only sends I2C data if there was some pixel change
-    updateOLED();
+    if(1000 == framesDrawn)
+    {
+        // Every 1000 frames, redraw the entire OLED
+        // Experimentally, this is about every 15s
+        updateOLED(false);
+        framesDrawn = 0;
+
+        // Debug code to print time between full redraws
+        // static uint32_t lastFullDraw = 0;
+        // uint32_t time = system_get_time();
+        // if(0 != lastFullDraw)
+        // {
+        //     os_printf("rd %dus\n", time - lastFullDraw);
+        // }
+        // lastFullDraw = time;
+    }
+    else
+    {
+        // This only sends I2C data if there was some pixel change
+        if(FRAME_DRAWN == updateOLED(true))
+        {
+            framesDrawn++;
+        }
+    }
 
 #ifdef PROFILE
     WRITE_PERI_REG( PERIPHS_GPIO_BASEADDR + GPIO_ID_PIN(0), 0 );
