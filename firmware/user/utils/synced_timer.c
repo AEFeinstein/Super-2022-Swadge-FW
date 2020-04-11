@@ -40,9 +40,6 @@ static void ICACHE_FLASH_ATTR incShouldRun(void* arg)
  * Set timer callback function. The timer callback function must be set before
  * arming a timer.
  *
- * syncedTimerSetFn() can only be invoked when the timer is not enabled, i.e.,
- * after syncedTimerDisarm() or before syncedTimerArm().
- *
  * This is a wrapper for os_timer_setfn().
  *
  * @param timer     The timer struct
@@ -52,6 +49,10 @@ static void ICACHE_FLASH_ATTR incShouldRun(void* arg)
 void ICACHE_FLASH_ATTR syncedTimerSetFn(syncedTimer_t* timer,
                                         os_timer_func_t* timerFunc, void* arg)
 {
+    // os_timer_setfn() can only be invoked when the timer is not enabled, i.e.,
+    // after os_timer_disarm() or before os_timer_arm(), so call os_timer_disarm
+    os_timer_disarm(&(timer->osTimer));
+
     // Save the function parameters
     timer->timerFunc = timerFunc;
     timer->arg = arg;
@@ -66,10 +67,6 @@ void ICACHE_FLASH_ATTR syncedTimerSetFn(syncedTimer_t* timer,
 
 /**
  * Arm a timer callback function to be called at some time or interval.
- *
- * For the same timer, syncedTimerArm() cannot be invoked repeatedly.
- * syncedTimerDisarm() should be invoked first.
- *
  * This is a wrapper for os_timer_arm();
  *
  * @param timer       The timer struct
@@ -79,8 +76,9 @@ void ICACHE_FLASH_ATTR syncedTimerSetFn(syncedTimer_t* timer,
 void ICACHE_FLASH_ATTR syncedTimerArm(syncedTimer_t* timer, uint32_t time,
                                       bool repeat_flag)
 {
-    // Always disarm the timer first
-    syncedTimerDisarm(timer);
+    // For the same timer, os_timer_arm() cannot be invoked repeatedly.
+    // os_timer_disarm() should be invoked first, so call os_timer_disarm()
+    os_timer_disarm(&(timer->osTimer));
 
     // Then arm it with the parameters
     os_timer_arm(&(timer->osTimer), time, repeat_flag);
@@ -140,23 +138,56 @@ void ICACHE_FLASH_ATTR syncedTimerDisarm(syncedTimer_t* timer)
  */
 void ICACHE_FLASH_ATTR syncedTimersCheck(void)
 {
+    /* We can't safely call the callbacks while iterating, so save the function
+     * pointers args, and number of times the function should be called in some
+     * temporary memory, then call them after iterating.
+     * The temporary memory is large enough to accomodate the entire list
+     */
+    uint32_t origNumTimers = syncedTimerList.length;
+    os_timer_func_t* funcsToCall[origNumTimers];
+    void* argsToUse[origNumTimers];
+    uint32_t callsToMake[origNumTimers];
+    uint32_t numFuncsToCall = 0;
+
     // For each timer
     node_t* currentNode = syncedTimerList.first;
     while (currentNode != NULL)
     {
         syncedTimer_t* timer = (syncedTimer_t*) currentNode->val;
+
+        bool shouldBeCalled = false;
+        callsToMake[numFuncsToCall] = 0;
         // For as many times as the function should be called
         while(0 < timer->shouldRunCnt)
         {
-            // Call it
-            timer->timerFunc(timer->arg);
+            shouldBeCalled = true;
+            // Save it to be called later
+            funcsToCall[numFuncsToCall] = timer->timerFunc;
+            argsToUse[numFuncsToCall] = timer->arg;
+            callsToMake[numFuncsToCall]++;
+
             // Decrement, making sure not to underflow
             if(0 < timer->shouldRunCnt)
             {
                 timer->shouldRunCnt--;
             }
         }
+        // If this timer was called, move to the next index
+        if(shouldBeCalled)
+        {
+            numFuncsToCall++;
+        }
+
         // Iterate to the next timer
         currentNode = currentNode->next;
+    }
+
+    // Call the functions that need to be called
+    for(uint32_t idx = 0; idx < numFuncsToCall; idx++)
+    {
+        while(callsToMake[idx]--)
+        {
+            funcsToCall[idx](argsToUse[idx]);
+        }
     }
 }
