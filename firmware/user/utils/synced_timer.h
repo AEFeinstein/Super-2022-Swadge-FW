@@ -9,6 +9,8 @@ typedef struct
     uint8_t shouldRunCnt;
     os_timer_func_t* timerFunc;
     void* arg;
+    bool isArmed;
+    bool isRepeat;
 } syncedTimer_t;
 
 void syncedTimerDisarm(syncedTimer_t* timer);

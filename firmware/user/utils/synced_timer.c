@@ -59,6 +59,8 @@ void ICACHE_FLASH_ATTR syncedTimerSetFn(syncedTimer_t* timer,
 
     // Zero out the variables
     timer->shouldRunCnt = 0;
+    timer->isArmed = false;
+    timer->isRepeat = false;
     ets_memset(&(timer->osTimer), 0, sizeof(os_timer_t));
 
     // Set the timer function
@@ -82,6 +84,8 @@ void ICACHE_FLASH_ATTR syncedTimerArm(syncedTimer_t* timer, uint32_t time,
 
     // Then arm it with the parameters
     os_timer_arm(&(timer->osTimer), time, repeat_flag);
+    timer->isArmed = true;
+    timer->isRepeat = repeat_flag;
 
     // Check to see if this timer is in the list already
     node_t* currentNode = syncedTimerList.first;
@@ -110,23 +114,11 @@ void ICACHE_FLASH_ATTR syncedTimerDisarm(syncedTimer_t* timer)
 {
     // Disarm the timer
     os_timer_disarm(&(timer->osTimer));
+    timer->isArmed = false;
+    timer->isRepeat = false;
     // And make sure the function isn't called again
     timer->shouldRunCnt = 0;
-
-    // Find this timer in the list and remove it
-    node_t* currentNode = syncedTimerList.first;
-    uint16_t idx = 0;
-    while (currentNode != NULL)
-    {
-        if(currentNode->val == timer)
-        {
-            // Timer found in the list, remove it and return
-            remove(&syncedTimerList, idx);
-            return;
-        }
-        currentNode = currentNode->next;
-        idx++;
-    }
+    // This will get removed from the list in syncedTimersCheck()
 }
 
 /**
@@ -138,33 +130,25 @@ void ICACHE_FLASH_ATTR syncedTimerDisarm(syncedTimer_t* timer)
  */
 void ICACHE_FLASH_ATTR syncedTimersCheck(void)
 {
-    /* We can't safely call the callbacks while iterating, so save the function
-     * pointers args, and number of times the function should be called in some
-     * temporary memory, then call them after iterating.
-     * The temporary memory is large enough to accomodate the entire list
-     */
-    uint32_t origNumTimers = syncedTimerList.length;
-    os_timer_func_t* funcsToCall[origNumTimers];
-    void* argsToUse[origNumTimers];
-    uint32_t callsToMake[origNumTimers];
-    uint32_t numFuncsToCall = 0;
-
-    // For each timer
+    // For each timer, call the function if it's time
     node_t* currentNode = syncedTimerList.first;
     while (currentNode != NULL)
     {
         syncedTimer_t* timer = (syncedTimer_t*) currentNode->val;
 
-        bool shouldBeCalled = false;
-        callsToMake[numFuncsToCall] = 0;
         // For as many times as the function should be called
         while(0 < timer->shouldRunCnt)
         {
-            shouldBeCalled = true;
-            // Save it to be called later
-            funcsToCall[numFuncsToCall] = timer->timerFunc;
-            argsToUse[numFuncsToCall] = timer->arg;
-            callsToMake[numFuncsToCall]++;
+            // Call the function if it's still armed
+            if(true == timer->isArmed)
+            {
+                timer->timerFunc(timer->arg);
+                // If this is not a repeating timer, mark it disarmed
+                if(false == timer->isRepeat)
+                {
+                    timer->isArmed = false;
+                }
+            }
 
             // Decrement, making sure not to underflow
             if(0 < timer->shouldRunCnt)
@@ -172,22 +156,26 @@ void ICACHE_FLASH_ATTR syncedTimersCheck(void)
                 timer->shouldRunCnt--;
             }
         }
-        // If this timer was called, move to the next index
-        if(shouldBeCalled)
-        {
-            numFuncsToCall++;
-        }
 
         // Iterate to the next timer
         currentNode = currentNode->next;
     }
 
-    // Call the functions that need to be called
-    for(uint32_t idx = 0; idx < numFuncsToCall; idx++)
+    // After the functions have been called, remove disarmed timers from the list
+    currentNode = syncedTimerList.first;
+    while (currentNode != NULL)
     {
-        while(callsToMake[idx]--)
+        // Save the next node because currentNode may be freed below
+        node_t* next = currentNode->next;
+
+        // If the timer isn't armed anymore
+        if(false == (((syncedTimer_t*) currentNode->val))->isArmed)
         {
-            funcsToCall[idx](argsToUse[idx]);
+            // Remove it from the list
+            removeEntry(&syncedTimerList, currentNode);
         }
+
+        // Iterate!
+        currentNode = next;
     }
 }
