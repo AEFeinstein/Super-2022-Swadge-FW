@@ -264,11 +264,30 @@ bool ICACHE_FLASH_ATTR initOLED(bool reset)
         setOledResetOn(true);  // Bring out of reset
     }
 
+    // Set the OLED's parameters
+    if(false == setOLEDparams(true))
+    {
+        return false;
+    }
+
+    // Also clear the display's RAM on boot
+    return updateOLED(false);
+}
+
+/**
+ * Set all the parameters on the OLED for normal operation
+ * This takes ~0.9ms to execute
+ */
+bool ICACHE_FLASH_ATTR setOLEDparams(bool turnOnOff)
+{
     // Start i2c
     cnlohr_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
 
     // Init sequence
-    setDisplayOn(false);
+    if(true == turnOnOff)
+    {
+        setDisplayOn(false);
+    }
     setMultiplexRatio(OLED_HEIGHT - 1);
     setDisplayOffset(0);
     setDisplayStartLine(0);
@@ -284,21 +303,21 @@ bool ICACHE_FLASH_ATTR initOLED(bool reset)
     setContrastControl(0x7F);
     setPrechargePeriod(1, 15);
     setVcomhDeselectLevel(Vcc_X_0_77);
-    entireDisplayOn(false);
+    if(true == turnOnOff)
+    {
+        entireDisplayOn(false);
+    }
     setInverseDisplay(false);
     setDisplayClockDivideRatio(0, 8);
     setChargePumpSetting(true);
     activateScroll(false);
-    setDisplayOn(true);
-
-    // End i2c
-    if (!(0 == cnlohr_i2c_end_transaction()))
+    if(turnOnOff)
     {
-        return false;
+        setDisplayOn(true);
     }
 
-    // Also clear the display's RAM on boot
-    return updateOLED(false);
+    // End i2c
+    return (0 == cnlohr_i2c_end_transaction());
 }
 
 /**

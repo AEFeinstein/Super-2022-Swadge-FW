@@ -277,10 +277,11 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events __attribute__((unused)
     syncedTimersCheck();
 
     // Update the display as fast as possible.
-    if(1000 == framesDrawn)
+    if(1000 <= framesDrawn)
     {
-        // Every 1000 frames, redraw the entire OLED
+        // Every 1000 frames, reset OLED params and redraw the entire OLED
         // Experimentally, this is about every 15s
+        setOLEDparams(false);
         updateOLED(false);
         framesDrawn = 0;
 

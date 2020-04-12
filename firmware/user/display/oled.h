@@ -30,6 +30,7 @@ typedef enum
 bool initOLED(bool reset);
 void drawPixel(int16_t x, int16_t y, color c);
 color getPixel(int16_t x, int16_t y);
+bool ICACHE_FLASH_ATTR setOLEDparams(bool turnOnOff);
 oledResult_t updateOLED(bool drawDifference);
 void clearDisplay(void);
 void fillDisplayArea(int16_t x1, int16_t y1, int16_t x2, int16_t y2, color c);
