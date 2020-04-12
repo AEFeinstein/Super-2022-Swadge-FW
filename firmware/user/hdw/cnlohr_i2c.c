@@ -29,25 +29,25 @@ void ICACHE_FLASH_ATTR ConfigI2C(void)
 
 void SendStart(bool highSpeed)
 {
-    I2CDELAY(highSpeed);
-    I2CDELAY(highSpeed);
+    my_i2c_delay(highSpeed);
+    my_i2c_delay(highSpeed);
     GPIO_OUTPUT_SET(REMAP(I2CSDA), 0);
-    I2CDELAY(highSpeed);
+    my_i2c_delay(highSpeed);
     GPIO_OUTPUT_SET(REMAP(I2CSCL), 0);
-    I2CDELAY(highSpeed);
+    my_i2c_delay(highSpeed);
 }
 
 void SendStop(bool highSpeed)
 {
-    I2CDELAY(highSpeed);
+    my_i2c_delay(highSpeed);
     GPIO_OUTPUT_SET(REMAP(I2CSDA), 0);  //May or may not be done.
-    I2CDELAY(highSpeed);
+    my_i2c_delay(highSpeed);
     GPIO_OUTPUT_SET(REMAP(I2CSCL), 0);  //Should already be done.
-    I2CDELAY(highSpeed);
+    my_i2c_delay(highSpeed);
     GPIO_OUTPUT_SET(REMAP(I2CSCL), 1);
-    I2CDELAY(highSpeed);
+    my_i2c_delay(highSpeed);
     GPIO_DIS_OUTPUT(REMAP(I2CSDA));
-    I2CDELAY(highSpeed);
+    my_i2c_delay(highSpeed);
 }
 
 //Return nonzero on failure.
@@ -56,11 +56,11 @@ unsigned char SendByte( unsigned char data, bool highSpeed )
     unsigned char i;
     PIN_OUT_SET = (1 << I2CSDA);
     PIN_DIR_OUTPUT = 1 << I2CSDA;
-    I2CDELAY(highSpeed);
+    my_i2c_delay(highSpeed);
     PIN_DIR_OUTPUT = 1 << I2CSCL;
     for( i = 0; i < 8; i++ )
     {
-        I2CDELAY(highSpeed);
+        my_i2c_delay(highSpeed);
         if( data & 0x80 )
         {
             PIN_OUT_SET = (1 << I2CSDA);
@@ -70,10 +70,10 @@ unsigned char SendByte( unsigned char data, bool highSpeed )
             PIN_OUT_CLEAR = (1 << I2CSDA);
         }
         data <<= 1;
-        I2CDELAY(highSpeed);
+        my_i2c_delay(highSpeed);
         PIN_OUT_SET = (1 << I2CSCL);
-        I2CDELAY(highSpeed);
-        I2CDELAY(highSpeed);
+        my_i2c_delay(highSpeed);
+        my_i2c_delay(highSpeed);
         PIN_OUT_CLEAR = (1 << I2CSCL);
     }
 
@@ -81,13 +81,13 @@ unsigned char SendByte( unsigned char data, bool highSpeed )
     //WARNING: this does mean on "read"s from the accelerometer, there is a VERY brief (should be less than 150ns) contradiction.
     //This should have no ill effects.
     PIN_DIR_INPUT = (1 << I2CSDA);
-    I2CDELAY(highSpeed);
+    my_i2c_delay(highSpeed);
     PIN_OUT_SET = (1 << I2CSCL);
-    I2CDELAY(highSpeed);
-    I2CDELAY(highSpeed);
+    my_i2c_delay(highSpeed);
+    my_i2c_delay(highSpeed);
     i = (PIN_IN & (1 << I2CSDA)) ? 1 : 0; //Read in input.  See if client is there.
     PIN_OUT_CLEAR = (1 << I2CSCL);
-    I2CDELAY(highSpeed);
+    my_i2c_delay(highSpeed);
     return (i) ? 1 : 0;
 }
 
@@ -100,17 +100,17 @@ unsigned char GetByte( uint8_t send_nak, bool highSpeed)
 
     for( i = 0; i < 8; i++ )
     {
-        I2CDELAY(highSpeed);
+        my_i2c_delay(highSpeed);
         PIN_OUT_SET = (1 << I2CSCL);
-        I2CDELAY(highSpeed);
-        I2CDELAY(highSpeed);
+        my_i2c_delay(highSpeed);
+        my_i2c_delay(highSpeed);
         ret <<= 1;
         if( PIN_IN & (1 << I2CSDA) )
         {
             ret |= 1;
         }
         PIN_OUT_CLEAR = (1 << I2CSCL);
-        I2CDELAY(highSpeed);
+        my_i2c_delay(highSpeed);
     }
 
     PIN_DIR_OUTPUT = 1 << I2CSDA;
@@ -124,13 +124,13 @@ unsigned char GetByte( uint8_t send_nak, bool highSpeed)
     {
         PIN_OUT_CLEAR = (1 << I2CSDA);
     }
-    I2CDELAY(highSpeed);
+    my_i2c_delay(highSpeed);
     PIN_OUT_SET = (1 << I2CSCL);
-    I2CDELAY(highSpeed);
-    I2CDELAY(highSpeed);
-    I2CDELAY(highSpeed);
+    my_i2c_delay(highSpeed);
+    my_i2c_delay(highSpeed);
+    my_i2c_delay(highSpeed);
     PIN_OUT_CLEAR = (1 << I2CSCL);
-    I2CDELAY(highSpeed);
+    my_i2c_delay(highSpeed);
 
     return ret;
 }
@@ -176,7 +176,7 @@ void cnlohr_i2c_write(const uint8_t* data, uint32_t no_of_bytes, bool repeated_s
     if( cnl_need_new_stop && !repeated_start )
     {
         SendStop(cnl_highSpeed);
-        I2CDELAY(cnl_highSpeed);
+        my_i2c_delay(cnl_highSpeed);
     }
     SendStart(cnl_highSpeed);
     if( SendByte( cnl_slave_address << 1, cnl_highSpeed ) )
@@ -208,7 +208,7 @@ void cnlohr_i2c_read(uint8_t* data, uint32_t nr_of_bytes, bool repeated_start)
     if( cnl_need_new_stop && !repeated_start )
     {
         SendStop(cnl_highSpeed);
-        I2CDELAY(cnl_highSpeed);
+        my_i2c_delay(cnl_highSpeed);
     }
 
     SendStart(cnl_highSpeed);
