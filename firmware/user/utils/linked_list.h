@@ -57,7 +57,10 @@ void* ICACHE_FLASH_ATTR shift(list_t* list);
 void ICACHE_FLASH_ATTR add(list_t* list, void* val, int index);
 
 // Remove at an index in the list.
-void* ICACHE_FLASH_ATTR remove(list_t* list, int index);
+void* ICACHE_FLASH_ATTR removeIdx(list_t* list, int index);
+
+// Remove a given entry from the list.
+void* ICACHE_FLASH_ATTR removeEntry(list_t* list, node_t* entry);
 
 // Remove all items from the list.
 // NOTE: This frees nodes but does not free anything pointed to by the vals of nodes.

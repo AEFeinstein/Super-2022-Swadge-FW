@@ -163,10 +163,15 @@ void ICACHE_FLASH_ATTR add(list_t* list, void* val, int index)
 }
 
 // Remove at an index in the list.
-void* ICACHE_FLASH_ATTR remove(list_t* list, int index)
+void* ICACHE_FLASH_ATTR removeIdx(list_t* list, int index)
 {
+    // If the list is null or empty, dont touch it
+    if(NULL == list || list->length == 0)
+    {
+        return NULL;
+    }
     // If the index we're trying to remove from is the start of the list.
-    if (index == 0)
+    else if (index == 0)
     {
         return shift(list);
     }
@@ -201,6 +206,64 @@ void* ICACHE_FLASH_ATTR remove(list_t* list, int index)
     {
         return pop(list);
     }
+}
+
+/**
+ * Remove a specific entry from the linked list
+ * This only removes the first instance of the entry if it is linked multiple
+ * times
+ * 
+ * @param list  The list to remove an entry from
+ * @param entry The entry to remove
+ * @return The void* val associated with the removed entry
+ */
+void* ICACHE_FLASH_ATTR removeEntry(list_t* list, node_t* entry)
+{
+    // If the list is null or empty, dont touch it
+    if(NULL == list || list->length == 0)
+    {
+        return NULL;
+    }
+    // If the entry we're trying to remove is the fist one, shift it
+    else if(list->first == entry)
+    {
+        return shift(list);
+    }
+    // If the entry we're trying to remove is the last one, pop it
+    else if(list->last == entry)
+    {
+        return pop(list);
+    }
+    // Otherwise it's somewhere in the middle, or doesn't exist
+    else
+    {
+        // Start at list->first->next because we know the entry isn't at the head
+        node_t* prev = list->first;
+        node_t* curr = prev->next;
+        // Iterate!
+        while (curr != NULL)
+        {
+            // Found the node to remove
+            if(entry == curr)
+            {
+                // Save this node's value
+                void* retVal = curr->val;
+
+                // Unlink and free the node
+                prev->next = curr->next;
+                curr->next->prev = prev;
+                free(curr);
+                list->length--;
+
+                return retVal;
+            }
+
+            // Iterate to the next node
+            curr = curr->next;
+        }
+    }
+    // Nothing to be removed
+    return NULL;
 }
 
 // Remove all items from the list.
