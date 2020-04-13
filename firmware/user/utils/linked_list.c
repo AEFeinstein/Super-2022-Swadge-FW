@@ -277,19 +277,25 @@ void* ICACHE_FLASH_ATTR removeEntry(list_t* list, node_t* entry)
         while (curr != NULL)
         {
             // Found the node to remove
-            if(entry == curr)
+            if(entry == curr->next)
             {
-                // Save this node's value
-                void* retVal = curr->val;
+                void* retval = NULL;
 
-                // Unlink and free the node
-                prev->next = curr->next;
-                curr->next->prev = prev;
-                free(curr);
+                // We need to free the removed node, and adjust the nodes before and after it.
+                // current is set to the node before it.
+
+                node_t* target = curr->next;
+                retval = target->val;
+
+                curr->next = target->next;
+                curr->next->prev = curr;
+
+                free(target);
+                target = NULL;
+
                 list->length--;
-
                 dbgList(list);
-                return retVal;
+                return retval;
             }
 
             // Iterate to the next node
