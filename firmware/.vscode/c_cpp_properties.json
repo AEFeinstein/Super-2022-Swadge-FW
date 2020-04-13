@@ -8,6 +8,7 @@
                 "${workspaceFolder}/user/display",
                 "${workspaceFolder}/user/display/fonts",
                 "${workspaceFolder}/user/modes",
+                "${workspaceFolder}/user/modes/colorchord",
                 "${workspaceFolder}/user/hdw",
                 "${workspaceFolder}/user/utils",
                 "${workspaceFolder}/user/utils/spi_mem",

@@ -95,6 +95,13 @@ typedef struct _swadgeMode
      */
     void (*fnButtonCallback)(uint8_t state, int button, int down);
     /**
+     * This function is called whenever an audio sample is read from the
+     * microphone (ADC), is filtered, and is ready for processing
+     *
+     * @param audoSample A 32 bit audio sample
+     */
+    void (*fnAudioCallback)(int32_t audoSample);
+    /**
      * This is a setting, not a function pointer. Set it to one of these
      * values to have the system configure the swadge's WiFi
      * NO_WIFI - Don't use WiFi at all. This saves power.
