@@ -142,12 +142,13 @@ void ICACHE_FLASH_ATTR syncedTimersCheck(void)
             // Call the function if it's still armed
             if(true == timer->isArmed)
             {
-                timer->timerFunc(timer->arg);
                 // If this is not a repeating timer, mark it disarmed
                 if(false == timer->isRepeat)
                 {
                     timer->isArmed = false;
                 }
+                // Then call the timer function, this may rearm the timer
+                timer->timerFunc(timer->arg);
             }
 
             // Decrement, making sure not to underflow
