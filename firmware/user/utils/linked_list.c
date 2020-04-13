@@ -11,9 +11,24 @@
 
 #include "linked_list.h"
 
+/*
+#define dbgList(l) do{ \
+        os_printf("   %s::%d, len:%d, ", __func__, __LINE__, l->length); \
+        node_t* currentNode = l->first; \
+        while (currentNode != NULL) \
+        { \
+            os_printf("%p ", currentNode); \
+            currentNode = currentNode->next; \
+        } \
+        os_printf("\n"); \
+    } while(0)
+*/
+#define dbgList(l)
+
 // Add to the end of the list.
 void ICACHE_FLASH_ATTR push(list_t* list, void* val)
 {
+    dbgList(list);
     node_t* newLast = malloc(sizeof(node_t));
     newLast->val = val;
     newLast->next = NULL;
@@ -30,11 +45,13 @@ void ICACHE_FLASH_ATTR push(list_t* list, void* val)
         list->last = newLast;
     }
     list->length++;
+    dbgList(list);
 }
 
 // Remove from the end of the list.
 void* ICACHE_FLASH_ATTR pop(list_t* list)
 {
+    dbgList(list);
     void* retval = NULL;
 
     // Get a direct pointer to the node we're removing.
@@ -63,12 +80,14 @@ void* ICACHE_FLASH_ATTR pop(list_t* list)
         list->length--;
     }
 
+    dbgList(list);
     return retval;
 }
 
 // Add to the front of the list.
 void ICACHE_FLASH_ATTR unshift(list_t* list, void* val)
 {
+    dbgList(list);
     node_t* newFirst = malloc(sizeof(node_t));
     newFirst->val = val;
     newFirst->next = list->first;
@@ -85,11 +104,13 @@ void ICACHE_FLASH_ATTR unshift(list_t* list, void* val)
         list->first = newFirst;
     }
     list->length++;
+    dbgList(list);
 }
 
 // Remove from the front of the list.
 void* ICACHE_FLASH_ATTR shift(list_t* list)
 {
+    dbgList(list);
     void* retval = NULL;
 
     // Get a direct pointer to the node we're removing.
@@ -118,6 +139,7 @@ void* ICACHE_FLASH_ATTR shift(list_t* list)
         list->length--;
     }
 
+    dbgList(list);
     return retval;
 }
 
@@ -125,6 +147,7 @@ void* ICACHE_FLASH_ATTR shift(list_t* list)
 // Add at an index in the list.
 void ICACHE_FLASH_ATTR add(list_t* list, void* val, int index)
 {
+    dbgList(list);
     // If the index we're trying to add to the start of the list.
     if (index == 0)
     {
@@ -160,19 +183,23 @@ void ICACHE_FLASH_ATTR add(list_t* list, void* val, int index)
     {
         push(list, val);
     }
+    dbgList(list);
 }
 
 // Remove at an index in the list.
 void* ICACHE_FLASH_ATTR removeIdx(list_t* list, int index)
 {
+    dbgList(list);
     // If the list is null or empty, dont touch it
     if(NULL == list || list->length == 0)
     {
+        dbgList(list);
         return NULL;
     }
     // If the index we're trying to remove from is the start of the list.
     else if (index == 0)
     {
+        dbgList(list);
         return shift(list);
     }
     // Else if the index we're trying to remove from is before the end of the list.
@@ -199,11 +226,13 @@ void* ICACHE_FLASH_ATTR removeIdx(list_t* list, int index)
         target = NULL;
 
         list->length--;
+        dbgList(list);
         return retval;
     }
     // Else just remove the node at the end of the list.
     else
     {
+        dbgList(list);
         return pop(list);
     }
 }
@@ -212,26 +241,30 @@ void* ICACHE_FLASH_ATTR removeIdx(list_t* list, int index)
  * Remove a specific entry from the linked list
  * This only removes the first instance of the entry if it is linked multiple
  * times
- * 
+ *
  * @param list  The list to remove an entry from
  * @param entry The entry to remove
  * @return The void* val associated with the removed entry
  */
 void* ICACHE_FLASH_ATTR removeEntry(list_t* list, node_t* entry)
 {
+    dbgList(list);
     // If the list is null or empty, dont touch it
     if(NULL == list || list->length == 0)
     {
+        dbgList(list);
         return NULL;
     }
     // If the entry we're trying to remove is the fist one, shift it
     else if(list->first == entry)
     {
+        dbgList(list);
         return shift(list);
     }
     // If the entry we're trying to remove is the last one, pop it
     else if(list->last == entry)
     {
+        dbgList(list);
         return pop(list);
     }
     // Otherwise it's somewhere in the middle, or doesn't exist
@@ -255,6 +288,7 @@ void* ICACHE_FLASH_ATTR removeEntry(list_t* list, node_t* entry)
                 free(curr);
                 list->length--;
 
+                dbgList(list);
                 return retVal;
             }
 
@@ -263,15 +297,18 @@ void* ICACHE_FLASH_ATTR removeEntry(list_t* list, node_t* entry)
         }
     }
     // Nothing to be removed
+    dbgList(list);
     return NULL;
 }
 
 // Remove all items from the list.
 void ICACHE_FLASH_ATTR clear(list_t* list)
 {
+    dbgList(list);
     while (list->first != NULL)
     {
         pop(list);
     }
+    dbgList(list);
 }
 

@@ -5,6 +5,9 @@
 #include "synced_timer.h"
 #include "linked_list.h"
 
+// #define debugTmr(t) os_printf("%s::%d -- %p: armed %s, repeat %s, src %d\n", __func__, __LINE__, t, t->isArmed?"true":"false", t->isRepeat?"true":"false", t->shouldRunCnt)
+#define debugTmr(t)
+
 /*------------------------------------------------------------------------------
  * Function Prototypes
  *----------------------------------------------------------------------------*/
@@ -33,6 +36,7 @@ static list_t syncedTimerList = {0};
  */
 static void ICACHE_FLASH_ATTR incShouldRun(void* arg)
 {
+    debugTmr(((syncedTimer_t*)arg));
     ((syncedTimer_t*)arg)->shouldRunCnt++;
 }
 
@@ -87,6 +91,8 @@ void ICACHE_FLASH_ATTR syncedTimerArm(syncedTimer_t* timer, uint32_t time,
     timer->isArmed = true;
     timer->isRepeat = repeat_flag;
 
+    debugTmr(timer);
+
     // Check to see if this timer is in the list already
     node_t* currentNode = syncedTimerList.first;
     while (currentNode != NULL)
@@ -119,6 +125,7 @@ void ICACHE_FLASH_ATTR syncedTimerDisarm(syncedTimer_t* timer)
     // And make sure the function isn't called again
     timer->shouldRunCnt = 0;
     // This will get removed from the list in syncedTimersCheck()
+    debugTmr(timer);
 }
 
 /**
@@ -139,6 +146,7 @@ void ICACHE_FLASH_ATTR syncedTimersCheck(void)
         // For as many times as the function should be called
         while(0 < timer->shouldRunCnt)
         {
+            debugTmr(timer);
             // Call the function if it's still armed
             if(true == timer->isArmed)
             {
@@ -149,6 +157,7 @@ void ICACHE_FLASH_ATTR syncedTimersCheck(void)
                 }
                 // Then call the timer function, this may rearm the timer
                 timer->timerFunc(timer->arg);
+                debugTmr(timer);
             }
 
             // Decrement, making sure not to underflow
