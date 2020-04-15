@@ -13,6 +13,14 @@
  */
 int16_t ICACHE_FLASH_ATTR plotSprite(int16_t x, int16_t y, const sprite_t* p_sprite, color col)
 {
+    // Only attempt to plot the sprite if some of it will be in bounds
+    if(x >= OLED_WIDTH || x <= -p_sprite->width || y >= OLED_HEIGHT || y <= -p_sprite->height)
+    {
+        // no ploting needed as it is completely off the screen
+        // return end pos of where it would have been drawn
+        return x + p_sprite->width + 1;
+    }
+
     uint8_t xIdx, yIdx;
     color foreground, background;
 
