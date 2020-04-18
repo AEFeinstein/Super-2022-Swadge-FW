@@ -8,7 +8,9 @@
  *============================================================================*/
 
 // #define ALL_OS_PRINTF
-// #define SWADGEPASS_DBG
+// #define EXTRA_ESPNOW_DEBUG
+// #define P2P_DEBUG_PRINT
+#define SWADGEPASS_DBG
 // #define INIT_PRINTF(fmt, ...) os_printf("%s::%d " fmt, __func__, __LINE__, ##__VA_ARGS__)
 // #define ENOW_PRINTF(fmt, ...) os_printf("%s::%d " fmt, __func__, __LINE__, ##__VA_ARGS__)
 // #define P2P_PRINTF(fmt, ...) os_printf("%s::%d " fmt, __func__, __LINE__, ##__VA_ARGS__)
