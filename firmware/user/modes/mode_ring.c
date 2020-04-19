@@ -7,6 +7,7 @@
 #include "buttons.h"
 #include "bresenham.h"
 #include "font.h"
+#include "printControl.h"
 
 /*==============================================================================
  * Defines
@@ -14,7 +15,7 @@
 
 #define ringPrintf(...) do { \
         os_snprintf(lastMsg, sizeof(lastMsg), __VA_ARGS__); \
-        os_printf("%s", lastMsg); \
+        RING_PRINTF("%s", lastMsg); \
         ringUpdateDisplay(); \
     } while(0)
 

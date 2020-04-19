@@ -6,6 +6,7 @@
 #include <gpio.h>
 #include "gpio_user.h"
 #include "buttons.h"
+#include "printControl.h"
 
 /*============================================================================
  * Defines
@@ -238,7 +239,7 @@ void ICACHE_FLASH_ATTR SetupGPIO(bool enableMic)
 
     mBuzzerState = false;
 
-    os_printf( "Setup GPIO Complete\n" );
+    INIT_PRINTF( "Setup GPIO Complete\n" );
 }
 
 /**

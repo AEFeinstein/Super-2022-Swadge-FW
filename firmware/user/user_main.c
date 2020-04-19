@@ -30,10 +30,12 @@
 #include "PartitionMap.h"
 #include "QMA6981.h"
 #include "synced_timer.h"
+#include "printControl.h"
 
 #include "mode_test.h"
 #include "mode_ring.h"
 #include "mode_magpet.h"
+#include "mode_swadgepass.h"
 #include "mode_colorchord.h"
 
 #include "ccconfig.h"
@@ -68,9 +70,11 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
 {
+    &passMode,
+    &testMode,
+    &passMode,
     &magpetMode,
     &colorchordMode,
-    &testMode,
     &ringMode,
 };
 
@@ -105,6 +109,9 @@ static void ICACHE_FLASH_ATTR returnToMenuTimerFunc(void* arg);
  */
 void ICACHE_FLASH_ATTR user_pre_init(void)
 {
+#ifndef ALL_OS_PRINTF
+    system_set_os_print(false);
+#endif
     LoadDefaultPartitionMap();
 }
 
@@ -124,51 +131,51 @@ void ICACHE_FLASH_ATTR user_init(void)
     uart_init(BIT_RATE_74880, BIT_RATE_74880);
 #endif
 
-    os_printf("\nSwadge 2021\n");
+    INIT_PRINTF("\nSwadge 2021\n");
 
     // Read data fom RTC memory if we're waking from deep sleep
     if(REASON_DEEP_SLEEP_AWAKE == system_get_rst_info()->reason)
     {
-        os_printf("read rtc mem\n");
+        INIT_PRINTF("read rtc mem\n");
         // Try to read from rtc memory
         if(!system_rtc_mem_read(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem)))
         {
             // if it fails, zero it out instead
             ets_memset(&rtcMem, 0, sizeof(rtcMem));
-            os_printf("rtc mem read fail\n");
+            INIT_PRINTF("rtc mem read fail\n");
         }
     }
     else
     {
         // if it fails, zero it out instead
         ets_memset(&rtcMem, 0, sizeof(rtcMem));
-        os_printf("zero rtc mem\n");
+        INIT_PRINTF("zero rtc mem\n");
     }
 
     // Set the current WiFi mode based on what the swadge mode wants
     switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
     {
+        case SWADGE_PASS:
         case ESP_NOW:
         {
             if(!(wifi_set_opmode_current( SOFTAP_MODE ) &&
                     wifi_set_opmode( SOFTAP_MODE )))
             {
-                os_printf("Set SOFTAP_MODE before boot failed\n");
+                INIT_PRINTF("Set SOFTAP_MODE before boot failed\n");
             }
             espNowInit();
-            os_printf( "Booting in ESP-NOW\n" );
+            INIT_PRINTF( "Booting in ESP-NOW\n" );
             break;
         }
         default:
-        case SOFT_AP:
         case NO_WIFI:
         {
             if(!(wifi_set_opmode_current( NULL_MODE ) &&
                     wifi_set_opmode( NULL_MODE )))
             {
-                os_printf("Set NULL_MODE before boot failed\n");
+                INIT_PRINTF("Set NULL_MODE before boot failed\n");
             }
-            os_printf( "Booting with no wifi\n" );
+            INIT_PRINTF( "Booting with no wifi\n" );
             break;
         }
     }
@@ -176,63 +183,67 @@ void ICACHE_FLASH_ATTR user_init(void)
     // Load configurable parameters from SPI memory
     LoadSettings();
 
-    // Initialize GPIOs
-    SetupGPIO(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback);
+    if(SWADGE_PASS != swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
+    {
+        // Initialize GPIOs
+        SetupGPIO(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback);
+
 #ifdef PROFILE
-    GPIO_OUTPUT_SET(GPIO_ID_PIN(0), 0);
+        GPIO_OUTPUT_SET(GPIO_ID_PIN(0), 0);
 #endif
 
-    // Initialize LEDs
+        // Initialize LEDs
 #ifndef USE_ESP_GDB
-    ws2812_init();
-    os_printf("LEDs initialized\n");
+        ws2812_init();
+        INIT_PRINTF("LEDs initialized\n");
 #endif
 
-    // Initialize i2c
-    cnlohr_i2c_setup(100);
-    os_printf("I2C initialized\n");
+        // Initialize i2c
+        cnlohr_i2c_setup(100);
+        INIT_PRINTF("I2C initialized\n");
 
-    // Initialize accel
-    initializeAccelerometer();
+        // Initialize accel
+        initializeAccelerometer();
 
 #if SWADGE_VERSION != SWADGE_2019
-    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
+        if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
 #else
-    if(true)
+        if(true)
 #endif
-    {
-        // Start a software timer to run every 100ms
-        syncedTimerDisarm(&timerHandlePollAccel);
-        syncedTimerSetFn(&timerHandlePollAccel, pollAccel, NULL);
-        syncedTimerArm(&timerHandlePollAccel, 100, 1);
-    }
+        {
+            // Start a software timer to run every 100ms
+            syncedTimerDisarm(&timerHandlePollAccel);
+            syncedTimerSetFn(&timerHandlePollAccel, pollAccel, NULL);
+            syncedTimerArm(&timerHandlePollAccel, 100, 1);
+        }
 
-    // Initialize display
-    if(true == initOLED(true))
-    {
-        os_printf("OLED initialized\n");
-    }
-    else
-    {
-        os_printf("OLED initialization failed\n");
-    }
-    framesDrawn = 0;
+        // Initialize display
+        if(true == initOLED(true))
+        {
+            INIT_PRINTF("OLED initialized\n");
+        }
+        else
+        {
+            INIT_PRINTF("OLED initialization failed\n");
+        }
+        framesDrawn = 0;
 
-    // Initialize either the buzzer or the mic
-    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
-    {
-        initMic();
-    }
-    else
-    {
-        // Initialize the buzzer
-        initBuzzer();
-        setBuzzerNote(SILENCE);
-    }
+        // Initialize either the buzzer or the mic
+        if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
+        {
+            initMic();
+        }
+        else
+        {
+            // Initialize the buzzer
+            initBuzzer();
+            setBuzzerNote(SILENCE);
+        }
 
-    // Turn LEDs off
-    led_t leds[NUM_LIN_LEDS] = {{0}};
-    setLeds(leds, sizeof(leds));
+        // Turn LEDs off
+        led_t leds[NUM_LIN_LEDS] = {{0}};
+        setLeds(leds, sizeof(leds));
+    }
 
     // Initialize the current mode
     if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEnterMode)
@@ -242,9 +253,9 @@ void ICACHE_FLASH_ATTR user_init(void)
     swadgeModeInit = true;
 
     // Debug print
-    os_printf("mode: %d: %s initialized\n", rtcMem.currentSwadgeMode,
-              (NULL != swadgeModes[rtcMem.currentSwadgeMode]->modeName) ?
-              (swadgeModes[rtcMem.currentSwadgeMode]->modeName) : ("No Name"));
+    INIT_PRINTF("mode: %d: %s initialized\n", rtcMem.currentSwadgeMode,
+                (NULL != swadgeModes[rtcMem.currentSwadgeMode]->modeName) ?
+                (swadgeModes[rtcMem.currentSwadgeMode]->modeName) : ("No Name"));
 
     // Add a process to filter queued ADC samples and output LED signals
     // This is faster than every 100ms
@@ -452,13 +463,13 @@ void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
         // Clean up ESP NOW if that's where we were at
         switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
         {
+            case SWADGE_PASS:
             case ESP_NOW:
             {
                 espNowDeinit();
                 break;
             }
             default:
-            case SOFT_AP:
             case NO_WIFI:
             {
                 break;
@@ -473,39 +484,57 @@ void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
 #else
     rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
 #endif
+
+    enterDeepSleep(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode, 1000);
+}
+
+/**
+ * @brief TODO
+ *
+ * @param wifiMode
+ * @param timeUs
+ */
+void ICACHE_FLASH_ATTR enterDeepSleep(wifiMode_t wifiMode, uint32_t timeUs)
+{
     // Write the RTC memory so it knows what mode to be in when waking up
     system_rtc_mem_write(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem));
-    os_printf("rtc mem written\n");
+
+    // Be extra sure the GPIOs are in the right state for boot
+    setGpiosForBoot();
 
     // Check if the next mode wants wifi or not
-    switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
+    switch(wifiMode)
     {
+        case SWADGE_PASS:
+        {
+            // The chip will not perform the RF calibration during waking up from
+            // Deep-sleep. Power consumption is low.
+            system_deep_sleep_set_option(2);
+            // Sleeeeep. It calls user_init() on wake, which will use the new mode
+            system_deep_sleep_instant(timeUs);
+            break;
+        }
         case ESP_NOW:
         {
             // Radio calibration is done after deep-sleep wake up; this increases
             // the current consumption.
             system_deep_sleep_set_option(1);
-            os_printf("deep sleep option set 1\n");
+            // Sleeeeep. It calls user_init() on wake, which will use the new mode
+            system_deep_sleep(timeUs);
             break;
         }
         default:
-        case SOFT_AP:
         case NO_WIFI:
         {
             // Disable RF after deep-sleep wake up, just like modem sleep; this
             // has the least current consumption; the device is not able to
             // transmit or receive data after wake up.
             system_deep_sleep_set_option(4);
-            os_printf("deep sleep option set 4\n");
+            // Sleeeeep. It calls user_init() on wake, which will use the new mode
+            system_deep_sleep(timeUs);
             break;
         }
     }
-
-    // Be extra sure the GPIOs are in the right state for boot
-    setGpiosForBoot();
-
-    // Sleeeeep. It calls user_init() on wake, which will use the new mode
-    system_deep_sleep(1000);
 }
 
 /**
@@ -550,16 +579,16 @@ void ICACHE_FLASH_ATTR initializeAccelerometer(void)
         if(true == QMA6981_setup())
         {
             QMA6981_init = true;
-            os_printf("QMA6981 initialized\n");
+            INIT_PRINTF("QMA6981 initialized\n");
         }
         else
         {
-            os_printf("QMA6981 initialization failed\n");
+            INIT_PRINTF("QMA6981 initialization failed\n");
         }
     }
     else
     {
-        os_printf("QMA6981 not needed\n");
+        INIT_PRINTF("QMA6981 not needed\n");
     }
 }
 
@@ -630,10 +659,10 @@ void ICACHE_FLASH_ATTR swadgeModeEspNowRecvCb(uint8_t* mac_addr, uint8_t* data, 
  */
 void ICACHE_FLASH_ATTR swadgeModeEspNowSendCb(uint8_t* mac_addr, mt_tx_status status)
 {
-    os_printf("%s::%d\n", __func__, __LINE__);
+    ENOW_PRINTF("%s::%d\n", __func__, __LINE__);
     if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowSendCb)
     {
-        os_printf("%s::%d\n", __func__, __LINE__);
+        ENOW_PRINTF("%s::%d\n", __func__, __LINE__);
         swadgeModes[rtcMem.currentSwadgeMode]->fnEspNowSendCb(mac_addr, (mt_tx_status)status);
     }
 }
@@ -654,7 +683,6 @@ void ICACHE_FLASH_ATTR swadgeModeEspNowSendCb(uint8_t* mac_addr, mt_tx_status st
 void ICACHE_FLASH_ATTR setLeds(led_t* ledData, uint16_t ledDataLen)
 {
     ws2812_push( (uint8_t*) ledData, ledDataLen );
-    //os_printf("%s, %d LEDs\n", __func__, ledDataLen / 3);
 }
 
 /**

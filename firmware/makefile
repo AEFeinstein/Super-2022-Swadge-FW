@@ -20,7 +20,40 @@ CP           = cp
 # Options for burning
 ################################################################################
 
-FLASH_WRITE_FLAGS = # --verify
+FLASH_WRITE_FLAGS = --flash_size 16m # --verify 
+
+# These values all come from the Getting Started Guide, tables 4-1 & 4-2, for 2M flash
+# https://www.espressif.com/sites/default/files/documentation/2a-esp8266-sdk_getting_started_guide_en.pdf
+MAX_SPI_FLASH_SIZE = 0xC0000
+
+FW_FILE1_ADDR = 0x00000
+FW_FILE1_SIZE = 0x10000
+
+FW_FILE2_ADDR = 0x10000 # FW_FILE1_ADDR + FW_FILE1_SIZE
+# FW_FILE2_SIZE _MUST_ be in sync with irom0_0_seg len in eagle.app.v6.ld
+# There's 0xC0000 total space for code, persistent storage, and assets
+# This partition is just for code
+FW_FILE2_SIZE = 0x5C000
+
+# This partition is for persistent storage
+USER_SETTINGS_ADDR = 0x6C000 # $(FW_FILE2_ADDR) + $(FW_FILE2_SIZE)
+USER_SETTINGS_SIZE =  0x3000
+
+# This partition is for assets
+ASSETS_ADDR = 0x6F000 # $(USER_SETTINGS_ADDR) + $(USER_SETTINGS_SIZE)
+ASSETS_SIZE = 0x51000 # $(MAX_SPI_FLASH_SIZE) - $(ASSETS_ADDR)
+
+# Three ESP-specific partitions we must flash and register
+RF_CAL_ADDR    = 0x1FB000
+RF_CAL_SIZE    =   0x1000
+PHY_DATA_ADDR  = 0x1FC000
+PHY_DATA_SIZE  =   0x1000
+SYS_PARAM_ADDR = 0x1FD000
+SYS_PARAM_SIZE =   0x3000
+
+# blank.bin is only 0x1000 long, so make sure to clear out all of SYS_PARAM
+SYS_PARAM_ADDR2 = 0x1FE000
+SYS_PARAM_ADDR3 = 0x1FF000
 
 ################################################################################
 # Compilation options
@@ -119,13 +152,33 @@ else
   swadgeversion = 0
 endif
 
+# Used by the ESP SDK
 DEFINES_LIST = \
-	SOFTAP_CHANNEL=11 \
-	WS2812_FOUR_SAMPLE=1 \
-	DISABLE_CHARRX=1 \
 	USE_OPTIMIZE_PRINTF=1 \
 	ICACHE_FLASH=1 \
+
+# Used by this project
+DEFINES_LIST += \
+	SOFTAP_CHANNEL=11 \
+	WS2812_FOUR_SAMPLE=1 \
 	SWADGE_VERSION=$(swadgeversion)
+
+# Export the flash addresses and sizes to the source code
+DEFINES_LIST += \
+	FW_FILE1_ADDR=$(FW_FILE1_ADDR) \
+	FW_FILE1_SIZE=$(FW_FILE1_SIZE) \
+	FW_FILE2_ADDR=$(FW_FILE2_ADDR) \
+	FW_FILE2_SIZE=$(FW_FILE2_SIZE) \
+	USER_SETTINGS_ADDR=$(USER_SETTINGS_ADDR) \
+	USER_SETTINGS_SIZE=$(USER_SETTINGS_SIZE) \
+	ASSETS_ADDR=$(ASSETS_ADDR) \
+	ASSETS_SIZE=$(ASSETS_SIZE) \
+	RF_CAL_ADDR=$(RF_CAL_ADDR) \
+	RF_CAL_SIZE=$(RF_CAL_SIZE) \
+	PHY_DATA_ADDR=$(PHY_DATA_ADDR) \
+	PHY_DATA_SIZE=$(PHY_DATA_SIZE) \
+	SYS_PARAM_ADDR=$(SYS_PARAM_ADDR) \
+	SYS_PARAM_SIZE=$(SYS_PARAM_SIZE)
 
 ifneq ($(ESP_GDB),)
   DEFINES_LIST += USE_ESP_GDB
@@ -331,19 +384,21 @@ clean:
 # Build and burn the two firmware files
 burn : all
 	$(ESPTOOL_PY) --baud $(ESP_FLASH_BITRATE) --port $(ESP_PORT) write_flash -fm dio $(FLASH_WRITE_FLAGS) \
-		0x00000 $(FW_FILE1) \
-		0x10000 $(FW_FILE2) \
-		0x6C000 $(ASSETS_FILE)
+		$(FW_FILE1_ADDR) $(FW_FILE1) \
+		$(FW_FILE2_ADDR) $(FW_FILE2) \
+		$(ASSETS_ADDR)   $(ASSETS_FILE)
 
 # Build everything and burn the two firmware files, and init data
 burnitall : all
 	$(ESPTOOL_PY) --baud $(ESP_FLASH_BITRATE) --port $(ESP_PORT) write_flash -fm dio $(FLASH_WRITE_FLAGS) \
-		0x00000 $(FW_FILE1) \
-		0x10000 $(FW_FILE2) \
-		0x6C000 $(ASSETS_FILE) \
-		0x1FB000 $(SDK)/bin/blank.bin \
-		0x1FC000 $(SDK)/bin/esp_init_data_default_v08.bin \
-		0x1FE000 $(SDK)/bin/blank.bin
+		$(FW_FILE1_ADDR)   $(FW_FILE1) \
+		$(FW_FILE2_ADDR)   $(FW_FILE2) \
+		$(ASSETS_ADDR)     $(ASSETS_FILE) \
+		$(RF_CAL_ADDR)     $(SDK)/bin/blank.bin \
+		$(PHY_DATA_ADDR)   $(SDK)/bin/esp_init_data_default_v08.bin \
+		$(SYS_PARAM_ADDR)  $(SDK)/bin/blank.bin \
+		$(SYS_PARAM_ADDR2) $(SDK)/bin/blank.bin \
+		$(SYS_PARAM_ADDR3) $(SDK)/bin/blank.bin
 
 # Erase the ESP8266
 erase :
