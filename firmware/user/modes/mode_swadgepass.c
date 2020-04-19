@@ -10,13 +10,12 @@
  *==========================================================================*/
 
 #include <osapi.h>
-#include <stdlib.h>
+#include <user_interface.h>
 
 #include "user_main.h"
 #include "synced_timer.h"
 #include "mode_swadgepass.h"
 #include "printControl.h"
-#include "p2pConnection.h"
 
 #ifdef SWADGEPASS_DBG
     #include "driver/uart.h"
@@ -25,6 +24,40 @@
 /*============================================================================
  * Defines
  *==========================================================================*/
+
+/* There are three configurable times for SwadgePass, the time the Swadge stays
+ * awake after transmission, the minimum time the Swadge is asleep after
+ * transmission, and random interval the Swadge will continue to sleep after
+ * transmission.
+ *
+ * The numbers picked below were based on Monte Carlo simulations to find the
+ * maximum sleep time while achieving one packet per minute
+ */
+
+// ~1.42 packets per minute, expected 1.72ppm, 9.178% on
+// #define TIME_ON_MS         228
+// #define MIN_TIME_SLEEP_US 2509000
+// #define RND_TIME_SLEEP_US 2227000
+
+// ~1.05ppm, expected 1.23ppm, 7.714% on
+#define TIME_ON_MS         217
+#define MIN_TIME_SLEEP_US 2361000
+#define RND_TIME_SLEEP_US 3797000
+
+// The number of stored MAC addresses
+#define MAC_ENTRIES 10
+// The length of a MAC address
+#define MAC_LEN      6
+
+/*============================================================================
+ * Structs
+ *==========================================================================*/
+
+typedef struct
+{
+    uint8_t macAddr[MAC_LEN]; ///< A MAC Address
+    uint32_t tAdded;          ///< The time this MAC address was added
+} rememberedMac_t;
 
 /*============================================================================
  * Prototypes
@@ -36,17 +69,8 @@ void ICACHE_FLASH_ATTR passEspNowSendCb(uint8_t* mac_addr, mt_tx_status status);
 void ICACHE_FLASH_ATTR passEspNowRecvCb(uint8_t* mac_addr, uint8_t* data,
                                         uint8_t len, uint8_t rssi);
 void ICACHE_FLASH_ATTR passDeepSleep(void* arg);
-
-void ICACHE_FLASH_ATTR passMsgRxCbFn(p2pInfo* p2p, char* msg,
-                                     uint8_t* payload __attribute__((unused)),
-                                     uint8_t len);
-void ICACHE_FLASH_ATTR passConCbFn(p2pInfo* p2p, connectionEvt_t evt);
-void ICACHE_FLASH_ATTR passMsgTxCbFn(p2pInfo* p2p, messageStatus_t status);
-void ICACHE_FLASH_ATTR checkSleepAfterTransmission(void);
-
-/*============================================================================
- * Const data
- *==========================================================================*/
+void ICACHE_FLASH_ATTR passSendMsg(void* arg);
+bool ICACHE_FLASH_ATTR passCheckMacAddr(uint8_t* mac_addr);
 
 /*============================================================================
  * Variables
@@ -66,230 +90,185 @@ swadgeMode passMode =
 
 struct
 {
-    p2pInfo p2p;
     syncedTimer_t sleepTimer;
+    syncedTimer_t sendTimer;
     bool ourDataSent;
     bool theirDataReceived;
+    rememberedMac_t macTbl[MAC_ENTRIES];
 } pass;
-
-const char dataMsg[] = "dat";
 
 /*============================================================================
  * Functions
  *==========================================================================*/
 
 /**
- * Initializer for pass
+ * Initialize Swadgepass mode
  */
 void ICACHE_FLASH_ATTR passEnterMode(void)
 {
 #ifdef SWADGEPASS_DBG
-    uart_tx_one_char_no_wait(UART0, 's');
+    uart_tx_one_char_no_wait(UART0, '#');
 #endif
     // Clear everything
     ets_memset(&pass, 0, sizeof(pass));
 
+    // Set a timer to go back to deep sleep in TIME_ON_MS
     syncedTimerDisarm(&pass.sleepTimer);
     syncedTimerSetFn(&pass.sleepTimer, passDeepSleep, NULL);
-    syncedTimerArm(&pass.sleepTimer, 228, false);
+    syncedTimerArm(&pass.sleepTimer, TIME_ON_MS, false);
 
-    p2pInitialize(&pass.p2p, "swp", passConCbFn, passMsgRxCbFn, 0);
-    p2pStartConnection(&pass.p2p);
+    // Start a timer to send a broadcast. If we try to broadcast during init,
+    // it crashes
+    syncedTimerDisarm(&pass.sendTimer);
+    syncedTimerSetFn(&pass.sendTimer, passSendMsg, NULL);
+    syncedTimerArm(&pass.sendTimer, 1, false);
 }
 
 /**
- * Called when pass is exited
+ * Clean up swadge pass mode by disarming timers
  */
 void ICACHE_FLASH_ATTR passExitMode(void)
 {
     syncedTimerDisarm(&pass.sleepTimer);
-    p2pDeinit(&pass.p2p);
+    syncedTimerDisarm(&pass.sendTimer);
 }
 
 /**
- * Callback function when ESP-NOW receives a packet. Forward everything to all
- * p2p connections and let them handle it
+ * Callback function when ESP-NOW receives a packet. If it's from a unique MAC
+ * address, process it and broadcast our information again. If it's from a
+ * MAC address we've heard from before, just go to deep sleep
+ *
+ * TODO actually process data from other swadge
  *
  * @param mac_addr The MAC of the swadge that sent the data
  * @param data     The data
  * @param len      The length of the data
  * @param rssi     The RSSI of th received message, a proxy for distance
  */
-void ICACHE_FLASH_ATTR passEspNowRecvCb(uint8_t* mac_addr, uint8_t* data,
-                                        uint8_t len, uint8_t rssi)
+void ICACHE_FLASH_ATTR passEspNowRecvCb(uint8_t* mac_addr,
+                                        uint8_t* data  __attribute__((unused)),
+                                        uint8_t len  __attribute__((unused)),
+                                        uint8_t rssi __attribute__((unused)))
 {
-    p2pRecvCb(&pass.p2p, mac_addr, data, len, rssi);
+#ifdef SWADGEPASS_DBG
+    uart_tx_one_char_no_wait(UART0, '<');
+#endif
+
+    // Received a message. Check if we've responded to this MAC yet and if
+    // we haven't, send a response
+    if(passCheckMacAddr(mac_addr))
+    {
+#ifdef SWADGEPASS_DBG
+        uart_tx_one_char_no_wait(UART0, '^');
+#endif
+        passSendMsg(NULL);
+    }
+    else
+    {
+        // Received a response twice, time to sleep!
+        passDeepSleep(NULL);
+    }
 }
 
 /**
- * Callback function when ESP-NOW sends a packet. Forward everything to all p2p
- * connections and let them handle it
+ * Check if the MAC address is new or known. Any MAC address checked is inserted
+ * into the table of MAC addresses. If the table is full, it will overwrite the
+ * oldest entry
+ * 
+ * TODO save in NVM? That requires RTC time tracking
+ *
+ * @param mac_addr the MAC address to check
+ * @return true  if this was a new MAC address
+ *         false if this was a duplicate mac address
+ */
+bool ICACHE_FLASH_ATTR passCheckMacAddr(uint8_t* mac_addr)
+{
+    // Keep track of the oldest entry, just in case
+    uint32_t tAddedMin = 0xFFFFFFFF;
+    uint8_t oldestIdx = 0;
+
+    // Look through the table of MAC addresses
+    for(uint8_t idx = 0; idx < MAC_ENTRIES; idx++)
+    {
+        // If there is a match
+        if(0 == ets_memcmp(mac_addr, pass.macTbl[idx].macAddr, 6))
+        {
+            return false;
+        }
+        else if (pass.macTbl[idx].tAdded < tAddedMin)
+        {
+            // Note the new oldest index
+            tAddedMin = pass.macTbl[idx].tAdded;
+            oldestIdx = idx;
+        }
+    }
+
+    // It wasn't in the table, so add it
+    memcpy(pass.macTbl[oldestIdx].macAddr, mac_addr, 6);
+    pass.macTbl[oldestIdx].tAdded = system_get_time();
+    return true;
+}
+
+/**
+ * Callback function when ESP-NOW sends a packet. If the transmission failed,
+ * just go to deep sleep.
  *
  * @param mac_addr unused
  * @param status   Whether the transmission succeeded or failed
  */
-void ICACHE_FLASH_ATTR passEspNowSendCb(uint8_t* mac_addr, mt_tx_status status)
+void ICACHE_FLASH_ATTR passEspNowSendCb(
+    uint8_t* mac_addr __attribute__((unused)),
+    mt_tx_status status)
 {
-    p2pSendCb(&pass.p2p, mac_addr, status);
+    switch(status)
+    {
+        case MT_TX_STATUS_OK:
+        {
+            break;
+        }
+        default:
+        case MT_TX_STATUS_FAILED:
+        {
+            passDeepSleep(NULL);
+            break;
+        }
+    }
 }
 
 /**
- * @brief Goes to sleep
+ * Helper function to send this swadge's information in a broadcast packet.
+ * This may be called from a timer, and will arm a timer to be called again in
+ * 50ms.
  *
- * @param arg
+ * TODO fill the message with our data
+ *
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR passSendMsg(void* arg __attribute__((unused)))
+{
+#ifdef SWADGEPASS_DBG
+    uart_tx_one_char_no_wait(UART0, '>');
+#endif
+
+    const char testMsg[] = "My Name is Earl";
+    espNowSend((const uint8_t*)testMsg, sizeof(testMsg));
+
+    // After sending the first msg, rearm to ping every 50ms
+    syncedTimerDisarm(&pass.sendTimer);
+    syncedTimerArm(&pass.sendTimer, 50, false);
+}
+
+/**
+ * @brief Goes to sleep for a randomized interval
+ *
+ * @param arg unused
  */
 void ICACHE_FLASH_ATTR passDeepSleep(void* arg __attribute__((unused)))
 {
 #ifdef SWADGEPASS_DBG
-    uart_tx_one_char_no_wait(UART0, 'z');
+    uart_tx_one_char_no_wait(UART0, 'Z');
 #endif
-    enterDeepSleep(SWADGE_PASS, 2509000 + (os_random() % 2227000));
-}
 
-/**
- * Callback function when p2p connection events occur. Whenever a connection
- * starts, halt all the other p2ps from connecting.
- *
- * @param p2p The p2p struct which emitted a connection event
- * @param evt The connection event
- */
-void ICACHE_FLASH_ATTR passConCbFn(p2pInfo* p2p __attribute__((unused)),
-                                   connectionEvt_t evt)
-{
-    switch(evt)
-    {
-        case CON_STARTED:
-        {
-            // Do nothing
-            break;
-        }
-        case RX_BROADCAST:
-        case RX_GAME_START_ACK:
-        case RX_GAME_START_MSG:
-        {
-            // Connection started, disarm the sleep timer
-            syncedTimerDisarm(&pass.sleepTimer);
-            break;
-        }
-        case CON_ESTABLISHED:
-        {
-            // Connection established, transfer some data
-            switch(p2pGetPlayOrder(&(pass.p2p)))
-            {
-                // TODO set some sleep timer?
-                case GOING_FIRST:
-                {
-                    char testMsg[] = "My Name is Earl";
-                    p2pSendMsg(&(pass.p2p), (char*)dataMsg, testMsg, sizeof(testMsg), passMsgTxCbFn);
-#ifdef SWADGEPASS_DBG
-                    uart_tx_one_char_no_wait(UART0, 't');
-#endif
-                    os_printf("SENT %d bytes: \"%s\"\n", sizeof(testMsg), testMsg);
-                    break;
-                }
-                case GOING_SECOND:
-                {
-                    // Wait to receive the other data first
-                    break;
-                }
-                case NOT_SET:
-                default:
-                {
-                    // This isn't right, just go to sleep
-                    passDeepSleep(NULL);
-                    break;
-                }
-            }
-            break;
-        }
-        case CON_STOPPED:
-        case CON_LOST:
-        default:
-        {
-            // Connection stopped, go to sleep
-            passDeepSleep(NULL);
-            break;
-        }
-    }
-    return;
-}
-
-/**
- * Callback function when p2p receives a message. Draw a little animation if
- * the message is correct
- *
- * @param p2p     The p2p struct which received a message
- * @param msg     The label for the received message
- * @param payload The payload for the received message
- * @param len     The length of the payload
- */
-void ICACHE_FLASH_ATTR passMsgRxCbFn(p2pInfo* p2p __attribute__((unused)),
-                                     char* msg, uint8_t* payload, uint8_t len)
-{
-    // TODO receive data
-    if(0 == memcmp(msg, dataMsg, strlen(dataMsg)))
-    {
-        pass.theirDataReceived = true;
-
-#ifdef SWADGEPASS_DBG
-        uart_tx_one_char_no_wait(UART0, 'r');
-#endif
-        os_printf("RECEIVED %d bytes: \"%s\"\n", len, payload);
-
-        // If we're going second, respond to this data
-        if(GOING_SECOND == p2pGetPlayOrder(&pass.p2p))
-        {
-            char testMsg[] = "My Name is Jim";
-            p2pSendMsg(&(pass.p2p), (char*)dataMsg, testMsg, sizeof(testMsg), passMsgTxCbFn);
-#ifdef SWADGEPASS_DBG
-            uart_tx_one_char_no_wait(UART0, 't');
-#endif
-            os_printf("SENT %d bytes: \"%s\"\n", sizeof(testMsg), testMsg);
-        }
-
-        checkSleepAfterTransmission();
-    }
-}
-
-/**
- * @brief TODO
- *
- * @param p2p
- * @param status
- */
-void ICACHE_FLASH_ATTR passMsgTxCbFn(p2pInfo* p2p __attribute__((unused)),
-                                     messageStatus_t status)
-{
-    switch(status)
-    {
-        case MSG_ACKED:
-        {
-            pass.ourDataSent = true;
-            checkSleepAfterTransmission();
-            break;
-        }
-        default:
-        case MSG_FAILED:
-        {
-            // Message failed, just go to sleep
-            passDeepSleep(NULL);
-        }
-    }
-}
-
-/**
- * @brief TODO
- *
- */
-void ICACHE_FLASH_ATTR checkSleepAfterTransmission(void)
-{
-    if(true == pass.ourDataSent && true == pass.theirDataReceived)
-    {
-#ifdef SWADGEPASS_DBG
-        uart_tx_one_char_no_wait(UART0, 'd');
-#endif
-        os_printf("ALL DONE!\n");
-        // sleep in one second, giving other swadge time to finish
-        syncedTimerArm(&pass.sleepTimer, 10, false);
-    }
+    enterDeepSleep(SWADGE_PASS, MIN_TIME_SLEEP_US +
+                   (os_random() % RND_TIME_SLEEP_US));
 }
