@@ -17,9 +17,6 @@
 #include "espNowUtils.h"
 #include "user_main.h"
 #include "printControl.h"
-#ifdef SWADGEPASS_DBG
-    #include "driver/uart.h"
-#endif
 
 /*============================================================================
  * Variables
@@ -170,10 +167,6 @@ void ICACHE_FLASH_ATTR espNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t le
               dbg);
 #endif
 
-#ifdef SWADGEPASS_DBG
-    uart_tx_one_char_no_wait(UART0, 'N');
-#endif
-
     swadgeModeEspNowRecvCb(mac_addr, data, len, rssi);
 }
 
@@ -186,10 +179,6 @@ void ICACHE_FLASH_ATTR espNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t le
  */
 void ICACHE_FLASH_ATTR espNowSend(const uint8_t* data, uint8_t len)
 {
-#ifdef SWADGEPASS_DBG
-    uart_tx_one_char_no_wait(UART0, 'X');
-#endif
-
     // Call this before each transmission to set the wifi speed
     wifi_set_user_fixed_rate(FIXED_RATE_MASK_ALL, PHY_RATE_54);
 
