@@ -20,6 +20,13 @@
 //made here should be backported there as well.
 
 //You can # define these to be other things elsewhere.
+
+// Will used simple approximation of norm rather than
+//   sum squares and approx sqrt
+#ifndef APPROXNORM
+    #define APPROXNORM 1
+#endif
+
 #ifndef OCTAVES
     #define OCTAVES  5
 #endif
@@ -45,13 +52,13 @@
 //It would theoretically be fast enough to work on an AVR.
 //NOTE: This is the only DFT available to the embedded port of ColorChord
 #ifndef CCEMBEDDED
-    //void DoDFTProgressive32( float * outbins, float * frequencies, int bins,
-    //    const float * databuffer, int place_in_data_buffer, int size_of_data_buffer,
-    //    float q, float speedup );
+void DoDFTProgressive32( float* outbins, float* frequencies, int bins,
+                         const float* databuffer, int place_in_data_buffer, int size_of_data_buffer,
+                         float q, float speedup );
 #endif
 
 //It's actually split into a few functions, which you can call on your own:
-int SetupDFTProgressive32(void);  //Call at start. Returns nonzero if error.
+int SetupDFTProgressive32();  //Call at start. Returns nonzero if error.
 void UpdateBins32( const uint16_t* frequencies );
 
 //Call this to push on new frames of sound.
@@ -61,12 +68,12 @@ void PushSample32( int16_t dat );
 
 #ifndef CCEMBEDDED
     //ColorChord regular uses this to pass in floats.
-    //void UpdateBinsForDFT32( const float * frequencies ); //Update the frequencies
+    void UpdateBinsForDFT32( const float* frequencies );  //Update the frequencies
 #endif
 
 //This takes the current sin/cos state of ColorChord and output to
 //embeddedbins32.
-void UpdateOutputBins32(void);
+void UpdateOutputBins32();
 
 //Whenever you need to read the bins, you can do it from here.
 //These outputs are limited to 0..~2047, this makes it possible
@@ -76,4 +83,3 @@ extern uint16_t embeddedbins32[];  //[FIXBINS]
 
 
 #endif
-
