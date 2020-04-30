@@ -164,7 +164,7 @@ static uint16_t SquareRootRounded(uint32_t a_nInput)
 }
 #endif
 
-void UpdateOutputBins32()
+void UpdateOutputBins32(void)
 {
     int i;
     int32_t* ipt = &Sdatspace32BOut[0];
@@ -267,7 +267,7 @@ static void HandleInt( int16_t sample )
     }
 }
 
-int SetupDFTProgressive32()
+int SetupDFTProgressive32(void)
 {
     int i;
     int j;

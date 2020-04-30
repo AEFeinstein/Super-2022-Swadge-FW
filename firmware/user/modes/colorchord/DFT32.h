@@ -58,7 +58,7 @@ void DoDFTProgressive32( float* outbins, float* frequencies, int bins,
 #endif
 
 //It's actually split into a few functions, which you can call on your own:
-int SetupDFTProgressive32();  //Call at start. Returns nonzero if error.
+int SetupDFTProgressive32(void);  //Call at start. Returns nonzero if error.
 void UpdateBins32( const uint16_t* frequencies );
 
 //Call this to push on new frames of sound.
@@ -73,7 +73,7 @@ void PushSample32( int16_t dat );
 
 //This takes the current sin/cos state of ColorChord and output to
 //embeddedbins32.
-void UpdateOutputBins32();
+void UpdateOutputBins32(void);
 
 //Whenever you need to read the bins, you can do it from here.
 //These outputs are limited to 0..~2047, this makes it possible
