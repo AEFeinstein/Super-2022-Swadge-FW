@@ -70,11 +70,10 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
 {
+    &colorchordMode,
     &passMode,
     &testMode,
-    &passMode,
     &magpetMode,
-    &colorchordMode,
     &ringMode,
 };
 
