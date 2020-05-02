@@ -225,6 +225,10 @@ void espNowInit(void)
 	fprintf( stderr, "EMU Warning: TODO: need to implement espNow as a broadcast UDP system\n" );	
 }
 
+void espNowDeinit()
+{
+}
+
 void ws2812_init()
 {
 }
@@ -244,5 +248,20 @@ void initBuzzer(void)
 void setBuzzerNote(uint16_t note)
 {
 	fprintf( stderr, "EMU Warning: TODO: need to implement setBuzzerNote(...)\n" );	
+}
+
+
+void SetupGPIO(bool enableMic)
+{
+}
+
+bool system_os_task(os_task_t task, uint8 prio, os_event_t *queue, uint8 qlen)
+{
+	fprintf( stderr, "EMU Warning: TODO: need to implement system_os_task(...)\n" );	
+}
+
+bool system_os_post(uint8 prio, os_signal_t sig, os_param_t par)
+{
+	fprintf( stderr, "EMU Warning: TODO: need to implement system_os_post(...)\n" );	
 }
 

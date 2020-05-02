@@ -6,7 +6,7 @@ CFLAGS := -DEMU -DSWADGE_VERSION=3 -O0 -I.  -g -Isysincstubs -I../user -I../user
 
 LDFLAGS := -lX11 -lm
 
-SWADGEC:=../user/user_main.c ../user/utils/hsv_utils.c ../user/utils/spi_mem/nvm_interface.c ../user/utils/synced_timer.c ../user/modes/colorchord/DFT32.c ../user/modes/colorchord/embeddednf.c ../user/modes/colorchord/embeddedout.c ../user/modes/colorchord/mode_colorchord.c
+SWADGEC:=../user/user_main.c ../user/utils/hsv_utils.c ../user/utils/spi_mem/nvm_interface.c ../user/utils/synced_timer.c ../user/modes/colorchord/DFT32.c ../user/modes/colorchord/embeddednf.c ../user/modes/colorchord/embeddedout.c ../user/modes/colorchord/mode_colorchord.c ../user/hdw/buttons.c
 
 
 swadgemu : rawdraw/CNFG.c swadgemu.c oled.c $(SWADGEC)
