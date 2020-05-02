@@ -96,7 +96,7 @@ void ICACHE_FLASH_ATTR colorchordEnterMode(void)
 {
     InitColorChord();
 
-    memset(&cc, 0, sizeof(cc));
+    ets_memset(&cc, 0, sizeof(cc));
 
     cc.samplesProcessed = 0;
 

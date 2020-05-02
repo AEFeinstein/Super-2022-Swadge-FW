@@ -153,7 +153,7 @@ void ICACHE_FLASH_ATTR espNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t le
     for (i = 0; i < len; i++)
     {
         ets_sprintf(tmp, "%02X ", data[i]);
-        strcat(dbg, tmp);
+        ets_strcat(dbg, tmp);
     }
     ENOW_PRINTF("%s, MAC [%02X:%02X:%02X:%02X:%02X:%02X], RSSI [%d], Bytes [%s]\r\n",
               __func__,

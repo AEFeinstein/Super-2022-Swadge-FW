@@ -380,7 +380,7 @@ inline void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* c
     uint8_t numBytesDifferent = bounds[1] - bounds[0] + 1;
     uint8_t diffs[1 + numBytesDifferent];
     diffs[0] = SSD1306_DATA;
-    memcpy(&diffs[1], &curr[bounds[0]], numBytesDifferent);
+    ets_memcpy(&diffs[1], &curr[bounds[0]], numBytesDifferent);
 
     // Write the data
     cnlohr_i2c_write(diffs, sizeof(diffs), false);
@@ -477,7 +477,7 @@ oledResult_t ICACHE_FLASH_ATTR updateOLED(bool drawDifference)
         }
 
         // Copy the framebuffer to the prior
-        memcpy(priorFb, currentFb, sizeof(currentFb));
+        ets_memcpy(priorFb, currentFb, sizeof(currentFb));
 
         // Restore the bottom bar
         restoreMenuBar(bottomBar);
@@ -512,12 +512,12 @@ oledResult_t ICACHE_FLASH_ATTR updateOLED(bool drawDifference)
             setLowerColAddrPagingMode(0);
             setUpperColAddrPagingMode(0);
             // Write the page
-            memcpy(&wholePage[1], &currentFb[page * SSD1306_NUM_COLS], sizeof(wholePage) - 1);
+            ets_memcpy(&wholePage[1], &currentFb[page * SSD1306_NUM_COLS], sizeof(wholePage) - 1);
             cnlohr_i2c_write(wholePage, sizeof(wholePage), false);
         }
 
         // Copy the framebuffer to the prior
-        memcpy(priorFb, currentFb, sizeof(currentFb));
+        ets_memcpy(priorFb, currentFb, sizeof(currentFb));
 
         // Restore the bottom bar
         restoreMenuBar(bottomBar);

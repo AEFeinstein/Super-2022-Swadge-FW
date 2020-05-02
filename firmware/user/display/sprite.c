@@ -42,7 +42,7 @@ int16_t ICACHE_FLASH_ATTR plotSprite(int16_t x, int16_t y, const sprite_t* p_spr
     // refactor this code if it works!!!
     // sprite_t sprite_ram = p_sprite[0]; // Used to copy 32 bits of flash contents to RAM where 8 bit accesses are allowed
     sprite_t sprite_ram;
-    memcpy ( &sprite_ram, p_sprite, sizeof(sprite_t) );
+    ets_memcpy ( &sprite_ram, p_sprite, sizeof(sprite_t) );
     for (xIdx = 0; xIdx < sprite_ram.width; xIdx++)
     {
         for (yIdx = 0; yIdx < sprite_ram.height; yIdx++)

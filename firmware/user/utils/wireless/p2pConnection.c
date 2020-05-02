@@ -379,7 +379,7 @@ void ICACHE_FLASH_ATTR p2pSendMsg(p2pInfo* p2p, char* msg, char* payload,
     }
 
     p2p->msgTxCbFn = msgTxCbFn;
-    p2pSendMsgEx(p2p, builtMsg, strlen(builtMsg), true, p2pModeMsgSuccess, p2pModeMsgFailure);
+    p2pSendMsgEx(p2p, builtMsg, ets_strlen(builtMsg), true, p2pModeMsgSuccess, p2pModeMsgFailure);
 }
 
 /**
@@ -652,7 +652,7 @@ void ICACHE_FLASH_ATTR p2pRecvCb(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data,
         {
             P2P_PRINTF("letting mode handle message\n");
             char msgType[4] = {0};
-            memcpy(msgType, &data[CMD_IDX], 3 * sizeof(char));
+            ets_memcpy(msgType, &data[CMD_IDX], 3 * sizeof(char));
             p2p->msgRxCbFn(p2p, msgType, &data[EXT_IDX], len - EXT_IDX);
         }
     }

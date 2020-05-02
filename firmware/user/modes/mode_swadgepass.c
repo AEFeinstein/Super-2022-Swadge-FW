@@ -204,7 +204,7 @@ bool ICACHE_FLASH_ATTR passCheckMacAddr(uint8_t* mac_addr)
     }
 
     // It wasn't in the table, so add it
-    memcpy(pass.macTbl[oldestIdx].macAddr, mac_addr, 6);
+    ets_memcpy(pass.macTbl[oldestIdx].macAddr, mac_addr, 6);
     pass.macTbl[oldestIdx].tAdded = system_get_time();
     return true;
 }

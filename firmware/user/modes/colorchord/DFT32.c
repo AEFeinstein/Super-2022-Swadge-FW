@@ -349,10 +349,10 @@ void DoDFTProgressive32( float* outbins, float* frequencies, int bins, const flo
     int i;
     static int last_place;
 
-    memset( outbins, 0, bins * sizeof( float ) );
+    ets_memset( outbins, 0, bins * sizeof( float ) );
     goutbins = outbins;
 
-    memcpy( outbins, backupbins, FIXBINS * 4 );
+    ets_memcpy( outbins, backupbins, FIXBINS * 4 );
 
     if( FIXBINS != bins )
     {
@@ -380,7 +380,7 @@ void DoDFTProgressive32( float* outbins, float* frequencies, int bins, const flo
 
     last_place = place_in_data_buffer;
 
-    memcpy( backupbins, outbins, FIXBINS * 4 );
+    ets_memcpy( backupbins, outbins, FIXBINS * 4 );
 }
 
 #endif

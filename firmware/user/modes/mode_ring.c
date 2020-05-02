@@ -14,7 +14,7 @@
  *============================================================================*/
 
 #define ringPrintf(...) do { \
-        os_snprintf(lastMsg, sizeof(lastMsg), __VA_ARGS__); \
+        ets_snprintf(lastMsg, sizeof(lastMsg), __VA_ARGS__); \
         RING_PRINTF("%s", lastMsg); \
         ringUpdateDisplay(); \
     } while(0)
@@ -95,9 +95,9 @@ void ICACHE_FLASH_ATTR ringEnterMode(void)
     ets_memset(&connections, 0, sizeof(connections));
 
     // Set the connection labels
-    memcpy(connections[0].lbl, "cn0", 3);
-    memcpy(connections[1].lbl, "cn1", 3);
-    memcpy(connections[2].lbl, "cn2", 3);
+    ets_memcpy(connections[0].lbl, "cn0", 3);
+    ets_memcpy(connections[1].lbl, "cn1", 3);
+    ets_memcpy(connections[2].lbl, "cn2", 3);
 
     // For each connection, initialize it
     uint8_t i;
@@ -302,7 +302,7 @@ void ICACHE_FLASH_ATTR ringMsgRxCbFn(p2pInfo* p2p, char* msg,
                                      uint8_t* payload __attribute__((unused)),
                                      uint8_t len)
 {
-    if(0 == strcmp(msg, TST_LABEL))
+    if(0 == ets_strcmp(msg, TST_LABEL))
     {
         if(RIGHT == getRingConnection(p2p)->side)
         {

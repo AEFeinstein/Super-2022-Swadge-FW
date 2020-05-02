@@ -17,7 +17,7 @@
  *============================================================================*/
 
 #define magpetPrintf(...) do { \
-        os_snprintf(lastMsg, sizeof(lastMsg), __VA_ARGS__); \
+        ets_snprintf(lastMsg, sizeof(lastMsg), __VA_ARGS__); \
         PET_PRINTF("%s", lastMsg); \
         magpetUpdateDisplay(); \
     } while(0)
@@ -339,7 +339,7 @@ void ICACHE_FLASH_ATTR magpetMsgTxCbFn(p2pInfo* p2p __attribute__((unused)),
 void ICACHE_FLASH_ATTR sendWhoAmI(p2pInfo* p2p)
 {
     char myPetStr[] = {'0' + myPet, 0};
-    p2pSendMsg(p2p, ID_NUM, myPetStr, strlen(myPetStr), magpetMsgTxCbFn);
+    p2pSendMsg(p2p, ID_NUM, myPetStr, ets_strlen(myPetStr), magpetMsgTxCbFn);
 }
 
 /**
