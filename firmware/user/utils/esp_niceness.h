@@ -22,11 +22,13 @@ uint32_t xthal_get_ccount(void);
 #define memset ets_memset
 #define post ets_post
 #define printf os_printf
-#define putc ets_putc
 #define run ets_run
 #define set_idle_cb ets_set_idle_cb
+#ifndef EMU
 #define snprintf ets_snprintf
 #define sprintf ets_sprintf
+#define putc ets_putc
+#endif
 #define strcat ets_strcat
 #define strchr ets_strchr
 #define strcmp ets_strcmp
