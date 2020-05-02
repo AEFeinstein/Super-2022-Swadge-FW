@@ -30,7 +30,7 @@ EXCLUDEC := oled.c \
 
 # All the source files to compile
 SWADGEC  := $(shell find ../user/ -iname "*.c" $(patsubst %, -not -iname %, $(EXCLUDEC)))
-RAWDRAWC := rawdraw/CNFG3D.c rawdraw/CNFGFunctions.c rawdraw/CNFGXDriver.c
+RAWDRAWC := rawdraw/CNFG.c
 EMUC     := swadgemu.c oled.c
 
 # Makefile targets that don't make what they're called
