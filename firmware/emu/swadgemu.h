@@ -12,9 +12,6 @@
 //which_display = 0 -> mainscreen, = 1 -> footer
 void emuSendOLEDData( int which_display, uint8_t * currentFb );
 
-void  * ets_memcpy( void * dest, const void * src, size_t n );
-void  * ets_memset( void * s, int c, size_t n );
-
 
 #endif
  

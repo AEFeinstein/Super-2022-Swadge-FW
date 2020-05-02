@@ -33,6 +33,7 @@
 #include <stdarg.h>
 #include <sys/cdefs.h>
 
+
 typedef signed char         sint8_t;
 typedef signed short        sint16_t;
 typedef signed long         sint32_t;
@@ -109,8 +110,14 @@ typedef enum {
 #define TRUE            true
 #define FALSE           false
 
-
 #endif /* !__cplusplus */
+
+//Bonus stuff
+#include <stdlib.h>
+void  * ets_memcpy( void * dest, const void * src, size_t n );
+void  * ets_memset( void * s, int c, size_t n );
+
+
 
 #endif /* _C_TYPES_H_ */
 
