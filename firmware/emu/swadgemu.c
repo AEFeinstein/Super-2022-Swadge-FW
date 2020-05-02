@@ -14,6 +14,7 @@
 #include "../user/user_main.h"
 #include "../user/hdw/QMA6981.h"
 #include "../user/hdw/buzzer.h"
+#include "spi_flash.h"
 
 unsigned frames = 0;
 unsigned long iframeno = 0;
@@ -129,6 +130,9 @@ int main()
 
 	initOLED(0);
 
+	void user_init();
+	user_init();
+
 	while(1)
 	{
 		int i, pos;
@@ -214,7 +218,7 @@ static void system_rtc_init()
 
 bool system_rtc_mem_write(uint8 des_addr, const void *src_addr, uint16 save_size)
 {
-	FILE * f = fopen( "rtc.dat", "w+" );
+	FILE * f = fopen( "rtc.dat", "wb+" );
 	if( !f )
 	{
 		fprintf( stderr, "EMU Error: Could not open rtc.dat for reading/writing\n" );
@@ -231,8 +235,8 @@ bool system_rtc_mem_read(uint8 src_addr, void *des_addr, uint16 load_size)
 	if( !f )
 	{
 		system_rtc_init();
+		f = fopen( "rtc.dat", "rb" );
 	}
-	f = fopen( "rtc.dat", "rb" );
 	if( !f )
 	{
 		return false;
@@ -323,6 +327,9 @@ void SetupGPIO(bool enableMic)
 {
 }
 
+void setGpiosForBoot(void)
+{
+}
 
 uint8_t getSample(void)
 {
@@ -404,6 +411,105 @@ void espNowDeinit()
 void ICACHE_FLASH_ATTR espNowSend(const uint8_t* data, uint8_t len)
 {
 	fprintf( stderr, "EMU Warning: TODO: need to implement espNow as a broadcast UDP system\n" );	
+}
+
+
+bool wifi_get_macaddr(uint8 if_index, uint8 *macaddr)
+{
+	fprintf( stderr, "EMU Warning: TODO: need to implement wifi_get_macaddr\n" );	
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//Deep sleep.  How do we want to handle it?
+
+bool system_deep_sleep_set_option(uint8 option)
+{
+	fprintf( stderr, "EMU Warning: TODO: need to implement system_deep_sleep_set_option(...)\n" );
+}
+
+bool system_deep_sleep_instant(uint64 time_in_us)
+{
+	fprintf( stderr, "EMU Warning: TODO: need to implement system_deep_sleep_set_option(...)\n" );
+}
+
+bool system_deep_sleep(uint64 time_in_us)
+{
+	fprintf( stderr, "EMU Warning: TODO: need to implement system_deep_sleep(...)\n" );
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//XXX TODO: Handle this more gracefully and test it.
+
+
+static void system_flash_init()
+{
+	FILE * f = fopen( "flash.dat", "wb" );
+	if( f )
+	{
+		uint8_t * raw = malloc(1024*1024*2);
+		memset( raw, 0, 1024*1024*2 );
+		fwrite( raw, 1024*1024*2, 1, f );
+		fclose( f );
+		free( raw );
+	}
+	else
+	{
+		fprintf( stderr, "EMU Error: Could not open rtc.dat for reading/writing\n" );
+	}
+}
+
+
+SpiFlashOpResult spi_flash_erase_sector(uint16 sec)
+{
+	FILE * f = fopen( "flash.dat", "wb+" );
+	if( !f )
+	{
+		fprintf( stderr, "EMU Error: Could not open rtc.dat for reading/writing\n" );
+		return SPI_FLASH_RESULT_ERR;
+	}
+	fseek( f, SEEK_SET, sec *  SPI_FLASH_SEC_SIZE );
+	uint8_t * erased = malloc(  SPI_FLASH_SEC_SIZE );
+	memset( erased, 0xff, SPI_FLASH_SEC_SIZE );
+	fwrite( erased, SPI_FLASH_SEC_SIZE, 1, f );
+	free( erased );
+	fclose( f );
+	return SPI_FLASH_RESULT_OK;
+}
+
+SpiFlashOpResult spi_flash_write(uint32 des_addr, uint32 *src_addr, uint32 size)
+{
+	FILE * f = fopen( "flash.dat", "wb+" );
+	if( !f )
+	{
+		fprintf( stderr, "EMU Error: Could not open rtc.dat for reading/writing\n" );
+		return SPI_FLASH_RESULT_ERR;
+	}
+	fseek( f, SEEK_SET, des_addr );
+	fwrite( src_addr, size, 1, f );
+	fclose( f );
+	return SPI_FLASH_RESULT_OK;
+}
+
+SpiFlashOpResult spi_flash_read(uint32 src_addr, uint32 *des_addr, uint32 size)
+{
+	FILE * f = fopen( "flash.dat", "rb" );
+	if( !f )
+	{
+		system_flash_init();
+		f = fopen( "flash.dat", "rb" );
+	}
+
+	if( !f )
+	{
+		fprintf( stderr, "EMU Error: Could not open flash.dat for reading/writing\n" );
+		return SPI_FLASH_RESULT_ERR;
+	}	
+
+	fseek( f, SEEK_SET, src_addr );
+	fread( des_addr, size, 1, f );
+	fclose( f );
+	return SPI_FLASH_RESULT_OK;
 }
 
 
