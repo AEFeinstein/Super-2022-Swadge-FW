@@ -1,16 +1,48 @@
+# Directories to find headers in
+INCDIRS  := $(shell find ../user/ -type d) \
+            sysincstubs \
+            .
+
+# Preprocessor defines
+DEFINES  := USER_SETTINGS_ADDR=0x6C000 \
+            USER_SETTINGS_SIZE=0x3000 \
+            ASSETS_ADDR=0x6F000 \
+            ASSETS_SIZE=0x51000 \
+            SWADGE_VERSION=3 \
+            EMU
+# All the compiler flags
+CFLAGS   := -O0 -g $(patsubst %, -I%, $(INCDIRS)) $(patsubst %, -D%, $(DEFINES))
+
+# All the linker flags
+LDFLAGS  := -lX11 -lm
+
+# A list of files to exclude from compilation
+EXCLUDEC := oled.c \
+            adc.c \
+            cnlohr_i2c.c \
+            gpio_user.c \
+            hpatimer.c \
+            QMA6981.c \
+            ws2812_i2s.c \
+            maxtime.c \
+            PartitionMap.c \
+            espNowUtils.c
+
+# All the source files to compile
+SWADGEC  := $(shell find ../user/ -iname "*.c" $(patsubst %, -not -iname %, $(EXCLUDEC)))
+RAWDRAWC := rawdraw/CNFG3D.c rawdraw/CNFGFunctions.c rawdraw/CNFGXDriver.c
+EMUC     := swadgemu.c oled.c
+
+# Makefile targets that don't make what they're called
+.PHONY: all clean
+
+# Build everything
 all : swadgemu
 
-CFLAGS := -DEMU -DSWADGE_VERSION=3 -O0 -I.  -g -Isysincstubs -I../user -I../user/display -I../user/hdw -I../user/modes  -I../user/modes/colorchord  -I../user/utils -I../user/utils/spi_mem -I../user/utils/wireless -DUSER_SETTINGS_ADDR=0x6C000 -DUSER_SETTINGS_SIZE=0x3000 -DASSETS_ADDR=0x6F000 -DASSETS_SIZE=0x51000
-
-LDFLAGS := -lX11 -lm
-
-SWADGEC:=../user/user_main.c ../user/utils/hsv_utils.c ../user/utils/spi_mem/nvm_interface.c ../user/utils/synced_timer.c ../user/modes/colorchord/DFT32.c ../user/modes/colorchord/embeddednf.c ../user/modes/colorchord/embeddedout.c ../user/modes/colorchord/mode_colorchord.c ../user/hdw/buttons.c ../user/modes/mode_ring.c ../user/modes/mode_swadgepass.c ../user/modes/mode_test.c ../user/modes/mode_magpet.c ../user/modes/colorchord/mode_colorchord.c ../user/utils/assets.c ../user/utils/fastlz.c ../user/display/bresenham.c ../user/display/font.c ../user/display/sprite.c ../user/display/fonts/IbmVga8.c ../user/display/fonts/Radiostars.c ../user/display/fonts/TomThumb.c ../user/utils/wireless/p2pConnection.c ../user/utils/linked_list.c
-
-
-swadgemu : rawdraw/CNFG.c swadgemu.c oled.c $(SWADGEC)
+# Build swadgemu
+swadgemu : $(RAWDRAWC) $(SWADGEC) $(EMUC)
 	gcc $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
+# Clean everything
 clean :
 	rm -rf *.o *~ swadgemu
-
-
