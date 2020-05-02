@@ -11,12 +11,20 @@
 //ESP Includes
 #include "user_interface.h"
 
+#include "../user/user_main.h"
+#include "../user/hdw/QMA6981.h"
+#include "../user/hdw/buzzer.h"
+
 unsigned frames = 0;
 unsigned long iframeno = 0;
 int px_scale = INIT_PX_SCALE;
 uint32_t * rawvidmem;
 short screenx, screeny;
-uint8_t footerpix[FOOTER_PIXELS*OLED_WIDTH];
+uint32_t footerpix[FOOTER_PIXELS*OLED_WIDTH];
+uint32_t ws2812s[NR_WS2812];
+double boottime;
+
+
 
 void HandleKey( int keycode, int bDown )
 {
@@ -45,9 +53,14 @@ void emuFooter()
 	for( y = 0; y < FOOTER_PIXELS; y++ )
 	for( x = 0; x < OLED_WIDTH; x++ )
 	{
-		footerpix[x+y*OLED_WIDTH] = rand()&1;
+		footerpix[x+y*OLED_WIDTH] = rand();
 	}
-	emuSendOLEDData( 1, footerpix );
+	int i;
+	for( i = 0; i < NR_WS2812; i++ )
+	{
+		//TODO: Iterate over ws2812s and display them here.
+	}
+	emuSendOLEDData( 1, (uint8_t*)footerpix );
 }
 
 
@@ -58,16 +71,16 @@ void emuSendOLEDData( int disp, uint8_t * currentFb )
 	{
 		for( x = 0; x < OLED_WIDTH; x++ )
 		{
-			uint8_t col;
+			uint32_t pxcol;
 			if( disp == 0 )
 			{
-				col = currentFb[(x + (y / 8) * OLED_WIDTH)] & (1 << (y & 7));
+				uint8_t col = currentFb[(x + (y / 8) * OLED_WIDTH)] & (1 << (y & 7));
+				pxcol = col?(disp?0xffffffff:0xff80ffff):0x00000000;
 			}
 			else
 			{
-				col = currentFb[x+y*OLED_WIDTH];
+				pxcol = ((uint32_t*)currentFb)[x+y*OLED_WIDTH];
 			}
-			uint32_t pxcol = col?(disp?0xffffffff:0xff80ffff):0x00000000;
 			int lx, ly;
 			uint32_t * pxloc = rawvidmem + ( x +  ( ( y + (disp?OLED_HEIGHT:0) ) ) * OLED_WIDTH * px_scale ) * px_scale;
 			for( ly = 0; ly < px_scale; ly++ )
@@ -111,6 +124,8 @@ int main()
 	rawvidmem = malloc( px_scale * OLED_WIDTH*px_scale * (OLED_HEIGHT+FOOTER_PIXELS)*px_scale * 4 );
 
 	// CNFGSetupFullscreen( "Test Bench", 0 );
+
+	boottime = OGGetAbsoluteTime();
 
 	initOLED(0);
 
@@ -159,8 +174,13 @@ int main()
 unsigned long os_random() { return rand(); }
 void  * ets_memcpy( void * dest, const void * src, size_t n ) { memcpy( dest, src, n ); return dest; }
 void  * ets_memset( void * s, int c, size_t n ) { memset( s, c, n ); return s; }
+int ets_memcmp( const void * a, const void * b, size_t n ) { return memcmp( a, b, n ); }
+int ets_strlen( const char * s ) { return strlen( s ); }
+char * ets_strncpy ( char * destination, const char * source, size_t num ) { return strncpy( destination, source, num ); }
+int ets_strcmp (const char* str1, const char* str2) { return strcmp( str1, str2 ); }
 void system_set_os_print( uint8 onoff ) { }
 void LoadDefaultPartitionMap(void) {}
+uint32 system_get_time(void) { return (OGGetAbsoluteTime()-boottime)*1000000; }
 struct rst_info* system_get_rst_info(void)
 {
 	static struct rst_info srst; 
@@ -174,25 +194,47 @@ struct rst_info* system_get_rst_info(void)
 	return &srst;
 }
 
+static void system_rtc_init()
+{
+	FILE * f = fopen( "rtc.dat", "wb" );
+	if( f )
+	{
+		uint8_t * raw = malloc(512);
+		memset( raw, 0, 512 );
+		fwrite( raw, 512, 1, f );
+		fclose( f );
+		free( raw );
+	}
+	else
+	{
+		fprintf( stderr, "EMU Error: Could not open rtc.dat for reading/writing\n" );
+	}
+}
+
+
+bool system_rtc_mem_write(uint8 des_addr, const void *src_addr, uint16 save_size)
+{
+	FILE * f = fopen( "rtc.dat", "w+" );
+	if( !f )
+	{
+		fprintf( stderr, "EMU Error: Could not open rtc.dat for reading/writing\n" );
+		return false;
+	}
+	fseek( f, SEEK_SET, des_addr );
+	fwrite( src_addr, save_size, 1, f );
+	fclose( f );
+}
+
 bool system_rtc_mem_read(uint8 src_addr, void *des_addr, uint16 load_size)
 {
 	FILE * f = fopen( "rtc.dat", "rb" );
 	if( !f )
 	{
-		f = fopen( "rtc.dat", "wb" );
-		if( f )
-		{
-			uint8_t * raw = malloc(8192);
-			memset( raw, 0, 8192 );
-			fwrite( raw, 8192, 1, f );
-			fclose( f );
-			free( raw );
-		}
-		f = fopen( "rtc.dat", "rb" );
+		system_rtc_init();
 	}
+	f = fopen( "rtc.dat", "rb" );
 	if( !f )
 	{
-		fprintf( stderr, "EMU Error: Could not open rtc.dat for reading/writing\n" );
 		return false;
 	}
 	fseek( f, SEEK_SET, src_addr );
@@ -220,14 +262,6 @@ bool wifi_set_opmode(uint8 opmode )
 	return true;
 }
 
-void espNowInit(void)
-{
-	fprintf( stderr, "EMU Warning: TODO: need to implement espNow as a broadcast UDP system\n" );	
-}
-
-void espNowDeinit()
-{
-}
 
 void ws2812_init()
 {
@@ -236,6 +270,42 @@ void ws2812_init()
 void cnlohr_i2c_setup(uint32_t clock_stretch_time_out_usec)
 {
 }
+
+void ets_intr_lock()
+{
+}
+
+void ets_intr_unlock()
+{
+}
+
+
+void ws2812_push( uint8_t* buffer, uint16_t buffersize )
+{
+	if( buffersize / 3 > sizeof( ws2812s ) / 4 )
+	{
+		fprintf( stderr, "EMU WARNING: ws2812_push invalid\n" );
+		return;
+	}
+	int led = 0;
+	for( ; led < buffersize/3; led++ )
+	{
+		uint32_t col = 0xff000000;
+		col |= buffer[led*3+2]<<16;
+		col |= buffer[led*3+0]<<8;
+		col |= buffer[led*3+1]<<0;
+		ws2812s[led] = col;
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+
+void * os_malloc( int x ) { return malloc( x ); }
+void os_free( void * x ) { free( x ); }
+
+
+////////////////////////////////////////////////////////////////////////////////////////
+// Sound system (need to write)
 
 void initMic(void)
 {
@@ -247,12 +317,66 @@ void initBuzzer(void)
 
 void setBuzzerNote(uint16_t note)
 {
-	fprintf( stderr, "EMU Warning: TODO: need to implement setBuzzerNote(...)\n" );	
 }
-
 
 void SetupGPIO(bool enableMic)
 {
+}
+
+
+uint8_t getSample(void)
+{
+	return 0;
+}
+
+bool sampleAvailable(void)
+{
+	return FALSE;
+}
+
+void PauseHPATimer()
+{
+}
+
+void ContinueHPATimer()
+{
+}
+
+void stopBuzzerSong(void)
+{
+}
+
+void  startBuzzerSong(const song_t* song, bool shouldLoop)
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//TODO: Need to write accelerometer.
+
+void QMA6981_poll(accel_t* currentAccel)
+{
+}
+
+bool QMA6981_setup(void)
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+void ets_timer_disarm(ETSTimer *a)
+{
+	fprintf( stderr, "EMU Warning: TODO: need to implement ets_timer_disarm(...)\n" );	
+}
+
+void ets_timer_setfn(ETSTimer *t, ETSTimerFunc *fn, void *parg)
+{
+	fprintf( stderr, "EMU Warning: TODO: need to implement ets_timer_setfn(...)\n" );	
+}
+
+void ets_timer_arm_new(ETSTimer *a, int b, int c, int isMstimer)
+{
+	fprintf( stderr, "EMU Warning: TODO: need to implement ets_timer_arm_new(...)\n" );	
 }
 
 bool system_os_task(os_task_t task, uint8 prio, os_event_t *queue, uint8 qlen)
@@ -264,4 +388,22 @@ bool system_os_post(uint8 prio, os_signal_t sig, os_param_t par)
 {
 	fprintf( stderr, "EMU Warning: TODO: need to implement system_os_post(...)\n" );	
 }
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+void espNowInit(void)
+{
+	fprintf( stderr, "EMU Warning: TODO: need to implement espNow as a broadcast UDP system\n" );	
+}
+
+void espNowDeinit()
+{
+}
+
+void ICACHE_FLASH_ATTR espNowSend(const uint8_t* data, uint8_t len)
+{
+	fprintf( stderr, "EMU Warning: TODO: need to implement espNow as a broadcast UDP system\n" );	
+}
+
 
