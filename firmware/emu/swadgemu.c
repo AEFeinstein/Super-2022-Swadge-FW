@@ -21,6 +21,8 @@
 #define OLED_ON_COLOR    0x2191FB
 #define FOREGROUND_COLOR 0xD00000
 
+#define NR_BUTTONS 4
+
 unsigned frames = 0;
 unsigned long iframeno = 0;
 int px_scale = INIT_PX_SCALE;
@@ -75,7 +77,7 @@ void HandleDestroy()
 void emuFooter()
 {
 	int x, y, lx = 0;
-	int ledno;
+	int ledno, btn;
 	for( ledno = 0; ledno < NR_WS2812; ledno++ )
 	{
 		uint32_t wscol = ws2812s[ledno];
@@ -89,13 +91,33 @@ void emuFooter()
 		}
 		lx += OLED_WIDTH/NR_WS2812;
 	}
-	for( y = 10; y < FOOTER_PIXELS; y++ )
+
+	lx = 0;
+	for( btn = 0; btn < NR_BUTTONS; btn++ )
+	{
+		uint32_t btncol = (gpio_status & (1<<btn))?FOREGROUND_COLOR:BACKGROUND_COLOR;
+		for( y = 10; y < 20; y++ )
+		{
+			for( x = 0; x < OLED_WIDTH/NR_BUTTONS-1; x++ )
+			{
+				footerpix[lx+x+y*OLED_WIDTH] = btncol;
+			}
+			footerpix[lx+x+y*OLED_WIDTH] = BACKGROUND_COLOR2;
+		}
+		lx += OLED_WIDTH/NR_BUTTONS;
+	}
+
+
+
+	for( y = 20; y < FOOTER_PIXELS; y++ )
 	{
 		for( x = 0; x < OLED_WIDTH; x++ )
 		{
 			footerpix[x+y*OLED_WIDTH] = BACKGROUND_COLOR;
 		}
 	}
+
+
 	int i;
 	for( i = 0; i < NR_WS2812; i++ )
 	{
@@ -361,7 +383,6 @@ void ws2812_push( uint8_t* buffer, uint16_t buffersize )
 
 void * os_malloc( int x ) { return malloc( x ); }
 void os_free( void * x ) { free( x ); }
-
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // Sound system (need to write)
