@@ -15,7 +15,8 @@ DEFINES  := USER_SETTINGS_ADDR=0x6C000 \
 			DFREQ=16000
 
 # All the compiler flags
-CFLAGS   := -O0 -g $(patsubst %, -I%, $(INCDIRS)) $(patsubst %, -D%, $(DEFINES))
+CFLAGS   := -g $(patsubst %, -I%, $(INCDIRS)) $(patsubst %, -D%, $(DEFINES))
+CFLAGS += -Os -s -flto -ffunction-sections -fdata-sections -Wl,--gc-sections
 
 # All the linker flags
 LDFLAGS  := -lX11 -lm -lpthread -lasound

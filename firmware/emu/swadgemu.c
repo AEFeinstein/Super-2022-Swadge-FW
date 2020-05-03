@@ -14,6 +14,7 @@
 #include "../user/user_main.h"
 #include "../user/hdw/QMA6981.h"
 #include "../user/hdw/buzzer.h"
+#include "../user/hdw/buttons.h"
 #include "spi_flash.h"
 
 #define BACKGROUND_COLOR  0x051923
@@ -618,10 +619,8 @@ void ets_timer_check_timers(void)
 	static long long timeMs = -1;
 
 	// Get the current time in milliseconds
-	struct timeval tv;
-    gettimeofday(&tv,NULL);
-    long long currTimeMs = (((long long)tv.tv_sec)*1000)+(tv.tv_usec/1000);
-	
+    long long currTimeMs = (OGGetAbsoluteTime() - boottime) * 1000;
+
 	// If time hasn't been initialized yet
 	if(timeMs == -1)
 	{
@@ -884,9 +883,9 @@ SpiFlashOpResult spi_flash_read(uint32 src_addr, uint32 *des_addr, uint32 size)
 	}	
 
 	fseek( f, SEEK_SET, src_addr );
-	fread( des_addr, size, 1, f );
+	int success = fread( des_addr, size, 1, f );
 	fclose( f );
-	return SPI_FLASH_RESULT_OK;
+	return (success==1)?SPI_FLASH_RESULT_OK:SPI_FLASH_RESULT_ERR;
 }
 
 
