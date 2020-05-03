@@ -3,6 +3,9 @@ APPNAME=swadgemu
 RAWDRAWANDROID=rawdrawandroid
 SWADGEMU:=..
 
+#you probably want to type:
+#  make run
+
 SOUNDDRIVER:=$(SWADGEMU)/sound/sound_android.c
 
 EXTRA_ASSETS_TRIGGER=assetsrecipe
