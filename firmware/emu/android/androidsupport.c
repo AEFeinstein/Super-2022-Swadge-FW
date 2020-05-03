@@ -145,11 +145,16 @@ void HandleResume()
 
 void QMA6981_poll(accel_t* currentAccel)
 {
+	// TODO double check scalar
+	currentAccel->x = accx * 512;
+	currentAccel->y = accy * 512;
+	currentAccel->z = accz * 512;
 }
 
 bool QMA6981_setup(void)
 {
-	return false;
+	SetupIMU();
+	return true;
 }
 
 
@@ -187,7 +192,6 @@ int main()
 		temp[fileLength] = 0;
 		assettext = temp;
 	}
-	SetupIMU();
 
 	boottime = OGGetAbsoluteTime();
 
@@ -207,6 +211,7 @@ int main()
 		updateOLED(0);
 
 		CNFGHandleInput();
+		AccCheck();
 
 		CNFGClearFrame();
 		CNFGColor( 0xFFFFFF );
