@@ -12,3 +12,5 @@ firmware/gdb_rsp_logfile.txt
 firmware/flash.dat
 firmware/rtc.dat
 firmware/emu/swadgemu
+firmware/emu/flash.dat
+firmware/emu/rtc.dat
