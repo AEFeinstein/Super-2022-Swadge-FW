@@ -1,6 +1,7 @@
 # Directories to find headers in
 INCDIRS  := $(shell find ../user/ -type d) \
             sysincstubs \
+			rawdraw \
             .
 
 # Preprocessor defines
@@ -9,12 +10,15 @@ DEFINES  := USER_SETTINGS_ADDR=0x6C000 \
             ASSETS_ADDR=0x6F000 \
             ASSETS_SIZE=0x51000 \
             SWADGE_VERSION=3 \
-            EMU
+            EMU \
+			NO_SOUND_PARAMETERS \
+			DFREQ=16000
+
 # All the compiler flags
 CFLAGS   := -O0 -g $(patsubst %, -I%, $(INCDIRS)) $(patsubst %, -D%, $(DEFINES))
 
 # All the linker flags
-LDFLAGS  := -lX11 -lm
+LDFLAGS  := -lX11 -lm -lpthread -lasound
 
 # A list of files to exclude from compilation
 EXCLUDEC := oled.c \
@@ -31,7 +35,7 @@ EXCLUDEC := oled.c \
 # All the source files to compile
 SWADGEC  := $(shell find ../user/ -iname "*.c" $(patsubst %, -not -iname %, $(EXCLUDEC)))
 RAWDRAWC := rawdraw/CNFG.c
-EMUC     := swadgemu.c oled.c
+EMUC     := swadgemu.c oled.c sound/sound.c sound/sound_alsa.c
 
 # Makefile targets that don't make what they're called
 .PHONY: all clean

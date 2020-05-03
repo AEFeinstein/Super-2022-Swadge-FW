@@ -16,6 +16,11 @@
 #include "../user/hdw/buzzer.h"
 #include "spi_flash.h"
 
+#define BACKGROUND_COLOR  0x051923
+#define BACKGROUND_COLOR2 0x1B2845
+#define OLED_ON_COLOR    0x2191FB
+#define FOREGROUND_COLOR 0xD00000
+
 unsigned frames = 0;
 unsigned long iframeno = 0;
 int px_scale = INIT_PX_SCALE;
@@ -50,11 +55,27 @@ void HandleDestroy()
 
 void emuFooter()
 {
-	int x, y;
-	for( y = 0; y < FOOTER_PIXELS; y++ )
-	for( x = 0; x < OLED_WIDTH; x++ )
+	int x, y, lx = 0;
+	int ledno;
+	for( ledno = 0; ledno < NR_WS2812; ledno++ )
 	{
-		footerpix[x+y*OLED_WIDTH] = rand();
+		uint32_t wscol = ws2812s[ledno];
+		for( y = 0; y < 10; y++ )
+		{
+			for( x = 0; x < OLED_WIDTH/NR_WS2812-1; x++ )
+			{
+				footerpix[lx+x+y*OLED_WIDTH] = wscol;
+			}
+			footerpix[lx+x+y*OLED_WIDTH] = BACKGROUND_COLOR2;
+		}
+		lx += OLED_WIDTH/NR_WS2812;
+	}
+	for( y = 10; y < FOOTER_PIXELS; y++ )
+	{
+		for( x = 0; x < OLED_WIDTH; x++ )
+		{
+			footerpix[x+y*OLED_WIDTH] = BACKGROUND_COLOR;
+		}
 	}
 	int i;
 	for( i = 0; i < NR_WS2812; i++ )
@@ -310,9 +331,32 @@ void os_free( void * x ) { free( x ); }
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // Sound system (need to write)
+#include "sound/sound.h"
+
+struct SoundDriver * sounddriver;
+#define SSBUF 8192
+uint8_t ssamples[SSBUF];
+int sshead;
+int sstail;
+
+void EMUSoundCBType( float * out, float * in, int samplesr, int * samplesp, struct SoundDriver * sd )
+{
+	int i;
+	for( i = 0; i < samplesr; i++ )
+	{
+		if( sstail != (( sshead + 1 ) % SSBUF) )
+		{
+			ssamples[sshead] = (int)( (in[i]*0.5 + 0.5) * 255);
+			sshead = ( sshead + 1 ) % SSBUF;
+		}
+	}
+	*samplesp = 0;
+}
 
 void initMic(void)
 {
+	printf( "EMU: initMic()\n" );
+	sounddriver = InitSound( 0 /* You could specify ALSA/Pulse etc. here */, EMUSoundCBType );
 }
 
 void initBuzzer(void)
@@ -323,17 +367,16 @@ void setBuzzerNote(uint16_t note)
 {
 }
 
-void SetupGPIO(bool enableMic)
-{
-}
-
-void setGpiosForBoot(void)
-{
-}
-
 uint8_t getSample(void)
 {
-	return 0;
+	if( sshead != sstail )
+	{
+		uint8_t r = ssamples[sstail];
+		sstail = (sstail+1)%SSBUF;
+		return r;
+	}
+	else
+		return 0;
 }
 
 bool sampleAvailable(void)
@@ -354,6 +397,16 @@ void stopBuzzerSong(void)
 }
 
 void  startBuzzerSong(const song_t* song, bool shouldLoop)
+{
+}
+
+
+
+void SetupGPIO(bool enableMic)
+{
+}
+
+void setGpiosForBoot(void)
 {
 }
 
