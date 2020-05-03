@@ -30,6 +30,8 @@ uint32_t footerpix[FOOTER_PIXELS*OLED_WIDTH];
 uint32_t ws2812s[NR_WS2812];
 double boottime;
 
+uint8_t gpio_status;
+
 void system_os_check_tasks(void);
 void ets_timer_check_timers(void);
 
@@ -37,6 +39,22 @@ void HandleKey( int keycode, int bDown )
 {
 	if( keycode == 65307 ) exit( 0 );
 	printf( "Key: %d -> %d\n", keycode, bDown );
+	int button = -1;
+	switch( keycode )
+	{
+		case 'a': case 'A': button = 0; break;
+		case 's': case 'S': button = 1; break;
+		case 'd': case 'D': button = 2; break; 
+		case 'f': case 'F': button = 3; break;
+	}
+	if( button >= 0 )
+	{
+		if( bDown ) gpio_status |= 1<<button;
+		else		gpio_status &= ~(1<<button);
+	    HandleButtonEventIRQ( gpio_status, button, (bDown) ? 1 : 0 );
+	}
+
+
 }
 
 void HandleButton( int x, int y, int button, int bDown )
@@ -94,11 +112,23 @@ void emuSendOLEDData( int disp, uint8_t * currentFb )
 	{
 		for( x = 0; x < OLED_WIDTH; x++ )
 		{
+
 			uint32_t pxcol;
 			if( disp == 0 )
 			{
-				uint8_t col = currentFb[(x + (y / 8) * OLED_WIDTH)] & (1 << (y & 7));
-				pxcol = col?(disp?0xffffffff:0xff80ffff):0x00000000;
+				int memx = (OLED_WIDTH - 1) - x;
+		    	int memy = (OLED_HEIGHT - 1) - y;
+				if (memy % 2 == 0)
+				{
+					memy = (memy >> 1);
+				}
+				else
+				{
+					memy = (memy >> 1) + (OLED_HEIGHT >> 1);
+				}
+		  
+				uint8_t col = currentFb[(memx + (memy / 8) * OLED_WIDTH)] & (1 << (memy & 7));
+				pxcol = col?(disp?0xffffffff:OLED_ON_COLOR):BACKGROUND_COLOR;
 			}
 			else
 			{
@@ -187,8 +217,8 @@ int main()
 			LastFPSTime+=1;
 		}
 
-		SecToWait = .016 - ( ThisTime - LastFrameTime );
-		LastFrameTime += .016;
+		SecToWait = .01 - ( ThisTime - LastFrameTime );
+		LastFrameTime += .01;
 		if( SecToWait > 0 )
 			OGUSleep( (int)( SecToWait * 1000000 ) );
 	}
@@ -385,7 +415,7 @@ uint8_t getSample(void)
 
 bool sampleAvailable(void)
 {
-	return FALSE;
+	return sstail != sshead;
 }
 
 void PauseHPATimer()
