@@ -1,8 +1,11 @@
+# If you are using swadge emu in another makefile, in another folder, update this to point here.
+SWADGEMU?=.
+
 # Directories to find headers in
-INCDIRS  := $(shell find ../user/ -type d) \
-            sysincstubs \
-			rawdraw \
-            .
+INCDIRS  := $(shell find $(SWADGEMU)/../user/ -type d) \
+            $(SWADGEMU)/sysincstubs \
+			$(SWADGEMU)/rawdraw \
+            $(SWADGEMU)/.
 
 # Preprocessor defines
 DEFINES  := USER_SETTINGS_ADDR=0x6C000 \
@@ -18,7 +21,7 @@ DEFINES  := USER_SETTINGS_ADDR=0x6C000 \
 CFLAGS   := -g $(patsubst %, -I%, $(INCDIRS)) $(patsubst %, -D%, $(DEFINES))
 
 # if you want to make a smaller executable
-CFLAGS += -Os -s -flto -ffunction-sections -fdata-sections -Wl,--gc-sections
+#CFLAGS += -Os -s -flto -ffunction-sections -fdata-sections -Wl,--gc-sections
 
 # All the linker flags
 LDFLAGS  := -lX11 -lm -lpthread -lasound
@@ -36,9 +39,10 @@ EXCLUDEC := oled.c \
             espNowUtils.c
 
 # All the source files to compile
-SWADGEC  := $(shell find ../user/ -iname "*.c" $(patsubst %, -not -iname %, $(EXCLUDEC)))
-RAWDRAWC := rawdraw/CNFG.c
-EMUC     := swadgemu.c oled.c sound/sound.c sound/sound_alsa.c
+SWADGEC  := $(shell find $(SWADGEMU)/../user/ -iname "*.c" $(patsubst %, -not -iname %, $(EXCLUDEC)))
+RAWDRAWC := $(SWADGEMU)/rawdraw/CNFG.c
+SOUNDDRIVER?= $(SWADGEMU)/sound/sound_alsa.c
+EMUC     := $(SWADGEMU)/swadgemu.c $(SWADGEMU)/oled.c $(SWADGEMU)/sound/sound.c $(SOUNDDRIVER)
 
 # Makefile targets that don't make what they're called
 .PHONY: all clean

@@ -7,6 +7,12 @@
 #include "printControl.h"
 #ifdef EMU
     #include <stdio.h>
+	#ifdef ANDROID
+		#include <asset_manager.h>
+		#include <asset_manager_jni.h>
+		#include <android_native_app_glue.h>
+		struct android_app * gapp;
+	#endif
 #endif
 
 const uint32_t sin1024[] RODATA_ATTR =
@@ -92,6 +98,23 @@ uint32_t* ICACHE_FLASH_ATTR getAsset(const char* name, uint32_t* retLen)
      * The makefile flashes ASSETS_FILE to 0x6C000
      */
     uint32_t* assets = (uint32_t*)(0x40200000 + ASSETS_ADDR);
+#elif defined( ANDROID )
+	static uint32_t * assets;
+	if( !assets )
+	{
+		AAsset * file = AAssetManager_open( gapp->activity->assetManager, "assets.bin", AASSET_MODE_BUFFER );
+		if( file )
+		{
+			assets = AAsset_getBuffer( file );
+			//size_t fileLength = AAsset_getLength(file);
+			//assets = malloc( fileLength + 1);
+			//memcpy( assets, AAsset_getBuffer( file ), fileLength );
+		}
+		else
+		{
+			return NULL;
+		}
+	}
 #else
     /* When emulating a swadge, assets are read directly from a file */
     static uint32_t* assets = NULL;

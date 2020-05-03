@@ -22,10 +22,16 @@
 #define OLED_ON_COLOR    0x2191FB
 #define FOREGROUND_COLOR 0xD00000
 
+#define WS_HEIGHT 10
+#define BTN_HEIGHT 30
+
 #define NR_BUTTONS 4
 
-unsigned frames = 0;
-unsigned long iframeno = 0;
+#ifdef ANDROID
+#define LOGI(...)  ((void)__android_log_print(/*ANDROID_LOG_INFO*/4, APPNAME, __VA_ARGS__))
+#define printf( x...) LOGI( x )
+#endif
+
 int px_scale = INIT_PX_SCALE;
 uint32_t * rawvidmem;
 short screenx, screeny;
@@ -37,6 +43,23 @@ uint8_t gpio_status;
 
 void system_os_check_tasks(void);
 void ets_timer_check_timers(void);
+
+void HandleButtonStatus( int button, int bDown )
+{
+	if( bDown )
+	{
+		if( gpio_status & (1<<button) ) return;
+		gpio_status |= 1<<button;
+	}
+	else
+	{
+		if( !( gpio_status & (1<<button) ) ) return;
+		gpio_status &= ~(1<<button);
+	}
+    HandleButtonEventIRQ( gpio_status, button, (bDown) ? 1 : 0 );
+}
+
+#ifndef ANDROID
 
 void HandleKey( int keycode, int bDown )
 {
@@ -51,13 +74,7 @@ void HandleKey( int keycode, int bDown )
 		case 'f': case 'F': button = 3; break;
 	}
 	if( button >= 0 )
-	{
-		if( bDown ) gpio_status |= 1<<button;
-		else		gpio_status &= ~(1<<button);
-	    HandleButtonEventIRQ( gpio_status, button, (bDown) ? 1 : 0 );
-	}
-
-
+		HandleButtonStatus( button, bDown );
 }
 
 void HandleButton( int x, int y, int button, int bDown )
@@ -73,6 +90,45 @@ void HandleDestroy()
 {
 	printf( "Destroying\n" );
 	exit(10);
+}
+
+#endif
+
+//Really, this function is currently only used on Android.  TODO: Make the mouse actually do this.
+void emuCheckFooterMouse( int x, int y, int finger, int bDown )
+{
+	static int8_t fingermap[10];
+	if( finger >= 10 ) return;
+	if( !bDown )
+	{
+		fingermap[finger] = 0;
+		//printf( "PX: UP %d\n", finger );
+	}
+	else
+	{
+		int pxx = x / px_scale;
+		int pxy = y / px_scale;
+		pxy -= OLED_HEIGHT+WS_HEIGHT;
+		if( pxy < 0 ) return;
+		if( pxy >= BTN_HEIGHT ) return;
+		if( pxx >= OLED_WIDTH ) return;	
+		int button = pxx * NR_BUTTONS / OLED_WIDTH;
+		//printf( "PX: %d, %d / %d / %d, %d / %d\n", pxx, pxy, finger, x, y, bDown );
+		fingermap[finger] = button+1;
+	}
+
+	int b;
+	for( b = 0; b < NR_BUTTONS; b++ )
+	{
+		int i;
+		int bIsDown = 0;
+		for( i = 0; i < 10; i++ )
+		{
+			if( (fingermap[i] - 1) == b ) bIsDown = true;			
+		}
+		HandleButtonStatus( b, bIsDown );
+	}
+
 }
 
 void emuFooter()
@@ -97,7 +153,7 @@ void emuFooter()
 	for( btn = 0; btn < NR_BUTTONS; btn++ )
 	{
 		uint32_t btncol = (gpio_status & (1<<btn))?FOREGROUND_COLOR:BACKGROUND_COLOR;
-		for( y = 10; y < 20; y++ )
+		for( y = WS_HEIGHT; y < WS_HEIGHT+BTN_HEIGHT; y++ )
 		{
 			for( x = 0; x < OLED_WIDTH/NR_BUTTONS-1; x++ )
 			{
@@ -110,7 +166,7 @@ void emuFooter()
 
 
 
-	for( y = 20; y < FOOTER_PIXELS; y++ )
+	for( y = WS_HEIGHT+BTN_HEIGHT; y < FOOTER_PIXELS; y++ )
 	{
 		for( x = 0; x < OLED_WIDTH; x++ )
 		{
@@ -157,6 +213,9 @@ void emuSendOLEDData( int disp, uint8_t * currentFb )
 			{
 				pxcol = ((uint32_t*)currentFb)[x+y*OLED_WIDTH];
 			}
+#ifdef ANDROID
+			pxcol = 0xff000000 | ( (pxcol&0xff) << 16 ) | ( pxcol & 0xff00 ) | ( (pxcol&0xff0000)>>16 );
+#endif
 			int lx, ly;
 			uint32_t * pxloc = rawvidmem + ( x +  ( ( y + (disp?OLED_HEIGHT:0) ) ) * OLED_WIDTH * px_scale ) * px_scale;
 			for( ly = 0; ly < px_scale; ly++ )
@@ -185,8 +244,13 @@ void emuCheckResize()
 }
 
 
+#ifndef ANDROID
 int main()
+#else
+int emumain()
+#endif
 {
+	unsigned frames = 0;
 	int i, x, y;
 	double ThisTime;
 	double LastFPSTime = OGGetAbsoluteTime();
@@ -212,7 +276,6 @@ int main()
 	{
 		int i, pos;
 		float f;
-		iframeno++;
 
 		system_os_check_tasks();
 		ets_timer_check_timers();
@@ -305,6 +368,7 @@ bool system_rtc_mem_write(uint8 des_addr, const void *src_addr, uint16 save_size
 	fseek( f, SEEK_SET, des_addr );
 	fwrite( src_addr, save_size, 1, f );
 	fclose( f );
+	return true;
 }
 
 bool system_rtc_mem_read(uint8 src_addr, void *des_addr, uint16 load_size)
@@ -411,7 +475,6 @@ void EMUSoundCBType( float * out, float * in, int samplesr, int * samplesp, stru
 
 void initMic(void)
 {
-	printf( "EMU: initMic()\n" );
 	sounddriver = InitSound( 0 /* You could specify ALSA/Pulse etc. here */, EMUSoundCBType );
 }
 
@@ -468,14 +531,16 @@ void setGpiosForBoot(void)
 
 ////////////////////////////////////////////////////////////////////////////////
 //TODO: Need to write accelerometer.
-
+#ifndef ANDROID
 void QMA6981_poll(accel_t* currentAccel)
 {
 }
 
 bool QMA6981_setup(void)
 {
+	return false;
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -793,6 +858,7 @@ void ICACHE_FLASH_ATTR espNowSend(const uint8_t* data, uint8_t len)
 bool wifi_get_macaddr(uint8 if_index, uint8 *macaddr)
 {
 	fprintf( stderr, "EMU Warning: TODO: need to implement wifi_get_macaddr\n" );	
+	return true;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -801,16 +867,19 @@ bool wifi_get_macaddr(uint8 if_index, uint8 *macaddr)
 bool system_deep_sleep_set_option(uint8 option)
 {
 	fprintf( stderr, "EMU Warning: TODO: need to implement system_deep_sleep_set_option(...)\n" );
+	return true;
 }
 
 bool system_deep_sleep_instant(uint64 time_in_us)
 {
 	fprintf( stderr, "EMU Warning: TODO: need to implement system_deep_sleep_set_option(...)\n" );
+	return true;
 }
 
 bool system_deep_sleep(uint64 time_in_us)
 {
 	fprintf( stderr, "EMU Warning: TODO: need to implement system_deep_sleep(...)\n" );
+	return true;
 }
 
 

@@ -11,7 +11,6 @@
 #define GetParameterI( x, y ) (y)
 #define GetParameterS( x, y ) (y)
 #endif
-
 #define BUFFERSETS 4
 #define BLOCKING
 
