@@ -37,6 +37,7 @@
 #include "mode_magpet.h"
 #include "mode_swadgepass.h"
 #include "mode_colorchord.h"
+#include "mode_tiltrads.h"
 
 #include "ccconfig.h"
 
@@ -70,6 +71,7 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
 {
+    &tiltradsMode,
     &colorchordMode,
     &passMode,
     &testMode,
