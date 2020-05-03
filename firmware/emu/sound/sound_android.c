@@ -1,5 +1,5 @@
-//Copyright 2019 <>< Charles Lohr under the ColorChord License.
-// NOTE: this does not actually work!!! This driver needs more work!!!
+//Copyright 2019-2020 <>< Charles Lohr under the ColorChord License.
+// This should be used with rawdrawandroid
 
 #include "sound.h"
 #include "os_generic.h"
