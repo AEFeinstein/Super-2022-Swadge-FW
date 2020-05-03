@@ -26,6 +26,7 @@ uint32_t ws2812s[NR_WS2812];
 double boottime;
 
 void system_os_check_tasks(void);
+void ets_timer_check_timers(void);
 
 void HandleKey( int keycode, int bDown )
 {
@@ -140,7 +141,8 @@ int main()
 		iframeno++;
 
 		system_os_check_tasks();
-		
+		ets_timer_check_timers();
+
 		updateOLED(0);
 
 		CNFGHandleInput();
@@ -372,20 +374,202 @@ bool QMA6981_setup(void)
 
 ////////////////////////////////////////////////////////////////////////////////
 
+ETSTimer* etsTimerList = NULL;
 
-void ets_timer_disarm(ETSTimer *a)
+/**
+ * Disarm the timer
+ * 
+ * @param ptimer timer structure.
+ */
+void ets_timer_disarm(ETSTimer *ptimer)
 {
-	fprintf( stderr, "EMU Warning: TODO: need to implement ets_timer_disarm(...)\n" );	
+	ptimer->timer_expire = 0;
+	ptimer->timer_period = 0;
+
+	// Unlink timer. Check if it's the head of the list
+	if(NULL == etsTimerList)
+	{
+		// Nothing to unlink
+		return;
+	}
+	else if(etsTimerList == ptimer)
+	{
+		// Timer is at the head, simple to remove
+		etsTimerList = etsTimerList->timer_next;
+	}
+	else
+	{
+		// Timer is not at the head.
+		// Iterate through the list, looking for a timer to remove
+		ETSTimer * tmr = etsTimerList;
+		while(NULL != tmr)
+		{
+			if(ptimer == tmr->timer_next)
+			{
+				// Timer is next, so unlink it
+				tmr->timer_next = tmr->timer_next->timer_next;
+				return;
+			}
+			else
+			{
+				// Iterate to the next
+				tmr = tmr->timer_next;
+			}		
+		}
+	}
 }
 
-void ets_timer_setfn(ETSTimer *t, ETSTimerFunc *fn, void *parg)
+/**
+ * Set timer callback function. The timer callback function must be set before
+ * arming a timer.
+ * 
+ * @param ptimer    timer structure.
+ * @param pfunction timer callback function; use typecasting to pass function as
+ *                  your function.
+ * @param parg      callback function parameter
+ */
+void ets_timer_setfn(ETSTimer *ptimer, ETSTimerFunc *pfunction, void *parg)
 {
-	fprintf( stderr, "EMU Warning: TODO: need to implement ets_timer_setfn(...)\n" );	
+	ptimer->timer_func = pfunction;
+	ptimer->timer_arg = parg;
 }
 
-void ets_timer_arm_new(ETSTimer *a, int b, int c, int isMstimer)
+/**
+ * Enable a millisecond timer.
+ * 
+ * @param ptimer       timer structure
+ * @param milliseconds timing; unit: millisecond.
+ *                     If system_timer_reinit has been called, the timer value allowed ranges from 100 to 0x689D0.
+ *                     If system_timer_reinit has NOT been called, the timer value allowed ranges from 5 to 0x68D7A3. 
+ * @param repeat_flag  whether the timer will be invoked repeatedly or not.
+ * @param isMstimer    true if this is a ms timer, false if it is a us timer
+ */
+void ets_timer_arm_new(ETSTimer *ptimer, int milliseconds, int repeat_flag,
+	int isMstimer)
 {
-	fprintf( stderr, "EMU Warning: TODO: need to implement ets_timer_arm_new(...)\n" );	
+	if (milliseconds <= 0 || ptimer == NULL)
+	{
+		// Timer is null or is being registered for 0ms, don't allow that
+		return;
+	}
+
+	if(NULL == etsTimerList)
+	{
+		// List is empty, set this timer as the head
+		etsTimerList = ptimer;
+		ptimer->timer_next = NULL;
+	}
+	else if (ptimer == etsTimerList)
+	{
+		// The first element of the list is the timer, don't add it twice
+	}
+	else
+	{
+		// List isn't empty and the head isn't this timer
+		ETSTimer * tmr = etsTimerList;
+		// Also check if the timer is already linked
+		bool alreadyExists = false;
+		// Iterate to the last element
+		while(NULL != tmr->timer_next)
+		{
+			if(tmr->timer_next == ptimer)
+			{
+				// This timer is already linked in the list!
+				alreadyExists = true;
+				break;
+			}
+			else
+			{
+				tmr = tmr->timer_next;
+			}			
+		}
+		
+		// If the timer wasn't in the list, link it
+		if(false == alreadyExists)
+		{
+			tmr->timer_next = ptimer;
+			ptimer->timer_next = NULL;
+		}
+	}
+	
+	// Timer was linked, now set up the params
+	ptimer->timer_expire = milliseconds;
+	if(repeat_flag)
+	{
+		ptimer->timer_period = milliseconds;
+	}
+	else
+	{
+		ptimer->timer_period = 0;
+	}
+}
+
+/**
+ * Check if timers have expired and call them. This will reset periodic
+ * timers and unlink non-periodic timers when they expire.
+ */
+void ets_timer_check_timers(void)
+{
+	// Keep the last time this function was called
+	static long long timeMs = -1;
+
+	// Get the current time in milliseconds
+	struct timeval tv;
+    gettimeofday(&tv,NULL);
+    long long currTimeMs = (((long long)tv.tv_sec)*1000)+(tv.tv_usec/1000);
+	
+	// If time hasn't been initialized yet
+	if(timeMs == -1)
+	{
+		// Initialize it
+		timeMs = currTimeMs;
+	}
+	else
+	{
+		// While at least 1ms has elapsed
+		while(timeMs != currTimeMs)
+		{
+			// Increment the static time
+			timeMs++;
+
+			// Iterate through all the timers
+			ETSTimer * tmr = etsTimerList;
+			while(NULL != tmr)
+			{
+				// If this timer is active
+				if(tmr->timer_expire > 0)
+				{
+					// Decrement the count
+					tmr->timer_expire--;
+					// If the timer expired
+					if(tmr->timer_expire == 0)
+					{
+						// Save the timer function and args
+						ETSTimerFunc *pfunction = tmr->timer_func;
+						void *parg = tmr->timer_arg;
+
+						// If the timer should repeat
+						if(tmr->timer_period)
+						{
+							// Reset the count
+							tmr->timer_expire = tmr->timer_period;
+						}
+						else
+						{
+							// Disarm non-repeating timers
+							ets_timer_disarm(tmr);
+						}
+
+						// Call the timer function
+						pfunction(parg);
+					}
+				}
+
+				// Iterate to the next
+				tmr = tmr->timer_next;
+			}
+		}
+	}
 }
 
 #define NUM_OS_TASKS 3
