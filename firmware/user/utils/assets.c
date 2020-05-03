@@ -108,7 +108,12 @@ uint32_t* ICACHE_FLASH_ATTR getAsset(const char* name, uint32_t* retLen)
         // TODO THIS LEAKS MEMORY WHEN EMULATING
         assets = (uint32_t*)malloc(sz);
         fseek(fp, 0L, SEEK_SET);
-        fread(assets, sz, 1, fp);
+        int r = fread(assets, sz, 1, fp);
+		if( r != 1 )
+		{
+            fprintf( stderr, "EMU Error: read error with assets.bin\n" );
+			return NULL;
+		}
     }
 #endif
     uint32_t idx = 0;
