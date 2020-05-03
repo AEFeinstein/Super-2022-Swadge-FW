@@ -25,7 +25,7 @@ uint32_t footerpix[FOOTER_PIXELS*OLED_WIDTH];
 uint32_t ws2812s[NR_WS2812];
 double boottime;
 
-
+void system_os_check_tasks(void);
 
 void HandleKey( int keycode, int bDown )
 {
@@ -139,6 +139,8 @@ int main()
 		float f;
 		iframeno++;
 
+		system_os_check_tasks();
+		
 		updateOLED(0);
 
 		CNFGHandleInput();
@@ -386,17 +388,103 @@ void ets_timer_arm_new(ETSTimer *a, int b, int c, int isMstimer)
 	fprintf( stderr, "EMU Warning: TODO: need to implement ets_timer_arm_new(...)\n" );	
 }
 
+#define NUM_OS_TASKS 3
 
+struct taskAndQueue
+{
+	os_task_t task;
+	os_event_t *queue;
+	uint8 qlen;
+	uint8 qElems;
+} os_tasks[NUM_OS_TASKS] = {{0}};
+
+/**
+ * @brief Register a system OS task
+ * 
+ * @param task  task function
+ * @param prio  task priority. Three priorities are supported: 0/1/2; 0 is the
+ *              lowest priority. This means only 3 tasks are allowed to be set up. 
+ * @param queue message queue pointer
+ * @param qlen  message queue depth
+ * @return true if the task was registered, false if it was not
+ */
 bool system_os_task(os_task_t task, uint8 prio, os_event_t *queue, uint8 qlen)
 {
-	fprintf( stderr, "EMU Warning: TODO: need to implement system_os_task(...)\n" );	
+	// If it's out of bounds or trying to register a null or empty queue
+	if(prio >= NUM_OS_TASKS || queue == NULL || qlen == 0)
+	{
+		// Don't let that happen
+		return false;
+	}
+
+	// Save the task, overwriting anything that exists
+	os_tasks[prio].task = task;
+	os_tasks[prio].queue = queue;
+	os_tasks[prio].qlen = qlen;
+
+	return true;
 }
 
+/**
+ * @brief Post a signal & parameter to a system OS task
+ * 
+ * @param task  task function
+ * @param prio  task priority. Three priorities are supported: 0/1/2; 0 is the
+ *              lowest priority. This means only 3 tasks are allowed to be set up. 
+ * @param queue message queue pointer
+ * @param qlen  message queue depth
+ * @return true if the task was registered, false if it was not
+ */
 bool system_os_post(uint8 prio, os_signal_t sig, os_param_t par)
 {
-	fprintf( stderr, "EMU Warning: TODO: need to implement system_os_post(...)\n" );	
+	// If it's out of bounds or the event queue is full
+	if(prio >= NUM_OS_TASKS || os_tasks[prio].qElems >= os_tasks[prio].qlen)
+	{
+		// Don't let that happen
+		return false;
+	}
+
+	// Add this signal and parameter to the end of the task's queue
+	os_tasks[prio].queue[os_tasks[prio].qElems].par = par;
+	os_tasks[prio].queue[os_tasks[prio].qElems].sig = sig;
+	os_tasks[prio].qElems++;
+	return true;
 }
 
+/**
+ * @brief Check for and dispatch any events to the OS tasks
+ */
+void system_os_check_tasks(void)
+{
+	// Service all tasks from high priority to low
+	for(uint8_t i = 0; i < NUM_OS_TASKS; i++)
+	{
+		// If there is some event in the event queue
+		if(os_tasks[i].qElems > 0)
+		{
+			// Create an event with the signal and parameter from the task queue
+			ETSEvent evt =
+			{
+				.sig = os_tasks[i].queue[0].sig,
+				.par = os_tasks[i].queue[0].par
+			};
+
+			// If the queue has space for more than one element
+			if(os_tasks[i].qlen > 1)
+			{
+				// Shift all but the first element up one
+				memmove(&os_tasks[i].queue[0], &os_tasks[i].queue[1], os_tasks[i].qlen - 1);
+			}
+			// Zero out the last element
+			os_tasks[i].queue[os_tasks[i].qlen - 1].sig = 0;
+			os_tasks[i].queue[os_tasks[i].qlen - 1].par = 0;
+			os_tasks[i].qElems--;
+			
+			// Dispatch this event
+			os_tasks[i].task(&evt);
+		}
+	}
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
