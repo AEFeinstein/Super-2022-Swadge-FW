@@ -466,7 +466,13 @@ void EMUSoundCBType( float * out, float * in, int samplesr, int * samplesp, stru
 	{
 		if( sstail != (( sshead + 1 ) % SSBUF) )
 		{
-			ssamples[sshead] = (int)( (in[i]*0.5 + 0.5) * 255);
+			float f = in[i];
+#ifdef ANDROID
+			f *= 5.0;
+			if( f > 1.0 ) f = 1.0;
+			else if( f < -1.0 ) f = -1.0;
+#endif
+			ssamples[sshead] = (int)( (f*0.5 + 0.5) * 255);
 			sshead = ( sshead + 1 ) % SSBUF;
 		}
 	}
