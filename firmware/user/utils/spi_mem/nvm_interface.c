@@ -45,7 +45,7 @@ typedef struct
 settings_t settings =
 {
     .SaveLoadKey = 0,
-    .isMuted = FALSE
+    .isMuted = 0
 };
 
 bool muteOverride = false;

@@ -12,3 +12,11 @@ firmware/gdb_rsp_logfile.txt
 firmware/flash.dat
 firmware/rtc.dat
 firmware/emu/swadgemu
+firmware/emu/flash.dat
+firmware/emu/rtc.dat
+firmware/emu/android/makecapk.apk
+firmware/emu/android/my-release-key.keystore
+firmware/emu/android/temp.apk
+firmware/emu/android/makecapk/assets/asset.txt
+firmware/emu/android/makecapk/lib/arm64-v8a/libswadgemu.so
+firmware/emu/android/makecapk/AndroidManifest.xml

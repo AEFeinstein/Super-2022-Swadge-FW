@@ -103,6 +103,15 @@ void NmiTimSetFunc(void (*func)(void));
 #define ETS_INTR_DISABLE(inum) \
     ets_isr_mask((1<<inum))
 
+#ifndef ANDROID
+
+
+#ifdef EMU
+#define ETS_INTR_PENDING()
+#define ETS_INTR_ENABLED()
+#define ETS_INTR_WITHINISR()
+
+#else
 inline bool ETS_INTR_WITHINISR()
 {
     uint32_t ps;
@@ -124,6 +133,9 @@ inline uint32_t ETS_INTR_PENDING(void)
     __asm__ __volatile__("esync; rsr %0,interrupt":"=a" (pending));
     return pending;
 }
+#endif
+
+#endif
 
 #define ETS_CCOMPARE0_INTR_ATTACH(func, arg) \
     ets_isr_attach(ETS_CCOMPARE0_INUM, (int_handler_t)(func), (void *)(arg))

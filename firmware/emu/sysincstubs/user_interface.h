@@ -190,7 +190,9 @@ uint8 wifi_get_opmode_default(void);
 bool wifi_set_opmode(uint8 opmode);
 bool wifi_set_opmode_current(uint8 opmode);
 uint8 wifi_get_broadcast_if(void);
+#ifndef EMU
 bool wifi_set_broadcast_if(uint8 interface);
+#endif
 
 struct bss_info {
     STAILQ_ENTRY(bss_info)     next;
@@ -448,7 +450,7 @@ void wifi_fpm_set_sleep_type(sleep_type_t type);
 sleep_type_t wifi_fpm_get_sleep_type(void);
 void wifi_fpm_auto_sleep_set_in_null_mode(uint8 req);
 
-enum {
+enum event_switch_mode {
     EVENT_STAMODE_CONNECTED = 0,
     EVENT_STAMODE_DISCONNECTED,
     EVENT_STAMODE_AUTHMODE_CHANGE,
@@ -459,7 +461,7 @@ enum {
     EVENT_SOFTAPMODE_PROBEREQRECVED,
     EVENT_OPMODE_CHANGED,
     EVENT_SOFTAPMODE_DISTRIBUTE_STA_IP,
-    EVENT_MAX
+    EVENT_MAX_
 };
 
 enum {

@@ -14,10 +14,24 @@
 #include "../user/user_main.h"
 #include "../user/hdw/QMA6981.h"
 #include "../user/hdw/buzzer.h"
+#include "../user/hdw/buttons.h"
 #include "spi_flash.h"
 
-unsigned frames = 0;
-unsigned long iframeno = 0;
+#define BACKGROUND_COLOR  0x040510
+#define BACKGROUND_COLOR2 0x1B2845
+#define OLED_ON_COLOR    0x4094FF
+#define FOREGROUND_COLOR 0xD00000
+
+#define WS_HEIGHT 10
+#define BTN_HEIGHT 30
+
+#define NR_BUTTONS 4
+
+#ifdef ANDROID
+#define LOGI(...)  ((void)__android_log_print(/*ANDROID_LOG_INFO*/4, APPNAME, __VA_ARGS__))
+#define printf( x...) LOGI( x )
+#endif
+
 int px_scale = INIT_PX_SCALE;
 uint32_t * rawvidmem;
 short screenx, screeny;
@@ -25,12 +39,42 @@ uint32_t footerpix[FOOTER_PIXELS*OLED_WIDTH];
 uint32_t ws2812s[NR_WS2812];
 double boottime;
 
+uint8_t gpio_status;
 
+void system_os_check_tasks(void);
+void ets_timer_check_timers(void);
+
+void HandleButtonStatus( int button, int bDown )
+{
+	if( bDown )
+	{
+		if( gpio_status & (1<<button) ) return;
+		gpio_status |= 1<<button;
+	}
+	else
+	{
+		if( !( gpio_status & (1<<button) ) ) return;
+		gpio_status &= ~(1<<button);
+	}
+    HandleButtonEventIRQ( gpio_status, button, (bDown) ? 1 : 0 );
+}
+
+#ifndef ANDROID
 
 void HandleKey( int keycode, int bDown )
 {
 	if( keycode == 65307 ) exit( 0 );
 	printf( "Key: %d -> %d\n", keycode, bDown );
+	int button = -1;
+	switch( keycode )
+	{
+		case 'a': case 'A': button = 0; break;
+		case 's': case 'S': button = 1; break;
+		case 'd': case 'D': button = 2; break; 
+		case 'f': case 'F': button = 3; break;
+	}
+	if( button >= 0 )
+		HandleButtonStatus( button, bDown );
 }
 
 void HandleButton( int x, int y, int button, int bDown )
@@ -48,14 +92,89 @@ void HandleDestroy()
 	exit(10);
 }
 
+#endif
+
+//Really, this function is currently only used on Android.  TODO: Make the mouse actually do this.
+void emuCheckFooterMouse( int x, int y, int finger, int bDown )
+{
+	static int8_t fingermap[10];
+	if( finger >= 10 ) return;
+	if( !bDown )
+	{
+		fingermap[finger] = 0;
+		//printf( "PX: UP %d\n", finger );
+	}
+	else
+	{
+		int pxx = x / px_scale;
+		int pxy = y / px_scale;
+		pxy -= OLED_HEIGHT+WS_HEIGHT;
+		if( pxy < 0 ) return;
+		if( pxy >= BTN_HEIGHT ) return;
+		if( pxx >= OLED_WIDTH ) return;	
+		int button = pxx * NR_BUTTONS / OLED_WIDTH;
+		//printf( "PX: %d, %d / %d / %d, %d / %d\n", pxx, pxy, finger, x, y, bDown );
+		fingermap[finger] = button+1;
+	}
+
+	int b;
+	for( b = 0; b < NR_BUTTONS; b++ )
+	{
+		int i;
+		int bIsDown = 0;
+		for( i = 0; i < 10; i++ )
+		{
+			if( (fingermap[i] - 1) == b ) bIsDown = true;			
+		}
+		HandleButtonStatus( b, bIsDown );
+	}
+
+}
+
 void emuFooter()
 {
-	int x, y;
-	for( y = 0; y < FOOTER_PIXELS; y++ )
-	for( x = 0; x < OLED_WIDTH; x++ )
+	int x, y, lx = 0;
+	int ledno, btn;
+	for( ledno = 0; ledno < NR_WS2812; ledno++ )
 	{
-		footerpix[x+y*OLED_WIDTH] = rand();
+		uint32_t wscol = ws2812s[ledno];
+		for( y = 0; y < 10; y++ )
+		{
+			for( x = 0; x < OLED_WIDTH/NR_WS2812-1; x++ )
+			{
+				footerpix[lx+x+y*OLED_WIDTH] = wscol;
+			}
+			footerpix[lx+x+y*OLED_WIDTH] = BACKGROUND_COLOR2;
+		}
+		lx += OLED_WIDTH/NR_WS2812;
 	}
+
+	lx = 0;
+	for( btn = 0; btn < NR_BUTTONS; btn++ )
+	{
+		uint32_t btncol = (gpio_status & (1<<btn))?FOREGROUND_COLOR:BACKGROUND_COLOR;
+		for( y = WS_HEIGHT; y < WS_HEIGHT+BTN_HEIGHT; y++ )
+		{
+			for( x = 0; x < OLED_WIDTH/NR_BUTTONS-1; x++ )
+			{
+				footerpix[lx+x+y*OLED_WIDTH] = btncol;
+			}
+			footerpix[lx+x+y*OLED_WIDTH] = BACKGROUND_COLOR2;
+		}
+		lx += OLED_WIDTH/NR_BUTTONS;
+	}
+
+
+
+	for( y = WS_HEIGHT+BTN_HEIGHT; y < FOOTER_PIXELS; y++ )
+	{
+		for( x = 0; x < OLED_WIDTH; x++ )
+		{
+			footerpix[x+y*OLED_WIDTH] = BACKGROUND_COLOR;
+		}
+	}
+
+
 	int i;
 	for( i = 0; i < NR_WS2812; i++ )
 	{
@@ -72,16 +191,31 @@ void emuSendOLEDData( int disp, uint8_t * currentFb )
 	{
 		for( x = 0; x < OLED_WIDTH; x++ )
 		{
+
 			uint32_t pxcol;
 			if( disp == 0 )
 			{
-				uint8_t col = currentFb[(x + (y / 8) * OLED_WIDTH)] & (1 << (y & 7));
-				pxcol = col?(disp?0xffffffff:0xff80ffff):0x00000000;
+				int memx = (OLED_WIDTH - 1) - x;
+		    	int memy = (OLED_HEIGHT - 1) - y;
+				if (memy % 2 == 0)
+				{
+					memy = (memy >> 1);
+				}
+				else
+				{
+					memy = (memy >> 1) + (OLED_HEIGHT >> 1);
+				}
+		  
+				uint8_t col = currentFb[(memx + (memy / 8) * OLED_WIDTH)] & (1 << (memy & 7));
+				pxcol = col?(disp?0xffffffff:OLED_ON_COLOR):BACKGROUND_COLOR;
 			}
 			else
 			{
 				pxcol = ((uint32_t*)currentFb)[x+y*OLED_WIDTH];
 			}
+#ifdef ANDROID
+			pxcol = 0xff000000 | ( (pxcol&0xff) << 16 ) | ( pxcol & 0xff00 ) | ( (pxcol&0xff0000)>>16 );
+#endif
 			int lx, ly;
 			uint32_t * pxloc = rawvidmem + ( x +  ( ( y + (disp?OLED_HEIGHT:0) ) ) * OLED_WIDTH * px_scale ) * px_scale;
 			for( ly = 0; ly < px_scale; ly++ )
@@ -110,8 +244,13 @@ void emuCheckResize()
 }
 
 
+#ifndef ANDROID
 int main()
+#else
+int emumain()
+#endif
 {
+	unsigned frames = 0;
 	int i, x, y;
 	double ThisTime;
 	double LastFPSTime = OGGetAbsoluteTime();
@@ -126,6 +265,11 @@ int main()
 
 	// CNFGSetupFullscreen( "Test Bench", 0 );
 
+#ifdef WINDOWS
+	void REGISTERSoundWin();
+	REGISTERSoundWin();
+#endif
+
 	boottime = OGGetAbsoluteTime();
 
 	initOLED(0);
@@ -137,7 +281,9 @@ int main()
 	{
 		int i, pos;
 		float f;
-		iframeno++;
+
+		system_os_check_tasks();
+		ets_timer_check_timers();
 
 		updateOLED(0);
 
@@ -162,8 +308,8 @@ int main()
 			LastFPSTime+=1;
 		}
 
-		SecToWait = .016 - ( ThisTime - LastFrameTime );
-		LastFrameTime += .016;
+		SecToWait = .01 - ( ThisTime - LastFrameTime );
+		LastFrameTime += .01;
 		if( SecToWait > 0 )
 			OGUSleep( (int)( SecToWait * 1000000 ) );
 	}
@@ -227,6 +373,7 @@ bool system_rtc_mem_write(uint8 des_addr, const void *src_addr, uint16 save_size
 	fseek( f, SEEK_SET, des_addr );
 	fwrite( src_addr, save_size, 1, f );
 	fclose( f );
+	return true;
 }
 
 bool system_rtc_mem_read(uint8 src_addr, void *des_addr, uint16 load_size)
@@ -307,38 +454,61 @@ void ws2812_push( uint8_t* buffer, uint16_t buffersize )
 void * os_malloc( int x ) { return malloc( x ); }
 void os_free( void * x ) { free( x ); }
 
-
 ////////////////////////////////////////////////////////////////////////////////////////
 // Sound system (need to write)
+#include "sound/sound.h"
+
+struct SoundDriver * sounddriver;
+#define SSBUF 8192
+uint8_t ssamples[SSBUF];
+int sshead;
+int sstail;
+
+void EMUSoundCBType( float * out, float * in, int samplesr, int * samplesp, struct SoundDriver * sd )
+{
+	int i;
+	for( i = 0; i < samplesr; i++ )
+	{
+		if( sstail != (( sshead + 1 ) % SSBUF) )
+		{
+			float f = in[i];
+#ifdef ANDROID
+			f *= 5.0;
+			if( f > 1.0 ) f = 1.0;
+			else if( f < -1.0 ) f = -1.0;
+#endif
+			ssamples[sshead] = (int)( (f*0.5 + 0.5) * 255);
+			sshead = ( sshead + 1 ) % SSBUF;
+		}
+	}
+	*samplesp = 0;
+}
 
 void initMic(void)
 {
+	if( !sounddriver ) sounddriver = InitSound( 0, EMUSoundCBType );
 }
 
 void initBuzzer(void)
 {
-}
-
-void setBuzzerNote(uint16_t note)
-{
-}
-
-void SetupGPIO(bool enableMic)
-{
-}
-
-void setGpiosForBoot(void)
-{
+	if( !sounddriver ) sounddriver = InitSound( 0, EMUSoundCBType );
 }
 
 uint8_t getSample(void)
 {
-	return 0;
+	if( sshead != sstail )
+	{
+		uint8_t r = ssamples[sstail];
+		sstail = (sstail+1)%SSBUF;
+		return r;
+	}
+	else
+		return 0;
 }
 
 bool sampleAvailable(void)
 {
-	return FALSE;
+	return sstail != sshead;
 }
 
 void PauseHPATimer()
@@ -357,46 +527,330 @@ void  startBuzzerSong(const song_t* song, bool shouldLoop)
 {
 }
 
+#ifndef ANDROID
+
+void setBuzzerNote(uint16_t note)
+{
+}
+
+#endif
+
+void SetupGPIO(bool enableMic)
+{
+}
+
+void setGpiosForBoot(void)
+{
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //TODO: Need to write accelerometer.
-
+#ifndef ANDROID
 void QMA6981_poll(accel_t* currentAccel)
 {
 }
 
 bool QMA6981_setup(void)
 {
+	return false;
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
+ETSTimer* etsTimerList = NULL;
 
-void ets_timer_disarm(ETSTimer *a)
+/**
+ * Disarm the timer
+ * 
+ * @param ptimer timer structure.
+ */
+void ets_timer_disarm(ETSTimer *ptimer)
 {
-	fprintf( stderr, "EMU Warning: TODO: need to implement ets_timer_disarm(...)\n" );	
+	ptimer->timer_expire = 0;
+	ptimer->timer_period = 0;
+
+	// Unlink timer. Check if it's the head of the list
+	if(NULL == etsTimerList)
+	{
+		// Nothing to unlink
+		return;
+	}
+	else if(etsTimerList == ptimer)
+	{
+		// Timer is at the head, simple to remove
+		etsTimerList = etsTimerList->timer_next;
+	}
+	else
+	{
+		// Timer is not at the head.
+		// Iterate through the list, looking for a timer to remove
+		ETSTimer * tmr = etsTimerList;
+		while(NULL != tmr)
+		{
+			if(ptimer == tmr->timer_next)
+			{
+				// Timer is next, so unlink it
+				tmr->timer_next = tmr->timer_next->timer_next;
+				return;
+			}
+			else
+			{
+				// Iterate to the next
+				tmr = tmr->timer_next;
+			}		
+		}
+	}
 }
 
-void ets_timer_setfn(ETSTimer *t, ETSTimerFunc *fn, void *parg)
+/**
+ * Set timer callback function. The timer callback function must be set before
+ * arming a timer.
+ * 
+ * @param ptimer    timer structure.
+ * @param pfunction timer callback function; use typecasting to pass function as
+ *                  your function.
+ * @param parg      callback function parameter
+ */
+void ets_timer_setfn(ETSTimer *ptimer, ETSTimerFunc *pfunction, void *parg)
 {
-	fprintf( stderr, "EMU Warning: TODO: need to implement ets_timer_setfn(...)\n" );	
+	ptimer->timer_func = pfunction;
+	ptimer->timer_arg = parg;
 }
 
-void ets_timer_arm_new(ETSTimer *a, int b, int c, int isMstimer)
+/**
+ * Enable a millisecond timer.
+ * 
+ * @param ptimer       timer structure
+ * @param milliseconds timing; unit: millisecond.
+ *                     If system_timer_reinit has been called, the timer value allowed ranges from 100 to 0x689D0.
+ *                     If system_timer_reinit has NOT been called, the timer value allowed ranges from 5 to 0x68D7A3. 
+ * @param repeat_flag  whether the timer will be invoked repeatedly or not.
+ * @param isMstimer    true if this is a ms timer, false if it is a us timer
+ */
+void ets_timer_arm_new(ETSTimer *ptimer, int milliseconds, int repeat_flag,
+	int isMstimer)
 {
-	fprintf( stderr, "EMU Warning: TODO: need to implement ets_timer_arm_new(...)\n" );	
+	if (milliseconds <= 0 || ptimer == NULL)
+	{
+		// Timer is null or is being registered for 0ms, don't allow that
+		return;
+	}
+
+	if(NULL == etsTimerList)
+	{
+		// List is empty, set this timer as the head
+		etsTimerList = ptimer;
+		ptimer->timer_next = NULL;
+	}
+	else if (ptimer == etsTimerList)
+	{
+		// The first element of the list is the timer, don't add it twice
+	}
+	else
+	{
+		// List isn't empty and the head isn't this timer
+		ETSTimer * tmr = etsTimerList;
+		// Also check if the timer is already linked
+		bool alreadyExists = false;
+		// Iterate to the last element
+		while(NULL != tmr->timer_next)
+		{
+			if(tmr->timer_next == ptimer)
+			{
+				// This timer is already linked in the list!
+				alreadyExists = true;
+				break;
+			}
+			else
+			{
+				tmr = tmr->timer_next;
+			}			
+		}
+		
+		// If the timer wasn't in the list, link it
+		if(false == alreadyExists)
+		{
+			tmr->timer_next = ptimer;
+			ptimer->timer_next = NULL;
+		}
+	}
+	
+	// Timer was linked, now set up the params
+	ptimer->timer_expire = milliseconds;
+	if(repeat_flag)
+	{
+		ptimer->timer_period = milliseconds;
+	}
+	else
+	{
+		ptimer->timer_period = 0;
+	}
 }
 
+/**
+ * Check if timers have expired and call them. This will reset periodic
+ * timers and unlink non-periodic timers when they expire.
+ */
+void ets_timer_check_timers(void)
+{
+	// Keep the last time this function was called
+	static long long timeMs = -1;
 
+	// Get the current time in milliseconds
+    long long currTimeMs = (OGGetAbsoluteTime() - boottime) * 1000;
+
+	// If time hasn't been initialized yet
+	if(timeMs == -1)
+	{
+		// Initialize it
+		timeMs = currTimeMs;
+	}
+	else
+	{
+		// While at least 1ms has elapsed
+		while(timeMs != currTimeMs)
+		{
+			// Increment the static time
+			timeMs++;
+
+			// Iterate through all the timers
+			ETSTimer * tmr = etsTimerList;
+			while(NULL != tmr)
+			{
+				// If this timer is active
+				if(tmr->timer_expire > 0)
+				{
+					// Decrement the count
+					tmr->timer_expire--;
+					// If the timer expired
+					if(tmr->timer_expire == 0)
+					{
+						// Save the timer function and args
+						ETSTimerFunc *pfunction = tmr->timer_func;
+						void *parg = tmr->timer_arg;
+
+						// If the timer should repeat
+						if(tmr->timer_period)
+						{
+							// Reset the count
+							tmr->timer_expire = tmr->timer_period;
+						}
+						else
+						{
+							// Disarm non-repeating timers
+							ets_timer_disarm(tmr);
+						}
+
+						// Call the timer function
+						pfunction(parg);
+					}
+				}
+
+				// Iterate to the next
+				tmr = tmr->timer_next;
+			}
+		}
+	}
+}
+
+#define NUM_OS_TASKS 3
+
+struct taskAndQueue
+{
+	os_task_t task;
+	os_event_t *queue;
+	uint8 qlen;
+	uint8 qElems;
+} os_tasks[NUM_OS_TASKS] = {{0}};
+
+/**
+ * @brief Register a system OS task
+ * 
+ * @param task  task function
+ * @param prio  task priority. Three priorities are supported: 0/1/2; 0 is the
+ *              lowest priority. This means only 3 tasks are allowed to be set up. 
+ * @param queue message queue pointer
+ * @param qlen  message queue depth
+ * @return true if the task was registered, false if it was not
+ */
 bool system_os_task(os_task_t task, uint8 prio, os_event_t *queue, uint8 qlen)
 {
-	fprintf( stderr, "EMU Warning: TODO: need to implement system_os_task(...)\n" );	
+	// If it's out of bounds or trying to register a null or empty queue
+	if(prio >= NUM_OS_TASKS || queue == NULL || qlen == 0)
+	{
+		// Don't let that happen
+		return false;
+	}
+
+	// Save the task, overwriting anything that exists
+	os_tasks[prio].task = task;
+	os_tasks[prio].queue = queue;
+	os_tasks[prio].qlen = qlen;
+
+	return true;
 }
 
+/**
+ * @brief Post a signal & parameter to a system OS task
+ * 
+ * @param task  task function
+ * @param prio  task priority. Three priorities are supported: 0/1/2; 0 is the
+ *              lowest priority. This means only 3 tasks are allowed to be set up. 
+ * @param queue message queue pointer
+ * @param qlen  message queue depth
+ * @return true if the task was registered, false if it was not
+ */
 bool system_os_post(uint8 prio, os_signal_t sig, os_param_t par)
 {
-	fprintf( stderr, "EMU Warning: TODO: need to implement system_os_post(...)\n" );	
+	// If it's out of bounds or the event queue is full
+	if(prio >= NUM_OS_TASKS || os_tasks[prio].qElems >= os_tasks[prio].qlen)
+	{
+		// Don't let that happen
+		return false;
+	}
+
+	// Add this signal and parameter to the end of the task's queue
+	os_tasks[prio].queue[os_tasks[prio].qElems].par = par;
+	os_tasks[prio].queue[os_tasks[prio].qElems].sig = sig;
+	os_tasks[prio].qElems++;
+	return true;
 }
 
+/**
+ * @brief Check for and dispatch any events to the OS tasks
+ */
+void system_os_check_tasks(void)
+{
+	// Service all tasks from high priority to low
+	for(uint8_t i = 0; i < NUM_OS_TASKS; i++)
+	{
+		// If there is some event in the event queue
+		if(os_tasks[i].qElems > 0)
+		{
+			// Create an event with the signal and parameter from the task queue
+			ETSEvent evt =
+			{
+				.sig = os_tasks[i].queue[0].sig,
+				.par = os_tasks[i].queue[0].par
+			};
+
+			// If the queue has space for more than one element
+			if(os_tasks[i].qlen > 1)
+			{
+				// Shift all but the first element up one
+				memmove(&os_tasks[i].queue[0], &os_tasks[i].queue[1], os_tasks[i].qlen - 1);
+			}
+			// Zero out the last element
+			os_tasks[i].queue[os_tasks[i].qlen - 1].sig = 0;
+			os_tasks[i].queue[os_tasks[i].qlen - 1].par = 0;
+			os_tasks[i].qElems--;
+			
+			// Dispatch this event
+			os_tasks[i].task(&evt);
+		}
+	}
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -418,6 +872,7 @@ void ICACHE_FLASH_ATTR espNowSend(const uint8_t* data, uint8_t len)
 bool wifi_get_macaddr(uint8 if_index, uint8 *macaddr)
 {
 	fprintf( stderr, "EMU Warning: TODO: need to implement wifi_get_macaddr\n" );	
+	return true;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -426,16 +881,19 @@ bool wifi_get_macaddr(uint8 if_index, uint8 *macaddr)
 bool system_deep_sleep_set_option(uint8 option)
 {
 	fprintf( stderr, "EMU Warning: TODO: need to implement system_deep_sleep_set_option(...)\n" );
+	return true;
 }
 
 bool system_deep_sleep_instant(uint64 time_in_us)
 {
 	fprintf( stderr, "EMU Warning: TODO: need to implement system_deep_sleep_set_option(...)\n" );
+	return true;
 }
 
 bool system_deep_sleep(uint64 time_in_us)
 {
 	fprintf( stderr, "EMU Warning: TODO: need to implement system_deep_sleep(...)\n" );
+	return true;
 }
 
 
@@ -508,9 +966,9 @@ SpiFlashOpResult spi_flash_read(uint32 src_addr, uint32 *des_addr, uint32 size)
 	}	
 
 	fseek( f, SEEK_SET, src_addr );
-	fread( des_addr, size, 1, f );
+	int success = fread( des_addr, size, 1, f );
 	fclose( f );
-	return SPI_FLASH_RESULT_OK;
+	return (success==1)?SPI_FLASH_RESULT_OK:SPI_FLASH_RESULT_ERR;
 }
 
 

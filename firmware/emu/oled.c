@@ -21,6 +21,7 @@ bool initOLED(bool reset)
 	}
 	fbChanges = 1;
 	updateOLED(0);
+	return true;
 }
 
 void drawPixel(int16_t x, int16_t y, color c)
@@ -89,6 +90,7 @@ color getPixel(int16_t x, int16_t y)
 bool ICACHE_FLASH_ATTR setOLEDparams(bool turnOnOff)
 {
 	fbOnline = turnOnOff;
+	return true;
 }
 
 oledResult_t updateOLED(bool drawDifference)
@@ -98,7 +100,9 @@ oledResult_t updateOLED(bool drawDifference)
 		emuSendOLEDData( 0, currentFb );
 		//For the emulator, we don't care about differences.
     	ets_memcpy(priorFb, currentFb, sizeof(currentFb));
+		return FRAME_DRAWN;
 	}
+	return FRAME_NOT_DRAWN;
 }
 
 void clearDisplay(void)

@@ -5,6 +5,15 @@
 #include "fastlz.h"
 #include "user_main.h"
 #include "printControl.h"
+#ifdef EMU
+    #include <stdio.h>
+	#ifdef ANDROID
+		#include <asset_manager.h>
+		#include <asset_manager_jni.h>
+		#include <android_native_app_glue.h>
+		struct android_app * gapp;
+	#endif
+#endif
 
 const uint32_t sin1024[] RODATA_ATTR =
 {
@@ -83,11 +92,53 @@ void ICACHE_FLASH_ATTR transformPixel(int16_t* x, int16_t* y, int16_t transX,
  */
 uint32_t* ICACHE_FLASH_ATTR getAsset(const char* name, uint32_t* retLen)
 {
+#ifndef EMU
     /* Note assets are placed immediately after irom0
      * See "irom0_0_seg" in "eagle.app.v6.ld" for where this value comes from
      * The makefile flashes ASSETS_FILE to 0x6C000
      */
     uint32_t* assets = (uint32_t*)(0x40200000 + ASSETS_ADDR);
+#elif defined( ANDROID )
+	static uint32_t * assets;
+	if( !assets )
+	{
+		AAsset * file = AAssetManager_open( gapp->activity->assetManager, "assets.bin", AASSET_MODE_BUFFER );
+		if( file )
+		{
+			assets = AAsset_getBuffer( file );
+			//size_t fileLength = AAsset_getLength(file);
+			//assets = malloc( fileLength + 1);
+			//memcpy( assets, AAsset_getBuffer( file ), fileLength );
+		}
+		else
+		{
+			return NULL;
+		}
+	}
+#else
+    /* When emulating a swadge, assets are read directly from a file */
+    static uint32_t* assets = NULL;
+    if(NULL == assets)
+    {
+        FILE* fp = fopen( "assets.bin", "rb" );
+        if( NULL == fp )
+        {
+            fprintf( stderr, "EMU Error: Could not open assets.bin\n" );
+            return NULL;
+        }
+        fseek(fp, 0L, SEEK_END);
+        long sz = ftell(fp);
+        // TODO THIS LEAKS MEMORY WHEN EMULATING
+        assets = (uint32_t*)malloc(sz);
+        fseek(fp, 0L, SEEK_SET);
+        int r = fread(assets, sz, 1, fp);
+		if( r != 1 )
+		{
+            fprintf( stderr, "EMU Error: read error with assets.bin\n" );
+			return NULL;
+		}
+    }
+#endif
     uint32_t idx = 0;
     uint32_t numIndexItems = assets[idx++];
     AST_PRINTF("Scanning %d items\n", numIndexItems);
@@ -328,10 +379,10 @@ void ICACHE_FLASH_ATTR drawGifFromAsset(const char* name, int16_t xp, int16_t yp
             handle->duration = handle->assetPtr[handle->idx++];
 
             AST_PRINTF("%s\n  w: %d\n  h: %d\n  f: %d\n  d: %d\n", __func__,
-                     handle->width,
-                     handle->height,
-                     handle->nFrames,
-                     handle->duration);
+                       handle->width,
+                       handle->height,
+                       handle->nFrames,
+                       handle->duration);
 
             // Allocate enough space for the compressed data, decompressed data
             // and the actual gif
@@ -382,7 +433,7 @@ void ICACHE_FLASH_ATTR gifTimerFn(void* arg)
         paddedLen++;
     }
     AST_PRINTF("%s\n  frame: %d\n  cLen: %d\n  pLen: %d\n", __func__,
-             handle->cFrame, compressedLen, paddedLen);
+               handle->cFrame, compressedLen, paddedLen);
 
     // Copy the compressed data from flash to RAM
     os_memcpy(handle->compressed, &handle->assetPtr[handle->idx], paddedLen);

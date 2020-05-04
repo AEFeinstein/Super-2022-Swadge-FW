@@ -18,6 +18,7 @@
 #include "oled.h"
 #include "embeddednf.h"
 #include "embeddedout.h"
+#include "font.h"
 
 /*============================================================================
  * Defines
@@ -115,8 +116,11 @@ void ICACHE_FLASH_ATTR colorchordEnterMode(void)
 void ICACHE_FLASH_ATTR ccAnimation(void* arg __attribute__((unused)))
 {
     clearDisplay();
+    plotText(0, 0, "COLORCHORD", RADIOSTARS, WHITE);
+
     static uint16_t rotation = 0;
     rotation = (rotation + 4) % 360;
+    
     drawBitmapFromAsset("king.png", (128 - 37) / 2, 0, false, false, rotation);
 
     // Draw a bar graph
