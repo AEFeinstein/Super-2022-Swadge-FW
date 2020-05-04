@@ -1,4 +1,4 @@
-//Copyright 2015 <>< Charles Lohr under the ColorChord License.
+//Copyright 2015-2020 <>< Charles Lohr under the ColorChord License, MIT/x11 license or NewBSD Licenses.
 
 #include <windows.h>
 #include "sound.h"
@@ -12,74 +12,88 @@
 #pragma comment(lib,"winmm.lib")
 #endif
 
-
-#ifndef NO_SOUND_PARAMETERS
-#include "parameters.h"
-#else
-#define GetParameterI( x, y ) (y)
-#define GetParameterS( x, y ) (y)
-#endif
-#define BUFFERSETS 4
-#define BLOCKING
-
-
-#define BUFFS 2
+#define BUFFS 3
 
 struct SoundDriverWin
 {
-	void (*CloseFn)( struct SoundDriverWin * object );
-	int (*SoundStateFn)( struct SoundDriverWin * object );
+	//Standard header - must remain.
+	void (*CloseFn)( void * object );
+	int (*SoundStateFn)( void * object );
 	SoundCBType callback;
 	int channelsPlay;
-	int spsPlay;
 	int channelsRec;
-	int spsRec;
+	int sps;
+	void * opaque;
 
+	char * sInputDev;
+	char * sOutputDev;
 
 	int buffer;
 	int isEnding;
-	int GOBUFF;
+	int GOBUFFRec;
+	int GOBUFFPlay;
 
 	int recording;
+	int playing;
 
-	HWAVEIN hMyWave;
-	WAVEHDR WavBuff[BUFFS];
+	HWAVEIN hMyWaveIn;
+	HWAVEOUT hMyWaveOut;
+	WAVEHDR WavBuffIn[BUFFS];
+	WAVEHDR WavBuffOut[BUFFS];
 };
+
 
 static struct SoundDriverWin * w;
 
-void CloseSoundWin( struct SoundDriverWin * r )
+void CloseSoundWin( void * v )
 {
+	struct SoundDriverWin * r = (struct SoundDriverWin *)v;
 	int i;
 
 	if( r )
 	{
-		waveInStop(r->hMyWave);
-		waveInReset(r->hMyWave);
-
-		for ( i=0;i<BUFFS;i++)
+		if( r->hMyWaveIn )
 		{
-			waveInUnprepareHeader(r->hMyWave,&(r->WavBuff[i]),sizeof(WAVEHDR));
-			free ((r->WavBuff[i]).lpData);
+			waveInStop(r->hMyWaveIn);
+			waveInReset(r->hMyWaveIn);
+			for ( i=0;i<BUFFS;i++)
+			{
+				waveInUnprepareHeader(r->hMyWaveIn,&(r->WavBuffIn[i]),sizeof(WAVEHDR));
+				free ((r->WavBuffIn[i]).lpData);
+			}
+			waveInClose(r->hMyWaveIn);
 		}
-		waveInClose(r->hMyWave);
+
+		if( r->hMyWaveOut )
+		{
+			waveOutPause(r->hMyWaveOut);
+			waveOutReset(r->hMyWaveOut);
+
+			for ( i=0;i<BUFFS;i++)
+			{
+				waveInUnprepareHeader(r->hMyWaveIn,&(r->WavBuffOut[i]),sizeof(WAVEHDR));
+				free ((r->WavBuffOut[i]).lpData);
+			}
+			waveInClose(r->hMyWaveIn);
+			waveOutClose(r->hMyWaveOut);
+		}
 		free( r );
 	}
 }
 
-int SoundStateWin( struct SoundDriverWin * soundobject )
+int SoundStateWin( void * v )
 {
-	return soundobject->recording;
+	struct SoundDriverWin * soundobject = (struct SoundDriverWin *)v;
+
+	return soundobject->recording | (soundobject->playing?2:0);
 }
 
-void CALLBACK HANDLEMIC(HWAVEIN hwi,UINT umsg, DWORD dwi, DWORD hdr, DWORD dwparm)
+void CALLBACK HANDLEMIC(HWAVEIN hwi, UINT umsg, DWORD dwi, DWORD hdr, DWORD dwparm)
 {
 	int ctr;
 	int ob;
 	long cValue;
 	unsigned int maxWave=0;
-
-	float buffer[w->buffer*w->channelsRec];
 
 	if (w->isEnding) return;
 
@@ -91,24 +105,35 @@ void CALLBACK HANDLEMIC(HWAVEIN hwi,UINT umsg, DWORD dwi, DWORD hdr, DWORD dwpar
 		break;
 
 	case MM_WIM_DATA:
-//		printf( "Mic Data.\n");
-		ob = (w->GOBUFF+(BUFFS))%BUFFS;
-//		waveInPrepareHeader(w->hMyWave,&(w->WavBuff[w->Cbuff]),sizeof(WAVEHDR));
+		ob = (w->GOBUFFRec+(BUFFS))%BUFFS;
+		w->callback(  (struct SoundDriver*)w, (short*)(w->WavBuffIn[w->GOBUFFRec]).lpData, 0, w->buffer, 0 );
+		waveInAddBuffer(w->hMyWaveIn,&(w->WavBuffIn[w->GOBUFFRec]),sizeof(WAVEHDR));
+		w->GOBUFFRec = ( w->GOBUFFRec + 1 ) % BUFFS;
+		break;
+	}
+}
 
-		for (ctr=0;ctr<w->buffer * w->channelsRec;ctr++) {
-			float cv = (uint16_t)(((uint8_t)w->WavBuff[ob].lpData[ctr*2+1])*256+((uint8_t)w->WavBuff[ob].lpData[ctr*2])+32768)-32768;
-			cv /= 32768;
-//			if( ctr < 3 ) cv = -1;
-//			buffer[(w->buffer * w->channelsRec)-ctr-1] = cv;
-			buffer[ctr] = cv;
-		}
 
-		waveInAddBuffer(w->hMyWave,&(w->WavBuff[w->GOBUFF]),sizeof(WAVEHDR));
-		w->GOBUFF = ( w->GOBUFF + 1 ) % BUFFS;
+void CALLBACK HANDLESINK(HWAVEIN hwi, UINT umsg, DWORD dwi, DWORD hdr, DWORD dwparm)
+{
+	int ctr;
+	long cValue;
+	unsigned int maxWave=0;
 
-		int playbacksamples; //Unused
-		w->callback( 0, buffer, w->buffer, &playbacksamples, (struct SoundDriver*)w );
+	if (w->isEnding) return;
 
+	switch (umsg)
+	{
+	case MM_WOM_OPEN:
+		printf( "Sink Open.\n" );
+		w->playing = 1;
+		break;
+
+	case MM_WOM_DONE:
+		w->callback( (struct SoundDriver*)w, 0, (short*)(w->WavBuffOut[w->GOBUFFPlay]).lpData, 0, w->buffer );
+		waveOutWrite( w->hMyWaveOut, &(w->WavBuffOut[w->GOBUFFPlay]),sizeof(WAVEHDR) );
+		w->GOBUFFPlay = ( w->GOBUFFPlay + 1 ) % BUFFS;
+		break;
 	}
 }
 
@@ -119,79 +144,98 @@ static struct SoundDriverWin * InitWinSound( struct SoundDriverWin * r )
 	WAVEFORMATEX wfmt;
 	memset( &wfmt, 0, sizeof(wfmt) );
 	printf ("WFMT Size (debugging temp for TCC): %d\n", sizeof(wfmt) );
-	if( GetParameterI( "play", 0 )  )
-	{
-		fprintf( stderr, "Error: This Windows Sound Driver does not support playback.\n" );
-		exit( -1 );
-	}
-
+	printf( "WFMT: %d %d %d\n", r->channelsRec, r->sps, r->sps * r->channelsRec );
 	w = r;
-
-
-	printf( "WFMT: %d %d %d\n", r->channelsRec, r->spsRec,
-		r->spsRec * r->channelsRec );
-
+	
 	wfmt.wFormatTag = WAVE_FORMAT_PCM;
 	wfmt.nChannels = r->channelsRec;
-	wfmt.nSamplesPerSec = r->spsRec;
-	wfmt.nAvgBytesPerSec = r->spsRec * r->channelsRec;
+	wfmt.nAvgBytesPerSec = r->sps * r->channelsRec;
 	wfmt.nBlockAlign = r->channelsRec * 2;
+	wfmt.nSamplesPerSec = r->sps;
 	wfmt.wBitsPerSample = 16;
 	wfmt.cbSize = 0;
 
-	long dwdevice;
-	dwdevice = GetParameterI( "wininput", WAVE_MAPPER );
+	long dwdeviceR, dwdeviceP;
+	dwdeviceR = r->sInputDev?atoi(r->sInputDev):WAVE_MAPPER;
+	dwdeviceP = r->sOutputDev?atoi(r->sOutputDev):WAVE_MAPPER;
 
-	printf( "Wave Devs: %d; WAVE_MAPPER: %d; Selected Input: %d\n", waveInGetNumDevs(), WAVE_MAPPER, dwdevice );
+	if( r->channelsRec )
+	{
+		printf( "In Wave Devs: %d; WAVE_MAPPER: %d; Selected Input: %d\n", waveInGetNumDevs(), WAVE_MAPPER, dwdeviceR );
+		int p = waveInOpen(&r->hMyWaveIn, dwdeviceR, &wfmt, (intptr_t)(&HANDLEMIC), 0, CALLBACK_FUNCTION);
+		if( p )
+		{
+			fprintf( stderr, "Error performing waveInOpen.  Received code: %d\n", p );
+		}
+		printf( "waveInOpen: %d\n", p );
+		for ( i=0;i<BUFFS;i++)
+		{
+			memset( &(r->WavBuffIn[i]), 0, sizeof(r->WavBuffIn[i]) );
+			(r->WavBuffIn[i]).dwBufferLength = r->buffer*2*r->channelsRec;
+			(r->WavBuffIn[i]).dwLoops = 1;
+			(r->WavBuffIn[i]).lpData=(char*) malloc(r->buffer*r->channelsRec*2);
+			printf( "buffer gen size: %d: %p\n", r->buffer*r->channelsRec*2, (r->WavBuffIn[i]).lpData );
+			p = waveInPrepareHeader(r->hMyWaveIn,&(r->WavBuffIn[i]),sizeof(WAVEHDR));
+			printf( "WIPr: %d\n", p );
+			waveInAddBuffer(r->hMyWaveIn,&(r->WavBuffIn[i]),sizeof(WAVEHDR));
+			printf( "WIAr: %d\n", p );
+		}
+		p = waveInStart(r->hMyWaveIn);
+		if( p )
+		{
+			fprintf( stderr, "Error performing waveInStart.  Received code %d\n", p );
+		}
+	}
 
-	printf( "waveInOpen: %p, %p\n", r->hMyWave, &wfmt );
-
-	int p = waveInOpen(&r->hMyWave, dwdevice, &wfmt, (void*)(&HANDLEMIC) , 0, CALLBACK_FUNCTION);
+	wfmt.nChannels = r->channelsPlay;
+	wfmt.nAvgBytesPerSec = r->sps * r->channelsPlay;
+	wfmt.nBlockAlign = r->channelsPlay * 2;
 	
-	if( p )
+	if( r->channelsPlay )
 	{
-		fprintf( stderr, "Error performing waveInOpen.  Received code: %d\n", p );
+		printf( "Out Wave Devs: %d; WAVE_MAPPER: %d; Selected Input: %d\n", waveOutGetNumDevs(), WAVE_MAPPER, dwdeviceP );
+		int p = waveOutOpen( &r->hMyWaveOut, dwdeviceP, &wfmt, (intptr_t)(void*)(&HANDLESINK), (intptr_t)r, CALLBACK_FUNCTION);
+		if( p )
+		{
+			fprintf( stderr, "Error performing waveOutOpen. Received code: %d\n", p );
+		}
+		printf( "waveOutOpen: %d\n", p );
+		for ( i=0;i<BUFFS;i++)
+		{
+			memset( &(r->WavBuffOut[i]), 0, sizeof(r->WavBuffOut[i]) );
+			(r->WavBuffOut[i]).dwBufferLength = r->buffer*2*r->channelsPlay;
+			(r->WavBuffOut[i]).dwLoops = 1;
+			(r->WavBuffOut[i]).lpData=(char*) malloc(r->buffer*r->channelsPlay*2);
+			p = waveOutPrepareHeader(r->hMyWaveOut,&(r->WavBuffOut[i]),sizeof(WAVEHDR));
+			waveOutWrite( r->hMyWaveOut, &(r->WavBuffOut[i]),sizeof(WAVEHDR));
+		}
 	}
-
-	for ( i=0;i<BUFFS;i++)
-	{
-		memset( &(r->WavBuff[i]), 0, sizeof(r->WavBuff[i]) );
-		(r->WavBuff[i]).dwBufferLength = r->buffer*2*r->channelsRec;
-		(r->WavBuff[i]).dwLoops = 1;
-		(r->WavBuff[i]).lpData=(char*) malloc(r->buffer*r->channelsRec*2);
-		p = waveInPrepareHeader(r->hMyWave,&(r->WavBuff[i]),sizeof(WAVEHDR));
-		printf( "WIP: %d\n", p );
-		waveInAddBuffer(r->hMyWave,&(r->WavBuff[i]),sizeof(WAVEHDR));
-		printf( "WIA: %d\n", p );
-	}
-
-	p = waveInStart(r->hMyWave);
-	if( p )
-	{
-		fprintf( stderr, "Error performing waveInStart.  Received code %d\n", p );
-	}
-
+	
 	return r;
 }
 
 
 
-void * InitSoundWin( SoundCBType cb )
+void * InitSoundWin( SoundCBType cb, int reqSPS, int reqChannelsRec, int reqChannelsPlay, int sugBufferSize, const char * inputSelect, const char * outputSelect )
 {
 	struct SoundDriverWin * r = (struct SoundDriverWin *)malloc( sizeof( struct SoundDriverWin ) );
 
 	r->CloseFn = CloseSoundWin;
 	r->SoundStateFn = SoundStateWin;
 	r->callback = cb;
+	r->sps = reqSPS;
+	r->channelsPlay = reqChannelsPlay;
+	r->channelsRec = reqChannelsRec;
+	r->buffer = sugBufferSize;
+	r->sInputDev = inputSelect?strdup(inputSelect):0;
+	r->sOutputDev = outputSelect?strdup(outputSelect):0;
 
-	r->spsRec = GetParameterI( "samplerate", DEFAULT_SAMPLERATE );
-	r->channelsRec = GetParameterI( "channels", 2 );
-	r->buffer = GetParameterI( "buffer", 384 );
 	r->recording = 0;
+	r->playing = 0;
 	r->isEnding = 0;
-	printf( "Buffer: %d\n", r->buffer );
 
-	r->GOBUFF=0;
+	r->GOBUFFPlay = 0;
+	r->GOBUFFRec = 0;
 
 	return InitWinSound(r);
 }

@@ -457,41 +457,77 @@ void os_free( void * x ) { free( x ); }
 ////////////////////////////////////////////////////////////////////////////////////////
 // Sound system (need to write)
 #include "sound/sound.h"
-
 struct SoundDriver * sounddriver;
 #define SSBUF 8192
 uint8_t ssamples[SSBUF];
 int sshead;
 int sstail;
+void ICACHE_FLASH_ATTR songTimerCb(void* arg __attribute__((unused)));
+void stopBuzzerSong(void);
+void ICACHE_FLASH_ATTR loadNextNote(void);
+struct
+{
+    uint16_t currNote; // Actually a clock divisor
+    uint16_t currDuration;
+    const song_t* song;
+    bool songShouldLoop;
+    uint32_t noteTime;
+    uint32_t noteIdx;
+    syncedTimer_t songTimer;
+} bzr = {0};
 
-void EMUSoundCBType( float * out, float * in, int samplesr, int * samplesp, struct SoundDriver * sd )
+uint16_t buzzernote;
+
+#ifndef ANDROID
+#define BZR_PRINTF printf
+#else
+#define BZR_PRINTF LOGI
+#endif
+
+void EMUSoundCBType( struct SoundDriver * sd, short * in, short * out, int samplesr, int samplesp )
 {
 	int i;
-	for( i = 0; i < samplesr; i++ )
+	if( samplesr )
 	{
-		if( sstail != (( sshead + 1 ) % SSBUF) )
+		for( i = 0; i < samplesr; i++ )
 		{
-			float f = in[i];
+			if( sstail != (( sshead + 1 ) % SSBUF) )
+			{
+				int v = in[i];
 #ifdef ANDROID
-			f *= 5.0;
-			if( f > 1.0 ) f = 1.0;
-			else if( f < -1.0 ) f = -1.0;
+				v *= 5;
+				if( v > 32767 ) v = 32767;
+				else if( v < -32768 ) v = -32768;
 #endif
-			ssamples[sshead] = (int)( (f*0.5 + 0.5) * 255);
-			sshead = ( sshead + 1 ) % SSBUF;
+				ssamples[sshead] = (v/256) + 128;
+				sshead = ( sshead + 1 ) % SSBUF;
+			}
 		}
 	}
-	*samplesp = 0;
+	
+	if( samplesp && out )
+	{
+		static uint16_t iplaceinwave;
+
+		if ( buzzernote )
+		{
+			for( i = 0; i < samplesp; i++ )
+			{
+				out[i] = 16384 * sin( (3.1415926*2.0*iplaceinwave) / ((float)(buzzernote)) ); //sineaev
+				iplaceinwave += 156; //Actually 156.255 5682/(16000/440)
+				iplaceinwave = iplaceinwave%buzzernote;
+			}
+		}
+		else
+		{
+			memset( out, 0, samplesp * 2 );
+		}
+	}
 }
 
 void initMic(void)
 {
-	if( !sounddriver ) sounddriver = InitSound( 0, EMUSoundCBType );
-}
-
-void initBuzzer(void)
-{
-	if( !sounddriver ) sounddriver = InitSound( 0, EMUSoundCBType );
+	if( !sounddriver ) sounddriver = InitSound( 0, EMUSoundCBType, 16000, 1, 1, 256, 0, 0 );
 }
 
 uint8_t getSample(void)
@@ -511,6 +547,143 @@ bool sampleAvailable(void)
 	return sstail != sshead;
 }
 
+void initBuzzer(void)
+{
+    stopBuzzerSong();
+	
+	if( !sounddriver ) sounddriver = InitSound( 0, EMUSoundCBType, 16000, 1, 1, 256, 0, 0 );
+
+    // Keep it high in the idle state
+    //setBuzzerGpio(false);
+	int getIsMutedOption();
+    // If it's muted, don't set anything
+    if(getIsMutedOption())
+    {
+        return;
+    }
+
+    ets_memset(&bzr, 0, sizeof(bzr));
+    syncedTimerSetFn(&bzr.songTimer, songTimerCb, NULL);
+}
+
+
+/**
+ * Set the song currently played by the buzzer. The pointer will be saved, but
+ * no memory will be copied, so don't modify it!
+ *
+ * @param song A pointer to the song_t struct to be played
+ * @param shouldLoop true to loop the song, false otherwise
+ */
+void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song, bool shouldLoop)
+{
+	BZR_PRINTF("%s, %d notes, %d internote pause\n", __func__, song->numNotes, song->interNotePause);
+    // If it's muted, don't set anything
+    if(getIsMutedOption())
+    {
+        return;
+    }
+
+    // Stop everything
+    stopBuzzerSong();
+
+    // Save the song pointer
+    bzr.song = song;
+    bzr.songShouldLoop = shouldLoop;
+
+    // Set the timer to call every 1ms
+    syncedTimerArm(&bzr.songTimer, 1, true);
+
+    // Start playing the first note
+    loadNextNote();
+}
+
+void setBuzzerNote( uint16_t note )
+{
+	buzzernote = note;
+}
+
+/**
+ * @brief Load the next note from the song's ROM and play it
+ */
+void ICACHE_FLASH_ATTR loadNextNote(void)
+{
+    uint32_t noteAndDuration = bzr.song->notes[bzr.noteIdx];
+    bzr.currDuration = (noteAndDuration >> 16) & 0xFFFF;
+    setBuzzerNote(noteAndDuration & 0xFFFF);
+
+    BZR_PRINTF("%s n:%5d d:%5d\n", __func__, bzr.currNote, bzr.currDuration);
+}
+
+/**
+ * Stops the song currently being played
+ */
+void ICACHE_FLASH_ATTR stopBuzzerSong(void)
+{
+    BZR_PRINTF("%s\n", __func__);
+
+    setBuzzerNote(SILENCE);
+    bzr.song = NULL;
+    bzr.noteTime = 0;
+    bzr.noteIdx = 0;
+    syncedTimerDisarm(&bzr.songTimer);
+}
+
+/**
+ * A function called every millisecond. It advances through the song_t struct
+ * and plays notes. It will loop the song if shouldLoop is set
+ *
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR songTimerCb(void* arg __attribute__((unused)))
+{
+    // If it's muted, don't set anything
+    if(getIsMutedOption())
+    {
+        return;
+    }
+
+    // Increment the time
+    bzr.noteTime++;
+
+    // Check if it's time for a new note
+    if(bzr.noteTime >= bzr.currDuration)
+    {
+        // This note's time elapsed, try playing the next one
+        bzr.noteIdx++;
+        bzr.noteTime = 0;
+        if(bzr.noteIdx < bzr.song->numNotes)
+        {
+            // There's another note to play, so play it
+            loadNextNote();
+        }
+        else
+        {
+            // No more notes
+            if(bzr.songShouldLoop)
+            {
+                BZR_PRINTF("Loop\n");
+                // Song over, but should loop, so start again
+                bzr.noteIdx = 0;
+                loadNextNote();
+            }
+            else
+            {
+                BZR_PRINTF("Don't loop\n");
+                // Song over, not looping, stop the timer and the note
+                setBuzzerNote(SILENCE);
+                syncedTimerDisarm(&bzr.songTimer);
+            }
+        }
+    }
+    else if ((bzr.currDuration > bzr.song->interNotePause) &&
+             (bzr.noteTime >= bzr.currDuration - bzr.song->interNotePause))
+    {
+        // Pause a little between notes
+        setBuzzerNote(SILENCE);
+    }
+}
+
+
 void PauseHPATimer()
 {
 }
@@ -519,21 +692,6 @@ void ContinueHPATimer()
 {
 }
 
-void stopBuzzerSong(void)
-{
-}
-
-void  startBuzzerSong(const song_t* song, bool shouldLoop)
-{
-}
-
-#ifndef ANDROID
-
-void setBuzzerNote(uint16_t note)
-{
-}
-
-#endif
 
 void SetupGPIO(bool enableMic)
 {
