@@ -105,6 +105,13 @@ void NmiTimSetFunc(void (*func)(void));
 
 #ifndef ANDROID
 
+
+#ifdef EMU
+#define ETS_INTR_PENDING()
+#define ETS_INTR_ENABLED()
+#define ETS_INTR_WITHINISR()
+
+#else
 inline bool ETS_INTR_WITHINISR()
 {
     uint32_t ps;
@@ -126,6 +133,7 @@ inline uint32_t ETS_INTR_PENDING(void)
     __asm__ __volatile__("esync; rsr %0,interrupt":"=a" (pending));
     return pending;
 }
+#endif
 
 #endif
 

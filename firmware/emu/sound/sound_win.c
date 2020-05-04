@@ -1,7 +1,6 @@
 //Copyright 2015 <>< Charles Lohr under the ColorChord License.
 
 #include <windows.h>
-#include "parameters.h"
 #include "sound.h"
 #include "os_generic.h"
 #include <stdio.h>
@@ -12,6 +11,17 @@
 #if defined(WIN32) && !defined( TCC )
 #pragma comment(lib,"winmm.lib")
 #endif
+
+
+#ifndef NO_SOUND_PARAMETERS
+#include "parameters.h"
+#else
+#define GetParameterI( x, y ) (y)
+#define GetParameterS( x, y ) (y)
+#endif
+#define BUFFERSETS 4
+#define BLOCKING
+
 
 #define BUFFS 2
 
@@ -154,7 +164,7 @@ static struct SoundDriverWin * InitWinSound( struct SoundDriverWin * r )
 		waveInAddBuffer(r->hMyWave,&(r->WavBuff[i]),sizeof(WAVEHDR));
 		printf( "WIA: %d\n", p );
 	}
-\
+
 	p = waveInStart(r->hMyWave);
 	if( p )
 	{
@@ -174,7 +184,7 @@ void * InitSoundWin( SoundCBType cb )
 	r->SoundStateFn = SoundStateWin;
 	r->callback = cb;
 
-	r->spsRec = GetParameterI( "samplerate", 44100 );
+	r->spsRec = GetParameterI( "samplerate", DEFAULT_SAMPLERATE );
 	r->channelsRec = GetParameterI( "channels", 2 );
 	r->buffer = GetParameterI( "buffer", 384 );
 	r->recording = 0;

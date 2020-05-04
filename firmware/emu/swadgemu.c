@@ -265,6 +265,11 @@ int emumain()
 
 	// CNFGSetupFullscreen( "Test Bench", 0 );
 
+#ifdef WINDOWS
+	void REGISTERSoundWin();
+	REGISTERSoundWin();
+#endif
+
 	boottime = OGGetAbsoluteTime();
 
 	initOLED(0);
@@ -522,7 +527,13 @@ void  startBuzzerSong(const song_t* song, bool shouldLoop)
 {
 }
 
+#ifndef ANDROID
 
+void setBuzzerNote(uint16_t note)
+{
+}
+
+#endif
 
 void SetupGPIO(bool enableMic)
 {
