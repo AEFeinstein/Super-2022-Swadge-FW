@@ -17,9 +17,9 @@
 #include "../user/hdw/buttons.h"
 #include "spi_flash.h"
 
-#define BACKGROUND_COLOR  0x051923
+#define BACKGROUND_COLOR  0x040510
 #define BACKGROUND_COLOR2 0x1B2845
-#define OLED_ON_COLOR    0x2191FB
+#define OLED_ON_COLOR    0x4094FF
 #define FOREGROUND_COLOR 0xD00000
 
 #define WS_HEIGHT 10
