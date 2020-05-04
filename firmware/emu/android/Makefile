@@ -18,8 +18,9 @@ assetsrecipe :
 
 include ../Makefile
 
-CFLAGS+=-I. -DANDROID
-LDFLAGS:=-lOpenSLES
+CFLAGS+=-I. -DANDROID  -ffunction-sections -Os
+LDFLAGS:=-lOpenSLES -s
+
 EXTRASRC:=androidsupport.c $(EMUC) $(SWADGEC)
 
 include rawdrawandroid/Makefile
