@@ -1,5 +1,7 @@
 //Copyright 2019-2020 <>< Charles Lohr under the ColorChord License.
-// This should be used with rawdrawandroid
+// This was originally to be used with rawdrawandroid
+
+// THIS IS A VERY HACKED UP VERSION FOR SWADGES - DO NOT USE ELSEWHERE
 
 #include "sound.h"
 #include "os_generic.h"
@@ -31,7 +33,8 @@
 #define LOGI(...)  ((void)__android_log_print(ANDROID_LOG_INFO, APPNAME, __VA_ARGS__))
 #define printf( x...) LOGI( x )
 
-#define RECORDER_FRAMES 1024
+#define RECORDER_FRAMES 256
+#define PLAYER_FRAMES 64
 
 #define BUFFERSETS 4
 
@@ -49,10 +52,17 @@ struct SoundDriverAndroid
 	SLEngineItf engineEngine;
 	SLRecordItf recorderRecord;
 	SLObjectItf recorderObject;
+
+	SLPlayItf playerPlay;
+	SLObjectItf playerObject;
+	SLObjectItf outputMixObject;
+ 
 	SLAndroidSimpleBufferQueueItf recorderBufferQueue;
+	SLAndroidSimpleBufferQueueItf playerBufferQueue;
 	unsigned recorderSize;
 
 	short recorderBuffer[RECORDER_FRAMES];
+	short playerBuffer[PLAYER_FRAMES];
 };
 
 
@@ -66,6 +76,39 @@ void bqRecorderCallback(SLAndroidSimpleBufferQueueItf bq, void *context)
 	for( i = 0; i < RECORDER_FRAMES; i++ )	buffout[i] = (rb[i]+0.5)/32767.5;
 	r->callback( 0, buffout, RECORDER_FRAMES, &samplesp, r );
 	(*r->recorderBufferQueue)->Enqueue(r->recorderBufferQueue, r->recorderBuffer, sizeof(r->recorderBuffer));
+}
+
+
+static uint16_t buzzernote; 
+void setBuzzerNote(uint16_t note)
+{
+	LOGI( "SET BUZZER NOTE %d\n", note );
+	buzzernote = note;
+}
+
+void bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context)
+{
+	static uint16_t iplaceinwave;
+//	buzzernote = 5682;
+	struct SoundDriverAndroid * r = (struct SoundDriverAndroid*)context;
+	int i;
+	short * rb = r->playerBuffer;
+	if ( buzzernote )
+	{
+		for( i = 0; i < PLAYER_FRAMES; i++ )
+		{
+			rb[i] = sin( (3.1415926*2.0*iplaceinwave) / ((float)(buzzernote)) )*20000; //sineaev
+//			rb[i] = (iplaceinwave) / ((float)(buzzernote))*20000; //ragged sawtooth YEEHAWWW
+
+			iplaceinwave += 156; //Actually 156.255 5682/(16000/440)
+			iplaceinwave = iplaceinwave%buzzernote;
+		}
+	}
+	else
+	{
+		memset( rb, 0, sizeof( r->playerBuffer ) );
+	}
+	(*r->playerBufferQueue)->Enqueue(r->playerBufferQueue, r->playerBuffer, sizeof(r->playerBuffer));
 }
 
 static struct SoundDriverAndroid* InitAndroidSound( struct SoundDriverAndroid * r )
@@ -92,9 +135,8 @@ static struct SoundDriverAndroid* InitAndroidSound( struct SoundDriverAndroid * 
 
 
     // configure audio source
-    SLDataLocator_IODevice loc_dev = {SL_DATALOCATOR_IODEVICE, SL_IODEVICE_AUDIOINPUT,
-            SL_DEFAULTDEVICEID_AUDIOINPUT, NULL};
-    SLDataSource audioSrc = {&loc_dev, NULL};
+    SLDataLocator_IODevice loc_devI = {SL_DATALOCATOR_IODEVICE, SL_IODEVICE_AUDIOINPUT, SL_DEFAULTDEVICEID_AUDIOINPUT, NULL};
+    SLDataSource audioSrc = {&loc_devI, NULL};
 
     // configure audio sink
     SLDataLocator_AndroidSimpleBufferQueue loc_bq = {SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE, 2};
@@ -108,13 +150,85 @@ static struct SoundDriverAndroid* InitAndroidSound( struct SoundDriverAndroid * 
 		SL_SPEAKER_FRONT_CENTER,
 		SL_BYTEORDER_LITTLEENDIAN,
 	};
-
     SLDataSink audioSnk = {&loc_bq, &format_pcm};
+
+
+    const SLInterfaceID id[1] = {SL_IID_ANDROIDSIMPLEBUFFERQUEUE};
+    const SLboolean req[1] = {SL_BOOLEAN_TRUE};
+
+
+    LOGI("create output mix");
+ 
+	{
+
+		SLDataFormat_PCM format_pcm ={
+			SL_DATAFORMAT_PCM,
+			1, //how many channels
+			SL_SAMPLINGRATE_16,
+			SL_PCMSAMPLEFORMAT_FIXED_16,
+			SL_PCMSAMPLEFORMAT_FIXED_16,
+			SL_SPEAKER_FRONT_CENTER, //which channels
+			SL_BYTEORDER_LITTLEENDIAN,
+		};
+		SLDataSink audioSnk = {&loc_bq, &format_pcm};
+
+
+		SLDataLocator_AndroidSimpleBufferQueue loc_bq_play = {SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE, 2};
+		SLDataSink source = {&loc_bq_play, &format_pcm};
+
+
+		const SLInterfaceID ids[1] = {SL_IID_VOLUME};
+		const SLboolean req[1] = {SL_BOOLEAN_TRUE};
+
+		/// NOTE: CRAETING OutputMix with no requested features , 0 for ids/req count
+		// not much available for android implementation of outputmix, more available in player object
+		result = (*r->engineEngine)->CreateOutputMix(r->engineEngine, &r->outputMixObject, 0, ids, req);
+
+	    result = (*r->outputMixObject)->Realize(r->outputMixObject, SL_BOOLEAN_FALSE);
+
+		
+		SLDataLocator_OutputMix loc_outmix = { SL_DATALOCATOR_OUTPUTMIX, r->outputMixObject };
+		SLDataSink sink;
+		sink.pFormat = &format_pcm;
+		sink.pLocator = &loc_outmix;
+
+		LOGI( "MARK 1------------\n" );
+		// create audio player
+		result = (*r->engineEngine)->CreateAudioPlayer(r->engineEngine, &r->playerObject, &source, &sink, 1, id, req);
+		if (SL_RESULT_SUCCESS != result) {
+			LOGI( "CreateAudioPlayer failed\n" );
+		    return JNI_FALSE;
+		}
+	
+	}
+
+    // realize the audio player
+    result = (*r->playerObject)->Realize(r->playerObject, SL_BOOLEAN_FALSE);
+    if (SL_RESULT_SUCCESS != result) {
+		LOGI( "AudioPlayer Realize failed: %d\n", result );
+        return JNI_FALSE;
+    }
+
+    // get the player interface
+    result = (*r->playerObject)->GetInterface(r->playerObject, SL_IID_PLAY, &r->playerPlay);
+    assert(SL_RESULT_SUCCESS == result);
+    (void)result;
+
+    // get the buffer queue interface
+    result = (*r->playerObject)->GetInterface(r->playerObject, SL_IID_ANDROIDSIMPLEBUFFERQUEUE, &r->playerBufferQueue);
+    assert(SL_RESULT_SUCCESS == result);
+    (void)result;
+
+    // register callback on the buffer queue
+    result = (*r->playerBufferQueue)->RegisterCallback(r->playerBufferQueue, bqPlayerCallback, r);
+    assert(SL_RESULT_SUCCESS == result);
+    (void)result;
+
+	LOGI( "===================== Player init ok.\n" );
+
 
     // create audio recorder
     // (requires the RECORD_AUDIO permission)
-    const SLInterfaceID id[1] = {SL_IID_ANDROIDSIMPLEBUFFERQUEUE};
-    const SLboolean req[1] = {SL_BOOLEAN_TRUE};
     result = (*r->engineEngine)->CreateAudioRecorder(r->engineEngine, &r->recorderObject, &audioSrc,
             &audioSnk, 1, id, req);
     if (SL_RESULT_SUCCESS != result) {
@@ -147,6 +261,16 @@ static struct SoundDriverAndroid* InitAndroidSound( struct SoundDriverAndroid * 
 
 
     assert( !pthread_mutex_trylock(&audioEngineLock));
+
+    // in case already recording, stop recording and clear buffer queue
+    result = (*r->playerPlay)->SetPlayState(r->playerPlay, SL_PLAYSTATE_STOPPED);
+    assert(SL_RESULT_SUCCESS == result);
+    (void)result;
+    result = (*r->playerBufferQueue)->Clear(r->playerBufferQueue);
+    assert(SL_RESULT_SUCCESS == result);
+    (void)result;
+
+
     // in case already recording, stop recording and clear buffer queue
     result = (*r->recorderRecord)->SetRecordState(r->recorderRecord, SL_RECORDSTATE_STOPPED);
     assert(SL_RESULT_SUCCESS == result);
@@ -155,11 +279,14 @@ static struct SoundDriverAndroid* InitAndroidSound( struct SoundDriverAndroid * 
     assert(SL_RESULT_SUCCESS == result);
     (void)result;
 
+
+
     // the buffer is not valid for playback yet
     r->recorderSize = 0;
 
     // enqueue an empty buffer to be filled by the recorder
     // (for streaming recording, we would enqueue at least 2 empty buffers to start things off)
+    result = (*r->playerBufferQueue)->Enqueue(r->playerBufferQueue, r->playerBuffer, sizeof(r->playerBuffer));
     result = (*r->recorderBufferQueue)->Enqueue(r->recorderBufferQueue, r->recorderBuffer, sizeof(r->recorderBuffer));
     // the most likely other result is SL_RESULT_BUFFER_INSUFFICIENT,
     // which for this code example would indicate a programming error
@@ -167,6 +294,7 @@ static struct SoundDriverAndroid* InitAndroidSound( struct SoundDriverAndroid * 
     (void)result;
 
     // start recording
+    result = (*r->playerPlay)->SetPlayState(r->playerPlay, SL_PLAYSTATE_PLAYING);
     result = (*r->recorderRecord)->SetRecordState(r->recorderRecord, SL_RECORDSTATE_RECORDING);
     assert(SL_RESULT_SUCCESS == result);
     (void)result;
@@ -179,7 +307,7 @@ void CloseSoundAndroid( struct SoundDriverAndroid * r );
 
 int SoundStateAndroid( struct SoundDriverAndroid * soundobject )
 {
-	return ((soundobject->recorderObject)?1:0) | ((soundobject->recorderObject)?2:0);
+	return ((soundobject->recorderObject)?1:0) | ((soundobject->playerObject)?2:0);
 }
 
 void CloseSoundAndroid( struct SoundDriverAndroid * r )
@@ -190,6 +318,14 @@ void CloseSoundAndroid( struct SoundDriverAndroid * r )
         r->recorderObject = NULL;
         r->recorderRecord = NULL;
         r->recorderBufferQueue = NULL;
+    }
+
+
+    if (r->playerObject != NULL) {
+        (*r->playerObject)->Destroy(r->playerObject);
+        r->playerObject = NULL;
+        r->playerPlay = NULL;
+        r->playerBufferQueue = NULL;
     }
 
 

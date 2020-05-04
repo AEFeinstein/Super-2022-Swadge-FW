@@ -59,6 +59,8 @@ int accs;
 void AccCheck()
 {
 	ASensorEvent evt;
+	if( aeq == 0 ) return; //If not configured, don't try.
+
 	do
 	{
 		ssize_t s = ASensorEventQueue_getEvents( aeq, &evt, 1 );

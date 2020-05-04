@@ -481,15 +481,12 @@ void EMUSoundCBType( float * out, float * in, int samplesr, int * samplesp, stru
 
 void initMic(void)
 {
-	sounddriver = InitSound( 0 /* You could specify ALSA/Pulse etc. here */, EMUSoundCBType );
+	if( !sounddriver ) sounddriver = InitSound( 0, EMUSoundCBType );
 }
 
 void initBuzzer(void)
 {
-}
-
-void setBuzzerNote(uint16_t note)
-{
+	if( !sounddriver ) sounddriver = InitSound( 0, EMUSoundCBType );
 }
 
 uint8_t getSample(void)

@@ -71,12 +71,12 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
 {
-    &tiltradsMode,
     &colorchordMode,
+    &ringMode,
+    &tiltradsMode,
     &passMode,
     &testMode,
     &magpetMode,
-    &ringMode,
 };
 
 bool swadgeModeInit = false;
