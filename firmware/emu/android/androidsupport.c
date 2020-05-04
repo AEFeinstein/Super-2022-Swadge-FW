@@ -33,10 +33,6 @@ extern int UpdateScreenWithBitmapOffsetX;
 extern int UpdateScreenWithBitmapOffsetY;
 
 
-float mountainangle;
-float mountainoffsetx;
-float mountainoffsety;
-
 ASensorManager * sm;
 const ASensor * as;
 ASensorEventQueue* aeq;
@@ -47,7 +43,7 @@ void SetupIMU()
 {
 	sm = ASensorManager_getInstance();
 	printf( "SM: %p\n", sm );
-	as = ASensorManager_getDefaultSensor( sm, ASENSOR_TYPE_GYROSCOPE );
+	as = ASensorManager_getDefaultSensor( sm, ASENSOR_TYPE_ACCELEROMETER);
 	printf( "AS: %p\n", as );
 	l = ALooper_prepare( ALOOPER_PREPARE_ALLOW_NON_CALLBACKS );
 	printf( "L: %p\n", l );
@@ -66,15 +62,19 @@ void AccCheck()
 	do
 	{
 		ssize_t s = ASensorEventQueue_getEvents( aeq, &evt, 1 );
-		if( s <= 0 ) break;
-		accx = evt.vector.v[0];
-		accy = evt.vector.v[1];
-		accz = evt.vector.v[2];
-		mountainangle /*degrees*/ -= accz;// * 3.1415 / 360.0;// / 100.0;
-		mountainoffsety += accy;
-		mountainoffsetx += accx;
+		if( s <= 0 ) 
+		{
+			break;
+		}
+		if(ASENSOR_TYPE_ACCELEROMETER == evt.type)
+		{
+			accx = evt.acceleration.x;
+			accy = evt.acceleration.y;
+			accz = evt.acceleration.z;
+		}
 		accs++;
 	} while( 1 );
+	// printf("%s (%-2.4f, %-2.4f, %-2.4f)", __func__, accx, accy, accz);
 }
 
 unsigned frames = 0;
@@ -145,10 +145,11 @@ void HandleResume()
 
 void QMA6981_poll(accel_t* currentAccel)
 {
-	// TODO double check scalar
-	currentAccel->x = accx * 512;
-	currentAccel->y = accy * 512;
-	currentAccel->z = accz * 512;
+	// Convert Android's sensor readings into the Swadge's coordinates and scale
+	currentAccel->x = accy * 256 / 9.81f;
+	currentAccel->y = accx * 256 / 9.81f * -1;
+	currentAccel->z = accz * 256 / 9.81f;
+	// printf("%s (%5d, %5d, %5d)", __func__, currentAccel->x, currentAccel->y, currentAccel->z);
 }
 
 bool QMA6981_setup(void)
