@@ -1,63 +1,58 @@
-//Copyright 2015 <>< Charles Lohr under the ColorChord License.
+//Copyright 2015-2020 <>< Charles Lohr under the MIT/x11, NewBSD or ColorChord License.  You choose.
 
 #include "sound.h"
 #include "os_generic.h"
 #include <alsa/asoundlib.h>
 #include <string.h>
 
-#ifndef NO_SOUND_PARAMETERS
-#include "parameters.h"
-#else
-#define GetParameterI( x, y ) (y)
-#define GetParameterS( x, y ) (y)
-#endif
 #define BUFFERSETS 4
-#define BLOCKING
 
 struct SoundDriverAlsa
 {
-	void (*CloseFn)( struct SoundDriverAlsa * object );
-	int (*SoundStateFn)( struct SoundDriverAlsa * object );
+	void (*CloseFn)( void * object );
+	int (*SoundStateFn)( void * object );
 	SoundCBType callback;
-	int channelsPlay;
-	int spsPlay;
-	int channelsRec;
-	int spsRec;
-	int alsa_fmt_s16le;
+	short channelsPlay;
+	short channelsRec;
+	int sps;
+	void * opaque;
 
-	snd_pcm_uframes_t buffer;
+	char * devRec;
+	char * devPlay;
+
+	snd_pcm_uframes_t bufsize;
 	og_thread_t thread;
 	snd_pcm_t *playback_handle;
 	snd_pcm_t *record_handle;
 
-	//More fields may exist on a per-sound-driver basis
+	char playing;
+	char recording;
 };
 
 static struct SoundDriverAlsa* InitASound( struct SoundDriverAlsa * r );
 
-void CloseSoundAlsa( struct SoundDriverAlsa * r );
-
-int SoundStateAlsa( struct SoundDriverAlsa * soundobject )
+int SoundStateAlsa( void * v )
 {
-	return ((soundobject->playback_handle)?1:0) | ((soundobject->record_handle)?2:0);
+	struct SoundDriverAlsa * r = (struct SoundDriverAlsa *)v;
+	return ((r->playing)?2:0) | ((r->recording)?1:0);
 }
 
-void CloseSoundAlsa( struct SoundDriverAlsa * r )
+void CloseSoundAlsa( void * v )
 {
+	struct SoundDriverAlsa * r = (struct SoundDriverAlsa *)v;
 	if( r )
 	{
 		if( r->playback_handle ) snd_pcm_close (r->playback_handle);
 		if( r->record_handle ) snd_pcm_close (r->record_handle);
-#ifdef BLOCKING
 		OGUSleep(2000);
-		OGCancelThread( r->thread );
-#endif
+		if( r->devRec ) free( r->devRec );
+		if( r->devPlay ) free( r->devPlay );
 		free( r );
 	}
 }
 
 
-static int SetHWParams( snd_pcm_t * handle, int * samplerate, int * channels, snd_pcm_uframes_t * buffer, struct SoundDriverAlsa * a )
+static int SetHWParams( snd_pcm_t * handle, int * samplerate, short * channels, snd_pcm_uframes_t * bufsize, struct SoundDriverAlsa * a )
 {
 	int err;
 	snd_pcm_hw_params_t *hw_params;
@@ -79,18 +74,10 @@ static int SetHWParams( snd_pcm_t * handle, int * samplerate, int * channels, sn
 		goto fail;
 	}
 
-	if ((err = snd_pcm_hw_params_set_format (handle, hw_params, SND_PCM_FORMAT_FLOAT )) < 0) {
+	if ((err = snd_pcm_hw_params_set_format (handle, hw_params,  SND_PCM_FORMAT_S16_LE )) < 0) {
 		fprintf (stderr, "cannot set sample format (%s)\n",
 			 snd_strerror (err));
-
-		printf( "Trying backup: S16LE.\n" );	
-		if ((err = snd_pcm_hw_params_set_format (handle, hw_params,  SND_PCM_FORMAT_S16_LE )) < 0) {
-			fprintf (stderr, "cannot set sample format (%s)\n",
-				 snd_strerror (err));
-			goto fail;
-		}
-
-		a->alsa_fmt_s16le = 1;
+		goto fail;
 	}
 
 	if ((err = snd_pcm_hw_params_set_rate_near (handle, hw_params, (unsigned int*)samplerate, 0)) < 0) {
@@ -106,7 +93,7 @@ static int SetHWParams( snd_pcm_t * handle, int * samplerate, int * channels, sn
 	}
 
 	int dir = 0;
-	if( (err = snd_pcm_hw_params_set_period_size_near(handle, hw_params, buffer, &dir)) < 0 )
+	if( (err = snd_pcm_hw_params_set_period_size_near(handle, hw_params, bufsize, &dir)) < 0 )
 	{
 		fprintf( stderr, "cannot set period size. (%s)\n",
 			snd_strerror(err) );
@@ -128,7 +115,7 @@ fail:
 }
 
 
-static int SetSWParams( snd_pcm_t * handle, int isrec )
+static int SetSWParams( struct SoundDriverAlsa * d, snd_pcm_t * handle, int isrec )
 {
 	snd_pcm_sw_params_t *sw_params;
 	int err;
@@ -146,17 +133,22 @@ static int SetSWParams( snd_pcm_t * handle, int isrec )
 				 snd_strerror (err), handle);
 			goto fail;
 		}
-		if ((err = snd_pcm_sw_params_set_avail_min (handle, sw_params, GetParameterI( "minavailcount", 2048 ) )) < 0) {
+
+		int buffer_size = d->bufsize*3;
+		int period_size = d->bufsize;
+		printf( "PERIOD: %d  BUFFER: %d\n", period_size, buffer_size );
+
+		if ((err = snd_pcm_sw_params_set_avail_min (handle, sw_params, period_size )) < 0) {
 			fprintf (stderr, "cannot set minimum available count (%s)\n",
 				 snd_strerror (err));
 			goto fail;
 		}
-		if ((err = snd_pcm_sw_params_set_stop_threshold(handle, sw_params, GetParameterI( "stopthresh", 512 ))) < 0) {
-			fprintf (stderr, "cannot set minimum available count (%s)\n",
-				 snd_strerror (err));
-			goto fail;
-		}
-		if ((err = snd_pcm_sw_params_set_start_threshold(handle, sw_params, GetParameterI( "startthresh", 2048 ))) < 0) {
+		//if ((err = snd_pcm_sw_params_set_stop_threshold(handle, sw_params, 512 )) < 0) {
+		//	fprintf (stderr, "cannot set minimum available count (%s)\n",
+		//		 snd_strerror (err));
+		//	goto fail;
+		//}
+		if ((err = snd_pcm_sw_params_set_start_threshold(handle, sw_params, buffer_size - period_size )) < 0) {
 			fprintf (stderr, "cannot set minimum available count (%s)\n",
 				 snd_strerror (err));
 			goto fail;
@@ -169,13 +161,11 @@ static int SetSWParams( snd_pcm_t * handle, int isrec )
 
 	}
 
-
 	if ((err = snd_pcm_prepare (handle)) < 0) {
 		fprintf (stderr, "cannot prepare audio interface for use (%s)\n",
 			 snd_strerror (err));
 		goto fail;
 	}
-
 
 	return 0;
 fail:
@@ -187,146 +177,139 @@ failhard:
 	return -1;
 }
 
-#ifdef BLOCKING
-static void * SoundThread( void * v )
+static void record_callback (snd_async_handler_t *ahandler)
 {
-	int i;
-	struct SoundDriverAlsa * a = (struct SoundDriverAlsa*)v;
-	float * bufr[BUFFERSETS];
-	float * bufp[BUFFERSETS];
-
-	for(i = 0; i < BUFFERSETS; i++ )
-	{
-		bufr[i] = malloc( a->buffer * sizeof(float) * a->channelsRec );
-		bufp[i] = malloc( a->buffer * sizeof(float) * a->channelsPlay  );
-	}
-
-	while( a->record_handle || a->playback_handle )
-	{
-		int err;
-
-		i = (i+1)%BUFFERSETS;
-
-		if( a->record_handle )
-		{
-			if( (err = snd_pcm_readi (a->record_handle, bufr[i], a->buffer)) != a->buffer)
-			{
-				fprintf (stderr, "read from audio interface failed (%s)\n",
-					 snd_strerror (err));
-				if( a->record_handle ) snd_pcm_close (a->record_handle);
-				a->record_handle = 0;
-			}
-			else
-			{
-				//has_rec = 1;
-			}
-		}
-
-		if( a->alsa_fmt_s16le )
-		{
-			//Hacky: Turns out data was s16le.
-			int16_t * dat = (int16_t*)bufr[i];
-			float *   dot = bufr[i];
-			int i;
-			int len = a->buffer;
-			for( i = len-1; i >= 0; i-- )
-			{
-				dot[i] = dat[i]/32768.0;
-			}
-		}
-		//Do our callback.
-		int playbacksamples = 0;
-		a->callback( bufp[i], bufr[i], a->buffer, &playbacksamples, (struct SoundDriver*)a );
-		//playbacksamples *= sizeof(float) * a->channelsPlay;
-
-		if( a->playback_handle )
-		{
-			if ((err = snd_pcm_writei (a->playback_handle, bufp[i], playbacksamples)) != playbacksamples)
-			{
-				fprintf (stderr, "write to audio interface failed (%s)\n",
-					 snd_strerror (err));
-				if( a->playback_handle ) snd_pcm_close (a->playback_handle);
-					a->playback_handle = 0;
-			}
-		}
-	}
-
-	//Fault happened, re-initialize?
-	InitASound( a );
-	return 0;
-}
-#else
-
-//Handle callback
-
-static struct SoundDriverAlsa * reccb;
-static int record_callback (snd_pcm_sframes_t nframes)
-{
+	snd_pcm_t *handle = snd_async_handler_get_pcm(ahandler);
+	struct SoundDriverAlsa *data = (struct SoundDriverAlsa*)snd_async_handler_get_callback_private(ahandler);
 	int err;
+	snd_pcm_sframes_t avail;
+	avail = snd_pcm_avail_update(handle);
+	short samples[avail];
 
-//	printf ("playback callback called with %u frames\n", nframes);
-
-	/* ... fill buf with data ... */
-
-	if ((err = snd_pcm_writei (playback_handle, buf, nframes)) < 0) {
-		fprintf (stderr, "write failed (%s)\n", snd_strerror (err));
+printf( "READ: %d %d\n", 0, avail );
+	err = snd_pcm_readi(handle, samples, avail);
+printf( "READ: %d %d\n", err, avail );
+	if (err < 0) {
+		printf("Read error: %s\n", snd_strerror(err));
+		exit(EXIT_FAILURE);
 	}
-
-	return err;
+	if (err != avail) {
+		printf("Read error: written %i expected %li\n", err, avail);
+		exit(EXIT_FAILURE);
+	}
+	data->recording = 1;
+	data->callback( (struct SoundDriver *)data, samples, 0, avail, 0 );
 }
 
-#endif
+static void playback_callback (snd_async_handler_t *ahandler)
+{
+	snd_pcm_t *handle = snd_async_handler_get_pcm(ahandler);
+	struct SoundDriverAlsa *data = (struct SoundDriverAlsa*)snd_async_handler_get_callback_private(ahandler);
+	short samples[data->bufsize];
+	int err;
+	snd_pcm_sframes_t avail;
+
+	avail = snd_pcm_avail_update(handle);
+printf( "WRITE: %d %d\n", 0, avail );
+	while (avail >= data->bufsize)
+	{
+		data->callback( (struct SoundDriver *)data, 0, samples, 0, data->bufsize );
+		err = snd_pcm_writei(handle, samples, data->bufsize);
+		if (err < 0) {
+			printf("Write error: %s\n", snd_strerror(err));
+			exit(EXIT_FAILURE);
+		}
+		if (err != data->bufsize) {
+			printf("Write error: written %i expected %li\n", err, data->bufsize);
+			exit(EXIT_FAILURE);
+		}
+		avail = snd_pcm_avail_update(handle);
+		data->playing = 1;
+    }
+}
 
 static struct SoundDriverAlsa * InitASound( struct SoundDriverAlsa * r )
 {
+	printf( "...%p %p   %d %d %d\n", r->playback_handle, r->record_handle, r->sps, r->channelsRec, r->channelsPlay );
+
 	int err;
-	if( GetParameterI( "play", 0 ) )
+	if( r->channelsPlay )
 	{
-		if ((err = snd_pcm_open (&r->playback_handle, GetParameterS( "devplay", "default" ), SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
+		if ((err = snd_pcm_open (&r->playback_handle, r->devPlay?r->devPlay:"default", SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
 			fprintf (stderr, "cannot open output audio device (%s)\n", 
 				 snd_strerror (err));
 			goto fail;
 		}
 	}
 
-	if( GetParameterI( "record", 1 ) )
+	if( r->channelsRec )
 	{
-		if ((err = snd_pcm_open (&r->record_handle, GetParameterS( "devrecord", "default" ), SND_PCM_STREAM_CAPTURE, 0)) < 0) {
+		if ((err = snd_pcm_open (&r->record_handle, r->devRec?r->devRec:"default", SND_PCM_STREAM_CAPTURE, 0)) < 0) {
 			fprintf (stderr, "cannot open input audio device (%s)\n", 
 				 snd_strerror (err));
 			goto fail;
 		}
 	}
 
-
+	printf( "%p %p\n", r->playback_handle, r->record_handle );
 
 	if( r->playback_handle )
 	{
-		if( SetHWParams( r->playback_handle, &r->spsPlay, &r->channelsPlay, &r->buffer, r ) < 0 ) 
+		if( SetHWParams( r->playback_handle, &r->sps, &r->channelsPlay, &r->bufsize, r ) < 0 ) 
 			goto fail;
-		if( SetSWParams( r->playback_handle, 0 ) < 0 )
+		if( SetSWParams( r, r->playback_handle, 0 ) < 0 )
 			goto fail;
 	}
 
 	if( r->record_handle )
 	{
-		if( SetHWParams( r->record_handle, &r->spsRec, &r->channelsRec, &r->buffer, r ) < 0 )
+		if( SetHWParams( r->record_handle, &r->sps, &r->channelsRec, &r->bufsize, r ) < 0 )
 			goto fail;
-		if( SetSWParams( r->record_handle, 1 ) < 0 )
+		if( SetSWParams( r, r->record_handle, 1 ) < 0 )
 			goto fail;
 	}
+
+
+	if( r->playback_handle )
+	{
+		snd_async_handler_t *pcm_callback;
+		snd_async_add_pcm_handler(&pcm_callback, r->playback_handle, playback_callback, r);
+		//Handle automatically cleaned up when stream closed.
+	}
+
+	if( r->record_handle )
+	{
+		snd_async_handler_t *pcm_callback;
+		snd_async_add_pcm_handler(&pcm_callback, r->record_handle, record_callback, r);
+		//Handle automatically cleaned up when stream closed.
+	}
+
 
 	if( r->playback_handle && r->record_handle )
 	{
 		snd_pcm_link ( r->playback_handle, r->record_handle );
 	}
+	if( r->record_handle )
+	{
+		snd_pcm_start(r->record_handle);
+	}
+	if( r->playback_handle )
+	{
+		snd_pcm_start(r->playback_handle);
+		short samples[r->bufsize];
+		int i;
+		for( i = 0 ; i < 2 ; i ++ )
+		{
+			printf( "Writei\n" );
+			r->callback( (struct SoundDriver *)r, 0, samples, 0, r->bufsize );
+			err = snd_pcm_writei(r->playback_handle, samples, r->bufsize);
+		}
+		snd_pcm_start(r->playback_handle);
+	}
 
-#ifdef BLOCKING
-	r->thread = OGCreateThread( SoundThread, r );
-#else
-	reccb = r;
-	//handle interrupt
-#endif
+
+	printf( ".2.%p %p   %d %d %d\n", r->playback_handle, r->record_handle, r->sps, r->channelsRec, r->channelsPlay );
+
 	return r;
 
 fail:
@@ -336,12 +319,13 @@ fail:
 		if( r->record_handle ) snd_pcm_close (r->record_handle);
 		free( r );
 	}
+	fprintf( stderr, "Error: Sound failed to start.\n" );
 	return 0;
 }
 
 
 
-void * InitSoundAlsa( SoundCBType cb )
+void * InitSoundAlsa( SoundCBType cb, int reqSPS, int reqChannelsRec, int reqChannelsPlay, int sugBufferSize, const char * inputSelect, const char * outputSelect )
 {
 	struct SoundDriverAlsa * r = malloc( sizeof( struct SoundDriverAlsa ) );
 
@@ -349,17 +333,16 @@ void * InitSoundAlsa( SoundCBType cb )
 	r->SoundStateFn = SoundStateAlsa;
 	r->callback = cb;
 
-	r->spsPlay = GetParameterI( "samplerate", DEFAULT_SAMPLERATE );
-	r->channelsPlay = GetParameterI( "channels", 2 );
-	r->spsRec = r->spsPlay;
-	r->channelsRec = r->channelsPlay;
+	r->sps = reqSPS;
+	r->channelsPlay = reqChannelsPlay;
+	r->channelsRec = reqChannelsPlay;
+
+	r->devRec = (inputSelect)?strdup(inputSelect):0;
+	r->devPlay = (outputSelect)?strdup(outputSelect):0;
 
 	r->playback_handle = 0;
 	r->record_handle = 0;
-	r->buffer = GetParameterI( "buffer", 1024 );
-
-	r->alsa_fmt_s16le = 0;
-
+	r->bufsize = sugBufferSize;
 
 	return InitASound(r);
 }

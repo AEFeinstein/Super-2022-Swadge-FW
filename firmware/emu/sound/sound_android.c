@@ -29,8 +29,8 @@ struct SoundDriverAndroid
 	void (*CloseFn)( void * object );
 	int (*SoundStateFn)( void * object );
 	SoundCBType callback;
-	int channelsPlay;
-	int channelsRec;
+	short channelsPlay;
+	short channelsRec;
 	int sps;
 	void * opaque;
 
