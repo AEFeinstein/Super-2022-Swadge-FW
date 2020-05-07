@@ -24,7 +24,7 @@ CFLAGS   := -g $(patsubst %, -I%, $(INCDIRS)) $(patsubst %, -D%, $(DEFINES))
 #CFLAGS += -Os -s -flto -ffunction-sections -fdata-sections -Wl,--gc-sections
 
 # All the linker flags
-LDFLAGS  := -lX11 -lm -lpthread -lasound
+LDFLAGS  := -lX11 -lm -lpthread -lasound -lpulse
 
 # A list of files to exclude from compilation
 EXCLUDEC := oled.c \
@@ -41,7 +41,7 @@ EXCLUDEC := oled.c \
 # All the source files to compile
 SWADGEC  := $(shell find $(SWADGEMU)/../user/ -iname "*.c" $(patsubst %, -not -iname %, $(EXCLUDEC)))
 RAWDRAWC := $(SWADGEMU)/rawdraw/CNFG.c
-SOUNDDRIVER?= $(SWADGEMU)/sound/sound_alsa.c
+SOUNDDRIVER?= $(SWADGEMU)/sound/sound_pulse.c
 EMUC     := $(SWADGEMU)/swadgemu.c $(SWADGEMU)/oled.c $(SWADGEMU)/sound/sound.c $(SOUNDDRIVER)
 
 # Makefile targets that don't make what they're called

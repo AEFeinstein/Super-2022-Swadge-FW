@@ -1,4 +1,4 @@
-//Copyright 2015-2020 <>< Charles Lohr under the ColorChord License.
+//Copyright 2015-2020 <>< Charles Lohr under the MIT/x11, NewBSD or ColorChord License.  You choose.
 
 #ifndef _SOUND_H
 #define _SOUND_H
@@ -31,7 +31,7 @@ struct SoundDriver
 //
 // reqSPS = 44100 is guaranteed
 // reqChannelsRec = 1 or 2 guaranteed.
-// reqChannelsPlay = 1 or 2 guaranteed.
+// reqChannelsPlay = 1 or 2 guaranteed. NOTE: Some systems require ChannelsPlay == ChannelsRec!
 // sugBufferSize = No promises.
 // inputSelect = No standardization, NULL is OK for default.
 // outputSelect = No standardization, NULL is OK for default.

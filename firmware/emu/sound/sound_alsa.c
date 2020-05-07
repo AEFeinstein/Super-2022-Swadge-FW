@@ -273,15 +273,23 @@ static struct SoundDriverAlsa * InitASound( struct SoundDriverAlsa * r )
 	if( r->playback_handle )
 	{
 		snd_async_handler_t *pcm_callback;
-		snd_async_add_pcm_handler(&pcm_callback, r->playback_handle, playback_callback, r);
 		//Handle automatically cleaned up when stream closed.
+		err = snd_async_add_pcm_handler(&pcm_callback, r->playback_handle, playback_callback, r);
+		if(err < 0)
+		{
+			printf("Playback callback handler error: %s\n", snd_strerror(err));
+		}
 	}
 
 	if( r->record_handle )
 	{
 		snd_async_handler_t *pcm_callback;
-		snd_async_add_pcm_handler(&pcm_callback, r->record_handle, record_callback, r);
 		//Handle automatically cleaned up when stream closed.
+		err = snd_async_add_pcm_handler(&pcm_callback, r->record_handle, record_callback, r);
+		if(err < 0)
+		{
+			printf("Record callback handler error: %s\n", snd_strerror(err));
+		}
 	}
 
 

@@ -1,11 +1,10 @@
-//Copyright 2015 <>< Charles Lohr under the ColorChord License.
+//Copyright 2015-2020 <>< Charles Lohr under the MIT/x11, NewBSD or ColorChord License.  You choose.
 
 //This file is really rough.  Full duplex doesn't seem to work hardly at all.
 
 
 #include "sound.h"
 #include "os_generic.h"
-#include "parameters.h"
 #include <stdlib.h>
 
 #include <pulse/simple.h>
@@ -23,15 +22,17 @@
 
 struct SoundDriverPulse
 {
-	void (*CloseFn)( struct SoundDriverPulse * object );
-	int (*SoundStateFn)( struct SoundDriverPulse * object );
+	void (*CloseFn)( void * object );
+	int (*SoundStateFn)( void * object );
 	SoundCBType callback;
-	int channelsPlay;
-	int spsPlay;
-	int channelsRec;
-	int spsRec;
+	short channelsPlay;
+	short channelsRec;
+	int sps;
+	void * opaque;
 
-	const char * sourceName;
+	char * sourceNamePlay;
+	char * sourceNameRec;
+
 	og_thread_t thread;
  	pa_stream *  	play;
  	pa_stream *  	rec;
@@ -44,15 +45,16 @@ struct SoundDriverPulse
 
 
 
-void CloseSoundPulse( struct SoundDriverPulse * r );
 
-int SoundStatePulse( struct SoundDriverPulse * soundobject )
+int SoundStatePulse( void * v )
 {
-	return ((soundobject->play)?1:0) | ((soundobject->rec)?2:0);
+	struct SoundDriverPulse * soundobject = (struct SoundDriverPulse *)v;
+	return ((soundobject->play)?2:0) | ((soundobject->rec)?1:0);
 }
 
-void CloseSoundPulse( struct SoundDriverPulse * r )
+void CloseSoundPulse( void * v )
 {
+	struct SoundDriverPulse * r = (struct SoundDriverPulse *)v;
 	if( r )
 	{
 		if( r->play )
@@ -68,6 +70,10 @@ void CloseSoundPulse( struct SoundDriverPulse * r )
 		}
 		OGUSleep(2000);
 		OGCancelThread( r->thread );
+
+
+		if( r->sourceNamePlay ) free( r->sourceNamePlay );
+		if( r->sourceNameRec ) free( r->sourceNameRec );
 		free( r );
 	}
 }
@@ -81,105 +87,23 @@ static void * SoundThread( void * v )
 	}
 	return 0;
 }
-/*
-	int i;
-	int error;
-	struct SoundDriverPulse * r = (struct SoundDriverPulse*)v;
 
-	float * bufr[BUFFERSETS];
-	float * bufp[BUFFERSETS];
-
-	for(i = 0; i < BUFFERSETS; i++ )
-	{
-		bufr[i] = malloc( r->buffer * sizeof(float) * r->channelsRec );
-		bufp[i] = malloc( r->buffer * sizeof(float) * r->channelsPlay  );
-	}
-
-	while( r->play || r->rec )
-	{
-		i = (i+1)%BUFFERSETS;
-
-		if( r->rec )
-		{
-			if (pa_stream_read(r->rec, bufr[i], r->buffer * sizeof(float) * r->channelsRec, &error) < 0) {
-				fprintf(stderr, __FILE__": pa_stream_write() failed: %s\n", pa_strerror(error));
-				pa_stream_unref( r->play );
-				r->rec = 0;
-			}
-		}
-
-		int playbacksamples = 0;
-		r->callback( bufp[i], bufr[i], r->buffer, &playbacksamples, (struct SoundDriver*)r );
-		playbacksamples *= sizeof( float ) * r->channelsPlay;
-
-		if( r->play )
-		{
-			if (pa_stream_write(r->play, bufp[i], playbacksamples, NULL, 0LL, PA_SEEK_RELATIVE) < 0) {
-				fprintf(stderr, __FILE__": pa_stream_write() failed: %s\n", pa_strerror(error));
-				pa_stream_unref( r->play );
-				r->play = 0;
-			}
-		}
-	}
-
-}*/
-
-static void stream_request_cb(pa_stream *s, size_t length, void *userdata) {
-//	pa_usec_t usec;
-
+static void stream_request_cb(pa_stream *s, size_t length, void *userdata)
+{
 	struct SoundDriverPulse * r = (struct SoundDriverPulse*)userdata;
-	if( r->rec )
+	if( !r->play )
 	{
 		return;
 	}
-
-/*
-	//Neat: You might want this:
-
-	pa_stream_get_latency(s,&usec,&neg);
-
-	if (sampleoffs*2 + length > sizeof(sampledata))
-	{
-		sampleoffs = 0;
-	}
-
-	if (length > sizeof(sampledata)) {
-		length = sizeof(sampledata);
-	}
-
-*/
-
-
-//	pa_stream_write(s, &sampledata[sampleoffs], length, NULL, 0LL, PA_SEEK_RELATIVE);
-	int playbacksamples = 0;
-	float bufr[r->buffer*r->channelsRec];
-	float bufp[r->buffer*r->channelsPlay];
-
-	r->callback( bufp, bufr, r->buffer, &playbacksamples, (struct SoundDriver*)r );
-	//playbacksamples *= sizeof( float ) * r->channelsPlay;
-
-	pa_stream_write(r->play, &bufp, playbacksamples, NULL, 0LL, PA_SEEK_RELATIVE);
-
+	short bufp[length*r->channelsPlay];
+	r->callback( (struct SoundDriver*)r, 0, bufp, 0, length/sizeof(short) );
+	pa_stream_write(r->play, &bufp[0], length, NULL, 0LL, PA_SEEK_RELATIVE);
 }
 
 
-static void stream_record_cb(pa_stream *s, size_t length, void *userdata) {
-//	pa_usec_t usec;
-//	int neg;
-
+static void stream_record_cb(pa_stream *s, size_t length, void *userdata)
+{
 	struct SoundDriverPulse * r = (struct SoundDriverPulse*)userdata;
-
-/*	pa_stream_get_latency(s,&usec,&neg);
-	printf("  latency %8d us\n",(int)usec);
-
-	if (sampleoffs*2 + length > sizeof(sampledata))
-	{
-		sampleoffs = 0;
-	}
-
-	if (length > sizeof(sampledata)) {
-		length = sizeof(sampledata);
-	}*/
 
 	int playbacksamples = 0;
 	float * bufr;
@@ -189,34 +113,18 @@ static void stream_record_cb(pa_stream *s, size_t length, void *userdata) {
         return;
     }
 
-	float * buffer;
+	short * buffer;
     buffer = pa_xmalloc(length);
     memcpy(buffer, bufr, length);
 	pa_stream_drop(r->rec);
-
-	float bufp[length*r->channelsPlay];
-	r->callback( bufp, buffer, length/sizeof(float)/r->channelsRec, &playbacksamples, (struct SoundDriver*)r );
-	//playbacksamples *= sizeof( float ) * r->channelsPlay;
+	r->callback( (struct SoundDriver*)r, buffer, 0, length/sizeof(short)/r->channelsRec, 0 );
 	pa_xfree( buffer );
-	if( r->play )
-		pa_stream_write(r->play, &bufp, playbacksamples*sizeof(float)*r->channelsPlay, NULL, 0LL, PA_SEEK_RELATIVE);
 }
 
 
 
 static void stream_underflow_cb(pa_stream *s, void *userdata) {
-  // We increase the latency by 50% if we get 6 underflows and latency is under 2s
-  // This is very useful for over the network playback that can't handle low latencies
   printf("underflow\n");
-//  underflows++;
-/*  if (underflows >= 6 && latency < 2000000) {
-    latency = (latency*3)/2;
-    bufattr.maxlength = pa_usec_to_bytes(latency,&ss);
-    bufattr.tlength = pa_usec_to_bytes(latency,&ss);  
-    pa_stream_set_buffer_attr(s, &bufattr, NULL, NULL);
-    underflows = 0;
-    printf("latency increased to %d\n", latency);
-  }*/
 }
 
 
@@ -243,7 +151,7 @@ void pa_state_cb(pa_context *c, void *userdata) {
 }
 
 
-void * InitSoundPulse( SoundCBType cb )
+void * InitSoundPulse( SoundCBType cb, int reqSPS, int reqChannelsRec, int reqChannelsPlay, int sugBufferSize, const char * inputSelect, const char * outputSelect )
 {
 	static pa_buffer_attr bufattr;
 	static pa_sample_spec ss;
@@ -253,7 +161,7 @@ void * InitSoundPulse( SoundCBType cb )
 
 	r->pa_ml = pa_mainloop_new();
 	pa_mlapi = pa_mainloop_get_api(r->pa_ml);
-	const char * title = GetParameterS( "title", "PA Test" );
+	const char * title = "cnfgsound"; //XXX TODO: Update this parameter
 	r->pa_ctx = pa_context_new(pa_mlapi, title );
 	pa_context_connect(r->pa_ctx, NULL, 0, NULL);
 
@@ -263,27 +171,22 @@ void * InitSoundPulse( SoundCBType cb )
 	r->SoundStateFn = SoundStatePulse;
 	r->callback = cb;
 
-	r->spsPlay = GetParameterI( "samplerate", 44100 );
-	r->channelsPlay = GetParameterI( "channels", 2 );
-	r->spsRec = r->spsPlay;
-	r->channelsRec = r->channelsPlay;
-	r->sourceName = GetParameterS( "sourcename", NULL );
-
-	if( strcmp( r->sourceName, "default" ) == 0  )
-	{
-		r->sourceName = 0;
-	}
+	r->sps = reqSPS;
+	r->channelsPlay = reqChannelsPlay;
+	r->channelsRec = reqChannelsRec;
+	r->sourceNamePlay = outputSelect?strdup(outputSelect):0;
+	r->sourceNameRec = inputSelect?strdup(inputSelect):0;
 
 	r->play = 0;
 	r->rec = 0;
-	r->buffer = GetParameterI( "buffer", 1024 );
-	printf ("Pulse: from: %s (%s) / %dx%d (%d)\n", r->sourceName, title, r->spsPlay, r->channelsPlay, r->buffer );
+	r->buffer = sugBufferSize;
+
+	printf ("Pulse: from: %s/%s (%s) / %dx(%d,%d) (%d)\n", r->sourceNameRec, r->sourceNamePlay, title, r->sps, r->channelsPlay, r->channelsRec, r->buffer );
 
 	memset( &ss, 0, sizeof( ss ) );
 
-	ss.format = PA_SAMPLE_FLOAT32NE;
-	ss.rate = r->spsPlay;
-	ss.channels = r->channelsPlay;
+	ss.format = PA_SAMPLE_S16NE;
+	ss.rate = r->sps;
 
 	r->pa_ready = 0;
 	pa_context_set_state_callback(r->pa_ctx, pa_state_cb, &r->pa_ready);
@@ -293,10 +196,12 @@ void * InitSoundPulse( SoundCBType cb )
 		pa_mainloop_iterate(r->pa_ml, 1, NULL);
 	}
 
-	int bufbytes = r->buffer * sizeof(float) * r->channelsRec;
+	int bufbytes = r->buffer * sizeof(short) * r->channelsRec;
 
-	if( GetParameterI( "play", 1 ) )
+	if( r->channelsPlay )
 	{
+		ss.channels = r->channelsPlay;
+
 		if (!(r->play = pa_stream_new(r->pa_ctx, "Play", &ss, NULL))) {
 			error = -3; //XXX ??? TODO
 			fprintf(stderr, __FILE__": pa_simple_new() failed: %s\n", pa_strerror(error));
@@ -311,21 +216,23 @@ void * InitSoundPulse( SoundCBType cb )
 		bufattr.minreq = 0;
 		bufattr.prebuf =  (uint32_t)-1;
 		bufattr.tlength = bufbytes*3;
-		int ret = pa_stream_connect_playback(r->play, NULL, &bufattr,
+		int ret = pa_stream_connect_playback(r->play, r->sourceNameRec, &bufattr,
 				                    // PA_STREAM_INTERPOLATE_TIMING
 				                    // |PA_STREAM_ADJUST_LATENCY //Some servers don't like the adjust_latency flag.
 				                    // |PA_STREAM_AUTO_TIMING_UPDATE, NULL, NULL);
 					0, NULL, NULL );
-		printf( "Play stream.\n" );
 		if( ret < 0 )
 		{
 			fprintf(stderr, __FILE__": (PLAY) pa_stream_connect_playback() failed: %s\n", pa_strerror(ret));
 			goto fail;
 		}
+
 	}
 
-	if( GetParameterI( "rec", 1 ) )
+	if( r->channelsRec )
 	{
+		ss.channels = r->channelsRec;
+
 		if (!(r->rec = pa_stream_new(r->pa_ctx, "Record", &ss, NULL))) {
 			error = -3; //XXX ??? TODO
 			fprintf(stderr, __FILE__": pa_simple_new() failed: %s\n", pa_strerror(error));
@@ -339,15 +246,13 @@ void * InitSoundPulse( SoundCBType cb )
 		bufattr.minreq = bufbytes;
 		bufattr.prebuf = (uint32_t)-1;
 		bufattr.tlength = bufbytes*3;
-		printf( "Source: %s\n", r->sourceName );
-		int ret = pa_stream_connect_record(r->rec, r->sourceName, &bufattr, 0
+		int ret = pa_stream_connect_record(r->rec, r->sourceNamePlay, &bufattr, 0
 //							       |PA_STREAM_INTERPOLATE_TIMING
 			                       |PA_STREAM_ADJUST_LATENCY  //Some servers don't like the adjust_latency flag.
 //		                     	|PA_STREAM_AUTO_TIMING_UPDATE
 //				0 
 				);
 
-		printf( "Got handle: %d\n", ret );
 		if( ret < 0 )
 		{
 			fprintf(stderr, __FILE__": (REC) pa_stream_connect_playback() failed: %s\n", pa_strerror(ret));
@@ -360,6 +265,14 @@ void * InitSoundPulse( SoundCBType cb )
 
 //	SoundThread( r );
 	r->thread = OGCreateThread( SoundThread, r );
+
+
+	if( r->play )
+	{
+		stream_request_cb( r->play, bufbytes, r );
+		stream_request_cb( r->play, bufbytes, r );
+	}
+
 	return r;
 
 fail:
