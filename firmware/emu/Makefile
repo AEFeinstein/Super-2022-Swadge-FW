@@ -48,11 +48,15 @@ EMUC     := $(SWADGEMU)/swadgemu.c $(SWADGEMU)/oled.c $(SWADGEMU)/sound/sound.c 
 .PHONY: all clean
 
 # Build everything
-all : swadgemu
+all : swadgemu assets.bin
 
 # Build swadgemu
 swadgemu : $(RAWDRAWC) $(SWADGEC) $(EMUC)
 	gcc $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+assets.bin :
+	make -C .. assets.bin
+	cp ../assets.bin .
 
 # Clean everything
 clean :
