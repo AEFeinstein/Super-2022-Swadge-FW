@@ -21,7 +21,8 @@ struct SoundDriverAlsa
 	char * devPlay;
 
 	snd_pcm_uframes_t bufsize;
-	og_thread_t thread;
+	og_thread_t threadPlay;
+	og_thread_t threadRec;
 	snd_pcm_t *playback_handle;
 	snd_pcm_t *record_handle;
 
@@ -44,6 +45,10 @@ void CloseSoundAlsa( void * v )
 	{
 		if( r->playback_handle ) snd_pcm_close (r->playback_handle);
 		if( r->record_handle ) snd_pcm_close (r->record_handle);
+
+		if( r->threadPlay ) OGJoinThread( r->threadPlay );
+		if( r->threadRec ) OGJoinThread( r->threadRec );
+
 		OGUSleep(2000);
 		if( r->devRec ) free( r->devRec );
 		if( r->devPlay ) free( r->devPlay );
@@ -201,6 +206,10 @@ printf( "READ: %d %d\n", err, avail );
 	data->callback( (struct SoundDriver *)data, samples, 0, avail, 0 );
 }
 
+void * RecThread( void * v )
+{
+}
+
 static void playback_callback (snd_async_handler_t *ahandler)
 {
 	snd_pcm_t *handle = snd_async_handler_get_pcm(ahandler);
@@ -226,6 +235,10 @@ printf( "WRITE: %d %d\n", 0, avail );
 		avail = snd_pcm_avail_update(handle);
 		data->playing = 1;
     }
+}
+
+void * PlayThread( void * v )
+{
 }
 
 static struct SoundDriverAlsa * InitASound( struct SoundDriverAlsa * r )
@@ -269,7 +282,7 @@ static struct SoundDriverAlsa * InitASound( struct SoundDriverAlsa * r )
 			goto fail;
 	}
 
-
+#if 0
 	if( r->playback_handle )
 	{
 		snd_async_handler_t *pcm_callback;
@@ -291,12 +304,18 @@ static struct SoundDriverAlsa * InitASound( struct SoundDriverAlsa * r )
 			printf("Record callback handler error: %s\n", snd_strerror(err));
 		}
 	}
-
+#endif
 
 	if( r->playback_handle && r->record_handle )
 	{
-		snd_pcm_link ( r->playback_handle, r->record_handle );
+		err = snd_pcm_link ( r->playback_handle, r->record_handle );
+		if(err < 0)
+		{
+			printf("snd_pcm_link error: %s\n", snd_strerror(err));
+		}
+		r->threadPlay = OGCreateThread( PlayThread, r );
 	}
+
 	if( r->record_handle )
 	{
 		snd_pcm_start(r->record_handle);
@@ -313,7 +332,9 @@ static struct SoundDriverAlsa * InitASound( struct SoundDriverAlsa * r )
 			err = snd_pcm_writei(r->playback_handle, samples, r->bufsize);
 		}
 		snd_pcm_start(r->playback_handle);
+		r->threadRec = OGCreateThread( RecThread, r );
 	}
+
 
 
 	printf( ".2.%p %p   %d %d %d\n", r->playback_handle, r->record_handle, r->sps, r->channelsRec, r->channelsPlay );
