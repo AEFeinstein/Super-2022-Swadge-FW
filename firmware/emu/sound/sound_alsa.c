@@ -105,6 +105,15 @@ static int SetHWParams( snd_pcm_t * handle, int * samplerate, short * channels, 
 		goto fail;
 	}
 
+	//NOTE: This step is critical for low-latency sound.
+	int bufs = *bufsize*3;
+	if( (err = snd_pcm_hw_params_set_buffer_size(handle, hw_params, bufs)) < 0 )
+	{
+		fprintf( stderr, "cannot set snd_pcm_hw_params_set_buffer_size size. (%s)\n",
+			snd_strerror(err) );
+		goto fail;
+	}
+
 
 	if ((err = snd_pcm_hw_params (handle, hw_params)) < 0) {
 		fprintf (stderr, "cannot set parameters (%s)\n",
@@ -164,6 +173,8 @@ static int SetSWParams( struct SoundDriverAlsa * d, snd_pcm_t * handle, int isre
 			goto fail;
 		}
 
+		
+
 	}
 
 	if ((err = snd_pcm_prepare (handle)) < 0) {
@@ -182,6 +193,7 @@ failhard:
 	return -1;
 }
 
+#if 0
 static void record_callback (snd_async_handler_t *ahandler)
 {
 	snd_pcm_t *handle = snd_async_handler_get_pcm(ahandler);
@@ -205,10 +217,32 @@ printf( "READ: %d %d\n", err, avail );
 	data->recording = 1;
 	data->callback( (struct SoundDriver *)data, samples, 0, avail, 0 );
 }
-
+#endif
 void * RecThread( void * v )
 {
+	struct SoundDriverAlsa * r = (struct SoundDriverAlsa *)v;
+	short samples[r->bufsize * r->channelsRec];
+	snd_pcm_start(r->record_handle);
+	do
+	{
+		int err = snd_pcm_readi( r->record_handle, samples, r->bufsize );	
+		if( err < 0 )
+		{
+			fprintf( stderr, "Warning: Sound Recording Failed\n" );
+			break;
+		}
+		if( err != r->bufsize )
+		{
+			fprintf( stderr, "Warning: Sound Recording Underflow\n" );
+		}
+		r->recording = 1;
+		r->callback( (struct SoundDriver *)r, samples, 0, err, 0 );
+	} while( 1 );
+	r->recording = 0;
 }
+
+
+#if 0
 
 static void playback_callback (snd_async_handler_t *ahandler)
 {
@@ -236,9 +270,34 @@ printf( "WRITE: %d %d\n", 0, avail );
 		data->playing = 1;
     }
 }
+#endif
 
 void * PlayThread( void * v )
 {
+	struct SoundDriverAlsa * r = (struct SoundDriverAlsa *)v;
+	short samples[r->bufsize * r->channelsPlay];
+	int err;
+	//int total_avail = snd_pcm_avail(r->playback_handle);
+
+	snd_pcm_start(r->playback_handle);
+	r->callback( (struct SoundDriver *)r, 0, samples, 0, r->bufsize );
+	err = snd_pcm_writei(r->playback_handle, samples, r->bufsize);
+
+
+	while( err >= 0 )
+	{
+	//	int avail = snd_pcm_avail(r->playback_handle);
+	//	printf( "avail: %d\n", avail );
+		r->callback( (struct SoundDriver *)r, 0, samples, 0, r->bufsize );
+		err = snd_pcm_writei(r->playback_handle, samples, r->bufsize);
+		if( err != r->bufsize )
+		{
+			fprintf( stderr, "Warning: Sound Playback Overflow\n" );
+		}
+		r->playing = 1;
+	}
+	r->playing = 0;
+	fprintf( stderr, "Warning: Sound Playback Stopped\n" );
 }
 
 static struct SoundDriverAlsa * InitASound( struct SoundDriverAlsa * r )
@@ -313,29 +372,17 @@ static struct SoundDriverAlsa * InitASound( struct SoundDriverAlsa * r )
 		{
 			printf("snd_pcm_link error: %s\n", snd_strerror(err));
 		}
+	}
+
+	if( r->playback_handle )
+	{
 		r->threadPlay = OGCreateThread( PlayThread, r );
 	}
 
 	if( r->record_handle )
 	{
-		snd_pcm_start(r->record_handle);
-	}
-	if( r->playback_handle )
-	{
-		snd_pcm_start(r->playback_handle);
-		short samples[r->bufsize];
-		int i;
-		for( i = 0 ; i < 2 ; i ++ )
-		{
-			printf( "Writei\n" );
-			r->callback( (struct SoundDriver *)r, 0, samples, 0, r->bufsize );
-			err = snd_pcm_writei(r->playback_handle, samples, r->bufsize);
-		}
-		snd_pcm_start(r->playback_handle);
 		r->threadRec = OGCreateThread( RecThread, r );
 	}
-
-
 
 	printf( ".2.%p %p   %d %d %d\n", r->playback_handle, r->record_handle, r->sps, r->channelsRec, r->channelsPlay );
 

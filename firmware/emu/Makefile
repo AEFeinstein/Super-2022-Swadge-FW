@@ -41,7 +41,7 @@ EXCLUDEC := oled.c \
 # All the source files to compile
 SWADGEC  := $(shell find $(SWADGEMU)/../user/ -iname "*.c" $(patsubst %, -not -iname %, $(EXCLUDEC)))
 RAWDRAWC := $(SWADGEMU)/rawdraw/CNFG.c
-SOUNDDRIVER?= $(SWADGEMU)/sound/sound_pulse.c
+SOUNDDRIVER?= $(SWADGEMU)/sound/sound_alsa.c
 EMUC     := $(SWADGEMU)/swadgemu.c $(SWADGEMU)/oled.c $(SWADGEMU)/sound/sound.c $(SOUNDDRIVER)
 
 # Makefile targets that don't make what they're called
