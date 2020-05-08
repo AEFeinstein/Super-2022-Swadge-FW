@@ -35,7 +35,7 @@ TODO: Build instructions for Android
     exit-idle-time = -1
     ```
 1. Start VcXsrv by running XLaunch. All the default options are fine. When it's running, you should see an X icon in the system tray.
-1. Start pulseaudio.exe. You can double click on it or run it in a terminal like PowerShell. 
+1. Start pulseaudio.exe. You can double click on it or run it in a terminal like PowerShell. You should see a microphone icon in the system tray. If you do not, Windows may be blocking PulseAudio. You can allow access to the microphone from System Settings' "Microphone Privacy Settings" section.
 1. Now open a WSL terminal, either standalone or in Visual Studio Code. Install pulseaudio and alsa-utils:
 	```
 	# sudo apt-get install pulseaudio alsa-utils
