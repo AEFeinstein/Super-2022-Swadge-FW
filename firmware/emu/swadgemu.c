@@ -477,6 +477,7 @@ struct
 } bzr = {0};
 
 uint16_t buzzernote;
+og_mutex_t * buzzernotemutex;
 
 #ifndef ANDROID
 #define BZR_PRINTF printf
@@ -509,6 +510,7 @@ void EMUSoundCBType( struct SoundDriver * sd, short * in, short * out, int sampl
 	{
 		static uint16_t iplaceinwave;
 
+		OGLockMutex( buzzernotemutex );
 		if ( buzzernote )
 		{
 			for( i = 0; i < samplesp; i++ )
@@ -522,12 +524,14 @@ void EMUSoundCBType( struct SoundDriver * sd, short * in, short * out, int sampl
 		{
 			memset( out, 0, samplesp * 2 );
 		}
+		OGUnlockMutex( buzzernotemutex );
 	}
 }
 
 void initMic(void)
 {
-	if( !sounddriver ) sounddriver = InitSound( 0, EMUSoundCBType, 16000, 1, 1, 128, 0, 0 );
+	if( !buzzernotemutex ) buzzernotemutex = OGCreateMutex();
+	if( !sounddriver ) sounddriver = InitSound( 0, EMUSoundCBType, 16000, 1, 1, 256, 0, 0 );
 }
 
 uint8_t getSample(void)
@@ -549,9 +553,8 @@ bool sampleAvailable(void)
 
 void initBuzzer(void)
 {
-    stopBuzzerSong();
-	
-	if( !sounddriver ) sounddriver = InitSound( 0, EMUSoundCBType, 16000, 1, 1, 128, 0, 0 );
+    stopBuzzerSong();	
+	if( !sounddriver ) sounddriver = InitSound( 0, EMUSoundCBType, 16000, 1, 1, 256, 0, 0 );
 
     // Keep it high in the idle state
     //setBuzzerGpio(false);
@@ -599,7 +602,10 @@ void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song, bool shouldLoop)
 
 void setBuzzerNote( uint16_t note )
 {
+	if( !buzzernotemutex ) buzzernotemutex = OGCreateMutex();
+	OGLockMutex( buzzernotemutex );
 	buzzernote = note;
+	OGUnlockMutex( buzzernotemutex );
 }
 
 /**
