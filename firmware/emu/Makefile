@@ -24,7 +24,7 @@ CFLAGS   := -g $(patsubst %, -I%, $(INCDIRS)) $(patsubst %, -D%, $(DEFINES))
 #CFLAGS += -Os -s -flto -ffunction-sections -fdata-sections -Wl,--gc-sections
 
 # All the linker flags
-LDFLAGS  := -lX11 -lm -lpthread -lasound
+LDFLAGS  := -lX11 -lm -lpthread -lasound -lpulse
 
 # A list of files to exclude from compilation
 EXCLUDEC := oled.c \
@@ -48,11 +48,15 @@ EMUC     := $(SWADGEMU)/swadgemu.c $(SWADGEMU)/oled.c $(SWADGEMU)/sound/sound.c 
 .PHONY: all clean
 
 # Build everything
-all : swadgemu
+all : swadgemu assets.bin
 
 # Build swadgemu
 swadgemu : $(RAWDRAWC) $(SWADGEC) $(EMUC)
 	gcc $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+assets.bin :
+	make -C .. assets.bin
+	cp ../assets.bin .
 
 # Clean everything
 clean :

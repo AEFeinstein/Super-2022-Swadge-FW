@@ -51,7 +51,8 @@ void RegSound( int priority, const char * name, SoundInitFn * fn )
 	}
 }
 
-struct SoundDriver * InitSound( const char * driver_name, SoundCBType cb )
+struct SoundDriver * InitSound( const char * driver_name, SoundCBType cb, int reqSPS,
+	int reqChannelsRec, int reqChannelsPlay, int sugBufferSize, const char * inputSelect, const char * outputSelect )
 {
 	int i;
 	struct SoundDriver * ret = 0;
@@ -64,7 +65,7 @@ struct SoundDriver * InitSound( const char * driver_name, SoundCBType cb )
 			{
 				return 0;
 			}
-			ret = SoundDrivers[i]( cb );
+			ret = SoundDrivers[i]( cb, reqSPS, reqChannelsRec, reqChannelsPlay, sugBufferSize, inputSelect, outputSelect );
 			if( ret )
 			{
 				return ret;
@@ -82,7 +83,7 @@ struct SoundDriver * InitSound( const char * driver_name, SoundCBType cb )
 			}
 			if( strcmp( SoundDriverNames[i], driver_name ) == 0 )
 			{
-				return SoundDrivers[i]( cb );
+				return SoundDrivers[i]( cb, reqSPS, reqChannelsRec, reqChannelsPlay, sugBufferSize, inputSelect, outputSelect );
 			}
 		}
 	}
