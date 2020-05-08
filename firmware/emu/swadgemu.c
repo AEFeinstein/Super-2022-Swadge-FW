@@ -527,7 +527,7 @@ void EMUSoundCBType( struct SoundDriver * sd, short * in, short * out, int sampl
 
 void initMic(void)
 {
-	if( !sounddriver ) sounddriver = InitSound( 0, EMUSoundCBType, 16000, 1, 1, 128, 0, 0 );
+	if( !sounddriver ) sounddriver = InitSound( 0, EMUSoundCBType, 16000, 1, 1, 256, 0, 0 );
 }
 
 uint8_t getSample(void)
@@ -551,7 +551,7 @@ void initBuzzer(void)
 {
     stopBuzzerSong();
 	
-	if( !sounddriver ) sounddriver = InitSound( 0, EMUSoundCBType, 16000, 1, 1, 128, 0, 0 );
+	if( !sounddriver ) sounddriver = InitSound( 0, EMUSoundCBType, 16000, 1, 1, 256, 0, 0 );
 
     // Keep it high in the idle state
     //setBuzzerGpio(false);
