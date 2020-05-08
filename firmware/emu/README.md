@@ -24,7 +24,7 @@ TODO: Build instructions for Android
 	```
     with this line:
     ```
-    load-module module-waveout sink_name=output source_name=input record=0
+    load-module module-waveout sink_name=output source_name=input record=1
     ```
 1. In PulseAudio's `etc/daemon.conf` file, replace this line:
     ```
