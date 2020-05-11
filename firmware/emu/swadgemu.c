@@ -442,9 +442,9 @@ void ws2812_push( uint8_t* buffer, uint16_t buffersize )
 	for( ; led < buffersize/3; led++ )
 	{
 		uint32_t col = 0xff000000;
-		col |= buffer[led*3+2]<<16;
-		col |= buffer[led*3+0]<<8;
-		col |= buffer[led*3+1]<<0;
+		col |= buffer[led*3+1]<<16; // r
+		col |= buffer[led*3+0]<<8;  // g
+		col |= buffer[led*3+2]<<0;  // b
 		ws2812s[led] = col;
 	}
 }

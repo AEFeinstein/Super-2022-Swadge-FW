@@ -673,12 +673,12 @@ void ICACHE_FLASH_ATTR swadgeModeEspNowSendCb(uint8_t* mac_addr, mt_tx_status st
  *==========================================================================*/
 
 /**
- * Set the state of the six RGB LEDs, but don't overwrite if the LEDs were
+ * Set the state of the six GRB LEDs, but don't overwrite if the LEDs were
  * set via UDP for at least TICKER_TIMEOUT increments of 100ms
  *
  * @param ledData Array of LED color data. Every three bytes corresponds to
- * one LED in RGB order. So index 0 is LED1_R, index 1 is
- * LED1_G, index 2 is LED1_B, index 3 is LED2_R, etc.
+ * one LED in GRB order. So index 0 is LED1_G, index 1 is
+ * LED1_R, index 2 is LED1_B, index 3 is LED2_G, etc.
  * @param ledDataLen The length of buffer, most likely 6*3
  */
 void ICACHE_FLASH_ATTR setLeds(led_t* ledData, uint16_t ledDataLen)
