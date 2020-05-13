@@ -320,7 +320,6 @@ int emumain()
 
 
 //General emulation stubs.
-
 unsigned long os_random() { return rand(); }
 void  * ets_memcpy( void * dest, const void * src, size_t n ) { memcpy( dest, src, n ); return dest; }
 void  * ets_memset( void * s, int c, size_t n ) { memset( s, c, n ); return s; }
@@ -329,6 +328,14 @@ int ets_strlen( const char * s ) { return strlen( s ); }
 char * ets_strncpy ( char * destination, const char * source, size_t num ) { return strncpy( destination, source, num ); }
 int ets_strcmp (const char* str1, const char* str2) { return strcmp( str1, str2 ); }
 void system_set_os_print( uint8 onoff ) { }
+int os_printf(const char *format, ...)
+{
+	va_list argp;
+	va_start(argp, format);
+	int out = vprintf(format, argp);
+	va_end(argp);
+	return out;
+};
 void LoadDefaultPartitionMap(void) {}
 uint32 system_get_time(void) { return (OGGetAbsoluteTime()-boottime)*1000000; }
 struct rst_info* system_get_rst_info(void)
@@ -442,9 +449,9 @@ void ws2812_push( uint8_t* buffer, uint16_t buffersize )
 	for( ; led < buffersize/3; led++ )
 	{
 		uint32_t col = 0xff000000;
-		col |= buffer[led*3+1]<<16; // r
-		col |= buffer[led*3+0]<<8;  // g
-		col |= buffer[led*3+2]<<0;  // b
+		col |= (buffer[led * 3 + 1] * 240 / 255 + 15) << 16; // r
+		col |= (buffer[led * 3 + 0] * 240 / 255 + 15) << 8; // g
+		col |= (buffer[led * 3 + 2] * 240 / 255 + 15) << 0; // b
 		ws2812s[led] = col;
 	}
 }
