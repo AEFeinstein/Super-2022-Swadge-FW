@@ -327,14 +327,20 @@ int ets_memcmp( const void * a, const void * b, size_t n ) { return memcmp( a, b
 int ets_strlen( const char * s ) { return strlen( s ); }
 char * ets_strncpy ( char * destination, const char * source, size_t num ) { return strncpy( destination, source, num ); }
 int ets_strcmp (const char* str1, const char* str2) { return strcmp( str1, str2 ); }
-void system_set_os_print( uint8 onoff ) { }
+
+bool canPrint = true;
+void system_set_os_print( uint8 onoff ) { canPrint = onoff; }
 int os_printf(const char *format, ...)
 {
-	va_list argp;
-	va_start(argp, format);
-	int out = vprintf(format, argp);
-	va_end(argp);
-	return out;
+	if(canPrint)
+	{
+		va_list argp;
+		va_start(argp, format);
+		int out = vprintf(format, argp);
+		va_end(argp);
+		return out;
+	}
+	return 0;
 };
 void LoadDefaultPartitionMap(void) {}
 uint32 system_get_time(void) { return (OGGetAbsoluteTime()-boottime)*1000000; }
@@ -459,6 +465,13 @@ void ws2812_push( uint8_t* buffer, uint16_t buffersize )
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void * os_malloc( int x ) { return malloc( x ); }
+void * os_zalloc( int x ) { 
+	void* ptr = malloc( x );
+	if(NULL != ptr) {
+		memset(ptr, 0, x);
+	}
+	return ptr;
+}
 void os_free( void * x ) { free( x ); }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -485,6 +498,7 @@ struct
 
 uint16_t buzzernote;
 og_mutex_t * buzzernotemutex;
+int getIsMutedOption();
 
 #ifndef ANDROID
 #define BZR_PRINTF printf
@@ -565,7 +579,6 @@ void initBuzzer(void)
 
     // Keep it high in the idle state
     //setBuzzerGpio(false);
-	int getIsMutedOption();
     // If it's muted, don't set anything
     if(getIsMutedOption())
     {

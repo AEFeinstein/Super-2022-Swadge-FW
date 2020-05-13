@@ -22,7 +22,7 @@ typedef ETSTimer os_timer_t;
 #define os_timer_init ets_timer_init
 #define os_timer_setfn ets_timer_setfn
 
-
+int os_printf(const char *format, ...);
 
 #endif
 

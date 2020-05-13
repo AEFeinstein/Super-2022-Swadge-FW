@@ -1437,7 +1437,7 @@ void ICACHE_FLASH_ATTR ttScoresInput(void)
         if (clearScoreTimer >= CLEAR_SCORES_HOLD_TIME)
         {
             clearScoreTimer = 0;
-            memset(highScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
+            ets_memset(highScores, 0, NUM_TT_HIGH_SCORES * sizeof(uint32_t));
             saveHighScores();
             loadHighScores();
             // ttSetLastScore(0); TODO HIGH SCORE
