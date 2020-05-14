@@ -20,9 +20,6 @@ especially the comments made on March 15 2019 by phibo23.
     $ sudo apt-get dist-upgrade
     $ sudo apt-get install build-essential make unrar-free autoconf automake libtool gcc g++ gperf flex bison texinfo gawk ncurses-dev libexpat-dev python-dev python python-serial sed git unzip bash help2man wget bzip2 libtool-bin libusb-1.0-0-dev
     ```
-    #### For developers using WSL, some additional steps are needed:
-    1. Open the windows registry editor ```regedit.exe```, then navigate to ```HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\kernel\``` and set ```obcaseinsensitive=0```.
-    1. Then, restart the system.
 1. Check out the [pfalcon's esp-open-sdk](https://github.com/pfalcon/esp-open-sdk), move to the ```esp-open-sdk``` folder and build it. More detailed instructions are on that project's page. Warning, building this takes a while (like 30 minutes)!
     ```
     $ git clone --recursive https://github.com/pfalcon/esp-open-sdk.git
