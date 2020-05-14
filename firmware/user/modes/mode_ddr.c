@@ -36,9 +36,11 @@
 #define BTN_OFF   12
 
 #define ARROW_ROW_MAX_COUNT 16
-#define ARROW_PERFECT_HPOS 1600
-#define ARROW_LATE_RADIUS 100
-#define MAX_PULSE_TIMER 4000
+#define ARROW_PERFECT_HPOS 1650
+#define ARROW_PERFECT_RADIUS 30
+#define ARROW_HIT_RADIUS 60
+#define LEDS_TIMER 15
+#define MAX_PULSE_TIMER (60000 / LEDS_TIMER)
 
 /*============================================================================
  * Prototypes
@@ -59,6 +61,7 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void* arg __attribute__((unused)))
 
 void ddrUpdateButtons();
 void ddrHandleHit();
+void ddrHandlePerfect();
 void ddrHandleMiss();
 
 /*============================================================================
@@ -368,7 +371,7 @@ void ICACHE_FLASH_ATTR ddrEnterMode(void)
     // Test the LEDs
     syncedTimerDisarm(&ddr.TimerHandleLeds);
     syncedTimerSetFn(&ddr.TimerHandleLeds, ddrLedFunc, NULL);
-    syncedTimerArm(&ddr.TimerHandleLeds, 15, true);
+    syncedTimerArm(&ddr.TimerHandleLeds, LEDS_TIMER, true);
 
     // Draw a gif
     //drawGifFromAsset("ragequit.gif", 0, 0, false, false, 0, &ddr.gHandle);
@@ -393,8 +396,7 @@ void ICACHE_FLASH_ATTR ddrEnterMode(void)
     ddr.arrowRows[3].count=1;
     ddr.arrowRows[3].arrows[0].hPos = 0;
 
-    ddr.tempo = 180;
-    ddr.maxPressForgiveness = ddr.tempo * ARROW_LATE_RADIUS / 40;
+    ddr.tempo = 110;
 
     ddr.ButtonDownState = 0;
 
@@ -420,17 +422,17 @@ static void ICACHE_FLASH_ATTR ddrLedFunc(void* arg __attribute__((unused)))
 {
     led_t leds[NUM_LIN_LEDS] = {{0}};
 
-    uint16_t pulseTimeReduction = ddr.tempo * 1;
+    uint16_t pulseTimeReduction = ddr.tempo;
     if (pulseTimeReduction < ddr.PulseTimeLeft)
     {
         ddr.PulseTimeLeft -= pulseTimeReduction;
         if (ddr.PulseTimeLeft < 1000)
         {
-            leds[0].b=32;
-            leds[1].b=32;
+            leds[0].b=128;
+            leds[1].b=128;
         
-            leds[NUM_LIN_LEDS-1].b=32;
-            leds[NUM_LIN_LEDS-2].b=32;
+            leds[NUM_LIN_LEDS-1].b=128;
+            leds[NUM_LIN_LEDS-2].b=128;
         }
     } 
     else 
@@ -468,7 +470,19 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void* arg __attribute__((unused)))
 
             uint16_t arrowDist = abs(curArrow->hPos - ARROW_PERFECT_HPOS);
 
-            if (arrowDist <= ddr.maxPressForgiveness)
+            if (arrowDist <= ARROW_PERFECT_RADIUS)
+            {
+                if(ddr.ButtonDownState & curRow->pressDirection)
+                { //assumes that no more than one arrow per row can be in hit zone at a time
+                    curRow->count--;
+                    curRow->start = (curRow->start + 1) % ARROW_ROW_MAX_COUNT;
+                    
+                    // reset down state
+                    ddr.ButtonDownState = ddr.ButtonDownState & ~curRow->pressDirection;
+                    ddrHandlePerfect();
+                }
+            }
+            else if (arrowDist <= ARROW_HIT_RADIUS)
             {
                 if(ddr.ButtonDownState & curRow->pressDirection)
                 { //assumes that no more than one arrow per row can be in hit zone at a time
@@ -572,6 +586,11 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
             plotSprite((curArrow->hPos-400)/12, 48 - rowIdx * 16, &ddr_rotating_banana[ddr.BananaIdx], WHITE);
         }
     }
+    
+    plotCircle(110, 55-16*3, BTN_RAD-3, WHITE);
+    plotCircle(110, 55-16*2, BTN_RAD-3, WHITE);
+    plotCircle(110, 55-16*1, BTN_RAD-3, WHITE);
+    plotCircle(110, 55-16*0, BTN_RAD-3, WHITE);
 
     if(ddr.ButtonDownState & UP)
     {
@@ -603,6 +622,7 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
 
 
 void ddrHandleHit(){}
+void ddrHandlePerfect(){}
 void ddrHandleMiss(){}
 
 /**
