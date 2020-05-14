@@ -60,10 +60,9 @@ If you see eyes and hear a tone, you're good to go. Remember that both VcXsrv an
 	```
 	# sudo apt-get install libasound2-dev mesa-common-dev
 	```
-1. To build the emulator, run `make` in the `emu` folder.
+1. To build the emulator, run `make` in the `emu` folder. This also creates a copy of `assets.bin` in the `emu` folder.
     
 	If you are running Visual Studio Code, you can also also build with `ctrl+shift+b` and select the `make all (emulator)` build task.
-1. The emulator also needs a copy of `assets.bin` in the `firmware/emu/` folder. You can generate this by running `make clean all` from the `firmware/` folder, then copying `assets.bin` from `firmware/` to `/firmware/emu/`.
 1. To run the emulator run `./swadgemu` from the `emu` folder.
     
 	If you are running Visual Studio Code, you can also run with `F5`. This will also automatically attach GDB, so you can set breakpoints, watch variables, and otherwise debug as you do.
