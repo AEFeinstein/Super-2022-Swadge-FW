@@ -39,6 +39,10 @@
 #define ARROW_PERFECT_HPOS 1650
 #define ARROW_PERFECT_RADIUS 30
 #define ARROW_HIT_RADIUS 60
+
+#define ARROWS_TIMER 15
+#define MAX_SIXTEENTH_TIMER (60000 / 4 / ARROWS_TIMER)
+
 #define LEDS_TIMER 15
 #define MAX_PULSE_TIMER (60000 / LEDS_TIMER)
 
@@ -330,6 +334,8 @@ struct
     ddrArrowRow arrowRows[4];
     uint16_t tempo;
     uint16_t maxPressForgiveness;
+    uint8_t sixteenths;
+    uint16_t sixteenthNoteCounter;
 
     uint16_t rotation;
     gifHandle gHandle;
@@ -397,6 +403,8 @@ void ICACHE_FLASH_ATTR ddrEnterMode(void)
     ddr.arrowRows[3].arrows[0].hPos = 0;
 
     ddr.tempo = 110;
+    ddr.sixteenths = 6;
+    ddr.sixteenthNoteCounter = MAX_SIXTEENTH_TIMER;
 
     ddr.ButtonDownState = 0;
 
@@ -456,6 +464,43 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void* arg __attribute__((unused)))
     int curCount;
     int curEnd;
 
+    bool canSpawnArrow = false;
+    int percentChanceSpawn = 0;
+
+    if (ddr.tempo > ddr.sixteenthNoteCounter) 
+    {
+        ddr.sixteenthNoteCounter = MAX_SIXTEENTH_TIMER - ddr.tempo + ddr.sixteenthNoteCounter;
+        ddr.sixteenths = (ddr.sixteenths + 1 ) % 16;
+
+        canSpawnArrow = true;
+        
+        if (0 == ddr.sixteenths)
+        {
+            percentChanceSpawn = 30; // 30 percent chance on first beat
+        }
+         else if ( 8 == ddr.sixteenths)
+        {
+            percentChanceSpawn = 20; // 20 percent chance on 3rd beat
+        }
+        else if ( 0 == ddr.sixteenths % 4)
+        {
+            percentChanceSpawn = 10; // 10 percent chance on 2nd/4th beat
+        }
+        else if ( 0 == ddr.sixteenths % 2)
+        {
+            percentChanceSpawn = 5; // 5 percent chance on half beats
+        }
+        else 
+        {
+            percentChanceSpawn = 0; // 0 percent chance on other 16th beats
+        }
+        
+    }
+    else 
+    {
+        ddr.sixteenthNoteCounter -= ddr.tempo;
+    }
+
     for (int rowIdx = 0; rowIdx < 4; rowIdx++)
     {
         curRow = &(ddr.arrowRows[rowIdx]);
@@ -501,6 +546,15 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void* arg __attribute__((unused)))
                 ddrHandleMiss();
             }
             
+        }
+
+        if (canSpawnArrow)
+        {
+            if (rand() % 100 < percentChanceSpawn)
+            {
+                curRow->count++;
+                curRow->arrows[(curRow->start+curRow->count) % ARROW_ROW_MAX_COUNT].hPos = 0;
+            }
         }
     }
 }
