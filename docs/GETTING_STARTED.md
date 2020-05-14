@@ -21,20 +21,15 @@ especially the comments made on March 15 2019 by phibo23.
     $ sudo apt-get install build-essential make unrar-free autoconf automake libtool gcc g++ gperf flex bison texinfo gawk ncurses-dev libexpat-dev python-dev python python-serial sed git unzip bash help2man wget bzip2 libtool-bin libusb-1.0-0-dev
     ```
     #### For developers using WSL, some additional steps are needed:
-    1. First, configure WSL to allow for the changing of file permissions by editing ```/etc/wsl.conf``` (or creating it if it doesn't already exist) and then inserting these lines:
-
-        ```
-        [automount]
-        options = "metadata"
-        ```
-    2. Open the windows registry editor ```regedit.exe```, then navigate to ```HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\kernel\``` and set ```obcaseinsensitive=0```.
-    3. Finally, restart the system.
+    1. Open the windows registry editor ```regedit.exe```, then navigate to ```HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\kernel\``` and set ```obcaseinsensitive=0```.
+    1. Then, restart the system.
 1. Check out the [pfalcon's esp-open-sdk](https://github.com/pfalcon/esp-open-sdk), move to the ```esp-open-sdk``` folder and build it. More detailed instructions are on that project's page. Warning, building this takes a while (like 30 minutes)!
     ```
     $ git clone --recursive https://github.com/pfalcon/esp-open-sdk.git
     $ cd esp-open-sdk/
     /esp-open-sdk$ make
     ```
+    * Developers using WSL are encouraged to **avoid cloning into windows directories** (e.g., ```/mnt/c/...```) due to conflicts between WSL and Windows file permissions.
     * If there are issues with ```make``` recognizing bash, you may need to go into ```esp-open-sdk/crosstool-NG/configure.ac``` and change line 193 from ```|$EGREP '^GNU bash, version (3.[1-9]|4)')``` to ```|$EGREP '^GNU bash, version (3.[1-9]|4|5)')```.
 1. Set up environment variables by appending the following to your ```.bashrc``` file. You'll want to modify them with your own home folder name.
     ```
