@@ -64,7 +64,7 @@ void ICACHE_FLASH_ATTR ddrButtonCallback(uint8_t state __attribute__((unused)),
 void ICACHE_FLASH_ATTR ddrAccelerometerHandler(accel_t* accel);
 
 static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused)));
-static void ICACHE_FLASH_ATTR ddrRotateBanana(void* arg __attribute__((unused)));
+static void ICACHE_FLASH_ATTR ddrAnimateNotes(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR ddrLedFunc(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR ddrHandleArrows(void* arg __attribute__((unused)));
 //static void ICACHE_FLASH_ATTR ddrAnimateSprite(void* arg __attribute__((unused)));
@@ -79,218 +79,13 @@ void ddrHandleMiss();
  * Const data
  *==========================================================================*/
 
-const sprite_t ddr_rotating_banana[] ICACHE_RODATA_ATTR =
-{
-    // frame_0_delay-0.07s.png
-    {
-        .width = 16,
-        .height = 16,
-        .data =
-        {
-            0b0000000010000000,
-            0b0000000110000000,
-            0b0000000011000000,
-            0b0000000010100000,
-            0b0000000010010000,
-            0b0000000100010000,
-            0b0000000100001000,
-            0b0000000100001000,
-            0b0000000100001000,
-            0b0000001000001000,
-            0b0000010000001000,
-            0b0001100000010000,
-            0b0110000000100000,
-            0b0100000011000000,
-            0b0110011100000000,
-            0b0001100000000000,
-        }
-    },
-    // frame_1_delay-0.07s.png
-    {
-        .width = 16,
-        .height = 16,
-        .data =
-        {
-            0b0000000100000000,
-            0b0000000110000000,
-            0b0000000110000000,
-            0b0000000110000000,
-            0b0000001001000000,
-            0b0000001001000000,
-            0b0000001000100000,
-            0b0000001000100000,
-            0b0000010000100000,
-            0b0000010000100000,
-            0b0000010000100000,
-            0b0000100000100000,
-            0b0001000001000000,
-            0b0001000011000000,
-            0b0000111100000000,
-            0b0000000000000000,
-        }
-    },
-    // frame_2_delay-0.07s.png
-    {
-        .width = 16,
-        .height = 16,
-        .data =
-        {
-            0b0000000100000000,
-            0b0000001100000000,
-            0b0000001100000000,
-            0b0000010100000000,
-            0b0000010100000000,
-            0b0000100100000000,
-            0b0000100010000000,
-            0b0001000010000000,
-            0b0001000010000000,
-            0b0001000010000000,
-            0b0001000001000000,
-            0b0000100001000000,
-            0b0000100001000000,
-            0b0000011001000000,
-            0b0000000110000000,
-            0b0000000000000000,
-        }
-    },
-    // frame_3_delay-0.07s.png
-    {
-        .width = 16,
-        .height = 16,
-        .data =
-        {
-            0b0000001100000000,
-            0b0000001100000000,
-            0b0000011000000000,
-            0b0000101000000000,
-            0b0001001000000000,
-            0b0010001000000000,
-            0b0010000100000000,
-            0b0010000100000000,
-            0b0010000100000000,
-            0b0010000010000000,
-            0b0001000001000000,
-            0b0001000000110000,
-            0b0000100000001000,
-            0b0000011000000100,
-            0b0000000111111000,
-            0b0000000000000000,
-        }
-    },
-    // frame_4_delay-0.07s.png
-    {
-        .width = 16,
-        .height = 16,
-        .data =
-        {
-            0b0000001100000000,
-            0b0000001100000000,
-            0b0000011000000000,
-            0b0000101000000000,
-            0b0001001100000000,
-            0b0010000100000000,
-            0b0010000100000000,
-            0b0010000100000000,
-            0b0010000010000000,
-            0b0010000010000000,
-            0b0001000001000000,
-            0b0001000000100000,
-            0b0000100000011000,
-            0b0000010000000100,
-            0b0000001100000100,
-            0b0000000011111100,
-        }
-    },
-    // frame_5_delay-0.07s.png
-    {
-        .width = 16,
-        .height = 16,
-        .data =
-        {
-            0b0000000100000000,
-            0b0000001100000000,
-            0b0000001100000000,
-            0b0000010010000000,
-            0b0000010010000000,
-            0b0000100010000000,
-            0b0000100001000000,
-            0b0000100001000000,
-            0b0000100001000000,
-            0b0000100001000000,
-            0b0000100000100000,
-            0b0000010000100000,
-            0b0000010000100000,
-            0b0000001000010000,
-            0b0000001000010000,
-            0b0000000111110000,
-        }
-    },
-    // frame_6_delay-0.07s.png
-    {
-        .width = 16,
-        .height = 16,
-        .data =
-        {
-            0b0000000100000000,
-            0b0000000110000000,
-            0b0000000101000000,
-            0b0000000100100000,
-            0b0000000100100000,
-            0b0000001000100000,
-            0b0000001000010000,
-            0b0000001000010000,
-            0b0000001000010000,
-            0b0000010000010000,
-            0b0000010000100000,
-            0b0000010000100000,
-            0b0000010000100000,
-            0b0000010000100000,
-            0b0000100001000000,
-            0b0000111110000000,
-        }
-    },
-    // frame_7_delay-0.07s.png
-    {
-        .width = 16,
-        .height = 16,
-        .data =
-        {
-            0b0000000110000000,
-            0b0000000011000000,
-            0b0000000010100000,
-            0b0000000010100000,
-            0b0000000010010000,
-            0b0000000100001000,
-            0b0000000100001000,
-            0b0000000100001000,
-            0b0000000100001000,
-            0b0000001000001000,
-            0b0000010000010000,
-            0b0000100000010000,
-            0b0001000000100000,
-            0b0010000001000000,
-            0b0100000010000000,
-            0b0111111100000000,
-        }
-    },
-};
 
 const char ddrSprites[][16] =
 {
-    "baby_dino.png",
-    "blacky.png",
-    "coldhead.png",
-    "dino.png",
-    "horn_dino.png",
-    "serpent.png",
-    "turd.png",
-    "bear.png",
-    "blob.png",
-    "crouch.png",
-    "dragon.png",
-    "hothead.png",
-    "slug.png",
-    "wing_snake.png"
+    "skull01.png",
+    "skull02.png",
+    "skull01.png",
+    "skull03.png",
 };
 
 /*============================================================================
@@ -333,10 +128,10 @@ struct
     // Timer variables
     syncedTimer_t TimerHandleLeds;
     syncedTimer_t TimerHandleArrows;
-    syncedTimer_t timerHandleBanana;
+    syncedTimer_t timerAnimateNotes;
     syncedTimer_t timerUpdateDisplay;
 
-    uint8_t BananaIdx;
+    uint8_t NoteIdx;
 
     ddrArrowRow arrowRows[4];
     uint16_t tempo;
@@ -371,10 +166,9 @@ void ICACHE_FLASH_ATTR ddrEnterMode(void)
     // uint32_t songLen;
     // startBuzzerSong((song_t*)getAsset("carmen.rtl", &songLen), false);
 
-    // Test the display with a rotating banana
-    syncedTimerDisarm(&ddr.timerHandleBanana);
-    syncedTimerSetFn(&ddr.timerHandleBanana, ddrRotateBanana, NULL);
-    syncedTimerArm(&ddr.timerHandleBanana, 30, true);
+    syncedTimerDisarm(&ddr.timerAnimateNotes);
+    syncedTimerSetFn(&ddr.timerAnimateNotes, ddrAnimateNotes, NULL);
+    syncedTimerArm(&ddr.timerAnimateNotes, 60, true);
 
     syncedTimerDisarm(&ddr.TimerHandleArrows);
     syncedTimerSetFn(&ddr.TimerHandleArrows, ddrHandleArrows, NULL);
@@ -404,14 +198,6 @@ void ICACHE_FLASH_ATTR ddrEnterMode(void)
     ddr.arrowRows[2].pressDirection = LEFT;
     ddr.arrowRows[3].pressDirection = UP;
 
-    ddr.arrowRows[0].count=1;
-    ddr.arrowRows[0].arrows[0].hPos = 400;
-
-    ddr.arrowRows[2].count=1;
-    ddr.arrowRows[2].arrows[0].hPos = 400;
-    ddr.arrowRows[3].count=1;
-    ddr.arrowRows[3].arrows[0].hPos = 0;
-
     ddr.tempo = 110;
     ddr.sixteenths = 6;
     ddr.sixteenthNoteCounter = MAX_SIXTEENTH_TIMER;
@@ -430,7 +216,7 @@ void ICACHE_FLASH_ATTR ddrEnterMode(void)
 void ICACHE_FLASH_ATTR ddrExitMode(void)
 {
     stopBuzzerSong();
-    syncedTimerDisarm(&ddr.timerHandleBanana);
+    syncedTimerDisarm(&ddr.timerAnimateNotes);
     syncedTimerDisarm(&ddr.TimerHandleLeds);
     syncedTimerDisarm(&ddr.TimerHandleArrows);
     syncedTimerDisarm(&ddr.timerUpdateDisplay);
@@ -500,7 +286,7 @@ static void ICACHE_FLASH_ATTR ddrLedFunc(void* arg __attribute__((unused)))
 }
 
 /**
- * @brief Called on a timer, this rotates the banana by picking the next sprite
+ * @brief Called on a timer, this moves the arrows and checks for hits/misses
  *
  * @param arg unused
  */
@@ -608,28 +394,13 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void* arg __attribute__((unused)))
 }
 
 /**
- * @brief Called on a timer, this rotates the banana by picking the next sprite
+ * @brief Called on a timer, this animates the note asset
  *
  * @param arg unused
  */
-static void ICACHE_FLASH_ATTR ddrAnimateSprite(void* arg __attribute__((unused)))
+static void ICACHE_FLASH_ATTR ddrAnimateNotes(void* arg __attribute__((unused)))
 {
-    // ddr.rotation = (ddr.rotation + 90) % 360;
-    ddr.rotation = (ddr.rotation + 3) % 360;
-
-    //ddrUpdateDisplay();
-
-    ddr.gHandle.rotateDeg = ddr.rotation;
-}
-
-/**
- * @brief Called on a timer, this rotates the banana by picking the next sprite
- *
- * @param arg unused
- */
-static void ICACHE_FLASH_ATTR ddrRotateBanana(void* arg __attribute__((unused)))
-{
-    ddr.BananaIdx = (ddr.BananaIdx + 1) % (sizeof(ddr_rotating_banana) / sizeof(ddr_rotating_banana[0]));
+    ddr.NoteIdx = (ddr.NoteIdx + 1) % 4;
     // testUpdateDisplay();
 }
 
@@ -663,11 +434,6 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
     // Draw a title
     //plotText(0, 0, "DDR MODE", RADIOSTARS, WHITE);
 
-    // Draw the banana
-    //plotSprite(50, 40, &ddr_rotating_banana[ddr.BananaIdx], WHITE);
-    //plotSprite(70, 40, &ddr_rotating_banana[(ddr.BananaIdx + 5) % (sizeof(ddr_rotating_banana) / sizeof(ddr_rotating_banana[0]))], WHITE);
-    //plotSprite(30, 40, &ddr_rotating_banana[(ddr.BananaIdx + 10) % (sizeof(ddr_rotating_banana) / sizeof(ddr_rotating_banana[0]))], WHITE);
-
     //ddrUpdateButtons();
     ddrArrowRow* curRow;
     ddrArrow* curArrow;
@@ -685,7 +451,13 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
         for(int arrowIdx = curStart; arrowIdx != curEnd; arrowIdx = (arrowIdx + 1) % ARROW_ROW_MAX_COUNT)
         {
             curArrow = &(curRow->arrows[arrowIdx]);
-            plotSprite((curArrow->hPos-400)/12, 48 - rowIdx * 16, &ddr_rotating_banana[ddr.BananaIdx], WHITE);
+            
+            drawBitmapFromAsset(ddrSprites[ddr.NoteIdx],
+                            (curArrow->hPos-400)/12,
+                            48 - rowIdx * 16,
+                            false,
+                            false,
+                            0);
         }
     }
     
