@@ -46,6 +46,13 @@
 #define LEDS_TIMER 15
 #define MAX_PULSE_TIMER (60000 / LEDS_TIMER)
 
+#define FEEDBACK_PERFECT 3
+#define FEEDBACK_HIT 2
+#define FEEDBACK_MISS 1
+#define FEEDBACK_NONE 0
+
+#define MAX_FEEDBACK_TIMER 250
+
 /*============================================================================
  * Prototypes
  *==========================================================================*/
@@ -341,6 +348,9 @@ struct
     gifHandle gHandle;
 
     uint16_t PulseTimeLeft;
+
+    uint8_t feedbackTimer;
+    uint8_t currentFeedback;
 } ddr;
 
 /*============================================================================
@@ -409,6 +419,9 @@ void ICACHE_FLASH_ATTR ddrEnterMode(void)
     ddr.ButtonDownState = 0;
 
     ddr.PulseTimeLeft = MAX_PULSE_TIMER;
+
+    ddr.currentFeedback = 0;
+    ddr.feedbackTimer = 0;
 }
 
 /**
@@ -418,6 +431,9 @@ void ICACHE_FLASH_ATTR ddrExitMode(void)
 {
     stopBuzzerSong();
     syncedTimerDisarm(&ddr.timerHandleBanana);
+    syncedTimerDisarm(&ddr.TimerHandleLeds);
+    syncedTimerDisarm(&ddr.TimerHandleArrows);
+    syncedTimerDisarm(&ddr.timerUpdateDisplay);
     syncedTimerDisarm(&ddr.TimerHandleLeds);
 }
 
@@ -430,8 +446,44 @@ static void ICACHE_FLASH_ATTR ddrLedFunc(void* arg __attribute__((unused)))
 {
     led_t leds[NUM_LIN_LEDS] = {{0}};
 
+    if (ddr.currentFeedback)
+    {
+        if (LEDS_TIMER > ddr.feedbackTimer)
+        {
+            ddr.feedbackTimer = MAX_FEEDBACK_TIMER;
+            ddr.currentFeedback = FEEDBACK_NONE;
+        } 
+        else
+        {
+            ddr.feedbackTimer -= LEDS_TIMER;
+            switch(ddr.currentFeedback)
+            {
+                case FEEDBACK_PERFECT:
+                    leds[2].g=250;
+                    leds[3].g=250;
+                    break;
+                    
+                case FEEDBACK_HIT:
+                    leds[2].g=100;
+                    leds[2].r=50;
+                    leds[3].g=100;
+                    leds[3].r=50;
+                    break;
+
+                default:// FEEDBACK_MISS:
+                    leds[2].r=50;
+                    leds[3].r=50;
+            }
+        }
+        
+    }
+
     uint16_t pulseTimeReduction = ddr.tempo;
-    if (pulseTimeReduction < ddr.PulseTimeLeft)
+    if (pulseTimeReduction > ddr.PulseTimeLeft)
+    {
+        ddr.PulseTimeLeft = MAX_PULSE_TIMER - pulseTimeReduction + ddr.PulseTimeLeft;
+    }
+    else 
     {
         ddr.PulseTimeLeft -= pulseTimeReduction;
         if (ddr.PulseTimeLeft < 1000)
@@ -443,10 +495,6 @@ static void ICACHE_FLASH_ATTR ddrLedFunc(void* arg __attribute__((unused)))
             leds[NUM_LIN_LEDS-2].b=128;
         }
     } 
-    else 
-    {
-        ddr.PulseTimeLeft = MAX_PULSE_TIMER - pulseTimeReduction + ddr.PulseTimeLeft;
-    }
 
     setLeds(leds, sizeof(leds));
 }
@@ -675,9 +723,22 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
 }
 
 
-void ddrHandleHit(){}
-void ddrHandlePerfect(){}
-void ddrHandleMiss(){}
+void ddrHandleHit()
+{
+    ddr.feedbackTimer = MAX_FEEDBACK_TIMER;
+    ddr.currentFeedback = FEEDBACK_HIT;
+}
+
+void ddrHandlePerfect()
+{
+    ddr.feedbackTimer = MAX_FEEDBACK_TIMER;
+    ddr.currentFeedback = FEEDBACK_PERFECT;
+}
+
+void ddrHandleMiss(){
+    ddr.feedbackTimer = MAX_FEEDBACK_TIMER;
+    ddr.currentFeedback = FEEDBACK_MISS;
+}
 
 /**
  * TODO
