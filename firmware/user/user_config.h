@@ -39,6 +39,7 @@
     //#define TOPOLED  accel.x
     //#define FACEOLED accel.z
 #elif SWADGE_VERSION == SWADGE_DEV_KIT
+    #define USE_BUTTON_3_NOT_BZR
     #define NUM_LIN_LEDS 8
     #define LED_1 2
     #define LED_2 4

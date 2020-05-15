@@ -70,9 +70,9 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
 {
+    &testMode,
     &colorchordMode,
     &passMode,
-    &testMode,
     &magpetMode,
     &ringMode,
 };
@@ -186,7 +186,6 @@ void ICACHE_FLASH_ATTR user_init(void)
     {
         // Initialize GPIOs
         SetupGPIO(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback);
-
 #ifdef PROFILE
         GPIO_OUTPUT_SET(GPIO_ID_PIN(0), 0);
 #endif
@@ -234,9 +233,12 @@ void ICACHE_FLASH_ATTR user_init(void)
         }
         else
         {
+#ifndef USE_BUTTON_3_NOT_BZR
+            INIT_PRINTF("Init Buzzer\n");
             // Initialize the buzzer
             initBuzzer();
             setBuzzerNote(SILENCE);
+#endif
         }
 
         // Turn LEDs off
@@ -304,7 +306,7 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events __attribute__((unused)
         // Amplify the sample
         samp = (samp * CCS.gINITIAL_AMP) >> 4;
 
-        // Pass the button to the mode
+        // Pass the sample to the mode
         if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
         {
             swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback(samp);
@@ -671,12 +673,12 @@ void ICACHE_FLASH_ATTR swadgeModeEspNowSendCb(uint8_t* mac_addr, mt_tx_status st
  *==========================================================================*/
 
 /**
- * Set the state of the six RGB LEDs, but don't overwrite if the LEDs were
+ * Set the state of the six GRB LEDs, but don't overwrite if the LEDs were
  * set via UDP for at least TICKER_TIMEOUT increments of 100ms
  *
  * @param ledData Array of LED color data. Every three bytes corresponds to
- * one LED in RGB order. So index 0 is LED1_R, index 1 is
- * LED1_G, index 2 is LED1_B, index 3 is LED2_R, etc.
+ * one LED in GRB order. So index 0 is LED1_G, index 1 is
+ * LED1_R, index 2 is LED1_B, index 3 is LED2_G, etc.
  * @param ledDataLen The length of buffer, most likely 6*3
  */
 void ICACHE_FLASH_ATTR setLeds(led_t* ledData, uint16_t ledDataLen)
