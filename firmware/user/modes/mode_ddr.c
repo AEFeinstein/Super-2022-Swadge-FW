@@ -67,6 +67,7 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
 static void ICACHE_FLASH_ATTR ddrAnimateNotes(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR ddrLedFunc(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR ddrHandleArrows(void* arg __attribute__((unused)));
+static void ICACHE_FLASH_ATTR ddrAnimateSuccessMeter(void* arg __attribute((unused)));
 //static void ICACHE_FLASH_ATTR ddrAnimateSprite(void* arg __attribute__((unused)));
 //static void ICACHE_FLASH_ATTR ddrUpdateButtons(void* arg __attribute__((unused)));
 
@@ -130,6 +131,7 @@ struct
     syncedTimer_t TimerHandleArrows;
     syncedTimer_t timerAnimateNotes;
     syncedTimer_t timerUpdateDisplay;
+    syncedTimer_t TimerAnimateSuccessMeter;
 
     uint8_t NoteIdx;
 
@@ -139,13 +141,13 @@ struct
     uint8_t sixteenths;
     uint16_t sixteenthNoteCounter;
 
-    uint16_t rotation;
-    gifHandle gHandle;
-
     uint16_t PulseTimeLeft;
 
     uint8_t feedbackTimer;
     uint8_t currentFeedback;
+
+    uint8_t successMeter;
+    uint8_t successMeterShineStart;
 } ddr;
 
 /*============================================================================
@@ -183,6 +185,10 @@ void ICACHE_FLASH_ATTR ddrEnterMode(void)
     syncedTimerSetFn(&ddr.TimerHandleLeds, ddrLedFunc, NULL);
     syncedTimerArm(&ddr.TimerHandleLeds, LEDS_TIMER, true);
 
+    syncedTimerDisarm(&ddr.TimerAnimateSuccessMeter);
+    syncedTimerSetFn(&ddr.TimerAnimateSuccessMeter, ddrAnimateSuccessMeter, NULL);
+    syncedTimerArm(&ddr.TimerAnimateSuccessMeter, 40, true);
+
     // Draw a gif
     //drawGifFromAsset("ragequit.gif", 0, 0, false, false, 0, &ddr.gHandle);
 
@@ -208,6 +214,9 @@ void ICACHE_FLASH_ATTR ddrEnterMode(void)
 
     ddr.currentFeedback = 0;
     ddr.feedbackTimer = 0;
+
+    ddr.successMeter = 80;
+    ddr.successMeterShineStart = 0;
 }
 
 /**
@@ -285,6 +294,17 @@ static void ICACHE_FLASH_ATTR ddrLedFunc(void* arg __attribute__((unused)))
     setLeds(leds, sizeof(leds));
 }
 
+void fisherYates(int arr[], int n)
+{
+    for (int i = n - 1; i> 0; i--)
+    {
+        int j = rand() % (i+1);
+        int temp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = temp;
+    }
+}
+
 /**
  * @brief Called on a timer, this moves the arrows and checks for hits/misses
  *
@@ -314,11 +334,11 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void* arg __attribute__((unused)))
         }
          else if ( 8 == ddr.sixteenths)
         {
-            percentChanceSpawn = 20; // 20 percent chance on 3rd beat
+            percentChanceSpawn = 25; // 20 percent chance on 3rd beat
         }
         else if ( 0 == ddr.sixteenths % 4)
         {
-            percentChanceSpawn = 10; // 10 percent chance on 2nd/4th beat
+            percentChanceSpawn = 20; // 10 percent chance on 2nd/4th beat
         }
         else if ( 0 == ddr.sixteenths % 2)
         {
@@ -335,8 +355,15 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void* arg __attribute__((unused)))
         ddr.sixteenthNoteCounter -= ddr.tempo;
     }
 
-    for (int rowIdx = 0; rowIdx < 4; rowIdx++)
+    // generate arrows for rows in random order to avoid tending to "run out" 
+    // before row 2 & 3
+    int rowIdxs[] = {0,1,2,3};
+    fisherYates(rowIdxs,4);
+
+    int arrowsSpawnedThisBeat = 0;
+    for (int i = 0; i < 4; i++)
     {
+        int rowIdx = rowIdxs[i];
         curRow = &(ddr.arrowRows[rowIdx]);
         curStart = curRow->start;
         curCount = curRow->count;
@@ -382,10 +409,11 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void* arg __attribute__((unused)))
             
         }
 
-        if (canSpawnArrow)
+        if (canSpawnArrow && arrowsSpawnedThisBeat < 2)
         {
             if (rand() % 100 < percentChanceSpawn)
             {
+                arrowsSpawnedThisBeat++;
                 curRow->count++;
                 curRow->arrows[(curRow->start+curRow->count) % ARROW_ROW_MAX_COUNT].hPos = 0;
             }
@@ -466,6 +494,7 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
     plotCircle(110, 55-16*1, BTN_RAD-3, WHITE);
     plotCircle(110, 55-16*0, BTN_RAD-3, WHITE);
 
+    /*
     if(ddr.ButtonDownState & UP)
     {
         // A
@@ -489,6 +518,20 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
         // F
         plotCircle(110, 55-16*0, BTN_RAD, WHITE);
     }
+    */
+
+    if ( ddr.successMeter == 100 )
+    {
+        plotLine(OLED_WIDTH - 1, 0, OLED_WIDTH - 1, OLED_HEIGHT - 1, WHITE);
+        for (int y = OLED_HEIGHT - 1 - ddr.successMeterShineStart; y > 0 ; y-=3 )
+        {
+            drawPixel(OLED_WIDTH-1, y, BLACK);
+        }
+    }
+    else 
+    {
+        plotLine(OLED_WIDTH - 1, (OLED_HEIGHT - 1) - (float)ddr.successMeter/100.0f * (OLED_HEIGHT - 1), OLED_WIDTH - 1, OLED_HEIGHT - 1, WHITE);
+    }
 
 
     ddr.ButtonDownState = 0;
@@ -499,17 +542,42 @@ void ddrHandleHit()
 {
     ddr.feedbackTimer = MAX_FEEDBACK_TIMER;
     ddr.currentFeedback = FEEDBACK_HIT;
+
+    if (ddr.successMeter >= 99)
+    {
+        ddr.successMeter = 100;
+    } else
+    {
+        ddr.successMeter += 1;
+    }
 }
 
 void ddrHandlePerfect()
 {
     ddr.feedbackTimer = MAX_FEEDBACK_TIMER;
     ddr.currentFeedback = FEEDBACK_PERFECT;
+
+    if (ddr.successMeter >= 97)
+    {
+        ddr.successMeter = 100;
+    } else
+    {
+        ddr.successMeter += 3;
+    }
 }
 
 void ddrHandleMiss(){
     ddr.feedbackTimer = MAX_FEEDBACK_TIMER;
     ddr.currentFeedback = FEEDBACK_MISS;
+
+    if (ddr.successMeter <= 5)
+    {
+        ddr.successMeter = 0;
+    } else
+    {
+        ddr.successMeter -= 5;
+    }
+    
 }
 
 /**
@@ -539,4 +607,9 @@ void ICACHE_FLASH_ATTR ddrAccelerometerHandler(accel_t* accel)
     ddr.Accel.y = accel->y;
     ddr.Accel.z = accel->z;
     // ddrUpdateDisplay();
+}
+
+static void ICACHE_FLASH_ATTR ddrAnimateSuccessMeter(void* arg __attribute((unused)))
+{
+    ddr.successMeterShineStart = (ddr.successMeterShineStart + 1 ) % 4;
 }
