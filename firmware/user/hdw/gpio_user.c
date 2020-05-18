@@ -110,6 +110,15 @@ static const gpioInfo_t gpioInfoInput[] =
         .periph = PERIPHS_IO_MUX_MTDI_U,
         .initialState = 1
     },
+#ifdef USE_BUTTON_3_NOT_BZR
+    // Down
+    {
+        .GPID = 5,
+        .func = FUNC_GPIO5,
+        .periph = PERIPHS_IO_MUX_GPIO5_U,
+        .initialState = 1
+    },
+#endif
 #endif
 };
 
@@ -129,6 +138,7 @@ static const gpioInfo_t gpioInfoOutput[] =
         .periph = PERIPHS_IO_MUX_MTMS_U,
         .initialState = 1
     },
+#ifndef USE_BUTTON_3_NOT_BZR
     // Buzzer
     {
         .GPID = 5,
@@ -136,6 +146,7 @@ static const gpioInfo_t gpioInfoOutput[] =
         .periph = PERIPHS_IO_MUX_GPIO5_U,
         .initialState = 0
     },
+#endif
 };
 
 /*============================================================================

@@ -209,7 +209,9 @@ bool ICACHE_FLASH_ATTR isHpaRunning(void)
 void ICACHE_FLASH_ATTR initMic(void)
 {
     hpaMode = MIC;
+#ifndef USE_BUTTON_3_NOT_BZR
     setBuzzerGpio(false);
+#endif
     StartHPATimer();
 }
 
