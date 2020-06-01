@@ -7,3 +7,10 @@
 [submodule "ESP-Asset-Packer"]
 	path = ESP-Asset-Packer
 	url = https://github.com/AEFeinstein/ESP-Asset-Packer
+[submodule "firmware/emu/rawdraw"]
+	path = firmware/emu/rawdraw
+	url = https://github.com/cntools/rawdraw.git
+	branch = master
+[submodule "firmware/emu/android/rawdrawandroid"]
+	path = firmware/emu/android/rawdrawandroid
+	url = https://github.com/cnlohr/rawdrawandroid

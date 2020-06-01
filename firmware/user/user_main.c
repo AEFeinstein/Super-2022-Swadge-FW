@@ -37,6 +37,7 @@
 #include "mode_magpet.h"
 #include "mode_swadgepass.h"
 #include "mode_colorchord.h"
+#include "mode_tiltrads.h"
 
 #include "ccconfig.h"
 
@@ -72,9 +73,10 @@ swadgeMode* swadgeModes[] =
 {
     &testMode,
     &colorchordMode,
+    &ringMode,
+    &tiltradsMode,
     &passMode,
     &magpetMode,
-    &ringMode,
 };
 
 bool swadgeModeInit = false;
