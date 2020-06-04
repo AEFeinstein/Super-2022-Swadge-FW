@@ -62,6 +62,7 @@ struct
     syncedTimer_t ccLedOverrideTimer;
     bool ccOverrideLeds;
     syncedTimer_t ccAnimationTimer;
+    pngHandle king;
 } cc;
 
 struct CCSettings CCS =
@@ -111,6 +112,8 @@ void ICACHE_FLASH_ATTR colorchordEnterMode(void)
     // Set up an animation timer
     syncedTimerSetFn(&cc.ccAnimationTimer, ccAnimation, NULL);
     syncedTimerArm(&cc.ccAnimationTimer, 25, true); // 40fps updates
+
+    allocPngAsset("king.png", &cc.king);
 }
 
 void ICACHE_FLASH_ATTR ccAnimation(void* arg __attribute__((unused)))
@@ -121,7 +124,7 @@ void ICACHE_FLASH_ATTR ccAnimation(void* arg __attribute__((unused)))
     static uint16_t rotation = 0;
     rotation = (rotation + 4) % 360;
     
-    drawBitmapFromAsset("king.png", (128 - 37) / 2, 0, false, false, rotation);
+    drawPng(&cc.king, (128 - 37) / 2, 0, false, false, rotation);
 
     // Draw a bar graph
     uint8_t numBins = sizeof(folded_bins) / sizeof(folded_bins[0]);
@@ -141,6 +144,8 @@ void ICACHE_FLASH_ATTR colorchordExitMode(void)
 {
     // Disarm the timer
     syncedTimerDisarm(&cc.ccLedOverrideTimer);
+
+    freePngAsset(&cc.king);
 }
 
 /**

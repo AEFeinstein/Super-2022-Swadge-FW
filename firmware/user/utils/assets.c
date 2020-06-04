@@ -7,12 +7,12 @@
 #include "printControl.h"
 #ifdef EMU
     #include <stdio.h>
-	#ifdef ANDROID
-		#include <asset_manager.h>
-		#include <asset_manager_jni.h>
-		#include <android_native_app_glue.h>
-		struct android_app * gapp;
-	#endif
+    #ifdef ANDROID
+        #include <asset_manager.h>
+        #include <asset_manager_jni.h>
+        #include <android_native_app_glue.h>
+        struct android_app* gapp;
+    #endif
 #endif
 
 const uint32_t sin1024[] RODATA_ATTR =
@@ -99,22 +99,22 @@ uint32_t* ICACHE_FLASH_ATTR getAsset(const char* name, uint32_t* retLen)
      */
     uint32_t* assets = (uint32_t*)(0x40200000 + ASSETS_ADDR);
 #elif defined( ANDROID )
-	static uint32_t * assets;
-	if( !assets )
-	{
-		AAsset * file = AAssetManager_open( gapp->activity->assetManager, "assets.bin", AASSET_MODE_BUFFER );
-		if( file )
-		{
-			assets = AAsset_getBuffer( file );
-			//size_t fileLength = AAsset_getLength(file);
-			//assets = malloc( fileLength + 1);
-			//memcpy( assets, AAsset_getBuffer( file ), fileLength );
-		}
-		else
-		{
-			return NULL;
-		}
-	}
+    static uint32_t* assets;
+    if( !assets )
+    {
+        AAsset* file = AAssetManager_open( gapp->activity->assetManager, "assets.bin", AASSET_MODE_BUFFER );
+        if( file )
+        {
+            assets = AAsset_getBuffer( file );
+            //size_t fileLength = AAsset_getLength(file);
+            //assets = malloc( fileLength + 1);
+            //memcpy( assets, AAsset_getBuffer( file ), fileLength );
+        }
+        else
+        {
+            return NULL;
+        }
+    }
 #else
     /* When emulating a swadge, assets are read directly from a file */
     static uint32_t* assets = NULL;
@@ -132,11 +132,11 @@ uint32_t* ICACHE_FLASH_ATTR getAsset(const char* name, uint32_t* retLen)
         assets = (uint32_t*)malloc(sz);
         fseek(fp, 0L, SEEK_SET);
         int r = fread(assets, sz, 1, fp);
-		if( r != 1 )
-		{
+        if( r != 1 )
+        {
             fprintf( stderr, "EMU Error: read error with assets.bin\n" );
-			return NULL;
-		}
+            return NULL;
+        }
     }
 #endif
     uint32_t idx = 0;
@@ -261,80 +261,125 @@ void ICACHE_FLASH_ATTR transformPixel(int16_t* x, int16_t* y, int16_t transX,
 }
 
 /**
- * @brief Draw a bitmap asset to the OLED
+ * Load a PNG asset from ROM to RAM
  *
- * @param name The name of the asset to draw
+ * @param name   The name of the asset to draw
+ * @param handle A handle to load the asset into
+ * @return true if the asset was allocated, false if it was not
+ */
+bool ICACHE_FLASH_ATTR allocPngAsset(const char* name, pngHandle* handle)
+{
+    // Get the image from the packed assets
+    uint32_t assetLen = 0;
+    uint32_t* assetPtr = getAsset(name, &assetLen);
+
+    // If the asset was found
+    if(NULL != assetPtr)
+    {
+        uint32_t idx = 0;
+
+        // Get the width and height
+        handle->width  = assetPtr[idx++];
+        handle->height = assetPtr[idx++];
+        AST_PRINTF("Width: %d, height: %d\n", width, height);
+
+        // Pad the length to a 32 bit boundary for memcpy
+        uint32_t paddedLen = assetLen - (2 * sizeof(uint32_t));
+        while(paddedLen % 4 != 0)
+        {
+            paddedLen++;
+        }
+        // Allocate RAM, then copy the memory from ROM to RAM
+        handle->data = (uint32_t*)os_malloc(paddedLen);
+        if(NULL == handle->data)
+        {
+            return false;
+        }
+        os_memcpy(handle->data, &assetPtr[idx], paddedLen);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+/**
+ * Free a PNG asset from RAM
+ *
+ * @param handle The handle to free memory from
+ */
+void ICACHE_FLASH_ATTR freePngAsset(pngHandle* handle)
+{
+    if(NULL != handle->data)
+    {
+        os_free(handle->data);
+    }
+}
+
+/**
+ * @brief Draw a PNG asset to the OLED
+ *
+ * @param handle A handle of a PNG to draw
  * @param xp The x coordinate to draw the asset at
  * @param yp The y coordinate to draw the asset at
  * @param flipLR true to flip over the Y axis, false to do nothing
  * @param flipUD true to flip over the X axis, false to do nothing
  * @param rotateDeg The number of degrees to rotate clockwise, must be 0-359
  */
-void ICACHE_FLASH_ATTR drawBitmapFromAsset(const char* name, int16_t xp, int16_t yp,
-        bool flipLR, bool flipUD, int16_t rotateDeg)
+void ICACHE_FLASH_ATTR drawPng(pngHandle* handle, int16_t xp,
+        int16_t yp, bool flipLR, bool flipUD, int16_t rotateDeg)
 {
-    // Get the image from the packed assets
-    uint32_t assetLen = 0;
-    uint32_t* assetPtr = getAsset(name, &assetLen);
+    uint32_t idx = 0;
 
-    if(NULL != assetPtr)
+    // Read 32 bits at a time
+    uint32_t chunk = handle->data[idx++];
+    uint32_t bitIdx = 0;
+
+    // Draw the image's pixels
+    for(int16_t h = 0; h < handle->height; h++)
     {
-        uint32_t idx = 0;
-
-        // Get the width and height
-        int32_t width = assetPtr[idx++];
-        int32_t height = assetPtr[idx++];
-        AST_PRINTF("Width: %d, height: %d\n", width, height);
-
-        // Read 32 bits at a time
-        uint32_t chunk = assetPtr[idx++];
-        uint32_t bitIdx = 0;
-
-        // Draw the image's pixels
-        for(int16_t h = 0; h < height; h++)
+        for(int16_t w = 0; w < handle->width; w++)
         {
-            for(int16_t w = 0; w < width; w++)
-            {
-                // Transform this pixel's draw location as necessary
-                int16_t x = w;
-                int16_t y = h;
-                transformPixel(&x, &y, xp, yp, flipLR, flipUD, rotateDeg, width, height);
+            // Transform this pixel's draw location as necessary
+            int16_t x = w;
+            int16_t y = h;
+            transformPixel(&x, &y, xp, yp, flipLR, flipUD, rotateDeg, handle->width, handle->height);
 
-                // 'Traverse' the huffman tree to find out what to do
-                bool isZero = true;
+            // 'Traverse' the huffman tree to find out what to do
+            bool isZero = true;
+            if(chunk & (0x80000000 >> (bitIdx++)))
+            {
+                // If it's a one, draw a black pixel
+                drawPixel(x, y, BLACK);
+                isZero = false;
+            }
+
+            // After bitIdx was incremented, check it
+            if(bitIdx == 32)
+            {
+                chunk = handle->data[idx++];
+                bitIdx = 0;
+            }
+
+            // A zero can be followed by a zero or a one
+            if(isZero)
+            {
                 if(chunk & (0x80000000 >> (bitIdx++)))
                 {
-                    // If it's a one, draw a black pixel
-                    drawPixel(x, y, BLACK);
-                    isZero = false;
+                    // zero-one means transparent, so don't do anything
+                }
+                else
+                {
+                    // zero-zero means white, draw a pixel
+                    drawPixel(x, y, WHITE);
                 }
 
                 // After bitIdx was incremented, check it
                 if(bitIdx == 32)
                 {
-                    chunk = assetPtr[idx++];
+                    chunk = handle->data[idx++];
                     bitIdx = 0;
-                }
-
-                // A zero can be followed by a zero or a one
-                if(isZero)
-                {
-                    if(chunk & (0x80000000 >> (bitIdx++)))
-                    {
-                        // zero-one means transparent, so don't do anything
-                    }
-                    else
-                    {
-                        // zero-zero means white, draw a pixel
-                        drawPixel(x, y, WHITE);
-                    }
-
-                    // After bitIdx was incremented, check it
-                    if(bitIdx == 32)
-                    {
-                        chunk = assetPtr[idx++];
-                        bitIdx = 0;
-                    }
                 }
             }
         }
