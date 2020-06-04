@@ -268,6 +268,7 @@ const char sprites[][16] =
 };
 
 pngHandle spriteHandles[16] = {{0}};
+pngSequenceHandle psh = {0};
 
 /*============================================================================
  * Variables
@@ -340,6 +341,19 @@ void ICACHE_FLASH_ATTR testEnterMode(void)
         allocPngAsset(sprites[i], &spriteHandles[i]);
     }
 
+    allocPngSequence(&psh, 11,
+                     "syringe01.png",
+                     "syringe02.png",
+                     "syringe03.png",
+                     "syringe04.png",
+                     "syringe05.png",
+                     "syringe06.png",
+                     "syringe07.png",
+                     "syringe08.png",
+                     "syringe09.png",
+                     "syringe10.png",
+                     "syringe11.png");
+
     // Draw a gif
     // drawGifFromAsset("ragequit.gif", 0, 0, false, false, 0, &test.gHandle);
 }
@@ -356,7 +370,7 @@ void ICACHE_FLASH_ATTR testExitMode(void)
     {
         freePngAsset(&spriteHandles[i]);
     }
-
+    freePngSequence(&psh);
 }
 
 /**
@@ -525,6 +539,8 @@ void ICACHE_FLASH_ATTR testUpdateDisplay(void)
                 false,
                 test.rotation);
     }
+
+    drawPngSequence(&psh, 0, FONT_HEIGHT_RADIOSTARS + 2, false, false, 0);
 }
 
 /**
