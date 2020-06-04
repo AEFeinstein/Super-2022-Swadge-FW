@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <osapi.h>
 #include <mem.h>
 #include "assets.h"
@@ -328,7 +329,7 @@ void ICACHE_FLASH_ATTR freePngAsset(pngHandle* handle)
  * @param rotateDeg The number of degrees to rotate clockwise, must be 0-359
  */
 void ICACHE_FLASH_ATTR drawPng(pngHandle* handle, int16_t xp,
-        int16_t yp, bool flipLR, bool flipUD, int16_t rotateDeg)
+                               int16_t yp, bool flipLR, bool flipUD, int16_t rotateDeg)
 {
     uint32_t idx = 0;
 
@@ -384,6 +385,80 @@ void ICACHE_FLASH_ATTR drawPng(pngHandle* handle, int16_t xp,
             }
         }
     }
+}
+
+
+/**
+ * Allocate memory for a sequence of PNGs and load them from ROM to RAM
+ *
+ * @param handle A handle to load PNGs into
+ * @param count  The number of PNGs to load
+ * @param ...    A list of PNG names
+ * @return true if all PNGs were loaded, false if they were not
+ */
+bool ICACHE_FLASH_ATTR allocPngSequence(pngSequenceHandle* handle, uint16_t count, ...)
+{
+    // Allocate handles for each png
+    handle->handles = os_malloc(sizeof(pngHandle) * count);
+    if(NULL == handle->handles)
+    {
+        return false;
+    }
+    handle->count = count;
+
+    /* Initialize the argument list. */
+    va_list ap;
+    va_start(ap, count);
+    for (uint16_t i = 0; i < count; i++)
+    {
+        /* Get the next argument value. */
+        if(false == allocPngAsset(va_arg(ap, const char*), &(handle->handles[i])))
+        {
+            freePngSequence(handle);
+            return false;
+        }
+    }
+
+    /* Clean up. */
+    va_end(ap);
+
+    return true;
+}
+
+/**
+ * Free the memory from a sequence of PNGs
+ *
+ * @param handle The handle whose memory to free
+ */
+void ICACHE_FLASH_ATTR freePngSequence(pngSequenceHandle* handle)
+{
+    for(uint16_t i = 0; i < handle->count; i++)
+    {
+        freePngAsset(&handle->handles[i]);
+    }
+    if(NULL != handle->handles)
+    {
+        os_free(handle->handles);
+    }
+}
+
+/**
+ * Draw a PNG in a sequence of PNGs
+ * 
+ * @param handle The handle to draw a png from
+ * @param xp The x coordinate to draw the asset at
+ * @param yp The y coordinate to draw the asset at
+ * @param flipLR true to flip over the Y axis, false to do nothing
+ * @param flipUD true to flip over the X axis, false to do nothing
+ * @param rotateDeg The number of degrees to rotate clockwise, must be 0-359
+ */
+void ICACHE_FLASH_ATTR drawPngSequence(pngSequenceHandle* handle, int16_t xp,
+                               int16_t yp, bool flipLR, bool flipUD, int16_t rotateDeg)
+{
+    // Draw the PNG
+    drawPng(&handle->handles[handle->cFrame], xp, yp, flipLR, flipUD, rotateDeg);
+    // Move to the next frame
+    handle->cFrame = (handle->cFrame + 1) % handle->count;
 }
 
 /**

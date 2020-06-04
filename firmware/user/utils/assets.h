@@ -19,6 +19,18 @@ void ICACHE_FLASH_ATTR drawPng(pngHandle* handle, int16_t xp,
 
 typedef struct
 {
+    uint16_t count;
+    pngHandle* handles;
+    uint16_t cFrame;
+} pngSequenceHandle;
+
+bool ICACHE_FLASH_ATTR allocPngSequence(pngSequenceHandle* handle, uint16_t count, ...);
+void ICACHE_FLASH_ATTR freePngSequence(pngSequenceHandle* handle);
+void ICACHE_FLASH_ATTR drawPngSequence(pngSequenceHandle* handle, int16_t xp,
+                               int16_t yp, bool flipLR, bool flipUD, int16_t rotateDeg);
+
+typedef struct
+{
     uint32_t* assetPtr;
     uint32_t idx;
 
