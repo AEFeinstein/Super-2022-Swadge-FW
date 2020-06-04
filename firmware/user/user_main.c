@@ -38,6 +38,7 @@
 #include "mode_swadgepass.h"
 #include "mode_colorchord.h"
 #include "mode_tiltrads.h"
+#include "mode_personal_demon.h"
 
 #include "ccconfig.h"
 
@@ -71,6 +72,7 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
 {
+    &personalDemonMode,
     &testMode,
     &colorchordMode,
     &ringMode,
@@ -489,6 +491,17 @@ void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
 #endif
 
     enterDeepSleep(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode, 1000);
+}
+
+/**
+ * @brief Helper function for the emulator to clean up the current mode
+ */
+void ICACHE_FLASH_ATTR exitCurrentSwadgeMode(void)
+{
+    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode)
+    {
+        swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode();
+    }
 }
 
 /**

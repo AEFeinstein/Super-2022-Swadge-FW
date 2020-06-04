@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <signal.h> 
 #include "rawdraw/CNFGFunctions.h"
 #include "rawdraw/os_generic.h"
 #include "swadgemu.h"
@@ -243,6 +244,12 @@ void emuCheckResize()
 	}
 }
 
+void exitMode(void)
+{
+	printf("called on exit");
+	void exitCurrentSwadgeMode(void);
+	exitCurrentSwadgeMode();
+}
 
 #ifndef ANDROID
 int main()
@@ -263,6 +270,7 @@ int emumain()
 	CNFGSetup( "swadgemu", OLED_WIDTH*px_scale, px_scale * ( OLED_HEIGHT + FOOTER_PIXELS ) );
 	rawvidmem = malloc( px_scale * OLED_WIDTH*px_scale * (OLED_HEIGHT+FOOTER_PIXELS)*px_scale * 4 );
 
+	atexit(exitMode);
 	// CNFGSetupFullscreen( "Test Bench", 0 );
 
 #ifdef WINDOWS
