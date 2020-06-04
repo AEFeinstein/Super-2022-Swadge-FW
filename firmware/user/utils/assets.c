@@ -316,6 +316,9 @@ void ICACHE_FLASH_ATTR freePngAsset(pngHandle* handle)
     {
         os_free(handle->data);
     }
+    handle->data = NULL;
+    handle->width = 0;
+    handle->height = 0;
 }
 
 /**
@@ -440,6 +443,10 @@ void ICACHE_FLASH_ATTR freePngSequence(pngSequenceHandle* handle)
     {
         os_free(handle->handles);
     }
+    handle->handles = NULL;
+    handle->cFrame = 0;
+    handle->count = 0;
+
 }
 
 /**
