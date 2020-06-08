@@ -540,7 +540,7 @@ void ICACHE_FLASH_ATTR testUpdateDisplay(void)
                 test.rotation);
     }
 
-    drawPngSequence(&psh, 0, FONT_HEIGHT_RADIOSTARS + 2, false, false, 0);
+    drawPngSequence(&psh, 0, FONT_HEIGHT_RADIOSTARS + 2, false, false, 0, -1);
 }
 
 /**

@@ -451,21 +451,34 @@ void ICACHE_FLASH_ATTR freePngSequence(pngSequenceHandle* handle)
 
 /**
  * Draw a PNG in a sequence of PNGs
- * 
+ *
  * @param handle The handle to draw a png from
  * @param xp The x coordinate to draw the asset at
  * @param yp The y coordinate to draw the asset at
  * @param flipLR true to flip over the Y axis, false to do nothing
  * @param flipUD true to flip over the X axis, false to do nothing
  * @param rotateDeg The number of degrees to rotate clockwise, must be 0-359
+ * @param frame     The frame number to draw
  */
 void ICACHE_FLASH_ATTR drawPngSequence(pngSequenceHandle* handle, int16_t xp,
-                               int16_t yp, bool flipLR, bool flipUD, int16_t rotateDeg)
+                                       int16_t yp, bool flipLR, bool flipUD,
+                                       int16_t rotateDeg, int16_t frame)
 {
-    // Draw the PNG
-    drawPng(&handle->handles[handle->cFrame], xp, yp, flipLR, flipUD, rotateDeg);
-    // Move to the next frame
-    handle->cFrame = (handle->cFrame + 1) % handle->count;
+    if(-1 == frame)
+    {
+        // Draw the PNG
+        drawPng(&handle->handles[handle->cFrame], xp, yp, flipLR, flipUD, rotateDeg);
+        // Move to the next frame
+        handle->cFrame = (handle->cFrame + 1) % handle->count;
+    }
+    else
+    {
+        if(frame < handle->count)
+        {
+            handle->cFrame = frame;
+            drawPng(&handle->handles[frame], xp, yp, flipLR, flipUD, rotateDeg);
+        }
+    }
 }
 
 /**
