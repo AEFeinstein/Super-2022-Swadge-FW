@@ -57,6 +57,7 @@ typedef struct
     int16_t demonY;
     bool demonDirLR;
     bool demonDirUD;
+    int16_t demonRot;
     pdAnimationState_t anim;
     syncedTimer_t animationTimer;
     pngSequenceHandle pizza;
@@ -70,6 +71,7 @@ typedef struct
     int16_t seqFrame;
     int16_t handRot;
     int16_t animCnt;
+    int16_t drawPoopCnt;
 } pd_data;
 
 pd_data* pd;
@@ -221,14 +223,19 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
             }
             case PDA_POOPING:
             {
+                pd->demonDirLR = false;
+                pd->handRot = 0;
                 break;
             }
             case PDA_MEDICINE:
             {
+                pd->demonDirLR = false;
                 break;
             }
             case PDA_SCOLD:
             {
+                pd->demonDirLR = false;
+                pd->handRot = 90;
                 break;
             }
         }
@@ -361,6 +368,40 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
         }
         case PDA_POOPING:
         {
+            pd->animCnt++;
+
+            if(pd->animCnt >= 180)
+            {
+                personalDemonResetAnimVars();
+            }
+            if(pd->animCnt >= 90)
+            {
+                if(pd->animCnt == 90)
+                {
+                    pd->drawPoopCnt++;
+                }
+                if(pd->demonRot == 359)
+                {
+                    pd->demonRot = 0;
+                }
+                else
+                {
+                    pd->demonRot++;
+                }
+            }
+            else
+            {
+                if(pd->demonRot == 0)
+                {
+                    pd->demonRot = 359;
+                }
+                else
+                {
+                    pd->demonRot--;
+                }
+            }
+            personalDemonUpdateDisplay();
+
             break;
         }
         case PDA_MEDICINE:
@@ -368,6 +409,15 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
             if((pd->animCnt++) >= 20)
             {
                 pd->animCnt = 0;
+
+                if(pd->seqFrame % 2 == 0)
+                {
+                    pd->demonX--;
+                }
+                else
+                {
+                    pd->demonX++;
+                }
 
                 pd->seqFrame++;
                 if(pd->seqFrame == pd->syringe.count)
@@ -380,17 +430,37 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
         }
         case PDA_SCOLD:
         {
-            if((pd->animCnt++) >= 1)
-            {
-                pd->animCnt = 0;
+            pd->animCnt++;
 
-                pd->handRot = (pd->handRot + 1) % 360;
-                if(pd->handRot == 0)
-                {
-                    personalDemonResetAnimVars();
-                }
-                personalDemonUpdateDisplay();
+            if(pd->animCnt >= 360)
+            {
+                personalDemonResetAnimVars();
             }
+            else if(pd->animCnt >= 270)
+            {
+                pd->handRot--;
+            }
+            else if(pd->animCnt >= 180)
+            {
+                if(pd->animCnt == 250)
+                {
+                    pd->demonDirLR = !pd->demonDirLR;
+                }
+                pd->handRot++;
+            }
+            else if(pd->animCnt >= 90)
+            {
+                if(pd->animCnt == 90)
+                {
+                    pd->demonY += 2;
+                }
+                pd->handRot--;
+            }
+            else
+            {
+                pd->handRot++;
+            }
+            personalDemonUpdateDisplay();
             break;
         }
     }
@@ -403,6 +473,8 @@ void ICACHE_FLASH_ATTR personalDemonResetAnimVars(void)
 {
     pd->animCnt = 0;
     pd->seqFrame = 0;
+    pd->handRot = 0;
+    pd->demonRot = 0;
     pd->anim = PDA_WALKING;
 }
 
@@ -415,13 +487,26 @@ void ICACHE_FLASH_ATTR personalDemonUpdateDisplay(void)
     clearDisplay();
 
     // Draw the demon
-    drawPng((&pd->demon), pd->demonX, pd->demonY, pd->demonDirLR, false, 0);
+    drawPng((&pd->demon), pd->demonX, pd->demonY, pd->demonDirLR, false, pd->demonRot);
+
+    // Always draw poop if it's there
+    for(uint8_t py = 0; py < 2; py++)
+    {
+        for(uint8_t px = 0; px < 3; px++)
+        {
+            if(px + (py * 3) < pd->drawPoopCnt)
+            {
+                drawPng((&pd->poop), (18 * px) + (OLED_WIDTH / 2) + 12, (14 * py) + (OLED_HEIGHT / 2) - 6, false, false, 0);
+            }
+        }
+    }
 
     // Draw animation-specific elements
     switch(pd->anim)
     {
         case PDA_WALKING:
         case PDA_CENTER:
+        case PDA_POOPING:
         {
             // Nothing extra to draw
             break;
@@ -431,19 +516,14 @@ void ICACHE_FLASH_ATTR personalDemonUpdateDisplay(void)
             drawPngSequence(pd->food,  (OLED_WIDTH / 2) - 28,  (OLED_HEIGHT / 2) - 8, false, false, 0, pd->seqFrame);
             break;
         }
-        case PDA_POOPING:
-        {
-            drawPng((&pd->poop), 20, 0, false, false, 0);
-            break;
-        }
         case PDA_MEDICINE:
         {
-            drawPngSequence(&(pd->syringe), 40, 48, false, false, 0, pd->seqFrame);
+            drawPngSequence(&(pd->syringe), (OLED_WIDTH / 2) - 24, (OLED_HEIGHT / 2) - 4, false, false, 0, pd->seqFrame);
             break;
         }
         case PDA_SCOLD:
         {
-            drawPng((&pd->hand), 40, 10, false, false, pd->handRot);
+            drawPng((&pd->hand), (OLED_WIDTH / 2) - 28, (OLED_HEIGHT / 2) - 28, false, false, pd->handRot);
             break;
         }
     }
