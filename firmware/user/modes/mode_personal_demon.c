@@ -8,6 +8,7 @@
 #include "assets.h"
 #include "oled.h"
 #include "linked_list.h"
+#include "font.h"
 
 /*==============================================================================
  * Defines, Enums
@@ -22,6 +23,13 @@ typedef enum
     PDA_MEDICINE,
     PDA_SCOLD,
 } pdAnimationState_t;
+
+typedef enum
+{
+    TEXT_STATIC,
+    TEXT_MOVING_RIGHT,
+    TEXT_MOVING_LEFT
+} pdTextAnimationState_t;
 
 /*==============================================================================
  * Function Prototypes
@@ -72,9 +80,14 @@ typedef struct
     int16_t handRot;
     int16_t animCnt;
     int16_t drawPoopCnt;
+    uint8_t menuIdx;
+    pdTextAnimationState_t textAnimation;
+    int16_t textPos;
 } pd_data;
 
 pd_data* pd;
+
+const char* menuOpts[] = {"Feed", "Play", "Scold", "Meds", "Scoop", "Quit"};
 
 /*==============================================================================
  * Functions
@@ -158,26 +171,61 @@ void ICACHE_FLASH_ATTR personalDemonButtonCallback(uint8_t state __attribute__((
         {
             case 0:
             {
-                unshift(&pd->animationQueue, (void*)PDA_CENTER);
-                unshift(&pd->animationQueue, (void*)PDA_EATING);
                 break;
             }
             case 1:
             {
-                unshift(&pd->animationQueue, (void*)PDA_CENTER);
-                unshift(&pd->animationQueue, (void*)PDA_POOPING);
+                pd->textAnimation = TEXT_MOVING_LEFT;
                 break;
             }
             case 2:
             {
-                unshift(&pd->animationQueue, (void*)PDA_CENTER);
-                unshift(&pd->animationQueue, (void*)PDA_MEDICINE);
                 break;
             }
             case 3:
             {
-                unshift(&pd->animationQueue, (void*)PDA_CENTER);
-                unshift(&pd->animationQueue, (void*)PDA_SCOLD);
+                pd->textAnimation = TEXT_MOVING_RIGHT;
+                break;
+            }
+            case 4:
+            {
+                switch(pd->menuIdx)
+                {
+                    case 0:
+                    {
+                        unshift(&pd->animationQueue, (void*)PDA_CENTER);
+                        unshift(&pd->animationQueue, (void*)PDA_EATING);
+                        break;
+                    }
+                    case 1:
+                    {
+                        // TODO play
+                        break;
+                    }
+                    case 2:
+                    {
+                        unshift(&pd->animationQueue, (void*)PDA_CENTER);
+                        unshift(&pd->animationQueue, (void*)PDA_SCOLD);
+                        break;
+                    }
+                    case 3:
+                    {
+                        unshift(&pd->animationQueue, (void*)PDA_CENTER);
+                        unshift(&pd->animationQueue, (void*)PDA_MEDICINE);
+                        break;
+                    }
+                    case 4:
+                    {
+                        unshift(&pd->animationQueue, (void*)PDA_CENTER);
+                        unshift(&pd->animationQueue, (void*)PDA_POOPING);
+                        break;
+                    }
+                    case 5:
+                    {
+                        // TODO quit
+                        break;
+                    }
+                }
                 break;
             }
         }
@@ -191,6 +239,56 @@ void ICACHE_FLASH_ATTR personalDemonButtonCallback(uint8_t state __attribute__((
  */
 void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unused)))
 {
+    bool shouldDraw = false;
+
+    switch (pd->textAnimation)
+    {
+        case TEXT_MOVING_LEFT:
+        {
+            pd->textPos--;
+            if(pd->textPos == -1 * OLED_WIDTH)
+            {
+                pd->textPos = 0;
+                pd->textAnimation = TEXT_STATIC;
+
+                if(pd->menuIdx == (sizeof(menuOpts) / sizeof(menuOpts[0])) - 1)
+                {
+                    pd->menuIdx = 0;
+                }
+                else
+                {
+                    pd->menuIdx++;
+                }
+            }
+            shouldDraw = true;
+            break;
+        }
+        case TEXT_MOVING_RIGHT:
+        {
+            pd->textPos++;
+            if(pd->textPos == OLED_WIDTH)
+            {
+                pd->textPos = 0;
+                pd->textAnimation = TEXT_STATIC;
+
+                if(pd->menuIdx == 0)
+                {
+                    pd->menuIdx = (sizeof(menuOpts) / sizeof(menuOpts[0])) - 1;
+                }
+                else
+                {
+                    pd->menuIdx--;
+                }
+            }
+            shouldDraw = true;
+            break;
+        }
+        default:
+        {
+            break;
+        }
+    }
+
     // If the demon is walking, and there's something new to do
     if(pd->anim == PDA_WALKING && pd->animationQueue.length > 0)
     {
@@ -239,9 +337,7 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
                 break;
             }
         }
-
-        // Draw initial frame for this animation
-        personalDemonUpdateDisplay();
+        shouldDraw = true;
     }
 
     switch(pd->anim)
@@ -288,7 +384,7 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
                         pd->demonY--;
                     }
                 }
-                personalDemonUpdateDisplay();
+                shouldDraw = true;
             }
             break;
         }
@@ -340,7 +436,7 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
                 {
                     personalDemonResetAnimVars();
                 }
-                personalDemonUpdateDisplay();
+                shouldDraw = true;
             }
             break;
         }
@@ -349,7 +445,7 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
             if(pd->animCnt == 100)
             {
                 pd->demonX = (OLED_WIDTH / 2) - 8;
-                personalDemonUpdateDisplay();
+                shouldDraw = true;
                 if(pd->seqFrame == pd->burger.count)
                 {
                     personalDemonResetAnimVars();
@@ -362,7 +458,7 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
 
                 pd->demonX = (OLED_WIDTH / 2) - 12;
                 pd->seqFrame++;
-                personalDemonUpdateDisplay();
+                shouldDraw = true;
             }
             break;
         }
@@ -400,8 +496,7 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
                     pd->demonRot--;
                 }
             }
-            personalDemonUpdateDisplay();
-
+            shouldDraw = true;
             break;
         }
         case PDA_MEDICINE:
@@ -424,7 +519,8 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
                 {
                     personalDemonResetAnimVars();
                 }
-                personalDemonUpdateDisplay();
+                shouldDraw = true;
+
             }
             break;
         }
@@ -460,9 +556,13 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
             {
                 pd->handRot++;
             }
-            personalDemonUpdateDisplay();
+            shouldDraw = true;
             break;
         }
+    }
+    if(shouldDraw)
+    {
+        personalDemonUpdateDisplay();
     }
 }
 
@@ -524,6 +624,46 @@ void ICACHE_FLASH_ATTR personalDemonUpdateDisplay(void)
         case PDA_SCOLD:
         {
             drawPng((&pd->hand), (OLED_WIDTH / 2) - 28, (OLED_HEIGHT / 2) - 28, false, false, pd->handRot);
+            break;
+        }
+    }
+
+    switch (pd->textAnimation)
+    {
+        case TEXT_MOVING_LEFT:
+        {
+            uint8_t next;
+            if(pd->menuIdx < (sizeof(menuOpts) / sizeof(menuOpts[0])) - 1)
+            {
+                next = pd->menuIdx + 1;
+            }
+            else
+            {
+                next = 0;
+            }
+            plotText(pd->textPos, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, menuOpts[pd->menuIdx], IBM_VGA_8, WHITE);
+            plotText(pd->textPos + OLED_WIDTH, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, menuOpts[next], IBM_VGA_8, WHITE);
+            break;
+        }
+        case TEXT_MOVING_RIGHT:
+        {
+            uint8_t prev;
+            if(pd->menuIdx > 0)
+            {
+                prev = pd->menuIdx - 1;
+            }
+            else
+            {
+                prev = (sizeof(menuOpts) / sizeof(menuOpts[0])) - 1;
+            }
+            plotText(pd->textPos - OLED_WIDTH, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, menuOpts[prev], IBM_VGA_8, WHITE);
+            plotText(pd->textPos, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, menuOpts[pd->menuIdx], IBM_VGA_8, WHITE);
+            break;
+        }
+        default:
+        case TEXT_STATIC:
+        {
+            plotText(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, menuOpts[pd->menuIdx], IBM_VGA_8, WHITE);
             break;
         }
     }
