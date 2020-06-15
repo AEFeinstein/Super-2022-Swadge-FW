@@ -22,6 +22,7 @@ typedef enum
     PDA_POOPING,
     PDA_MEDICINE,
     PDA_SCOLD,
+    PDA_BIRTH
 } pdAnimationState_t;
 
 typedef enum
@@ -75,6 +76,8 @@ typedef struct
     pngHandle demon;
     pngHandle hand;
     pngHandle poop;
+    pngHandle archL;
+    pngHandle archR;
     list_t animationQueue;
     int16_t seqFrame;
     int16_t handRot;
@@ -125,6 +128,8 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     allocPngAsset("dino.png", &(pd->demon));
     allocPngAsset("scold.png", &(pd->hand));
     allocPngAsset("poop.png", &(pd->poop));
+    allocPngAsset("archL.png", &(pd->archL));
+    allocPngAsset("archR.png", &(pd->archR));
 
     pd->demonX = (OLED_WIDTH / 2) - 8;
     pd->demonDirLR = false;
@@ -223,6 +228,7 @@ void ICACHE_FLASH_ATTR personalDemonButtonCallback(uint8_t state __attribute__((
                     case 5:
                     {
                         // TODO quit
+                        unshift(&pd->animationQueue, (void*)PDA_BIRTH);
                         break;
                     }
                 }
@@ -298,6 +304,13 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
         // Initialize the animation
         switch(pd->anim)
         {
+            case PDA_BIRTH:
+            {
+                pd->demonDirLR = true;
+                pd->demonY = 13 + 38 - 16;
+                pd->demonX = 16 + 24 - 16;
+                break;
+            }
             case PDA_WALKING:
             {
                 break;
@@ -342,6 +355,29 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
 
     switch(pd->anim)
     {
+        case PDA_BIRTH:
+        {
+            if((pd->animCnt++) >= 64)
+            {
+                pd->animCnt = 0;
+                pd->demonX++;
+                if(pd->demonX % 2 == 1)
+                {
+                    pd->demonY--;
+                }
+                else
+                {
+                    pd->demonY++;
+                }
+
+                if(pd->demonX >= 70)
+                {
+                    personalDemonResetAnimVars();
+                }
+                shouldDraw = true;
+            }
+            break;
+        }
         default:
         case PDA_WALKING:
         {
@@ -586,6 +622,12 @@ void ICACHE_FLASH_ATTR personalDemonUpdateDisplay(void)
     // Clear everything
     clearDisplay();
 
+    // If animating the birth, draw half the arch first to stack gifs properly
+    if(PDA_BIRTH == pd->anim)
+    {
+        drawPng(&pd->archR, 16 + 24, 13, false, false, 0);
+    }
+
     // Draw the demon
     drawPng((&pd->demon), pd->demonX, pd->demonY, pd->demonDirLR, false, pd->demonRot);
 
@@ -624,6 +666,11 @@ void ICACHE_FLASH_ATTR personalDemonUpdateDisplay(void)
         case PDA_SCOLD:
         {
             drawPng((&pd->hand), (OLED_WIDTH / 2) - 28, (OLED_HEIGHT / 2) - 28, false, false, pd->handRot);
+            break;
+        }
+        case PDA_BIRTH:
+        {
+            drawPng(&pd->archL, 16, 13, false, false, 0);
             break;
         }
     }
