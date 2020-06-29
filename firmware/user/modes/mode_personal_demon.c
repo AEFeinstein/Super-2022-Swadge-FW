@@ -26,12 +26,16 @@ typedef enum
     PDA_NUM_ANIMATIONS
 } pdAnimationState_t;
 
-typedef struct
+typedef enum
 {
-    void (*initAnim)(void);
-    bool (*updtAnim)(void);
-    void (*drawAnim)(void);
-} pdAnimation;
+    PDM_FEED,
+    PDM_PLAY,
+    PDM_SCOLD,
+    PDM_MEDS,
+    PDM_SCOOP,
+    PDM_QUIT,
+    PDM_NUM_OPTS
+} pdMenuOpt_t;
 
 typedef enum
 {
@@ -39,6 +43,19 @@ typedef enum
     TEXT_MOVING_RIGHT,
     TEXT_MOVING_LEFT
 } pdTextAnimationState_t;
+
+typedef struct
+{
+    void (*initAnim)(void);
+    bool (*updtAnim)(void);
+    void (*drawAnim)(void);
+} pdAnimation;
+
+typedef struct
+{
+    char* name;
+    void (*menuAct)(void);
+} pdMenuOpt;
 
 typedef struct
 {
@@ -72,6 +89,8 @@ typedef struct
     int16_t drawPoopCnt;
     uint8_t menuIdx;
     int16_t textPos;
+
+    pdMenuOpt menuTable[PDM_NUM_OPTS];
 } pd_data;
 
 /*==============================================================================
@@ -111,6 +130,13 @@ void initAnimPortal(void);
 bool updtAnimPortal(void);
 void drawAnimPortal(void);
 
+void menuFeedAct(void);
+void menuPlayAct(void);
+void menuScoldAct(void);
+void menuMedsAct(void);
+void menuScoopAct(void);
+void menuQuitAct(void);
+
 /*==============================================================================
  * Variables
  *============================================================================*/
@@ -130,7 +156,12 @@ swadgeMode personalDemonMode =
 
 pd_data* pd;
 
-const char* menuOpts[] = {"Feed", "Play", "Scold", "Meds", "Scoop", "Quit"};
+char menuFeed[]  = "Feed";
+char menuPlay[]  = "Play";
+char menuScold[] = "Scold";
+char menuMeds[]  = "Meds";
+char menuScoop[] = "Scoop";
+char menuQuit[]  = "Quit";
 
 /*==============================================================================
  * Functions
@@ -145,6 +176,7 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     pd = (pd_data*)os_malloc(sizeof(pd_data));
     ets_memset(pd, 0, sizeof(pd_data));
 
+    // Set up the animation table
     pd->animTable[PDA_WALKING].initAnim = NULL;
     pd->animTable[PDA_WALKING].updtAnim = updtAnimWalk;
     pd->animTable[PDA_WALKING].drawAnim = drawAnimDemon;
@@ -172,6 +204,25 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     pd->animTable[PDA_BIRTH].initAnim = initAnimPortal;
     pd->animTable[PDA_BIRTH].updtAnim = updtAnimPortal;
     pd->animTable[PDA_BIRTH].drawAnim = drawAnimPortal;
+
+    // Set up the menu table
+    pd->menuTable[PDM_FEED].name = menuFeed;
+    pd->menuTable[PDM_FEED].menuAct = menuFeedAct;
+
+    pd->menuTable[PDM_PLAY].name = menuPlay;
+    pd->menuTable[PDM_PLAY].menuAct = menuPlayAct;
+
+    pd->menuTable[PDM_SCOLD].name = menuScold;
+    pd->menuTable[PDM_SCOLD].menuAct = menuScoldAct;
+
+    pd->menuTable[PDM_MEDS].name = menuMeds;
+    pd->menuTable[PDM_MEDS].menuAct = menuMedsAct;
+
+    pd->menuTable[PDM_SCOOP].name = menuScoop;
+    pd->menuTable[PDM_SCOOP].menuAct = menuScoopAct;
+
+    pd->menuTable[PDM_QUIT].name = menuQuit;
+    pd->menuTable[PDM_QUIT].menuAct = menuQuitAct;
 
     allocPngSequence(&(pd->pizza), 3,
                      "pizza1.png",
@@ -237,7 +288,6 @@ void ICACHE_FLASH_ATTR personalDemonExitMode(void)
 void ICACHE_FLASH_ATTR personalDemonButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down)
 {
-    // TODO
     if(down)
     {
         switch(button)
@@ -262,48 +312,7 @@ void ICACHE_FLASH_ATTR personalDemonButtonCallback(uint8_t state __attribute__((
             }
             case 4:
             {
-                switch(pd->menuIdx)
-                {
-                    case 0:
-                    {
-                        unshift(&pd->animationQueue, (void*)PDA_CENTER);
-                        unshift(&pd->animationQueue, (void*)PDA_EATING);
-                        break;
-                    }
-                    case 1:
-                    {
-                        // TODO play
-                        break;
-                    }
-                    case 2:
-                    {
-                        unshift(&pd->animationQueue, (void*)PDA_CENTER);
-                        unshift(&pd->animationQueue, (void*)PDA_SCOLD);
-                        break;
-                    }
-                    case 3:
-                    {
-                        unshift(&pd->animationQueue, (void*)PDA_CENTER);
-                        unshift(&pd->animationQueue, (void*)PDA_MEDICINE);
-                        break;
-                    }
-                    case 4:
-                    {
-                        unshift(&pd->animationQueue, (void*)PDA_CENTER);
-                        unshift(&pd->animationQueue, (void*)PDA_POOPING);
-                        break;
-                    }
-                    case 5:
-                    {
-                        // TODO quit
-                        unshift(&pd->animationQueue, (void*)PDA_BIRTH);
-                        break;
-                    }
-                    default:
-                    {
-                        break;
-                    }
-                }
+                pd->menuTable[pd->menuIdx].menuAct();
                 break;
             }
             default:
@@ -312,6 +321,65 @@ void ICACHE_FLASH_ATTR personalDemonButtonCallback(uint8_t state __attribute__((
             }
         }
     }
+}
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR menuFeedAct(void)
+{
+    unshift(&pd->animationQueue, (void*)PDA_CENTER);
+    unshift(&pd->animationQueue, (void*)PDA_EATING);
+}
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR menuPlayAct(void)
+{
+
+}
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR menuScoldAct(void)
+{
+    unshift(&pd->animationQueue, (void*)PDA_CENTER);
+    unshift(&pd->animationQueue, (void*)PDA_SCOLD);
+}
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR menuMedsAct(void)
+{
+    unshift(&pd->animationQueue, (void*)PDA_CENTER);
+    unshift(&pd->animationQueue, (void*)PDA_MEDICINE);
+}
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR menuScoopAct(void)
+{
+    unshift(&pd->animationQueue, (void*)PDA_CENTER);
+    unshift(&pd->animationQueue, (void*)PDA_POOPING);
+}
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR menuQuitAct(void)
+{
+    // TODO quit
+    unshift(&pd->animationQueue, (void*)PDA_BIRTH);
 }
 
 /**
@@ -831,7 +899,7 @@ bool ICACHE_FLASH_ATTR updtAnimText(void)
                 pd->textPos = 0;
                 pd->textAnimation = TEXT_STATIC;
 
-                if(pd->menuIdx == (sizeof(menuOpts) / sizeof(menuOpts[0])) - 1)
+                if(pd->menuIdx == PDM_NUM_OPTS - 1)
                 {
                     pd->menuIdx = 0;
                 }
@@ -852,7 +920,7 @@ bool ICACHE_FLASH_ATTR updtAnimText(void)
 
                 if(pd->menuIdx == 0)
                 {
-                    pd->menuIdx = (sizeof(menuOpts) / sizeof(menuOpts[0])) - 1;
+                    pd->menuIdx = PDM_NUM_OPTS - 1;
                 }
                 else
                 {
@@ -880,7 +948,7 @@ void ICACHE_FLASH_ATTR drawAnimText(void)
         case TEXT_MOVING_LEFT:
         {
             uint8_t next;
-            if(pd->menuIdx < (sizeof(menuOpts) / sizeof(menuOpts[0])) - 1)
+            if(pd->menuIdx < PDM_NUM_OPTS - 1)
             {
                 next = pd->menuIdx + 1;
             }
@@ -888,8 +956,8 @@ void ICACHE_FLASH_ATTR drawAnimText(void)
             {
                 next = 0;
             }
-            plotText(pd->textPos, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, (char*)menuOpts[pd->menuIdx], IBM_VGA_8, WHITE);
-            plotText(pd->textPos + OLED_WIDTH, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, (char*)menuOpts[next], IBM_VGA_8, WHITE);
+            plotText(pd->textPos, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, pd->menuTable[pd->menuIdx].name, IBM_VGA_8, WHITE);
+            plotText(pd->textPos + OLED_WIDTH, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, pd->menuTable[next].name, IBM_VGA_8, WHITE);
             break;
         }
         case TEXT_MOVING_RIGHT:
@@ -901,16 +969,16 @@ void ICACHE_FLASH_ATTR drawAnimText(void)
             }
             else
             {
-                prev = (sizeof(menuOpts) / sizeof(menuOpts[0])) - 1;
+                prev = PDM_NUM_OPTS - 1;
             }
-            plotText(pd->textPos - OLED_WIDTH, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, (char*)menuOpts[prev], IBM_VGA_8, WHITE);
-            plotText(pd->textPos, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, (char*)menuOpts[pd->menuIdx], IBM_VGA_8, WHITE);
+            plotText(pd->textPos - OLED_WIDTH, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, pd->menuTable[prev].name, IBM_VGA_8, WHITE);
+            plotText(pd->textPos, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, pd->menuTable[pd->menuIdx].name, IBM_VGA_8, WHITE);
             break;
         }
         default:
         case TEXT_STATIC:
         {
-            plotText(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, (char*)menuOpts[pd->menuIdx], IBM_VGA_8, WHITE);
+            plotText(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, pd->menuTable[pd->menuIdx].name, IBM_VGA_8, WHITE);
             break;
         }
     }
