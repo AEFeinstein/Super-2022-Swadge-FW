@@ -323,6 +323,7 @@ int emumain()
 unsigned long os_random() { return rand(); }
 void  * ets_memcpy( void * dest, const void * src, size_t n ) { memcpy( dest, src, n ); return dest; }
 void  * ets_memset( void * s, int c, size_t n ) { memset( s, c, n ); return s; }
+void  * ets_memmove(void *dest, const void *src, size_t n) { return memmove(dest, src, n);}
 int ets_memcmp( const void * a, const void * b, size_t n ) { return memcmp( a, b, n ); }
 int ets_strlen( const char * s ) { return strlen( s ); }
 char * ets_strncpy ( char * destination, const char * source, size_t num ) { return strncpy( destination, source, num ); }
