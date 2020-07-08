@@ -17,14 +17,23 @@
 #include "embeddednf.h"
 #include "oled.h"
 #include "bresenham.h"
+#include "assets.h"
+#include "buttons.h"
 
 /*============================================================================
  * Defines, Structs, Enums
  *==========================================================================*/
 
+#define FLAPPY_UPDATE_MS 50
+#define FLAPPY_UPDATE_S (FLAPPY_UPDATE_MS / 1000.0f)
+#define FLAPPY_ACCEL     120.0f
+#define FLAPPY_JUMP_VEL -50.0f
+
 #define CHUNK_WIDTH 8
 #define NUM_CHUNKS ((OLED_WIDTH/CHUNK_WIDTH)+1)
 #define RAND_WALLS_HEIGHT 4
+
+#define BIRD_HEIGHT 16
 
 typedef enum
 {
@@ -43,6 +52,9 @@ typedef struct
     uint8_t height;
     uint8_t offset;
     uint32_t frames;
+    float birdPos;
+    float birdVel;
+    uint8_t buttonState;
 } flappy_t;
 
 /*============================================================================
@@ -56,11 +68,6 @@ void ICACHE_FLASH_ATTR flappyButtonCallback(uint8_t state __attribute__((unused)
 void ICACHE_FLASH_ATTR flappySampleHandler(int32_t samp);
 
 static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)));
-
-/*============================================================================
- * Const data
- *==========================================================================*/
-
 
 /*============================================================================
  * Variables
@@ -100,8 +107,13 @@ void ICACHE_FLASH_ATTR flappyEnterMode(void)
     ets_memset(flappy->floors, OLED_HEIGHT - 1, (NUM_CHUNKS + 1) * sizeof(uint8_t));
     ets_memset(flappy->ceils, 0,                (NUM_CHUNKS + 1) * sizeof(uint8_t));
 
+    flappy->birdPos = BIRD_HEIGHT;
+    flappy->birdVel = 0;
+
     syncedTimerDisarm(&(flappy->updateTimer));
     syncedTimerSetFn(&(flappy->updateTimer), flappyUpdate, NULL);
+    syncedTimerArm(&(flappy->updateTimer), FLAPPY_UPDATE_MS, true);
+    enableDebounce(false);
 
     InitColorChord();
     clearDisplay();
@@ -123,10 +135,14 @@ void ICACHE_FLASH_ATTR flappyExitMode(void)
  */
 static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)))
 {
-    clearDisplay();
-
     flappy->frames++;
-    switch(flappy->frames % 16)
+
+    // if(flappy->buttonState)
+    // {
+    //     flappy->birdVel = FLAPPY_JUMP_VEL;
+    // }
+
+    switch(flappy->frames % (CHUNK_WIDTH * 2))
     {
         case 0:
         {
@@ -154,9 +170,9 @@ static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)))
             }
             break;
         }
-        case 8:
+        case CHUNK_WIDTH:
         {
-            if(flappy->height > 16)
+            if(flappy->height > BIRD_HEIGHT)
             {
                 flappy->height--;
             }
@@ -167,17 +183,32 @@ static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)))
     flappy->offset++;
     if(flappy->offset == CHUNK_WIDTH)
     {
-        uint8_t fl = OLED_HEIGHT - (os_random() % (OLED_HEIGHT - flappy->height));
-
         flappy->offset = 0;
         ets_memmove(&(flappy->floors[0]), &(flappy->floors[1]), NUM_CHUNKS);
         ets_memmove(&(flappy->ceils[0]),  &(flappy->ceils[1]),  NUM_CHUNKS);
 
         flappy->floors[NUM_CHUNKS] = flappy->floor - (os_random() % RAND_WALLS_HEIGHT);
-        os_printf("%d %d\n", flappy->floor, flappy->floors[NUM_CHUNKS]);
         flappy->ceils[NUM_CHUNKS] = (flappy->floor - flappy->height) + (os_random() % RAND_WALLS_HEIGHT);
     }
 
+    flappy->birdVel = flappy->birdVel + (FLAPPY_ACCEL * FLAPPY_UPDATE_S);
+    flappy->birdPos = flappy->birdPos +
+                      (flappy->birdVel * FLAPPY_UPDATE_S) +
+                      (FLAPPY_ACCEL * FLAPPY_UPDATE_S * FLAPPY_UPDATE_S) / 2;
+
+    if(flappy->birdPos < 0)
+    {
+        flappy->birdPos = 0;
+    }
+    else if(flappy->birdPos > OLED_HEIGHT - BIRD_HEIGHT)
+    {
+        flappy->birdPos = OLED_HEIGHT - BIRD_HEIGHT;
+        flappy->birdVel = 0;
+    }
+
+    os_printf("vel: %d\n", (int)flappy->birdVel);
+
+    clearDisplay();
     uint8_t w;
     for(w = 0; w < NUM_CHUNKS + 1; w++)
     {
@@ -194,16 +225,7 @@ static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)))
             flappy->ceils[w + 1],
             WHITE);
     }
-
-    // // Draw a bar graph
-    // uint8_t numBins = sizeof(folded_bins) / sizeof(folded_bins[0]);
-    // uint8_t binWidth = OLED_WIDTH / numBins;
-    // uint8_t i;
-    // for(i = 0; i < numBins; i++)
-    // {
-    //     uint8_t height = (16 * folded_bins[i]) / 2048;
-    //     fillDisplayArea(i * binWidth, OLED_HEIGHT - height, (i + 1) * binWidth, OLED_HEIGHT, WHITE);
-    // }
+    drawBitmapFromAsset("dino.png", 0, (int)(flappy->birdPos + 0.5f), true, false, 0);
 }
 
 /**
@@ -216,7 +238,11 @@ static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)))
 void ICACHE_FLASH_ATTR flappyButtonCallback( uint8_t state,
         int button __attribute__((unused)), int down __attribute__((unused)))
 {
-    syncedTimerArm(&(flappy->updateTimer), 50, true);
+    if(down)
+    {
+        flappy->birdVel = FLAPPY_JUMP_VEL;
+    }
+    // flappy->buttonState = state;
 }
 
 /**

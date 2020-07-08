@@ -64,7 +64,7 @@ void HandleButtonStatus( int button, int bDown )
 void HandleKey( int keycode, int bDown )
 {
 	if( keycode == 65307 ) exit( 0 );
-	printf( "Key: %d -> %d\n", keycode, bDown );
+	// printf( "Key: %d -> %d\n", keycode, bDown );
 	int button = -1;
 	switch( keycode )
 	{
@@ -302,7 +302,7 @@ int emumain()
 		ThisTime = OGGetAbsoluteTime();
 		if( ThisTime > LastFPSTime + 1 )
 		{
-			printf( "FPS: %d\n", frames );
+			// printf( "FPS: %d\n", frames );
 			frames = 0;
 			linesegs = 0;
 			LastFPSTime+=1;
