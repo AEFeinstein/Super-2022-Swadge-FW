@@ -25,7 +25,7 @@
 #define WS_HEIGHT 10
 #define BTN_HEIGHT 30
 
-#define NR_BUTTONS 4
+#define NR_BUTTONS 5
 
 #ifdef ANDROID
 #define LOGI(...)  ((void)__android_log_print(/*ANDROID_LOG_INFO*/4, APPNAME, __VA_ARGS__))
@@ -68,10 +68,11 @@ void HandleKey( int keycode, int bDown )
 	int button = -1;
 	switch( keycode )
 	{
-		case 'a': case 'A': button = 0; break;
+		case 'w': case 'W': button = 0; break;
 		case 's': case 'S': button = 1; break;
-		case 'd': case 'D': button = 2; break; 
-		case 'f': case 'F': button = 3; break;
+		case 'a': case 'A': button = 2; break; 
+		case 'd': case 'D': button = 3; break;
+		case 'l': case 'L': button = 4; break;
 	}
 	if( button >= 0 )
 		HandleButtonStatus( button, bDown );

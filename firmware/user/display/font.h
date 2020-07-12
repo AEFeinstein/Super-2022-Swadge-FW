@@ -32,4 +32,7 @@ extern const sprite_t font_TomThumb[] RODATA_ATTR;
 int16_t plotChar(int16_t x, int16_t y, char character, const sprite_t* table, color col);
 int16_t plotText(int16_t x, int16_t y, char* text, fonts font, color col);
 
+int16_t charWidth(char character, const sprite_t* table);
+int16_t textWidth(char* text, fonts font);
+
 #endif /* SRC_FONT_H_ */

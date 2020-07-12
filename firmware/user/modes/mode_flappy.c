@@ -19,6 +19,7 @@
 #include "bresenham.h"
 #include "assets.h"
 #include "buttons.h"
+#include "menu.h"
 
 /*============================================================================
  * Defines, Structs, Enums
@@ -55,6 +56,8 @@ typedef struct
     float birdPos;
     float birdVel;
     uint8_t buttonState;
+
+    menu_t* menu;
 } flappy_t;
 
 /*============================================================================
@@ -101,22 +104,34 @@ void ICACHE_FLASH_ATTR flappyEnterMode(void)
     flappy = os_malloc(sizeof(flappy_t));
     ets_memset(flappy, 0, sizeof(flappy_t));
 
-    flappy->mode = FLAPPY_GAME;
-    flappy->floor = OLED_HEIGHT - 1;
-    flappy->height = OLED_HEIGHT - 1;
-    ets_memset(flappy->floors, OLED_HEIGHT - 1, (NUM_CHUNKS + 1) * sizeof(uint8_t));
-    ets_memset(flappy->ceils, 0,                (NUM_CHUNKS + 1) * sizeof(uint8_t));
+    static char title[] = "Flappy";
+    initMenu(&(flappy->menu), title, NULL);
+    addRowToMenu(flappy->menu);
+    addItemToRow(flappy->menu, "EASY",   0);
+    addItemToRow(flappy->menu, "MED",    1);
+    addItemToRow(flappy->menu, "HARD",   2);
+    addRowToMenu(flappy->menu);
+    addItemToRow(flappy->menu, "SCORES", 3);
+    addRowToMenu(flappy->menu);
+    addItemToRow(flappy->menu, "QUIT",   4);
+    drawMenu(flappy->menu);
 
-    flappy->birdPos = BIRD_HEIGHT;
-    flappy->birdVel = 0;
+    // flappy->mode = FLAPPY_GAME;
+    // flappy->floor = OLED_HEIGHT - 1;
+    // flappy->height = OLED_HEIGHT - 1;
+    // ets_memset(flappy->floors, OLED_HEIGHT - 1, (NUM_CHUNKS + 1) * sizeof(uint8_t));
+    // ets_memset(flappy->ceils, 0,                (NUM_CHUNKS + 1) * sizeof(uint8_t));
+
+    // flappy->birdPos = BIRD_HEIGHT;
+    // flappy->birdVel = 0;
 
     syncedTimerDisarm(&(flappy->updateTimer));
     syncedTimerSetFn(&(flappy->updateTimer), flappyUpdate, NULL);
     syncedTimerArm(&(flappy->updateTimer), FLAPPY_UPDATE_MS, true);
     enableDebounce(false);
 
-    InitColorChord();
-    clearDisplay();
+    // InitColorChord();
+    // clearDisplay();
 }
 
 /**
@@ -125,6 +140,7 @@ void ICACHE_FLASH_ATTR flappyEnterMode(void)
 void ICACHE_FLASH_ATTR flappyExitMode(void)
 {
     syncedTimerDisarm(&(flappy->updateTimer));
+    deinitMenu(flappy->menu);
     os_free(flappy);
 }
 
@@ -135,97 +151,99 @@ void ICACHE_FLASH_ATTR flappyExitMode(void)
  */
 static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)))
 {
-    flappy->frames++;
+    drawMenu(flappy->menu);
 
-    // if(flappy->buttonState)
+    // flappy->frames++;
+
+    // // if(flappy->buttonState)
+    // // {
+    // //     flappy->birdVel = FLAPPY_JUMP_VEL;
+    // // }
+
+    // switch(flappy->frames % (CHUNK_WIDTH * 2))
     // {
-    //     flappy->birdVel = FLAPPY_JUMP_VEL;
+    //     case 0:
+    //     {
+    //         switch(os_random() % 2)
+    //         {
+    //             case 0:
+    //             {
+    //                 flappy->floor += 4;
+    //                 if(flappy->floor > OLED_HEIGHT - 1)
+    //                 {
+    //                     flappy->floor = OLED_HEIGHT - 1;
+    //                 }
+    //                 break;
+    //             }
+    //             case 1:
+    //             {
+    //                 flappy->floor -= 4;
+    //                 uint8_t minFloor = flappy->height + 1;
+    //                 if(flappy->floor < minFloor)
+    //                 {
+    //                     flappy->floor = minFloor;
+    //                 }
+    //                 break;
+    //             }
+    //         }
+    //         break;
+    //     }
+    //     case CHUNK_WIDTH:
+    //     {
+    //         if(flappy->height > BIRD_HEIGHT)
+    //         {
+    //             flappy->height--;
+    //         }
+    //         break;
+    //     }
     // }
 
-    switch(flappy->frames % (CHUNK_WIDTH * 2))
-    {
-        case 0:
-        {
-            switch(os_random() % 2)
-            {
-                case 0:
-                {
-                    flappy->floor += 4;
-                    if(flappy->floor > OLED_HEIGHT - 1)
-                    {
-                        flappy->floor = OLED_HEIGHT - 1;
-                    }
-                    break;
-                }
-                case 1:
-                {
-                    flappy->floor -= 4;
-                    uint8_t minFloor = flappy->height + 1;
-                    if(flappy->floor < minFloor)
-                    {
-                        flappy->floor = minFloor;
-                    }
-                    break;
-                }
-            }
-            break;
-        }
-        case CHUNK_WIDTH:
-        {
-            if(flappy->height > BIRD_HEIGHT)
-            {
-                flappy->height--;
-            }
-            break;
-        }
-    }
+    // flappy->offset++;
+    // if(flappy->offset == CHUNK_WIDTH)
+    // {
+    //     flappy->offset = 0;
+    //     ets_memmove(&(flappy->floors[0]), &(flappy->floors[1]), NUM_CHUNKS);
+    //     ets_memmove(&(flappy->ceils[0]),  &(flappy->ceils[1]),  NUM_CHUNKS);
 
-    flappy->offset++;
-    if(flappy->offset == CHUNK_WIDTH)
-    {
-        flappy->offset = 0;
-        ets_memmove(&(flappy->floors[0]), &(flappy->floors[1]), NUM_CHUNKS);
-        ets_memmove(&(flappy->ceils[0]),  &(flappy->ceils[1]),  NUM_CHUNKS);
+    //     flappy->floors[NUM_CHUNKS] = flappy->floor - (os_random() % RAND_WALLS_HEIGHT);
+    //     flappy->ceils[NUM_CHUNKS] = (flappy->floor - flappy->height) + (os_random() % RAND_WALLS_HEIGHT);
+    // }
 
-        flappy->floors[NUM_CHUNKS] = flappy->floor - (os_random() % RAND_WALLS_HEIGHT);
-        flappy->ceils[NUM_CHUNKS] = (flappy->floor - flappy->height) + (os_random() % RAND_WALLS_HEIGHT);
-    }
+    // flappy->birdVel = flappy->birdVel + (FLAPPY_ACCEL * FLAPPY_UPDATE_S);
+    // flappy->birdPos = flappy->birdPos +
+    //                   (flappy->birdVel * FLAPPY_UPDATE_S) +
+    //                   (FLAPPY_ACCEL * FLAPPY_UPDATE_S * FLAPPY_UPDATE_S) / 2;
 
-    flappy->birdVel = flappy->birdVel + (FLAPPY_ACCEL * FLAPPY_UPDATE_S);
-    flappy->birdPos = flappy->birdPos +
-                      (flappy->birdVel * FLAPPY_UPDATE_S) +
-                      (FLAPPY_ACCEL * FLAPPY_UPDATE_S * FLAPPY_UPDATE_S) / 2;
+    // if(flappy->birdPos < 0)
+    // {
+    //     flappy->birdPos = 0;
+    // }
+    // else if(flappy->birdPos > OLED_HEIGHT - BIRD_HEIGHT)
+    // {
+    //     flappy->birdPos = OLED_HEIGHT - BIRD_HEIGHT;
+    //     flappy->birdVel = 0;
+    // }
 
-    if(flappy->birdPos < 0)
-    {
-        flappy->birdPos = 0;
-    }
-    else if(flappy->birdPos > OLED_HEIGHT - BIRD_HEIGHT)
-    {
-        flappy->birdPos = OLED_HEIGHT - BIRD_HEIGHT;
-        flappy->birdVel = 0;
-    }
+    // os_printf("vel: %d\n", (int)flappy->birdVel);
 
-    os_printf("vel: %d\n", (int)flappy->birdVel);
-
-    clearDisplay();
-    uint8_t w;
-    for(w = 0; w < NUM_CHUNKS + 1; w++)
-    {
-        plotLine(
-            (w * CHUNK_WIDTH) - flappy->offset,
-            flappy->floors[w],
-            ((w + 1) * CHUNK_WIDTH) - flappy->offset,
-            flappy->floors[w + 1],
-            WHITE);
-        plotLine(
-            (w * CHUNK_WIDTH) - flappy->offset,
-            flappy->ceils[w],
-            ((w + 1) * CHUNK_WIDTH) - flappy->offset,
-            flappy->ceils[w + 1],
-            WHITE);
-    }
-    drawBitmapFromAsset("dino.png", 0, (int)(flappy->birdPos + 0.5f), true, false, 0);
+    // clearDisplay();
+    // uint8_t w;
+    // for(w = 0; w < NUM_CHUNKS + 1; w++)
+    // {
+    //     plotLine(
+    //         (w * CHUNK_WIDTH) - flappy->offset,
+    //         flappy->floors[w],
+    //         ((w + 1) * CHUNK_WIDTH) - flappy->offset,
+    //         flappy->floors[w + 1],
+    //         WHITE);
+    //     plotLine(
+    //         (w * CHUNK_WIDTH) - flappy->offset,
+    //         flappy->ceils[w],
+    //         ((w + 1) * CHUNK_WIDTH) - flappy->offset,
+    //         flappy->ceils[w + 1],
+    //         WHITE);
+    // }
+    // drawBitmapFromAsset("dino.png", 0, (int)(flappy->birdPos + 0.5f), true, false, 0);
 }
 
 /**
@@ -240,8 +258,12 @@ void ICACHE_FLASH_ATTR flappyButtonCallback( uint8_t state,
 {
     if(down)
     {
-        flappy->birdVel = FLAPPY_JUMP_VEL;
+        menuButton(flappy->menu, button);
     }
+    // if(down)
+    // {
+    //     flappy->birdVel = FLAPPY_JUMP_VEL;
+    // }
     // flappy->buttonState = state;
 }
 

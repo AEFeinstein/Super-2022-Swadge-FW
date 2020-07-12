@@ -75,3 +75,62 @@ int16_t ICACHE_FLASH_ATTR plotText(int16_t x, int16_t y, char* text, fonts font,
     }
     return x;
 }
+
+/**
+ * @brief TODO
+ *
+ * @param character
+ * @param table
+ * @return int16_t
+ */
+int16_t ICACHE_FLASH_ATTR charWidth(char character, const sprite_t* table)
+{
+    if(character >= ' ')
+    {
+        if ('a' <= character && character <= 'z')
+        {
+            character = (char) (character - 'a' + 'A');
+        }
+        return table[character - ' '].width;
+    }
+    return 0;
+}
+
+/**
+ * @brief TODO
+ *
+ * @param text
+ * @param font
+ * @return int16_t
+ */
+int16_t ICACHE_FLASH_ATTR textWidth(char* text, fonts font)
+{
+    int16_t width = 0;
+    while (0 != *text)
+    {
+        switch (font)
+        {
+            case TOM_THUMB:
+            {
+                width += charWidth(*text, font_TomThumb);
+                break;
+            }
+            case IBM_VGA_8:
+            {
+                width += charWidth(*text, font_IbmVga8);
+                break;
+            }
+            case RADIOSTARS:
+            {
+                width += charWidth(*text, font_Radiostars);
+                break;
+            }
+            default:
+            {
+                break;
+            }
+        }
+        text++;
+    }
+    return width;
+}
