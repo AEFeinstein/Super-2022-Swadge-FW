@@ -42,7 +42,7 @@ typedef struct
     int8_t yOffset;
 } menu_t;
 
-void initMenu(menu_t** menu, char* title, menuCb cbFunc);
+menu_t* ICACHE_FLASH_ATTR initMenu(char* title, menuCb cbFunc);
 void deinitMenu(menu_t* menu);
 void addRowToMenu(menu_t* menu);
 void addItemToRow(menu_t* menu, char* name, int id);

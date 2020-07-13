@@ -91,7 +91,7 @@ int16_t ICACHE_FLASH_ATTR charWidth(char character, const sprite_t* table)
         {
             character = (char) (character - 'a' + 'A');
         }
-        return table[character - ' '].width;
+        return table[character - ' '].width + 1;
     }
     return 0;
 }

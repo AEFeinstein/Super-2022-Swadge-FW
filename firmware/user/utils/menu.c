@@ -1,54 +1,112 @@
+/*==============================================================================
+ * Includes
+ *============================================================================*/
+
 #include <mem.h>
 #include "menu.h"
 #include "oled.h"
 #include "font.h"
 #include "bresenham.h"
 
-#define ROW_SPACING 3
-#define ITEM_SPACING 9
+/*==============================================================================
+ * Defines
+ *============================================================================*/
+
+#define ROW_SPACING   3
+#define ITEM_SPACING 10
+#define X_MARGIN      2
+
+#define BLANK_SPACE_Y  37
+#define SELECTED_ROW_Y 46
+
+/*==============================================================================
+ * Prototypes
+ *============================================================================*/
 
 void ICACHE_FLASH_ATTR linkNewNode(cLinkedNode_t** root, uint8_t len, linkedInfo_t info);
+void ICACHE_FLASH_ATTR drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDrawBox);
 
-void ICACHE_FLASH_ATTR initMenu(menu_t** menu, char* title, menuCb cbFunc)
+/*==============================================================================
+ * Functions
+ *============================================================================*/
+
+/**
+ * Allocate memory for and initialize a menu struct
+ *
+ * @param title  The title for this menu. This must be a pointer to static memory
+ * @param cbFunc The callback function for when an item is selected
+ * @return A pointer to malloc'd memory for this menu
+ */
+menu_t* ICACHE_FLASH_ATTR initMenu(char* title, menuCb cbFunc)
 {
-    *menu = (menu_t*)os_malloc(sizeof(menu_t));
-    (*menu)->title = title;
-    (*menu)->rows = NULL;
-    (*menu)->numRows = 0;
-    (*menu)->cbFunc = cbFunc;
-    (*menu)->yOffset = 0;
+    // Allocate the memory
+    menu_t* menu = (menu_t*)os_malloc(sizeof(menu_t));
+
+    // Initialize all values
+    menu->title = title;
+    menu->rows = NULL;
+    menu->numRows = 0;
+    menu->cbFunc = cbFunc;
+    menu->yOffset = 0;
+
+    // Return the pointer
+    return menu;
 }
 
+/**
+ * Free all memory allocated for a menu struct, including memory
+ * for the rows and items
+ *
+ * @param menu The menu to to free
+ */
 void ICACHE_FLASH_ATTR deinitMenu(menu_t* menu)
 {
+    // For each row
     while(menu->numRows--)
     {
+        // For each item in the row
         while(menu->rows->d.row.numItems--)
         {
+            // Free the item, iterate to the next item
             cLinkedNode_t* next = menu->rows->d.row.items->next;
             os_free(menu->rows->d.row.items);
             menu->rows->d.row.items = next;
         }
+        // Then free the row and iterate to the next
         cLinkedNode_t* next = menu->rows->next;
         os_free(menu->rows);
         menu->rows = next;
     }
+    // Finally free the whole menu
     os_free(menu);
 }
 
+/**
+ * Helper function to link a new node in the circular linked list. This can
+ * either be a new row in the menu or a new entry in a row.
+ *
+ * @param root A pointer to a cLinkedNode_t pointer to link the new node to
+ * @param len  The number of items in root
+ * @param info The info to link in the list
+ */
 void ICACHE_FLASH_ATTR linkNewNode(cLinkedNode_t** root, uint8_t len, linkedInfo_t info)
 {
+    // If root points to a null pointer
     if(NULL == (*root))
     {
-        // If the root is null, simply os_malloc a new node
+        // os_malloc a new node
         (*root) = (cLinkedNode_t*)os_malloc(sizeof(cLinkedNode_t));
+
+        // Link it up
         (*root)->next = (*root);
         (*root)->prev = (*root);
+
+        // And store the information
         (*root)->d = info;
     }
     else
     {
-        // Iterate to the end of the rows
+        // If root doesn't point to a null pointer, iterate to the end of the rows
         cLinkedNode_t* row = (*root);
         while(--len)
         {
@@ -59,19 +117,26 @@ void ICACHE_FLASH_ATTR linkNewNode(cLinkedNode_t** root, uint8_t len, linkedInfo
         cLinkedNode_t* newNext = row->next;
         cLinkedNode_t* newPrev = row;
 
-        // Allocate the new row
+        // Allocate the new row, and move to it
         row->next = (cLinkedNode_t*)os_malloc(sizeof(cLinkedNode_t));
         row = row->next;
-        row->d = info;
 
         // Link everything together
         row->prev = newPrev;
         row->next = newNext;
         newPrev->next = row;
         newNext->prev = row;
+
+        // And store the information
+        row->d = info;
     }
 }
 
+/**
+ * Add a row to the menu
+ *
+ * @param menu The menu to add a row to
+ */
 void ICACHE_FLASH_ATTR addRowToMenu(menu_t* menu)
 {
     // Make a new row
@@ -85,6 +150,14 @@ void ICACHE_FLASH_ATTR addRowToMenu(menu_t* menu)
     menu->numRows++;
 }
 
+/**
+ * Add a new item to the row which was last added to the menu
+ *
+ * @param menu The menu to add an item to
+ * @param name The name of this item. This must be a pointer to static memory
+ * @param id The ID for this item. This will be returned through the callback
+ *           function if this item is selected
+ */
 void ICACHE_FLASH_ATTR addItemToRow(menu_t* menu, char* name, int id)
 {
     // Iterate to the end of the rows
@@ -105,70 +178,119 @@ void ICACHE_FLASH_ATTR addItemToRow(menu_t* menu, char* name, int id)
     row->d.row.numItems++;
 }
 
-void ICACHE_FLASH_ATTR drawMenu(menu_t* menu)
+/**
+ * Draw a single row of the menu to the OLED
+ *
+ * @param row The row to draw
+ * @param yPos The Y position of the row to draw
+ * @param shouldDrawBox True if this is the selected row, false otherwise
+ */
+void ICACHE_FLASH_ATTR drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDrawBox)
 {
-    clearDisplay();
-    bool drawnBox = false;
+    // Get a pointer to the items for this row
+    cLinkedNode_t* items = row->d.row.items;
 
-    // Start drawning just past the middle of the screen
-    int16_t yPos = (OLED_HEIGHT / 2) + 1;
-
-    cLinkedNode_t* row = menu->rows->prev;
-    for(uint8_t r = 0; r < menu->numRows; r++)
+    // If there are multiple items
+    if(row->d.row.numItems > 1)
     {
-        cLinkedNode_t* items = row->d.row.items;
-        if(row->d.row.numItems > 1)
+        // Get the X position for the selected item
+        int16_t xPos = row->d.row.xOffset + X_MARGIN;
+
+        // Then work backwards to make sure the entire row is drawn
+        while(xPos > 0)
         {
-            int16_t xPos = 2 + row->d.row.xOffset;
-            while(xPos < OLED_WIDTH)
-            {
-                int16_t oldX = xPos;
-                xPos = plotText(
-                           xPos,
-                           menu->yOffset + yPos,
-                           items->d.item.name,
-                           IBM_VGA_8, WHITE);
-
-                if(r == 1 && !drawnBox && menu->yOffset == 0 && row->d.row.xOffset == 0)
-                {
-                    plotRect(oldX - 2, yPos - 2, xPos, yPos + FONT_HEIGHT_IBMVGA8 + 1, WHITE);
-                    drawnBox = true;
-                }
-
-                xPos += ITEM_SPACING;
-                items = items->next;
-            }
-
-            if(row->d.row.xOffset < 0)
-            {
-                row->d.row.xOffset++;
-            }
-            if(row->d.row.xOffset > 0)
-            {
-                row->d.row.xOffset--;
-            }
+            // Iterate backwards
+            items = items->prev;
+            // Adjust the x pos
+            xPos -= (textWidth(items->d.item.name, IBM_VGA_8) + ITEM_SPACING);
         }
-        else
-        {
-            // If there's only one item, just plot it
-            int16_t xPos = plotText(
-                               2,
-                               menu->yOffset + yPos,
-                               items->d.item.name,
-                               IBM_VGA_8, WHITE);
 
-            if(r == 1 && !drawnBox && menu->yOffset == 0)
+        // Then draw items until we're off the OLED
+        bool drawnBox = false;
+        while(xPos < OLED_WIDTH)
+        {
+            // Plot the text
+            xPos = plotText(
+                       xPos, yPos,
+                       items->d.item.name,
+                       IBM_VGA_8, WHITE);
+
+            // If this is the selected item, draw a box around it
+            if(shouldDrawBox && !drawnBox && row->d.row.items == items)
             {
                 plotRect(0, yPos - 2, xPos, yPos + FONT_HEIGHT_IBMVGA8 + 1, WHITE);
                 drawnBox = true;
             }
+
+            // Add some space between items
+            xPos += ITEM_SPACING;
+
+            // Iterate to the next item
+            items = items->next;
         }
+
+        // If the offset is nonzero, move it towards zero
+        if(row->d.row.xOffset < 0)
+        {
+            row->d.row.xOffset++;
+        }
+        if(row->d.row.xOffset > 0)
+        {
+            row->d.row.xOffset--;
+        }
+    }
+    else
+    {
+        // If there's only one item, just plot it
+        int16_t xPos = plotText(
+                           X_MARGIN,
+                           yPos,
+                           items->d.item.name,
+                           IBM_VGA_8, WHITE);
+
+        // If this is the selected item, draw a box around it
+        if(shouldDrawBox)
+        {
+            plotRect(0, yPos - 2, xPos, yPos + FONT_HEIGHT_IBMVGA8 + 1, WHITE);
+        }
+    }
+}
+
+/**
+ * Draw the menu to the OLED. The menu has animations for smooth scrolling,
+ * so it is recommended this function be called every 10ms
+ *
+ * @param menu The menu to draw
+ */
+void ICACHE_FLASH_ATTR drawMenu(menu_t* menu)
+{
+    // First clear the OLED
+    clearDisplay();
+
+    // Start with the seleted row to be drawn
+    int16_t yPos = menu->yOffset + SELECTED_ROW_Y;
+    cLinkedNode_t* row = menu->rows;
+
+    // Work backwards to draw all prior rows on the OLED
+    while(yPos + FONT_HEIGHT_IBMVGA8 >= BLANK_SPACE_Y)
+    {
+        row = row->prev;
+        yPos -= (FONT_HEIGHT_IBMVGA8 + ROW_SPACING);
+    }
+
+    // Draw rows until you run out of space on the OLED
+    while(yPos < OLED_HEIGHT)
+    {
+        // Draw the row
+        drawRow(row, yPos,
+                (row == menu->rows) && (menu->yOffset == 0) && (row->d.row.xOffset == 0));
 
         // Move to the next row
         row = row->next;
         yPos += FONT_HEIGHT_IBMVGA8 + ROW_SPACING;
     }
 
+    // If the offset is nonzero, move it towards zero
     if(menu->yOffset < 0)
     {
         menu->yOffset++;
@@ -177,11 +299,27 @@ void ICACHE_FLASH_ATTR drawMenu(menu_t* menu)
     {
         menu->yOffset--;
     }
-    fillDisplayArea(0, 0, OLED_WIDTH, 37, BLACK);
+
+    // Clear the top 37 pixels of the OLED
+    fillDisplayArea(0, 0, OLED_WIDTH, BLANK_SPACE_Y, BLACK);
+
+    // Draw the title, centered
+    int16_t titleOffset = (OLED_WIDTH - textWidth(menu->title, RADIOSTARS)) / 2;
+    plotText(titleOffset, 8, menu->title, RADIOSTARS, WHITE);
 }
 
+/**
+ * This is called to process button presses. When a button is pressed, the
+ * selected row or item immediately changes. An offset is set in the X or Y
+ * direction so the menu doesn't appear to move, then the menu is smoothly
+ * animated to the final position
+ *
+ * @param menu The menu to process a button for
+ * @param btn  The button that was pressed
+ */
 void ICACHE_FLASH_ATTR menuButton(menu_t* menu, int btn)
 {
+    // If the menu is in motion, ignore this button press
     if((menu->yOffset != 0) || (menu->rows->d.row.xOffset != 0))
     {
         return;
@@ -191,42 +329,53 @@ void ICACHE_FLASH_ATTR menuButton(menu_t* menu, int btn)
     {
         case 0:
         {
+            // Up pressed, move to the prior row and set a negative offset
             menu->rows = menu->rows->prev;
             menu->yOffset = -(FONT_HEIGHT_IBMVGA8 + ROW_SPACING);
             break;
         }
         case 1:
         {
+            // Down pressed, move to the next row and set a positive offset
             menu->rows = menu->rows->next;
             menu->yOffset = (FONT_HEIGHT_IBMVGA8 + ROW_SPACING);
             break;
         }
         case 2:
         {
-            if(menu->rows->d.row.numItems > 0)
+            // Left pressed, only change if there are multiple items in this row
+            if(menu->rows->d.row.numItems > 1)
             {
+                // Move to the previous item and set a negative offset
                 menu->rows->d.row.items = menu->rows->d.row.items->prev;
                 uint8_t wordWidth = textWidth(menu->rows->d.row.items->d.item.name, IBM_VGA_8);
-                menu->rows->d.row.xOffset = -(wordWidth + ITEM_SPACING + 2);
+                menu->rows->d.row.xOffset = -(wordWidth + ITEM_SPACING);
             }
             break;
         }
         case 3:
         {
-            if(menu->rows->d.row.numItems > 0)
+            // Right pressed, only change if there are multiple items in this row
+            if(menu->rows->d.row.numItems > 1)
             {
-                menu->rows->d.row.items = menu->rows->d.row.items->next;
+                // Move to the previous item and set a positive offset
                 uint8_t wordWidth = textWidth(menu->rows->d.row.items->d.item.name, IBM_VGA_8);
-                menu->rows->d.row.xOffset = wordWidth + ITEM_SPACING + 2;
+                menu->rows->d.row.items = menu->rows->d.row.items->next;
+                menu->rows->d.row.xOffset = wordWidth + ITEM_SPACING;
             }
             break;
         }
         case 4:
         {
+            // Select pressed. Tell the host mode what item was selected
             if(NULL != menu->cbFunc)
             {
                 menu->cbFunc(menu->rows->d.row.items->d.item.id);
             }
+            break;
+        }
+        default:
+        {
             break;
         }
     }

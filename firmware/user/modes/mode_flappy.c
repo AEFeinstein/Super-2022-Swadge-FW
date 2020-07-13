@@ -25,7 +25,7 @@
  * Defines, Structs, Enums
  *==========================================================================*/
 
-#define FLAPPY_UPDATE_MS 50
+#define FLAPPY_UPDATE_MS 10
 #define FLAPPY_UPDATE_S (FLAPPY_UPDATE_MS / 1000.0f)
 #define FLAPPY_ACCEL     120.0f
 #define FLAPPY_JUMP_VEL -50.0f
@@ -105,7 +105,7 @@ void ICACHE_FLASH_ATTR flappyEnterMode(void)
     ets_memset(flappy, 0, sizeof(flappy_t));
 
     static char title[] = "Flappy";
-    initMenu(&(flappy->menu), title, NULL);
+    flappy->menu = initMenu(title, NULL);
     addRowToMenu(flappy->menu);
     addItemToRow(flappy->menu, "EASY",   0);
     addItemToRow(flappy->menu, "MED",    1);
