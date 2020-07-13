@@ -193,8 +193,8 @@ void ICACHE_FLASH_ATTR drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDraw
     // If there are multiple items
     if(row->d.row.numItems > 1)
     {
-        // Get the X position for the selected item
-        int16_t xPos = row->d.row.xOffset + X_MARGIN;
+        // Get the X position for the selected item, centering it
+        int16_t xPos = row->d.row.xOffset + ((OLED_WIDTH - textWidth(items->d.item.name, IBM_VGA_8)) / 2);
 
         // Then work backwards to make sure the entire row is drawn
         while(xPos > 0)
@@ -210,6 +210,7 @@ void ICACHE_FLASH_ATTR drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDraw
         while(xPos < OLED_WIDTH)
         {
             // Plot the text
+            int16_t xPosS = xPos;
             xPos = plotText(
                        xPos, yPos,
                        items->d.item.name,
@@ -218,7 +219,7 @@ void ICACHE_FLASH_ATTR drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDraw
             // If this is the selected item, draw a box around it
             if(shouldDrawBox && !drawnBox && row->d.row.items == items)
             {
-                plotRect(0, yPos - 2, xPos, yPos + FONT_HEIGHT_IBMVGA8 + 1, WHITE);
+                plotRect(xPosS - 2, yPos - 2, xPos, yPos + FONT_HEIGHT_IBMVGA8 + 1, WHITE);
                 drawnBox = true;
             }
 
@@ -242,16 +243,15 @@ void ICACHE_FLASH_ATTR drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDraw
     else
     {
         // If there's only one item, just plot it
-        int16_t xPos = plotText(
-                           X_MARGIN,
-                           yPos,
-                           items->d.item.name,
-                           IBM_VGA_8, WHITE);
+        int16_t xPosS = (OLED_WIDTH - textWidth(items->d.item.name, IBM_VGA_8)) / 2;
+        int16_t xPosF = plotText(xPosS, yPos,
+                                 items->d.item.name,
+                                 IBM_VGA_8, WHITE);
 
         // If this is the selected item, draw a box around it
         if(shouldDrawBox)
         {
-            plotRect(0, yPos - 2, xPos, yPos + FONT_HEIGHT_IBMVGA8 + 1, WHITE);
+            plotRect(xPosS -  2, yPos - 2, xPosF, yPos + FONT_HEIGHT_IBMVGA8 + 1, WHITE);
         }
     }
 }
