@@ -1,3 +1,10 @@
+/*
+ * menu.c
+ *
+ *  Created on: Jul 12, 2020
+ *      Author: adam
+ */
+
 /*==============================================================================
  * Includes
  *============================================================================*/
@@ -23,8 +30,8 @@
  * Prototypes
  *============================================================================*/
 
-void ICACHE_FLASH_ATTR linkNewNode(cLinkedNode_t** root, uint8_t len, linkedInfo_t info);
-void ICACHE_FLASH_ATTR drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDrawBox);
+void linkNewNode(cLinkedNode_t** root, uint8_t len, linkedInfo_t info);
+void drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDrawBox);
 
 /*==============================================================================
  * Functions
@@ -33,7 +40,8 @@ void ICACHE_FLASH_ATTR drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDraw
 /**
  * Allocate memory for and initialize a menu struct
  *
- * @param title  The title for this menu. This must be a pointer to static memory
+ * @param title  The title for this menu. This must be a pointer to static
+ *               memory. New memory is NOT allocated for this string
  * @param cbFunc The callback function for when an item is selected
  * @return A pointer to malloc'd memory for this menu
  */
@@ -154,7 +162,8 @@ void ICACHE_FLASH_ATTR addRowToMenu(menu_t* menu)
  * Add a new item to the row which was last added to the menu
  *
  * @param menu The menu to add an item to
- * @param name The name of this item. This must be a pointer to static memory
+ * @param name The name of this item. This must be a pointer to static memory.
+ *             New memory is NOT allocated for this string
  * @param id The ID for this item. This will be returned through the callback
  *           function if this item is selected
  */
@@ -346,10 +355,13 @@ void ICACHE_FLASH_ATTR menuButton(menu_t* menu, int btn)
             // Left pressed, only change if there are multiple items in this row
             if(menu->rows->d.row.numItems > 1)
             {
-                // Move to the previous item and set a negative offset
+                // To properly center the word, measure both old and new centered words
+                uint8_t oldWordWidth = textWidth(menu->rows->d.row.items->d.item.name, IBM_VGA_8);
+                // Move to the previous item
                 menu->rows->d.row.items = menu->rows->d.row.items->prev;
-                uint8_t wordWidth = textWidth(menu->rows->d.row.items->d.item.name, IBM_VGA_8);
-                menu->rows->d.row.xOffset = -(wordWidth + ITEM_SPACING);
+                uint8_t newWordWidth = textWidth(menu->rows->d.row.items->d.item.name, IBM_VGA_8);
+                // Set the offset to smootly animate from the old, centered word to the new centered word
+                menu->rows->d.row.xOffset = -(newWordWidth + ITEM_SPACING + ((oldWordWidth - newWordWidth - 1) / 2));
             }
             break;
         }
@@ -358,10 +370,13 @@ void ICACHE_FLASH_ATTR menuButton(menu_t* menu, int btn)
             // Right pressed, only change if there are multiple items in this row
             if(menu->rows->d.row.numItems > 1)
             {
-                // Move to the previous item and set a positive offset
-                uint8_t wordWidth = textWidth(menu->rows->d.row.items->d.item.name, IBM_VGA_8);
+                // To properly center the word, measure both old and new centered words
+                uint8_t oldWordWidth = textWidth(menu->rows->d.row.items->d.item.name, IBM_VGA_8);
+                // Move to the next item
                 menu->rows->d.row.items = menu->rows->d.row.items->next;
-                menu->rows->d.row.xOffset = wordWidth + ITEM_SPACING;
+                uint8_t newWordWidth = textWidth(menu->rows->d.row.items->d.item.name, IBM_VGA_8);
+                // Set the offset to smootly animate from the old, centered word to the new centered word
+                menu->rows->d.row.xOffset = oldWordWidth + ITEM_SPACING + ((newWordWidth - oldWordWidth - 1) / 2);
             }
             break;
         }

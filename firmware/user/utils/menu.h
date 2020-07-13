@@ -1,7 +1,24 @@
+/*
+ * menu.h
+ *
+ *  Created on: Jul 12, 2020
+ *      Author: adam
+ */
+
 #ifndef _MENU_H_
 #define _MENU_H_
 
+/*==============================================================================
+ * Includes
+ *============================================================================*/
+
 #include <osapi.h>
+
+/*==============================================================================
+ * Structs, Unions, and Typedefs
+ *============================================================================*/
+
+typedef void (*menuCb)(int);
 
 struct cLinkedNode;
 
@@ -31,8 +48,6 @@ typedef struct cLinkedNode
     struct cLinkedNode* next;
 } cLinkedNode_t;
 
-typedef void (*menuCb)(int);
-
 typedef struct
 {
     char* title;
@@ -42,7 +57,11 @@ typedef struct
     int8_t yOffset;
 } menu_t;
 
-menu_t* ICACHE_FLASH_ATTR initMenu(char* title, menuCb cbFunc);
+/*==============================================================================
+ * Prototypes
+ *============================================================================*/
+
+menu_t* initMenu(char* title, menuCb cbFunc);
 void deinitMenu(menu_t* menu);
 void addRowToMenu(menu_t* menu);
 void addItemToRow(menu_t* menu, char* name, int id);
