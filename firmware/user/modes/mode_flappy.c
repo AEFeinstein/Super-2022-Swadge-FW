@@ -19,7 +19,7 @@
 #include "bresenham.h"
 #include "assets.h"
 #include "buttons.h"
-#include "menu.h"
+#include "menu2d.h"
 
 /*============================================================================
  * Defines, Structs, Enums
@@ -140,6 +140,7 @@ void ICACHE_FLASH_ATTR flappyEnterMode(void)
 void ICACHE_FLASH_ATTR flappyExitMode(void)
 {
     syncedTimerDisarm(&(flappy->updateTimer));
+    syncedTimerFlush();
     deinitMenu(flappy->menu);
     os_free(flappy);
 }

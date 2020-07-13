@@ -442,6 +442,20 @@ void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
 #endif
 
 /**
+ * @brief Exit the current swadge mode and free up all memory
+ */
+void ICACHE_FLASH_ATTR exitSwadgeMode(void)
+{
+    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode)
+    {
+        swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode();
+    }
+    syncedTimerDisarm(&timerHandlePollAccel);
+    syncedTimerDisarm(&timerHandleReturnToMenu);
+    syncedTimersCheck();
+}
+
+/**
  * This deinitializes the current mode if it is initialized, displays the next
  * mode's LED pattern, and starts a timer to reboot into the next mode.
  * If the reboot timer is running, it will be reset
