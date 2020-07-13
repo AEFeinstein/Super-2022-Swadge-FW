@@ -1,5 +1,5 @@
 /*
- * menu.c
+ * menu2d.c
  *
  *  Created on: Jul 12, 2020
  *      Author: adam
@@ -10,7 +10,7 @@
  *============================================================================*/
 
 #include <mem.h>
-#include "menu.h"
+#include "menu2d.h"
 #include "oled.h"
 #include "font.h"
 #include "bresenham.h"

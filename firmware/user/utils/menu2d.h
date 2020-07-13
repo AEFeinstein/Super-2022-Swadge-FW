@@ -1,12 +1,12 @@
 /*
- * menu.h
+ * menu2d.h
  *
  *  Created on: Jul 12, 2020
  *      Author: adam
  */
 
-#ifndef _MENU_H_
-#define _MENU_H_
+#ifndef _MENU_2D_H_
+#define _MENU_2D_H_
 
 /*==============================================================================
  * Includes
