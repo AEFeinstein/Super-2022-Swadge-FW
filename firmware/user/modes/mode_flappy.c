@@ -51,7 +51,7 @@ typedef struct
     uint8_t ceils[NUM_CHUNKS + 1];
     uint8_t floor;
     uint8_t height;
-    uint8_t offset;
+    uint8_t xOffset;
     uint32_t frames;
     float birdPos;
     float birdVel;
@@ -187,7 +187,7 @@ static void ICACHE_FLASH_ATTR flappyStartGame(const char* difficulty)
     ets_memset(flappy->ceils, 0,                (NUM_CHUNKS + 1) * sizeof(uint8_t));
     flappy->floor = OLED_HEIGHT - 1;
     flappy->height = OLED_HEIGHT - 1;
-    flappy->offset = 0;
+    flappy->xOffset = 0;
 
     flappy->frames = 0;
     flappy->birdPos = BIRD_HEIGHT;
@@ -211,62 +211,81 @@ static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)))
         }
         case FLAPPY_GAME:
         {
+            // Increment the frame count
             flappy->frames++;
 
+            // Do something every CHUNK_WIDTH frames, alternating
             switch(flappy->frames % (CHUNK_WIDTH * 2))
             {
                 case 0:
                 {
-                    switch(os_random() % 2)
+                    // On one cycle, either raise or lower the floor randomly
+                    if(0 == os_random() % 2)
                     {
-                        case 0:
+                        // Raise the floor
+                        flappy->floor += RAND_WALLS_HEIGHT;
+                        if(flappy->floor > OLED_HEIGHT - 1)
                         {
-                            flappy->floor += 4;
-                            if(flappy->floor > OLED_HEIGHT - 1)
-                            {
-                                flappy->floor = OLED_HEIGHT - 1;
-                            }
-                            break;
+                            flappy->floor = OLED_HEIGHT - 1;
                         }
-                        case 1:
+                        break;
+                    }
+                    else
+                    {
+                        // Lower the floor
+                        flappy->floor -= RAND_WALLS_HEIGHT;
+                        uint8_t minFloor = flappy->height;
+                        if(flappy->floor < minFloor)
                         {
-                            flappy->floor -= 4;
-                            uint8_t minFloor = flappy->height + 1;
-                            if(flappy->floor < minFloor)
-                            {
-                                flappy->floor = minFloor;
-                            }
-                            break;
+                            flappy->floor = minFloor;
                         }
+                        break;
                     }
                     break;
                 }
                 case CHUNK_WIDTH:
                 {
+                    // On the other cycle, decrease the height, narrowing the tunnel
                     if(flappy->height > BIRD_HEIGHT)
                     {
                         flappy->height--;
                     }
                     break;
                 }
+                default:
+                {
+                    // Every other frame, do nothing
+                    break;
+                }
             }
 
-            flappy->offset++;
-            if(flappy->offset == CHUNK_WIDTH)
+            // Increment the X offset for othe walls
+            flappy->xOffset++;
+
+            // If we've moved CHUNK_WIDTH pixels
+            if(flappy->xOffset == CHUNK_WIDTH)
             {
-                flappy->offset = 0;
+                // Reset the X offset
+                flappy->xOffset = 0;
+
+                // Shift all the chunk indices over one
                 ets_memmove(&(flappy->floors[0]), &(flappy->floors[1]), NUM_CHUNKS);
                 ets_memmove(&(flappy->ceils[0]),  &(flappy->ceils[1]),  NUM_CHUNKS);
 
+                // Randomly generate new coordinates for a chunk
                 flappy->floors[NUM_CHUNKS] = flappy->floor - (os_random() % RAND_WALLS_HEIGHT);
                 flappy->ceils[NUM_CHUNKS] = (flappy->floor - flappy->height) + (os_random() % RAND_WALLS_HEIGHT);
             }
 
-            flappy->birdVel = flappy->birdVel + (FLAPPY_ACCEL * FLAPPY_UPDATE_S);
+            // Update the bird's position (velocity dependent)
             flappy->birdPos = flappy->birdPos +
                               (flappy->birdVel * FLAPPY_UPDATE_S) +
                               (FLAPPY_ACCEL * FLAPPY_UPDATE_S * FLAPPY_UPDATE_S) / 2;
 
+            // Then Update the bird's velocity (position independent)
+            flappy->birdVel = flappy->birdVel + (FLAPPY_ACCEL * FLAPPY_UPDATE_S);
+
+            // Stop the bird at either the floor or the ceiling
             if(flappy->birdPos < 0)
             {
                 flappy->birdPos = 0;
@@ -277,26 +296,60 @@ static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)))
                 flappy->birdVel = 0;
             }
 
-            os_printf("vel: %d\n", (int)flappy->birdVel);
-
+            // First clear the OLED
             clearDisplay();
+
+            // For each chunk coordinate
             uint8_t w;
             for(w = 0; w < NUM_CHUNKS + 1; w++)
             {
+                // Plot a floor segment line between chunk coordinates
                 plotLine(
-                    (w * CHUNK_WIDTH) - flappy->offset,
+                    (w * CHUNK_WIDTH) - flappy->xOffset,
                     flappy->floors[w],
-                    ((w + 1) * CHUNK_WIDTH) - flappy->offset,
+                    ((w + 1) * CHUNK_WIDTH) - flappy->xOffset,
                     flappy->floors[w + 1],
                     WHITE);
+
+                // Plot a ceiling segment line between chunk coordinates
                 plotLine(
-                    (w * CHUNK_WIDTH) - flappy->offset,
+                    (w * CHUNK_WIDTH) - flappy->xOffset,
                     flappy->ceils[w],
-                    ((w + 1) * CHUNK_WIDTH) - flappy->offset,
+                    ((w + 1) * CHUNK_WIDTH) - flappy->xOffset,
                     flappy->ceils[w + 1],
                     WHITE);
             }
-            drawBitmapFromAsset("dino.png", 0, (int)(flappy->birdPos + 0.5f), true, false, 0);
+
+            // Find the bird's integer position
+            int16_t birdPos = (int16_t)(flappy->birdPos + 0.5f);
+
+            // Iterate over the bird's sprite to see if it would be drawn over a wall
+            bool collision = false;
+            for(uint8_t x = 0; x < BIRD_HEIGHT; x++)
+            {
+                for(uint8_t y = 0; y < BIRD_HEIGHT; y++)
+                {
+                    // The pixel is already white, so there's a collision!
+                    if(WHITE == getPixel(x, birdPos + y))
+                    {
+                        collision = true;
+                        break;
+                    }
+                }
+            }
+
+            // If there was a collision
+            if(true == collision)
+            {
+                // Immediately jump back to the menu
+                flappy->mode = FLAPPY_MENU;
+            }
+            else
+            {
+                // Otherwise draw the bird and continue
+                drawBitmapFromAsset("dino.png", 0, (int16_t)(flappy->birdPos + 0.5f), true, false, 0);
+            }
+
             break;
         }
     }
