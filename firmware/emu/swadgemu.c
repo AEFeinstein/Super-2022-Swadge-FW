@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include "rawdraw/CNFGFunctions.h"
+#include "rawdraw/CNFG.h"
 #include "rawdraw/os_generic.h"
 #include "swadgemu.h"
 
