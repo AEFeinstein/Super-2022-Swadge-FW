@@ -18,7 +18,7 @@
  * Structs, Unions, and Typedefs
  *============================================================================*/
 
-typedef void (*menuCb)(int);
+typedef void (*menuCb)(const char*);
 
 struct cLinkedNode;
 
@@ -31,8 +31,7 @@ typedef struct
 
 typedef struct
 {
-    char* name;
-    uint8_t id;
+    const char* name;
 } itemInfo_t;
 
 typedef union
@@ -50,7 +49,7 @@ typedef struct cLinkedNode
 
 typedef struct
 {
-    char* title;
+    const char* title;
     cLinkedNode_t* rows;
     uint8_t numRows;
     menuCb cbFunc;
@@ -61,10 +60,10 @@ typedef struct
  * Prototypes
  *============================================================================*/
 
-menu_t* initMenu(char* title, menuCb cbFunc);
+menu_t* initMenu(const char* title, menuCb cbFunc);
 void deinitMenu(menu_t* menu);
 void addRowToMenu(menu_t* menu);
-void addItemToRow(menu_t* menu, char* name, int id);
+void addItemToRow(menu_t* menu, const char* name);
 void drawMenu(menu_t* menu);
 void menuButton(menu_t* menu, int btn);
 

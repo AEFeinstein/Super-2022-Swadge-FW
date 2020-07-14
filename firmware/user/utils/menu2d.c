@@ -21,7 +21,6 @@
 
 #define ROW_SPACING   3
 #define ITEM_SPACING 10
-#define X_MARGIN      2
 
 #define BLANK_SPACE_Y  37
 #define SELECTED_ROW_Y 46
@@ -45,7 +44,7 @@ void drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDrawBox);
  * @param cbFunc The callback function for when an item is selected
  * @return A pointer to malloc'd memory for this menu
  */
-menu_t* ICACHE_FLASH_ATTR initMenu(char* title, menuCb cbFunc)
+menu_t* ICACHE_FLASH_ATTR initMenu(const char* title, menuCb cbFunc)
 {
     // Allocate the memory
     menu_t* menu = (menu_t*)os_malloc(sizeof(menu_t));
@@ -163,11 +162,10 @@ void ICACHE_FLASH_ATTR addRowToMenu(menu_t* menu)
  *
  * @param menu The menu to add an item to
  * @param name The name of this item. This must be a pointer to static memory.
- *             New memory is NOT allocated for this string
- * @param id The ID for this item. This will be returned through the callback
- *           function if this item is selected
+ *             New memory is NOT allocated for this string. This pointer will
+ *             be returned via the callback when the item is selected
  */
-void ICACHE_FLASH_ATTR addItemToRow(menu_t* menu, char* name, int id)
+void ICACHE_FLASH_ATTR addItemToRow(menu_t* menu, const char* name)
 {
     // Iterate to the end of the rows
     cLinkedNode_t* row = menu->rows;
@@ -179,7 +177,6 @@ void ICACHE_FLASH_ATTR addItemToRow(menu_t* menu, char* name, int id)
 
     // Make a new item
     linkedInfo_t newItem;
-    newItem.item.id = id;
     newItem.item.name = name;
 
     // Link the new item
@@ -203,7 +200,7 @@ void ICACHE_FLASH_ATTR drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDraw
     if(row->d.row.numItems > 1)
     {
         // Get the X position for the selected item, centering it
-        int16_t xPos = row->d.row.xOffset + ((OLED_WIDTH - textWidth(items->d.item.name, IBM_VGA_8)) / 2);
+        int16_t xPos = row->d.row.xOffset + ((OLED_WIDTH - textWidth((char*)items->d.item.name, IBM_VGA_8)) / 2);
 
         // Then work backwards to make sure the entire row is drawn
         while(xPos > 0)
@@ -211,7 +208,7 @@ void ICACHE_FLASH_ATTR drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDraw
             // Iterate backwards
             items = items->prev;
             // Adjust the x pos
-            xPos -= (textWidth(items->d.item.name, IBM_VGA_8) + ITEM_SPACING);
+            xPos -= (textWidth((char*)items->d.item.name, IBM_VGA_8) + ITEM_SPACING);
         }
 
         // Then draw items until we're off the OLED
@@ -222,7 +219,7 @@ void ICACHE_FLASH_ATTR drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDraw
             int16_t xPosS = xPos;
             xPos = plotText(
                        xPos, yPos,
-                       items->d.item.name,
+                       (char*)items->d.item.name,
                        IBM_VGA_8, WHITE);
 
             // If this is the selected item, draw a box around it
@@ -252,9 +249,9 @@ void ICACHE_FLASH_ATTR drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDraw
     else
     {
         // If there's only one item, just plot it
-        int16_t xPosS = (OLED_WIDTH - textWidth(items->d.item.name, IBM_VGA_8)) / 2;
+        int16_t xPosS = (OLED_WIDTH - textWidth((char*)items->d.item.name, IBM_VGA_8)) / 2;
         int16_t xPosF = plotText(xPosS, yPos,
-                                 items->d.item.name,
+                                 (char*)items->d.item.name,
                                  IBM_VGA_8, WHITE);
 
         // If this is the selected item, draw a box around it
@@ -313,8 +310,8 @@ void ICACHE_FLASH_ATTR drawMenu(menu_t* menu)
     fillDisplayArea(0, 0, OLED_WIDTH, BLANK_SPACE_Y, BLACK);
 
     // Draw the title, centered
-    int16_t titleOffset = (OLED_WIDTH - textWidth(menu->title, RADIOSTARS)) / 2;
-    plotText(titleOffset, 8, menu->title, RADIOSTARS, WHITE);
+    int16_t titleOffset = (OLED_WIDTH - textWidth((char*)menu->title, RADIOSTARS)) / 2;
+    plotText(titleOffset, 8, (char*)menu->title, RADIOSTARS, WHITE);
 }
 
 /**
@@ -356,10 +353,10 @@ void ICACHE_FLASH_ATTR menuButton(menu_t* menu, int btn)
             if(menu->rows->d.row.numItems > 1)
             {
                 // To properly center the word, measure both old and new centered words
-                uint8_t oldWordWidth = textWidth(menu->rows->d.row.items->d.item.name, IBM_VGA_8);
+                uint8_t oldWordWidth = textWidth((char*)menu->rows->d.row.items->d.item.name, IBM_VGA_8);
                 // Move to the previous item
                 menu->rows->d.row.items = menu->rows->d.row.items->prev;
-                uint8_t newWordWidth = textWidth(menu->rows->d.row.items->d.item.name, IBM_VGA_8);
+                uint8_t newWordWidth = textWidth((char*)menu->rows->d.row.items->d.item.name, IBM_VGA_8);
                 // Set the offset to smootly animate from the old, centered word to the new centered word
                 menu->rows->d.row.xOffset = -(newWordWidth + ITEM_SPACING + ((oldWordWidth - newWordWidth - 1) / 2));
             }
@@ -371,10 +368,10 @@ void ICACHE_FLASH_ATTR menuButton(menu_t* menu, int btn)
             if(menu->rows->d.row.numItems > 1)
             {
                 // To properly center the word, measure both old and new centered words
-                uint8_t oldWordWidth = textWidth(menu->rows->d.row.items->d.item.name, IBM_VGA_8);
+                uint8_t oldWordWidth = textWidth((char*)menu->rows->d.row.items->d.item.name, IBM_VGA_8);
                 // Move to the next item
                 menu->rows->d.row.items = menu->rows->d.row.items->next;
-                uint8_t newWordWidth = textWidth(menu->rows->d.row.items->d.item.name, IBM_VGA_8);
+                uint8_t newWordWidth = textWidth((char*)menu->rows->d.row.items->d.item.name, IBM_VGA_8);
                 // Set the offset to smootly animate from the old, centered word to the new centered word
                 menu->rows->d.row.xOffset = oldWordWidth + ITEM_SPACING + ((newWordWidth - oldWordWidth - 1) / 2);
             }
@@ -385,7 +382,7 @@ void ICACHE_FLASH_ATTR menuButton(menu_t* menu, int btn)
             // Select pressed. Tell the host mode what item was selected
             if(NULL != menu->cbFunc)
             {
-                menu->cbFunc(menu->rows->d.row.items->d.item.id);
+                menu->cbFunc(menu->rows->d.row.items->d.item.name);
             }
             break;
         }
