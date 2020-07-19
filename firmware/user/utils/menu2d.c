@@ -237,13 +237,20 @@ void ICACHE_FLASH_ATTR drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDraw
         }
 
         // If the offset is nonzero, move it towards zero
-        if(row->d.row.xOffset < 0)
+        if(0 != row->d.row.xOffset)
         {
-            row->d.row.xOffset++;
-        }
-        if(row->d.row.xOffset > 0)
-        {
-            row->d.row.xOffset--;
+            if(row->d.row.xOffset < 1)
+            {
+                row->d.row.xOffset += 2;
+            }
+            else if(row->d.row.xOffset > 1)
+            {
+                row->d.row.xOffset -= 2;
+            }
+            else
+            {
+                row->d.row.xOffset = 0;
+            }
         }
     }
     else
@@ -264,7 +271,7 @@ void ICACHE_FLASH_ATTR drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDraw
 
 /**
  * Draw the menu to the OLED. The menu has animations for smooth scrolling,
- * so it is recommended this function be called every 10ms
+ * so it is recommended this function be called every 20ms
  *
  * @param menu The menu to draw
  */

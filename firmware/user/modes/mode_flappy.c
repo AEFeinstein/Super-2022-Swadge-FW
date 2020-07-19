@@ -21,11 +21,14 @@
 #include "buttons.h"
 #include "menu2d.h"
 
+#include "embeddednf.h"
+#include "embeddedout.h"
+
 /*============================================================================
  * Defines, Structs, Enums
  *==========================================================================*/
 
-#define FLAPPY_UPDATE_MS 10
+#define FLAPPY_UPDATE_MS 20
 #define FLAPPY_UPDATE_S (FLAPPY_UPDATE_MS / 1000.0f)
 #define FLAPPY_ACCEL     120.0f
 #define FLAPPY_JUMP_VEL -50.0f
@@ -57,6 +60,9 @@ typedef struct
     float birdVel;
     uint8_t buttonState;
 
+    uint32_t oldPeakFreq;
+    uint32_t peakFreq;
+
     menu_t* menu;
 } flappy_t;
 
@@ -73,6 +79,7 @@ void ICACHE_FLASH_ATTR flappySampleHandler(int32_t samp);
 static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR flappyMenuCb(const char* menuItem);
 static void ICACHE_FLASH_ATTR flappyStartGame(const char* difficulty);
+static uint32_t ICACHE_FLASH_ATTR findPeakFreq(void);
 
 /*============================================================================
  * Variables
@@ -94,10 +101,13 @@ swadgeMode flappyMode =
 flappy_t* flappy;
 
 static const char fl_title[]  = "Flappy";
-static const char fl_easy[]   = "EASY";
-static const char fl_medium[] = "MED";
-static const char fl_hard[]   = "HARD";
-static const char fl_scores[] = "SCORES";
+static const char fl_mic_easy[]   = "MIC EASY";
+static const char fl_mic_medium[] = "MIC MED";
+static const char fl_mic_hard[]   = "MIC HARD";
+static const char fl_btn_easy[]   = "BTN EASY";
+static const char fl_btn_medium[] = "BTN MED";
+static const char fl_btn_hard[]   = "BTN HARD";
+static const char fl_scores[] = "HIGH SCORES";
 static const char fl_quit[]   = "QUIT";
 
 /*============================================================================
@@ -117,9 +127,13 @@ void ICACHE_FLASH_ATTR flappyEnterMode(void)
 
     flappy->menu = initMenu(fl_title, flappyMenuCb);
     addRowToMenu(flappy->menu);
-    addItemToRow(flappy->menu, fl_easy);
-    addItemToRow(flappy->menu, fl_medium);
-    addItemToRow(flappy->menu, fl_hard);
+    addItemToRow(flappy->menu, fl_mic_easy);
+    addItemToRow(flappy->menu, fl_mic_medium);
+    addItemToRow(flappy->menu, fl_mic_hard);
+    addRowToMenu(flappy->menu);
+    addItemToRow(flappy->menu, fl_btn_easy);
+    addItemToRow(flappy->menu, fl_btn_medium);
+    addItemToRow(flappy->menu, fl_btn_hard);
     addRowToMenu(flappy->menu);
     addItemToRow(flappy->menu, fl_scores);
     addRowToMenu(flappy->menu);
@@ -152,17 +166,29 @@ void ICACHE_FLASH_ATTR flappyExitMode(void)
  */
 static void ICACHE_FLASH_ATTR flappyMenuCb(const char* menuItem)
 {
-    if(fl_easy == menuItem)
+    if(fl_mic_easy == menuItem)
     {
-        flappyStartGame(fl_easy);
+        flappyStartGame(fl_mic_easy);
     }
-    else if (fl_medium == menuItem)
+    else if (fl_mic_medium == menuItem)
     {
-        flappyStartGame(fl_medium);
+        flappyStartGame(fl_mic_medium);
     }
-    else if (fl_hard == menuItem)
+    else if (fl_mic_hard == menuItem)
     {
-        flappyStartGame(fl_hard);
+        flappyStartGame(fl_mic_hard);
+    }
+    if(fl_btn_easy == menuItem)
+    {
+        flappyStartGame(fl_btn_easy);
+    }
+    else if (fl_btn_medium == menuItem)
+    {
+        flappyStartGame(fl_btn_medium);
+    }
+    else if (fl_btn_hard == menuItem)
+    {
+        flappyStartGame(fl_btn_hard);
     }
     else if (fl_scores == menuItem)
     {
@@ -192,6 +218,9 @@ static void ICACHE_FLASH_ATTR flappyStartGame(const char* difficulty)
     flappy->frames = 0;
     flappy->birdPos = BIRD_HEIGHT;
     flappy->birdVel = 0;
+
+    flappy->peakFreq = 0;
+    flappy->oldPeakFreq = 0;
 }
 
 /**
@@ -415,9 +444,43 @@ void ICACHE_FLASH_ATTR flappySampleHandler(int32_t samp)
                 // Colorchord magic
                 HandleFrameInfo();
 
+                flappy->oldPeakFreq = flappy->peakFreq;
+                flappy->peakFreq = findPeakFreq();
+                os_printf("%d\n", flappy->peakFreq);
+
+                if(flappy->peakFreq > flappy->oldPeakFreq)
+                {
+                    // TODO go up!
+                }
+                else if(flappy->peakFreq > flappy->oldPeakFreq)
+                {
+                    // TODO go down!
+                }
+
                 // Reset the sample count
                 flappy->samplesProcessed = 0;
             }
         }
     }
+}
+
+/**
+ * TODO Test this
+ *
+ * @return uint32_t
+ */
+static uint32_t ICACHE_FLASH_ATTR findPeakFreq(void)
+{
+    uint8_t maxFreq = 0;
+    uint16_t maxAmp = 0;
+
+    for(uint8_t i = 0; i < MAXNOTES; i++ )
+    {
+        if( note_peak_amps2[i] > maxAmp && note_peak_freqs[i] != 255 )
+        {
+            maxFreq = note_peak_freqs[i];
+            maxAmp = note_peak_amps2[i];
+        }
+    }
+    return maxFreq + RootNoteOffset;
 }
