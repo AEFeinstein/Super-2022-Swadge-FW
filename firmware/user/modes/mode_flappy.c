@@ -20,6 +20,8 @@
 #include "assets.h"
 #include "buttons.h"
 #include "menu2d.h"
+#include "linked_list.h"
+#include "font.h"
 
 #include "embeddednf.h"
 #include "embeddedout.h"
@@ -37,7 +39,7 @@
 #define NUM_CHUNKS ((OLED_WIDTH/CHUNK_WIDTH)+1)
 #define RAND_WALLS_HEIGHT 4
 
-#define BIRD_HEIGHT 16
+#define CHOPPER_HEIGHT 4
 
 typedef enum
 {
@@ -56,12 +58,14 @@ typedef struct
     uint8_t height;
     uint8_t xOffset;
     uint32_t frames;
-    float birdPos;
-    float birdVel;
+    float chopperPos;
+    float chopperVel;
     uint8_t buttonState;
+    list_t obstacles;
+    uint8_t obsHeight;
 
-    uint32_t oldPeakFreq;
-    uint32_t peakFreq;
+    uint8_t oldPeakFreq;
+    uint8_t peakFreq;
 
     menu_t* menu;
 } flappy_t;
@@ -79,7 +83,7 @@ void ICACHE_FLASH_ATTR flappySampleHandler(int32_t samp);
 static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR flappyMenuCb(const char* menuItem);
 static void ICACHE_FLASH_ATTR flappyStartGame(const char* difficulty);
-static uint32_t ICACHE_FLASH_ATTR findPeakFreq(void);
+static uint8_t ICACHE_FLASH_ATTR findPeakFreq(void);
 
 /*============================================================================
  * Variables
@@ -156,6 +160,7 @@ void ICACHE_FLASH_ATTR flappyExitMode(void)
     syncedTimerDisarm(&(flappy->updateTimer));
     syncedTimerFlush();
     deinitMenu(flappy->menu);
+    clear(&flappy->obstacles);
     os_free(flappy);
 }
 
@@ -216,11 +221,14 @@ static void ICACHE_FLASH_ATTR flappyStartGame(const char* difficulty)
     flappy->xOffset = 0;
 
     flappy->frames = 0;
-    flappy->birdPos = BIRD_HEIGHT;
-    flappy->birdVel = 0;
+    flappy->chopperPos = (OLED_HEIGHT - CHOPPER_HEIGHT) / 2;
+    flappy->chopperVel = 0;
+    flappy->obsHeight = 16;
 
     flappy->peakFreq = 0;
     flappy->oldPeakFreq = 0;
+
+    clear(&flappy->obstacles);
 }
 
 /**
@@ -243,52 +251,27 @@ static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)))
             // Increment the frame count
             flappy->frames++;
 
-            // Do something every CHUNK_WIDTH frames, alternating
-            switch(flappy->frames % (CHUNK_WIDTH * 2))
+            // Every four full screens
+            if(flappy->frames % (OLED_WIDTH * 4) == 0)
             {
-                case 0:
+                if(flappy->floor > OLED_HEIGHT - 1 - 3 * RAND_WALLS_HEIGHT)
                 {
-                    // On one cycle, either raise or lower the floor randomly
-                    if(0 == os_random() % 2)
+                    // Raise the floor
+                    flappy->floor -= RAND_WALLS_HEIGHT;
+                    if(flappy->floor > OLED_HEIGHT - 1)
                     {
-                        // Raise the floor
-                        flappy->floor += RAND_WALLS_HEIGHT;
-                        if(flappy->floor > OLED_HEIGHT - 1)
-                        {
-                            flappy->floor = OLED_HEIGHT - 1;
-                        }
-                        break;
+                        flappy->floor = OLED_HEIGHT - 1;
                     }
-                    else
+
+                    // Decrease the height, narrowing the tunnel
+                    if(flappy->height > CHOPPER_HEIGHT)
                     {
-                        // Lower the floor
-                        flappy->floor -= RAND_WALLS_HEIGHT;
-                        uint8_t minFloor = flappy->height;
-                        if(flappy->floor < minFloor)
-                        {
-                            flappy->floor = minFloor;
-                        }
-                        break;
+                        flappy->height -= (2 * RAND_WALLS_HEIGHT);
                     }
-                    break;
-                }
-                case CHUNK_WIDTH:
-                {
-                    // On the other cycle, decrease the height, narrowing the tunnel
-                    if(flappy->height > BIRD_HEIGHT)
-                    {
-                        flappy->height--;
-                    }
-                    break;
-                }
-                default:
-                {
-                    // Every other frame, do nothing
-                    break;
                 }
             }
 
-            // Increment the X offset for othe walls
+            // Increment the X offset for other walls
             flappy->xOffset++;
 
             // If we've moved CHUNK_WIDTH pixels
@@ -306,31 +289,58 @@ static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)))
                 flappy->ceils[NUM_CHUNKS] = (flappy->floor - flappy->height) + (os_random() % RAND_WALLS_HEIGHT);
             }
 
-            // Update the bird's position (velocity dependent)
-            flappy->birdPos = flappy->birdPos +
-                              (flappy->birdVel * FLAPPY_UPDATE_S) +
-                              (FLAPPY_ACCEL * FLAPPY_UPDATE_S * FLAPPY_UPDATE_S) / 2;
-
-            // Then Update the bird's velocity (position independent)
-            flappy->birdVel = flappy->birdVel + (FLAPPY_ACCEL * FLAPPY_UPDATE_S);
-
-            // Stop the bird at either the floor or the ceiling
-            if(flappy->birdPos < 0)
+            // Every half a screen, spawn a new obstacle
+            if(flappy->frames % (OLED_WIDTH / 2) == 0)
             {
-                flappy->birdPos = 0;
+                // Find the bounds where this obstacle can be drawn
+                uint8_t minObsY = flappy->ceils[NUM_CHUNKS];
+                uint8_t maxObsY = flappy->floors[NUM_CHUNKS] - flappy->obsHeight;
+
+                // Pick a random position within the bounds
+                uint8_t obsY = minObsY + (os_random() % (maxObsY - minObsY));
+                // Push it on the linked list, storing the X and Y coords as the pointer
+                push(&(flappy->obstacles), (void*)((OLED_WIDTH << 8) | obsY));
             }
-            else if(flappy->birdPos > OLED_HEIGHT - BIRD_HEIGHT)
+
+            // If the button is not pressed
+            if(!(flappy->buttonState & 0x10))
             {
-                flappy->birdPos = OLED_HEIGHT - BIRD_HEIGHT;
-                flappy->birdVel = 0;
+                // Gravity is positive
+                // Update the chopper's position (velocity dependent)
+                flappy->chopperPos = flappy->chopperPos +
+                                     (flappy->chopperVel * FLAPPY_UPDATE_S) +
+                                     (FLAPPY_ACCEL * FLAPPY_UPDATE_S * FLAPPY_UPDATE_S) / 2;
+                // Then Update the chopper's velocity (position independent)
+                flappy->chopperVel = flappy->chopperVel + (FLAPPY_ACCEL * FLAPPY_UPDATE_S);
+            }
+            else
+            {
+                // Gravity is negative
+                // Update the chopper's position (velocity dependent)
+                flappy->chopperPos = flappy->chopperPos +
+                                     (flappy->chopperVel * FLAPPY_UPDATE_S) -
+                                     (FLAPPY_ACCEL * FLAPPY_UPDATE_S * FLAPPY_UPDATE_S) / 2;
+                // Then Update the chopper's velocity (position independent)
+                flappy->chopperVel = flappy->chopperVel - (FLAPPY_ACCEL * FLAPPY_UPDATE_S);
+            }
+
+            // Stop the chopper at either the floor or the ceiling
+            if(flappy->chopperPos < 0)
+            {
+                flappy->chopperPos = 0;
+                flappy->chopperVel = 0;
+            }
+            else if(flappy->chopperPos > OLED_HEIGHT - CHOPPER_HEIGHT)
+            {
+                flappy->chopperPos = OLED_HEIGHT - CHOPPER_HEIGHT;
+                flappy->chopperVel = 0;
             }
 
             // First clear the OLED
             clearDisplay();
 
             // For each chunk coordinate
-            uint8_t w;
-            for(w = 0; w < NUM_CHUNKS + 1; w++)
+            for(uint8_t w = 0; w < NUM_CHUNKS + 1; w++)
             {
                 // Plot a floor segment line between chunk coordinates
                 plotLine(
@@ -349,20 +359,52 @@ static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)))
                     WHITE);
             }
 
-            // Find the bird's integer position
-            int16_t birdPos = (int16_t)(flappy->birdPos + 0.5f);
-
-            // Iterate over the bird's sprite to see if it would be drawn over a wall
-            bool collision = false;
-            for(uint8_t x = 0; x < BIRD_HEIGHT; x++)
+            // For each obstacle
+            node_t* obs = flappy->obstacles.first;
+            while(obs != NULL)
             {
-                for(uint8_t y = 0; y < BIRD_HEIGHT; y++)
+                // Shift the obstacle
+                obs->val -= 0x100;
+
+                // Extract X and Y coordinates
+                int8_t x = ((uintptr_t)obs->val >> 8) & 0xFF;
+                int8_t y = ((uintptr_t)obs->val     ) & 0xFF;
+
+                // If the obstacle is off the screen
+                if(x + 2 <= 0)
+                {
+                    // Move to the next
+                    obs = obs->next;
+                    // Remove it from the linked list
+                    removeEntry(&flappy->obstacles, obs->prev);
+                }
+                else
+                {
+                    // Otherwise draw it
+                    plotRect(x, y, x + 2, y + flappy->obsHeight, WHITE);
+                    // Move to the next
+                    obs = obs->next;
+                }
+            }
+
+            // Find the chopper's integer position
+            int16_t chopperPos = (int16_t)(flappy->chopperPos + 0.5f);
+
+            // Iterate over the chopper's sprite to see if it would be drawn over a wall
+            bool collision = false;
+            for(uint8_t x = 0; x < CHOPPER_HEIGHT; x++)
+            {
+                for(uint8_t y = 0; y < CHOPPER_HEIGHT; y++)
                 {
                     // The pixel is already white, so there's a collision!
-                    if(WHITE == getPixel(x, birdPos + y))
+                    if(WHITE == getPixel(x, chopperPos + y))
                     {
                         collision = true;
                         break;
+                    }
+                    else
+                    {
+                        drawPixel(x, chopperPos + y, WHITE);
                     }
                 }
             }
@@ -372,12 +414,21 @@ static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)))
             {
                 // Immediately jump back to the menu
                 flappy->mode = FLAPPY_MENU;
+                os_printf("Score: %d\n", flappy->frames / 8);
             }
-            else
+
+            // Render the score as text
+            char framesStr[8] = {0};
+            ets_snprintf(framesStr, sizeof(framesStr), "%d", flappy->frames / 8);
+            int16_t framesStrWidth = textWidth(framesStr, IBM_VGA_8);
+            // Make sure the width is a multiple of 8 to keep it drawn consistently
+            while(framesStrWidth % 8 != 0)
             {
-                // Otherwise draw the bird and continue
-                drawBitmapFromAsset("dino.png", 0, (int16_t)(flappy->birdPos + 0.5f), true, false, 0);
+                framesStrWidth++;
             }
+            // Draw the score in the upper right hand corner
+            fillDisplayArea(OLED_WIDTH - 1 - framesStrWidth, 0, OLED_WIDTH, FONT_HEIGHT_IBMVGA8 + 1, BLACK);
+            plotText(OLED_WIDTH - framesStrWidth, 0, framesStr, IBM_VGA_8, WHITE);
 
             break;
         }
@@ -407,10 +458,10 @@ void ICACHE_FLASH_ATTR flappyButtonCallback( uint8_t state,
         }
         case FLAPPY_GAME:
         {
-            if(down)
-            {
-                flappy->birdVel = FLAPPY_JUMP_VEL;
-            }
+            // if(down)
+            // {
+            //     flappy->chopperVel = FLAPPY_JUMP_VEL;
+            // }
             flappy->buttonState = state;
             break;
         }
@@ -444,18 +495,50 @@ void ICACHE_FLASH_ATTR flappySampleHandler(int32_t samp)
                 // Colorchord magic
                 HandleFrameInfo();
 
-                flappy->oldPeakFreq = flappy->peakFreq;
-                flappy->peakFreq = findPeakFreq();
-                os_printf("%d\n", flappy->peakFreq);
+                // flappy->oldPeakFreq = flappy->peakFreq;
+                // flappy->peakFreq = findPeakFreq();
+                // // os_printf("%d\n", flappy->peakFreq);
 
-                if(flappy->peakFreq > flappy->oldPeakFreq)
-                {
-                    // TODO go up!
-                }
-                else if(flappy->peakFreq > flappy->oldPeakFreq)
-                {
-                    // TODO go down!
-                }
+                // static int maxF = 0;
+                // if(flappy->peakFreq > maxF)
+                // {
+                //     maxF = flappy->peakFreq;
+                //     os_printf("MF %d\n", maxF);
+                // }
+
+                // int16_t delta = flappy->peakFreq - flappy->oldPeakFreq;
+                // if(delta > 80)
+                // {
+                //     delta = -(delta - 191);
+                // }
+                // else if (delta < -80)
+                // {
+                //     delta = -(delta + 191);
+                // }
+
+                // if((1 < delta && delta < 7) || (-7 < delta && delta < -1) )
+                // {
+                //     os_printf("%d\n", delta);
+
+                //     flappy->chopperPos -= (delta / 2);
+                //     if(flappy->chopperPos < 0)
+                //     {
+                //         flappy->chopperPos = 0;
+                //     }
+                //     else if (flappy->chopperPos > OLED_HEIGHT - 16)
+                //     {
+                //         flappy->chopperPos = OLED_HEIGHT - 16;
+                //     }
+                // }
+
+                // if(flappy->peakFreq > flappy->oldPeakFreq)
+                // {
+                //     // TODO go up!
+                // }
+                // else if(flappy->peakFreq > flappy->oldPeakFreq)
+                // {
+                //     // TODO go down!
+                // }
 
                 // Reset the sample count
                 flappy->samplesProcessed = 0;
@@ -469,7 +552,7 @@ void ICACHE_FLASH_ATTR flappySampleHandler(int32_t samp)
  *
  * @return uint32_t
  */
-static uint32_t ICACHE_FLASH_ATTR findPeakFreq(void)
+static uint8_t ICACHE_FLASH_ATTR findPeakFreq(void)
 {
     uint8_t maxFreq = 0;
     uint16_t maxAmp = 0;
@@ -482,5 +565,5 @@ static uint32_t ICACHE_FLASH_ATTR findPeakFreq(void)
             maxAmp = note_peak_amps2[i];
         }
     }
-    return maxFreq + RootNoteOffset;
+    return maxFreq;
 }
