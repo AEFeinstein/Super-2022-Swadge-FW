@@ -135,11 +135,12 @@ CFLAGS_WARNINGS_EXTRA = \
 	# -Wdouble-promotion \
 
 # See these values in user_config.h
-# #define SWADGE_DEV_KIT 0
-# #define SWADGE_BBKIWI  1
-# #define SWADGE_BARREL  2
-# #define SWADGE_2019    3
-# #define BARREL_1_0_0   4
+# #define SWADGE_DEV_KIT  0
+# #define SWADGE_BBKIWI   1
+# #define SWADGE_BARREL   2
+# #define SWADGE_2019     3
+# #define BARREL_1_0_0    4
+# #define SWADGE_CHAINSAW 5
 ifeq ($(SET_SWADGE_VERSION),1)
   swadgeversion = 1
 else ifeq ($(SET_SWADGE_VERSION),2)
@@ -148,6 +149,8 @@ else ifeq ($(SET_SWADGE_VERSION),3)
   swadgeversion = 3
 else ifeq ($(SET_SWADGE_VERSION),4)
   swadgeversion = 4
+else ifeq ($(SET_SWADGE_VERSION),5)
+  swadgeversion = 5
 else
   swadgeversion = 0
 endif

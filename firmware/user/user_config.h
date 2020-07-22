@@ -8,11 +8,12 @@
 //The 2019 SWADGE can be used for testing - Its left button becomes mode change
 //    its white buttom becomes left, and the right button remains right
 
-#define SWADGE_DEV_KIT 0
-#define SWADGE_BBKIWI  1
-#define SWADGE_BARREL  2
-#define SWADGE_2019    3
-#define BARREL_1_0_0   4
+#define SWADGE_DEV_KIT  0
+#define SWADGE_BBKIWI   1
+#define SWADGE_BARREL   2
+#define SWADGE_2019     3
+#define BARREL_1_0_0    4
+#define SWADGE_CHAINSAW 5
 
 #if SWADGE_VERSION == SWADGE_2019
     #define NUM_LIN_LEDS 6
@@ -55,6 +56,15 @@
     #define LED_4 5
     #define LED_5 4
     #define LED_6 3
+#elif SWADGE_VERSION == SWADGE_CHAINSAW
+    #define USE_BUTTON_3_NOT_BZR
+    #define NUM_LIN_LEDS 6
+    #define LED_1 0
+    #define LED_2 1
+    #define LED_3 2
+    #define LED_4 3
+    #define LED_5 4
+    #define LED_6 5    
 #endif
 
 #endif

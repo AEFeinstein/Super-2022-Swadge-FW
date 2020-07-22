@@ -88,6 +88,42 @@ static const gpioInfo_t gpioInfoInput[] =
         .periph = PERIPHS_IO_MUX_GPIO4_U,
         .initialState = 1
     },
+#elif (SWADGE_VERSION == SWADGE_CHAINSAW)
+    // Left
+    {
+        .GPID = 4,
+        .func = FUNC_GPIO4,
+        .periph = PERIPHS_IO_MUX_GPIO4_U,
+        .initialState = 1
+    },
+    // Down
+    {
+        .GPID = 5,
+        .func = FUNC_GPIO5,
+        .periph = PERIPHS_IO_MUX_GPIO5_U,
+        .initialState = 1
+    },
+    // Right
+    {
+        .GPID = 12,
+        .func = FUNC_GPIO12,
+        .periph = PERIPHS_IO_MUX_MTDI_U,
+        .initialState = 1
+    },
+    // Up
+    {
+        .GPID = 13,
+        .func = FUNC_GPIO13,
+        .periph = PERIPHS_IO_MUX_MTCK_U,
+        .initialState = 1
+    },
+    // Select
+    {
+        .GPID = 14,
+        .func = FUNC_GPIO14,
+        .periph = PERIPHS_IO_MUX_MTMS_U,
+        .initialState = 1
+    },
 #else
     // Up
     {
@@ -131,6 +167,7 @@ static const gpioInfo_t gpioInfoOutput[] =
         .periph = PERIPHS_IO_MUX_MTDO_U,
         .initialState = 0
     },
+#if (SWADGE_VERSION != SWADGE_CHAINSAW)
     // Pull GPIO 14 high, this is for the microphone
     {
         .GPID = 14,
@@ -146,6 +183,7 @@ static const gpioInfo_t gpioInfoOutput[] =
         .periph = PERIPHS_IO_MUX_GPIO5_U,
         .initialState = 0
     },
+#endif
 #endif
 };
 
@@ -229,11 +267,13 @@ void ICACHE_FLASH_ATTR SetupGPIO(bool enableMic)
         GPIO_OUTPUT_SET(GPIO_ID_PIN(gpioInfoOutput[i].GPID), gpioInfoOutput[i].initialState );
     }
 
+#if (SWADGE_VERSION != SWADGE_CHAINSAW)
     // Turn off the mic if it's not being used
     if(false == enableMic)
     {
         GPIO_OUTPUT_SET(GPIO_ID_PIN(14), 0);
     }
+#endif
 
     // Set GPIO16 for Input,  mux configuration for XPD_DCDC and rtc_gpio0 connection
     WRITE_PERI_REG(PAD_XPD_DCDC_CONF,
