@@ -1222,7 +1222,7 @@ void HandleKey( int keycode, int bDown )
     {
         case 'w':
         case 'W':
-            button = 0;
+            button = 3;
             break;
         case 's':
         case 'S':
@@ -1230,11 +1230,11 @@ void HandleKey( int keycode, int bDown )
             break;
         case 'a':
         case 'A':
-            button = 2;
+            button = 0;
             break;
         case 'd':
         case 'D':
-            button = 3;
+            button = 2;
             break;
         case 'l':
         case 'L':

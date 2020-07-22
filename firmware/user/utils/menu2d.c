@@ -340,7 +340,7 @@ void ICACHE_FLASH_ATTR menuButton(menu_t* menu, int btn)
 
     switch(btn)
     {
-        case 0:
+        case 3:
         {
             // Up pressed, move to the prior row and set a negative offset
             menu->rows = menu->rows->prev;
@@ -354,7 +354,7 @@ void ICACHE_FLASH_ATTR menuButton(menu_t* menu, int btn)
             menu->yOffset = (FONT_HEIGHT_IBMVGA8 + ROW_SPACING);
             break;
         }
-        case 2:
+        case 0:
         {
             // Left pressed, only change if there are multiple items in this row
             if(menu->rows->d.row.numItems > 1)
@@ -369,7 +369,7 @@ void ICACHE_FLASH_ATTR menuButton(menu_t* menu, int btn)
             }
             break;
         }
-        case 3:
+        case 2:
         {
             // Right pressed, only change if there are multiple items in this row
             if(menu->rows->d.row.numItems > 1)
