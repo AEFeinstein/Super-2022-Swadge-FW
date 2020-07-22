@@ -12,6 +12,7 @@
 
 #include <osapi.h>
 #include <mem.h>
+#include <stdint.h>
 
 #include "user_main.h"
 #include "embeddednf.h"
@@ -33,7 +34,7 @@
 #define FLAPPY_UPDATE_MS 20
 #define FLAPPY_UPDATE_S (FLAPPY_UPDATE_MS / 1000.0f)
 #define FLAPPY_ACCEL     120.0f
-#define FLAPPY_JUMP_VEL -50.0f
+// #define FLAPPY_JUMP_VEL -50.0f
 
 #define CHUNK_WIDTH 8
 #define NUM_CHUNKS ((OLED_WIDTH/CHUNK_WIDTH)+1)
@@ -299,7 +300,7 @@ static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)))
                 // Pick a random position within the bounds
                 uint8_t obsY = minObsY + (os_random() % (maxObsY - minObsY));
                 // Push it on the linked list, storing the X and Y coords as the pointer
-                push(&(flappy->obstacles), (void*)((OLED_WIDTH << 8) | obsY));
+                push(&(flappy->obstacles), (void*)((uintptr_t)((OLED_WIDTH << 8) | obsY)));
             }
 
             // If the button is not pressed
@@ -364,11 +365,11 @@ static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)))
             while(obs != NULL)
             {
                 // Shift the obstacle
-                obs->val -= 0x100;
+                obs->val = (void*)(((uintptr_t)obs->val) - 0x100);
 
                 // Extract X and Y coordinates
-                int8_t x = ((uintptr_t)obs->val >> 8) & 0xFF;
-                int8_t y = ((uintptr_t)obs->val     ) & 0xFF;
+                int8_t x = (((uintptr_t)obs->val) >> 8) & 0xFF;
+                int8_t y = (((uintptr_t)obs->val)     ) & 0xFF;
 
                 // If the obstacle is off the screen
                 if(x + 2 <= 0)
@@ -453,6 +454,52 @@ void ICACHE_FLASH_ATTR flappyButtonCallback( uint8_t state,
             if(down)
             {
                 menuButton(flappy->menu, button);
+
+                static uint8_t shift = 0;
+                static uint8_t mode = 0;
+                led_t leds[NUM_LIN_LEDS] = {{0}};
+                switch(mode)
+                {
+                    default:
+                    case 0:
+                    {
+                        leds[0].r = 0xFF >> shift;
+                        leds[1].g = 0xFF >> shift;
+                        leds[2].b = 0xFF >> shift;
+                        leds[3].b = 0xFF >> shift;
+                        leds[4].g = 0xFF >> shift;
+                        leds[5].r = 0xFF >> shift;
+                        break;
+                    }
+                    case 1:
+                    {
+                        leds[0].r = 0xFF >> shift;
+                        leds[0].g = 0xFF >> shift;
+                        leds[1].g = 0xFF >> shift;
+                        leds[1].b = 0xFF >> shift;
+                        leds[2].b = 0xFF >> shift;
+                        leds[2].r = 0xFF >> shift;
+                        leds[3].b = 0xFF >> shift;
+                        leds[3].r = 0xFF >> shift;
+                        leds[4].g = 0xFF >> shift;
+                        leds[4].b = 0xFF >> shift;
+                        leds[5].r = 0xFF >> shift;
+                        leds[5].g = 0xFF >> shift;
+                        break;
+                    }
+                    case 2:
+                    {
+                        ets_memset(leds, 0xFF >> shift, sizeof(leds));
+                        break;
+                    }
+                }
+                shift = (shift + 1) % 8;
+                if(0 == shift)
+                {
+                    mode = (mode + 1) % 3;
+                }
+                setLeds(leds, sizeof(leds));
+
             }
             break;
         }
