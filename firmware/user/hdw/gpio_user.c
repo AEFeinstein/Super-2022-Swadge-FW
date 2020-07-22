@@ -275,18 +275,9 @@ void ICACHE_FLASH_ATTR SetupGPIO(bool enableMic)
     }
 #endif
 
-    // Set GPIO16 for Input,  mux configuration for XPD_DCDC and rtc_gpio0 connection
-    WRITE_PERI_REG(PAD_XPD_DCDC_CONF,
-                   (READ_PERI_REG(PAD_XPD_DCDC_CONF) & 0xffffffbc) | (uint32)
-                   0x1);
-
-    // mux configuration for out enable
-    WRITE_PERI_REG(RTC_GPIO_CONF,
-                   (READ_PERI_REG(RTC_GPIO_CONF) & (uint32)0xfffffffe) | (uint32)0x0);
-
-    // out disable
-    WRITE_PERI_REG(RTC_GPIO_ENABLE,
-                   READ_PERI_REG(RTC_GPIO_ENABLE) & (uint32)0xfffffffe);
+    /* If you need to configure GPIO16, add ESP8266_NONOS_SDK/driver_lib/driver/gpio16.c
+     * to the makefile and call either gpio16_output_conf() or gpio16_input_conf()
+     */
 
     mBuzzerState = false;
 
