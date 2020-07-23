@@ -32,12 +32,8 @@
 #include "synced_timer.h"
 #include "printControl.h"
 
-#include "mode_test.h"
-#include "mode_ring.h"
 #include "mode_magpet.h"
-#include "mode_swadgepass.h"
 #include "mode_colorchord.h"
-#include "mode_tiltrads.h"
 #include "mode_flappy.h"
 
 #include "ccconfig.h"
@@ -72,12 +68,8 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
 {
-    &flappyMode,
-    &testMode,
     &colorchordMode,
-    &ringMode,
-    &tiltradsMode,
-    &passMode,
+    &flappyMode,
     &magpetMode,
 };
 
