@@ -13,6 +13,9 @@
  *============================================================================*/
 
 #include <osapi.h>
+#include "user_config.h"
+
+#if defined(FEATURE_OLED)
 
 /*==============================================================================
  * Structs, Unions, and Typedefs
@@ -67,4 +70,5 @@ void addItemToRow(menu_t* menu, const char* name);
 void drawMenu(menu_t* menu);
 void menuButton(menu_t* menu, int btn);
 
+#endif
 #endif

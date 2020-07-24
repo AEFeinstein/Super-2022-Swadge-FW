@@ -84,7 +84,7 @@ void ICACHE_FLASH_ATTR flappySampleHandler(int32_t samp);
 static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR flappyMenuCb(const char* menuItem);
 static void ICACHE_FLASH_ATTR flappyStartGame(const char* difficulty);
-static uint8_t ICACHE_FLASH_ATTR findPeakFreq(void);
+// static uint8_t ICACHE_FLASH_ATTR findPeakFreq(void);
 
 /*============================================================================
  * Variables
@@ -212,6 +212,7 @@ static void ICACHE_FLASH_ATTR flappyMenuCb(const char* menuItem)
  */
 static void ICACHE_FLASH_ATTR flappyStartGame(const char* difficulty)
 {
+    os_printf("Start %s mode", difficulty);
     flappy->samplesProcessed = 0;
     flappy->mode = FLAPPY_GAME;
 
@@ -599,18 +600,18 @@ void ICACHE_FLASH_ATTR flappySampleHandler(int32_t samp)
  *
  * @return uint32_t
  */
-static uint8_t ICACHE_FLASH_ATTR findPeakFreq(void)
-{
-    uint8_t maxFreq = 0;
-    uint16_t maxAmp = 0;
+// static uint8_t ICACHE_FLASH_ATTR findPeakFreq(void)
+// {
+//     uint8_t maxFreq = 0;
+//     uint16_t maxAmp = 0;
 
-    for(uint8_t i = 0; i < MAXNOTES; i++ )
-    {
-        if( note_peak_amps2[i] > maxAmp && note_peak_freqs[i] != 255 )
-        {
-            maxFreq = note_peak_freqs[i];
-            maxAmp = note_peak_amps2[i];
-        }
-    }
-    return maxFreq;
-}
+//     for(uint8_t i = 0; i < MAXNOTES; i++ )
+//     {
+//         if( note_peak_amps2[i] > maxAmp && note_peak_freqs[i] != 255 )
+//         {
+//             maxFreq = note_peak_freqs[i];
+//             maxAmp = note_peak_amps2[i];
+//         }
+//     }
+//     return maxFreq;
+// }

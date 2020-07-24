@@ -20,6 +20,8 @@
 #include "bresenham.h"
 #include "oled.h"
 
+#if defined(FEATURE_OLED)
+
 #define assert(x) \
     if(false == (x)) { \
         return; \
@@ -846,3 +848,5 @@ void ICACHE_FLASH_ATTR plotCubicSpline(int n, int x[], int y[],
                     floor((y1 + 2 * y2) / 3 + 0.5), x3, y3, col);
     plotCubicBezier(x0, y0, x0, y0, (x0 + x1) / 2, (y0 + y1) / 2, x4, y4, col);
 }
+
+#endif

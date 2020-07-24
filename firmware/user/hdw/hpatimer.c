@@ -55,10 +55,12 @@ typedef enum
  * Variables
  *==========================================================================*/
 
+#if defined(FEATURE_BZR) || defined(FEATURE_MIC)
 hpaMode_t hpaMode = BZR;
 
 volatile bool hpaRunning = false;
 
+#if defined(FEATURE_BZR)
 struct
 {
     uint16_t currNote; // Actually a clock divisor
@@ -69,7 +71,9 @@ struct
     uint32_t noteIdx;
     syncedTimer_t songTimer;
 } bzr = {0};
+#endif
 
+#if defined(FEATURE_MIC)
 volatile struct
 {
     volatile uint8_t sounddata[HPABUFFSIZE];
@@ -81,6 +85,8 @@ volatile struct
     .soundtail = 0,
     .sounddata = {0}
 };
+#endif
+#endif
 
 /*============================================================================
  * Prototypes
@@ -88,9 +94,11 @@ volatile struct
 
 static void timerhandle( void* v );
 
-void ICACHE_FLASH_ATTR setBuzzerOn(bool on);
-void ICACHE_FLASH_ATTR songTimerCb(void* arg __attribute__((unused)));
-void ICACHE_FLASH_ATTR loadNextNote(void);
+#if defined(FEATURE_BZR)
+    void ICACHE_FLASH_ATTR setBuzzerOn(bool on);
+    void ICACHE_FLASH_ATTR songTimerCb(void* arg __attribute__((unused)));
+    void ICACHE_FLASH_ATTR loadNextNote(void);
+#endif
 
 /*============================================================================
  * Functions
@@ -112,17 +120,21 @@ static void timerhandle( void* v __attribute__((unused)))
         default:
         case MIC:
         {
+#if defined(FEATURE_MIC)
             uint16_t r = hs_adc_read();
             mic.sounddata[mic.soundhead] = r >> 6;
             mic.soundhead = (mic.soundhead + 1) & (HPABUFFSIZE - 1);
+#endif
             break;
         }
         case BZR:
         {
+#if defined(FEATURE_BZR)
             if(SILENCE != bzr.currNote)
             {
                 setBuzzerGpio(!getBuzzerGpio());
             }
+#endif
             break;
         }
     }
@@ -137,7 +149,11 @@ static void timerhandle( void* v __attribute__((unused)))
 void ICACHE_FLASH_ATTR StartHPATimer(void)
 {
     // MIC mode always runs. BZR only runs if it's not silent
-    if((MIC == hpaMode) || ((BZR == hpaMode) && (SILENCE != bzr.currNote)))
+    if((MIC == hpaMode) || ((BZR == hpaMode)
+#if defined(FEATURE_BZR)
+                            && (SILENCE != bzr.currNote)
+#endif
+                           ))
     {
         RTC_REG_WRITE(FRC1_CTRL_ADDRESS,  FRC1_AUTO_RELOAD |
                       DIVDED_BY_16 | //5MHz main clock.
@@ -150,14 +166,18 @@ void ICACHE_FLASH_ATTR StartHPATimer(void)
             default:
             case MIC:
             {
+#if defined(FEATURE_MIC)
                 RTC_REG_WRITE(FRC1_LOAD_ADDRESS,  5000000 / DFREQ);
                 RTC_REG_WRITE(FRC1_COUNT_ADDRESS, 5000000 / DFREQ);
+#endif
                 break;
             }
             case BZR:
             {
+#if defined(FEATURE_BZR)
                 RTC_REG_WRITE(FRC1_LOAD_ADDRESS,  bzr.currNote);
                 RTC_REG_WRITE(FRC1_COUNT_ADDRESS, bzr.currNote);
+#endif
                 break;
             }
         }
@@ -184,10 +204,12 @@ void ContinueHPATimer(void)
 {
     TM1_EDGE_INT_ENABLE();
     ETS_FRC1_INTR_ENABLE();
+#if defined(FEATURE_MIC)
     if(MIC == hpaMode)
     {
         hs_adc_start();
     }
+#endif
     hpaRunning = true;
 }
 
@@ -203,13 +225,15 @@ bool ICACHE_FLASH_ATTR isHpaRunning(void)
  * Microphone Functions
  *==========================================================================*/
 
+#if defined(FEATURE_MIC)
+
 /**
  * Initialize the microphone
  */
 void ICACHE_FLASH_ATTR initMic(void)
 {
     hpaMode = MIC;
-#ifndef USE_BUTTON_3_NOT_BZR
+#if defined(FEATURE_BZR)
     setBuzzerGpio(false);
 #endif
     StartHPATimer();
@@ -237,9 +261,13 @@ uint8_t ICACHE_FLASH_ATTR getSample(void)
     return samp;
 }
 
+#endif
+
 /*============================================================================
  * Buzzer Functions
  *==========================================================================*/
+
+#if defined(FEATURE_BZR)
 
 /**
  * Initialize the buzzer's state variables and timer
@@ -410,3 +438,5 @@ void ICACHE_FLASH_ATTR songTimerCb(void* arg __attribute__((unused)))
         setBuzzerNote(SILENCE);
     }
 }
+
+#endif

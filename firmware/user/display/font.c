@@ -11,6 +11,8 @@
 #include "sprite.h"
 #include "font.h"
 
+#if defined(FEATURE_OLED)
+
 /**
  * @brief Draw a single character to the OLED display
  *        Special characters (< ' ') not drawn
@@ -134,3 +136,5 @@ int16_t ICACHE_FLASH_ATTR textWidth(char* text, fonts font)
     }
     return width;
 }
+
+#endif

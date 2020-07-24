@@ -15,6 +15,8 @@
 	#endif
 #endif
 
+#if defined(FEATURE_OLED)
+
 const uint32_t sin1024[] RODATA_ATTR =
 {
     0, 18, 36, 54, 71, 89, 107, 125, 143, 160, 178, 195, 213,
@@ -491,3 +493,5 @@ void ICACHE_FLASH_ATTR gifTimerFn(void* arg)
         }
     }
 }
+
+#endif

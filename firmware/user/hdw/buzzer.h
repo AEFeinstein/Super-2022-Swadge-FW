@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "user_config.h"
 
 // These counts (essential period of notes) are (5,000,000 / (2 * frequency))
 // Negative values n are used by mode_music.c to play the current selected note

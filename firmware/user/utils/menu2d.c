@@ -15,6 +15,8 @@
 #include "font.h"
 #include "bresenham.h"
 
+#if defined(FEATURE_OLED)
+
 /*==============================================================================
  * Defines
  *============================================================================*/
@@ -399,3 +401,5 @@ void ICACHE_FLASH_ATTR menuButton(menu_t* menu, int btn)
         }
     }
 }
+
+#endif

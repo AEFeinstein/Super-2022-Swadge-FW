@@ -2,6 +2,9 @@
 #define _SPRITE_H_
 
 #include "oled.h"
+#include "user_config.h"
+
+#if defined(FEATURE_OLED)
 
 typedef struct
 {
@@ -13,4 +16,5 @@ typedef struct
 
 int16_t ICACHE_FLASH_ATTR plotSprite(int16_t x, int16_t y, const sprite_t* sprite, color col);
 
+#endif
 #endif

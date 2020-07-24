@@ -16,6 +16,9 @@
 #define SWADGE_CHAINSAW 5
 
 #if SWADGE_VERSION == SWADGE_2019
+
+    #define FEATURE_MIC
+
     #define NUM_LIN_LEDS 6
     #define LED_1 1
     #define LED_2 0
@@ -23,8 +26,14 @@
     #define LED_4 4
     #define LED_5 3
     #define LED_6 2
+
 #elif SWADGE_VERSION == SWADGE_BBKIWI
     //bbkiwi swadge mockup
+
+    #define FEATURE_BZR
+    #define FEATURE_OLED
+    #define FEATURE_ACCEL
+
     #define NUM_LIN_LEDS 16
     #define LED_1 15
     #define LED_2 12
@@ -32,15 +41,17 @@
     #define LED_4 7
     #define LED_5 4
     #define LED_6 2
+
     #define LEFTOLED accel.x
     #define TOPOLED (-accel.y)
     #define FACEOLED accel.z
-    //swadge dev kit
-    //#define LEFTOLED accel.y
-    //#define TOPOLED  accel.x
-    //#define FACEOLED accel.z
+
 #elif SWADGE_VERSION == SWADGE_DEV_KIT
-    #define USE_BUTTON_3_NOT_BZR
+
+    #define FEATURE_MIC
+    #define FEATURE_OLED
+    #define FEATURE_ACCEL
+
     #define NUM_LIN_LEDS 8
     #define LED_1 2
     #define LED_2 4
@@ -48,7 +59,13 @@
     #define LED_4 6
     #define LED_5 0
     #define LED_6 1
+
 #elif ((SWADGE_VERSION == SWADGE_BARREL) || (SWADGE_VERSION == BARREL_1_0_0))
+
+    #define FEATURE_BZR
+    #define FEATURE_OLED
+    #define FEATURE_ACCEL
+
     #define NUM_LIN_LEDS 6
     #define LED_1 2
     #define LED_2 1
@@ -56,15 +73,20 @@
     #define LED_4 5
     #define LED_5 4
     #define LED_6 3
+
 #elif SWADGE_VERSION == SWADGE_CHAINSAW
-    #define USE_BUTTON_3_NOT_BZR
+
+    #define FEATURE_MIC
+    #define FEATURE_OLED
+
     #define NUM_LIN_LEDS 6
     #define LED_1 0
     #define LED_2 1
     #define LED_3 2
     #define LED_4 3
     #define LED_5 4
-    #define LED_6 5    
+    #define LED_6 5
+
 #endif
 
 #endif

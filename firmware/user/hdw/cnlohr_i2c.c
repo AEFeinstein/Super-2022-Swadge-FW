@@ -1,5 +1,7 @@
 #include "cnlohr_i2c.h"
 
+#if defined(FEATURE_OLED) || defined(FEATURE_ACCEL)
+
 //#define REMAP(x) GPIO_ID_PIN(x)
 #define REMAP(x) x
 
@@ -233,3 +235,5 @@ uint8_t cnlohr_i2c_end_transaction(void)
     cnl_need_new_stop = 0;
     return cnl_err;
 }
+
+#endif
