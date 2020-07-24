@@ -64,7 +64,7 @@
 #elif SWADGE_VERSION == SWADGE_DEV_KIT
 
     #define FEATURE_MIC
-    #define  FEATURE_OLED
+    #define FEATURE_OLED
     #define FEATURE_ACCEL
 
     #define NUM_LIN_LEDS 8
