@@ -9,6 +9,12 @@
 #define USER_USER_MAIN_H_
 
 /*============================================================================
+ * Includes
+ *==========================================================================*/
+
+#include "user_config.h"
+
+/*============================================================================
  * Defines
  *==========================================================================*/
 
@@ -184,8 +190,11 @@ void ExitCritical(void);
 
 uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr);
 void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode);
+void ICACHE_FLASH_ATTR exitSwadgeMode(void);
 
+#if defined(FEATURE_ACCEL)
 void setAccelPollTime(uint32_t pollTimeMs);
+#endif
 
 void ICACHE_FLASH_ATTR enterDeepSleep(wifiMode_t wifiMode, uint32_t timeUs);
 

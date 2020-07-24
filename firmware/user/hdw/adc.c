@@ -34,6 +34,7 @@
  * Functions
  *==========================================================================*/
 
+#if defined(FEATURE_MIC)
 /**
  * Start an ADC measurement, but don't take it yet
  */
@@ -94,3 +95,4 @@ uint16 hs_adc_read(void)
     // tout is 10 bits fraction
     return sar_dout;
 }
+#endif

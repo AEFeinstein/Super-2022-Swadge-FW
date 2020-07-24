@@ -17,5 +17,6 @@ void syncedTimerDisarm(syncedTimer_t* timer);
 void syncedTimersCheck(void);
 void syncedTimerArm(syncedTimer_t* timer, uint32_t time, bool repeat_flag);
 void syncedTimerSetFn(syncedTimer_t* newTimer, void (*timerFunc)(void*), void* arg);
+void syncedTimerFlush(void);
 
 #endif

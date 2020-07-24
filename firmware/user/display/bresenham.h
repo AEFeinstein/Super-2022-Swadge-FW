@@ -8,6 +8,9 @@
 #ifndef SRC_BRESENHAM_H_
 #define SRC_BRESENHAM_H_
 #include "oled.h"
+
+#if defined(FEATURE_OLED)
+
 void plotLine(int x0, int y0, int x1, int y1, color col);
 void plotRect(int x0, int y0, int x1, int y1, color col);
 void plotEllipse(int xm, int ym, int a, int b, color col);
@@ -24,5 +27,7 @@ void plotCubicBezierSeg(int x0, int y0, float x1, float y1, float x2, float y2, 
 void plotCubicBezier(int x0, int y0, int x1, int y1, int x2, int y2, int x3, int y3, color col);
 void plotQuadSpline(int n, int x[], int y[], color col);
 void plotCubicSpline(int n, int x[], int y[], color col);
+
+#endif
 
 #endif /* SRC_BRESENHAM_H_ */

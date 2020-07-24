@@ -9,6 +9,9 @@
 #define OLED_H_
 
 #include <c_types.h>
+#include "user_config.h"
+
+#if defined(FEATURE_OLED)
 
 typedef enum
 {
@@ -34,7 +37,7 @@ bool ICACHE_FLASH_ATTR setOLEDparams(bool turnOnOff);
 oledResult_t updateOLED(bool drawDifference);
 void clearDisplay(void);
 void fillDisplayArea(int16_t x1, int16_t y1, int16_t x2, int16_t y2, color c);
-void zeroMenuBar(void);
-uint8_t incrementMenuBar(void);
+
+#endif
 
 #endif /* OLED_H_ */

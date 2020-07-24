@@ -60,17 +60,28 @@ void CloseSoundPulse( void * v )
 		if( r->play )
 		{
 			pa_stream_unref (r->play);
+			pa_stream_disconnect(r->play);
 			r->play = 0;
 		}
 
 		if( r->rec )
 		{
 			pa_stream_unref (r->rec);
+			pa_stream_disconnect(r->rec);
 			r->rec = 0;
 		}
+
+		pa_context_disconnect(r->pa_ctx);
+		pa_context_unref(r->pa_ctx);
+
+		if(r->pa_ml)
+		{
+			pa_signal_done();
+			pa_mainloop_free(r->pa_ml);
+		}
+
 		OGUSleep(2000);
 		OGCancelThread( r->thread );
-
 
 		if( r->sourceNamePlay ) free( r->sourceNamePlay );
 		if( r->sourceNameRec ) free( r->sourceNameRec );
@@ -278,8 +289,25 @@ void * InitSoundPulse( SoundCBType cb, int reqSPS, int reqChannelsRec, int reqCh
 fail:
 	if( r )
 	{
-		if( r->play ) pa_xfree (r->play);
-		if( r->rec ) pa_xfree (r->rec);
+		if( r->play )
+		{
+			pa_stream_unref(r->play);
+			pa_stream_disconnect(r->play);
+		} 
+		if( r->rec )
+		{
+			pa_stream_unref(r->rec);
+			pa_stream_disconnect(r->rec);
+		}
+		pa_context_disconnect(r->pa_ctx);
+		pa_context_unref(r->pa_ctx);
+
+		if(r->pa_ml)
+		{
+			pa_signal_done();
+			pa_mainloop_free(r->pa_ml);
+		}
+
 		free( r );
 	}
 	return 0;
