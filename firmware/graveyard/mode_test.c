@@ -267,6 +267,9 @@ const char sprites[][16] =
     "wing_snake.png"
 };
 
+pngHandle spriteHandles[16] = {{0}};
+pngSequenceHandle psh = {0};
+
 /*============================================================================
  * Variables
  *==========================================================================*/
@@ -333,6 +336,24 @@ void ICACHE_FLASH_ATTR testEnterMode(void)
     syncedTimerSetFn(&test.TimerHandleLeds, testLedFunc, NULL);
     syncedTimerArm(&test.TimerHandleLeds, 1000, true);
 
+    for(uint8_t i = 0; i < 16; i++)
+    {
+        allocPngAsset(sprites[i], &spriteHandles[i]);
+    }
+
+    allocPngSequence(&psh, 11,
+                     "syringe01.png",
+                     "syringe02.png",
+                     "syringe03.png",
+                     "syringe04.png",
+                     "syringe05.png",
+                     "syringe06.png",
+                     "syringe07.png",
+                     "syringe08.png",
+                     "syringe09.png",
+                     "syringe10.png",
+                     "syringe11.png");
+
     // Draw a gif
     // drawGifFromAsset("ragequit.gif", 0, 0, false, false, 0, &test.gHandle);
 }
@@ -345,6 +366,11 @@ void ICACHE_FLASH_ATTR testExitMode(void)
     stopBuzzerSong();
     syncedTimerDisarm(&test.timerHandleBanana);
     syncedTimerDisarm(&test.TimerHandleLeds);
+    for(uint8_t i = 0; i < 16; i++)
+    {
+        freePngAsset(&spriteHandles[i]);
+    }
+    freePngSequence(&psh);
 }
 
 /**
@@ -506,13 +532,15 @@ void ICACHE_FLASH_ATTR testUpdateDisplay(void)
         uint8_t x = spIdx % 5;
         uint8_t y = spIdx / 5;
 
-        drawBitmapFromAsset(sprites[spIdx],
-                            38 + (18 * x),
-                            20 + (17 * y),
-                            false,
-                            false,
-                            test.rotation);
+        drawPng(&spriteHandles[spIdx],
+                38 + (18 * x),
+                20 + (17 * y),
+                false,
+                false,
+                test.rotation);
     }
+
+    drawPngSequence(&psh, 0, FONT_HEIGHT_RADIOSTARS + 2, false, false, 0, -1);
 }
 
 /**

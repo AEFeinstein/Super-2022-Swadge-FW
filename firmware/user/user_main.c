@@ -34,6 +34,7 @@
 
 #include "mode_magpet.h"
 #include "mode_colorchord.h"
+#include "mode_personal_demon.h"
 #include "mode_flappy.h"
 
 #include "ccconfig.h"
@@ -70,6 +71,7 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
 {
+    &personalDemonMode,
     &colorchordMode,
     &flappyMode,
     &magpetMode,
@@ -397,21 +399,6 @@ void ExitCritical(void)
  *==========================================================================*/
 
 /**
- * @brief Exit the current swadge mode and free up all memory
- */
-void ICACHE_FLASH_ATTR exitSwadgeMode(void)
-{
-    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode)
-    {
-        swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode();
-    }
-#if defined(FEATURE_ACCEL)
-    syncedTimerDisarm(&timerHandlePollAccel);
-#endif
-    syncedTimersCheck();
-}
-
-/**
  * This deinitializes the current mode if it is initialized, displays the next
  * mode's LED pattern, and starts a timer to reboot into the next mode.
  * If the reboot timer is running, it will be reset
@@ -461,6 +448,21 @@ void ICACHE_FLASH_ATTR exitSwadgeMode(void)
 #endif
 
     enterDeepSleep(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode, 1000);
+}
+
+/**
+ * @brief Helper function for the emulator to clean up the current mode
+ */
+void ICACHE_FLASH_ATTR exitCurrentSwadgeMode(void)
+{
+    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode)
+    {
+        swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode();
+    }
+#if defined(FEATURE_ACCEL)
+    syncedTimerDisarm(&timerHandlePollAccel);
+#endif
+    syncedTimersCheck();
 }
 
 /**

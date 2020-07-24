@@ -94,7 +94,6 @@ void emuCheckFooterMouse( int x, int y, int finger, int bDown )
         }
         HandleButtonStatus( b, bIsDown );
     }
-
 }
 
 void emuFooter()
@@ -209,6 +208,11 @@ void emuCheckResize()
     }
 }
 
+// void exitMode(void)
+// {
+// 	printf("called on exit");
+// 	exitCurrentSwadgeMode();
+// }
 
 #ifndef ANDROID
     int main()
@@ -229,7 +233,8 @@ void emuCheckResize()
     CNFGSetup( "swadgemu", OLED_WIDTH * px_scale, px_scale * ( OLED_HEIGHT + FOOTER_PIXELS ) );
     rawvidmem = malloc( px_scale * OLED_WIDTH * px_scale * (OLED_HEIGHT + FOOTER_PIXELS) * px_scale * 4 );
 
-    // CNFGSetupFullscreen( "Test Bench", 0 );
+	// atexit(exitMode);
+	// CNFGSetupFullscreen( "Test Bench", 0 );
 
 #ifdef WINDOWS
     void REGISTERSoundWin();
@@ -1259,7 +1264,7 @@ void HandleMotion( int x, int y, int mask )
 void HandleDestroy()
 {
     printf( "Destroying\n" );
-    exitSwadgeMode();
+    exitCurrentSwadgeMode();
 
     CloseSound(sounddriver);
     if(buzzernotemutex)

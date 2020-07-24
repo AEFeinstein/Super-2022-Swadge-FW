@@ -6,6 +6,32 @@
 
 #if defined(FEATURE_OLED)
 
+uint32_t* getAsset(const char* name, uint32_t* retLen);
+
+typedef struct
+{
+    uint16_t width;
+    uint16_t height;
+    uint32_t* data;
+} pngHandle;
+
+bool ICACHE_FLASH_ATTR allocPngAsset(const char* name, pngHandle* handle);
+void ICACHE_FLASH_ATTR freePngAsset(pngHandle* handle);
+void ICACHE_FLASH_ATTR drawPng(pngHandle* handle, int16_t xp,
+                               int16_t yp, bool flipLR, bool flipUD, int16_t rotateDeg);
+
+typedef struct
+{
+    uint16_t count;
+    pngHandle* handles;
+    uint16_t cFrame;
+} pngSequenceHandle;
+
+bool ICACHE_FLASH_ATTR allocPngSequence(pngSequenceHandle* handle, uint16_t count, ...);
+void ICACHE_FLASH_ATTR freePngSequence(pngSequenceHandle* handle);
+void ICACHE_FLASH_ATTR drawPngSequence(pngSequenceHandle* handle, int16_t xp,
+                               int16_t yp, bool flipLR, bool flipUD, int16_t rotateDeg, int16_t frame);
+
 typedef struct
 {
     uint32_t* assetPtr;
@@ -29,11 +55,6 @@ typedef struct
     uint16_t duration;
     syncedTimer_t timer;
 } gifHandle;
-
-uint32_t* getAsset(const char* name, uint32_t* retLen);
-
-void drawBitmapFromAsset(const char* name, int16_t xp, int16_t yp,
-                         bool flipLR, bool flipUD, int16_t rotateDeg);
 
 void drawGifFromAsset(const char* name, int16_t xp, int16_t yp,
                       bool flipLR, bool flipUD, int16_t rotateDeg,

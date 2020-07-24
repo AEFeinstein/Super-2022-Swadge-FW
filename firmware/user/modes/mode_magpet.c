@@ -66,9 +66,11 @@ char lastMsg[256] = {0};
 syncedTimer_t animationTimer;
 
 uint8_t myPet = 0;
+pngHandle myPetSprite = {0};
 int8_t myPetOffset = 0;
 
 uint8_t theirPet = 0xFF;
+pngHandle theirPetSprite = {0};
 int16_t theirPetOffset = -1;
 bool theirPetMovingLeft = true;
 
@@ -105,6 +107,7 @@ void ICACHE_FLASH_ATTR magpetEnterMode(void)
 
     // Pick a true random pet
     while((myPet = (os_random() & 0x0F)) >= lengthof(petSprites));
+    allocPngAsset(petSprites[myPet], &myPetSprite);
 
     // Clear their pet data
     resetTheirPet(false);
@@ -122,6 +125,8 @@ void ICACHE_FLASH_ATTR magpetEnterMode(void)
  */
 void ICACHE_FLASH_ATTR magpetExitMode(void)
 {
+    freePngAsset(&myPetSprite);
+    freePngAsset(&theirPetSprite);
     p2pDeinit(&connection);
 }
 
@@ -286,6 +291,7 @@ void ICACHE_FLASH_ATTR magpetMsgRxCbFn(p2pInfo* p2p __attribute__((unused)),
             // Save their pet and start animating
             theirPet = payload[0] - '0';
             theirPetOffset = OLED_WIDTH;
+            allocPngAsset(petSprites[theirPet], &theirPetSprite);
 
             // Send our pet info back
             sendWhoAmI(p2p);
@@ -350,12 +356,12 @@ void ICACHE_FLASH_ATTR magpetUpdateDisplay(void)
     plotText(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, lastMsg, IBM_VGA_8, WHITE);
 
     // Draw our pet
-    drawBitmapFromAsset(petSprites[myPet], OLED_WIDTH / 4, OLED_HEIGHT / 2 - 8 + myPetOffset, false, false, 0);
+    drawPng(&myPetSprite, OLED_WIDTH / 4, OLED_HEIGHT / 2 - 8 + myPetOffset, false, false, 0);
 
     // Draw their pet, maybe
     if(0xFF != theirPet && theirPetOffset > 0)
     {
-        drawBitmapFromAsset(petSprites[theirPet], theirPetOffset, OLED_HEIGHT / 2 - 8, false, false, 0);
+        drawPng(&theirPetSprite, theirPetOffset, OLED_HEIGHT / 2 - 8, false, false, 0);
     }
 
     switch(connection.cnc.playOrder)
@@ -425,6 +431,7 @@ void ICACHE_FLASH_ATTR resetTheirPet(bool restartP2P)
     theirPet = 0xFF;
     theirPetOffset = -1;
     theirPetMovingLeft = true;
+    freePngAsset(&theirPetSprite);
     if(restartP2P)
     {
         p2pRestart(&connection);
