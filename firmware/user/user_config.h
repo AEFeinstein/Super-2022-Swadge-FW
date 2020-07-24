@@ -15,7 +15,22 @@
 #define BARREL_1_0_0    4
 #define SWADGE_CHAINSAW 5
 
-#if SWADGE_VERSION == SWADGE_2019
+#if defined(EMU)
+
+    #define FEATURE_MIC
+    #define FEATURE_BZR
+    #define FEATURE_OLED
+    #define FEATURE_ACCEL
+
+    #define NUM_LIN_LEDS 6
+    #define LED_1 0
+    #define LED_2 1
+    #define LED_3 2
+    #define LED_4 3
+    #define LED_5 4
+    #define LED_6 5
+
+#elif SWADGE_VERSION == SWADGE_2019
 
     #define FEATURE_MIC
 
@@ -49,7 +64,7 @@
 #elif SWADGE_VERSION == SWADGE_DEV_KIT
 
     #define FEATURE_MIC
-    #define FEATURE_OLED
+    #define  FEATURE_OLED
     #define FEATURE_ACCEL
 
     #define NUM_LIN_LEDS 8
