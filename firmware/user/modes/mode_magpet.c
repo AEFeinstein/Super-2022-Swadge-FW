@@ -295,10 +295,6 @@ void ICACHE_FLASH_ATTR magpetMsgRxCbFn(p2pInfo* p2p __attribute__((unused)),
 
             // Send our pet info back
             sendWhoAmI(p2p);
-
-            // And play a little jingle
-            uint32_t songLen;
-            startBuzzerSong((song_t*)getAsset("friends.rtl", &songLen), false);
         }
     }
     magpetUpdateDisplay();
@@ -436,7 +432,6 @@ void ICACHE_FLASH_ATTR resetTheirPet(bool restartP2P)
     theirPetOffset = -1;
     theirPetMovingLeft = true;
     freePngAsset(&theirPetSprite);
-    stopBuzzerSong();
     if(restartP2P)
     {
         p2pRestart(&connection);

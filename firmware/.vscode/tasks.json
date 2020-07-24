@@ -76,6 +76,15 @@
             "group": "build"
         },
         {
+            "label": "make all (chainsaw)",
+            "type": "shell",
+            "command": "unset ESP_GDB && export SET_SWADGE_VERSION=5 && make -j$(nproc) all",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build"
+        },
+        {
             "label": "make all (gdb)",
             "type": "shell",
             "command": "export ESP_GDB=1 && make -j$(nproc) all",

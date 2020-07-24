@@ -27,6 +27,9 @@
 #ifndef FASTLZ_H
 #define FASTLZ_H
 
+#include "user_config.h"
+#if defined(FEATURE_OLED)
+
 #define FASTLZ_VERSION 0x000100
 
 #define FASTLZ_VERSION_MAJOR     0
@@ -95,6 +98,8 @@ int ICACHE_FLASH_ATTR fastlz_compress_level(int level, const void* input, int le
 
 #if defined (__cplusplus)
 }
+#endif
+
 #endif
 
 #endif /* FASTLZ_H */

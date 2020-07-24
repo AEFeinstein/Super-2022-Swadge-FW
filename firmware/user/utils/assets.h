@@ -2,6 +2,9 @@
 #define _ASSETS_H_
 
 #include "synced_timer.h"
+#include "user_config.h"
+
+#if defined(FEATURE_OLED)
 
 uint32_t* getAsset(const char* name, uint32_t* retLen);
 
@@ -59,4 +62,5 @@ void drawGifFromAsset(const char* name, int16_t xp, int16_t yp,
 
 void freeGifMemory(gifHandle* handle);
 
+#endif
 #endif

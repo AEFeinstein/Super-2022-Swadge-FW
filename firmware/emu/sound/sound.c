@@ -105,5 +105,13 @@ void CloseSound( struct SoundDriver * soundobject )
 	{
 		soundobject->CloseFn( soundobject );
 	}
+
+	for(int i = 0; i < MAX_SOUND_DRIVERS; i++)
+	{
+		if(SoundDriverNames[i])
+		{
+			free(SoundDriverNames[i]);
+		}
+	}
 }
 

@@ -8,7 +8,11 @@
 #ifndef QMA6981_H_
 #define QMA6981_H_
 
-bool QMA6981_setup(void);
-void QMA6981_poll(accel_t* currentAccel);
+#include "user_config.h"
+
+#if defined(FEATURE_ACCEL)
+    bool QMA6981_setup(void);
+    void QMA6981_poll(accel_t* currentAccel);
+#endif
 
 #endif /* QMA6981_H_ */

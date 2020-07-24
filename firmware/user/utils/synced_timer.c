@@ -171,8 +171,16 @@ void ICACHE_FLASH_ATTR syncedTimersCheck(void)
         currentNode = currentNode->next;
     }
 
-    // After the functions have been called, remove disarmed timers from the list
-    currentNode = syncedTimerList.first;
+    syncedTimerFlush();
+}
+
+/**
+ * Remove all disarmed timers from the list
+ */
+void ICACHE_FLASH_ATTR syncedTimerFlush(void)
+{
+    // remove disarmed timers from the list
+    node_t* currentNode = syncedTimerList.first;
     while (currentNode != NULL)
     {
         // Save the next node because currentNode may be freed below
