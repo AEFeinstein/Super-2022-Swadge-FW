@@ -447,7 +447,13 @@ void ExitCritical(void)
     rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
 #endif
 
+#if defined(EMU)
+    system_set_rst_reason(REASON_DEEP_SLEEP_AWAKE);
+    system_rtc_mem_write(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem));
+    user_init();
+#else
     enterDeepSleep(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode, 1000);
+#endif
 }
 
 /**

@@ -53,6 +53,7 @@ struct rst_info{
     uint32 depc;
 };
 
+void system_set_rst_reason(uint32_t reason);
 struct rst_info* system_get_rst_info(void);
 
 #define UPGRADE_FW_BIN1         0x00
@@ -190,7 +191,7 @@ uint8 wifi_get_opmode_default(void);
 bool wifi_set_opmode(uint8 opmode);
 bool wifi_set_opmode_current(uint8 opmode);
 uint8 wifi_get_broadcast_if(void);
-#ifndef EMU
+#if !defined(EMU)
 bool wifi_set_broadcast_if(uint8 interface);
 #endif
 

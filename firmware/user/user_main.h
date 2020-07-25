@@ -18,7 +18,7 @@
  * Defines
  *==========================================================================*/
 
-#ifndef EMU
+#if !defined(EMU)
 // Ref: http://marrin.org/2017/01/16/putting-data-in-esp8266-flash-memory/
 #define RODATA_ATTR  ICACHE_RODATA_ATTR __attribute__((aligned(4)))
 #define ROMSTR_ATTR  __attribute__((section(".irom.text.romstr"))) __attribute__((aligned(4)))

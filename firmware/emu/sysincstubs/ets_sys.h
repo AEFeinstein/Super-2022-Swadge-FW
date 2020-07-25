@@ -106,7 +106,7 @@ void NmiTimSetFunc(void (*func)(void));
 #ifndef ANDROID
 
 
-#ifdef EMU
+#if defined(EMU)
 #define ETS_INTR_PENDING()
 #define ETS_INTR_ENABLED()
 #define ETS_INTR_WITHINISR()

@@ -6,7 +6,7 @@
 #include "fastlz.h"
 #include "user_main.h"
 #include "printControl.h"
-#ifdef EMU
+#if defined(EMU)
     #include <stdio.h>
     #ifdef ANDROID
         #include <asset_manager.h>
@@ -96,7 +96,7 @@ void ICACHE_FLASH_ATTR transformPixel(int16_t* x, int16_t* y, int16_t transX,
  */
 uint32_t* ICACHE_FLASH_ATTR getAsset(const char* name, uint32_t* retLen)
 {
-#ifndef EMU
+#if !defined(EMU)
     /* Note assets are placed immediately after irom0
      * See "irom0_0_seg" in "eagle.app.v6.ld" for where this value comes from
      * The makefile flashes ASSETS_FILE to 0x6C000
@@ -172,7 +172,7 @@ uint32_t* ICACHE_FLASH_ATTR getAsset(const char* name, uint32_t* retLen)
     return NULL;
 }
 
-#ifdef EMU
+#if defined(EMU)
 void ICACHE_FLASH_ATTR freeAssets(void)
 {
 #ifndef ANDROID

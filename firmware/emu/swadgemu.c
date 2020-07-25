@@ -351,16 +351,25 @@ uint32 system_get_time(void)
 {
     return (OGGetAbsoluteTime() - boottime) * 1000000;
 }
+
+struct rst_info srst = 
+{
+    .reason = REASON_DEFAULT_RST,
+    .exccause = 0,
+    .epc1 = 0xbaad0001,
+    .epc2 = 0xbaad0002,
+    .epc3 = 0xbaad0003,
+    .excvaddr = 0xbaadbeef,
+    .depc = 0xcafebeef
+};
+
+void system_set_rst_reason(uint32_t reason)
+{
+    srst.reason = reason;
+}
+
 struct rst_info* system_get_rst_info(void)
 {
-    static struct rst_info srst;
-    srst.reason = REASON_DEFAULT_RST;
-    srst.exccause = 0;
-    srst.epc1 = 0xbaad0001;
-    srst.epc2 = 0xbaad0002;
-    srst.epc3 = 0xbaad0003;
-    srst.excvaddr = 0xbaadbeef;
-    srst.depc = 0xcafebeef;
     return &srst;
 }
 

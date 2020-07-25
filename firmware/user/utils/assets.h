@@ -8,7 +8,7 @@
 
 uint32_t* getAsset(const char* name, uint32_t* retLen);
 
-#ifdef EMU
+#if defined(EMU)
 void ICACHE_FLASH_ATTR freeAssets(void);
 #endif
 
