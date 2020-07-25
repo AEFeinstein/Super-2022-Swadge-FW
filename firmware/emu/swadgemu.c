@@ -1279,8 +1279,6 @@ void HandleDestroy()
     }
 
     freeAssets();
-
-    exit(10);
 }
 
 #endif
