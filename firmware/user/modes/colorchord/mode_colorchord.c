@@ -54,6 +54,7 @@ swadgeMode colorchordMode =
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
+    .menuImg = "rainbow.gif"
 };
 
 struct

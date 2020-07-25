@@ -14,6 +14,7 @@
         #include <android_native_app_glue.h>
         struct android_app* gapp;
     #endif
+    uint32_t* assets = NULL;
 #endif
 
 #if defined(FEATURE_OLED)
@@ -102,7 +103,6 @@ uint32_t* ICACHE_FLASH_ATTR getAsset(const char* name, uint32_t* retLen)
      */
     uint32_t* assets = (uint32_t*)(0x40200000 + ASSETS_ADDR);
 #elif defined( ANDROID )
-    static uint32_t* assets;
     if( !assets )
     {
         AAsset* file = AAssetManager_open( gapp->activity->assetManager, "assets.bin", AASSET_MODE_BUFFER );
@@ -120,7 +120,6 @@ uint32_t* ICACHE_FLASH_ATTR getAsset(const char* name, uint32_t* retLen)
     }
 #else
     /* When emulating a swadge, assets are read directly from a file */
-    static uint32_t* assets = NULL;
     if(NULL == assets)
     {
         FILE* fp = fopen( "assets.bin", "rb" );
@@ -131,7 +130,6 @@ uint32_t* ICACHE_FLASH_ATTR getAsset(const char* name, uint32_t* retLen)
         }
         fseek(fp, 0L, SEEK_END);
         long sz = ftell(fp);
-        // TODO THIS LEAKS MEMORY WHEN EMULATING
         assets = (uint32_t*)malloc(sz);
         fseek(fp, 0L, SEEK_SET);
         int r = fread(assets, sz, 1, fp);
@@ -140,6 +138,7 @@ uint32_t* ICACHE_FLASH_ATTR getAsset(const char* name, uint32_t* retLen)
             fprintf( stderr, "EMU Error: read error with assets.bin\n" );
             return NULL;
         }
+        fclose(fp);
     }
 #endif
     uint32_t idx = 0;
@@ -172,6 +171,15 @@ uint32_t* ICACHE_FLASH_ATTR getAsset(const char* name, uint32_t* retLen)
     *retLen = 0;
     return NULL;
 }
+
+#ifdef EMU
+void ICACHE_FLASH_ATTR freeAssets(void)
+{
+#ifndef ANDROID
+    os_free(assets);
+#endif
+}
+#endif
 
 /**
  * Transform a pixel's coordinates by rotation around the sprite's center point,
@@ -484,19 +492,12 @@ void ICACHE_FLASH_ATTR drawPngSequence(pngSequenceHandle* handle, int16_t xp,
 }
 
 /**
- * @brief Start drawing a gif from an asset
+ * Load a gif from assets to a handle
  *
  * @param name The name of the asset to draw
- * @param xp The x coordinate to draw the asset at
- * @param yp The y coordinate to draw the asset at
- * @param flipLR true to flip over the Y axis, false to do nothing
- * @param flipUD true to flip over the X axis, false to do nothing
- * @param rotateDeg The number of degrees to rotate clockwise, must be 0-359
- * @param handle A handle to store the gif state
+ * @param handle A handle to load the gif to
  */
-void ICACHE_FLASH_ATTR drawGifFromAsset(const char* name, int16_t xp, int16_t yp,
-                                        bool flipLR, bool flipUD, int16_t rotateDeg,
-                                        gifHandle* handle)
+void ICACHE_FLASH_ATTR loadGifFromAsset(const char* name, gifHandle* handle)
 {
     // Only do anything if the handle is uninitialized
     if(NULL == handle->compressed)
@@ -507,12 +508,6 @@ void ICACHE_FLASH_ATTR drawGifFromAsset(const char* name, int16_t xp, int16_t yp
 
         if(NULL != handle->assetPtr)
         {
-            // Save gif transformation params
-            handle->xp = xp;
-            handle->yp = yp;
-            handle->flipLR = flipLR;
-            handle->flipUD = flipUD;
-            handle->rotateDeg = rotateDeg;
             // Read metadata from memory
             handle->idx = 0;
             handle->width    = handle->assetPtr[handle->idx++];
@@ -533,21 +528,18 @@ void ICACHE_FLASH_ATTR drawGifFromAsset(const char* name, int16_t xp, int16_t yp
             handle->decompressed = (uint8_t*)os_malloc(handle->allocedSize);
             handle->frame = (uint8_t*)os_malloc(handle->allocedSize);
 
-            // Set up a timer to draw the other frames of the gif
-            syncedTimerSetFn(&handle->timer, gifTimerFn, handle);
-            syncedTimerArm(&handle->timer, handle->duration, true);
+            handle->firstFrameLoaded = false;
         }
     }
 }
 
 /**
- * @brief Free all the memory associated with a gif
+ * Free all the memory allocated for a gif
  *
- * @param handle A handle to store the gif state
+ * @param handle The gif to free
  */
-void ICACHE_FLASH_ATTR freeGifMemory(gifHandle* handle)
+void ICACHE_FLASH_ATTR freeGifAsset(gifHandle* handle)
 {
-    syncedTimerDisarm(&handle->timer);
     os_free(handle->compressed);
     os_free(handle->decompressed);
     os_free(handle->frame);
@@ -557,56 +549,69 @@ void ICACHE_FLASH_ATTR freeGifMemory(gifHandle* handle)
 }
 
 /**
- * @brief Timer function to draw gifs
+ * Draw a frame of a gif to the screen
  *
- * @param arg A handle containing the gif state
+ * @param handle A handle to the gif to draw
+ * @param xp The x coordinate to draw the asset at
+ * @param yp The y coordinate to draw the asset at
+ * @param flipLR true to flip over the Y axis, false to do nothing
+ * @param flipUD true to flip over the X axis, false to do nothing
+ * @param rotateDeg The number of degrees to rotate clockwise, must be 0-359
+ * @param drawNext true to draw the next frame, false to draw the same frame again
  */
-void ICACHE_FLASH_ATTR gifTimerFn(void* arg)
+void ICACHE_FLASH_ATTR drawGifFromAsset(gifHandle* handle, int16_t xp, int16_t yp,
+                                        bool flipLR, bool flipUD, int16_t rotateDeg,
+                                        bool drawNext)
 {
-    // Cast the pointer to something more useful
-    gifHandle* handle = (gifHandle*)arg;
-
-    // Read the compressed length of this frame
-    uint32_t compressedLen = handle->assetPtr[handle->idx++];
-    // Pad the length to a 32 bit boundary for memcpy
-    uint32_t paddedLen = compressedLen;
-    while(paddedLen % 4 != 0)
+    if(drawNext || false == handle->firstFrameLoaded)
     {
-        paddedLen++;
-    }
-    AST_PRINTF("%s\n  frame: %d\n  cLen: %d\n  pLen: %d\n", __func__,
-               handle->cFrame, compressedLen, paddedLen);
+        // Read the compressed length of this frame
+        uint32_t compressedLen = handle->assetPtr[handle->idx++];
 
-    // Copy the compressed data from flash to RAM
-    os_memcpy(handle->compressed, &handle->assetPtr[handle->idx], paddedLen);
-    handle->idx += (paddedLen / 4);
-
-    // If this is the first frame
-    if(handle->cFrame == 0)
-    {
-        // Decompress it straight to the frame data
-        fastlz_decompress(handle->compressed, compressedLen,
-                          handle->frame, handle->allocedSize);
-    }
-    else
-    {
-        // Otherwise decompress it to decompressed
-        fastlz_decompress(handle->compressed, compressedLen,
-                          handle->decompressed, handle->allocedSize);
-        // Then apply the changes to the current frame
-        uint16_t i;
-        for(i = 0; i < handle->allocedSize; i++)
+        // Pad the length to a 32 bit boundary for memcpy
+        uint32_t paddedLen = compressedLen;
+        while(paddedLen % 4 != 0)
         {
-            handle->frame[i] ^= handle->decompressed[i];
+            paddedLen++;
         }
-    }
+        AST_PRINTF("%s\n  frame: %d\n  cLen: %d\n  pLen: %d\n", __func__,
+                   handle->cFrame, compressedLen, paddedLen);
 
-    // Increment the frame count, mod the number of frames
-    handle->cFrame = (handle->cFrame + 1) % handle->nFrames;
-    if(handle->cFrame == 0)
-    {
-        // Reset the index if we're starting again
-        handle->idx = 4;
+        // Copy the compressed data from flash to RAM
+        os_memcpy(handle->compressed, &handle->assetPtr[handle->idx], paddedLen);
+        handle->idx += (paddedLen / 4);
+
+        // If this is the first frame
+        if(handle->cFrame == 0)
+        {
+            // Decompress it straight to the frame data
+            fastlz_decompress(handle->compressed, compressedLen,
+                              handle->frame, handle->allocedSize);
+        }
+        else
+        {
+            // Otherwise decompress it to decompressed
+            fastlz_decompress(handle->compressed, compressedLen,
+                              handle->decompressed, handle->allocedSize);
+            // Then apply the changes to the current frame
+            uint16_t i;
+            for(i = 0; i < handle->allocedSize; i++)
+            {
+                handle->frame[i] ^= handle->decompressed[i];
+            }
+        }
+
+        if(drawNext)
+        {
+            // Increment the frame count, mod the number of frames
+            handle->cFrame = (handle->cFrame + 1) % handle->nFrames;
+            if(handle->cFrame == 0)
+            {
+                // Reset the index if we're starting again
+                handle->idx = 4;
+            }
+        }
+        handle->firstFrameLoaded = true;
     }
 
     // Draw the current frame to the OLED
@@ -617,8 +622,7 @@ void ICACHE_FLASH_ATTR gifTimerFn(void* arg)
         {
             int16_t x = w;
             int16_t y = h;
-            transformPixel(&x, &y, handle->xp, handle->yp, handle->flipLR,
-                           handle->flipUD, handle->rotateDeg,
+            transformPixel(&x, &y, xp, yp, flipLR, flipUD, rotateDeg,
                            handle->width, handle->height);
             int16_t byteIdx = (w + (h * handle->width)) / 8;
             int16_t bitIdx  = (w + (h * handle->width)) % 8;

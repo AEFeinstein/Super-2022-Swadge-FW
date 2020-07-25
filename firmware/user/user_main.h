@@ -148,11 +148,7 @@ typedef struct _swadgeMode
     /**
      * A pointer to the compressed image data in ROM
      */
-    uint8_t* menuImageData;
-    /**
-     * The length of the compressed image data in ROM
-     */
-    uint16_t menuImageLen;
+    char* menuImg;
 } swadgeMode;
 
 /*============================================================================

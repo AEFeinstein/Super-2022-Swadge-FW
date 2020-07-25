@@ -32,7 +32,7 @@
 #include "synced_timer.h"
 #include "printControl.h"
 
-#include "mode_magpet.h"
+#include "mode_menu.h"
 #include "mode_colorchord.h"
 #include "mode_personal_demon.h"
 #include "mode_flappy.h"
@@ -71,10 +71,10 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
 {
+    &menuMode,
     &personalDemonMode,
     &colorchordMode,
     &flappyMode,
-    &magpetMode,
 };
 
 bool swadgeModeInit = false;

@@ -151,7 +151,8 @@ swadgeMode personalDemonMode =
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
     .fnAccelerometerCallback = NULL,
-    .fnAudioCallback = NULL
+    .fnAudioCallback = NULL,
+    .menuImg = "demon-menu.gif"
 };
 
 pd_data* pd;

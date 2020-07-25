@@ -15,6 +15,7 @@
 #include "../user/hdw/QMA6981.h"
 #include "../user/hdw/buzzer.h"
 #include "../user/hdw/buttons.h"
+#include "../user/utils/assets.h"
 #include "spi_flash.h"
 
 #define BACKGROUND_COLOR  0x040510
@@ -233,8 +234,8 @@ void emuCheckResize()
     CNFGSetup( "swadgemu", OLED_WIDTH * px_scale, px_scale * ( OLED_HEIGHT + FOOTER_PIXELS ) );
     rawvidmem = malloc( px_scale * OLED_WIDTH * px_scale * (OLED_HEIGHT + FOOTER_PIXELS) * px_scale * 4 );
 
-	// atexit(exitMode);
-	// CNFGSetupFullscreen( "Test Bench", 0 );
+    // atexit(exitMode);
+    // CNFGSetupFullscreen( "Test Bench", 0 );
 
 #ifdef WINDOWS
     void REGISTERSoundWin();
@@ -1276,6 +1277,8 @@ void HandleDestroy()
     {
         free(rawvidmem);
     }
+
+    freeAssets();
 
     exit(10);
 }

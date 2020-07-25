@@ -101,6 +101,7 @@ swadgeMode flappyMode =
     .fnEspNowSendCb = NULL,
     .fnAccelerometerCallback = NULL,
     .fnAudioCallback = flappySampleHandler,
+    .menuImg = "copter-menu.gif"
 };
 
 flappy_t* flappy;
