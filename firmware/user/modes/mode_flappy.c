@@ -50,7 +50,7 @@ typedef enum
 
 typedef struct
 {
-    syncedTimer_t updateTimer;
+    timer_t updateTimer;
     int samplesProcessed;
     flappyGameMode mode;
     uint8_t floors[NUM_CHUNKS + 1];
@@ -146,9 +146,9 @@ void ICACHE_FLASH_ATTR flappyEnterMode(void)
     addItemToRow(flappy->menu, fl_quit);
     drawMenu(flappy->menu);
 
-    syncedTimerDisarm(&(flappy->updateTimer));
-    syncedTimerSetFn(&(flappy->updateTimer), flappyUpdate, NULL);
-    syncedTimerArm(&(flappy->updateTimer), FLAPPY_UPDATE_MS, true);
+    timerDisarm(&(flappy->updateTimer));
+    timerSetFn(&(flappy->updateTimer), flappyUpdate, NULL);
+    timerArm(&(flappy->updateTimer), FLAPPY_UPDATE_MS, true);
     enableDebounce(false);
 
     InitColorChord();
@@ -159,8 +159,8 @@ void ICACHE_FLASH_ATTR flappyEnterMode(void)
  */
 void ICACHE_FLASH_ATTR flappyExitMode(void)
 {
-    syncedTimerDisarm(&(flappy->updateTimer));
-    syncedTimerFlush();
+    timerDisarm(&(flappy->updateTimer));
+    timerFlush();
     deinitMenu(flappy->menu);
     clear(&flappy->obstacles);
     os_free(flappy);

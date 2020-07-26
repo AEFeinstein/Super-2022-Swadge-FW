@@ -80,7 +80,7 @@ typedef struct
     // Animation variables
     pdAnimationState_t anim;
     pdTextAnimationState_t textAnimation;
-    syncedTimer_t animationTimer;
+    timer_t animationTimer;
     list_t animationQueue;
     pdAnimation animTable[PDA_NUM_ANIMATIONS];
     int16_t seqFrame;
@@ -257,8 +257,8 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     pd->demonDirUD = false;
 
     // Set up an animation timer
-    syncedTimerSetFn(&pd->animationTimer, personalDemonAnimationTimer, NULL);
-    syncedTimerArm(&pd->animationTimer, 5, true);
+    timerSetFn(&pd->animationTimer, personalDemonAnimationTimer, NULL);
+    timerArm(&pd->animationTimer, 5, true);
 
     // Draw the initial display
     personalDemonUpdateDisplay();

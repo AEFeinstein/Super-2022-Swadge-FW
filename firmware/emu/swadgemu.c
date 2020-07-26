@@ -517,7 +517,7 @@ struct
     bool songShouldLoop;
     uint32_t noteTime;
     uint32_t noteIdx;
-    syncedTimer_t songTimer;
+    timer_t songTimer;
 } bzr = {0};
 
 uint16_t buzzernote;
@@ -627,7 +627,7 @@ void initBuzzer(void)
     }
 
     ets_memset(&bzr, 0, sizeof(bzr));
-    syncedTimerSetFn(&bzr.songTimer, songTimerCb, NULL);
+    timerSetFn(&bzr.songTimer, songTimerCb, NULL);
 }
 
 
@@ -655,7 +655,7 @@ void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song, bool shouldLoop)
     bzr.songShouldLoop = shouldLoop;
 
     // Set the timer to call every 1ms
-    syncedTimerArm(&bzr.songTimer, 1, true);
+    timerArm(&bzr.songTimer, 1, true);
 
     // Start playing the first note
     loadNextNote();
@@ -695,7 +695,7 @@ void ICACHE_FLASH_ATTR stopBuzzerSong(void)
     bzr.song = NULL;
     bzr.noteTime = 0;
     bzr.noteIdx = 0;
-    syncedTimerDisarm(&bzr.songTimer);
+    timerDisarm(&bzr.songTimer);
 }
 
 /**
@@ -741,7 +741,7 @@ void ICACHE_FLASH_ATTR songTimerCb(void* arg __attribute__((unused)))
                 BZR_PRINTF("Don't loop\n");
                 // Song over, not looping, stop the timer and the note
                 setBuzzerNote(SILENCE);
-                syncedTimerDisarm(&bzr.songTimer);
+                timerDisarm(&bzr.songTimer);
             }
         }
     }

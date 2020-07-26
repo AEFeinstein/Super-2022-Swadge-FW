@@ -65,10 +65,10 @@ typedef struct
     swadgeMode** modes;
     uint8_t selectedMode;
 
-    syncedTimer_t timerScreensaverStart;
-    syncedTimer_t timerScreensaverBright;
-    syncedTimer_t timerScreensaverLEDAnimation;
-    syncedTimer_t timerScreensaverOLEDAnimation;
+    timer_t timerScreensaverStart;
+    timer_t timerScreensaverBright;
+    timer_t timerScreensaverLEDAnimation;
+    timer_t timerScreensaverOLEDAnimation;
     uint8_t menuScreensaverIdx;
     int16_t squareWaveScrollOffset;
     int16_t squareWaveScrollSpeed;
@@ -79,7 +79,7 @@ typedef struct
     gifHandle* curImg;
     gifHandle* nextImg;
 
-    syncedTimer_t timerPanning;
+    timer_t timerPanning;
     bool menuIsPanning;
     bool panningLeft;
     int16_t panIdx;
@@ -135,24 +135,24 @@ void ICACHE_FLASH_ATTR menuInit(void)
     mnuDrawArrows();
 
     // Timer for starting a screensaver
-    syncedTimerDisarm(&mnu->timerScreensaverStart);
-    syncedTimerSetFn(&mnu->timerScreensaverStart, (os_timer_func_t*)menuStartScreensaver, NULL);
+    timerDisarm(&mnu->timerScreensaverStart);
+    timerSetFn(&mnu->timerScreensaverStart, (os_timer_func_t*)menuStartScreensaver, NULL);
 
     // Timer for starting a screensaver
-    syncedTimerDisarm(&mnu->timerScreensaverBright);
-    syncedTimerSetFn(&mnu->timerScreensaverBright, (os_timer_func_t*)menuBrightScreensaver, NULL);
+    timerDisarm(&mnu->timerScreensaverBright);
+    timerSetFn(&mnu->timerScreensaverBright, (os_timer_func_t*)menuBrightScreensaver, NULL);
 
     // Timer for running a screensaver
-    syncedTimerDisarm(&mnu->timerScreensaverLEDAnimation);
-    syncedTimerSetFn(&mnu->timerScreensaverLEDAnimation, (os_timer_func_t*)menuAnimateScreensaverLEDs, NULL);
+    timerDisarm(&mnu->timerScreensaverLEDAnimation);
+    timerSetFn(&mnu->timerScreensaverLEDAnimation, (os_timer_func_t*)menuAnimateScreensaverLEDs, NULL);
 
     // Timer for running a screensaver
-    syncedTimerDisarm(&mnu->timerScreensaverOLEDAnimation);
-    syncedTimerSetFn(&mnu->timerScreensaverOLEDAnimation, (os_timer_func_t*)menuAnimateScreensaverOLED, NULL);
+    timerDisarm(&mnu->timerScreensaverOLEDAnimation);
+    timerSetFn(&mnu->timerScreensaverOLEDAnimation, (os_timer_func_t*)menuAnimateScreensaverOLED, NULL);
 
     // Timer for running a screensaver
-    syncedTimerDisarm(&mnu->timerPanning);
-    syncedTimerSetFn(&mnu->timerPanning, (os_timer_func_t*)menuPanImages, NULL);
+    timerDisarm(&mnu->timerPanning);
+    timerSetFn(&mnu->timerPanning, (os_timer_func_t*)menuPanImages, NULL);
 
     // This starts the screensaver timer
     stopScreensaver();
@@ -167,12 +167,12 @@ void ICACHE_FLASH_ATTR menuInit(void)
  */
 void ICACHE_FLASH_ATTR menuExit(void)
 {
-    syncedTimerDisarm(&mnu->timerScreensaverStart);
-    syncedTimerDisarm(&mnu->timerScreensaverBright);
-    syncedTimerDisarm(&mnu->timerScreensaverLEDAnimation);
-    syncedTimerDisarm(&mnu->timerScreensaverOLEDAnimation);
-    syncedTimerDisarm(&mnu->timerPanning);
-    syncedTimerFlush();
+    timerDisarm(&mnu->timerScreensaverStart);
+    timerDisarm(&mnu->timerScreensaverBright);
+    timerDisarm(&mnu->timerScreensaverLEDAnimation);
+    timerDisarm(&mnu->timerScreensaverOLEDAnimation);
+    timerDisarm(&mnu->timerPanning);
+    timerFlush();
     freeGifAsset(mnu->curImg);
     freeGifAsset(mnu->nextImg);
     os_free(mnu);
@@ -261,7 +261,7 @@ void ICACHE_FLASH_ATTR startPanning(bool pLeft)
     // Start the timer to pan
     mnu->panningLeft = pLeft;
     mnu->panIdx = 0;
-    syncedTimerArm(&mnu->timerPanning, MENU_PAN_PERIOD_MS, true);
+    timerArm(&mnu->timerPanning, MENU_PAN_PERIOD_MS, true);
 }
 
 /**
@@ -305,7 +305,7 @@ static void ICACHE_FLASH_ATTR menuPanImages(void* arg __attribute__((unused)))
         mnu->nextImg = tmp;
 
         // stop the timer
-        syncedTimerDisarm(&mnu->timerPanning);
+        timerDisarm(&mnu->timerPanning);
         mnu->menuIsPanning = false;
     }
 }
@@ -385,15 +385,15 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
     setDanceBrightness(2);
 
     // Animate it at the given period
-    syncedTimerArm(&mnu->timerScreensaverLEDAnimation, danceTimers[mnu->menuScreensaverIdx].period, true);
+    timerArm(&mnu->timerScreensaverLEDAnimation, danceTimers[mnu->menuScreensaverIdx].period, true);
 
     // Animate the OLED at the given period
-    syncedTimerArm(&mnu->timerScreensaverOLEDAnimation, MENU_PAN_PERIOD_MS, true);
+    timerArm(&mnu->timerScreensaverOLEDAnimation, MENU_PAN_PERIOD_MS, true);
 
     mnu->drawOLEDScreensaver = 0;
 
     // Start a timer to turn the screensaver brighter
-    syncedTimerArm(&mnu->timerScreensaverBright, 5000, false);
+    timerArm(&mnu->timerScreensaverBright, 5000, false);
 }
 
 /**
@@ -459,19 +459,19 @@ static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__
 void ICACHE_FLASH_ATTR stopScreensaver(void)
 {
     // Stop the current screensaver
-    syncedTimerDisarm(&mnu->timerScreensaverLEDAnimation);
-    syncedTimerDisarm(&mnu->timerScreensaverOLEDAnimation);
+    timerDisarm(&mnu->timerScreensaverLEDAnimation);
+    timerDisarm(&mnu->timerScreensaverOLEDAnimation);
     led_t leds[NUM_LIN_LEDS] = {{0}};
     setLeds(leds, sizeof(leds));
     mnu->drawOLEDScreensaver = 0;
 
 #if SWADGE_VERSION != SWADGE_BBKIWI
     // Start a timer to start the screensaver if there's no input
-    syncedTimerDisarm(&mnu->timerScreensaverStart);
-    syncedTimerArm(&mnu->timerScreensaverStart, 5000, false);
+    timerDisarm(&mnu->timerScreensaverStart);
+    timerArm(&mnu->timerScreensaverStart, 5000, false);
 #endif
     // Stop this timer too
-    syncedTimerDisarm(&mnu->timerScreensaverBright);
+    timerDisarm(&mnu->timerScreensaverBright);
 }
 
 /**

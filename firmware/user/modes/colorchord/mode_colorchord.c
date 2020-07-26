@@ -60,9 +60,9 @@ swadgeMode colorchordMode =
 struct
 {
     int samplesProcessed;
-    syncedTimer_t ccLedOverrideTimer;
+    timer_t ccLedOverrideTimer;
     bool ccOverrideLeds;
-    syncedTimer_t ccAnimationTimer;
+    timer_t ccAnimationTimer;
     pngHandle king;
 } cc;
 
@@ -106,13 +106,13 @@ void ICACHE_FLASH_ATTR colorchordEnterMode(void)
     cc.ccOverrideLeds = false;
 
     // Setup the LED override timer, but don't arm it
-    ets_memset(&cc.ccLedOverrideTimer, 0, sizeof(syncedTimer_t));
-    syncedTimerDisarm(&cc.ccLedOverrideTimer);
-    syncedTimerSetFn(&cc.ccLedOverrideTimer, ccLedOverrideReset, NULL);
+    ets_memset(&cc.ccLedOverrideTimer, 0, sizeof(timer_t));
+    timerDisarm(&cc.ccLedOverrideTimer);
+    timerSetFn(&cc.ccLedOverrideTimer, ccLedOverrideReset, NULL);
 
     // Set up an animation timer
-    syncedTimerSetFn(&cc.ccAnimationTimer, ccAnimation, NULL);
-    syncedTimerArm(&cc.ccAnimationTimer, 25, true); // 40fps updates
+    timerSetFn(&cc.ccAnimationTimer, ccAnimation, NULL);
+    timerArm(&cc.ccAnimationTimer, 25, true); // 40fps updates
 
     allocPngAsset("king.png", &cc.king);
 }
@@ -144,7 +144,7 @@ void ICACHE_FLASH_ATTR ccAnimation(void* arg __attribute__((unused)))
 void ICACHE_FLASH_ATTR colorchordExitMode(void)
 {
     // Disarm the timer
-    syncedTimerDisarm(&cc.ccLedOverrideTimer);
+    timerDisarm(&cc.ccLedOverrideTimer);
 
     freePngAsset(&cc.king);
 }
@@ -219,8 +219,8 @@ void ICACHE_FLASH_ATTR colorchordButtonCallback(
     {
         // Start a timer to restore LED functionality to colorchord
         cc.ccOverrideLeds = true;
-        syncedTimerDisarm(&cc.ccLedOverrideTimer);
-        syncedTimerArm(&cc.ccLedOverrideTimer, 1000, false);
+        timerDisarm(&cc.ccLedOverrideTimer);
+        timerArm(&cc.ccLedOverrideTimer, 1000, false);
 
         switch(button)
         {

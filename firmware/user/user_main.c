@@ -63,7 +63,7 @@ rtcMem_t;
  *==========================================================================*/
 
 #if defined(FEATURE_ACCEL)
-    static syncedTimer_t timerHandlePollAccel;
+    static timer_t timerHandlePollAccel;
     bool QMA6981_init = false;
 #endif
 
@@ -211,9 +211,9 @@ void ICACHE_FLASH_ATTR user_init(void)
         if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
         {
             // Start a software timer to run every 100ms
-            syncedTimerDisarm(&timerHandlePollAccel);
-            syncedTimerSetFn(&timerHandlePollAccel, pollAccel, NULL);
-            syncedTimerArm(&timerHandlePollAccel, 100, 1);
+            timerDisarm(&timerHandlePollAccel);
+            timerSetFn(&timerHandlePollAccel, pollAccel, NULL);
+            timerArm(&timerHandlePollAccel, 100, 1);
         }
 #endif
 
@@ -307,7 +307,7 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events __attribute__((unused)
 #endif
 
     // Process all the synchronous timers
-    syncedTimersCheck();
+    timersCheck();
 
 #if defined(FEATURE_OLED)
     // Update the display as fast as possible.
@@ -466,9 +466,9 @@ void ICACHE_FLASH_ATTR exitCurrentSwadgeMode(void)
         swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode();
     }
 #if defined(FEATURE_ACCEL)
-    syncedTimerDisarm(&timerHandlePollAccel);
+    timerDisarm(&timerHandlePollAccel);
 #endif
-    syncedTimersCheck();
+    timersCheck();
 }
 
 /**
@@ -540,8 +540,8 @@ uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr)
  */
 void ICACHE_FLASH_ATTR setAccelPollTime(uint32_t pollTimeMs)
 {
-    syncedTimerDisarm(&timerHandlePollAccel);
-    syncedTimerArm(&timerHandlePollAccel, pollTimeMs, true);
+    timerDisarm(&timerHandlePollAccel);
+    timerArm(&timerHandlePollAccel, pollTimeMs, true);
 }
 
 /**
