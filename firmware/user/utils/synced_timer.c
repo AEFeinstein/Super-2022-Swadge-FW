@@ -5,6 +5,8 @@
 #include "synced_timer.h"
 #include "linked_list.h"
 
+#ifdef SYNCED_TIMER
+
 // #define debugTmr(t) os_printf("%s::%d -- %p: armed %s, repeat %s, src %d\n", __func__, __LINE__, t, t->isArmed?"true":"false", t->isRepeat?"true":"false", t->shouldRunCnt)
 #define debugTmr(t)
 
@@ -197,3 +199,5 @@ void ICACHE_FLASH_ATTR syncedTimerFlush(void)
         currentNode = next;
     }
 }
+
+#endif
