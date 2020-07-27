@@ -622,17 +622,28 @@ void ICACHE_FLASH_ATTR drawGifFromAsset(gifHandle* handle, int16_t xp, int16_t y
         {
             int16_t x = w;
             int16_t y = h;
-            transformPixel(&x, &y, xp, yp, flipLR, flipUD, rotateDeg,
-                           handle->width, handle->height);
-            int16_t byteIdx = (w + (h * handle->width)) / 8;
-            int16_t bitIdx  = (w + (h * handle->width)) % 8;
-            if(handle->frame[byteIdx] & (0x80 >> bitIdx))
+            if(yp || flipLR || flipUD || rotateDeg)
             {
-                drawPixel(x, y, WHITE);
+                transformPixel(&x, &y, xp, yp, flipLR, flipUD, rotateDeg,
+                               handle->width, handle->height);
             }
-            else
+            else if(xp)
             {
-                drawPixel(x, y, BLACK);
+                x += xp;
+            }
+
+            if(0 <= x && x < OLED_WIDTH)
+            {
+                int16_t byteIdx = (w + (h * handle->width)) / 8;
+                int16_t bitIdx  = (w + (h * handle->width)) % 8;
+                if(handle->frame[byteIdx] & (0x80 >> bitIdx))
+                {
+                    drawPixel(x, y, WHITE);
+                }
+                else
+                {
+                    drawPixel(x, y, BLACK);
+                }
             }
         }
     }
