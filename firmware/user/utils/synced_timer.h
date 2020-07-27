@@ -3,6 +3,8 @@
 
 #include "osapi.h"
 
+#define SYNCED_TIMER
+
 #ifndef SYNCED_TIMER
 
 #define timer_t                       os_timer_t
