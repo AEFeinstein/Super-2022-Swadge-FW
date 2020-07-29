@@ -25,8 +25,11 @@
 */
 
 #include <osapi.h>
+#include "fastlz.h"
 
-#if !defined(FASTLZ__COMPRESSOR) && !defined(FASTLZ_DECOMPRESSOR)
+#if defined(FEATURE_OLED)
+
+#if !defined(FASTLZ_COMPRESSOR) && !defined(FASTLZ_DECOMPRESSOR)
 
 /*
  * Always check for bound when decompressing.
@@ -82,11 +85,6 @@
 typedef unsigned char  flzuint8;
 typedef unsigned short flzuint16;
 typedef unsigned int   flzuint32;
-
-/* prototypes */
-int fastlz_compress(const void* input, int length, void* output);
-int fastlz_compress_level(int level, const void* input, int length, void* output);
-int fastlz_decompress(const void* input, int length, void* output, int maxout);
 
 #define MAX_COPY       32
 #define MAX_LEN       264  /* 256 + 8 */
@@ -638,3 +636,5 @@ static FASTLZ_INLINE int ICACHE_FLASH_ATTR FASTLZ_DECOMPRESSOR(const void* input
 }
 
 #endif /* !defined(FASTLZ_COMPRESSOR) && !defined(FASTLZ_DECOMPRESSOR) */
+
+#endif

@@ -406,7 +406,11 @@ void ICACHE_FLASH_ATTR HandleFrameInfo(void)
             int16_t amp2 = note_peak_amps[from];
 
             //0 to 32768 porportional to how much of amp1 we want.
-            uint32_t porp = (amp1 << 15) / (amp1 + amp2);
+            uint32_t porp = 0;
+            if(amp1 || amp2)
+            {
+                porp = (amp1 << 15) / (amp1 + amp2);
+            }
             uint16_t newnote = (nf1 * porp + nf2 * (32768 - porp)) >> 15;
 
             //When combining notes, we have to use the stronger amplitude note.

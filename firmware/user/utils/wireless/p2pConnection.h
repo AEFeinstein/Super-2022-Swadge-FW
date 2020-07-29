@@ -80,10 +80,10 @@ typedef struct _p2pInfo
     // The timers used for connection and acking
     struct
     {
-        syncedTimer_t TxRetry;
-        syncedTimer_t TxAllRetries;
-        syncedTimer_t Connection;
-        syncedTimer_t Reinit;
+        timer_t TxRetry;
+        timer_t TxAllRetries;
+        timer_t Connection;
+        timer_t Reinit;
     } tmr;
 } p2pInfo;
 

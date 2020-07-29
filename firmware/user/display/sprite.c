@@ -2,6 +2,8 @@
 #include "oled.h"
 #include "sprite.h"
 
+#if defined(FEATURE_OLED)
+
 /**
  * @brief Draw a sprite to the display
  *
@@ -61,3 +63,5 @@ int16_t ICACHE_FLASH_ATTR plotSprite(int16_t x, int16_t y, const sprite_t* p_spr
     }
     return (int16_t) (x + sprite_ram.width + 1);
 }
+
+#endif

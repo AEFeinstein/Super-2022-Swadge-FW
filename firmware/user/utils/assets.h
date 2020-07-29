@@ -2,6 +2,39 @@
 #define _ASSETS_H_
 
 #include "synced_timer.h"
+#include "user_config.h"
+
+#if defined(FEATURE_OLED)
+
+uint32_t* getAsset(const char* name, uint32_t* retLen);
+
+#if defined(EMU)
+void ICACHE_FLASH_ATTR freeAssets(void);
+#endif
+
+typedef struct
+{
+    uint16_t width;
+    uint16_t height;
+    uint32_t* data;
+} pngHandle;
+
+bool ICACHE_FLASH_ATTR allocPngAsset(const char* name, pngHandle* handle);
+void ICACHE_FLASH_ATTR freePngAsset(pngHandle* handle);
+void ICACHE_FLASH_ATTR drawPng(pngHandle* handle, int16_t xp,
+                               int16_t yp, bool flipLR, bool flipUD, int16_t rotateDeg);
+
+typedef struct
+{
+    uint16_t count;
+    pngHandle* handles;
+    uint16_t cFrame;
+} pngSequenceHandle;
+
+bool ICACHE_FLASH_ATTR allocPngSequence(pngSequenceHandle* handle, uint16_t count, ...);
+void ICACHE_FLASH_ATTR freePngSequence(pngSequenceHandle* handle);
+void ICACHE_FLASH_ATTR drawPngSequence(pngSequenceHandle* handle, int16_t xp,
+                                       int16_t yp, bool flipLR, bool flipUD, int16_t rotateDeg, int16_t frame);
 
 typedef struct
 {
@@ -15,27 +48,18 @@ typedef struct
 
     uint16_t width;
     uint16_t height;
-    uint16_t xp;
-    uint16_t yp;
-    bool flipLR;
-    bool flipUD;
-    int16_t rotateDeg;
 
     uint16_t nFrames;
     uint16_t cFrame;
     uint16_t duration;
-    syncedTimer_t timer;
+
+    bool firstFrameLoaded;
 } gifHandle;
 
-uint32_t* getAsset(const char* name, uint32_t* retLen);
+void loadGifFromAsset(const char* name, gifHandle* handle);
+void drawGifFromAsset(gifHandle* handle, int16_t xp, int16_t yp,
+                      bool flipLR, bool flipUD, int16_t rotateDeg, bool drawNext);
+void freeGifAsset(gifHandle* handle);
 
-void drawBitmapFromAsset(const char* name, int16_t xp, int16_t yp,
-                         bool flipLR, bool flipUD, int16_t rotateDeg);
-
-void drawGifFromAsset(const char* name, int16_t xp, int16_t yp,
-                      bool flipLR, bool flipUD, int16_t rotateDeg,
-                      gifHandle* handle);
-
-void freeGifMemory(gifHandle* handle);
-
+#endif
 #endif

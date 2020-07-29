@@ -88,6 +88,42 @@ static const gpioInfo_t gpioInfoInput[] =
         .periph = PERIPHS_IO_MUX_GPIO4_U,
         .initialState = 1
     },
+#elif (SWADGE_VERSION == SWADGE_CHAINSAW)
+    // Left
+    {
+        .GPID = 4,
+        .func = FUNC_GPIO4,
+        .periph = PERIPHS_IO_MUX_GPIO4_U,
+        .initialState = 1
+    },
+    // Down
+    {
+        .GPID = 5,
+        .func = FUNC_GPIO5,
+        .periph = PERIPHS_IO_MUX_GPIO5_U,
+        .initialState = 1
+    },
+    // Right
+    {
+        .GPID = 12,
+        .func = FUNC_GPIO12,
+        .periph = PERIPHS_IO_MUX_MTDI_U,
+        .initialState = 1
+    },
+    // Up
+    {
+        .GPID = 13,
+        .func = FUNC_GPIO13,
+        .periph = PERIPHS_IO_MUX_MTCK_U,
+        .initialState = 1
+    },
+    // Select
+    {
+        .GPID = 14,
+        .func = FUNC_GPIO14,
+        .periph = PERIPHS_IO_MUX_MTMS_U,
+        .initialState = 1
+    },
 #else
     // Up
     {
@@ -110,6 +146,13 @@ static const gpioInfo_t gpioInfoInput[] =
         .periph = PERIPHS_IO_MUX_MTDI_U,
         .initialState = 1
     },
+    // Down
+    {
+        .GPID = 5,
+        .func = FUNC_GPIO5,
+        .periph = PERIPHS_IO_MUX_GPIO5_U,
+        .initialState = 1
+    },
 #endif
 };
 
@@ -122,6 +165,7 @@ static const gpioInfo_t gpioInfoOutput[] =
         .periph = PERIPHS_IO_MUX_MTDO_U,
         .initialState = 0
     },
+#if (SWADGE_VERSION != SWADGE_CHAINSAW)
     // Pull GPIO 14 high, this is for the microphone
     {
         .GPID = 14,
@@ -129,6 +173,7 @@ static const gpioInfo_t gpioInfoOutput[] =
         .periph = PERIPHS_IO_MUX_MTMS_U,
         .initialState = 1
     },
+#if defined (FEATURE_BZR)
     // Buzzer
     {
         .GPID = 5,
@@ -136,6 +181,8 @@ static const gpioInfo_t gpioInfoOutput[] =
         .periph = PERIPHS_IO_MUX_GPIO5_U,
         .initialState = 0
     },
+#endif
+#endif
 };
 
 /*============================================================================
@@ -175,10 +222,8 @@ void gpioInterrupt( void* v __attribute__((unused)))
 /**
  * Initialize the GPIOs as button inputs with internal pullups and interrupts
  * Also set 14 high for the microphone
- *
- * @param enableMic true to enable the microphone, false to disable it
  */
-void ICACHE_FLASH_ATTR SetupGPIO(bool enableMic)
+void ICACHE_FLASH_ATTR SetupGPIO(void)
 {
     // Disable gpio interrupts
     ETS_GPIO_INTR_DISABLE();
@@ -218,24 +263,9 @@ void ICACHE_FLASH_ATTR SetupGPIO(bool enableMic)
         GPIO_OUTPUT_SET(GPIO_ID_PIN(gpioInfoOutput[i].GPID), gpioInfoOutput[i].initialState );
     }
 
-    // Turn off the mic if it's not being used
-    if(false == enableMic)
-    {
-        GPIO_OUTPUT_SET(GPIO_ID_PIN(14), 0);
-    }
-
-    // Set GPIO16 for Input,  mux configuration for XPD_DCDC and rtc_gpio0 connection
-    WRITE_PERI_REG(PAD_XPD_DCDC_CONF,
-                   (READ_PERI_REG(PAD_XPD_DCDC_CONF) & 0xffffffbc) | (uint32)
-                   0x1);
-
-    // mux configuration for out enable
-    WRITE_PERI_REG(RTC_GPIO_CONF,
-                   (READ_PERI_REG(RTC_GPIO_CONF) & (uint32)0xfffffffe) | (uint32)0x0);
-
-    // out disable
-    WRITE_PERI_REG(RTC_GPIO_ENABLE,
-                   READ_PERI_REG(RTC_GPIO_ENABLE) & (uint32)0xfffffffe);
+    /* If you need to configure GPIO16, add ESP8266_NONOS_SDK/driver_lib/driver/gpio16.c
+     * to the makefile and call either gpio16_output_conf() or gpio16_input_conf()
+     */
 
     mBuzzerState = false;
 
@@ -274,6 +304,7 @@ uint8_t ICACHE_FLASH_ATTR getLastGPIOState(void)
     return LastGPIOState;
 }
 
+#if defined(FEATURE_OLED)
 /**
  * TODO
  * @param on
@@ -282,7 +313,9 @@ void ICACHE_FLASH_ATTR setOledResetOn(bool on)
 {
     GPIO_OUTPUT_SET(GPIO_ID_PIN(15), on ? 1 : 0 );
 }
+#endif
 
+#if defined(FEATURE_BZR)
 /**
  * Set the buzzer either off or on
  * @param on true to set it on, false to set it off
@@ -302,6 +335,7 @@ bool ICACHE_FLASH_ATTR getBuzzerGpio(void)
 {
     return mBuzzerState;
 }
+#endif
 
 /**
  * TODO

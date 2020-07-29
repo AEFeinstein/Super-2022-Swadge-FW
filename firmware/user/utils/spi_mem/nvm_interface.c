@@ -17,7 +17,7 @@
  * Defines
  *==========================================================================*/
 
-#define SAVE_LOAD_KEY 0xB4
+#define SAVE_LOAD_KEY 0xB5
 
 /*============================================================================
  * Structs
@@ -28,6 +28,7 @@ typedef struct __attribute__((aligned(4)))
 {
     uint8_t SaveLoadKey; //Must be SAVE_LOAD_KEY to be valid.
     bool isMuted;
+    uint8_t menuPos;
 }
 settings_t;
 
@@ -45,7 +46,8 @@ typedef struct
 settings_t settings =
 {
     .SaveLoadKey = 0,
-    .isMuted = 0
+    .isMuted = 0,
+    .menuPos = 0,
 };
 
 bool muteOverride = false;
@@ -98,6 +100,18 @@ void ICACHE_FLASH_ATTR SaveSettings(void)
     ExitCritical();
 }
 
+uint8_t ICACHE_FLASH_ATTR getMenuPos(void)
+{
+    return settings.menuPos;
+}
+
+void ICACHE_FLASH_ATTR setMenuPos(uint8_t pos)
+{
+    settings.menuPos = pos;
+    SaveSettings();
+}
+
+#if defined(FEATURE_BZR)
 /**
  * @brief
  *
@@ -118,3 +132,4 @@ void ICACHE_FLASH_ATTR setIsMutedOption(bool mute)
     settings.isMuted = mute;
     SaveSettings();
 }
+#endif

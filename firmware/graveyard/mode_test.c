@@ -12,7 +12,6 @@
 
 #include <osapi.h>
 #include <stdlib.h>
-
 #include "user_main.h"
 #include "mode_test.h"
 #include "hsv_utils.h"
@@ -31,9 +30,9 @@
  *==========================================================================*/
 
 #define BTN_CTR_X 96
-#define BTN_CTR_Y 40
-#define BTN_RAD    8
-#define BTN_OFF   12
+#define BTN_CTR_Y 52
+#define BTN_RAD    4
+#define BTN_OFF   8
 
 /*============================================================================
  * Prototypes
@@ -268,6 +267,9 @@ const char sprites[][16] =
     "wing_snake.png"
 };
 
+pngHandle spriteHandles[16] = {{0}};
+pngSequenceHandle psh = {0};
+
 /*============================================================================
  * Variables
  *==========================================================================*/
@@ -297,7 +299,9 @@ struct
 
     uint8_t BananaIdx;
     uint16_t rotation;
+    int8_t rotationInc;
     gifHandle gHandle;
+    uint8_t ledBrightness;
 } test;
 
 /*============================================================================
@@ -332,6 +336,24 @@ void ICACHE_FLASH_ATTR testEnterMode(void)
     syncedTimerSetFn(&test.TimerHandleLeds, testLedFunc, NULL);
     syncedTimerArm(&test.TimerHandleLeds, 1000, true);
 
+    for(uint8_t i = 0; i < 16; i++)
+    {
+        allocPngAsset(sprites[i], &spriteHandles[i]);
+    }
+
+    allocPngSequence(&psh, 11,
+                     "syringe01.png",
+                     "syringe02.png",
+                     "syringe03.png",
+                     "syringe04.png",
+                     "syringe05.png",
+                     "syringe06.png",
+                     "syringe07.png",
+                     "syringe08.png",
+                     "syringe09.png",
+                     "syringe10.png",
+                     "syringe11.png");
+
     // Draw a gif
     // drawGifFromAsset("ragequit.gif", 0, 0, false, false, 0, &test.gHandle);
 }
@@ -344,6 +366,11 @@ void ICACHE_FLASH_ATTR testExitMode(void)
     stopBuzzerSong();
     syncedTimerDisarm(&test.timerHandleBanana);
     syncedTimerDisarm(&test.TimerHandleLeds);
+    for(uint8_t i = 0; i < 16; i++)
+    {
+        freePngAsset(&spriteHandles[i]);
+    }
+    freePngSequence(&psh);
 }
 
 /**
@@ -354,11 +381,22 @@ void ICACHE_FLASH_ATTR testExitMode(void)
 static void ICACHE_FLASH_ATTR testLedFunc(void* arg __attribute__((unused)))
 {
     led_t leds[NUM_LIN_LEDS] = {{0}};
-    static int ledPos = 0;
-    ledPos = (ledPos + 1) % NUM_LIN_LEDS;
-    leds[(ledPos + 0) % NUM_LIN_LEDS].r = 16;
-    leds[(ledPos + 1) % NUM_LIN_LEDS].g = 16;
-    leds[(ledPos + 2) % NUM_LIN_LEDS].b = 16;
+    //static int ledPos = 0;
+    // ledPos = (ledPos + 1) % NUM_LIN_LEDS;
+
+    // leds[(ledPos + 0) % NUM_LIN_LEDS].r = 16;
+    // leds[(ledPos + 1) % NUM_LIN_LEDS].g = 16;
+    // leds[(ledPos + 2) % NUM_LIN_LEDS].b = 16;
+    leds[0].r = test.ledBrightness;
+    leds[1].r = test.ledBrightness;
+    leds[1].g = test.ledBrightness;
+    leds[2].g = test.ledBrightness;
+    leds[3].g = test.ledBrightness;
+    leds[3].b = test.ledBrightness;
+    leds[4].b = test.ledBrightness;
+    leds[5].b = test.ledBrightness;
+    leds[5].r = test.ledBrightness;
+    os_printf("ledBrightness=%d\n", test.ledBrightness);
     setLeds(leds, sizeof(leds));
 }
 
@@ -370,7 +408,7 @@ static void ICACHE_FLASH_ATTR testLedFunc(void* arg __attribute__((unused)))
 static void ICACHE_FLASH_ATTR testAnimateSprite(void* arg __attribute__((unused)))
 {
     // test.rotation = (test.rotation + 90) % 360;
-    test.rotation = (test.rotation + 3) % 360;
+    test.rotation = (test.rotation + test.rotationInc + 360) % 360;
 
     testUpdateDisplay();
 
@@ -410,6 +448,9 @@ void ICACHE_FLASH_ATTR testUpdateDisplay(void)
 
     ets_snprintf(accelStr, sizeof(accelStr), "Z:%d", test.Accel.z);
     plotText(0, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8, WHITE);
+
+    ets_snprintf(accelStr, sizeof(accelStr), "B:%d", test.ledBrightness);
+    plotText(64, OLED_HEIGHT - (1 * (FONT_HEIGHT_IBMVGA8 + 1)), accelStr, IBM_VGA_8, WHITE);
 
     if(abs(test.Accel.x) > abs(test.Accel.y) &&
             abs(test.Accel.x) > abs(test.Accel.z))
@@ -476,7 +517,11 @@ void ICACHE_FLASH_ATTR testUpdateDisplay(void)
         // Right
         plotCircle(BTN_CTR_X + BTN_OFF, BTN_CTR_Y, BTN_RAD, WHITE);
     }
-
+    if(test.ButtonState & DOWN)
+    {
+        // Down
+        plotCircle(BTN_CTR_X, BTN_CTR_Y + BTN_OFF, BTN_RAD, WHITE);
+    }
     // Draw the banana
     plotSprite(50, 40, &rotating_banana[test.BananaIdx], WHITE);
 
@@ -487,13 +532,15 @@ void ICACHE_FLASH_ATTR testUpdateDisplay(void)
         uint8_t x = spIdx % 5;
         uint8_t y = spIdx / 5;
 
-        drawBitmapFromAsset(sprites[spIdx],
-                            38 + (18 * x),
-                            20 + (17 * y),
-                            false,
-                            false,
-                            test.rotation);
+        drawPng(&spriteHandles[spIdx],
+                38 + (18 * x),
+                20 + (17 * y),
+                false,
+                false,
+                test.rotation);
     }
+
+    drawPngSequence(&psh, 0, FONT_HEIGHT_RADIOSTARS + 2, false, false, 0, -1);
 }
 
 /**
@@ -507,22 +554,24 @@ void ICACHE_FLASH_ATTR testButtonCallback( uint8_t state,
         int button __attribute__((unused)), int down __attribute__((unused)))
 {
     test.ButtonState = state;
+    os_printf("buttonstate %d button %d\n", state, button);
     if(down)
     {
-        if(button == 2)
+        if(button == 1)
         {
-            test.rotation = (test.rotation + 1) % 360;
+            test.rotationInc++;
         }
-        else if (button == 1)
+        else if (button == 0)
         {
-            if(test.rotation == 0)
-            {
-                test.rotation = 359;
-            }
-            else
-            {
-                test.rotation = (test.rotation - 1);
-            }
+            test.rotationInc--;
+        }
+        else if (button == 3)
+        {
+            test.ledBrightness++;
+        }
+        else if (button == 2)
+        {
+            test.ledBrightness--;
         }
         testUpdateDisplay();
     }

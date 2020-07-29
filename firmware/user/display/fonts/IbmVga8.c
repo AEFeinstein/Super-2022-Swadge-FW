@@ -1,5 +1,7 @@
 #include "font.h"
 
+#if defined(FEATURE_OLED)
+
 const sprite_t font_IbmVga8[] RODATA_ATTR =
 {
     {
@@ -1108,3 +1110,4 @@ const sprite_t font_IbmVga8[] RODATA_ATTR =
     },
 };
 
+#endif

@@ -24,7 +24,7 @@ uint32_t xthal_get_ccount(void);
 #define printf os_printf
 #define run ets_run
 #define set_idle_cb ets_set_idle_cb
-#ifndef EMU
+#if !defined(EMU)
 #define snprintf ets_snprintf
 #define sprintf ets_sprintf
 #define putc ets_putc

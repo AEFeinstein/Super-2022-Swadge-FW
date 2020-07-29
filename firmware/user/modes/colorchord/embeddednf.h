@@ -4,6 +4,7 @@
 #define _EMBEDDEDNF_H
 
 #include <ccconfig.h>
+#include "user_config.h"
 
 //Use a 32-bit DFT.  It won't work for AVRs, but for any 32-bit systems where
 //they can multiply quickly, this is the bees knees.

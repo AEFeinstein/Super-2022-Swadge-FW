@@ -32,12 +32,10 @@
 #include "synced_timer.h"
 #include "printControl.h"
 
-#include "mode_test.h"
-#include "mode_ring.h"
-#include "mode_magpet.h"
-#include "mode_swadgepass.h"
+#include "mode_menu.h"
 #include "mode_colorchord.h"
-#include "mode_tiltrads.h"
+#include "mode_personal_demon.h"
+#include "mode_flappy.h"
 
 #include "ccconfig.h"
 
@@ -64,26 +62,27 @@ rtcMem_t;
  * Variables
  *==========================================================================*/
 
-static syncedTimer_t timerHandlePollAccel;
-static syncedTimer_t timerHandleReturnToMenu;
+#if defined(FEATURE_ACCEL)
+    static timer_t timerHandlePollAccel;
+    bool QMA6981_init = false;
+#endif
 
 os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 
 swadgeMode* swadgeModes[] =
 {
+    &menuMode,
+    &personalDemonMode,
     &colorchordMode,
-    &ringMode,
-    &tiltradsMode,
-    &passMode,
-    &testMode,
-    &magpetMode,
+    &flappyMode,
 };
 
 bool swadgeModeInit = false;
 rtcMem_t rtcMem = {0};
 
-bool QMA6981_init = false;
-uint16_t framesDrawn = 0;
+#if defined(FEATURE_OLED)
+    uint16_t framesDrawn = 0;
+#endif
 
 /*============================================================================
  * Prototypes
@@ -93,11 +92,12 @@ void ICACHE_FLASH_ATTR user_pre_init(void);
 void ICACHE_FLASH_ATTR user_init(void);
 
 static void ICACHE_FLASH_ATTR procTask(os_event_t* events);
-static void ICACHE_FLASH_ATTR pollAccel(void* arg);
-void ICACHE_FLASH_ATTR initializeAccelerometer(void);
-static void ICACHE_FLASH_ATTR returnToMenuTimerFunc(void* arg);
+#if defined(FEATURE_ACCEL)
+    static void ICACHE_FLASH_ATTR pollAccel(void* arg);
+    void ICACHE_FLASH_ATTR initializeAccelerometer(void);
+#endif
 
-#if SWADGE_VERSION == SWADGE_2019
+#if !defined(FEATURE_OLED)
     void ICACHE_FLASH_ATTR incrementSwadgeMode(void);
 #endif
 
@@ -187,37 +187,37 @@ void ICACHE_FLASH_ATTR user_init(void)
     if(SWADGE_PASS != swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
     {
         // Initialize GPIOs
-        SetupGPIO(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback);
+        SetupGPIO();
 
-#ifdef PROFILE
-        GPIO_OUTPUT_SET(GPIO_ID_PIN(0), 0);
-#endif
-
-        // Initialize LEDs
 #ifndef USE_ESP_GDB
+        // Initialize LEDs
         ws2812_init();
+        // Turn LEDs off
+        led_t leds[NUM_LIN_LEDS] = {{0}};
+        setLeds(leds, sizeof(leds));
         INIT_PRINTF("LEDs initialized\n");
 #endif
 
+#if defined(FEATURE_OLED) || defined(FEATURE_ACCEL)
         // Initialize i2c
         cnlohr_i2c_setup(100);
         INIT_PRINTF("I2C initialized\n");
+#endif
 
+#if defined(FEATURE_ACCEL)
         // Initialize accel
         initializeAccelerometer();
 
-#if SWADGE_VERSION != SWADGE_2019
         if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback)
-#else
-        if(true)
-#endif
         {
             // Start a software timer to run every 100ms
-            syncedTimerDisarm(&timerHandlePollAccel);
-            syncedTimerSetFn(&timerHandlePollAccel, pollAccel, NULL);
-            syncedTimerArm(&timerHandlePollAccel, 100, 1);
+            timerDisarm(&timerHandlePollAccel);
+            timerSetFn(&timerHandlePollAccel, pollAccel, NULL);
+            timerArm(&timerHandlePollAccel, 100, 1);
         }
+#endif
 
+#if defined(FEATURE_OLED)
         // Initialize display
         if(true == initOLED(true))
         {
@@ -228,22 +228,22 @@ void ICACHE_FLASH_ATTR user_init(void)
             INIT_PRINTF("OLED initialization failed\n");
         }
         framesDrawn = 0;
+#endif
 
+#if defined(FEATURE_MIC)
         // Initialize either the buzzer or the mic
         if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
         {
             initMic();
         }
-        else
-        {
-            // Initialize the buzzer
-            initBuzzer();
-            setBuzzerNote(SILENCE);
-        }
+#endif
 
-        // Turn LEDs off
-        led_t leds[NUM_LIN_LEDS] = {{0}};
-        setLeds(leds, sizeof(leds));
+#if defined(FEATURE_BZR)
+        INIT_PRINTF("Init Buzzer\n");
+        // Initialize the buzzer
+        initBuzzer();
+        setBuzzerNote(SILENCE);
+#endif
     }
 
     // Initialize the current mode
@@ -262,10 +262,6 @@ void ICACHE_FLASH_ATTR user_init(void)
     // This is faster than every 100ms
     system_os_task(procTask, PROC_TASK_PRIO, procTaskQueue, PROC_TASK_QUEUE_LEN);
     system_os_post(PROC_TASK_PRIO, 0, 0 );
-
-    // Setup a software timer to return to the menu
-    syncedTimerDisarm(&timerHandleReturnToMenu);
-    syncedTimerSetFn(&timerHandleReturnToMenu, returnToMenuTimerFunc, NULL);
 }
 
 /*============================================================================
@@ -286,14 +282,10 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events __attribute__((unused)
     // Post another task to this thread
     system_os_post(PROC_TASK_PRIO, 0, 0 );
 
-    // For profiling so we can see how much CPU is spent in this loop.
-#ifdef PROFILE
-    WRITE_PERI_REG( PERIPHS_GPIO_BASEADDR + GPIO_ID_PIN(0), 1 );
-#endif
-
     // Process queued button presses synchronously
     HandleButtonEventSynchronous();
 
+#if defined(FEATURE_MIC)
     // While there are samples available from the ADC
     while( sampleAvailable() )
     {
@@ -306,16 +298,18 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events __attribute__((unused)
         // Amplify the sample
         samp = (samp * CCS.gINITIAL_AMP) >> 4;
 
-        // Pass the button to the mode
+        // Pass the sample to the mode
         if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback)
         {
             swadgeModes[rtcMem.currentSwadgeMode]->fnAudioCallback(samp);
         }
     }
+#endif
 
     // Process all the synchronous timers
-    syncedTimersCheck();
+    timersCheck();
 
+#if defined(FEATURE_OLED)
     // Update the display as fast as possible.
     if(1000 <= framesDrawn)
     {
@@ -324,15 +318,6 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events __attribute__((unused)
         setOLEDparams(false);
         updateOLED(false);
         framesDrawn = 0;
-
-        // Debug code to print time between full redraws
-        // static uint32_t lastFullDraw = 0;
-        // uint32_t time = system_get_time();
-        // if(0 != lastFullDraw)
-        // {
-        //     os_printf("rd %dus\n", time - lastFullDraw);
-        // }
-        // lastFullDraw = time;
     }
     else
     {
@@ -342,12 +327,10 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events __attribute__((unused)
             framesDrawn++;
         }
     }
-
-#ifdef PROFILE
-    WRITE_PERI_REG( PERIPHS_GPIO_BASEADDR + GPIO_ID_PIN(0), 0 );
 #endif
 }
 
+#if defined(FEATURE_ACCEL)
 /**
  * @brief Polls the accelerometer every 100ms
  *
@@ -375,8 +358,7 @@ static void ICACHE_FLASH_ATTR pollAccel(void* arg __attribute__((unused)))
         accel.x = xarrow;
         accel.y = yarrow;
         accel.z = zarrow;
-#endif
-#if SWADGE_VERSION == SWADGE_2019
+#elif SWADGE_VERSION == SWADGE_2019
         //TODO put code to return random, specific periods, or L/R button presses
         accel.x = 0;
         accel.y = 0;
@@ -386,22 +368,7 @@ static void ICACHE_FLASH_ATTR pollAccel(void* arg __attribute__((unused)))
         swadgeModes[rtcMem.currentSwadgeMode]->fnAccelerometerCallback(&accel);
     }
 }
-
-/**
- * @brief Function called on a 10ms timer when the return menu bar is being drawn
- *
- * @param arg unused
- */
-static void ICACHE_FLASH_ATTR returnToMenuTimerFunc(void* arg __attribute__((unused)))
-{
-    // If the bar is full
-    if(128 == incrementMenuBar())
-    {
-        // Go back to the menu
-        switchToSwadgeMode(0);
-        syncedTimerDisarm(&timerHandleReturnToMenu);
-    }
-}
+#endif
 
 /*============================================================================
  * Interrupt Functions
@@ -430,12 +397,6 @@ void ExitCritical(void)
 /*============================================================================
  * Swadge Mode Utility Functions
  *==========================================================================*/
-#if SWADGE_VERSION == SWADGE_2019
-void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
-{
-    (void) newMode;
-}
-#endif
 
 /**
  * This deinitializes the current mode if it is initialized, displays the next
@@ -443,7 +404,7 @@ void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
  * If the reboot timer is running, it will be reset
  *
  */
-#if SWADGE_VERSION != SWADGE_2019
+#if defined(FEATURE_OLED)
     void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
 #else
     void ICACHE_FLASH_ATTR incrementSwadgeMode(void)
@@ -480,13 +441,34 @@ void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode)
     }
 
     // Switch to the next mode, or start from the beginning if we're at the end
-#if SWADGE_VERSION != SWADGE_2019
+#if defined(FEATURE_OLED)
     rtcMem.currentSwadgeMode = newMode;
 #else
     rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
 #endif
 
+#if defined(EMU)
+    system_set_rst_reason(REASON_DEEP_SLEEP_AWAKE);
+    system_rtc_mem_write(RTC_MEM_ADDR, &rtcMem, sizeof(rtcMem));
+    user_init();
+#else
     enterDeepSleep(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode, 1000);
+#endif
+}
+
+/**
+ * @brief Helper function for the emulator to clean up the current mode
+ */
+void ICACHE_FLASH_ATTR exitCurrentSwadgeMode(void)
+{
+    if(NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode)
+    {
+        swadgeModes[rtcMem.currentSwadgeMode]->fnExitMode();
+    }
+#if defined(FEATURE_ACCEL)
+    timerDisarm(&timerHandlePollAccel);
+#endif
+    timersCheck();
 }
 
 /**
@@ -550,8 +532,7 @@ uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr)
     return (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
 }
 
-#if SWADGE_VERSION != SWADGE_2019
-
+#if defined(FEATURE_ACCEL)
 /**
  * @brief Set the time between accelerometer polls
  *
@@ -559,15 +540,9 @@ uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr)
  */
 void ICACHE_FLASH_ATTR setAccelPollTime(uint32_t pollTimeMs)
 {
-    syncedTimerDisarm(&timerHandlePollAccel);
-    syncedTimerArm(&timerHandlePollAccel, pollTimeMs, true);
+    timerDisarm(&timerHandlePollAccel);
+    timerArm(&timerHandlePollAccel, pollTimeMs, true);
 }
-
-#else
-void ICACHE_FLASH_ATTR setAccelPollTime(uint32_t pollTimeMs)
-{
-}
-#endif
 
 /**
  * Attempt to initialize the accelerometers. See what we get
@@ -592,6 +567,7 @@ void ICACHE_FLASH_ATTR initializeAccelerometer(void)
         INIT_PRINTF("QMA6981 not needed\n");
     }
 }
+#endif
 
 /*============================================================================
  * Swadge Mode Callback Functions
@@ -607,39 +583,11 @@ void ICACHE_FLASH_ATTR initializeAccelerometer(void)
  */
 void ICACHE_FLASH_ATTR swadgeModeButtonCallback(uint8_t state, int button, int down)
 {
-    if(0 == button)
-    {
-#if SWADGE_VERSION != SWADGE_2019
-        // If the menu button was pressed
-        if(0 == rtcMem.currentSwadgeMode)
-        {
-            // Only for the menu mode, pass the button event to the mode
-            swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(state, button, down);
-        }
-        else if(down)
-        {
-            // Start drawing the progress bar
-            syncedTimerArm(&timerHandleReturnToMenu, 10, true);
-        }
-        else
-        {
-            // If it was released, stop drawing the progress bar and clear it
-            syncedTimerDisarm(&timerHandleReturnToMenu);
-            zeroMenuBar();
-        }
-#else
-        // Switch the mode
-        incrementSwadgeMode();
-#endif
-    }
-    //NOTE for 2020 button 0 can only be used for menu, if want to be able to use momentary press in other modes
-    //     change 'else if' to 'if'
-    else if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
+    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback)
     {
         // Pass the button event to the mode
         swadgeModes[rtcMem.currentSwadgeMode]->fnButtonCallback(state, button, down);
     }
-
 }
 
 /**

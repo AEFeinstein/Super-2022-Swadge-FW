@@ -6,7 +6,6 @@
 #define HPABUFFSIZE 512
 
 #define CCEMBEDDED
-#define NUM_LIN_LEDS 6
 #define DFREQ 16000
 
 #define ROOT_NOTE_OFFSET     CCS.gROOT_NOTE_OFFSET
