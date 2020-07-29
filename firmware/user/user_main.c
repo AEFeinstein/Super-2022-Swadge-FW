@@ -33,6 +33,7 @@
 #include "printControl.h"
 
 #include "mode_menu.h"
+#include "mode_ddr.h"
 #include "mode_colorchord.h"
 #include "mode_personal_demon.h"
 #include "mode_flappy.h"
@@ -73,6 +74,7 @@ swadgeMode* swadgeModes[] =
 {
     &menuMode,
     &personalDemonMode,
+    &ddrMode,
     &colorchordMode,
     &flappyMode,
 };
