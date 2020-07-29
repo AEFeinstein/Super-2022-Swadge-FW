@@ -62,6 +62,7 @@ void ICACHE_FLASH_ATTR ddrExitMode(void);
 void ICACHE_FLASH_ATTR ddrButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down);
 void ICACHE_FLASH_ATTR ddrAccelerometerHandler(accel_t* accel);
+void ICACHE_FLASH_ATTR ddrSampleHandler(int32_t samp);
 
 static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR ddrAnimateNotes(void* arg __attribute__((unused)));
@@ -94,7 +95,9 @@ swadgeMode ddrMode =
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
-    .fnAccelerometerCallback = ddrAccelerometerHandler
+    .fnAccelerometerCallback = ddrAccelerometerHandler,
+    .fnAudioCallback = ddrSampleHandler,
+    .menuImg = "ddr-menu.gif"
 };
 
 typedef struct 
@@ -617,4 +620,86 @@ void ICACHE_FLASH_ATTR ddrAccelerometerHandler(accel_t* accel)
 static void ICACHE_FLASH_ATTR ddrAnimateSuccessMeter(void* arg __attribute((unused)))
 {
     ddr.successMeterShineStart = (ddr.successMeterShineStart + 1 ) % 4;
+}
+
+
+/**
+ * This is called every time an audio sample is read from the ADC
+ * This processes the sample and will display update the LEDs every
+ * 128 samples
+ *
+ * @param samp A 32 bit audio sample read from the ADC (microphone)
+ */
+void ICACHE_FLASH_ATTR ddrSampleHandler(int32_t samp)
+{
+    /* copied from flappy
+    switch(flappy->mode)
+    {
+        default:
+        case FLAPPY_MENU:
+        {
+            break;
+        }
+        case FLAPPY_GAME:
+        {
+            PushSample32( samp );
+            flappy->samplesProcessed++;
+
+            // If at least 128 samples have been processed
+            if( flappy->samplesProcessed >= 128 )
+            {
+                // Colorchord magic
+                HandleFrameInfo();
+
+                // flappy->oldPeakFreq = flappy->peakFreq;
+                // flappy->peakFreq = findPeakFreq();
+                // // os_printf("%d\n", flappy->peakFreq);
+
+                // static int maxF = 0;
+                // if(flappy->peakFreq > maxF)
+                // {
+                //     maxF = flappy->peakFreq;
+                //     os_printf("MF %d\n", maxF);
+                // }
+
+                // int16_t delta = flappy->peakFreq - flappy->oldPeakFreq;
+                // if(delta > 80)
+                // {
+                //     delta = -(delta - 191);
+                // }
+                // else if (delta < -80)
+                // {
+                //     delta = -(delta + 191);
+                // }
+
+                // if((1 < delta && delta < 7) || (-7 < delta && delta < -1) )
+                // {
+                //     os_printf("%d\n", delta);
+
+                //     flappy->chopperPos -= (delta / 2);
+                //     if(flappy->chopperPos < 0)
+                //     {
+                //         flappy->chopperPos = 0;
+                //     }
+                //     else if (flappy->chopperPos > OLED_HEIGHT - 16)
+                //     {
+                //         flappy->chopperPos = OLED_HEIGHT - 16;
+                //     }
+                // }
+
+                // if(flappy->peakFreq > flappy->oldPeakFreq)
+                // {
+                //     // TODO go up!
+                // }
+                // else if(flappy->peakFreq > flappy->oldPeakFreq)
+                // {
+                //     // TODO go down!
+                // }
+
+                // Reset the sample count
+                flappy->samplesProcessed = 0;
+            }
+        }
+    }
+    */
 }
