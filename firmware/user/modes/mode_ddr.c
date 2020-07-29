@@ -81,14 +81,6 @@ void ddrHandleMiss();
  *==========================================================================*/
 
 
-const char ddrSprites[][16] =
-{
-    "skull01.png",
-    "skull02.png",
-    "skull01.png",
-    "skull03.png",
-};
-
 /*============================================================================
  * Variables
  *==========================================================================*/
@@ -149,6 +141,8 @@ struct
     uint8_t successMeter;
     uint8_t successMeterShineStart;
 } ddr;
+
+pngSequenceHandle skullSequenceHandle = {0};
 
 /*============================================================================
  * Functions
@@ -217,6 +211,12 @@ void ICACHE_FLASH_ATTR ddrEnterMode(void)
 
     ddr.successMeter = 80;
     ddr.successMeterShineStart = 0;
+
+    allocPngSequence(&skullSequenceHandle, 4,
+            "skull01.png",
+            "skull02.png",
+            "skull01.png",
+            "skull03.png");
 }
 
 /**
@@ -224,12 +224,13 @@ void ICACHE_FLASH_ATTR ddrEnterMode(void)
  */
 void ICACHE_FLASH_ATTR ddrExitMode(void)
 {
-    stopBuzzerSong();
     syncedTimerDisarm(&ddr.timerAnimateNotes);
     syncedTimerDisarm(&ddr.TimerHandleLeds);
     syncedTimerDisarm(&ddr.TimerHandleArrows);
     syncedTimerDisarm(&ddr.timerUpdateDisplay);
     syncedTimerDisarm(&ddr.TimerHandleLeds);
+    
+    freePngSequence(&skullSequenceHandle);
 }
 
 /**
@@ -480,12 +481,16 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
         {
             curArrow = &(curRow->arrows[arrowIdx]);
             
+            
+            drawPngSequence(&skullSequenceHandle, (curArrow->hPos-400)/12, 48 - rowIdx * 16, false, false, 0, ddr.NoteIdx);
+    /*
             drawBitmapFromAsset(ddrSprites[ddr.NoteIdx],
                             (curArrow->hPos-400)/12,
                             48 - rowIdx * 16,
                             false,
                             false,
                             0);
+                            */
         }
     }
     
