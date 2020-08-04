@@ -346,6 +346,18 @@ int os_printf(const char* format, ...)
     }
     return 0;
 };
+int os_sprintf(char* str, const char* format, ...)
+{
+    if(canPrint)
+    {
+        va_list argp;
+        va_start(argp, format);
+        int out = vsprintf(str, format, argp);
+        va_end(argp);
+        return out;
+    }
+    return 0;
+};
 void LoadDefaultPartitionMap(void) {}
 uint32 system_get_time(void)
 {
