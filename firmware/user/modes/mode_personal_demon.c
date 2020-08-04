@@ -187,7 +187,7 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     pd->animTable[PDA_CENTER].drawAnim = drawAnimDemon;
 
     pd->animTable[PDA_EATING].initAnim = initAnimEating;
-    pd->animTable[PDA_EATING].updtAnim = updtAnimEating;
+    pd->animTable[PDA_EATING].updtAnim = updtAnimEating; 
     pd->animTable[PDA_EATING].drawAnim = drawAnimEating;
 
     pd->animTable[PDA_POOPING].initAnim = initAnimPoop;
@@ -269,12 +269,16 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
  */
 void ICACHE_FLASH_ATTR personalDemonExitMode(void)
 {
+    freePngSequence(&(pd->pizza));
+    freePngSequence(&(pd->burger));
+    freePngSequence(&(pd->syringe));
     freePngAsset(&(pd->demon));
     freePngAsset(&(pd->hand));
     freePngAsset(&(pd->poop));
-    freePngSequence(&(pd->burger));
-    freePngSequence(&(pd->pizza));
-    freePngSequence(&(pd->syringe));
+    freePngAsset(&(pd->archL));
+    freePngAsset(&(pd->archR));
+    timerDisarm(&pd->animationTimer);
+    timerFlush();
     os_free(pd);
 }
 
@@ -379,8 +383,8 @@ void ICACHE_FLASH_ATTR menuScoopAct(void)
  */
 void ICACHE_FLASH_ATTR menuQuitAct(void)
 {
-    // TODO quit
-    unshift(&pd->animationQueue, (void*)PDA_BIRTH);
+    switchToSwadgeMode(0);
+    // unshift(&pd->animationQueue, (void*)PDA_BIRTH);
 }
 
 /**

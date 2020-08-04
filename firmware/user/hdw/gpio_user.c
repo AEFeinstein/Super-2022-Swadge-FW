@@ -306,8 +306,9 @@ uint8_t ICACHE_FLASH_ATTR getLastGPIOState(void)
 
 #if defined(FEATURE_OLED)
 /**
- * TODO
- * @param on
+ * Set the GPIO controlling the OLED's reset line on or off
+ *
+ * @param on true to raise the GPIO high, false to lower it
  */
 void ICACHE_FLASH_ATTR setOledResetOn(bool on)
 {
@@ -338,7 +339,7 @@ bool ICACHE_FLASH_ATTR getBuzzerGpio(void)
 #endif
 
 /**
- * TODO
+ * Set the GPIOs which control the boot mode to the values used for normal boot
  */
 void ICACHE_FLASH_ATTR setGpiosForBoot(void)
 {

@@ -203,7 +203,7 @@ static void ICACHE_FLASH_ATTR flappyMenuCb(const char* menuItem)
     }
     else if (fl_quit == menuItem)
     {
-
+        switchToSwadgeMode(0);
     }
 }
 

@@ -359,7 +359,7 @@ static void ICACHE_FLASH_ATTR pollAccel(void* arg __attribute__((unused)))
         accel.y = yarrow;
         accel.z = zarrow;
 #elif SWADGE_VERSION == SWADGE_2019
-        //TODO put code to return random, specific periods, or L/R button presses
+        // put code to return random, specific periods, or L/R button presses
         accel.x = 0;
         accel.y = 0;
         accel.z = 255;
@@ -456,6 +456,7 @@ void ExitCritical(void)
 #endif
 }
 
+#if defined(EMU)
 /**
  * @brief Helper function for the emulator to clean up the current mode
  */
@@ -470,12 +471,14 @@ void ICACHE_FLASH_ATTR exitCurrentSwadgeMode(void)
 #endif
     timersCheck();
 }
+#endif
 
 /**
- * @brief TODO
+ * Enter deep sleep for timeUs microseconds. Perform radio calibration depending
+ * on the wifi mode when it wakes
  *
- * @param wifiMode
- * @param timeUs
+ * @param wifiMode The wifi mode when the ESP wakes up
+ * @param timeUs   The time to sleep for
  */
 void ICACHE_FLASH_ATTR enterDeepSleep(wifiMode_t wifiMode, uint32_t timeUs)
 {
