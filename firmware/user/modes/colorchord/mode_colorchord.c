@@ -120,21 +120,113 @@ void ICACHE_FLASH_ATTR colorchordEnterMode(void)
 void ICACHE_FLASH_ATTR ccAnimation(void* arg __attribute__((unused)))
 {
     clearDisplay();
-    plotText(0, 0, "COLORCHORD", RADIOSTARS, WHITE);
+    // plotText(0, 0, "COLORCHORD", RADIOSTARS, WHITE);
 
-    static uint16_t rotation = 0;
-    rotation = (rotation + 4) % 360;
-    
-    drawPng(&cc.king, (128 - 37) / 2, 0, false, false, rotation);
+    // static uint16_t rotation = 0;
+    // rotation = (rotation + 4) % 360;
+    // drawPng(&cc.king, (128 - 37) / 2, 0, false, false, rotation);
 
-    // Draw a bar graph
-    uint8_t numBins = sizeof(folded_bins) / sizeof(folded_bins[0]);
-    uint8_t binWidth = OLED_WIDTH / numBins;
+    uint32_t locMasses = 0;
+    uint32_t totalMass = 0;
+    uint32_t highestPeak = 0;
+    uint32_t peakLoc = 0;
+    uint32_t avg = 0;
+    uint32_t avgCnt = 0;
+
+#define THRESHOLD 100
+
     uint8_t i;
-    for(i = 0; i < numBins; i++)
+    for(i = 0; i < FIXBINS; i++)
     {
-        uint8_t height = (16 * folded_bins[i]) / 2048;
-        fillDisplayArea(i * binWidth, OLED_HEIGHT - height, (i + 1) * binWidth, OLED_HEIGHT, WHITE);
+        // Anything below the threshold is noise
+        if(fuzzed_bins[i] > THRESHOLD)
+        {
+            // Run up the average
+            avg += fuzzed_bins[i];
+            avgCnt++;
+
+            // Also find the highest peak
+            if(fuzzed_bins[i] > highestPeak)
+            {
+                highestPeak = fuzzed_bins[i];
+                peakLoc = i;
+            }
+        }
+    }
+    int32_t delta = 0;
+    // Divide the average
+    if(avgCnt)
+    {
+        avg /= avgCnt;
+        for(i = 0; i < FIXBINS; i++)
+        {
+            // If this point beats the average
+            if(fuzzed_bins[i] > avg)
+            {
+                // Use it to calculate the center of mass
+                locMasses += ((i + 1) * fuzzed_bins[i]);
+                totalMass += fuzzed_bins[i];
+            }
+        }
+
+        // As long as there was something
+        if(totalMass > 0)
+        {
+            int32_t centerOfMass = (locMasses / totalMass) - 1;
+
+            static int32_t movAvgMass = 0;
+            int32_t lastMovAvgMass = movAvgMass;
+#define MOV_AVG_NUM 0
+#define MOV_AVG_DEN 1
+            movAvgMass = (MOV_AVG_NUM * (movAvgMass / MOV_AVG_DEN)) + ((MOV_AVG_DEN - MOV_AVG_NUM) * (centerOfMass / MOV_AVG_DEN));
+            delta = movAvgMass - lastMovAvgMass;
+
+
+            char dbg[64] = {0};
+            os_sprintf(dbg, "%d  %d  %d  %d", delta, peakLoc, centerOfMass, (peakLoc + centerOfMass) / 4);
+            plotText(0, 0, dbg, IBM_VGA_8, WHITE);
+        }
+    }
+
+    static int32_t deltaHist[20] = {0};
+    ets_memmove(&deltaHist[1], &deltaHist[0], sizeof(deltaHist) - sizeof(int32_t));
+    deltaHist[0] = delta;
+    uint8_t posCnt = 0;
+    uint8_t negCnt = 0;
+    for(i = 0; i < 20; i++)
+    {
+        if(deltaHist[i] > 0)
+        {
+            posCnt++;
+        }
+        else if(deltaHist[i] < 0)
+        {
+            negCnt++;
+        }
+    }
+
+    os_printf("%2d %2d\n", posCnt, negCnt);
+
+    if(posCnt - negCnt > 2 && posCnt > 5)
+    {
+        plotText(0, FONT_HEIGHT_IBMVGA8 + 2, "UP", IBM_VGA_8, WHITE);
+    }
+    else if(negCnt - posCnt > 2 && negCnt > 5)
+    {
+        plotText(0, FONT_HEIGHT_IBMVGA8 + 2, "DOWN", IBM_VGA_8, WHITE);
+    }
+
+    static uint16_t maxValue = 1;
+    uint16_t mv = maxValue;
+    for(i = 0; i < FIXBINS; i++)
+    {
+        if(fuzzed_bins[i] > maxValue)
+        {
+            maxValue = fuzzed_bins[i];
+            os_printf("%d\n", maxValue);
+        }
+        uint8_t height = (OLED_HEIGHT * fuzzed_bins[i]) / mv;
+        fillDisplayArea(i, OLED_HEIGHT - height, (i + 1), OLED_HEIGHT, WHITE);
     }
 }
 
