@@ -20,6 +20,8 @@ typedef enum
     PDA_WALKING,
     PDA_CENTER,
     PDA_EATING,
+    PDA_OVER_EATING,
+    PDA_NOT_EATING,
     PDA_POOPING,
     PDA_MEDICINE,
     PDA_SCOLD,
@@ -93,6 +95,7 @@ typedef struct
     int16_t drawPoopCnt;
     uint8_t menuIdx;
     int16_t textPos;
+    uint8_t numFood;
 
     pdMenuOpt menuTable[PDM_NUM_OPTS];
 } pd_data;
@@ -118,6 +121,12 @@ void drawAnimText(void);
 void initAnimEating(void);
 bool updtAnimEating(void);
 void drawAnimEating(void);
+
+void initAnimOverEating(void);
+
+void initAnimNotEating(void);
+bool updtAnimNotEating(void);
+void drawAnimNotEating(void);
 
 void initAnimPoop(void);
 bool updtAnimPoop(void);
@@ -188,6 +197,15 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     pd->animTable[PDA_EATING].initAnim = initAnimEating;
     pd->animTable[PDA_EATING].updtAnim = updtAnimEating;
     pd->animTable[PDA_EATING].drawAnim = drawAnimEating;
+
+    // Only differs from normal eating in initialization
+    pd->animTable[PDA_OVER_EATING].initAnim = initAnimOverEating;
+    pd->animTable[PDA_OVER_EATING].updtAnim = updtAnimEating;
+    pd->animTable[PDA_OVER_EATING].drawAnim = drawAnimEating;
+
+    pd->animTable[PDA_NOT_EATING].initAnim = initAnimNotEating;
+    pd->animTable[PDA_NOT_EATING].updtAnim = updtAnimNotEating;
+    pd->animTable[PDA_NOT_EATING].drawAnim = drawAnimNotEating;
 
     pd->animTable[PDA_POOPING].initAnim = initAnimPoop;
     pd->animTable[PDA_POOPING].updtAnim = updtAnimPoop;
@@ -260,6 +278,7 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     timerArm(&pd->animationTimer, 5, true);
 
     // Draw the initial display
+    personalDemonAnimationTimer(NULL);
     personalDemonUpdateDisplay();
 }
 
@@ -409,10 +428,6 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
 {
     switch(evt)
     {
-        case EVT_NONE:
-        {
-            break;
-        }
         case EVT_GOT_SICK_RANDOMLY:
         {
             os_printf("%s randomly got sick\n", pd->demon.name);
@@ -454,21 +469,29 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         }
         case EVT_OVEREAT:
         {
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_OVER_EATING);
             os_printf("%s ate the food, then stole more and overate\n", pd->demon.name);
             break;
         }
         case EVT_NO_EAT_SICK:
         {
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_NOT_EATING);
             os_printf("%s was too sick to eat\n", pd->demon.name);
             break;
         }
         case EVT_NO_EAT_DISCIPLINE:
         {
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_NOT_EATING);
             os_printf("%s was too unruly eat\n", pd->demon.name);
             break;
         }
         case EVT_NO_EAT_FULL:
         {
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_NOT_EATING);
             os_printf("%s was too full to eat\n", pd->demon.name);
             break;
         }
@@ -562,6 +585,7 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
             break;
         }
         default:
+        case EVT_NONE:
         case EVT_NUM_EVENTS:
         {
             break;
@@ -709,6 +733,7 @@ void ICACHE_FLASH_ATTR initAnimEating(void)
         pd->food = &pd->pizza;
     }
     pd->demonDirLR = false;
+    pd->numFood = 1;
 }
 
 /**
@@ -748,7 +773,98 @@ void ICACHE_FLASH_ATTR drawAnimEating(void)
     // Draw the demon
     drawAnimDemon();
     // Draw the food
-    drawPngSequence(pd->food,  (OLED_WIDTH / 2) - 28,  (OLED_HEIGHT / 2) - 8, false, false, 0, pd->seqFrame);
+    if(pd->numFood == 1)
+    {
+        drawPngSequence(pd->food,  (OLED_WIDTH / 2) - 28,  (OLED_HEIGHT / 2) - 8, false, false, 0, pd->seqFrame);
+    }
+    else
+    {
+        drawPngSequence(pd->food,  (OLED_WIDTH / 2) - 28,  (OLED_HEIGHT / 2) - 16, false, false, 0, pd->seqFrame);
+        drawPngSequence(pd->food,  (OLED_WIDTH / 2) - 46,  (OLED_HEIGHT / 2) - 16, false, false, 0, pd->seqFrame);
+        drawPngSequence(pd->food,  (OLED_WIDTH / 2) - 37,  (OLED_HEIGHT / 2) + 2,  false, false, 0, pd->seqFrame);
+    }
+
+}
+
+/*******************************************************************************
+ * Overeating Animation
+ ******************************************************************************/
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR initAnimOverEating(void)
+{
+    if(os_random() % 2 == 0)
+    {
+        pd->food = &pd->burger;
+    }
+    else
+    {
+        pd->food = &pd->pizza;
+    }
+    pd->demonDirLR = false;
+    pd->numFood = 3;
+}
+
+/*******************************************************************************
+ * Not Eating Animation
+ ******************************************************************************/
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR initAnimNotEating(void)
+{
+    if(os_random() % 2 == 0)
+    {
+        pd->food = &pd->burger;
+    }
+    else
+    {
+        pd->food = &pd->pizza;
+    }
+    pd->demonDirLR = false;
+}
+
+/**
+ * @brief
+ *
+ */
+bool ICACHE_FLASH_ATTR updtAnimNotEating(void)
+{
+    bool shouldDraw = false;
+
+    if(0 == pd->animCnt)
+    {
+        shouldDraw = true;
+    }
+    else if(pd->animCnt % 100 == 0)
+    {
+        pd->demonDirLR = !pd->demonDirLR;
+        shouldDraw = true;
+    }
+
+    if((pd->animCnt++) == 600)
+    {
+        personalDemonResetAnimVars();
+        shouldDraw = true;
+    }
+    return shouldDraw;
+}
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR drawAnimNotEating(void)
+{
+    // Draw the demon
+    drawAnimDemon();
+    // Draw the food
+    drawPngSequence(pd->food,  (OLED_WIDTH / 2) - 28,  (OLED_HEIGHT / 2) - 8, false, false, 0, 0);
 }
 
 /*******************************************************************************
@@ -955,7 +1071,7 @@ void ICACHE_FLASH_ATTR initAnimPortal(void)
  */
 bool ICACHE_FLASH_ATTR updtAnimPortal(void)
 {
-    if((pd->animCnt++) >= 64)
+    if((pd->animCnt++) >= 16)
     {
         pd->animCnt = 0;
         pd->demonX++;
