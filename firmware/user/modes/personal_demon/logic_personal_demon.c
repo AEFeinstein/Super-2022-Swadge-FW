@@ -5,15 +5,13 @@
 #include <osapi.h>
 #include <stdint.h>
 
-#include "linked_list.h"
 #include "logic_personal_demon.h"
 #include "demon-namegen.h"
+#include "mode_personal_demon.h"
 
 /*******************************************************************************
  * Defines
  ******************************************************************************/
-
-#define PRINT_F(...) os_printf(__VA_ARGS__) // do{if(!autoMode){printf(__VA_ARGS__);}}while(false)
 
 #define INC_BOUND(base, inc, lbound, ubound) \
     do{                                      \
@@ -55,22 +53,6 @@
 #define ACTIONS_UNTIL_ADULT 66
 
 /*******************************************************************************
- * Enums
- ******************************************************************************/
-
-typedef enum
-{
-    EVT_NONE,
-    EVT_GOT_SICK_RANDOMLY,
-    EVT_GOT_SICK_POOP,
-    EVT_GOT_SICK_OBESE,
-    EVT_GOT_SICK_MALNOURISHED,
-    EVT_POOPED,
-    EVT_LOST_DISCIPLINE,
-    EVT_NUM_EVENTS,
-} event_t;
-
-/*******************************************************************************
  * Prototypes
  ******************************************************************************/
 
@@ -104,7 +86,7 @@ void ICACHE_FLASH_ATTR feedDemon(demon_t* pd)
     // If the demon is sick, there's a 50% chance it refuses to eat
     if (pd->isSick && os_random() % 2)
     {
-        PRINT_F("%s was too sick to eat\n", pd->name);
+        animateEvent(EVT_NO_EAT_SICK);
         // Get a bit hungrier
         INC_BOUND(pd->hunger, HUNGER_GAINED_PER_MEDICINE,  INT32_MIN, INT32_MAX);
     }
@@ -113,7 +95,7 @@ void ICACHE_FLASH_ATTR feedDemon(demon_t* pd)
     {
         if(os_random() % 2 == 0)
         {
-            PRINT_F("%s was too unruly eat\n", pd->name);
+            animateEvent(EVT_NO_EAT_DISCIPLINE);
             // Get a bit hungrier
             INC_BOUND(pd->hunger, HUNGER_GAINED_PER_MEDICINE,  INT32_MIN, INT32_MAX);
         }
@@ -124,7 +106,7 @@ void ICACHE_FLASH_ATTR feedDemon(demon_t* pd)
             {
                 eatFood(pd);
             }
-            PRINT_F("%s ate the food, then stole more and overate\n", pd->name);
+            animateEvent(EVT_OVEREAT);
         }
     }
     // Normal feeding
@@ -133,11 +115,11 @@ void ICACHE_FLASH_ATTR feedDemon(demon_t* pd)
         // Normal feeding is successful
         if(eatFood(pd))
         {
-            PRINT_F("%s ate the food\n", pd->name);
+            animateEvent(EVT_EAT);
         }
         else
         {
-            PRINT_F("%s was too full to eat\n", pd->name);
+            animateEvent(EVT_NO_EAT_FULL);
         }
     }
 }
@@ -160,7 +142,7 @@ bool ICACHE_FLASH_ATTR eatFood(demon_t* pd)
             {
                 INC_BOUND(pd->happy, HAPPINESS_GAINED_PER_FEEDING_WHEN_HUNGRY,  INT32_MIN, INT32_MAX);
             }
-            else
+            else if(pd->hunger < 0)
             {
                 INC_BOUND(pd->happy, -HAPPINESS_LOST_PER_FEEDING_WHEN_FULL,  INT32_MIN, INT32_MAX);
             }
@@ -188,7 +170,7 @@ void ICACHE_FLASH_ATTR playWithDemon(demon_t* pd)
 
     if (disciplineCheck(pd))
     {
-        PRINT_F("%s was too unruly to play\n", pd->name);
+        animateEvent(EVT_NO_PLAY_DISCIPLINE);
     }
     else
     {
@@ -210,7 +192,7 @@ void ICACHE_FLASH_ATTR playWithDemon(demon_t* pd)
             }
         }
 
-        PRINT_F("You played with %s\n", pd->name);
+        animateEvent(EVT_PLAY);
     }
 
     // Playing makes the demon hungry
@@ -234,11 +216,11 @@ void ICACHE_FLASH_ATTR disciplineDemon(demon_t* pd)
     if (false == pd->isSick)
     {
         INC_BOUND(pd->discipline, DISCIPLINE_GAINED_PER_SCOLDING,  INT32_MIN, INT32_MAX);
-        PRINT_F("You scolded %s\n", pd->name);
+        animateEvent(EVT_SCOLD);
     }
     else
     {
-        PRINT_F("You scolded %s, but it was sick\n", pd->name);
+        animateEvent(EVT_NO_SCOLD_SICK);
     }
 
     // Disciplining makes the demon hungry
@@ -298,18 +280,22 @@ void ICACHE_FLASH_ATTR medicineDemon(demon_t* pd)
     // Giving medicine counts as an action
     INC_BOUND(pd->actionsTaken, 1, 0, INT16_MAX);
 
-    // 6/8 chance the demon is healed
-    if (os_random() % 8 < 6)
+    if(!pd->isSick)
     {
-        PRINT_F("You gave %s medicine, and it was cured\n", pd->name);
+        animateEvent(EVT_MEDICINE_NOT_SICK);
+    }
+    // 6/8 chance the demon is healed
+    else if (os_random() % 8 < 6)
+    {
+        animateEvent(EVT_MEDICINE_CURE);
         pd->isSick = false;
     }
     else
     {
-        PRINT_F("You gave %s medicine, but it didn't work\n", pd->name);
+        animateEvent(EVT_MEDICINE_FAIL);
     }
 
-    // Giving medicine to the demon makes the demon hungry
+    // Giving medicine to the demon makes the demon sad
     INC_BOUND(pd->happy, -HAPPINESS_LOST_PER_MEDICINE,  INT32_MIN, INT32_MAX);
 
     // Giving medicine to the demon makes the demon hungry
@@ -329,12 +315,12 @@ void ICACHE_FLASH_ATTR scoopPoop(demon_t* pd)
     // Clear a poop
     if (pd->poopCount > 0)
     {
-        PRINT_F("You flushed a poop\n");
+        animateEvent(EVT_FLUSH_POOP);
         INC_BOUND(pd->poopCount, -1,  INT32_MIN, INT32_MAX);
     }
     else
     {
-        PRINT_F("You flushed nothing\n");
+        animateEvent(EVT_FLUSH_NOTHING);
     }
 
     // Flushing makes the demon hungry
@@ -362,7 +348,7 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
     if (pd->isSick)
     {
         INC_BOUND(pd->health, -HEALTH_LOST_PER_SICKNESS,  INT32_MIN, INT32_MAX);
-        PRINT_F("%s lost health to sickness\n", pd->name);
+        animateEvent(EVT_LOST_HEALTH_SICK);
     }
 
     // The demon randomly gets sick
@@ -421,7 +407,7 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
         // decrease the health
         INC_BOUND(pd->health, -HEALTH_LOST_PER_OBE_MAL,  INT32_MIN, INT32_MAX);
 
-        PRINT_F("%s lost health to obesity\n", pd->name);
+        animateEvent(EVT_LOST_HEALTH_OBESITY);
     }
     else if (pd->hunger > MALNOURISHED_THRESHOLD)
     {
@@ -433,7 +419,7 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
 
         // decrease the health
         INC_BOUND(pd->health, -HEALTH_LOST_PER_OBE_MAL,  INT32_MIN, INT32_MAX);
-        PRINT_F("%s lost health to malnourishment\n", pd->name);
+        animateEvent(EVT_LOST_HEALTH_MALNOURISHMENT);
     }
 
     /***************************************************************************
@@ -461,12 +447,12 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
 
     if(pd->age == AGE_CHILD && pd->actionsTaken >= ACTIONS_UNTIL_TEEN)
     {
-        PRINT_F("%s is now a teenager. Watch out.\n", pd->name);
+        animateEvent(EVT_TEENAGER);
         pd->age = AGE_TEEN;
     }
     else if(pd->age == AGE_TEEN && pd->actionsTaken >= ACTIONS_UNTIL_ADULT)
     {
-        PRINT_F("%s is now an adult. Boring.\n", pd->name);
+        animateEvent(EVT_ADULT);
         pd->age = AGE_ADULT;
     }
 
@@ -474,11 +460,34 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
      * Process one event per call
      **************************************************************************/
 
-    switch(dequeueEvt(pd))
+    event_t singleEvt = dequeueEvt(pd);
+    animateEvent(singleEvt);
+    switch(singleEvt)
     {
         default:
         case EVT_NONE:
         case EVT_NUM_EVENTS:
+        case EVT_EAT:
+        case EVT_OVEREAT:
+        case EVT_NO_EAT_SICK:
+        case EVT_NO_EAT_DISCIPLINE:
+        case EVT_NO_EAT_FULL:
+        case EVT_PLAY:
+        case EVT_NO_PLAY_DISCIPLINE:
+        case EVT_SCOLD:
+        case EVT_NO_SCOLD_SICK:
+        case EVT_MEDICINE_NOT_SICK:
+        case EVT_MEDICINE_CURE:
+        case EVT_MEDICINE_FAIL:
+        case EVT_FLUSH_POOP:
+        case EVT_FLUSH_NOTHING:
+        case EVT_LOST_HEALTH_SICK:
+        case EVT_LOST_HEALTH_OBESITY:
+        case EVT_LOST_HEALTH_MALNOURISHMENT:
+        case EVT_TEENAGER:
+        case EVT_ADULT:
+        case EVT_BORN:
+        case EVT_DEAD:
         {
             // Nothing
             break;
@@ -488,7 +497,6 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
             if(false == pd->isSick)
             {
                 pd->isSick = true;
-                PRINT_F("%s randomly got sick\n", pd->name);
             }
             break;
         }
@@ -497,7 +505,6 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
             if(false == pd->isSick)
             {
                 pd->isSick = true;
-                PRINT_F("Poop made %s sick\n", pd->name);
             }
             break;
         }
@@ -506,7 +513,6 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
             if(false == pd->isSick)
             {
                 pd->isSick = true;
-                PRINT_F("Obesity made %s sick\n", pd->name);
             }
             break;
         }
@@ -515,7 +521,6 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
             if(false == pd->isSick)
             {
                 pd->isSick = true;
-                PRINT_F("Malnourishment made %s sick\n", pd->name);
             }
             break;
         }
@@ -523,7 +528,6 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
         {
             // Make a poop
             pd->poopCount++;
-            PRINT_F("%s pooped\n", pd->name);
             break;
         }
         case EVT_LOST_DISCIPLINE:
@@ -539,14 +543,12 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
                 case AGE_TEEN:
                 {
                     // Rebellious teenage years lose triple discipline
-                    PRINT_F("%s became less disciplined\n", pd->name);
                     INC_BOUND(pd->discipline, 3 * -DISCIPLINE_LOST_RANDOMLY,  INT32_MIN, INT32_MAX);
                     break;
                 }
                 case AGE_ADULT:
                 {
                     // Adults calm down a bit
-                    PRINT_F("%s became less disciplined\n", pd->name);
                     INC_BOUND(pd->discipline, -DISCIPLINE_LOST_RANDOMLY,  INT32_MIN, INT32_MAX);
                     break;
                 }
@@ -562,7 +564,7 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
     // Zero health means the demon died
     if (pd->health <= 0)
     {
-        PRINT_F("%s died\n", pd->name);
+        animateEvent(EVT_DEAD);
         // Empty and free the event queue
         while(EVT_NONE != dequeueEvt(pd)) {;}
     }
@@ -606,6 +608,11 @@ void ICACHE_FLASH_ATTR takeAction(demon_t* pd, action_t action)
             break;
         }
         case ACT_QUIT:
+        {
+            // TODO save first?
+            switchToSwadgeMode(0);
+            break;
+        }
         case ACT_NUM_ACTIONS:
         default:
         {
@@ -627,7 +634,7 @@ void ICACHE_FLASH_ATTR resetDemon(demon_t* pd)
     namegen(pd->name);
     pd->name[0] -= ('a' - 'A');
 
-    PRINT_F("%s fell out of a portal\n", pd->name);
+    animateEvent(EVT_BORN);
 }
 
 /**

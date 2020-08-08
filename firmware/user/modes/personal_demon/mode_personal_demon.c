@@ -9,6 +9,7 @@
 #include "oled.h"
 #include "linked_list.h"
 #include "font.h"
+#include "logic_personal_demon.h"
 
 /*==============================================================================
  * Defines, Enums
@@ -54,17 +55,20 @@ typedef struct
 typedef struct
 {
     char* name;
-    void (*menuAct)(void);
+    action_t menuAct;
 } pdMenuOpt;
 
 typedef struct
 {
+    // The demon
+    demon_t demon;
+
     // Loaded Assets
     pngSequenceHandle pizza;
     pngSequenceHandle burger;
     pngSequenceHandle* food;
     pngSequenceHandle syringe;
-    pngHandle demon;
+    pngHandle demonSprite;
     pngHandle hand;
     pngHandle poop;
     pngHandle archL;
@@ -130,13 +134,6 @@ void initAnimPortal(void);
 bool updtAnimPortal(void);
 void drawAnimPortal(void);
 
-void menuFeedAct(void);
-void menuPlayAct(void);
-void menuScoldAct(void);
-void menuMedsAct(void);
-void menuScoopAct(void);
-void menuQuitAct(void);
-
 /*==============================================================================
  * Variables
  *============================================================================*/
@@ -177,6 +174,8 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     pd = (pd_data*)os_malloc(sizeof(pd_data));
     ets_memset(pd, 0, sizeof(pd_data));
 
+    resetDemon(&pd->demon);
+
     // Set up the animation table
     pd->animTable[PDA_WALKING].initAnim = NULL;
     pd->animTable[PDA_WALKING].updtAnim = updtAnimWalk;
@@ -187,7 +186,7 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     pd->animTable[PDA_CENTER].drawAnim = drawAnimDemon;
 
     pd->animTable[PDA_EATING].initAnim = initAnimEating;
-    pd->animTable[PDA_EATING].updtAnim = updtAnimEating; 
+    pd->animTable[PDA_EATING].updtAnim = updtAnimEating;
     pd->animTable[PDA_EATING].drawAnim = drawAnimEating;
 
     pd->animTable[PDA_POOPING].initAnim = initAnimPoop;
@@ -208,22 +207,22 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
 
     // Set up the menu table
     pd->menuTable[PDM_FEED].name = menuFeed;
-    pd->menuTable[PDM_FEED].menuAct = menuFeedAct;
+    pd->menuTable[PDM_FEED].menuAct = ACT_FEED;
 
     pd->menuTable[PDM_PLAY].name = menuPlay;
-    pd->menuTable[PDM_PLAY].menuAct = menuPlayAct;
+    pd->menuTable[PDM_PLAY].menuAct = ACT_PLAY;
 
     pd->menuTable[PDM_SCOLD].name = menuScold;
-    pd->menuTable[PDM_SCOLD].menuAct = menuScoldAct;
+    pd->menuTable[PDM_SCOLD].menuAct = ACT_DISCIPLINE;
 
     pd->menuTable[PDM_MEDS].name = menuMeds;
-    pd->menuTable[PDM_MEDS].menuAct = menuMedsAct;
+    pd->menuTable[PDM_MEDS].menuAct = ACT_MEDICINE;
 
     pd->menuTable[PDM_SCOOP].name = menuScoop;
-    pd->menuTable[PDM_SCOOP].menuAct = menuScoopAct;
+    pd->menuTable[PDM_SCOOP].menuAct = ACT_SCOOP;
 
     pd->menuTable[PDM_QUIT].name = menuQuit;
-    pd->menuTable[PDM_QUIT].menuAct = menuQuitAct;
+    pd->menuTable[PDM_QUIT].menuAct = ACT_QUIT;
 
     allocPngSequence(&(pd->pizza), 3,
                      "pizza1.png",
@@ -245,7 +244,7 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
                      "syringe09.png",
                      "syringe10.png",
                      "syringe11.png");
-    allocPngAsset("dino.png", &(pd->demon));
+    allocPngAsset("dino.png", &(pd->demonSprite));
     allocPngAsset("scold.png", &(pd->hand));
     allocPngAsset("poop.png", &(pd->poop));
     allocPngAsset("archL.png", &(pd->archL));
@@ -272,7 +271,7 @@ void ICACHE_FLASH_ATTR personalDemonExitMode(void)
     freePngSequence(&(pd->pizza));
     freePngSequence(&(pd->burger));
     freePngSequence(&(pd->syringe));
-    freePngAsset(&(pd->demon));
+    freePngAsset(&(pd->demonSprite));
     freePngAsset(&(pd->hand));
     freePngAsset(&(pd->poop));
     freePngAsset(&(pd->archL));
@@ -299,25 +298,25 @@ void ICACHE_FLASH_ATTR personalDemonButtonCallback(uint8_t state __attribute__((
         {
             case 0:
             {
+                pd->textAnimation = TEXT_MOVING_RIGHT;
                 break;
             }
             case 1:
             {
-                pd->textAnimation = TEXT_MOVING_LEFT;
                 break;
             }
             case 2:
             {
+                pd->textAnimation = TEXT_MOVING_LEFT;
                 break;
             }
             case 3:
             {
-                pd->textAnimation = TEXT_MOVING_RIGHT;
                 break;
             }
             case 4:
             {
-                pd->menuTable[pd->menuIdx].menuAct();
+                takeAction(&pd->demon, pd->menuTable[pd->menuIdx].menuAct);
                 break;
             }
             default:
@@ -326,65 +325,6 @@ void ICACHE_FLASH_ATTR personalDemonButtonCallback(uint8_t state __attribute__((
             }
         }
     }
-}
-
-/**
- * @brief TODO
- *
- */
-void ICACHE_FLASH_ATTR menuFeedAct(void)
-{
-    unshift(&pd->animationQueue, (void*)PDA_CENTER);
-    unshift(&pd->animationQueue, (void*)PDA_EATING);
-}
-
-/**
- * @brief TODO
- *
- */
-void ICACHE_FLASH_ATTR menuPlayAct(void)
-{
-
-}
-
-/**
- * @brief TODO
- *
- */
-void ICACHE_FLASH_ATTR menuScoldAct(void)
-{
-    unshift(&pd->animationQueue, (void*)PDA_CENTER);
-    unshift(&pd->animationQueue, (void*)PDA_SCOLD);
-}
-
-/**
- * @brief TODO
- *
- */
-void ICACHE_FLASH_ATTR menuMedsAct(void)
-{
-    unshift(&pd->animationQueue, (void*)PDA_CENTER);
-    unshift(&pd->animationQueue, (void*)PDA_MEDICINE);
-}
-
-/**
- * @brief TODO
- *
- */
-void ICACHE_FLASH_ATTR menuScoopAct(void)
-{
-    unshift(&pd->animationQueue, (void*)PDA_CENTER);
-    unshift(&pd->animationQueue, (void*)PDA_POOPING);
-}
-
-/**
- * @brief TODO
- *
- */
-void ICACHE_FLASH_ATTR menuQuitAct(void)
-{
-    switchToSwadgeMode(0);
-    // unshift(&pd->animationQueue, (void*)PDA_BIRTH);
 }
 
 /**
@@ -459,6 +399,175 @@ void ICACHE_FLASH_ATTR personalDemonResetAnimVars(void)
 /*******************************************************************************
  * General Animation
  ******************************************************************************/
+
+/**
+ * @brief TODO
+ *
+ * @param evt
+ */
+void ICACHE_FLASH_ATTR animateEvent(event_t evt)
+{
+    switch(evt)
+    {
+        case EVT_NONE:
+        {
+            break;
+        }
+        case EVT_GOT_SICK_RANDOMLY:
+        {
+            os_printf("%s randomly got sick\n", pd->demon.name);
+            break;
+        }
+        case EVT_GOT_SICK_POOP:
+        {
+            os_printf("Poop made %s sick\n", pd->demon.name);
+            break;
+        }
+        case EVT_GOT_SICK_OBESE:
+        {
+            os_printf("Obesity made %s sick\n", pd->demon.name);
+            break;
+        }
+        case EVT_GOT_SICK_MALNOURISHED:
+        {
+            os_printf("Malnourishment made %s sick\n", pd->demon.name);
+            break;
+        }
+        case EVT_POOPED:
+        {
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_POOPING);
+            os_printf("%s pooped\n", pd->demon.name);
+            break;
+        }
+        case EVT_LOST_DISCIPLINE:
+        {
+            os_printf("%s became less disciplined\n", pd->demon.name);
+            break;
+        }
+        case EVT_EAT:
+        {
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_EATING);
+            os_printf("%s ate the food\n", pd->demon.name);
+            break;
+        }
+        case EVT_OVEREAT:
+        {
+            os_printf("%s ate the food, then stole more and overate\n", pd->demon.name);
+            break;
+        }
+        case EVT_NO_EAT_SICK:
+        {
+            os_printf("%s was too sick to eat\n", pd->demon.name);
+            break;
+        }
+        case EVT_NO_EAT_DISCIPLINE:
+        {
+            os_printf("%s was too unruly eat\n", pd->demon.name);
+            break;
+        }
+        case EVT_NO_EAT_FULL:
+        {
+            os_printf("%s was too full to eat\n", pd->demon.name);
+            break;
+        }
+        case EVT_PLAY:
+        {
+            os_printf("You played with %s\n", pd->demon.name);
+            break;
+        }
+        case EVT_NO_PLAY_DISCIPLINE:
+        {
+            os_printf("%s was too unruly to play\n", pd->demon.name);
+            break;
+        }
+        case EVT_SCOLD:
+        {
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_SCOLD);
+            os_printf("You scolded %s\n", pd->demon.name);
+            break;
+        }
+        case EVT_NO_SCOLD_SICK:
+        {
+            os_printf("You scolded %s, but it was sick\n", pd->demon.name);
+            break;
+        }
+        case EVT_MEDICINE_NOT_SICK:
+        {
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_MEDICINE);
+            os_printf("You gave %s medicine, but it wasn't sick\n", pd->demon.name);
+            break;
+        }
+        case EVT_MEDICINE_CURE:
+        {
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_MEDICINE);
+            os_printf("You gave %s medicine, and it was cured\n", pd->demon.name);
+            break;
+        }
+        case EVT_MEDICINE_FAIL:
+        {
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_MEDICINE);
+            os_printf("You gave %s medicine, but it didn't work\n", pd->demon.name);
+            break;
+        }
+        case EVT_FLUSH_POOP:
+        {
+            os_printf("You flushed a poop\n");
+            break;
+        }
+        case EVT_FLUSH_NOTHING:
+        {
+            os_printf("You flushed nothing\n");
+            break;
+        }
+        case EVT_LOST_HEALTH_SICK:
+        {
+            os_printf("%s lost health to sickness\n", pd->demon.name);
+            break;
+        }
+        case EVT_LOST_HEALTH_OBESITY:
+        {
+            os_printf("%s lost health to obesity\n", pd->demon.name);
+            break;
+        }
+        case EVT_LOST_HEALTH_MALNOURISHMENT:
+        {
+            os_printf("%s lost health to malnourishment\n", pd->demon.name);
+            break;
+        }
+        case EVT_TEENAGER:
+        {
+            os_printf("%s is now a teenager. Watch out.\n", pd->demon.name);
+            break;
+        }
+        case EVT_ADULT:
+        {
+            os_printf("%s is now an adult. Boring.\n", pd->demon.name);
+            break;
+        }
+        case EVT_BORN:
+        {
+            unshift(&pd->animationQueue, (void*)PDA_BIRTH);
+            os_printf("%s fell out of a portal\n", pd->demon.name);
+            break;
+        }
+        case EVT_DEAD:
+        {
+            os_printf("%s died\n", pd->demon.name);
+            break;
+        }
+        default:
+        case EVT_NUM_EVENTS:
+        {
+            break;
+        }
+    }
+}
 
 /**
  * @brief TODO
@@ -578,7 +687,7 @@ bool ICACHE_FLASH_ATTR updtAnimCenter(void)
 void ICACHE_FLASH_ATTR drawAnimDemon(void)
 {
     // Draw the demon
-    drawPng((&pd->demon), pd->demonX, pd->demonY, pd->demonDirLR, false, pd->demonRot);
+    drawPng((&pd->demonSprite), pd->demonX, pd->demonY, pd->demonDirLR, false, pd->demonRot);
 }
 
 /*******************************************************************************

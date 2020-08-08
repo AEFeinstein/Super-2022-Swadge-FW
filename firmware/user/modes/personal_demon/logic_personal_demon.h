@@ -1,6 +1,8 @@
 #ifndef _LOGIC_PERSONAL_DEMON_H_
 #define _LOGIC_PERSONAL_DEMON_H_
 
+#include "linked_list.h"
+
 /*******************************************************************************
  * Defines
  ******************************************************************************/
@@ -10,6 +12,13 @@
 /*******************************************************************************
  * Enums
  ******************************************************************************/
+
+typedef enum
+{
+    AGE_CHILD,
+    AGE_TEEN,
+    AGE_ADULT
+} age_t;
 
 typedef enum
 {
@@ -24,10 +33,44 @@ typedef enum
 
 typedef enum
 {
-    AGE_CHILD,
-    AGE_TEEN,
-    AGE_ADULT
-} age_t;
+    EVT_NONE,
+    // Queued events (only one happens once per action)
+    EVT_GOT_SICK_RANDOMLY,
+    EVT_GOT_SICK_POOP,
+    EVT_GOT_SICK_OBESE,
+    EVT_GOT_SICK_MALNOURISHED,
+    EVT_POOPED,
+    EVT_LOST_DISCIPLINE,
+    // Immediate eating events
+    EVT_EAT,
+    EVT_OVEREAT,
+    EVT_NO_EAT_SICK,
+    EVT_NO_EAT_DISCIPLINE,
+    EVT_NO_EAT_FULL,
+    // Immediate playing events
+    EVT_PLAY,
+    EVT_NO_PLAY_DISCIPLINE,
+    // Immediate scolding events
+    EVT_SCOLD,
+    EVT_NO_SCOLD_SICK,
+    // Immediate medicine events
+    EVT_MEDICINE_NOT_SICK,
+    EVT_MEDICINE_CURE,
+    EVT_MEDICINE_FAIL,
+    // Immediate flush events
+    EVT_FLUSH_POOP,
+    EVT_FLUSH_NOTHING,
+    // Immediate general events
+    EVT_LOST_HEALTH_SICK,
+    EVT_LOST_HEALTH_OBESITY,
+    EVT_LOST_HEALTH_MALNOURISHMENT,
+    EVT_TEENAGER,
+    EVT_ADULT,
+    EVT_BORN,
+    EVT_DEAD,
+    // Always last
+    EVT_NUM_EVENTS
+} event_t;
 
 /*******************************************************************************
  * Structs
