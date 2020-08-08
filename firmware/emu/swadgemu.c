@@ -328,6 +328,10 @@ int ets_strcmp (const char* str1, const char* str2)
 {
     return strcmp( str1, str2 );
 }
+char *ets_strcat(char *dest, const char *src)
+{
+    return strcat(dest, src);
+}
 
 bool canPrint = true;
 void system_set_os_print( uint8 onoff )

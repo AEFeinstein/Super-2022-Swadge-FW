@@ -622,7 +622,7 @@ void ICACHE_FLASH_ATTR takeAction(demon_t* pd, action_t action)
  */
 void ICACHE_FLASH_ATTR resetDemon(demon_t* pd)
 {
-    memset(pd, 0, sizeof(demon_t));
+    ets_memset(pd, 0, sizeof(demon_t));
     pd->health = STARTING_HEALTH;
     namegen(pd->name);
     pd->name[0] -= ('a' - 'A');
