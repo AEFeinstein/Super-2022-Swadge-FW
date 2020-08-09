@@ -85,6 +85,9 @@ static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR flappyMenuCb(const char* menuItem);
 static void ICACHE_FLASH_ATTR flappyStartGame(const char* difficulty);
 // static uint8_t ICACHE_FLASH_ATTR findPeakFreq(void);
+void ICACHE_FLASH_ATTR calcStddev(uint16_t* data, uint16_t len,
+                                  uint32_t* avg, uint32_t* stddev);
+bool ICACHE_FLASH_ATTR checkClap(void);
 
 /*============================================================================
  * Variables
@@ -544,6 +547,11 @@ void ICACHE_FLASH_ATTR flappySampleHandler(int32_t samp)
                 // Colorchord magic
                 HandleFrameInfo();
 
+                if(checkClap())
+                {
+                    os_printf("CLAP\n");
+                }
+
                 // flappy->oldPeakFreq = flappy->peakFreq;
                 // flappy->peakFreq = findPeakFreq();
                 // // os_printf("%d\n", flappy->peakFreq);
@@ -616,3 +624,63 @@ void ICACHE_FLASH_ATTR flappySampleHandler(int32_t samp)
 //     }
 //     return maxFreq;
 // }
+
+/**
+ * TODO
+ *
+ * @return true if a clap was detected, false otherwise
+ */
+bool ICACHE_FLASH_ATTR checkClap(void)
+{
+    // Calculate average energy for the fourier output
+    uint32_t avg, stddev;
+    calcStddev(folded_bins, FIXBPERO, &avg, &stddev);
+
+    // Calculate a weighted moving average of energy
+    static uint32_t wma = 0;
+    wma = ((wma * 15) + avg) / 16;
+
+    // If a clap was previously detected
+    static uint32_t clapHysteresis = 0;
+    if(clapHysteresis > 0)
+    {
+        // Count down the hysteresis
+        clapHysteresis--;
+    }
+    else if(avg > 3 * wma)
+    {
+        // If the current energy is three times higher than the
+        // weighted moving average, a clap is detected
+        // Set some hysteresis to not double-count a single clap
+        clapHysteresis = 10;
+        return true;
+    }
+    return false;
+}
+
+/**
+ * TODO
+ *
+ * @param data
+ * @param len
+ * @param avg
+ * @param stddev
+ */
+void ICACHE_FLASH_ATTR calcStddev(uint16_t* data, uint16_t len,
+                                  uint32_t* avg, uint32_t* stddev)
+{
+    // Find the average
+    (*avg) = 0;
+    for (uint32_t i = 0; i < len; i++)
+    {
+        (*avg) += data[i];
+    }
+    (*avg) /= len;
+
+    // Find stddev
+    (*stddev) = 0;
+    for (uint32_t i = 0; i < len; i++)
+    {
+        (*stddev) += ((data[i] - (*avg)) * (data[i] - (*avg)));
+    }
+}
