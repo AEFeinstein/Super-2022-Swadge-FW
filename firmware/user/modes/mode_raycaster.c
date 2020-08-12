@@ -6,6 +6,7 @@
 #include "mode_raycaster.h"
 #include "oled.h"
 #include "bresenham.h"
+#include "buttons.h"
 
 void ICACHE_FLASH_ATTR raycasterEnterMode(void);
 void ICACHE_FLASH_ATTR raycasterExitMode(void);
@@ -31,6 +32,7 @@ void ICACHE_FLASH_ATTR raycasterProcess(void* unused);
 
 void ICACHE_FLASH_ATTR raycasterEnterMode(void)
 {
+    enableDebounce(false);
     timerSetFn(&raycasterTimer, &raycasterProcess, NULL);
     timerArm(&raycasterTimer, 20, true);
 }
@@ -189,7 +191,30 @@ void ICACHE_FLASH_ATTR raycasterProcess(void* unused)
         //     color = color / 2;
         // }
 
-        plotLine(x, drawStart, x, drawEnd, WHITE);
+        for(int y = drawStart; y <= drawEnd; y++)
+        {
+            if(side == 1)
+            {
+                if(x % 2 == 0)
+                {
+                    if((y % 2 == 0))
+                    {
+                        drawPixel(x, y, WHITE);
+                    }
+                }
+                else
+                {
+                    if((y % 2 == 1))
+                    {
+                        drawPixel(x, y, WHITE);
+                    }
+                }
+            }
+            else
+            {
+                drawPixel(x, y, WHITE);
+            }
+        }
     }
     //timing for input and FPS counter
     oldTime = time;
