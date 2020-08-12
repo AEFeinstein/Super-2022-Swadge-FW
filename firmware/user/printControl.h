@@ -14,7 +14,7 @@
  * These defines turn debugging on
  *============================================================================*/
 
-// #define ALL_OS_PRINTF
+#define ALL_OS_PRINTF
 
 // #define EXTRA_ESPNOW_DEBUG
 // #define P2P_DEBUG_PRINT
