@@ -92,6 +92,12 @@ uint32_t oldTime = 0; //time of previous frame
 void ICACHE_FLASH_ATTR raycasterProcess(void* unused)
 {
     clearDisplay();
+    int lastMapX = -1;
+    int lastMapY = -1;
+    int lastDrawStart = -1;
+    int lastDrawEnd = -1;
+
+
     for(int x = 0; x < OLED_WIDTH; x++)
     {
         //calculate ray position and direction
@@ -185,36 +191,62 @@ void ICACHE_FLASH_ATTR raycasterProcess(void* unused)
             drawEnd = OLED_HEIGHT - 1;
         }
 
+        if((-1 != lastMapX && -1 != lastMapY) && (lastMapX != mapX || lastMapY != mapY))
+        {
+            for(int y = drawStart; y <= drawEnd; y++)
+            {
+                drawPixel(x, y, WHITE);
+            }
+            if(x > 0 && -1 != lastDrawEnd)
+            {
+                for(int y = lastDrawStart; y <= lastDrawEnd; y++)
+                {
+                    drawPixel(x - 1, y, WHITE);
+                }
+            }
+        }
+        else
+        {
+            drawPixel(x, drawStart, WHITE);
+            drawPixel(x, drawEnd, WHITE);
+        }
+
+        lastMapX = mapX;
+        lastMapY = mapY;
+        lastDrawStart = drawStart;
+        lastDrawEnd = drawEnd;
+
         // //give x and y sides different brightness
         // if(side == 1)
         // {
         //     color = color / 2;
         // }
 
-        for(int y = drawStart; y <= drawEnd; y++)
-        {
-            if(side == 1)
-            {
-                if(x % 2 == 0)
-                {
-                    if((y % 2 == 0))
-                    {
-                        drawPixel(x, y, WHITE);
-                    }
-                }
-                else
-                {
-                    if((y % 2 == 1))
-                    {
-                        drawPixel(x, y, WHITE);
-                    }
-                }
-            }
-            else
-            {
-                drawPixel(x, y, WHITE);
-            }
-        }
+        //     for(int y = drawStart; y <= drawEnd; y++)
+        //     {
+        //         if(side == 1)
+        //         {
+        //             if(x % 2 == 0)
+        //             {
+        //                 if((y % 2 == 0))
+        //                 {
+        //                     drawPixel(x, y, WHITE);
+        //                 }
+        //             }
+        //             else
+        //             {
+        //                 if((y % 2 == 1))
+        //                 {
+        //                     drawPixel(x, y, WHITE);
+        //                 }
+        //             }
+        //         }
+        //         else
+        //         {
+        //             drawPixel(x, y, WHITE);
+        //         }
+        //     }
+        // }
     }
     //timing for input and FPS counter
     oldTime = time;
