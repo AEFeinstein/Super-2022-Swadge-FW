@@ -144,13 +144,13 @@ void ICACHE_FLASH_ATTR clearDisplay(void)
 }
 
 /**
- * TODO
+ * Fill a rectangular display area with a single color
  *
- * @param x1
- * @param y1
- * @param x2
- * @param y2
- * @param c
+ * @param x1 The X pixel to start at
+ * @param y1 The Y pixel to start at
+ * @param x2 The X pixel to end at
+ * @param y2 The Y pixel to end at
+ * @param c  The color to fill
  */
 void ICACHE_FLASH_ATTR fillDisplayArea(int16_t x1, int16_t y1, int16_t x2, int16_t y2, color c)
 {
@@ -578,8 +578,6 @@ void ICACHE_FLASH_ATTR setDisplayOn(bool on)
 // Scrolling Command Table
 //==============================================================================
 
-// TODO fill out
-
 /**
  *
  * @param on true  - Start scrolling that is configured by the scrolling setup
@@ -603,8 +601,6 @@ void ICACHE_FLASH_ATTR activateScroll(bool on)
 //==============================================================================
 // Addressing Setting Commands
 //==============================================================================
-
-// TODO fill out
 
 /**
  * Set Memory Addressing Mode

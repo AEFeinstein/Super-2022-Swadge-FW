@@ -186,7 +186,9 @@ void ExitCritical(void);
 
 uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr);
 void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode);
+#if defined(EMU)
 void ICACHE_FLASH_ATTR exitCurrentSwadgeMode(void);
+#endif
 
 #if defined(FEATURE_ACCEL)
 void setAccelPollTime(uint32_t pollTimeMs);

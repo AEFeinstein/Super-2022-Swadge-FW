@@ -34,7 +34,7 @@
 #define FLAPPY_UPDATE_MS 20
 #define FLAPPY_UPDATE_S (FLAPPY_UPDATE_MS / 1000.0f)
 #define FLAPPY_ACCEL     120.0f
-// #define FLAPPY_JUMP_VEL -50.0f
+#define FLAPPY_JUMP_VEL -50.0f
 
 #define CHUNK_WIDTH 8
 #define NUM_CHUNKS ((OLED_WIDTH/CHUNK_WIDTH)+1)
@@ -44,15 +44,38 @@
 
 typedef enum
 {
+    FL_CHOPPER,
+    FL_FLAPPY
+} flGameType;
+
+typedef enum
+{
+    FL_MIC,
+    FL_BTN
+} flInputType;
+
+typedef enum
+{
+    FL_EASY,
+    FL_HARD
+} flGameDifficulty;
+
+typedef enum
+{
     FLAPPY_MENU,
     FLAPPY_GAME
-} flappyGameMode;
+} flappyModeScreen;
 
 typedef struct
 {
+    flappyModeScreen mode;
+
     timer_t updateTimer;
     int samplesProcessed;
-    flappyGameMode mode;
+
+    flGameType type;
+    flInputType input;
+    flGameDifficulty difficulty;
     uint8_t floors[NUM_CHUNKS + 1];
     uint8_t ceils[NUM_CHUNKS + 1];
     uint8_t floor;
@@ -83,8 +106,12 @@ void ICACHE_FLASH_ATTR flappySampleHandler(int32_t samp);
 
 static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR flappyMenuCb(const char* menuItem);
-static void ICACHE_FLASH_ATTR flappyStartGame(const char* difficulty);
+static void ICACHE_FLASH_ATTR flappyStartGame(flGameType type, flInputType input,
+        flGameDifficulty difficulty);
 // static uint8_t ICACHE_FLASH_ATTR findPeakFreq(void);
+void ICACHE_FLASH_ATTR calcStddev(uint16_t* data, uint16_t len,
+                                  uint32_t* avg, uint32_t* stddev);
+bool ICACHE_FLASH_ATTR checkClap(void);
 
 /*============================================================================
  * Variables
@@ -107,12 +134,14 @@ swadgeMode flappyMode =
 flappy_t* flappy;
 
 static const char fl_title[]  = "Flappy";
-static const char fl_mic_easy[]   = "MIC EASY";
-static const char fl_mic_medium[] = "MIC MED";
-static const char fl_mic_hard[]   = "MIC HARD";
-static const char fl_btn_easy[]   = "BTN EASY";
-static const char fl_btn_medium[] = "BTN MED";
-static const char fl_btn_hard[]   = "BTN HARD";
+static const char fl_clap_easy[] = "CLAP EASY";
+static const char fl_clap_hard[] = "CLAP HARD";
+static const char fl_tone_easy[] = "TONE EASY";
+static const char fl_tone_hard[] = "TONE HARD";
+static const char fl_flappy_easy[] = "FLAPPY EASY";
+static const char fl_flappy_hard[] = "FLAPPY HARD";
+static const char fl_chopper_easy[] = "CHOPPER EASY";
+static const char fl_chopper_hard[] = "CHOPPER HARD";
 static const char fl_scores[] = "HIGH SCORES";
 static const char fl_quit[]   = "QUIT";
 
@@ -133,13 +162,17 @@ void ICACHE_FLASH_ATTR flappyEnterMode(void)
 
     flappy->menu = initMenu(fl_title, flappyMenuCb);
     addRowToMenu(flappy->menu);
-    addItemToRow(flappy->menu, fl_mic_easy);
-    addItemToRow(flappy->menu, fl_mic_medium);
-    addItemToRow(flappy->menu, fl_mic_hard);
+    addItemToRow(flappy->menu, fl_clap_easy);
+    addItemToRow(flappy->menu, fl_clap_hard);
     addRowToMenu(flappy->menu);
-    addItemToRow(flappy->menu, fl_btn_easy);
-    addItemToRow(flappy->menu, fl_btn_medium);
-    addItemToRow(flappy->menu, fl_btn_hard);
+    addItemToRow(flappy->menu, fl_tone_easy);
+    addItemToRow(flappy->menu, fl_tone_hard);
+    addRowToMenu(flappy->menu);
+    addItemToRow(flappy->menu, fl_flappy_easy);
+    addItemToRow(flappy->menu, fl_flappy_hard);
+    addRowToMenu(flappy->menu);
+    addItemToRow(flappy->menu, fl_chopper_easy);
+    addItemToRow(flappy->menu, fl_chopper_hard);
     addRowToMenu(flappy->menu);
     addItemToRow(flappy->menu, fl_scores);
     addRowToMenu(flappy->menu);
@@ -173,49 +206,64 @@ void ICACHE_FLASH_ATTR flappyExitMode(void)
  */
 static void ICACHE_FLASH_ATTR flappyMenuCb(const char* menuItem)
 {
-    if(fl_mic_easy == menuItem)
+    if(fl_clap_easy == menuItem)
     {
-        flappyStartGame(fl_mic_easy);
+        flappyStartGame(FL_FLAPPY, FL_MIC, FL_EASY);
     }
-    else if (fl_mic_medium == menuItem)
+    else if (fl_clap_hard == menuItem)
     {
-        flappyStartGame(fl_mic_medium);
+        flappyStartGame(FL_FLAPPY, FL_MIC, FL_HARD);
     }
-    else if (fl_mic_hard == menuItem)
+    else if (fl_tone_easy == menuItem)
     {
-        flappyStartGame(fl_mic_hard);
+        flappyStartGame(FL_CHOPPER, FL_MIC, FL_EASY);
     }
-    if(fl_btn_easy == menuItem)
+    else if(fl_tone_hard == menuItem)
     {
-        flappyStartGame(fl_btn_easy);
+        flappyStartGame(FL_CHOPPER, FL_MIC, FL_HARD);
     }
-    else if (fl_btn_medium == menuItem)
+    else if (fl_flappy_easy == menuItem)
     {
-        flappyStartGame(fl_btn_medium);
+        flappyStartGame(FL_FLAPPY, FL_BTN, FL_EASY);
     }
-    else if (fl_btn_hard == menuItem)
+    else if(fl_flappy_hard == menuItem)
     {
-        flappyStartGame(fl_btn_hard);
+        flappyStartGame(FL_FLAPPY, FL_BTN, FL_HARD);
+    }
+    else if (fl_chopper_easy == menuItem)
+    {
+        flappyStartGame(FL_CHOPPER, FL_BTN, FL_EASY);
+    }
+    else if(fl_chopper_hard == menuItem)
+    {
+        flappyStartGame(FL_CHOPPER, FL_BTN, FL_HARD);
     }
     else if (fl_scores == menuItem)
     {
-
+        // TODO
     }
     else if (fl_quit == menuItem)
     {
-
+        switchToSwadgeMode(0);
     }
 }
 
 /**
  * TODO
  *
+ * @param type
+ * @param type
+ * @param difficulty
  */
-static void ICACHE_FLASH_ATTR flappyStartGame(const char* difficulty)
+static void ICACHE_FLASH_ATTR flappyStartGame(flGameType type, flInputType input,
+        flGameDifficulty difficulty)
 {
-    os_printf("Start %s mode", difficulty);
     flappy->samplesProcessed = 0;
     flappy->mode = FLAPPY_GAME;
+
+    flappy->type = type;
+    flappy->input = input;
+    flappy->difficulty = difficulty;
 
     ets_memset(flappy->floors, OLED_HEIGHT - 1, (NUM_CHUNKS + 1) * sizeof(uint8_t));
     ets_memset(flappy->ceils, 0,                (NUM_CHUNKS + 1) * sizeof(uint8_t));
@@ -305,9 +353,18 @@ static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)))
                 push(&(flappy->obstacles), (void*)((uintptr_t)((OLED_WIDTH << 8) | obsY)));
             }
 
-            // If the button is not pressed
-            if(!(flappy->buttonState & 0x10))
+            if(FL_FLAPPY == flappy->type)
             {
+                static bool prior = false;
+                if(false == prior && (flappy->buttonState & 0x10))
+                {
+                    // Give a flap
+                    flappy->chopperVel = FLAPPY_JUMP_VEL;
+                }
+                else
+                {
+                    prior = false;
+                }
                 // Gravity is positive
                 // Update the chopper's position (velocity dependent)
                 flappy->chopperPos = flappy->chopperPos +
@@ -316,15 +373,29 @@ static void ICACHE_FLASH_ATTR flappyUpdate(void* arg __attribute__((unused)))
                 // Then Update the chopper's velocity (position independent)
                 flappy->chopperVel = flappy->chopperVel + (FLAPPY_ACCEL * FLAPPY_UPDATE_S);
             }
-            else
+            else if (FL_CHOPPER == flappy->type)
             {
-                // Gravity is negative
-                // Update the chopper's position (velocity dependent)
-                flappy->chopperPos = flappy->chopperPos +
-                                     (flappy->chopperVel * FLAPPY_UPDATE_S) -
-                                     (FLAPPY_ACCEL * FLAPPY_UPDATE_S * FLAPPY_UPDATE_S) / 2;
-                // Then Update the chopper's velocity (position independent)
-                flappy->chopperVel = flappy->chopperVel - (FLAPPY_ACCEL * FLAPPY_UPDATE_S);
+                // If the button is not pressed
+                if(!(flappy->buttonState & 0x10))
+                {
+                    // Gravity is positive
+                    // Update the chopper's position (velocity dependent)
+                    flappy->chopperPos = flappy->chopperPos +
+                                         (flappy->chopperVel * FLAPPY_UPDATE_S) +
+                                         (FLAPPY_ACCEL * FLAPPY_UPDATE_S * FLAPPY_UPDATE_S) / 2;
+                    // Then Update the chopper's velocity (position independent)
+                    flappy->chopperVel = flappy->chopperVel + (FLAPPY_ACCEL * FLAPPY_UPDATE_S);
+                }
+                else
+                {
+                    // Gravity is negative
+                    // Update the chopper's position (velocity dependent)
+                    flappy->chopperPos = flappy->chopperPos +
+                                         (flappy->chopperVel * FLAPPY_UPDATE_S) -
+                                         (FLAPPY_ACCEL * FLAPPY_UPDATE_S * FLAPPY_UPDATE_S) / 2;
+                    // Then Update the chopper's velocity (position independent)
+                    flappy->chopperVel = flappy->chopperVel - (FLAPPY_ACCEL * FLAPPY_UPDATE_S);
+                }
             }
 
             // Stop the chopper at either the floor or the ceiling
@@ -544,6 +615,11 @@ void ICACHE_FLASH_ATTR flappySampleHandler(int32_t samp)
                 // Colorchord magic
                 HandleFrameInfo();
 
+                if(checkClap())
+                {
+                    os_printf("CLAP\n");
+                }
+
                 // flappy->oldPeakFreq = flappy->peakFreq;
                 // flappy->peakFreq = findPeakFreq();
                 // // os_printf("%d\n", flappy->peakFreq);
@@ -616,3 +692,63 @@ void ICACHE_FLASH_ATTR flappySampleHandler(int32_t samp)
 //     }
 //     return maxFreq;
 // }
+
+/**
+ * TODO
+ *
+ * @return true if a clap was detected, false otherwise
+ */
+bool ICACHE_FLASH_ATTR checkClap(void)
+{
+    // Calculate average energy for the fourier output
+    uint32_t avg, stddev;
+    calcStddev(folded_bins, FIXBPERO, &avg, &stddev);
+
+    // Calculate a weighted moving average of energy
+    static uint32_t wma = 0;
+    wma = ((wma * 15) + avg) / 16;
+
+    // If a clap was previously detected
+    static uint32_t clapHysteresis = 0;
+    if(clapHysteresis > 0)
+    {
+        // Count down the hysteresis
+        clapHysteresis--;
+    }
+    else if(avg > 3 * wma)
+    {
+        // If the current energy is three times higher than the
+        // weighted moving average, a clap is detected
+        // Set some hysteresis to not double-count a single clap
+        clapHysteresis = 10;
+        return true;
+    }
+    return false;
+}
+
+/**
+ * TODO
+ *
+ * @param data
+ * @param len
+ * @param avg
+ * @param stddev
+ */
+void ICACHE_FLASH_ATTR calcStddev(uint16_t* data, uint16_t len,
+                                  uint32_t* avg, uint32_t* stddev)
+{
+    // Find the average
+    (*avg) = 0;
+    for (uint32_t i = 0; i < len; i++)
+    {
+        (*avg) += data[i];
+    }
+    (*avg) /= len;
+
+    // Find stddev
+    (*stddev) = 0;
+    for (uint32_t i = 0; i < len; i++)
+    {
+        (*stddev) += ((data[i] - (*avg)) * (data[i] - (*avg)));
+    }
+}

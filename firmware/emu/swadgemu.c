@@ -328,6 +328,10 @@ int ets_strcmp (const char* str1, const char* str2)
 {
     return strcmp( str1, str2 );
 }
+char *ets_strcat(char *dest, const char *src)
+{
+    return strcat(dest, src);
+}
 
 bool canPrint = true;
 void system_set_os_print( uint8 onoff )
@@ -341,6 +345,18 @@ int os_printf(const char* format, ...)
         va_list argp;
         va_start(argp, format);
         int out = vprintf(format, argp);
+        va_end(argp);
+        return out;
+    }
+    return 0;
+};
+int os_sprintf(char* str, const char* format, ...)
+{
+    if(canPrint)
+    {
+        va_list argp;
+        va_start(argp, format);
+        int out = vsprintf(str, format, argp);
         va_end(argp);
         return out;
     }
