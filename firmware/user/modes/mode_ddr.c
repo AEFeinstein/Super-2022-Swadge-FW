@@ -46,6 +46,8 @@
 #define LEDS_TIMER 15
 #define MAX_PULSE_TIMER (60000 / LEDS_TIMER)
 
+#define SONG_DURATION 1000 * 60
+
 #define FEEDBACK_PERFECT 3
 #define FEEDBACK_HIT 2
 #define FEEDBACK_MISS 1
@@ -57,25 +59,30 @@
  * Prototypes
  *==========================================================================*/
 
-void ICACHE_FLASH_ATTR ddrEnterMode(void);
-void ICACHE_FLASH_ATTR ddrExitMode(void);
-void ICACHE_FLASH_ATTR ddrButtonCallback(uint8_t state __attribute__((unused)),
+static void ICACHE_FLASH_ATTR ddrEnterMode(void);
+static void ICACHE_FLASH_ATTR ddrExitMode(void);
+static void ICACHE_FLASH_ATTR ddrButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down);
-void ICACHE_FLASH_ATTR ddrAccelerometerHandler(accel_t* accel);
-void ICACHE_FLASH_ATTR ddrSampleHandler(int32_t samp);
+static void ICACHE_FLASH_ATTR ddrAccelerometerHandler(accel_t* accel);
+static void ICACHE_FLASH_ATTR ddrSampleHandler(int32_t samp);
 
 static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR ddrAnimateNotes(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR ddrLedFunc(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR ddrHandleArrows(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR ddrAnimateSuccessMeter(void* arg __attribute((unused)));
+static void ICACHE_FLASH_ATTR ddrSongDurationFunc(void* arg __attribute((unused)));
 //static void ICACHE_FLASH_ATTR ddrAnimateSprite(void* arg __attribute__((unused)));
 //static void ICACHE_FLASH_ATTR ddrUpdateButtons(void* arg __attribute__((unused)));
 
-void ddrUpdateButtons();
-void ddrHandleHit();
-void ddrHandlePerfect();
-void ddrHandleMiss();
+static void ICACHE_FLASH_ATTR fisherYates(int arr[], int n);
+static void ICACHE_FLASH_ATTR ddrUpdateButtons();
+static void ICACHE_FLASH_ATTR ddrHandleHit();
+static void ICACHE_FLASH_ATTR ddrHandlePerfect();
+static void ICACHE_FLASH_ATTR ddrHandleMiss();
+static void ICACHE_FLASH_ATTR ddrCheckSongEnd();
+static void ICACHE_FLASH_ATTR ddrGameOver();
+static void ICACHE_FLASH_ATTR ddrStartGame();
 
 /*============================================================================
  * Const data
@@ -127,6 +134,7 @@ struct
     syncedTimer_t timerAnimateNotes;
     syncedTimer_t timerUpdateDisplay;
     syncedTimer_t TimerAnimateSuccessMeter;
+    syncedTimer_t TimerSongDuration;
 
     uint8_t NoteIdx;
 
@@ -143,9 +151,18 @@ struct
 
     uint8_t successMeter;
     uint8_t successMeterShineStart;
+
+    // Stats
+    uint8_t perfects;
+    uint8_t okays;
+    uint8_t misses;
+
+    uint8_t isSongOver;
+    uint8_t doDisplayEndScreen;
+    uint8_t didLose;
 } ddr;
 
-pngSequenceHandle skullSequenceHandle = {0};
+static pngSequenceHandle ddrSkullSequenceHandle = {0};
 
 /*============================================================================
  * Functions
@@ -158,7 +175,17 @@ void ICACHE_FLASH_ATTR ddrEnterMode(void)
 {
     enableDebounce(false);
 
-    // Clear everything
+    ddrStartGame();
+
+    allocPngSequence(&ddrSkullSequenceHandle, 4,
+            "skull01.png",
+            "skull02.png",
+            "skull01.png",
+            "skull03.png");
+}
+
+static void ICACHE_FLASH_ATTR ddrStartGame()
+{    // Clear everything
     ets_memset(&ddr, 0, sizeof(ddr));
 
     // Test the buzzer
@@ -177,7 +204,6 @@ void ICACHE_FLASH_ATTR ddrEnterMode(void)
     syncedTimerSetFn(&ddr.timerUpdateDisplay, ddrUpdateDisplay, NULL);
     syncedTimerArm(&ddr.timerUpdateDisplay, 15, true);
 
-    // Test the LEDs
     syncedTimerDisarm(&ddr.TimerHandleLeds);
     syncedTimerSetFn(&ddr.TimerHandleLeds, ddrLedFunc, NULL);
     syncedTimerArm(&ddr.TimerHandleLeds, LEDS_TIMER, true);
@@ -185,6 +211,10 @@ void ICACHE_FLASH_ATTR ddrEnterMode(void)
     syncedTimerDisarm(&ddr.TimerAnimateSuccessMeter);
     syncedTimerSetFn(&ddr.TimerAnimateSuccessMeter, ddrAnimateSuccessMeter, NULL);
     syncedTimerArm(&ddr.TimerAnimateSuccessMeter, 40, true);
+
+    syncedTimerDisarm(&ddr.TimerSongDuration);
+    syncedTimerSetFn(&ddr.TimerSongDuration, ddrSongDurationFunc, NULL);
+    syncedTimerArm(&ddr.TimerSongDuration, SONG_DURATION, true);
 
     // Draw a gif
     //drawGifFromAsset("ragequit.gif", 0, 0, false, false, 0, &ddr.gHandle);
@@ -196,10 +226,10 @@ void ICACHE_FLASH_ATTR ddrEnterMode(void)
         ddr.arrowRows[i].start = 0;
     }
 
-    ddr.arrowRows[0].pressDirection = DOWN;
+    ddr.arrowRows[0].pressDirection = LEFT; // bottommost
     ddr.arrowRows[1].pressDirection = RIGHT;
-    ddr.arrowRows[2].pressDirection = LEFT;
-    ddr.arrowRows[3].pressDirection = UP;
+    ddr.arrowRows[2].pressDirection = UP;
+    ddr.arrowRows[3].pressDirection = DOWN; // topmost
 
     ddr.tempo = 110;
     ddr.sixteenths = 6;
@@ -214,26 +244,24 @@ void ICACHE_FLASH_ATTR ddrEnterMode(void)
 
     ddr.successMeter = 80;
     ddr.successMeterShineStart = 0;
-
-    allocPngSequence(&skullSequenceHandle, 4,
-            "skull01.png",
-            "skull02.png",
-            "skull01.png",
-            "skull03.png");
+    ddr.isSongOver = 0;
+    ddr.doDisplayEndScreen = 0;
+    ddr.didLose = 0;
 }
 
 /**
  * Called when ddr is exited
  */
-void ICACHE_FLASH_ATTR ddrExitMode(void)
+static void ICACHE_FLASH_ATTR ddrExitMode(void)
 {
     syncedTimerDisarm(&ddr.timerAnimateNotes);
     syncedTimerDisarm(&ddr.TimerHandleLeds);
     syncedTimerDisarm(&ddr.TimerHandleArrows);
+    syncedTimerDisarm(&ddr.TimerAnimateSuccessMeter);
     syncedTimerDisarm(&ddr.timerUpdateDisplay);
-    syncedTimerDisarm(&ddr.TimerHandleLeds);
+    syncedTimerDisarm(&ddr.TimerSongDuration);
     
-    freePngSequence(&skullSequenceHandle);
+    freePngSequence(&ddrSkullSequenceHandle);
 }
 
 /**
@@ -298,7 +326,7 @@ static void ICACHE_FLASH_ATTR ddrLedFunc(void* arg __attribute__((unused)))
     setLeds(leds, sizeof(leds));
 }
 
-void fisherYates(int arr[], int n)
+static void ICACHE_FLASH_ATTR fisherYates(int arr[], int n)
 {
     for (int i = n - 1; i> 0; i--)
     {
@@ -413,7 +441,7 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void* arg __attribute__((unused)))
             
         }
 
-        if (canSpawnArrow && arrowsSpawnedThisBeat < 2)
+        if (!ddr.isSongOver && canSpawnArrow && arrowsSpawnedThisBeat < 2)
         {
             if (rand() % 100 < percentChanceSpawn)
             {
@@ -436,7 +464,7 @@ static void ICACHE_FLASH_ATTR ddrAnimateNotes(void* arg __attribute__((unused)))
     // testUpdateDisplay();
 }
 
-void ddrUpdateDownButtonState(uint8_t mask)
+static void ICACHE_FLASH_ATTR ddrUpdateDownButtonState(uint8_t mask)
 {
     uint8_t state = ddr.ButtonState & mask;
     uint8_t startDownState = ddr.ButtonDownState & mask;
@@ -447,7 +475,7 @@ void ddrUpdateDownButtonState(uint8_t mask)
     }
 }
 
-void ddrUpdateButtons()
+static void ICACHE_FLASH_ATTR ddrUpdateButtons()
 {
     ddrUpdateDownButtonState(LEFT);
     ddrUpdateDownButtonState(DOWN);
@@ -473,6 +501,30 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
     int curCount;
     int curEnd;
 
+    if (ddr.doDisplayEndScreen)
+    {
+        char perfectsText[24];
+        char hitsText[24];
+        char missesText[24];
+
+        ets_snprintf(perfectsText, sizeof(perfectsText),   "Perfects:    %03d", ddr.perfects);
+        ets_snprintf(hitsText, sizeof(perfectsText),       "Okays:       %03d", ddr.okays);
+        ets_snprintf(missesText, sizeof(perfectsText),     "Misses:      %03d", ddr.misses);
+
+        if (ddr.didLose)
+        {
+            plotText(38,5, "You died", IBM_VGA_8, WHITE);
+        }
+        else
+        {
+            plotText(38,5, "You win!", IBM_VGA_8, WHITE);
+        }
+        plotText(36,30, perfectsText, TOM_THUMB, WHITE);
+        plotText(36,40, hitsText, TOM_THUMB, WHITE);
+        plotText(36,50, missesText, TOM_THUMB, WHITE);
+        return;
+    }
+
     for (int rowIdx = 0; rowIdx < 4; rowIdx++)
     {
         curRow = &(ddr.arrowRows[rowIdx]);
@@ -485,7 +537,7 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
             curArrow = &(curRow->arrows[arrowIdx]);
             
             
-            drawPngSequence(&skullSequenceHandle, (curArrow->hPos-400)/12, 48 - rowIdx * 16, false, false, 0, ddr.NoteIdx);
+            drawPngSequence(&ddrSkullSequenceHandle, (curArrow->hPos-400)/12, 48 - rowIdx * 16, false, false, 0, ddr.NoteIdx);
     /*
             drawBitmapFromAsset(ddrSprites[ddr.NoteIdx],
                             (curArrow->hPos-400)/12,
@@ -496,11 +548,18 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
                             */
         }
     }
-    
-    plotCircle(110, 55-16*3, BTN_RAD-3, WHITE);
+
+    plotCircle(110, 55-16*3, BTN_RAD-3, WHITE); // Top
+    plotCircle(110, 55-16*3-3, 2, WHITE); // subcircle
+
     plotCircle(110, 55-16*2, BTN_RAD-3, WHITE);
+    plotCircle(110-3, 55-16*2, 2, WHITE); // subcircle
+
     plotCircle(110, 55-16*1, BTN_RAD-3, WHITE);
-    plotCircle(110, 55-16*0, BTN_RAD-3, WHITE);
+    plotCircle(110+3, 55-16*1, 2, WHITE); // subcircle
+
+    plotCircle(110, 55-16*0, BTN_RAD-3, WHITE); // Bottom
+    plotCircle(110, 55-16*0+3, 2, WHITE); // subcircle
 
     /*
     if(ddr.ButtonDownState & UP)
@@ -531,9 +590,10 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
     if ( ddr.successMeter == 100 )
     {
         plotLine(OLED_WIDTH - 1, 0, OLED_WIDTH - 1, OLED_HEIGHT - 1, WHITE);
-        for (int y = OLED_HEIGHT - 1 - ddr.successMeterShineStart; y > 0 ; y-=3 )
+        for (int y = OLED_HEIGHT - 1 - ddr.successMeterShineStart; y > 1 ; y-=5 )
         {
             drawPixel(OLED_WIDTH-1, y, BLACK);
+            drawPixel(OLED_WIDTH-1, y-1, BLACK);
         }
     }
     else 
@@ -546,8 +606,9 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
 }
 
 
-void ddrHandleHit()
+static void ICACHE_FLASH_ATTR ddrHandleHit()
 {
+    ddr.okays += 1;
     ddr.feedbackTimer = MAX_FEEDBACK_TIMER;
     ddr.currentFeedback = FEEDBACK_HIT;
 
@@ -558,10 +619,13 @@ void ddrHandleHit()
     {
         ddr.successMeter += 1;
     }
+    
+    ddrCheckSongEnd();
 }
 
-void ddrHandlePerfect()
+static void ICACHE_FLASH_ATTR ddrHandlePerfect()
 {
+    ddr.perfects += 1;
     ddr.feedbackTimer = MAX_FEEDBACK_TIMER;
     ddr.currentFeedback = FEEDBACK_PERFECT;
 
@@ -572,21 +636,55 @@ void ddrHandlePerfect()
     {
         ddr.successMeter += 3;
     }
+
+    ddrCheckSongEnd();
 }
 
-void ddrHandleMiss(){
+static void ICACHE_FLASH_ATTR ddrHandleMiss(){
+    ddr.misses += 1;
     ddr.feedbackTimer = MAX_FEEDBACK_TIMER;
     ddr.currentFeedback = FEEDBACK_MISS;
 
     if (ddr.successMeter <= 5)
     {
         ddr.successMeter = 0;
+        ddrGameOver();
     } else
     {
         ddr.successMeter -= 5;
     }
     
+    ddrCheckSongEnd();
 }
+
+static void ICACHE_FLASH_ATTR ddrGameOver()
+{
+    ddr.arrowRows[0].count = 0;
+    ddr.arrowRows[1].count = 0;
+    ddr.arrowRows[2].count = 0;
+    ddr.arrowRows[3].count = 0;
+    ddr.isSongOver = true;
+    ddr.didLose = true;
+}
+
+static void ICACHE_FLASH_ATTR ddrCheckSongEnd()
+{
+    if (ddr.isSongOver 
+        && ddr.arrowRows[0].count == 0
+        && ddr.arrowRows[1].count == 0
+        && ddr.arrowRows[2].count == 0
+        && ddr.arrowRows[3].count == 0 )
+    {
+        ddr.doDisplayEndScreen=true;
+    }
+}
+
+
+static void ICACHE_FLASH_ATTR ddrSongDurationFunc(void* arg __attribute__((unused)))
+{
+    ddr.isSongOver = true;
+}
+
 
 /**
  * TODO
@@ -595,11 +693,16 @@ void ddrHandleMiss(){
  * @param button The button which triggered this event
  * @param down   true if the button was pressed, false if it was released
  */
-void ICACHE_FLASH_ATTR ddrButtonCallback( uint8_t state,
+static void ICACHE_FLASH_ATTR ddrButtonCallback( uint8_t state,
         int button, int down)
 {
     ddr.ButtonState = state;
     ddr.ButtonDownState = (ddr.ButtonDownState & ~(1<<button)) + (down << button);
+
+    if ((ddr.ButtonDownState & 0x10) && ddr.doDisplayEndScreen)
+    {
+        ddrStartGame();
+    }
 }
 
 /**
@@ -609,7 +712,7 @@ void ICACHE_FLASH_ATTR ddrButtonCallback( uint8_t state,
  * @param x
  * @param z
  */
-void ICACHE_FLASH_ATTR ddrAccelerometerHandler(accel_t* accel)
+static void ICACHE_FLASH_ATTR ddrAccelerometerHandler(accel_t* accel)
 {
     ddr.Accel.x = accel->x;
     ddr.Accel.y = accel->y;
@@ -630,7 +733,7 @@ static void ICACHE_FLASH_ATTR ddrAnimateSuccessMeter(void* arg __attribute((unus
  *
  * @param samp A 32 bit audio sample read from the ADC (microphone)
  */
-void ICACHE_FLASH_ATTR ddrSampleHandler(int32_t samp)
+static void ICACHE_FLASH_ATTR ddrSampleHandler(int32_t samp)
 {
     /* copied from flappy
     switch(flappy->mode)
