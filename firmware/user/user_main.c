@@ -74,9 +74,9 @@ swadgeMode* swadgeModes[] =
 {
     &menuMode,
     &personalDemonMode,
-    &ddrMode,
     &colorchordMode,
     &flappyMode,
+    &ddrMode,
 };
 
 bool swadgeModeInit = false;
