@@ -167,11 +167,13 @@ void ICACHE_FLASH_ATTR fillDisplayArea(int16_t x1, int16_t y1, int16_t x2, int16
 /**
  * Set/clear/invert a single pixel.
  *
+ * This intentionally does not have ICACHE_FLASH_ATTR because it may be called often
+ *
  * @param x Column of display, 0 is at the left
  * @param y Row of the display, 0 is at the top
  * @param c Pixel color, one of: BLACK, WHITE or INVERT
  */
-void ICACHE_FLASH_ATTR drawPixel(int16_t x, int16_t y, color c)
+void drawPixel(int16_t x, int16_t y, color c)
 {
     if ((0 <= x) && (x < OLED_WIDTH) &&
             (0 <= y) && (y < OLED_HEIGHT))

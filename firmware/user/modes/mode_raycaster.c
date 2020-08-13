@@ -1,3 +1,7 @@
+/*==============================================================================
+ * Includes
+ *============================================================================*/
+
 #include <math.h>
 #include <stdlib.h>
 #include <osapi.h>
@@ -8,10 +12,39 @@
 #include "bresenham.h"
 #include "buttons.h"
 
+/*==============================================================================
+ * Defines
+ *============================================================================*/
+
+#define mapWidth 24
+#define mapHeight 24
+
+/*==============================================================================
+ * Structs
+ *============================================================================*/
+
+typedef struct
+{
+    uint8_t wallX;
+    uint8_t wallY;
+    uint8_t side;
+    int16_t drawStart;
+    int16_t drawEnd;
+} rayResult_t;
+
+/*==============================================================================
+ * Prototypes
+ *============================================================================*/
+
 void ICACHE_FLASH_ATTR raycasterEnterMode(void);
 void ICACHE_FLASH_ATTR raycasterExitMode(void);
 void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state __attribute__((unused)),
-        int button, int down);
+        int32_t button, int32_t down);
+void ICACHE_FLASH_ATTR raycasterProcess(void* unused);
+
+/*==============================================================================
+ * Variables
+ *============================================================================*/
 
 swadgeMode raycasterMode =
 {
@@ -28,33 +61,8 @@ swadgeMode raycasterMode =
 };
 
 timer_t raycasterTimer;
-void ICACHE_FLASH_ATTR raycasterProcess(void* unused);
-
-void ICACHE_FLASH_ATTR raycasterEnterMode(void)
-{
-    enableDebounce(false);
-    timerSetFn(&raycasterTimer, &raycasterProcess, NULL);
-    timerArm(&raycasterTimer, 20, true);
-}
-
-void ICACHE_FLASH_ATTR raycasterExitMode(void)
-{
-    timerDisarm(&raycasterTimer);
-    timerFlush();
-}
-
 uint8_t rButtonState = 0;
-
-void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state __attribute__((unused)),
-        int button, int down)
-{
-    rButtonState = state;
-}
-
-#define mapWidth 24
-#define mapHeight 24
-
-int worldMap[mapWidth][mapHeight] =
+int32_t worldMap[mapWidth][mapHeight] =
 {
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
@@ -82,47 +90,93 @@ int worldMap[mapWidth][mapHeight] =
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 };
 
-double posX = 22, posY = 12;  //x and y start position
-double dirX = -1, dirY = 0; //initial direction vector
-double planeX = 0, planeY = 0.66; //the 2d raycaster version of camera plane
+float posX = 22, posY = 12;  //x and y start position
+float dirX = -1, dirY = 0; //initial direction vector
+float planeX = 0, planeY = 0.66; //the 2d raycaster version of camera plane
 
 uint32_t time = 0; //time of current frame
 uint32_t oldTime = 0; //time of previous frame
 
+/*==============================================================================
+ * Functions
+ *============================================================================*/
+
+/**
+ * TODO
+ */
+void ICACHE_FLASH_ATTR raycasterEnterMode(void)
+{
+    enableDebounce(false);
+    timerSetFn(&raycasterTimer, &raycasterProcess, NULL);
+    timerArm(&raycasterTimer, 10, true);
+}
+
+/**
+ * TODO
+ */
+void ICACHE_FLASH_ATTR raycasterExitMode(void)
+{
+    timerDisarm(&raycasterTimer);
+    timerFlush();
+}
+
+/**
+ * TODO
+ *
+ * @param state
+ * @param button
+ * @param down
+ */
+void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state __attribute__((unused)),
+        int32_t button, int32_t down)
+{
+    rButtonState = state;
+}
+
+/**
+ * TODO
+ *
+ * @param unused
+ */
 void ICACHE_FLASH_ATTR raycasterProcess(void* unused)
 {
     clearDisplay();
-    int lastMapX = -1;
-    int lastMapY = -1;
-    int lastDrawStart = -1;
-    int lastDrawEnd = -1;
 
+    rayResult_t rayResult[OLED_WIDTH] = {0};
 
-    for(int x = 0; x < OLED_WIDTH; x++)
+    for(int32_t x = 0; x < OLED_WIDTH; x++)
     {
         //calculate ray position and direction
-        double cameraX = 2 * x / (double)OLED_WIDTH - 1; //x-coordinate in camera space
-        double rayDirX = dirX + planeX * cameraX;
-        double rayDirY = dirY + planeY * cameraX;
+        float cameraX = 2 * x / (float)OLED_WIDTH - 1; //x-coordinate in camera space
+        float rayDirX = dirX + planeX * cameraX;
+        float rayDirY = dirY + planeY * cameraX;
         //which box of the map we're in
-        int mapX = (int)(posX);
-        int mapY = (int)(posY);
+        int32_t mapX = (int32_t)(posX);
+        int32_t mapY = (int32_t)(posY);
 
         //length of ray from current position to next x or y-side
-        double sideDistX;
-        double sideDistY;
+        float sideDistX;
+        float sideDistY;
 
         //length of ray from one x or y-side to next x or y-side
-        double deltaDistX = abs(1 / rayDirX);
-        double deltaDistY = abs(1 / rayDirY);
-        double perpWallDist;
+        float deltaDistX = (1 / rayDirX);
+        if(deltaDistX < 0)
+        {
+            deltaDistX = -deltaDistX;
+        }
+        float deltaDistY = (1 / rayDirY);
+        if(deltaDistY < 0)
+        {
+            deltaDistY = -deltaDistY;
+        }
+        float perpWallDist;
 
         //what direction to step in x or y-direction (either +1 or -1)
-        int stepX;
-        int stepY;
+        int32_t stepX;
+        int32_t stepY;
 
-        int hit = 0; //was there a wall hit?
-        int side; //was a NS or a EW wall hit?
+        int32_t hit = 0; //was there a wall hit?
+        int32_t side; //was a NS or a EW wall hit?
         //calculate step and initial sideDist
         if(rayDirX < 0)
         {
@@ -177,93 +231,87 @@ void ICACHE_FLASH_ATTR raycasterProcess(void* unused)
         }
 
         //Calculate height of line to draw on screen
-        int lineHeight = (int)(OLED_HEIGHT / perpWallDist);
+        int32_t lineHeight = (int32_t)(OLED_HEIGHT / perpWallDist);
 
         //calculate lowest and highest pixel to fill in current stripe
-        int drawStart = -lineHeight / 2 + OLED_HEIGHT / 2;
-        if(drawStart < 0)
-        {
-            drawStart = 0;
-        }
-        int drawEnd = lineHeight / 2 + OLED_HEIGHT / 2;
-        if(drawEnd >= OLED_HEIGHT)
-        {
-            drawEnd = OLED_HEIGHT - 1;
-        }
+        int32_t drawStart = -lineHeight / 2 + OLED_HEIGHT / 2;
+        int32_t drawEnd = lineHeight / 2 + OLED_HEIGHT / 2;
 
-        if((-1 != lastMapX && -1 != lastMapY) && (lastMapX != mapX || lastMapY != mapY))
+        rayResult[x].wallX = mapX;
+        rayResult[x].wallY = mapY;
+        rayResult[x].side = side;
+        rayResult[x].drawEnd = drawEnd;
+        rayResult[x].drawStart = drawStart;
+    }
+
+    bool drawVertNext = false;
+    for(int32_t x = 0; x < OLED_WIDTH; x++)
+    {
+        if(drawVertNext)
         {
-            for(int y = drawStart; y <= drawEnd; y++)
+            // This is corner or edge which is larger than the prior strip
+            // Draw a vertical strip
+            for(int32_t y = rayResult[x].drawStart; y <= rayResult[x].drawEnd; y++)
             {
                 drawPixel(x, y, WHITE);
             }
-            if(x > 0 && -1 != lastDrawEnd)
+            drawVertNext = false;
+        }
+        else if(x < OLED_WIDTH - 1)
+        {
+            if(((rayResult[x].wallX == rayResult[x + 1].wallX) ||
+                    (rayResult[x].wallY == rayResult[x + 1].wallY)) &&
+                    (rayResult[x].side == rayResult[x + 1].side))
             {
-                for(int y = lastDrawStart; y <= lastDrawEnd; y++)
+                // This vertical strip is part of a continuous wall with the next strip
+                // Just draw top and bottom pixels
+                drawPixel(x, rayResult[x].drawStart, WHITE);
+                drawPixel(x, rayResult[x].drawEnd, WHITE);
+            }
+            else if((rayResult[x].drawEnd - rayResult[x].drawStart) >
+                    (rayResult[x + 1].drawEnd - rayResult[x + 1].drawStart))
+            {
+                // This is a corner or edge, and this vertical strip is larger than the next one
+                // Draw a vertical strip
+                for(int32_t y = rayResult[x].drawStart; y <= rayResult[x].drawEnd; y++)
                 {
-                    drawPixel(x - 1, y, WHITE);
+                    drawPixel(x, y, WHITE);
                 }
+            }
+            else
+            {
+                // This is a corner or edge, and this vertical strip is smaller than the next one
+                // Just draw top and bottom pixels, but make sure to draw a vertical line next
+                drawPixel(x, rayResult[x].drawStart, WHITE);
+                drawPixel(x, rayResult[x].drawEnd, WHITE);
+                // make sure to draw a vertical line next
+                drawVertNext = true;
             }
         }
         else
         {
-            drawPixel(x, drawStart, WHITE);
-            drawPixel(x, drawEnd, WHITE);
+            // These are the very last pixels, nothing to compare to
+            drawPixel(x, rayResult[x].drawStart, WHITE);
+            drawPixel(x, rayResult[x].drawEnd, WHITE);
         }
-
-        lastMapX = mapX;
-        lastMapY = mapY;
-        lastDrawStart = drawStart;
-        lastDrawEnd = drawEnd;
-
-        // //give x and y sides different brightness
-        // if(side == 1)
-        // {
-        //     color = color / 2;
-        // }
-
-        //     for(int y = drawStart; y <= drawEnd; y++)
-        //     {
-        //         if(side == 1)
-        //         {
-        //             if(x % 2 == 0)
-        //             {
-        //                 if((y % 2 == 0))
-        //                 {
-        //                     drawPixel(x, y, WHITE);
-        //                 }
-        //             }
-        //             else
-        //             {
-        //                 if((y % 2 == 1))
-        //                 {
-        //                     drawPixel(x, y, WHITE);
-        //                 }
-        //             }
-        //         }
-        //         else
-        //         {
-        //             drawPixel(x, y, WHITE);
-        //         }
-        //     }
-        // }
     }
+
     //timing for input and FPS counter
     oldTime = time;
     time = system_get_time();
-    double frameTime = (time - oldTime) / 1000000.0; //frameTime is the time this frame has taken, in seconds
+    float frameTime = (time - oldTime) / 1000000.0; //frameTime is the time this frame has taken, in seconds
 
     //speed modifiers
-    double moveSpeed = frameTime * 5.0; //the constant value is in squares/second
-    double rotSpeed = frameTime * 3.0; //the constant value is in radians/second
+    float moveSpeed = frameTime * 5.0; //the constant value is in squares/second
+    float rotSpeed = frameTime * 3.0; //the constant value is in radians/second
     //move forward if no wall in front of you
     if(rButtonState & 0x08)
     {
-        if(worldMap[(int)(posX + dirX * moveSpeed)][(int)(posY)] == false)
+        if(worldMap[(int32_t)(posX + dirX * moveSpeed)][(int32_t)(posY)] == false)
         {
             posX += dirX * moveSpeed;
         }
-        if(worldMap[(int)(posX)][(int)(posY + dirY * moveSpeed)] == false)
+        if(worldMap[(int32_t)(posX)][(int32_t)(posY + dirY * moveSpeed)] == false)
         {
             posY += dirY * moveSpeed;
         }
@@ -271,11 +319,11 @@ void ICACHE_FLASH_ATTR raycasterProcess(void* unused)
     //move backwards if no wall behind you
     if(rButtonState & 0x02)
     {
-        if(worldMap[(int)(posX - dirX * moveSpeed)][(int)(posY)] == false)
+        if(worldMap[(int32_t)(posX - dirX * moveSpeed)][(int32_t)(posY)] == false)
         {
             posX -= dirX * moveSpeed;
         }
-        if(worldMap[(int)(posX)][(int)(posY - dirY * moveSpeed)] == false)
+        if(worldMap[(int32_t)(posX)][(int32_t)(posY - dirY * moveSpeed)] == false)
         {
             posY -= dirY * moveSpeed;
         }
@@ -284,10 +332,10 @@ void ICACHE_FLASH_ATTR raycasterProcess(void* unused)
     if(rButtonState & 0x04)
     {
         //both camera direction and camera plane must be rotated
-        double oldDirX = dirX;
+        float oldDirX = dirX;
         dirX = dirX * cos(-rotSpeed) - dirY * sin(-rotSpeed);
         dirY = oldDirX * sin(-rotSpeed) + dirY * cos(-rotSpeed);
-        double oldPlaneX = planeX;
+        float oldPlaneX = planeX;
         planeX = planeX * cos(-rotSpeed) - planeY * sin(-rotSpeed);
         planeY = oldPlaneX * sin(-rotSpeed) + planeY * cos(-rotSpeed);
     }
@@ -295,10 +343,10 @@ void ICACHE_FLASH_ATTR raycasterProcess(void* unused)
     if(rButtonState & 0x01)
     {
         //both camera direction and camera plane must be rotated
-        double oldDirX = dirX;
+        float oldDirX = dirX;
         dirX = dirX * cos(rotSpeed) - dirY * sin(rotSpeed);
         dirY = oldDirX * sin(rotSpeed) + dirY * cos(rotSpeed);
-        double oldPlaneX = planeX;
+        float oldPlaneX = planeX;
         planeX = planeX * cos(rotSpeed) - planeY * sin(rotSpeed);
         planeY = oldPlaneX * sin(rotSpeed) + planeY * cos(rotSpeed);
     }

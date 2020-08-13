@@ -184,6 +184,8 @@ void ICACHE_FLASH_ATTR freeAssets(void)
 /**
  * Transform a pixel's coordinates by rotation around the sprite's center point,
  * then reflection over Y axis, then reflection over X axis, then translation
+ * 
+ * This intentionally does not have ICACHE_FLASH_ATTR because it may be called often
  *
  * @param x The x coordinate of the pixel location to transform
  * @param y The y coordinate of the pixel location to trasform
@@ -195,9 +197,9 @@ void ICACHE_FLASH_ATTR freeAssets(void)
  * @param width  The width of the image
  * @param height The height of the image
  */
-void ICACHE_FLASH_ATTR transformPixel(int16_t* x, int16_t* y, int16_t transX,
-                                      int16_t transY, bool flipLR, bool flipUD,
-                                      int16_t rotateDeg, int16_t width, int16_t height)
+void transformPixel(int16_t* x, int16_t* y, int16_t transX,
+                    int16_t transY, bool flipLR, bool flipUD,
+                    int16_t rotateDeg, int16_t width, int16_t height)
 {
     // First rotate the sprite around the sprite's center point
     if (0 < rotateDeg && rotateDeg < 360)
