@@ -16,6 +16,18 @@
             }
         },
         {
+            "label": "make all (win emulator)",
+            "type": "shell",
+            "command": "make -C emu all",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
             "label": "make all (android)",
             "type": "shell",
             "command": "unset ESP_GDB && export SET_SWADGE_VERSION=2 && make -C emu/android -j$(nproc) push run",
