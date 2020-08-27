@@ -57,7 +57,7 @@ swadgeMode raycasterMode =
     .fnEspNowSendCb = NULL,
     .fnAccelerometerCallback = NULL,
     .fnAudioCallback = NULL,
-    .menuImg = "copter-menu.gif"
+    .menuImg = "ray-menu.gif"
 };
 
 timer_t raycasterTimer;
