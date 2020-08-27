@@ -268,9 +268,9 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     allocPngAsset("archL.png", &(pd->archL));
     allocPngAsset("archR.png", &(pd->archR));
 
-    pd->demonX = (OLED_WIDTH / 2) - 8;
+    pd->demonX = (OLED_WIDTH / 2) - (pd->demonSprite.width / 2);
     pd->demonDirLR = false;
-    pd->demonY = (OLED_HEIGHT / 2) - 8;
+    pd->demonY = (OLED_HEIGHT / 2) - (pd->demonSprite.height / 2);
     pd->demonDirUD = false;
 
     // Set up an animation timer
@@ -606,7 +606,7 @@ bool ICACHE_FLASH_ATTR updtAnimWalk(void)
     {
         pd->animCnt = 0;
         // Check if the demon turns around
-        if(os_random() % 64 == 0 || (pd->demonX == OLED_WIDTH - 16) || (pd->demonX == 0))
+        if(os_random() % 64 == 0 || (pd->demonX == OLED_WIDTH - pd->demonSprite.width) || (pd->demonX == 0))
         {
             pd->demonDirLR = !(pd->demonDirLR);
         }
@@ -625,7 +625,8 @@ bool ICACHE_FLASH_ATTR updtAnimWalk(void)
         if(os_random() % 4 == 0)
         {
             // Check if the demon changes up/down direction
-            if(os_random() % 16 == 0 || (pd->demonY == OLED_HEIGHT / 2) || (pd->demonY == (OLED_HEIGHT / 2) - 16))
+            if(os_random() % 16 == 0 || (pd->demonY == OLED_HEIGHT - pd->demonSprite.height - FONT_HEIGHT_IBMVGA8 - 1)
+                    || (pd->demonY == 0))
             {
                 pd->demonDirUD = !(pd->demonDirUD);
             }
@@ -659,22 +660,22 @@ bool ICACHE_FLASH_ATTR updtAnimCenter(void)
         bool centeredX = false;
         bool centeredY = false;
 
-        if(pd->demonX > (OLED_WIDTH / 2) - 8)
+        if(pd->demonX > (OLED_WIDTH / 2) - (pd->demonSprite.width / 2))
         {
             pd->demonDirLR = false;
             pd->demonX -= 2;
-            if(pd->demonX < (OLED_WIDTH / 2) - 8)
+            if(pd->demonX < (OLED_WIDTH / 2) - (pd->demonSprite.width / 2))
             {
-                pd->demonX = (OLED_WIDTH / 2) - 8;
+                pd->demonX = (OLED_WIDTH / 2) - (pd->demonSprite.width / 2);
             }
         }
-        else if(pd->demonX < (OLED_WIDTH / 2) - 8)
+        else if(pd->demonX < (OLED_WIDTH / 2) - (pd->demonSprite.width / 2))
         {
             pd->demonDirLR = true;
             pd->demonX += 2;
-            if(pd->demonX > (OLED_WIDTH / 2) - 8)
+            if(pd->demonX > (OLED_WIDTH / 2) - (pd->demonSprite.width / 2))
             {
-                pd->demonX = (OLED_WIDTH / 2) - 8;
+                pd->demonX = (OLED_WIDTH / 2) - (pd->demonSprite.width / 2);
             }
         }
         else
@@ -682,11 +683,11 @@ bool ICACHE_FLASH_ATTR updtAnimCenter(void)
             centeredX = true;
         }
 
-        if(pd->demonY > (OLED_HEIGHT / 2) - 8)
+        if(pd->demonY > (OLED_HEIGHT / 2) - (pd->demonSprite.height / 2))
         {
             pd->demonY--;
         }
-        else if(pd->demonY < (OLED_HEIGHT / 2) - 8)
+        else if(pd->demonY < (OLED_HEIGHT / 2) - (pd->demonSprite.height / 2))
         {
             pd->demonY++;
         }
@@ -745,7 +746,7 @@ bool ICACHE_FLASH_ATTR updtAnimEating(void)
     bool shouldDraw = false;
     if(pd->animCnt == 100)
     {
-        pd->demonX = (OLED_WIDTH / 2) - 8;
+        pd->demonX = (OLED_WIDTH / 2) - (pd->demonSprite.width / 2);
         shouldDraw = true;
         if(pd->seqFrame == pd->burger.count)
         {
@@ -757,7 +758,7 @@ bool ICACHE_FLASH_ATTR updtAnimEating(void)
     {
         pd->animCnt = 0;
 
-        pd->demonX = (OLED_WIDTH / 2) - 12;
+        pd->demonX = (OLED_WIDTH / 2) - (3 * (pd->demonSprite.width / 4));
         pd->seqFrame++;
         shouldDraw = true;
     }
@@ -775,15 +776,27 @@ void ICACHE_FLASH_ATTR drawAnimEating(void)
     // Draw the food
     if(pd->numFood == 1)
     {
-        drawPngSequence(pd->food,  (OLED_WIDTH / 2) - 28,  (OLED_HEIGHT / 2) - 8, false, false, 0, pd->seqFrame);
+        drawPngSequence(pd->food,
+                        (OLED_WIDTH / 2) - (3 * (pd->demonSprite.width / 4)) - (pd->food->handles->width) - (3),
+                        (OLED_HEIGHT / 2) - (pd->food->handles->height / 2),
+                        false, false, 0, pd->seqFrame);
     }
     else
     {
-        drawPngSequence(pd->food,  (OLED_WIDTH / 2) - 28,  (OLED_HEIGHT / 2) - 16, false, false, 0, pd->seqFrame);
-        drawPngSequence(pd->food,  (OLED_WIDTH / 2) - 46,  (OLED_HEIGHT / 2) - 16, false, false, 0, pd->seqFrame);
-        drawPngSequence(pd->food,  (OLED_WIDTH / 2) - 37,  (OLED_HEIGHT / 2) + 2,  false, false, 0, pd->seqFrame);
+        drawPngSequence(pd->food,
+                        (OLED_WIDTH / 2) - (3 * (pd->demonSprite.width / 4)) - (pd->food->handles->width) - (2),
+                        (OLED_HEIGHT / 2) - (pd->food->handles->height) - 1,
+                        false, false, 0, pd->seqFrame);
+        drawPngSequence(pd->food,
+                        (OLED_WIDTH / 2) - (3 * (pd->demonSprite.width / 4)) - (pd->food->handles->width) - (pd->food->handles->width) - (4),
+                        (OLED_HEIGHT / 2) - (pd->food->handles->height) - 1,
+                        false, false, 0, pd->seqFrame);
+        drawPngSequence(pd->food,
+                        (OLED_WIDTH / 2) - (3 * (pd->demonSprite.width / 4)) - (pd->food->handles->width) - (pd->food->handles->width / 2) -
+                        (3),
+                        (OLED_HEIGHT / 2) + 1,
+                        false, false, 0, pd->seqFrame);
     }
-
 }
 
 /*******************************************************************************
@@ -864,7 +877,10 @@ void ICACHE_FLASH_ATTR drawAnimNotEating(void)
     // Draw the demon
     drawAnimDemon();
     // Draw the food
-    drawPngSequence(pd->food,  (OLED_WIDTH / 2) - 28,  (OLED_HEIGHT / 2) - 8, false, false, 0, 0);
+    drawPngSequence(pd->food,
+                    (OLED_WIDTH / 2) - (3 * (pd->demonSprite.width / 4)) - (pd->food->handles->width) - (3),
+                    (OLED_HEIGHT / 2) - (pd->food->handles->height / 2),
+                    false, false, 0, 0);
 }
 
 /*******************************************************************************
@@ -978,7 +994,10 @@ void ICACHE_FLASH_ATTR drawAnimMeds(void)
     // Draw the demon
     drawAnimDemon();
     // Draw the syringe
-    drawPngSequence(&(pd->syringe), (OLED_WIDTH / 2) - 24, (OLED_HEIGHT / 2) - 4, false, false, 0, pd->seqFrame);
+    drawPngSequence(&(pd->syringe),
+                    (OLED_WIDTH / 2) - (pd->demonSprite.width / 2) - pd->syringe.handles->width - 2,
+                    (OLED_HEIGHT / 2) - (pd->syringe.handles->height / 2),
+                    false, false, 0, pd->seqFrame);
 }
 
 /*******************************************************************************
@@ -1045,7 +1064,10 @@ void ICACHE_FLASH_ATTR drawAnimScold(void)
     // Draw the demon
     drawAnimDemon();
     // Draw the hand
-    drawPng((&pd->hand), (OLED_WIDTH / 2) - 28, (OLED_HEIGHT / 2) - 28, false, false, pd->handRot);
+    drawPng((&pd->hand),
+            (OLED_WIDTH / 2) - (pd->demonSprite.width / 2) - pd->hand.width - 4,
+            4,
+            false, false, pd->handRot);
 }
 
 /*******************************************************************************
@@ -1059,8 +1081,8 @@ void ICACHE_FLASH_ATTR drawAnimScold(void)
 void ICACHE_FLASH_ATTR initAnimPortal(void)
 {
     pd->demonDirLR = true;
-    pd->demonY = 13 + 38 - 16;
-    pd->demonX = 16 + 24 - 16;
+    pd->demonY = 13 + 38 - pd->demonSprite.height;
+    pd->demonX = 16 + 24 - pd->demonSprite.width;
 }
 
 /**
@@ -1103,6 +1125,8 @@ void ICACHE_FLASH_ATTR drawAnimPortal(void)
     drawPng(&pd->archR, 16 + 24, 13, false, false, 0);
     // Draw the demon
     drawAnimDemon();
+    // Cover the area peeking out of the portal
+    fillDisplayArea(0, 0, 16, OLED_HEIGHT, BLACK);
     // Draw the other half
     drawPng(&pd->archL, 16, 13, false, false, 0);
 }
