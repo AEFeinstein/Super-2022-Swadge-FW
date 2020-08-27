@@ -262,7 +262,7 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
                      "syringe09.png",
                      "syringe10.png",
                      "syringe11.png");
-    allocPngAsset("dino.png", &(pd->demonSprite));
+    allocPngAsset("pd-norm.png", &(pd->demonSprite));
     allocPngAsset("scold.png", &(pd->hand));
     allocPngAsset("poop.png", &(pd->poop));
     allocPngAsset("archL.png", &(pd->archL));
