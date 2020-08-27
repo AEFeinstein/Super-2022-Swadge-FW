@@ -292,7 +292,7 @@ bool ICACHE_FLASH_ATTR allocPngAsset(const char* name, pngHandle* handle)
         // Get the width and height
         handle->width  = assetPtr[idx++];
         handle->height = assetPtr[idx++];
-        AST_PRINTF("Width: %d, height: %d\n", width, height);
+        AST_PRINTF("Width: %d, height: %d\n", handle->width, handle->height);
 
         // Pad the length to a 32 bit boundary for memcpy
         uint32_t paddedLen = assetLen - (2 * sizeof(uint32_t));
