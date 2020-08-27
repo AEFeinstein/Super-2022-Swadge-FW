@@ -514,6 +514,8 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         }
         case EVT_NO_SCOLD_SICK:
         {
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_SCOLD);
             os_printf("You scolded %s, but it was sick\n", pd->demon.name);
             break;
         }
