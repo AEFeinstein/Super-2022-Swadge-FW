@@ -42,8 +42,9 @@
 #define ARROWS_TIMER 15
 #define MAX_SIXTEENTH_TIMER (60000 / 4 / ARROWS_TIMER)
 
-#define LEDS_TIMER 15
+#define LEDS_TIMER ARROWS_TIMER
 #define MAX_PULSE_TIMER (60000 / LEDS_TIMER)
+#define START_PULSE_TIMER 2000
 
 #define SONG_DURATION 1000 * 60
 
@@ -62,8 +63,6 @@ static void ICACHE_FLASH_ATTR ddrEnterMode(void);
 static void ICACHE_FLASH_ATTR ddrExitMode(void);
 static void ICACHE_FLASH_ATTR ddrButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down);
-static void ICACHE_FLASH_ATTR ddrAccelerometerHandler(accel_t* accel);
-static void ICACHE_FLASH_ATTR ddrSampleHandler(int32_t samp);
 
 static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR ddrAnimateNotes(void* arg __attribute__((unused)));
@@ -102,19 +101,15 @@ swadgeMode ddrMode =
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
-    .fnAccelerometerCallback = ddrAccelerometerHandler,
-    .fnAudioCallback = ddrSampleHandler,
+    .fnAccelerometerCallback = NULL,
+    .fnAudioCallback = NULL,
     .menuImg = "ddr-menu.gif"
 };
 
-typedef struct 
-{
-    uint16_t hPos;
-} ddrArrow;
 
 typedef struct 
 {
-    ddrArrow arrows[ARROW_ROW_MAX_COUNT];
+    uint16_t arrows[ARROW_ROW_MAX_COUNT];
     uint8 start;
     uint8 count;
     int pressDirection;
@@ -130,7 +125,6 @@ typedef enum
 typedef struct
 {
     // Callback variables
-    accel_t Accel;
     uint8_t ButtonState;
     uint8_t ButtonDownState;
 
@@ -170,6 +164,8 @@ typedef struct
     ddrGameMode mode;
 
     menu_t* menu;
+
+    pngSequenceHandle ddrSkullSequenceHandle;
 } ddr_t;
 
 ddr_t* ddr;
@@ -180,7 +176,6 @@ static const char ddr_medium[] = "MED";
 static const char ddr_hard[]   = "HARD";
 static const char ddr_quit[]   = "QUIT";
 
-static pngSequenceHandle ddrSkullSequenceHandle = {0};
 
 /*============================================================================
  * Functions
@@ -195,7 +190,7 @@ void ICACHE_FLASH_ATTR ddrEnterMode(void)
     ddr = os_malloc(sizeof(ddr_t));
     ets_memset(ddr, 0, sizeof(ddr_t));
 
-    allocPngSequence(&ddrSkullSequenceHandle, 4,
+    allocPngSequence(&ddr->ddrSkullSequenceHandle, 4,
             "skull01.png",
             "skull02.png",
             "skull01.png",
@@ -215,6 +210,22 @@ void ICACHE_FLASH_ATTR ddrEnterMode(void)
     syncedTimerDisarm(&ddr->timerUpdateDisplay);
     syncedTimerSetFn(&ddr->timerUpdateDisplay, ddrUpdateDisplay, NULL);
     syncedTimerArm(&ddr->timerUpdateDisplay, 15, true);
+
+    syncedTimerDisarm(&ddr->timerAnimateNotes);
+    syncedTimerSetFn(&ddr->timerAnimateNotes, ddrAnimateNotes, NULL);
+    syncedTimerArm(&ddr->timerAnimateNotes, 60, true);
+
+    syncedTimerDisarm(&ddr->TimerHandleLeds);
+    syncedTimerSetFn(&ddr->TimerHandleLeds, ddrLedFunc, NULL);
+    syncedTimerArm(&ddr->TimerHandleLeds, LEDS_TIMER, true);
+
+    syncedTimerDisarm(&ddr->TimerAnimateSuccessMeter);
+    syncedTimerSetFn(&ddr->TimerAnimateSuccessMeter, ddrAnimateSuccessMeter, NULL);
+    syncedTimerArm(&ddr->TimerAnimateSuccessMeter, 40, true);
+
+    syncedTimerDisarm(&ddr->TimerSongDuration);
+    syncedTimerSetFn(&ddr->TimerSongDuration, ddrSongDurationFunc, NULL);
+    syncedTimerArm(&ddr->TimerSongDuration, SONG_DURATION, true);
 }
 
 static void ICACHE_FLASH_ATTR ddrMenuCb(const char* menuItem)
@@ -240,20 +251,6 @@ static void ICACHE_FLASH_ATTR ddrMenuCb(const char* menuItem)
 
 static void ICACHE_FLASH_ATTR ddrStartGame(int tempo)
 {    
-    syncedTimerDisarm(&ddr->timerAnimateNotes);
-    syncedTimerSetFn(&ddr->timerAnimateNotes, ddrAnimateNotes, NULL);
-    syncedTimerArm(&ddr->timerAnimateNotes, 60, true);
-    syncedTimerDisarm(&ddr->TimerHandleLeds);
-    syncedTimerSetFn(&ddr->TimerHandleLeds, ddrLedFunc, NULL);
-    syncedTimerArm(&ddr->TimerHandleLeds, LEDS_TIMER, true);
-
-    syncedTimerDisarm(&ddr->TimerAnimateSuccessMeter);
-    syncedTimerSetFn(&ddr->TimerAnimateSuccessMeter, ddrAnimateSuccessMeter, NULL);
-    syncedTimerArm(&ddr->TimerAnimateSuccessMeter, 40, true);
-
-    syncedTimerDisarm(&ddr->TimerSongDuration);
-    syncedTimerSetFn(&ddr->TimerSongDuration, ddrSongDurationFunc, NULL);
-    syncedTimerArm(&ddr->TimerSongDuration, SONG_DURATION, true);
 
     // Draw a gif
     //drawGifFromAsset("ragequit.gif", 0, 0, false, false, 0, &ddr->gHandle);
@@ -276,7 +273,7 @@ static void ICACHE_FLASH_ATTR ddrStartGame(int tempo)
 
     ddr->ButtonDownState = 0;
 
-    ddr->PulseTimeLeft = MAX_PULSE_TIMER;
+    ddr->PulseTimeLeft = START_PULSE_TIMER;
 
     ddr->currentFeedback = 0;
     ddr->feedbackTimer = 0;
@@ -306,7 +303,7 @@ static void ICACHE_FLASH_ATTR ddrExitMode(void)
     syncedTimerDisarm(&ddr->timerUpdateDisplay);
     syncedTimerDisarm(&ddr->TimerSongDuration);
     
-    freePngSequence(&ddrSkullSequenceHandle);
+    freePngSequence(&ddr->ddrSkullSequenceHandle);
     deinitMenu(ddr->menu);
     os_free(ddr);
 }
@@ -352,7 +349,8 @@ static void ICACHE_FLASH_ATTR ddrLedFunc(void* arg __attribute__((unused)))
                             leds[3].r=50;
                             break;
 
-                        default:// FEEDBACK_MISS:
+                        default:
+                        case FEEDBACK_MISS:
                             leds[2].r=50;
                             leds[3].r=50;
                     }
@@ -367,18 +365,23 @@ static void ICACHE_FLASH_ATTR ddrLedFunc(void* arg __attribute__((unused)))
             else 
             {
                 ddr->PulseTimeLeft -= pulseTimeReduction;
-                if (ddr->PulseTimeLeft < 1000)
+
+                int pulseWindow = 4000;
+                float halfWindow = (float)pulseWindow * 0.5f;
+
+                if (ddr->PulseTimeLeft < pulseWindow)
                 {
-                    leds[0].b=128;
-                    leds[1].b=128;
+                    float intensity_mod = 1.0 - ((float)abs(ddr->PulseTimeLeft-halfWindow)) / halfWindow;
+
+                    int blue = 128 * (intensity_mod * intensity_mod);
+
+                    leds[0].b=blue;
+                    leds[1].b=blue;
                 
-                    leds[NUM_LIN_LEDS-1].b=128;
-                    leds[NUM_LIN_LEDS-2].b=128;
+                    leds[NUM_LIN_LEDS-3].b=blue;
+                    leds[NUM_LIN_LEDS-4].b=blue;
                 }
             } 
-
-            setLeds(leds, sizeof(leds));
-
             break;
         }
         case DDR_SCORE:
@@ -386,6 +389,8 @@ static void ICACHE_FLASH_ATTR ddrLedFunc(void* arg __attribute__((unused)))
             break;
         }
     }
+
+    setLeds(leds, sizeof(leds));
 }
 
 static void ICACHE_FLASH_ATTR fisherYates(int arr[], int n)
@@ -407,7 +412,7 @@ static void ICACHE_FLASH_ATTR fisherYates(int arr[], int n)
 static void ICACHE_FLASH_ATTR ddrHandleArrows(void)
 {
     ddrArrowRow* curRow;
-    ddrArrow* curArrow;
+    uint16_t* curArrow;
     int curStart;
     int curCount;
     int curEnd;
@@ -466,9 +471,9 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void)
         for(int arrowIdx = curStart; arrowIdx != curEnd; arrowIdx = (arrowIdx + 1) % ARROW_ROW_MAX_COUNT)
         {
             curArrow = &(curRow->arrows[arrowIdx]);
-            curArrow->hPos += ddr->tempo * 0.07;
+            *curArrow += ddr->tempo * 0.07;
 
-            uint16_t arrowDist = abs(curArrow->hPos - ARROW_PERFECT_HPOS);
+            uint16_t arrowDist = abs(*curArrow - ARROW_PERFECT_HPOS);
 
             if (arrowDist <= ARROW_PERFECT_RADIUS)
             {
@@ -494,7 +499,7 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void)
                     ddrHandleHit();
                 }
             }
-            else if (curArrow->hPos > ARROW_PERFECT_HPOS)
+            else if (*curArrow > ARROW_PERFECT_HPOS)
             {
                 curRow->count--;
                 curRow->start = (curRow->start + 1) % ARROW_ROW_MAX_COUNT;
@@ -508,7 +513,7 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void)
             if (rand() % 100 < percentChanceSpawn)
             {
                 arrowsSpawnedThisBeat++;
-                curRow->arrows[(curRow->start+curRow->count) % ARROW_ROW_MAX_COUNT].hPos = 0;
+                curRow->arrows[(curRow->start+curRow->count) % ARROW_ROW_MAX_COUNT] = 0;
                 curRow->count++;
             }
         }
@@ -571,13 +576,30 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
 
             //ddrUpdateButtons();
             ddrArrowRow* curRow;
-            ddrArrow* curArrow;
+            uint16_t* curArrow;
             int curStart;
             int curCount;
             int curEnd;
 
             for (int rowIdx = 0; rowIdx < 4; rowIdx++)
             {
+                int16_t rowRot = 0;
+                bool rowHFlip = false;
+                switch(rowIdx)
+                {
+                    default:
+                    case 1:
+                        break;
+                    case 0:
+                        rowRot = 90;
+                    case 2:
+                        rowHFlip = true;
+                        break;
+                    case 3:
+                        rowRot = 270;
+                        break;
+                }
+
                 curRow = &(ddr->arrowRows[rowIdx]);
                 curStart = curRow->start;
                 curCount = curRow->count;
@@ -588,7 +610,7 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
                     curArrow = &(curRow->arrows[arrowIdx]);
                     
                     
-                    drawPngSequence(&ddrSkullSequenceHandle, (curArrow->hPos-400)/12, 48 - rowIdx * 16, false, false, 0, ddr->NoteIdx);
+                    drawPngSequence(&ddr->ddrSkullSequenceHandle, (*curArrow-400)/12, 48 - rowIdx * 16, rowHFlip, false, rowRot, ddr->NoteIdx);
                 }
             }
 
@@ -604,31 +626,14 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
             plotCircle(110, 55-16*0, BTN_RAD-3, WHITE); // Bottom
             plotCircle(110, 55-16*0+3, 2, WHITE); // subcircle
 
-            /*
-            if(ddr->ButtonDownState & UP)
+            // press feedback
+            for (int rowNum=0 ; rowNum<4 ; rowNum++)
             {
-                // A
-                plotCircle(110, 55-16*3, BTN_RAD, WHITE);
-            }
-
-            if(ddr->ButtonDownState & LEFT)
-            {
-                // S
-                plotCircle(110, 55-16*2, BTN_RAD, WHITE);
-            }
-            
-            if(ddr->ButtonDownState & RIGHT)
-            {
-                // D
-                plotCircle(110, 55-16*1, BTN_RAD, WHITE);
-            }
-
-            if(ddr->ButtonDownState & DOWN)
-            {
-                // F
-                plotCircle(110, 55-16*0, BTN_RAD, WHITE);
-            }
-            */
+                if(ddr->ButtonDownState & ddr->arrowRows[rowNum].pressDirection)
+                {
+                    plotCircle(110, 55-16*rowNum, BTN_RAD, WHITE);
+                }
+            }        
 
             if ( ddr->successMeter == 100 )
             {
@@ -773,104 +778,7 @@ static void ICACHE_FLASH_ATTR ddrButtonCallback( uint8_t state,
     }
 }
 
-/**
- * Store the acceleration data to be displayed later
- *
- * @param x
- * @param x
- * @param z
- */
-static void ICACHE_FLASH_ATTR ddrAccelerometerHandler(accel_t* accel)
-{
-    ddr->Accel.x = accel->x;
-    ddr->Accel.y = accel->y;
-    ddr->Accel.z = accel->z;
-    // ddrUpdateDisplay();
-}
-
 static void ICACHE_FLASH_ATTR ddrAnimateSuccessMeter(void* arg __attribute((unused)))
 {
     ddr->successMeterShineStart = (ddr->successMeterShineStart + 1 ) % 4;
-}
-
-
-/**
- * This is called every time an audio sample is read from the ADC
- * This processes the sample and will display update the LEDs every
- * 128 samples
- *
- * @param samp A 32 bit audio sample read from the ADC (microphone)
- */
-static void ICACHE_FLASH_ATTR ddrSampleHandler(int32_t samp)
-{
-    /* copied from flappy
-    switch(flappy->mode)
-    {
-        default:
-        case FLAPPY_MENU:
-        {
-            break;
-        }
-        case FLAPPY_GAME:
-        {
-            PushSample32( samp );
-            flappy->samplesProcessed++;
-
-            // If at least 128 samples have been processed
-            if( flappy->samplesProcessed >= 128 )
-            {
-                // Colorchord magic
-                HandleFrameInfo();
-
-                // flappy->oldPeakFreq = flappy->peakFreq;
-                // flappy->peakFreq = findPeakFreq();
-                // // os_printf("%d\n", flappy->peakFreq);
-
-                // static int maxF = 0;
-                // if(flappy->peakFreq > maxF)
-                // {
-                //     maxF = flappy->peakFreq;
-                //     os_printf("MF %d\n", maxF);
-                // }
-
-                // int16_t delta = flappy->peakFreq - flappy->oldPeakFreq;
-                // if(delta > 80)
-                // {
-                //     delta = -(delta - 191);
-                // }
-                // else if (delta < -80)
-                // {
-                //     delta = -(delta + 191);
-                // }
-
-                // if((1 < delta && delta < 7) || (-7 < delta && delta < -1) )
-                // {
-                //     os_printf("%d\n", delta);
-
-                //     flappy->chopperPos -= (delta / 2);
-                //     if(flappy->chopperPos < 0)
-                //     {
-                //         flappy->chopperPos = 0;
-                //     }
-                //     else if (flappy->chopperPos > OLED_HEIGHT - 16)
-                //     {
-                //         flappy->chopperPos = OLED_HEIGHT - 16;
-                //     }
-                // }
-
-                // if(flappy->peakFreq > flappy->oldPeakFreq)
-                // {
-                //     // TODO go up!
-                // }
-                // else if(flappy->peakFreq > flappy->oldPeakFreq)
-                // {
-                //     // TODO go down!
-                // }
-
-                // Reset the sample count
-                flappy->samplesProcessed = 0;
-            }
-        }
-    }
-    */
 }
