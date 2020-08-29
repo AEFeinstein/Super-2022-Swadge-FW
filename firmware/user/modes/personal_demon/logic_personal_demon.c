@@ -611,7 +611,7 @@ void ICACHE_FLASH_ATTR takeAction(demon_t* pd, action_t action)
         {
             // TODO save first?
             switchToSwadgeMode(0);
-            break;
+            return; // pd will be uninitialized after this
         }
         case ACT_NUM_ACTIONS:
         default:

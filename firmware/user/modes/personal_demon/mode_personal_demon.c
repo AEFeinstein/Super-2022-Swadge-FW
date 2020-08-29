@@ -15,6 +15,14 @@
  * Defines, Enums
  *============================================================================*/
 
+#define ACT_STRLEN 128
+
+typedef struct
+{
+    char str[ACT_STRLEN];
+    int16_t pos;
+} marquisText_t;
+
 typedef enum
 {
     PDA_WALKING,
@@ -96,6 +104,8 @@ typedef struct
     uint8_t menuIdx;
     int16_t textPos;
     uint8_t numFood;
+
+    list_t marquisTextQueue;
 
     pdMenuOpt menuTable[PDM_NUM_OPTS];
 } pd_data;
@@ -287,6 +297,11 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
  */
 void ICACHE_FLASH_ATTR personalDemonExitMode(void)
 {
+    // Stop the timers
+    timerDisarm(&pd->animationTimer);
+    timerFlush();
+
+    // Free the assets
     freePngSequence(&(pd->pizza));
     freePngSequence(&(pd->burger));
     freePngSequence(&(pd->syringe));
@@ -295,8 +310,25 @@ void ICACHE_FLASH_ATTR personalDemonExitMode(void)
     freePngAsset(&(pd->poop));
     freePngAsset(&(pd->archL));
     freePngAsset(&(pd->archR));
-    timerDisarm(&pd->animationTimer);
-    timerFlush();
+
+    // Clear the queues
+    while(pd->demon.evQueue.length > 0)
+    {
+        pop(&(pd->demon.evQueue));
+    }
+
+    while(pd->marquisTextQueue.length > 0)
+    {
+        void* node = pop(&(pd->marquisTextQueue));
+        os_free(node);
+    }
+
+    while(pd->animationQueue.length > 0)
+    {
+        void* node = pop(&(pd->animationQueue));
+    }
+
+    // Free the memory
     os_free(pd);
 }
 
@@ -371,6 +403,45 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
     {
         personalDemonUpdateDisplay();
     }
+
+    // Shift the text every third cycle
+    static uint8_t marquisTextTimer = 0;
+    if(marquisTextTimer++ > 2)
+    {
+        marquisTextTimer = 0;
+    }
+
+    // If there's anything in the text marquis queue
+    if(pd->marquisTextQueue.length > 0)
+    {
+        // Clear the text background first
+        fillDisplayArea(0, 0, OLED_WIDTH, FONT_HEIGHT_IBMVGA8, BLACK);
+        // Iterate through all the text
+        node_t* node = pd->marquisTextQueue.first;
+        while(NULL != node)
+        {
+            // Get the text from the queue
+            marquisText_t* text = node->val;
+
+            // Shift the text if it's time
+            if(0 == marquisTextTimer)
+            {
+                text->pos--;
+            }
+
+            // Iterate to the next
+            node = node->next;
+
+            // Plot the text that's on the OLED
+            if (text->pos < OLED_WIDTH &&
+                    0 > plotText(text->pos, 0, text->str, IBM_VGA_8, WHITE))
+            {
+                // If the text was plotted off the screen, remove it from the queue
+                shift(&(pd->marquisTextQueue));
+                os_free(text);
+            }
+        }
+    }
 }
 
 /**
@@ -426,173 +497,204 @@ void ICACHE_FLASH_ATTR personalDemonResetAnimVars(void)
  */
 void ICACHE_FLASH_ATTR animateEvent(event_t evt)
 {
+    marquisText_t* marquis = (marquisText_t*)os_malloc(sizeof(marquisText_t));
     switch(evt)
     {
         case EVT_GOT_SICK_RANDOMLY:
         {
-            os_printf("%s randomly got sick\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s got sick. ", pd->demon.name);
             break;
         }
         case EVT_GOT_SICK_POOP:
         {
-            os_printf("Poop made %s sick\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "Poop made %s sick. ", pd->demon.name);
             break;
         }
         case EVT_GOT_SICK_OBESE:
         {
-            os_printf("Obesity made %s sick\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "Obesity made %s sick. ", pd->demon.name);
             break;
         }
         case EVT_GOT_SICK_MALNOURISHED:
         {
-            os_printf("Malnourishment made %s sick\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "Malnourishment made %s sick. ", pd->demon.name);
             break;
         }
         case EVT_POOPED:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_POOPING);
-            os_printf("%s pooped\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s pooped. ", pd->demon.name);
             break;
         }
         case EVT_LOST_DISCIPLINE:
         {
-            os_printf("%s became less disciplined\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s became less disciplined. ", pd->demon.name);
             break;
         }
         case EVT_EAT:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_EATING);
-            os_printf("%s ate the food\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s ate the food. ", pd->demon.name);
             break;
         }
         case EVT_OVEREAT:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_OVER_EATING);
-            os_printf("%s ate the food, then stole more and overate\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s ate the food, then stole more and overate. ", pd->demon.name);
             break;
         }
         case EVT_NO_EAT_SICK:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_NOT_EATING);
-            os_printf("%s was too sick to eat\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s was too sick to eat. ", pd->demon.name);
             break;
         }
         case EVT_NO_EAT_DISCIPLINE:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_NOT_EATING);
-            os_printf("%s was too unruly eat\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s was too unruly eat. ", pd->demon.name);
             break;
         }
         case EVT_NO_EAT_FULL:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_NOT_EATING);
-            os_printf("%s was too full to eat\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s was too full to eat. ", pd->demon.name);
             break;
         }
         case EVT_PLAY:
         {
-            os_printf("You played with %s\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "You played with %s. ", pd->demon.name);
             break;
         }
         case EVT_NO_PLAY_DISCIPLINE:
         {
-            os_printf("%s was too unruly to play\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s was too unruly to play. ", pd->demon.name);
             break;
         }
         case EVT_SCOLD:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_SCOLD);
-            os_printf("You scolded %s\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "You scolded %s. ", pd->demon.name);
             break;
         }
         case EVT_NO_SCOLD_SICK:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_SCOLD);
-            os_printf("You scolded %s, but it was sick\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "You scolded %s, but it was sick. ", pd->demon.name);
             break;
         }
         case EVT_MEDICINE_NOT_SICK:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_MEDICINE);
-            os_printf("You gave %s medicine, but it wasn't sick\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "You gave %s medicine, but it wasn't sick. ", pd->demon.name);
             break;
         }
         case EVT_MEDICINE_CURE:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_MEDICINE);
-            os_printf("You gave %s medicine, and it was cured\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "You gave %s medicine, and it was cured. ", pd->demon.name);
             break;
         }
         case EVT_MEDICINE_FAIL:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_MEDICINE);
-            os_printf("You gave %s medicine, but it didn't work\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "You gave %s medicine, but it didn't work. ", pd->demon.name);
             break;
         }
         case EVT_FLUSH_POOP:
         {
-            os_printf("You flushed a poop\n");
+            ets_snprintf(marquis->str, ACT_STRLEN, "You flushed a poop. ");
             break;
         }
         case EVT_FLUSH_NOTHING:
         {
-            os_printf("You flushed nothing\n");
+            ets_snprintf(marquis->str, ACT_STRLEN, "You flushed nothing. ");
             break;
         }
         case EVT_LOST_HEALTH_SICK:
         {
-            os_printf("%s lost health to sickness\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s lost health to sickness. ", pd->demon.name);
             break;
         }
         case EVT_LOST_HEALTH_OBESITY:
         {
-            os_printf("%s lost health to obesity\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s lost health to obesity. ", pd->demon.name);
             break;
         }
         case EVT_LOST_HEALTH_MALNOURISHMENT:
         {
-            os_printf("%s lost health to malnourishment\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s lost health to malnourishment. ", pd->demon.name);
             break;
         }
         case EVT_TEENAGER:
         {
-            os_printf("%s is now a teenager. Watch out.\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s is now a teenager. Watch out. ", pd->demon.name);
             break;
         }
         case EVT_ADULT:
         {
-            os_printf("%s is now an adult. Boring.\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s is now an adult. Boring. ", pd->demon.name);
             break;
         }
         case EVT_BORN:
         {
             unshift(&pd->animationQueue, (void*)PDA_BIRTH);
-            os_printf("%s fell out of a portal\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s fell out of a portal. ", pd->demon.name);
             break;
         }
         case EVT_DEAD:
         {
-            os_printf("%s died\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s died. ", pd->demon.name);
             break;
         }
         default:
         case EVT_NONE:
         case EVT_NUM_EVENTS:
         {
-            break;
+            os_free(marquis);
+            return;
         }
     }
+
+    // If there is no marquis text
+    if(pd->marquisTextQueue.length == 0)
+    {
+        // Position this at the edge of the OLED
+        marquis->pos = OLED_WIDTH;
+    }
+    else
+    {
+        // Otherwise position this after the last text
+        // Find the last node in the marquis
+        node_t* node = pd->marquisTextQueue.first;
+        while(NULL != node->next)
+        {
+            node = node->next;
+        }
+        marquisText_t* lastText = node->val;
+        // Set the position
+        marquis->pos = lastText->pos + textWidth(lastText->str, IBM_VGA_8);
+
+        // If this would already be on the OLED
+        if(marquis->pos < OLED_WIDTH)
+        {
+            // shift it to the edge
+            marquis->pos = OLED_WIDTH;
+        }
+    }
+
+    push(&pd->marquisTextQueue, (void*)marquis);
 }
 
 /**
@@ -628,7 +730,7 @@ bool ICACHE_FLASH_ATTR updtAnimWalk(void)
         {
             // Check if the demon changes up/down direction
             if(os_random() % 16 == 0 || (pd->demonY == OLED_HEIGHT - pd->demonSprite.height - FONT_HEIGHT_IBMVGA8 - 1)
-                    || (pd->demonY == 0))
+                    || (pd->demonY == FONT_HEIGHT_IBMVGA8 + 1))
             {
                 pd->demonDirUD = !(pd->demonDirUD);
             }
