@@ -48,8 +48,9 @@
 
 #define SONG_DURATION 1000 * 60
 
+#define FEEDBACK_HIT_LATE 4
 #define FEEDBACK_PERFECT 3
-#define FEEDBACK_HIT 2
+#define FEEDBACK_HIT_EARLY 2
 #define FEEDBACK_MISS 1
 #define FEEDBACK_NONE 0
 
@@ -76,7 +77,8 @@ static void ICACHE_FLASH_ATTR ddrSongDurationFunc(void* arg __attribute((unused)
 static void ICACHE_FLASH_ATTR ddrMenuCb(const char* menuItem);
 
 static void ICACHE_FLASH_ATTR fisherYates(int arr[], int n);
-static void ICACHE_FLASH_ATTR ddrHandleHit(void);
+static void ICACHE_FLASH_ATTR ddrHandleHitEarly(void);
+static void ICACHE_FLASH_ATTR ddrHandleHitLate(void);
 static void ICACHE_FLASH_ATTR ddrHandlePerfect(void);
 static void ICACHE_FLASH_ATTR ddrHandleMiss(void);
 static void ICACHE_FLASH_ATTR ddrCheckSongEnd(void);
@@ -344,15 +346,22 @@ static void ICACHE_FLASH_ATTR ddrLedFunc(void* arg __attribute__((unused)))
                     switch(ddr->currentFeedback)
                     {
                         case FEEDBACK_PERFECT:
-                            leds[2].g=250;
-                            leds[3].g=250;
+                            leds[2].g=150;
+                            leds[2].b=50;
+                            leds[3].g=150;
+                            leds[3].b=50;
                             break;
                             
-                        case FEEDBACK_HIT:
+                        case FEEDBACK_HIT_EARLY:
+                            leds[2].g=50;
+                            leds[3].g=50;
+                            break;
+                            
+                        case FEEDBACK_HIT_LATE:
                             leds[2].g=100;
-                            leds[2].r=50;
+                            leds[2].r=150;
                             leds[3].g=100;
-                            leds[3].r=50;
+                            leds[3].r=150;
                             break;
 
                         default:
@@ -479,12 +488,13 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void)
             curArrow = &(curRow->arrows[arrowIdx]);
             *curArrow += ddr->tempo * 0.07;
 
-            uint16_t arrowDist = abs(*curArrow - ARROW_PERFECT_HPOS);
+            int16_t arrowDiff = (int)*curArrow - ARROW_PERFECT_HPOS;
+            uint16_t arrowDist = abs(arrowDiff);
 
             if (arrowDist <= ARROW_PERFECT_RADIUS)
             {
                 if(ddr->ButtonDownState & curRow->pressDirection)
-                { //assumes that no more than one arrow per row can be in hit zone at a time
+                { 
                     curRow->count--;
                     curRow->start = (curRow->start + 1) % ARROW_ROW_MAX_COUNT;
                     
@@ -496,13 +506,21 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void)
             else if (arrowDist <= ARROW_HIT_RADIUS)
             {
                 if(ddr->ButtonDownState & curRow->pressDirection)
-                { //assumes that no more than one arrow per row can be in hit zone at a time
+                { 
                     curRow->count--;
                     curRow->start = (curRow->start + 1) % ARROW_ROW_MAX_COUNT;
                     
                     // reset down state
                     ddr->ButtonDownState = ddr->ButtonDownState & ~curRow->pressDirection;
-                    ddrHandleHit();
+
+                    if (arrowDiff > 0)
+                    {
+                        ddrHandleHitLate();
+                    }
+                    else
+                    {
+                        ddrHandleHitEarly();
+                    }
                 }
             }
             else if (*curArrow > ARROW_PERFECT_HPOS)
@@ -671,11 +689,28 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
 }
 
 
-static void ICACHE_FLASH_ATTR ddrHandleHit(void)
+static void ICACHE_FLASH_ATTR ddrHandleHitEarly(void)
 {
     ddr->okays += 1;
     ddr->feedbackTimer = MAX_FEEDBACK_TIMER;
-    ddr->currentFeedback = FEEDBACK_HIT;
+    ddr->currentFeedback = FEEDBACK_HIT_EARLY;
+
+    if (ddr->successMeter >= 99)
+    {
+        ddr->successMeter = 100;
+    } else
+    {
+        ddr->successMeter += 1;
+    }
+    
+    ddrCheckSongEnd();
+}
+
+static void ICACHE_FLASH_ATTR ddrHandleHitLate(void)
+{
+    ddr->okays += 1;
+    ddr->feedbackTimer = MAX_FEEDBACK_TIMER;
+    ddr->currentFeedback = FEEDBACK_HIT_LATE;
 
     if (ddr->successMeter >= 99)
     {
