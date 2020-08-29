@@ -81,7 +81,7 @@ static void ICACHE_FLASH_ATTR ddrHandlePerfect(void);
 static void ICACHE_FLASH_ATTR ddrHandleMiss(void);
 static void ICACHE_FLASH_ATTR ddrCheckSongEnd(void);
 static void ICACHE_FLASH_ATTR ddrGameOver(void);
-static void ICACHE_FLASH_ATTR ddrStartGame(int tempo);
+static void ICACHE_FLASH_ATTR ddrStartGame(int tempo, float eighthNoteProbabilityModifier, int restAvoidanceProbability);
 
 /*============================================================================
  * Const data
@@ -143,6 +143,9 @@ typedef struct
     uint16_t maxPressForgiveness;
     uint8_t sixteenths;
     uint16_t sixteenthNoteCounter;
+
+    float eighthNoteProbabilityModifier;
+    int restAvoidanceProbability;
 
     uint16_t PulseTimeLeft;
 
@@ -232,15 +235,15 @@ static void ICACHE_FLASH_ATTR ddrMenuCb(const char* menuItem)
 {
     if(ddr_easy == menuItem)
     {
-        ddrStartGame(90);
+        ddrStartGame(90, 0.8f, 0);
     }
     else if (ddr_medium == menuItem)
     {
-        ddrStartGame(110);
+        ddrStartGame(110, 2.f, 10);
     }
     else if (ddr_hard == menuItem)
     {
-        ddrStartGame(130);
+        ddrStartGame(130, 4.f, 50);
     }
     
     else if (ddr_quit == menuItem)
@@ -249,7 +252,7 @@ static void ICACHE_FLASH_ATTR ddrMenuCb(const char* menuItem)
     }
 }
 
-static void ICACHE_FLASH_ATTR ddrStartGame(int tempo)
+static void ICACHE_FLASH_ATTR ddrStartGame(int tempo, float eighthNoteProbabilityModifier, int restAvoidanceProbability)
 {    
 
     // Draw a gif
@@ -268,6 +271,9 @@ static void ICACHE_FLASH_ATTR ddrStartGame(int tempo)
     ddr->arrowRows[3].pressDirection = DOWN; // topmost
 
     ddr->tempo = tempo;
+    ddr->eighthNoteProbabilityModifier = eighthNoteProbabilityModifier;
+    ddr->restAvoidanceProbability = restAvoidanceProbability;
+
     ddr->sixteenths = 6;
     ddr->sixteenthNoteCounter = MAX_SIXTEENTH_TIMER;
 
@@ -441,7 +447,7 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void)
         }
         else if ( 0 == ddr->sixteenths % 2)
         {
-            percentChanceSpawn = 5; // 5 percent chance on half beats
+            percentChanceSpawn = 5 * ddr->eighthNoteProbabilityModifier; // 5 percent chance on half beats
         }
         else 
         {
@@ -510,7 +516,15 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void)
 
         if (!ddr->isSongOver && canSpawnArrow && arrowsSpawnedThisBeat < 2)
         {
-            if (rand() % 100 < percentChanceSpawn)
+            bool willSpawn =  rand() % 100 < percentChanceSpawn;
+
+            // if last opportunity to spawn, check if we can actually rest
+            if (i == 3 && !willSpawn && arrowsSpawnedThisBeat == 0) 
+            {
+                willSpawn = rand() % 100 < ddr->restAvoidanceProbability;
+            } 
+
+            if (willSpawn)
             {
                 arrowsSpawnedThisBeat++;
                 curRow->arrows[(curRow->start+curRow->count) % ARROW_ROW_MAX_COUNT] = 0;
