@@ -3,19 +3,23 @@ SWADGEMU?=.
 
 # Directories to find headers in
 INCDIRS  := $(shell find $(SWADGEMU)/../user/ -type d) \
-            $(SWADGEMU)/sysincstubs \
+			$(SWADGEMU)/sysincstubs \
 			$(SWADGEMU)/rawdraw \
-            $(SWADGEMU)/.
+			$(SWADGEMU)/.
 
 # Preprocessor defines
 DEFINES  := USER_SETTINGS_ADDR=0x6C000 \
-            USER_SETTINGS_SIZE=0x3000 \
-            ASSETS_ADDR=0x6F000 \
-            ASSETS_SIZE=0x51000 \
-            SWADGE_VERSION=3 \
-            EMU \
+			USER_SETTINGS_SIZE=0x3000 \
+			ASSETS_ADDR=0x6F000 \
+			ASSETS_SIZE=0x51000 \
+			SWADGE_VERSION=3 \
+			EMU \
 			NO_SOUND_PARAMETERS \
 			DFREQ=16000
+
+ifeq ($(OS),Windows_NT)	 # is Windows_NT on XP, 2000, 7, Vista, 10...
+	DEFINES	+= WINDOWS
+endif
 
 # All the compiler flags
 CFLAGS   := -g $(patsubst %, -I%, $(INCDIRS)) $(patsubst %, -D%, $(DEFINES))
@@ -24,24 +28,32 @@ CFLAGS   := -g $(patsubst %, -I%, $(INCDIRS)) $(patsubst %, -D%, $(DEFINES))
 #CFLAGS += -Os -s -flto -ffunction-sections -fdata-sections -Wl,--gc-sections
 
 # All the linker flags
-LDFLAGS  := -lX11 -lm -lpthread -lasound -lpulse
+ifeq ($(OS),Windows_NT)	 # is Windows_NT on XP, 2000, 7, Vista, 10...
+	LDFLAGS  := -lGDI32 -lUser32 -lwinmm
+else
+	LDFLAGS  := -lX11 -lm -lpthread -lasound -lpulse
+endif
 
 # A list of files to exclude from compilation
 EXCLUDEC := oled.c \
-            adc.c \
-            cnlohr_i2c.c \
-            gpio_user.c \
-            hpatimer.c \
-            QMA6981.c \
-            ws2812_i2s.c \
-            maxtime.c \
-            PartitionMap.c \
-            espNowUtils.c
+			adc.c \
+			cnlohr_i2c.c \
+			gpio_user.c \
+			hpatimer.c \
+			QMA6981.c \
+			ws2812_i2s.c \
+			maxtime.c \
+			PartitionMap.c \
+			espNowUtils.c
 
 # All the source files to compile
 SWADGEC  := $(shell find $(SWADGEMU)/../user/ -iname "*.c" $(patsubst %, -not -iname %, $(EXCLUDEC)))
 RAWDRAWC := $(SWADGEMU)/rawdraw/CNFG.c
-SOUNDDRIVER?= $(SWADGEMU)/sound/sound_pulse.c
+ifeq ($(OS),Windows_NT)	 # is Windows_NT on XP, 2000, 7, Vista, 10...
+	SOUNDDRIVER?= $(SWADGEMU)/sound/sound_win.c
+else
+	SOUNDDRIVER?= $(SWADGEMU)/sound/sound_pulse.c
+endif
 EMUC     := $(SWADGEMU)/swadgemu.c $(SWADGEMU)/oled.c $(SWADGEMU)/sound/sound.c $(SOUNDDRIVER)
 
 # Makefile targets that don't make what they're called

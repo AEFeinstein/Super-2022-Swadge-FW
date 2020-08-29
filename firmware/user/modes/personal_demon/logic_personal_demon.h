@@ -98,4 +98,7 @@ typedef struct
 void resetDemon(demon_t* pd);
 void takeAction(demon_t* pd, action_t act);
 
+bool ICACHE_FLASH_ATTR isDemonObese(demon_t* pd);
+bool ICACHE_FLASH_ATTR isDemonThin(demon_t* pd);
+
 #endif
