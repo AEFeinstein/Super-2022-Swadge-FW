@@ -79,6 +79,9 @@ typedef struct
     pngSequenceHandle* food;
     pngSequenceHandle syringe;
     pngHandle demonSprite;
+    pngHandle demonSpriteFat;
+    pngHandle demonSpriteThin;
+    pngHandle demonSpriteSick;
     pngHandle hand;
     pngHandle poop;
     pngHandle archL;
@@ -273,6 +276,9 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
                      "syringe10.png",
                      "syringe11.png");
     allocPngAsset("pd-norm.png", &(pd->demonSprite));
+    allocPngAsset("pd-fat.png",  &(pd->demonSpriteFat));
+    allocPngAsset("pd-thin.png", &(pd->demonSpriteThin));
+    allocPngAsset("pd-sick.png", &(pd->demonSpriteSick));
     allocPngAsset("scold.png", &(pd->hand));
     allocPngAsset("poop.png", &(pd->poop));
     allocPngAsset("archL.png", &(pd->archL));
@@ -306,6 +312,9 @@ void ICACHE_FLASH_ATTR personalDemonExitMode(void)
     freePngSequence(&(pd->burger));
     freePngSequence(&(pd->syringe));
     freePngAsset(&(pd->demonSprite));
+    freePngAsset(&(pd->demonSpriteFat));
+    freePngAsset(&(pd->demonSpriteSick));
+    freePngAsset(&(pd->demonSpriteThin));
     freePngAsset(&(pd->hand));
     freePngAsset(&(pd->poop));
     freePngAsset(&(pd->archL));
@@ -816,7 +825,22 @@ bool ICACHE_FLASH_ATTR updtAnimCenter(void)
 void ICACHE_FLASH_ATTR drawAnimDemon(void)
 {
     // Draw the demon
-    drawPng((&pd->demonSprite), pd->demonX, pd->demonY, pd->demonDirLR, false, pd->demonRot);
+    if(isDemonObese(&(pd->demon)))
+    {
+        drawPng((&pd->demonSpriteFat), pd->demonX, pd->demonY, pd->demonDirLR, false, pd->demonRot);
+    }
+    else if(isDemonThin(&(pd->demon)))
+    {
+        drawPng((&pd->demonSpriteThin), pd->demonX, pd->demonY, pd->demonDirLR, false, pd->demonRot);
+    }
+    else if(pd->demon.isSick)
+    {
+        drawPng((&pd->demonSpriteSick), pd->demonX, pd->demonY, pd->demonDirLR, false, pd->demonRot);
+    }
+    else
+    {
+        drawPng((&pd->demonSprite), pd->demonX, pd->demonY, pd->demonDirLR, false, pd->demonRot);
+    }
 }
 
 /*******************************************************************************

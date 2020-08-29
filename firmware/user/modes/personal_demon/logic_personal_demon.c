@@ -658,3 +658,35 @@ event_t ICACHE_FLASH_ATTR dequeueEvt(demon_t* pd)
 {
     return (event_t)shift(&(pd->evQueue));
 }
+
+/**
+ * @brief TODO
+ *
+ * @param pd
+ * @return true
+ * @return false
+ */
+bool ICACHE_FLASH_ATTR isDemonObese(demon_t* pd)
+{
+    if (pd->hunger < OBESE_THRESHOLD)
+    {
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @brief TODO
+ *
+ * @param pd
+ * @return true
+ * @return false
+ */
+bool ICACHE_FLASH_ATTR isDemonThin(demon_t* pd)
+{
+    if (pd->hunger > MALNOURISHED_THRESHOLD)
+    {
+        return true;
+    }
+    return false;
+}
