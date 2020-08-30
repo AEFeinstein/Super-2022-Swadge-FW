@@ -36,6 +36,7 @@
 #include "mode_colorchord.h"
 #include "mode_personal_demon.h"
 #include "mode_flappy.h"
+#include "mode_galaga.h"
 
 #include "ccconfig.h"
 
@@ -75,6 +76,7 @@ swadgeMode* swadgeModes[] =
     &personalDemonMode,
     &colorchordMode,
     &flappyMode,
+    &galagaMode,
 };
 
 bool swadgeModeInit = false;
