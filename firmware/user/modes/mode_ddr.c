@@ -131,12 +131,12 @@ typedef struct
     uint8_t ButtonDownState;
 
     // Timer variables
-    syncedTimer_t TimerHandleLeds;
-    syncedTimer_t TimerHandleArrows;
-    syncedTimer_t timerAnimateNotes;
-    syncedTimer_t timerUpdateDisplay;
-    syncedTimer_t TimerAnimateSuccessMeter;
-    syncedTimer_t TimerSongDuration;
+    timer_t TimerHandleLeds;
+    timer_t TimerHandleArrows;
+    timer_t timerAnimateNotes;
+    timer_t timerUpdateDisplay;
+    timer_t TimerAnimateSuccessMeter;
+    timer_t TimerSongDuration;
 
     uint8_t NoteIdx;
 
@@ -212,25 +212,25 @@ void ICACHE_FLASH_ATTR ddrEnterMode(void)
     addItemToRow(ddr->menu, ddr_quit);
     drawMenu(ddr->menu);
 
-    syncedTimerDisarm(&ddr->timerUpdateDisplay);
-    syncedTimerSetFn(&ddr->timerUpdateDisplay, ddrUpdateDisplay, NULL);
-    syncedTimerArm(&ddr->timerUpdateDisplay, 15, true);
+    timerDisarm(&ddr->timerUpdateDisplay);
+    timerSetFn(&ddr->timerUpdateDisplay, ddrUpdateDisplay, NULL);
+    timerArm(&ddr->timerUpdateDisplay, 15, true);
 
-    syncedTimerDisarm(&ddr->timerAnimateNotes);
-    syncedTimerSetFn(&ddr->timerAnimateNotes, ddrAnimateNotes, NULL);
-    syncedTimerArm(&ddr->timerAnimateNotes, 60, true);
+    timerDisarm(&ddr->timerAnimateNotes);
+    timerSetFn(&ddr->timerAnimateNotes, ddrAnimateNotes, NULL);
+    timerArm(&ddr->timerAnimateNotes, 60, true);
 
-    syncedTimerDisarm(&ddr->TimerHandleLeds);
-    syncedTimerSetFn(&ddr->TimerHandleLeds, ddrLedFunc, NULL);
-    syncedTimerArm(&ddr->TimerHandleLeds, LEDS_TIMER, true);
+    timerDisarm(&ddr->TimerHandleLeds);
+    timerSetFn(&ddr->TimerHandleLeds, ddrLedFunc, NULL);
+    timerArm(&ddr->TimerHandleLeds, LEDS_TIMER, true);
 
-    syncedTimerDisarm(&ddr->TimerAnimateSuccessMeter);
-    syncedTimerSetFn(&ddr->TimerAnimateSuccessMeter, ddrAnimateSuccessMeter, NULL);
-    syncedTimerArm(&ddr->TimerAnimateSuccessMeter, 40, true);
+    timerDisarm(&ddr->TimerAnimateSuccessMeter);
+    timerSetFn(&ddr->TimerAnimateSuccessMeter, ddrAnimateSuccessMeter, NULL);
+    timerArm(&ddr->TimerAnimateSuccessMeter, 40, true);
 
-    syncedTimerDisarm(&ddr->TimerSongDuration);
-    syncedTimerSetFn(&ddr->TimerSongDuration, ddrSongDurationFunc, NULL);
-    syncedTimerArm(&ddr->TimerSongDuration, SONG_DURATION, true);
+    timerDisarm(&ddr->TimerSongDuration);
+    timerSetFn(&ddr->TimerSongDuration, ddrSongDurationFunc, NULL);
+    timerArm(&ddr->TimerSongDuration, SONG_DURATION, true);
 }
 
 static void ICACHE_FLASH_ATTR ddrMenuCb(const char* menuItem)
@@ -304,12 +304,13 @@ static void ICACHE_FLASH_ATTR ddrStartGame(int tempo, float eighthNoteProbabilit
  */
 static void ICACHE_FLASH_ATTR ddrExitMode(void)
 {
-    syncedTimerDisarm(&ddr->timerAnimateNotes);
-    syncedTimerDisarm(&ddr->TimerHandleLeds);
-    syncedTimerDisarm(&ddr->TimerHandleArrows);
-    syncedTimerDisarm(&ddr->TimerAnimateSuccessMeter);
-    syncedTimerDisarm(&ddr->timerUpdateDisplay);
-    syncedTimerDisarm(&ddr->TimerSongDuration);
+    timerDisarm(&ddr->timerAnimateNotes);
+    timerDisarm(&ddr->TimerHandleLeds);
+    timerDisarm(&ddr->TimerHandleArrows);
+    timerDisarm(&ddr->TimerAnimateSuccessMeter);
+    timerDisarm(&ddr->timerUpdateDisplay);
+    timerDisarm(&ddr->TimerSongDuration);
+    timerFlush();
     
     freePngSequence(&ddr->ddrSkullSequenceHandle);
     deinitMenu(ddr->menu);
