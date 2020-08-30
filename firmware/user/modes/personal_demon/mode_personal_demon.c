@@ -334,7 +334,7 @@ void ICACHE_FLASH_ATTR personalDemonExitMode(void)
 
     while(pd->animationQueue.length > 0)
     {
-        void* node = pop(&(pd->animationQueue));
+        pop(&(pd->animationQueue));
     }
 
     // Free the memory
