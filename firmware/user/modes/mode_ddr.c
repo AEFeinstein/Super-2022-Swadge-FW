@@ -622,15 +622,17 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
                 switch(rowIdx)
                 {
                     default:
-                    case 1:
-                        break;
                     case 0:
                         rowRot = 90;
+                        rowHFlip = false;
+                    case 1:
+                        break;
                     case 2:
                         rowHFlip = true;
                         break;
                     case 3:
                         rowRot = 270;
+                        rowHFlip = true;
                         break;
                 }
 
