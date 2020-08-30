@@ -205,7 +205,7 @@ void emuCheckResize()
         px_scale = targsx;
         printf( "Rescaling OLED to scale %d\n", px_scale );
         rawvidmem = realloc( rawvidmem, px_scale * OLED_WIDTH * px_scale * (OLED_HEIGHT + FOOTER_PIXELS) * px_scale * 4 );
-        updateOLED( FALSE );
+        updateOLED( false );
     }
 }
 

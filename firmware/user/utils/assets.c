@@ -292,7 +292,7 @@ bool ICACHE_FLASH_ATTR allocPngAsset(const char* name, pngHandle* handle)
         // Get the width and height
         handle->width  = assetPtr[idx++];
         handle->height = assetPtr[idx++];
-        AST_PRINTF("Width: %d, height: %d\n", width, height);
+        AST_PRINTF("Width: %d, height: %d\n", handle->width, handle->height);
 
         // Pad the length to a 32 bit boundary for memcpy
         uint32_t paddedLen = assetLen - (2 * sizeof(uint32_t));
@@ -304,9 +304,11 @@ bool ICACHE_FLASH_ATTR allocPngAsset(const char* name, pngHandle* handle)
         handle->data = (uint32_t*)os_malloc(paddedLen);
         if(NULL == handle->data)
         {
+            handle->dataLen = 0;
             return false;
         }
         os_memcpy(handle->data, &assetPtr[idx], paddedLen);
+        handle->dataLen = paddedLen / sizeof(uint32_t);
         return true;
     }
     else
@@ -329,6 +331,7 @@ void ICACHE_FLASH_ATTR freePngAsset(pngHandle* handle)
     handle->data = NULL;
     handle->width = 0;
     handle->height = 0;
+    handle->dataLen = 0;
 }
 
 /**
@@ -372,6 +375,10 @@ void ICACHE_FLASH_ATTR drawPng(pngHandle* handle, int16_t xp,
             // After bitIdx was incremented, check it
             if(bitIdx == 32)
             {
+                if(idx >= handle->dataLen)
+                {
+                    return;
+                }
                 chunk = handle->data[idx++];
                 bitIdx = 0;
             }
@@ -392,6 +399,11 @@ void ICACHE_FLASH_ATTR drawPng(pngHandle* handle, int16_t xp,
                 // After bitIdx was incremented, check it
                 if(bitIdx == 32)
                 {
+                    if(idx >= handle->dataLen)
+                    {
+                        return;
+                    }
+
                     chunk = handle->data[idx++];
                     bitIdx = 0;
                 }
