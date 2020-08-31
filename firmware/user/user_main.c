@@ -311,6 +311,12 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events __attribute__((unused)
     // Process all the synchronous timers
     timersCheck();
 
+    // Call this mode's procTask function, if it exists
+    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnProcTask)
+    {
+        swadgeModes[rtcMem.currentSwadgeMode]->fnProcTask();
+    }
+
 #if defined(FEATURE_OLED)
     // Update the display as fast as possible.
     if(1000 <= framesDrawn)

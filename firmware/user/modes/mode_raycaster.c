@@ -43,7 +43,7 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void);
 void ICACHE_FLASH_ATTR raycasterExitMode(void);
 void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state __attribute__((unused)),
         int32_t button, int32_t down);
-void ICACHE_FLASH_ATTR raycasterProcess(void* unused);
+void ICACHE_FLASH_ATTR raycasterProcess(void);
 
 /*==============================================================================
  * Variables
@@ -54,6 +54,7 @@ swadgeMode raycasterMode =
     .modeName = "raycaster",
     .fnEnterMode = raycasterEnterMode,
     .fnExitMode = raycasterExitMode,
+    .fnProcTask = raycasterProcess,
     .fnButtonCallback = raycasterButtonCallback,
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
@@ -63,7 +64,6 @@ swadgeMode raycasterMode =
     .menuImg = "ray-menu.gif"
 };
 
-timer_t raycasterTimer;
 uint8_t rButtonState = 0;
 int32_t worldMap[mapWidth][mapHeight] =
 {
@@ -143,9 +143,6 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
             }
         }
     }
-
-    timerSetFn(&raycasterTimer, &raycasterProcess, NULL);
-    timerArm(&raycasterTimer, 50, true);
 }
 
 /**
@@ -153,8 +150,6 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
  */
 void ICACHE_FLASH_ATTR raycasterExitMode(void)
 {
-    timerDisarm(&raycasterTimer);
-    timerFlush();
 }
 
 /**
@@ -175,7 +170,7 @@ void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state __attribute__((unus
  *
  * @param unused
  */
-void ICACHE_FLASH_ATTR raycasterProcess(void* unused)
+void ICACHE_FLASH_ATTR raycasterProcess(void)
 {
     clearDisplay();
 
