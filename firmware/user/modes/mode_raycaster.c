@@ -145,7 +145,7 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
     }
 
     timerSetFn(&raycasterTimer, &raycasterProcess, NULL);
-    timerArm(&raycasterTimer, 10, true);
+    timerArm(&raycasterTimer, 50, true);
 }
 
 /**
