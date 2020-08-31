@@ -19,6 +19,9 @@
 #define mapWidth 24
 #define mapHeight 24
 
+#define texWidth 32
+#define texHeight 32
+
 /*==============================================================================
  * Structs
  *============================================================================*/
@@ -90,6 +93,8 @@ int32_t worldMap[mapWidth][mapHeight] =
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 };
 
+uint8_t textures[2][texWidth][texHeight];
+
 float posX = 22, posY = 12;  //x and y start position
 float dirX = -1, dirY = 0; //initial direction vector
 float planeX = 0, planeY = 0.66; //the 2d raycaster version of camera plane
@@ -107,6 +112,38 @@ uint32_t oldTime = 0; //time of previous frame
 void ICACHE_FLASH_ATTR raycasterEnterMode(void)
 {
     enableDebounce(false);
+
+    // Create simple textures
+    for(uint8_t h = 0; h < texHeight; h++)
+    {
+        for(uint8_t w = 0; w < texWidth; w++)
+        {
+            // For both textures, draw lines at the top and bottom
+            if(h == 0 || h == texHeight - 1)
+            {
+                textures[0][w][h] = 1;
+                textures[1][w][h] = 1;
+            }
+            else
+            {
+                textures[0][w][h] = 0;
+                textures[1][w][h] = 0;
+            }
+
+            // This draws an X
+            if(w == h || w == (texWidth - h - 1))
+            {
+                textures[0][w][h] = 1;
+            }
+
+            // This draws a horizontal stripe
+            if(texHeight / 2 - 4 < h && h < texHeight / 2 + 4)
+            {
+                textures[1][w][h] = 1;
+            }
+        }
+    }
+
     timerSetFn(&raycasterTimer, &raycasterProcess, NULL);
     timerArm(&raycasterTimer, 10, true);
 }
@@ -237,6 +274,53 @@ void ICACHE_FLASH_ATTR raycasterProcess(void* unused)
         int32_t drawStart = -lineHeight / 2 + OLED_HEIGHT / 2;
         int32_t drawEnd = lineHeight / 2 + OLED_HEIGHT / 2;
 
+        // Because of how drawStart and drawEnd are calculated, lineHeight needs to be recomputed
+        lineHeight = drawEnd - drawStart;
+
+        // Pick a texture
+        int32_t texNum = (worldMap[mapX][mapY] - 1) % 2;
+
+        //calculate value of wallX, where exactly the wall was hit
+        float wallX;
+        if(side == 0)
+        {
+            wallX = posY + perpWallDist * rayDirY;
+        }
+        else
+        {
+            wallX = posX + perpWallDist * rayDirX;
+        }
+        wallX -= (int32_t)(wallX);
+
+        // X coordinate on the texture. Round it, make sure it's in bounds
+        int32_t texX = (int32_t)((wallX * texWidth) + 0.5f);
+        if(texX >= texWidth)
+        {
+            texX = texWidth - 1;
+        }
+
+        // Draw this texture's vertical stripe
+        // Calculate how much to increase the texture coordinate per screen pixel
+        float step = (texHeight - 1) / (float)(lineHeight - 1);
+        // Starting texture coordinate
+        float texPos = 0;
+        for(int32_t y = drawStart; y < drawEnd; y++)
+        {
+            // Y coordinate on the texture. Round it, make sure it's in bounds
+            int32_t texY = (int32_t)(texPos + 0.5f);
+            if(texY >= texHeight)
+            {
+                texY = texHeight - 1;
+            }
+
+            // Increment the texture position by the step size
+            texPos += step;
+
+            // Draw the pixel specified by the texture
+            drawPixel(x, y, textures[texNum][texX][texY]);
+        }
+
+        // Save a bunch of data to draw vertical lines later
         rayResult[x].wallX = mapX;
         rayResult[x].wallY = mapY;
         rayResult[x].side = side;
@@ -251,7 +335,7 @@ void ICACHE_FLASH_ATTR raycasterProcess(void* unused)
         {
             // This is corner or edge which is larger than the prior strip
             // Draw a vertical strip
-            for(int32_t y = rayResult[x].drawStart; y <= rayResult[x].drawEnd; y++)
+            for(int32_t y = rayResult[x].drawStart; y < rayResult[x].drawEnd; y++)
             {
                 drawPixel(x, y, WHITE);
             }
@@ -265,15 +349,15 @@ void ICACHE_FLASH_ATTR raycasterProcess(void* unused)
             {
                 // This vertical strip is part of a continuous wall with the next strip
                 // Just draw top and bottom pixels
-                drawPixel(x, rayResult[x].drawStart, WHITE);
-                drawPixel(x, rayResult[x].drawEnd, WHITE);
+                // drawPixel(x, rayResult[x].drawStart, WHITE);
+                // drawPixel(x, rayResult[x].drawEnd, WHITE);
             }
             else if((rayResult[x].drawEnd - rayResult[x].drawStart) >
                     (rayResult[x + 1].drawEnd - rayResult[x + 1].drawStart))
             {
                 // This is a corner or edge, and this vertical strip is larger than the next one
                 // Draw a vertical strip
-                for(int32_t y = rayResult[x].drawStart; y <= rayResult[x].drawEnd; y++)
+                for(int32_t y = rayResult[x].drawStart; y < rayResult[x].drawEnd; y++)
                 {
                     drawPixel(x, y, WHITE);
                 }
@@ -282,8 +366,8 @@ void ICACHE_FLASH_ATTR raycasterProcess(void* unused)
             {
                 // This is a corner or edge, and this vertical strip is smaller than the next one
                 // Just draw top and bottom pixels, but make sure to draw a vertical line next
-                drawPixel(x, rayResult[x].drawStart, WHITE);
-                drawPixel(x, rayResult[x].drawEnd, WHITE);
+                // drawPixel(x, rayResult[x].drawStart, WHITE);
+                // drawPixel(x, rayResult[x].drawEnd, WHITE);
                 // make sure to draw a vertical line next
                 drawVertNext = true;
             }
@@ -291,8 +375,8 @@ void ICACHE_FLASH_ATTR raycasterProcess(void* unused)
         else
         {
             // These are the very last pixels, nothing to compare to
-            drawPixel(x, rayResult[x].drawStart, WHITE);
-            drawPixel(x, rayResult[x].drawEnd, WHITE);
+            // drawPixel(x, rayResult[x].drawStart, WHITE);
+            // drawPixel(x, rayResult[x].drawEnd, WHITE);
         }
     }
 
