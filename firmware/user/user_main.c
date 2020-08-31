@@ -318,21 +318,27 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events __attribute__((unused)
     }
 
 #if defined(FEATURE_OLED)
-    // Update the display as fast as possible.
-    if(1000 <= framesDrawn)
+    // Cap the display updates at 30fps
+    static uint32_t lastDrawTime = 0;
+    if(system_get_time() - lastDrawTime > 33333)
     {
-        // Every 1000 frames, reset OLED params and redraw the entire OLED
-        // Experimentally, this is about every 15s
-        setOLEDparams(false);
-        updateOLED(false);
-        framesDrawn = 0;
-    }
-    else
-    {
-        // This only sends I2C data if there was some pixel change
-        if(FRAME_DRAWN == updateOLED(true))
+        lastDrawTime = system_get_time();
+        // Update the display as fast as possible.
+        if(1000 <= framesDrawn)
         {
-            framesDrawn++;
+            // Every 1000 frames, reset OLED params and redraw the entire OLED
+            // Experimentally, this is about every 15s
+            setOLEDparams(false);
+            updateOLED(false);
+            framesDrawn = 0;
+        }
+        else
+        {
+            // This only sends I2C data if there was some pixel change
+            if(FRAME_DRAWN == updateOLED(true))
+            {
+                framesDrawn++;
+            }
         }
     }
 #endif
