@@ -184,7 +184,7 @@ void ICACHE_FLASH_ATTR freeAssets(void)
 /**
  * Transform a pixel's coordinates by rotation around the sprite's center point,
  * then reflection over Y axis, then reflection over X axis, then translation
- * 
+ *
  * This intentionally does not have ICACHE_FLASH_ATTR because it may be called often
  *
  * @param x The x coordinate of the pixel location to transform
@@ -402,6 +402,68 @@ void ICACHE_FLASH_ATTR drawPng(pngHandle* handle, int16_t xp,
     }
 }
 
+/**
+ * Draw a png asset directly to memory, not the OLED, without transformations
+ * This is useful for loading raycast sprites
+ *
+ * TODO make the memory accesses safer
+ *
+ * @param handle The png asset to draw
+ * @param buf    The memory to draw to
+ */
+void ICACHE_FLASH_ATTR drawPngToBuffer(pngHandle* handle, color* buf)
+{
+    uint32_t idx = 0;
+
+    // Read 32 bits at a time
+    uint32_t chunk = handle->data[idx++];
+    uint32_t bitIdx = 0;
+
+    // Draw the image's pixels
+    for(int16_t y = 0; y < handle->height; y++)
+    {
+        for(int16_t x = 0; x < handle->width; x++)
+        {
+            // 'Traverse' the huffman tree to find out what to do
+            bool isZero = true;
+            if(chunk & (0x80000000 >> (bitIdx++)))
+            {
+                // If it's a one, draw a black pixel
+                buf[(x * handle->height) + y] = BLACK;
+                isZero = false;
+            }
+
+            // After bitIdx was incremented, check it
+            if(bitIdx == 32)
+            {
+                chunk = handle->data[idx++];
+                bitIdx = 0;
+            }
+
+            // A zero can be followed by a zero or a one
+            if(isZero)
+            {
+                if(chunk & (0x80000000 >> (bitIdx++)))
+                {
+                    // zero-one means transparent
+                    buf[(x * handle->height) + y] = TRANSPARENT;
+                }
+                else
+                {
+                    // zero-zero means white, draw a pixel
+                    buf[(x * handle->height) + y] = WHITE;
+                }
+
+                // After bitIdx was incremented, check it
+                if(bitIdx == 32)
+                {
+                    chunk = handle->data[idx++];
+                    bitIdx = 0;
+                }
+            }
+        }
+    }
+}
 
 /**
  * Allocate memory for a sequence of PNGs and load them from ROM to RAM

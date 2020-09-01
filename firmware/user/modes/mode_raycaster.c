@@ -11,6 +11,7 @@
 #include "oled.h"
 #include "bresenham.h"
 #include "buttons.h"
+#include "assets.h"
 
 /*==============================================================================
  * Defines
@@ -33,7 +34,15 @@ typedef struct
     uint8_t side;
     int16_t drawStart;
     int16_t drawEnd;
+    float zDepth;
 } rayResult_t;
+
+typedef struct
+{
+    float x;
+    float y;
+    int32_t texture;
+} raySprite_t;
 
 /*==============================================================================
  * Prototypes
@@ -44,6 +53,7 @@ void ICACHE_FLASH_ATTR raycasterExitMode(void);
 void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state __attribute__((unused)),
         int32_t button, int32_t down);
 void ICACHE_FLASH_ATTR raycasterProcess(void);
+void ICACHE_FLASH_ATTR sortSprites(int32_t* order, float* dist, int32_t amount);
 
 /*==============================================================================
  * Variables
@@ -102,6 +112,38 @@ float planeX = 0, planeY = 0.66; //the 2d raycaster version of camera plane
 uint32_t time = 0; //time of current frame
 uint32_t oldTime = 0; //time of previous frame
 
+#define numSprites 19
+
+raySprite_t sprite[numSprites] =
+{
+    {20.5, 11.5, 10},
+    {18.5, 4.5, 10},
+    {10.0, 4.5, 10},
+    {10.0, 12.5, 10},
+    {3.5, 6.5, 10},
+    {3.5, 20.5, 10},
+    {3.5, 14.5, 10},
+    {14.5, 20.5, 10},
+    {18.5, 10.5, 9},
+    {18.5, 11.5, 9},
+    {18.5, 12.5, 9},
+    {21.5, 1.5, 8},
+    {15.5, 1.5, 8},
+    {16.0, 1.8, 8},
+    {16.2, 1.2, 8},
+    {3.5,  2.5, 8},
+    {9.5, 15.5, 8},
+    {10.0, 15.1, 8},
+    {10.5, 15.8, 8},
+};
+
+// arrays used to sort the sprites
+int32_t spriteOrder[numSprites];
+float spriteDistance[numSprites];
+
+// Storage for the enemy sprite
+color enemySpriteTex[texWidth * texHeight];
+
 /*==============================================================================
  * Functions
  *============================================================================*/
@@ -131,6 +173,12 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
             }
         }
     }
+
+    // Load the enemy texture to RAM
+    pngHandle enemySprite;
+    allocPngAsset("enemy.png", &enemySprite);
+    drawPngToBuffer(&enemySprite, enemySpriteTex);
+    freePngAsset(&enemySprite);
 }
 
 /**
@@ -266,6 +314,7 @@ void ICACHE_FLASH_ATTR raycasterProcess(void)
         rayResult[x].side = side;
         rayResult[x].drawEnd = drawEnd;
         rayResult[x].drawStart = drawStart;
+        rayResult[x].zDepth = perpWallDist;
 
         // Make sure not to waste any draws out-of-bounds
         if(drawStart < 0)
@@ -382,6 +431,86 @@ void ICACHE_FLASH_ATTR raycasterProcess(void)
         }
     }
 
+    //SPRITE CASTING
+    //sort sprites from far to close
+    for(int32_t i = 0; i < numSprites; i++)
+    {
+        spriteOrder[i] = i;
+        spriteDistance[i] = ((posX - sprite[i].x) * (posX - sprite[i].x) +
+                             (posY - sprite[i].y) * (posY - sprite[i].y)); //sqrt not taken, unneeded
+    }
+    sortSprites(spriteOrder, spriteDistance, numSprites);
+
+    //after sorting the sprites, do the projection and draw them
+    for(int32_t i = 0; i < numSprites; i++)
+    {
+        //translate sprite position to relative to camera
+        float spriteX = sprite[spriteOrder[i]].x - posX;
+        float spriteY = sprite[spriteOrder[i]].y - posY;
+
+        //transform sprite with the inverse camera matrix
+        // [ planeX   dirX ] -1                                       [ dirY      -dirX ]
+        // [               ]       =  1/(planeX*dirY-dirX*planeY) *   [                 ]
+        // [ planeY   dirY ]                                          [ -planeY  planeX ]
+
+        float invDet = 1.0 / (planeX * dirY - dirX * planeY); //required for correct matrix multiplication
+
+        float transformX = invDet * (dirY * spriteX - dirX * spriteY);
+        //this is actually the depth inside the screen, that what Z is in 3D
+        float transformY = invDet * (-planeY * spriteX + planeX * spriteY);
+
+        int32_t spriteScreenX = (int32_t)((OLED_WIDTH / 2) * (1 + transformX / transformY));
+
+        //calculate height of the sprite on screen
+        //using 'transformY' instead of the real distance prevents fisheye
+        int32_t spriteHeight = abs((int32_t)(OLED_HEIGHT / (transformY)));
+        //calculate lowest and highest pixel to fill in current stripe
+        int32_t drawStartY = -spriteHeight / 2 + OLED_HEIGHT / 2;
+        if(drawStartY < 0)
+        {
+            drawStartY = 0;
+        }
+        int32_t drawEndY = spriteHeight / 2 + OLED_HEIGHT / 2;
+        if(drawEndY >= OLED_HEIGHT)
+        {
+            drawEndY = OLED_HEIGHT - 1;
+        }
+
+        //calculate width of the sprite
+        int32_t spriteWidth = abs( (int32_t) (OLED_HEIGHT / (transformY)));
+        int32_t drawStartX = -spriteWidth / 2 + spriteScreenX;
+        if(drawStartX < 0)
+        {
+            drawStartX = 0;
+        }
+        int32_t drawEndX = spriteWidth / 2 + spriteScreenX;
+        if(drawEndX >= OLED_WIDTH)
+        {
+            drawEndX = OLED_WIDTH - 1;
+        }
+
+        //loop through every vertical stripe of the sprite on screen
+        for(int32_t stripe = drawStartX; stripe < drawEndX; stripe++)
+        {
+            int32_t texX = (int32_t)(256 * (stripe - (-spriteWidth / 2 + spriteScreenX)) * texWidth / spriteWidth) / 256;
+            //the conditions in the if are:
+            //1) it's in front of camera plane so you don't see things behind you
+            //2) it's on the screen (left)
+            //3) it's on the screen (right)
+            //4) ZBuffer, with perpendicular distance
+            if(transformY > 0 && stripe > 0 && stripe < OLED_WIDTH && transformY < rayResult[stripe].zDepth)
+            {
+                for(int32_t y = drawStartY; y < drawEndY; y++) //for every pixel of the current stripe
+                {
+                    int32_t d = (y) * 256 - OLED_HEIGHT * 128 + spriteHeight * 128; //256 and 128 factors to avoid floats
+                    int32_t texY = ((d * texHeight) / spriteHeight) / 256;
+                    //get current color from the texture
+                    drawPixel(stripe, y, enemySpriteTex[(texX * texHeight) + texY]);
+                }
+            }
+        }
+    }
+
     //timing for input and FPS counter
     oldTime = time;
     time = system_get_time();
@@ -435,5 +564,28 @@ void ICACHE_FLASH_ATTR raycasterProcess(void)
         float oldPlaneX = planeX;
         planeX = planeX * cos(rotSpeed) - planeY * sin(rotSpeed);
         planeY = oldPlaneX * sin(rotSpeed) + planeY * cos(rotSpeed);
+    }
+}
+
+//sort algorithm
+//sort the sprites based on distance
+void ICACHE_FLASH_ATTR sortSprites(int32_t* order, float* dist, int32_t amount)
+{
+    for (int32_t i = 0; i < amount - 1; i++)
+    {
+        // Last i elements are already in place
+        for (int32_t j = 0; j < amount - i - 1; j++)
+        {
+            if (dist[j] < dist[j + 1])
+            {
+                float tmp = dist[j];
+                dist[j] = dist[j + 1];
+                dist[j + 1] = tmp;
+
+                int32_t tmp2 = order[j];
+                order[j] = order[j + 1];
+                order[j + 1] = tmp2;
+            }
+        }
     }
 }

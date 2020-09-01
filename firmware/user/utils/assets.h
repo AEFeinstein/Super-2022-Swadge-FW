@@ -3,6 +3,7 @@
 
 #include "synced_timer.h"
 #include "user_config.h"
+#include "oled.h"
 
 #if defined(FEATURE_OLED)
 
@@ -23,6 +24,7 @@ bool ICACHE_FLASH_ATTR allocPngAsset(const char* name, pngHandle* handle);
 void ICACHE_FLASH_ATTR freePngAsset(pngHandle* handle);
 void ICACHE_FLASH_ATTR drawPng(pngHandle* handle, int16_t xp,
                                int16_t yp, bool flipLR, bool flipUD, int16_t rotateDeg);
+void ICACHE_FLASH_ATTR drawPngToBuffer(pngHandle* handle, color* buf);
 
 typedef struct
 {
