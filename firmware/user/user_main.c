@@ -318,9 +318,9 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events __attribute__((unused)
     }
 
 #if defined(FEATURE_OLED)
-    // Cap the display updates at 30fps
+    // Cap the display updates at 60fps
     static uint32_t lastDrawTime = 0;
-    if(system_get_time() - lastDrawTime > 33333)
+    if(system_get_time() - lastDrawTime > 16667)
     {
         lastDrawTime = system_get_time();
         // Update the display as fast as possible.
