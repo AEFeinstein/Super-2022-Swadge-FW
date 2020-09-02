@@ -89,12 +89,10 @@ CFLAGS = \
 	-nostdlib \
 	-Wl,-Map,output.map \
 	-B$(SDK)/lib \
-	-g \
 	-std=gnu99 \
 	-MD \
-	-Os
+	-O3
 ifneq ($(ESP_GDB),)
-# Would prefer -O0 to -Os, but brz_i2c.c generates errors
   CFLAGS += -ggdb
 endif
 
@@ -230,7 +228,7 @@ LIB_DIRS = \
 LIBRARY_FLAGS = $(patsubst %, -L%, $(LIB_DIRS)) --start-group $(patsubst %, -l%, $(LIBS)) --end-group
 
 # These are flags for the linker
-EXTRA_LDFLAGS = -Os -flto -nostdlib -u call_user_start -g
+EXTRA_LDFLAGS = -O3 -flto -nostdlib -u call_user_start
 
 # These are the linker scripts to build with
 LINKER_SCRIPTS = \
@@ -418,7 +416,7 @@ wipechip :
 
 # Generate map and list files from the build elf. Also print some information
 debug : $(FW_FILE0)
-	nm -S -n $(FW_FILE0) > $(DBG_MAP)
+	$(PREFIX)nm -S -n $(FW_FILE0) > $(DBG_MAP)
 	$(PREFIX)objdump -S $(FW_FILE0) > $(DBG_LST)
 	$(PREFIX)size -A $(FW_FILE0) | grep -v debug
 
