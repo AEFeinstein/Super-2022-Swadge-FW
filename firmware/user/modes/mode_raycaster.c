@@ -34,7 +34,9 @@ typedef struct
     uint8_t side;
     int16_t drawStart;
     int16_t drawEnd;
-    float zDepth;
+    float perpWallDist;
+    float rayDirX;
+    float rayDirY;
 } rayResult_t;
 
 typedef struct
@@ -50,10 +52,15 @@ typedef struct
 
 void ICACHE_FLASH_ATTR raycasterEnterMode(void);
 void ICACHE_FLASH_ATTR raycasterExitMode(void);
-void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state __attribute__((unused)),
-        int32_t button, int32_t down);
+void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state, int32_t button, int32_t down);
 void ICACHE_FLASH_ATTR raycasterProcess(void);
 void ICACHE_FLASH_ATTR sortSprites(int32_t* order, float* dist, int32_t amount);
+
+void ICACHE_FLASH_ATTR castRays(rayResult_t* rayResult);
+void ICACHE_FLASH_ATTR drawTextures(rayResult_t* rayResult);
+void ICACHE_FLASH_ATTR drawOutlines(rayResult_t* rayResult);
+void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult);
+void ICACHE_FLASH_ATTR handleRayInput(void);
 
 /*==============================================================================
  * Variables
@@ -105,16 +112,11 @@ int32_t worldMap[mapWidth][mapHeight] =
 
 uint8_t textures[2][texWidth][texHeight];
 
-float posX = 22, posY = 12;  //x and y start position
-float dirX = -1, dirY = 0; //initial direction vector
-float planeX = 0, planeY = 0.66; //the 2d raycaster version of camera plane
+float posX = 22, posY = 12;  // x and y start position
+float dirX = -1, dirY = 0; // initial direction vector
+float planeX = 0, planeY = 0.66; // the 2d raycaster version of camera plane
 
-uint32_t time = 0; //time of current frame
-uint32_t oldTime = 0; //time of previous frame
-
-#define numSprites 19
-
-raySprite_t sprite[numSprites] =
+raySprite_t sprite[] =
 {
     {20.5, 11.5, 10},
     {18.5, 4.5, 10},
@@ -138,8 +140,8 @@ raySprite_t sprite[numSprites] =
 };
 
 // arrays used to sort the sprites
-int32_t spriteOrder[numSprites];
-float spriteDistance[numSprites];
+int32_t spriteOrder[sizeof(sprite) / sizeof(sprite[0])];
+float spriteDistance[sizeof(sprite) / sizeof(sprite[0])];
 
 // Storage for the enemy sprite
 color enemySpriteTex[texWidth * texHeight];
@@ -149,7 +151,8 @@ color enemySpriteTex[texWidth * texHeight];
  *============================================================================*/
 
 /**
- * TODO
+ * Set up the raycaster by creating some simple textures and loading other
+ * textures from assets
  */
 void ICACHE_FLASH_ATTR raycasterEnterMode(void)
 {
@@ -182,70 +185,87 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
 }
 
 /**
- * TODO
+ * Free all resources allocated in raycasterEnterMode
  */
 void ICACHE_FLASH_ATTR raycasterExitMode(void)
 {
 }
 
 /**
- * TODO
+ * Simple button callback which saves the state of all buttons
  *
- * @param state
- * @param button
- * @param down
+ * @param state  A bitmask with all the current button states
+ * @param button The button that caused this interrupt
+ * @param down   true if the button was pushed, false if it was released
  */
-void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state __attribute__((unused)),
-        int32_t button, int32_t down)
+void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state,
+        int32_t button __attribute__((unused)),
+        int32_t down __attribute__((unused)))
 {
     rButtonState = state;
 }
 
 /**
- * TODO
- *
- * @param unused
+ * This function renders the scene and handles input. It is called as fast as
+ * possible by user_main.c's procTask.
  */
 void ICACHE_FLASH_ATTR raycasterProcess(void)
 {
+    rayResult_t rayResult[OLED_WIDTH] = {{0}};
+
     clearDisplay();
+    castRays(rayResult);
+    drawTextures(rayResult);
+    drawOutlines(rayResult);
+    drawSprites(rayResult);
+    handleRayInput();
+}
 
-    rayResult_t rayResult[OLED_WIDTH] = {0};
-
+/**
+ * Cast all the rays into the scene, iterating across the X axis, and save the
+ * results in the rayResult argument
+ *
+ * @param rayResult A pointer to an array of rayResult_t where this scene's
+ *                  information is stored
+ */
+void ICACHE_FLASH_ATTR castRays(rayResult_t* rayResult)
+{
     for(int32_t x = 0; x < OLED_WIDTH; x++)
     {
-        //calculate ray position and direction
-        float cameraX = 2 * x / (float)OLED_WIDTH - 1; //x-coordinate in camera space
+        // calculate ray position and direction
+        // x-coordinate in camera space
+        float cameraX = 2 * x / (float)OLED_WIDTH - 1;
         float rayDirX = dirX + planeX * cameraX;
         float rayDirY = dirY + planeY * cameraX;
-        //which box of the map we're in
+
+        // which box of the map we're in
         int32_t mapX = (int32_t)(posX);
         int32_t mapY = (int32_t)(posY);
 
-        //length of ray from current position to next x or y-side
+        // length of ray from current position to next x or y-side
         float sideDistX;
         float sideDistY;
 
-        //length of ray from one x or y-side to next x or y-side
+        // length of ray from one x or y-side to next x or y-side
         float deltaDistX = (1 / rayDirX);
         if(deltaDistX < 0)
         {
             deltaDistX = -deltaDistX;
         }
+
         float deltaDistY = (1 / rayDirY);
         if(deltaDistY < 0)
         {
             deltaDistY = -deltaDistY;
         }
-        float perpWallDist;
 
-        //what direction to step in x or y-direction (either +1 or -1)
+        // what direction to step in x or y-direction (either +1 or -1)
         int32_t stepX;
         int32_t stepY;
 
-        int32_t hit = 0; //was there a wall hit?
-        int32_t side; //was a NS or a EW wall hit?
-        //calculate step and initial sideDist
+        int32_t hit = 0; // was there a wall hit?
+        int32_t side; // was a NS or a EW wall hit?
+        // calculate step and initial sideDist
         if(rayDirX < 0)
         {
             stepX = -1;
@@ -256,6 +276,7 @@ void ICACHE_FLASH_ATTR raycasterProcess(void)
             stepX = 1;
             sideDistX = (mapX + 1.0 - posX) * deltaDistX;
         }
+
         if(rayDirY < 0)
         {
             stepY = -1;
@@ -266,10 +287,11 @@ void ICACHE_FLASH_ATTR raycasterProcess(void)
             stepY = 1;
             sideDistY = (mapY + 1.0 - posY) * deltaDistY;
         }
-        //perform DDA
+
+        // perform DDA
         while (hit == 0)
         {
-            //jump to next map square, OR in x-direction, OR in y-direction
+            // jump to next map square, OR in x-direction, OR in y-direction
             if(sideDistX < sideDistY)
             {
                 sideDistX += deltaDistX;
@@ -282,13 +304,17 @@ void ICACHE_FLASH_ATTR raycasterProcess(void)
                 mapY += stepY;
                 side = 1;
             }
-            //Check if ray has hit a wall
+
+            // Check if ray has hit a wall
             if(worldMap[mapX][mapY] > 0)
             {
                 hit = 1;
             }
         }
-        //Calculate distance projected on camera direction (Euclidean distance will give fisheye effect!)
+
+        // Calculate distance projected on camera direction
+        // (Euclidean distance will give fisheye effect!)
+        float perpWallDist;
         if(side == 0)
         {
             perpWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX;
@@ -298,23 +324,43 @@ void ICACHE_FLASH_ATTR raycasterProcess(void)
             perpWallDist = (mapY - posY + (1 - stepY) / 2) / rayDirY;
         }
 
-        //Calculate height of line to draw on screen
+        // Calculate height of line to draw on screen
         int32_t lineHeight = (int32_t)(OLED_HEIGHT / perpWallDist);
 
-        //calculate lowest and highest pixel to fill in current stripe
+        // calculate lowest and highest pixel to fill in current stripe
         int32_t drawStart = -lineHeight / 2 + OLED_HEIGHT / 2;
         int32_t drawEnd = lineHeight / 2 + OLED_HEIGHT / 2;
 
         // Because of how drawStart and drawEnd are calculated, lineHeight needs to be recomputed
         lineHeight = drawEnd - drawStart;
 
-        // Save a bunch of data to draw outlines later
+        // Save a bunch of data to render the scene later
         rayResult[x].mapX = mapX;
         rayResult[x].mapY = mapY;
         rayResult[x].side = side;
         rayResult[x].drawEnd = drawEnd;
         rayResult[x].drawStart = drawStart;
-        rayResult[x].zDepth = perpWallDist;
+        rayResult[x].perpWallDist = perpWallDist;
+        rayResult[x].rayDirX = rayDirX;
+        rayResult[x].rayDirY = rayDirY;
+    }
+}
+
+/**
+ * With the data in rayResult, render all the wall textures to the scene
+ *
+ * @param rayResult The information for all the rays cast
+ */
+void ICACHE_FLASH_ATTR drawTextures(rayResult_t* rayResult)
+{
+    for(int32_t x = 0; x < OLED_WIDTH; x++)
+    {
+        // For convenience
+        uint8_t mapX      = rayResult[x].mapX;
+        uint8_t mapY      = rayResult[x].mapY;
+        uint8_t side      = rayResult[x].side;
+        int16_t drawStart = rayResult[x].drawStart;
+        int16_t drawEnd   = rayResult[x].drawEnd;
 
         // Make sure not to waste any draws out-of-bounds
         if(drawStart < 0)
@@ -323,7 +369,7 @@ void ICACHE_FLASH_ATTR raycasterProcess(void)
         }
         else if(drawStart >= OLED_HEIGHT)
         {
-            drawStart = OLED_HEIGHT;
+            drawStart = OLED_HEIGHT - 1;
         }
 
         if(drawEnd < 0)
@@ -332,25 +378,25 @@ void ICACHE_FLASH_ATTR raycasterProcess(void)
         }
         else if(drawEnd >= OLED_HEIGHT)
         {
-            drawEnd = OLED_HEIGHT;
+            drawEnd = OLED_HEIGHT - 1;
         }
 
         // Pick a texture
         int32_t texNum = (worldMap[mapX][mapY] - 1) % 2;
 
-        //calculate value of wallX, where exactly the wall was hit
+        // calculate value of wallX, where exactly the wall was hit
         float wallX;
         if(side == 0)
         {
-            wallX = posY + perpWallDist * rayDirY;
+            wallX = posY + rayResult[x].perpWallDist * rayResult[x].rayDirY;
         }
         else
         {
-            wallX = posX + perpWallDist * rayDirX;
+            wallX = posX + rayResult[x].perpWallDist * rayResult[x].rayDirX;
         }
         wallX -= (int32_t)(wallX);
 
-        // X coordinate on the texture. Round it, make sure it's in bounds
+        // X coordinate on the texture. Make sure it's in bounds
         int32_t texX = (int32_t)(wallX * texWidth);
         if(texX >= texWidth)
         {
@@ -359,6 +405,7 @@ void ICACHE_FLASH_ATTR raycasterProcess(void)
 
         // Draw this texture's vertical stripe
         // Calculate how much to increase the texture coordinate per screen pixel
+        int32_t lineHeight = rayResult[x].drawEnd - rayResult[x].drawStart;
         float step = texHeight / (float)lineHeight;
         // Starting texture coordinate
         float texPos = (drawStart - OLED_HEIGHT / 2 + lineHeight / 2) * step;
@@ -378,7 +425,15 @@ void ICACHE_FLASH_ATTR raycasterProcess(void)
             drawPixel(x, y, textures[texNum][texX][texY]);
         }
     }
+}
 
+/**
+ * Draw the outlines of all the walls and corners based on the cast ray info
+ *
+ * @param rayResult The information for all the rays cast
+ */
+void ICACHE_FLASH_ATTR drawOutlines(rayResult_t* rayResult)
+{
     bool drawVertNext = false;
     for(int32_t x = 0; x < OLED_WIDTH; x++)
     {
@@ -430,54 +485,73 @@ void ICACHE_FLASH_ATTR raycasterProcess(void)
             drawPixel(x, rayResult[x].drawEnd, WHITE);
         }
     }
+}
 
-    //SPRITE CASTING
-    //sort sprites from far to close
-    for(int32_t i = 0; i < numSprites; i++)
+/**
+ * Draw all the sprites
+ *
+ * @param rayResult The information for all the rays cast
+ */
+void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
+{
+    // sort sprites from far to close
+    for(uint32_t i = 0; i < sizeof(sprite) / sizeof(sprite[0]); i++)
     {
         spriteOrder[i] = i;
+        // sqrt not taken, unneeded
         spriteDistance[i] = ((posX - sprite[i].x) * (posX - sprite[i].x) +
-                             (posY - sprite[i].y) * (posY - sprite[i].y)); //sqrt not taken, unneeded
+                             (posY - sprite[i].y) * (posY - sprite[i].y));
     }
-    sortSprites(spriteOrder, spriteDistance, numSprites);
+    sortSprites(spriteOrder, spriteDistance, sizeof(sprite) / sizeof(sprite[0]));
 
-    //after sorting the sprites, do the projection and draw them
-    for(int32_t i = 0; i < numSprites; i++)
+    // after sorting the sprites, do the projection and draw them
+    for(uint32_t i = 0; i < sizeof(sprite) / sizeof(sprite[0]); i++)
     {
-        //translate sprite position to relative to camera
+        // translate sprite position to relative to camera
         float spriteX = sprite[spriteOrder[i]].x - posX;
         float spriteY = sprite[spriteOrder[i]].y - posY;
 
-        //transform sprite with the inverse camera matrix
-        // [ planeX   dirX ] -1                                       [ dirY      -dirX ]
-        // [               ]       =  1/(planeX*dirY-dirX*planeY) *   [                 ]
-        // [ planeY   dirY ]                                          [ -planeY  planeX ]
+        // transform sprite with the inverse camera matrix
+        // [ planeX dirX ] -1                                  [ dirY     -dirX ]
+        // [             ]    =  1/(planeX*dirY-dirX*planeY) * [                ]
+        // [ planeY dirY ]                                     [ -planeY planeX ]
 
-        float invDet = 1.0 / (planeX * dirY - dirX * planeY); //required for correct matrix multiplication
+        // required for correct matrix multiplication
+        float invDet = 1.0 / (planeX * dirY - dirX * planeY);
 
         float transformX = invDet * (dirY * spriteX - dirX * spriteY);
-        //this is actually the depth inside the screen, that what Z is in 3D
+        // this is actually the depth inside the screen, that what Z is in 3D
         float transformY = invDet * (-planeY * spriteX + planeX * spriteY);
 
         int32_t spriteScreenX = (int32_t)((OLED_WIDTH / 2) * (1 + transformX / transformY));
 
-        //calculate height of the sprite on screen
-        //using 'transformY' instead of the real distance prevents fisheye
-        int32_t spriteHeight = abs((int32_t)(OLED_HEIGHT / (transformY)));
-        //calculate lowest and highest pixel to fill in current stripe
+        // calculate height of the sprite on screen
+        // using 'transformY' instead of the real distance prevents fisheye
+        int32_t spriteHeight = (int32_t)(OLED_HEIGHT / (transformY));
+        if(spriteHeight < 0)
+        {
+            spriteHeight = -spriteHeight;
+        }
+
+        // calculate lowest and highest pixel to fill in current stripe
         int32_t drawStartY = -spriteHeight / 2 + OLED_HEIGHT / 2;
         if(drawStartY < 0)
         {
             drawStartY = 0;
         }
+
         int32_t drawEndY = spriteHeight / 2 + OLED_HEIGHT / 2;
         if(drawEndY >= OLED_HEIGHT)
         {
             drawEndY = OLED_HEIGHT - 1;
         }
 
-        //calculate width of the sprite
-        int32_t spriteWidth = abs( (int32_t) (OLED_HEIGHT / (transformY)));
+        // calculate width of the sprite
+        int32_t spriteWidth = ( (int32_t) (OLED_HEIGHT / (transformY)));
+        if(spriteWidth < 0)
+        {
+            spriteWidth = -spriteWidth;
+        }
         int32_t drawStartX = -spriteWidth / 2 + spriteScreenX;
         if(drawStartX < 0)
         {
@@ -489,86 +563,38 @@ void ICACHE_FLASH_ATTR raycasterProcess(void)
             drawEndX = OLED_WIDTH - 1;
         }
 
-        //loop through every vertical stripe of the sprite on screen
+        // loop through every vertical stripe of the sprite on screen
         for(int32_t stripe = drawStartX; stripe < drawEndX; stripe++)
         {
             int32_t texX = (int32_t)(256 * (stripe - (-spriteWidth / 2 + spriteScreenX)) * texWidth / spriteWidth) / 256;
-            //the conditions in the if are:
-            //1) it's in front of camera plane so you don't see things behind you
-            //2) it's on the screen (left)
-            //3) it's on the screen (right)
-            //4) ZBuffer, with perpendicular distance
-            if(transformY > 0 && stripe > 0 && stripe < OLED_WIDTH && transformY < rayResult[stripe].zDepth)
+            // the conditions in the if are:
+            // 1) it's in front of camera plane so you don't see things behind you
+            // 2) it's on the screen (left)
+            // 3) it's on the screen (right)
+            // 4) ZBuffer, with perpendicular distance
+            if(transformY > 0 && stripe > 0 && stripe < OLED_WIDTH && transformY < rayResult[stripe].perpWallDist)
             {
-                for(int32_t y = drawStartY; y < drawEndY; y++) //for every pixel of the current stripe
+                // for every pixel of the current stripe
+                for(int32_t y = drawStartY; y < drawEndY; y++)
                 {
-                    int32_t d = (y) * 256 - OLED_HEIGHT * 128 + spriteHeight * 128; //256 and 128 factors to avoid floats
+                    // 256 and 128 factors to avoid floats
+                    int32_t d = (y) * 256 - OLED_HEIGHT * 128 + spriteHeight * 128;
                     int32_t texY = ((d * texHeight) / spriteHeight) / 256;
-                    //get current color from the texture
+                    // get current color from the texture
                     drawPixel(stripe, y, enemySpriteTex[(texX * texHeight) + texY]);
                 }
             }
         }
     }
-
-    //timing for input and FPS counter
-    oldTime = time;
-    time = system_get_time();
-    float frameTime = (time - oldTime) / 1000000.0; //frameTime is the time this frame has taken, in seconds
-
-    //speed modifiers
-    float moveSpeed = frameTime * 5.0; //the constant value is in squares/second
-    float rotSpeed = frameTime * 3.0; //the constant value is in radians/second
-    //move forward if no wall in front of you
-    if(rButtonState & 0x08)
-    {
-        if(worldMap[(int32_t)(posX + dirX * moveSpeed)][(int32_t)(posY)] == false)
-        {
-            posX += dirX * moveSpeed;
-        }
-        if(worldMap[(int32_t)(posX)][(int32_t)(posY + dirY * moveSpeed)] == false)
-        {
-            posY += dirY * moveSpeed;
-        }
-    }
-    //move backwards if no wall behind you
-    if(rButtonState & 0x02)
-    {
-        if(worldMap[(int32_t)(posX - dirX * moveSpeed)][(int32_t)(posY)] == false)
-        {
-            posX -= dirX * moveSpeed;
-        }
-        if(worldMap[(int32_t)(posX)][(int32_t)(posY - dirY * moveSpeed)] == false)
-        {
-            posY -= dirY * moveSpeed;
-        }
-    }
-    //rotate to the right
-    if(rButtonState & 0x04)
-    {
-        //both camera direction and camera plane must be rotated
-        float oldDirX = dirX;
-        dirX = dirX * cos(-rotSpeed) - dirY * sin(-rotSpeed);
-        dirY = oldDirX * sin(-rotSpeed) + dirY * cos(-rotSpeed);
-        float oldPlaneX = planeX;
-        planeX = planeX * cos(-rotSpeed) - planeY * sin(-rotSpeed);
-        planeY = oldPlaneX * sin(-rotSpeed) + planeY * cos(-rotSpeed);
-    }
-    //rotate to the left
-    if(rButtonState & 0x01)
-    {
-        //both camera direction and camera plane must be rotated
-        float oldDirX = dirX;
-        dirX = dirX * cos(rotSpeed) - dirY * sin(rotSpeed);
-        dirY = oldDirX * sin(rotSpeed) + dirY * cos(rotSpeed);
-        float oldPlaneX = planeX;
-        planeX = planeX * cos(rotSpeed) - planeY * sin(rotSpeed);
-        planeY = oldPlaneX * sin(rotSpeed) + planeY * cos(rotSpeed);
-    }
 }
 
-//sort algorithm
-//sort the sprites based on distance
+/**
+ * Bubble sort algorithm to which sorts both order and dist by the values in dist
+ *
+ * @param order  Sprite indices to be sorted by dist
+ * @param dist   The distances from the camera to the sprites
+ * @param amount The number of values to sort
+ */
 void ICACHE_FLASH_ATTR sortSprites(int32_t* order, float* dist, int32_t amount)
 {
     for (int32_t i = 0; i < amount - 1; i++)
@@ -587,5 +613,74 @@ void ICACHE_FLASH_ATTR sortSprites(int32_t* order, float* dist, int32_t amount)
                 order[j + 1] = tmp2;
             }
         }
+    }
+}
+
+/**
+ * Update the camera position based on the current button state
+ */
+void ICACHE_FLASH_ATTR handleRayInput(void)
+{
+    static uint32_t time = 0; // time of current frame
+    static uint32_t oldTime = 0; // time of previous frame
+
+    // timing for input and FPS counter
+    oldTime = time;
+    time = system_get_time();
+    // frameTime is the time this frame has taken, in seconds
+    float frameTime = (time - oldTime) / 1000000.0;
+
+    // speed modifiers
+    float moveSpeed = frameTime * 5.0; // the constant value is in squares/second
+    float rotSpeed = frameTime * 3.0; // the constant value is in radians/second
+
+    // move forward if no wall in front of you
+    if(rButtonState & 0x08)
+    {
+        if(worldMap[(int32_t)(posX + dirX * moveSpeed)][(int32_t)(posY)] == false)
+        {
+            posX += dirX * moveSpeed;
+        }
+        if(worldMap[(int32_t)(posX)][(int32_t)(posY + dirY * moveSpeed)] == false)
+        {
+            posY += dirY * moveSpeed;
+        }
+    }
+
+    // move backwards if no wall behind you
+    if(rButtonState & 0x02)
+    {
+        if(worldMap[(int32_t)(posX - dirX * moveSpeed)][(int32_t)(posY)] == false)
+        {
+            posX -= dirX * moveSpeed;
+        }
+        if(worldMap[(int32_t)(posX)][(int32_t)(posY - dirY * moveSpeed)] == false)
+        {
+            posY -= dirY * moveSpeed;
+        }
+    }
+
+    // rotate to the right
+    if(rButtonState & 0x04)
+    {
+        // both camera direction and camera plane must be rotated
+        float oldDirX = dirX;
+        dirX = dirX * cos(-rotSpeed) - dirY * sin(-rotSpeed);
+        dirY = oldDirX * sin(-rotSpeed) + dirY * cos(-rotSpeed);
+        float oldPlaneX = planeX;
+        planeX = planeX * cos(-rotSpeed) - planeY * sin(-rotSpeed);
+        planeY = oldPlaneX * sin(-rotSpeed) + planeY * cos(-rotSpeed);
+    }
+
+    // rotate to the left
+    if(rButtonState & 0x01)
+    {
+        // both camera direction and camera plane must be rotated
+        float oldDirX = dirX;
+        dirX = dirX * cos(rotSpeed) - dirY * sin(rotSpeed);
+        dirY = oldDirX * sin(rotSpeed) + dirY * cos(rotSpeed);
+        float oldPlaneX = planeX;
+        planeX = planeX * cos(rotSpeed) - planeY * sin(rotSpeed);
+        planeY = oldPlaneX * sin(rotSpeed) + planeY * cos(rotSpeed);
     }
 }
