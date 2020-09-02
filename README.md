@@ -8,9 +8,9 @@ The corresponding hardware repository for the Super 2021 Swadge Hardware [can be
 
 ## History 
 
-The Super 2021 Swadge is based on the [2020 Swadge](https://github.com/AEFeinstein/Super-2020-Swadge-FW) and its [hardware repository](https://github.com/AEFeinstein/Super-2020-Swadge-HW).
+The Super 2021 Swadge is based on the [Super 2020 Swadge](https://github.com/AEFeinstein/Super-2020-Swadge-FW) and its [hardware repository](https://github.com/AEFeinstein/Super-2020-Swadge-HW).
 
-The 2020 Swadge is based on the [2019 Swadge](https://github.com/cnlohr/swadge2019). The 2019 Swadge has a combined firmware and hardware repository.
+The Super 2020 Swadge is based on the [2019 Swadge](https://github.com/cnlohr/swadge2019). The 2019 Swadge has a combined firmware and hardware repository.
 
 The 2019 Swadge is based on [ESP8266 Colorchord](https://github.com/cnlohr/colorchord/tree/master/embedded8266). You can read more about [ColorChord: Embedded here](https://github.com/AEFeinstein/Swadge-Devkit-Fw/blob/master/firmware/embeddedcommon/README.md).
 
