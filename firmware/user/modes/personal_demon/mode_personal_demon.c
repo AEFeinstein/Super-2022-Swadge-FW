@@ -34,6 +34,7 @@ typedef enum
     PDA_MEDICINE,
     PDA_SCOLD,
     PDA_BIRTH,
+    PDA_DEATH,
     PDA_NUM_ANIMATIONS
 } pdAnimationState_t;
 
@@ -159,6 +160,10 @@ void initAnimPortal(void);
 bool updtAnimPortal(void);
 void drawAnimPortal(void);
 
+void initAnimDeath(void);
+bool updtAnimDeath(void);
+void drawAnimDeath(void);
+
 /*==============================================================================
  * Variables
  *============================================================================*/
@@ -243,6 +248,10 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     pd->animTable[PDA_BIRTH].initAnim = initAnimPortal;
     pd->animTable[PDA_BIRTH].updtAnim = updtAnimPortal;
     pd->animTable[PDA_BIRTH].drawAnim = drawAnimPortal;
+
+    pd->animTable[PDA_DEATH].initAnim = initAnimDeath;
+    pd->animTable[PDA_DEATH].updtAnim = updtAnimDeath;
+    pd->animTable[PDA_DEATH].drawAnim = drawAnimDeath;
 
     // Set up the menu table
     pd->menuTable[PDM_FEED].name = menuFeed;
@@ -530,21 +539,25 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
     {
         case EVT_GOT_SICK_RANDOMLY:
         {
+            // TODO Animate?
             ets_snprintf(marquis->str, ACT_STRLEN, "%s got sick. ", pd->demon.name);
             break;
         }
         case EVT_GOT_SICK_POOP:
         {
+            // TODO Animate?
             ets_snprintf(marquis->str, ACT_STRLEN, "Poop made %s sick. ", pd->demon.name);
             break;
         }
         case EVT_GOT_SICK_OBESE:
         {
+            // TODO Animate?
             ets_snprintf(marquis->str, ACT_STRLEN, "Obesity made %s sick. ", pd->demon.name);
             break;
         }
         case EVT_GOT_SICK_MALNOURISHED:
         {
+            // TODO Animate?
             ets_snprintf(marquis->str, ACT_STRLEN, "Malnourishment made %s sick. ", pd->demon.name);
             break;
         }
@@ -557,6 +570,7 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         }
         case EVT_LOST_DISCIPLINE:
         {
+            // TODO Animate?
             ets_snprintf(marquis->str, ACT_STRLEN, "%s became less disciplined. ", pd->demon.name);
             break;
         }
@@ -597,11 +611,14 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         }
         case EVT_PLAY:
         {
+            // TODO Animate?
+            unshift(&pd->animationQueue, (void*)PDA_DEATH);
             ets_snprintf(marquis->str, ACT_STRLEN, "You played with %s. ", pd->demon.name);
             break;
         }
         case EVT_NO_PLAY_DISCIPLINE:
         {
+            // TODO Animate?
             ets_snprintf(marquis->str, ACT_STRLEN, "%s was too unruly to play. ", pd->demon.name);
             break;
         }
@@ -642,47 +659,55 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         }
         case EVT_FLUSH_POOP:
         {
+            // TODO Animate?
             ets_snprintf(marquis->str, ACT_STRLEN, "You flushed a poop. ");
             break;
         }
         case EVT_FLUSH_NOTHING:
         {
+            // TODO Animate?
             ets_snprintf(marquis->str, ACT_STRLEN, "You flushed nothing. ");
             break;
         }
         case EVT_LOST_HEALTH_SICK:
         {
+            // TODO Animate?
             ets_snprintf(marquis->str, ACT_STRLEN, "%s lost health to sickness. ", pd->demon.name);
             break;
         }
         case EVT_LOST_HEALTH_OBESITY:
         {
+            // TODO Animate?
             ets_snprintf(marquis->str, ACT_STRLEN, "%s lost health to obesity. ", pd->demon.name);
             break;
         }
         case EVT_LOST_HEALTH_MALNOURISHMENT:
         {
+            // TODO Animate?
             ets_snprintf(marquis->str, ACT_STRLEN, "%s lost health to malnourishment. ", pd->demon.name);
             break;
         }
         case EVT_TEENAGER:
         {
+            // TODO Animate?
             ets_snprintf(marquis->str, ACT_STRLEN, "%s is now a teenager. Watch out. ", pd->demon.name);
             break;
         }
         case EVT_ADULT:
         {
+            // TODO Animate?
             ets_snprintf(marquis->str, ACT_STRLEN, "%s is now an adult. Boring. ", pd->demon.name);
             break;
         }
         case EVT_BORN:
         {
             unshift(&pd->animationQueue, (void*)PDA_BIRTH);
-            ets_snprintf(marquis->str, ACT_STRLEN, "%s fell out of a portal. ", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s arrived. ", pd->demon.name);
             break;
         }
         case EVT_DEAD:
         {
+            unshift(&pd->animationQueue, (void*)PDA_DEATH);
             ets_snprintf(marquis->str, ACT_STRLEN, "%s died. ", pd->demon.name);
             break;
         }
@@ -1276,6 +1301,60 @@ void ICACHE_FLASH_ATTR drawAnimPortal(void)
     fillDisplayArea(0, 0, 16, OLED_HEIGHT, BLACK);
     // Draw the other half
     drawPng(&pd->archL, 16, 13, false, false, 0);
+}
+
+/*******************************************************************************
+ * Death Animation
+ ******************************************************************************/
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR initAnimDeath(void)
+{
+    pd->demonDirLR = false;
+    pd->demonRot = 0;
+}
+
+/**
+ * @brief TODO every 5 ms
+ *
+ * @return true
+ * @return false
+ */
+bool ICACHE_FLASH_ATTR updtAnimDeath(void)
+{
+    if(pd->animCnt++ % 2 == 0)
+    {
+        if(pd->demonRot < 90)
+        {
+            pd->demonRot++;
+        }
+        else if(pd->demonY < OLED_HEIGHT)
+        {
+            if((pd->animCnt - 1) % 4 == 0)
+            {
+                pd->demonY++;
+            }
+        }
+        else
+        {
+            personalDemonResetAnimVars();
+        }
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR drawAnimDeath(void)
+{
+    // Draw the demon
+    drawAnimDemon();
 }
 
 /*******************************************************************************
