@@ -87,12 +87,15 @@ typedef struct
     pngHandle archL;
     pngHandle archR;
 
-    // Demon position and direction
+    // Demon position, direction, and state
     int16_t demonX;
     int16_t demonY;
     bool demonDirLR;
     bool demonDirUD;
     int16_t demonRot;
+    bool drawThin;
+    bool drawFat;
+    bool drawSick;
 
     // Animation variables
     pdAnimationState_t anim;
@@ -197,6 +200,11 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     ets_memset(pd, 0, sizeof(pd_data));
 
     resetDemon(&pd->demon);
+
+    // Initialize demon draw state
+    pd->drawSick = pd->demon.isSick;
+    pd->drawFat = isDemonObese(&(pd->demon));
+    pd->drawThin = isDemonThin(&(pd->demon));
 
     // Set up the animation table
     pd->animTable[PDA_WALKING].initAnim = NULL;
@@ -394,16 +402,27 @@ void ICACHE_FLASH_ATTR personalDemonButtonCallback(uint8_t state __attribute__((
  */
 void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unused)))
 {
-    // If the demon is walking, and there's something new to do
-    if(pd->anim == PDA_WALKING && pd->animationQueue.length > 0)
+    // If the demon is walking
+    if(pd->anim == PDA_WALKING)
     {
-        // Start doing it
-        pd->anim = (pdAnimationState_t)pop(&(pd->animationQueue));
-
-        // Initialize the animation
-        if(NULL != pd->animTable[pd->anim].initAnim)
+        // and there's something new to do
+        if(pd->animationQueue.length > 0)
         {
-            pd->animTable[pd->anim].initAnim();
+            // Start doing it
+            pd->anim = (pdAnimationState_t)pop(&(pd->animationQueue));
+
+            // Initialize the animation
+            if(NULL != pd->animTable[pd->anim].initAnim)
+            {
+                pd->animTable[pd->anim].initAnim();
+            }
+        }
+        else
+        {
+            // If all animations are finished, update the draw state
+            pd->drawSick = pd->demon.isSick;
+            pd->drawFat = isDemonObese(&(pd->demon));
+            pd->drawThin = isDemonThin(&(pd->demon));
         }
     }
 
@@ -825,15 +844,15 @@ bool ICACHE_FLASH_ATTR updtAnimCenter(void)
 void ICACHE_FLASH_ATTR drawAnimDemon(void)
 {
     // Draw the demon
-    if(isDemonObese(&(pd->demon)))
+    if(pd->drawFat)
     {
         drawPng((&pd->demonSpriteFat), pd->demonX, pd->demonY, pd->demonDirLR, false, pd->demonRot);
     }
-    else if(isDemonThin(&(pd->demon)))
+    else if(pd->drawThin)
     {
         drawPng((&pd->demonSpriteThin), pd->demonX, pd->demonY, pd->demonDirLR, false, pd->demonRot);
     }
-    else if(pd->demon.isSick)
+    else if(pd->drawSick)
     {
         drawPng((&pd->demonSpriteSick), pd->demonX, pd->demonY, pd->demonDirLR, false, pd->demonRot);
     }
