@@ -35,6 +35,7 @@ typedef enum
     PDA_SCOLD,
     PDA_BIRTH,
     PDA_DEATH,
+    PDA_BIRTHDAY,
     PDA_NUM_ANIMATIONS
 } pdAnimationState_t;
 
@@ -87,6 +88,7 @@ typedef struct
     pngHandle poop;
     pngHandle archL;
     pngHandle archR;
+    pngHandle cake;
 
     // Demon position, direction, and state
     int16_t demonX;
@@ -163,6 +165,9 @@ void drawAnimPortal(void);
 void initAnimDeath(void);
 bool updtAnimDeath(void);
 void drawAnimDeath(void);
+
+bool updtAnimBirthday(void);
+void drawAnimBirthday(void);
 
 /*==============================================================================
  * Variables
@@ -253,6 +258,10 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     pd->animTable[PDA_DEATH].updtAnim = updtAnimDeath;
     pd->animTable[PDA_DEATH].drawAnim = drawAnimDeath;
 
+    pd->animTable[PDA_BIRTHDAY].initAnim = NULL;
+    pd->animTable[PDA_BIRTHDAY].updtAnim = updtAnimBirthday;
+    pd->animTable[PDA_BIRTHDAY].drawAnim = drawAnimBirthday;
+
     // Set up the menu table
     pd->menuTable[PDM_FEED].name = menuFeed;
     pd->menuTable[PDM_FEED].menuAct = ACT_FEED;
@@ -300,6 +309,7 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     allocPngAsset("poop.png", &(pd->poop));
     allocPngAsset("archL.png", &(pd->archL));
     allocPngAsset("archR.png", &(pd->archR));
+    allocPngAsset("cake.png", &(pd->cake));
 
     pd->demonX = (OLED_WIDTH / 2) - (pd->demonSprite.width / 2);
     pd->demonDirLR = false;
@@ -539,25 +549,25 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
     {
         case EVT_GOT_SICK_RANDOMLY:
         {
-            // TODO Animate?
+            // TODO Animate getting sick?
             ets_snprintf(marquis->str, ACT_STRLEN, "%s got sick. ", pd->demon.name);
             break;
         }
         case EVT_GOT_SICK_POOP:
         {
-            // TODO Animate?
+            // TODO Animate getting sick?
             ets_snprintf(marquis->str, ACT_STRLEN, "Poop made %s sick. ", pd->demon.name);
             break;
         }
         case EVT_GOT_SICK_OBESE:
         {
-            // TODO Animate?
+            // TODO Animate getting fat?
             ets_snprintf(marquis->str, ACT_STRLEN, "Obesity made %s sick. ", pd->demon.name);
             break;
         }
         case EVT_GOT_SICK_MALNOURISHED:
         {
-            // TODO Animate?
+            // TODO Animate getting thin?
             ets_snprintf(marquis->str, ACT_STRLEN, "Malnourishment made %s sick. ", pd->demon.name);
             break;
         }
@@ -570,7 +580,7 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         }
         case EVT_LOST_DISCIPLINE:
         {
-            // TODO Animate?
+            // TODO Animate getting rowdy?
             ets_snprintf(marquis->str, ACT_STRLEN, "%s became less disciplined. ", pd->demon.name);
             break;
         }
@@ -611,14 +621,13 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         }
         case EVT_PLAY:
         {
-            // TODO Animate?
-            unshift(&pd->animationQueue, (void*)PDA_DEATH);
+            // TODO Animate playing?
             ets_snprintf(marquis->str, ACT_STRLEN, "You played with %s. ", pd->demon.name);
             break;
         }
         case EVT_NO_PLAY_DISCIPLINE:
         {
-            // TODO Animate?
+            // TODO Animate not playing?
             ets_snprintf(marquis->str, ACT_STRLEN, "%s was too unruly to play. ", pd->demon.name);
             break;
         }
@@ -659,44 +668,46 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         }
         case EVT_FLUSH_POOP:
         {
-            // TODO Animate?
+            // TODO Animate flushing?
             ets_snprintf(marquis->str, ACT_STRLEN, "You flushed a poop. ");
             break;
         }
         case EVT_FLUSH_NOTHING:
         {
-            // TODO Animate?
+            // TODO Animate flushing?
             ets_snprintf(marquis->str, ACT_STRLEN, "You flushed nothing. ");
             break;
         }
         case EVT_LOST_HEALTH_SICK:
         {
-            // TODO Animate?
+            // TODO Animate losing health?
             ets_snprintf(marquis->str, ACT_STRLEN, "%s lost health to sickness. ", pd->demon.name);
             break;
         }
         case EVT_LOST_HEALTH_OBESITY:
         {
-            // TODO Animate?
+            // TODO Animate losing health?
             ets_snprintf(marquis->str, ACT_STRLEN, "%s lost health to obesity. ", pd->demon.name);
             break;
         }
         case EVT_LOST_HEALTH_MALNOURISHMENT:
         {
-            // TODO Animate?
+            // TODO Animate losing health?
             ets_snprintf(marquis->str, ACT_STRLEN, "%s lost health to malnourishment. ", pd->demon.name);
             break;
         }
         case EVT_TEENAGER:
         {
-            // TODO Animate?
-            ets_snprintf(marquis->str, ACT_STRLEN, "%s is now a teenager. Watch out. ", pd->demon.name);
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_BIRTHDAY);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s is a teenager. ", pd->demon.name);
             break;
         }
         case EVT_ADULT:
         {
-            // TODO Animate?
-            ets_snprintf(marquis->str, ACT_STRLEN, "%s is now an adult. Boring. ", pd->demon.name);
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_BIRTHDAY);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s is an adult. ", pd->demon.name);
             break;
         }
         case EVT_BORN:
@@ -1355,6 +1366,54 @@ void ICACHE_FLASH_ATTR drawAnimDeath(void)
 {
     // Draw the demon
     drawAnimDemon();
+}
+
+/*******************************************************************************
+ * Birthday Animation
+ ******************************************************************************/
+
+/**
+ * @brief TODO every 5 ms
+ *
+ * @return true
+ * @return false
+ */
+bool ICACHE_FLASH_ATTR updtAnimBirthday(void)
+{
+    bool shouldDraw = false;
+
+    if(0 == pd->animCnt)
+    {
+        shouldDraw = true;
+    }
+    else if(pd->animCnt % 200 == 0)
+    {
+        pd->demonY += 6;
+        shouldDraw = true;
+    }
+    else if(pd->animCnt % 100 == 0)
+    {
+        pd->demonY -= 6;
+        shouldDraw = true;
+    }
+
+    if((pd->animCnt++) == 600)
+    {
+        personalDemonResetAnimVars();
+        shouldDraw = true;
+    }
+    return shouldDraw;
+}
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR drawAnimBirthday(void)
+{
+    // Draw the demon
+    drawAnimDemon();
+    drawPng(&(pd->cake), pd->demonX - pd->cake.width - 4, (OLED_HEIGHT - pd->cake.height) / 2, false, false, 0);
 }
 
 /*******************************************************************************
