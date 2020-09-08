@@ -95,6 +95,7 @@ typedef struct
     pngHandle archR;
     pngHandle cake;
     pngHandle ball;
+    pngHandle water;
 
     // Demon position, direction, and state
     int16_t demonX;
@@ -119,6 +120,8 @@ typedef struct
     uint8_t menuIdx;
     int16_t textPos;
     uint8_t numFood;
+    int16_t flushX;
+    int16_t flushY;
 
     float ballX;
     float ballY;
@@ -344,6 +347,7 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     allocPngAsset("archR.png", &(pd->archR));
     allocPngAsset("cake.png", &(pd->cake));
     allocPngAsset("ball.png", &(pd->ball));
+    allocPngAsset("water.png", &(pd->water));
 
     pd->demonX = (OLED_WIDTH / 2) - (pd->demonSprite.width / 2);
     pd->demonDirLR = false;
@@ -380,6 +384,9 @@ void ICACHE_FLASH_ATTR personalDemonExitMode(void)
     freePngAsset(&(pd->poop));
     freePngAsset(&(pd->archL));
     freePngAsset(&(pd->archR));
+    freePngAsset(&(pd->cake));
+    freePngAsset(&(pd->ball));
+    freePngAsset(&(pd->water));
 
     // Clear the queues
     while(pd->demon.evQueue.length > 0)
@@ -574,6 +581,8 @@ void ICACHE_FLASH_ATTR personalDemonResetAnimVars(void)
     pd->ballY = 0;
     pd->ballVelX = 0;
     pd->ballVelY = 0;
+    pd->flushX = 0;
+    pd->flushY = 0;
 }
 
 /*******************************************************************************
@@ -1178,7 +1187,8 @@ bool ICACHE_FLASH_ATTR updtAnimPoop(void)
  */
 void ICACHE_FLASH_ATTR initAnimFlush(void)
 {
-
+    pd->flushX = OLED_WIDTH - pd->water.width;
+    pd->flushY = FONT_HEIGHT_IBMVGA8 - 3 * (pd->water.height);
 }
 
 /**
@@ -1189,6 +1199,17 @@ void ICACHE_FLASH_ATTR initAnimFlush(void)
  */
 bool ICACHE_FLASH_ATTR updtAnimFlush(void)
 {
+    pd->animCnt++;
+    if(0 == pd->animCnt % 10)
+    {
+        pd->flushY++;
+
+        if(pd->flushY >= OLED_HEIGHT - FONT_HEIGHT_IBMVGA8)
+        {
+            personalDemonResetAnimVars();
+        }
+        return true;
+    }
     return false;
 }
 
@@ -1198,7 +1219,14 @@ bool ICACHE_FLASH_ATTR updtAnimFlush(void)
  */
 void ICACHE_FLASH_ATTR drawAnimFlush(void)
 {
+    // Draw the flush
+    for(uint8_t i = 0; i < 3; i++)
+    {
+        drawPng(&(pd->water), pd->flushX, pd->flushY + (i * pd->water.height), false, false, 0);
+    }
 
+    // Draw the demon
+    drawAnimDemon();
 }
 
 /*******************************************************************************
