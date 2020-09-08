@@ -62,7 +62,7 @@ void playWithDemon(demon_t* pd);
 void disciplineDemon(demon_t* pd);
 bool disciplineCheck(demon_t* pd);
 void medicineDemon(demon_t* pd);
-void scoopPoop(demon_t* pd);
+void flushPoop(demon_t* pd);
 void updateStatus(demon_t* pd);
 
 event_t dequeueEvt(demon_t* pd);
@@ -307,7 +307,7 @@ void ICACHE_FLASH_ATTR medicineDemon(demon_t* pd)
  *
  * @param pd The demon
  */
-void ICACHE_FLASH_ATTR scoopPoop(demon_t* pd)
+void ICACHE_FLASH_ATTR flushPoop(demon_t* pd)
 {
     // Flushing counts as an action
     INC_BOUND(pd->actionsTaken, 1, 0, INT16_MAX);
@@ -602,9 +602,9 @@ void ICACHE_FLASH_ATTR takeAction(demon_t* pd, action_t action)
             medicineDemon(pd);
             break;
         }
-        case ACT_SCOOP:
+        case ACT_FLUSH:
         {
-            scoopPoop(pd);
+            flushPoop(pd);
             break;
         }
         case ACT_QUIT:

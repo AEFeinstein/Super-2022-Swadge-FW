@@ -33,6 +33,7 @@ typedef enum
     PDA_OVER_EATING,
     PDA_NOT_EATING,
     PDA_POOPING,
+    PDA_FLUSH,
     PDA_PLAYING,
     PDA_NOT_PLAYING,
     PDA_MEDICINE,
@@ -49,7 +50,7 @@ typedef enum
     PDM_PLAY,
     PDM_SCOLD,
     PDM_MEDS,
-    PDM_SCOOP,
+    PDM_FLUSH,
     PDM_QUIT,
     PDM_NUM_OPTS
 } pdMenuOpt_t;
@@ -166,6 +167,10 @@ void drawAnimPlaying(void);
 void initAnimPoop(void);
 bool updtAnimPoop(void);
 
+void initAnimFlush(void);
+bool updtAnimFlush(void);
+void drawAnimFlush(void);
+
 void initAnimMeds(void);
 bool updtAnimMeds(void);
 void drawAnimMeds(void);
@@ -209,7 +214,7 @@ char menuFeed[]  = "Feed";
 char menuPlay[]  = "Play";
 char menuScold[] = "Scold";
 char menuMeds[]  = "Meds";
-char menuScoop[] = "Scoop";
+char menuFlush[] = "Flush";
 char menuQuit[]  = "Quit";
 
 /*==============================================================================
@@ -258,6 +263,10 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     pd->animTable[PDA_POOPING].updtAnim = updtAnimPoop;
     pd->animTable[PDA_POOPING].drawAnim = drawAnimDemon;
 
+    pd->animTable[PDA_FLUSH].initAnim = initAnimFlush;
+    pd->animTable[PDA_FLUSH].updtAnim = updtAnimFlush;
+    pd->animTable[PDA_FLUSH].drawAnim = drawAnimFlush;
+
     pd->animTable[PDA_PLAYING].initAnim = initAnimPlaying;
     pd->animTable[PDA_PLAYING].updtAnim = updtAnimPlaying;
     pd->animTable[PDA_PLAYING].drawAnim = drawAnimPlaying;
@@ -299,8 +308,8 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     pd->menuTable[PDM_MEDS].name = menuMeds;
     pd->menuTable[PDM_MEDS].menuAct = ACT_MEDICINE;
 
-    pd->menuTable[PDM_SCOOP].name = menuScoop;
-    pd->menuTable[PDM_SCOOP].menuAct = ACT_SCOOP;
+    pd->menuTable[PDM_FLUSH].name = menuFlush;
+    pd->menuTable[PDM_FLUSH].menuAct = ACT_FLUSH;
 
     pd->menuTable[PDM_QUIT].name = menuQuit;
     pd->menuTable[PDM_QUIT].menuAct = ACT_QUIT;
@@ -525,15 +534,20 @@ void ICACHE_FLASH_ATTR personalDemonUpdateDisplay(void)
     clearDisplay();
 
     // Always draw poop if it's there
-    for(uint8_t py = 0; py < 2; py++)
+    for(uint8_t p = 0; p < pd->drawPoopCnt; p++)
     {
-        for(uint8_t px = 0; px < 3; px++)
+        int16_t x = (OLED_WIDTH / 2) + (pd->demonSprite.width / 2) + p * ((pd->poop.width / 2) + 1);
+        int16_t y;
+        if(0 == p % 2)
         {
-            if(px + (py * 3) < pd->drawPoopCnt)
-            {
-                drawPng((&pd->poop), (18 * px) + (OLED_WIDTH / 2) + 12, (14 * py) + (OLED_HEIGHT / 2) - 6, false, false, 0);
-            }
+            y = (OLED_HEIGHT / 2) - (pd->poop.height) - 2;
         }
+        else
+        {
+            y = (OLED_HEIGHT / 2) + 2;
+        }
+
+        drawPng((&pd->poop), x, y, false, false, 0);
     }
 
     // Draw anything else for this scene
@@ -699,13 +713,13 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         }
         case EVT_FLUSH_POOP:
         {
-            // TODO Animate flushing?
+            unshift(&pd->animationQueue, (void*)PDA_FLUSH);
             ets_snprintf(marquis->str, ACT_STRLEN, "You flushed a poop. ");
             break;
         }
         case EVT_FLUSH_NOTHING:
         {
-            // TODO Animate flushing?
+            unshift(&pd->animationQueue, (void*)PDA_FLUSH);
             ets_snprintf(marquis->str, ACT_STRLEN, "You flushed nothing. ");
             break;
         }
@@ -1152,6 +1166,39 @@ bool ICACHE_FLASH_ATTR updtAnimPoop(void)
         }
     }
     return true;
+}
+
+/*******************************************************************************
+ * Flushing Animation
+ ******************************************************************************/
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR initAnimFlush(void)
+{
+
+}
+
+/**
+ * @brief TODO
+ *
+ * @return true
+ * @return false
+ */
+bool ICACHE_FLASH_ATTR updtAnimFlush(void)
+{
+    return false;
+}
+
+/**
+ * @brief
+ *
+ */
+void ICACHE_FLASH_ATTR drawAnimFlush(void)
+{
+
 }
 
 /*******************************************************************************

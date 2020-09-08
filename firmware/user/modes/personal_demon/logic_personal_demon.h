@@ -26,7 +26,7 @@ typedef enum
     ACT_PLAY,
     ACT_DISCIPLINE,
     ACT_MEDICINE,
-    ACT_SCOOP,
+    ACT_FLUSH,
     ACT_QUIT,
     ACT_NUM_ACTIONS
 } action_t;
