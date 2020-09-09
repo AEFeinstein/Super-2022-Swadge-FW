@@ -120,7 +120,6 @@ typedef struct
     uint8_t menuIdx;
     int16_t textPos;
     uint8_t numFood;
-    int16_t flushX;
     int16_t flushY;
 
     float ballX;
@@ -543,6 +542,11 @@ void ICACHE_FLASH_ATTR personalDemonUpdateDisplay(void)
     // Always draw poop if it's there
     for(uint8_t p = 0; p < pd->drawPoopCnt; p++)
     {
+        // If flushing, draw the first poop over the water (last)
+        if(0 == p && pd->anim == PDA_FLUSH)
+        {
+            continue;
+        }
         int16_t x = (OLED_WIDTH / 2) + (pd->demonSprite.width / 2) + p * ((pd->poop.width / 2) + 1);
         int16_t y;
         if(0 == p % 2)
@@ -563,6 +567,20 @@ void ICACHE_FLASH_ATTR personalDemonUpdateDisplay(void)
         pd->animTable[pd->anim].drawAnim();
     }
 
+    // If flushing, draw the first poop over the water (last)
+    if(pd->anim == PDA_FLUSH && pd->drawPoopCnt > 0)
+    {
+        int16_t x = (OLED_WIDTH / 2) + (pd->demonSprite.width / 2);
+        int16_t y = (OLED_HEIGHT / 2) - (pd->poop.height) - 2;
+        int16_t watersEnd = pd->flushY + 3 * (pd->water.height);
+        // If the water is at the end of the poop, flush it away
+        if(watersEnd > y + pd->poop.height)
+        {
+            y = watersEnd - pd->poop.height;
+        }
+        drawPng((&pd->poop), x, y, false, false, 0);
+    }
+
     // Draw text
     drawAnimText();
 }
@@ -581,7 +599,6 @@ void ICACHE_FLASH_ATTR personalDemonResetAnimVars(void)
     pd->ballY = 0;
     pd->ballVelX = 0;
     pd->ballVelY = 0;
-    pd->flushX = 0;
     pd->flushY = 0;
 }
 
@@ -722,12 +739,14 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         }
         case EVT_FLUSH_POOP:
         {
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_FLUSH);
             ets_snprintf(marquis->str, ACT_STRLEN, "You flushed a poop. ");
             break;
         }
         case EVT_FLUSH_NOTHING:
         {
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_FLUSH);
             ets_snprintf(marquis->str, ACT_STRLEN, "You flushed nothing. ");
             break;
@@ -1187,7 +1206,6 @@ bool ICACHE_FLASH_ATTR updtAnimPoop(void)
  */
 void ICACHE_FLASH_ATTR initAnimFlush(void)
 {
-    pd->flushX = OLED_WIDTH - pd->water.width;
     pd->flushY = FONT_HEIGHT_IBMVGA8 - 3 * (pd->water.height);
 }
 
@@ -1200,12 +1218,16 @@ void ICACHE_FLASH_ATTR initAnimFlush(void)
 bool ICACHE_FLASH_ATTR updtAnimFlush(void)
 {
     pd->animCnt++;
-    if(0 == pd->animCnt % 10)
+    if(0 == pd->animCnt % 6)
     {
         pd->flushY++;
 
-        if(pd->flushY >= OLED_HEIGHT - FONT_HEIGHT_IBMVGA8)
+        if(pd->flushY >= OLED_HEIGHT)
         {
+            if(pd->drawPoopCnt > 0)
+            {
+                pd->drawPoopCnt--;
+            }
             personalDemonResetAnimVars();
         }
         return true;
@@ -1222,7 +1244,8 @@ void ICACHE_FLASH_ATTR drawAnimFlush(void)
     // Draw the flush
     for(uint8_t i = 0; i < 3; i++)
     {
-        drawPng(&(pd->water), pd->flushX, pd->flushY + (i * pd->water.height), false, false, 0);
+        drawPng(&(pd->water), (OLED_WIDTH / 2) + (pd->demonSprite.width / 2),
+                pd->flushY + (i * pd->water.height), false, false, 0);
     }
 
     // Draw the demon
