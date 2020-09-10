@@ -20,8 +20,8 @@
 #define mapWidth 24
 #define mapHeight 24
 
-#define texWidth 32
-#define texHeight 32
+#define texWidth 48
+#define texHeight 48
 
 /*==============================================================================
  * Structs
@@ -110,7 +110,7 @@ int32_t worldMap[mapWidth][mapHeight] =
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 };
 
-uint8_t textures[2][texWidth][texHeight];
+// uint8_t textures[2][texWidth][texHeight];
 
 float posX = 22, posY = 12;  // x and y start position
 float dirX = -1, dirY = 0; // initial direction vector
@@ -145,6 +145,8 @@ float spriteDistance[sizeof(sprite) / sizeof(sprite[0])];
 
 // Storage for the enemy sprite
 color enemySpriteTex[texWidth * texHeight];
+color stoneTex[texWidth * texHeight];
+color stripeTex[texWidth * texHeight];
 
 /*==============================================================================
  * Functions
@@ -159,29 +161,41 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
     enableDebounce(false);
 
     // Create simple textures
-    for(uint8_t h = 0; h < texHeight; h++)
-    {
-        for(uint8_t w = 0; w < texWidth; w++)
-        {
-            // This draws an X
-            if(w == h || w + 1 == h || w == (texWidth - h - 1) || w == (texWidth - h - 2))
-            {
-                textures[0][w][h] = 1;
-            }
+    // for(uint8_t h = 0; h < texHeight; h++)
+    // {
+    //     for(uint8_t w = 0; w < texWidth; w++)
+    //     {
+    //         // This draws an X
+    //         if(w == h || w + 1 == h || w == (texWidth - h - 1) || w == (texWidth - h - 2))
+    //         {
+    //             textures[0][w][h] = 1;
+    //         }
 
-            // This draws a horizontal stripe
-            if(texHeight / 2 - 4 < h && h < texHeight / 2 + 4)
-            {
-                textures[1][w][h] = 1;
-            }
-        }
-    }
+    //         // This draws a horizontal stripe
+    //         if(texHeight / 2 - 4 < h && h < texHeight / 2 + 4)
+    //         {
+    //             textures[1][w][h] = 1;
+    //         }
+    //     }
+    // }
 
     // Load the enemy texture to RAM
     pngHandle enemySprite;
-    allocPngAsset("enemy.png", &enemySprite);
+    allocPngAsset("txbat.png", &enemySprite);
     drawPngToBuffer(&enemySprite, enemySpriteTex);
     freePngAsset(&enemySprite);
+
+    // Load the enemy texture to RAM
+    pngHandle stoneTexture;
+    allocPngAsset("txstone.png", &stoneTexture);
+    drawPngToBuffer(&stoneTexture, stoneTex);
+    freePngAsset(&stoneTexture);
+
+    // Load the enemy texture to RAM
+    pngHandle stripeTexture;
+    allocPngAsset("txstripe.png", &stripeTexture);
+    drawPngToBuffer(&stripeTexture, stripeTex);
+    freePngAsset(&stripeTexture);
 }
 
 /**
@@ -422,7 +436,15 @@ void ICACHE_FLASH_ATTR drawTextures(rayResult_t* rayResult)
             texPos += step;
 
             // Draw the pixel specified by the texture
-            drawPixel(x, y, textures[texNum][texX][texY]);
+            // drawPixel(x, y, textures[texNum][texX][texY]);
+            if(texNum)
+            {
+                drawPixel(x, y, stoneTex[(texX * texHeight) + texY ]);
+            }
+            else
+            {
+                drawPixel(x, y, stripeTex[(texX * texHeight) + texY ]);
+            }
         }
     }
 }
