@@ -4,6 +4,7 @@
 
 #include <osapi.h>
 #include <mem.h>
+#include <user_interface.h>
 #include "mode_personal_demon.h"
 #include "assets.h"
 #include "oled.h"
@@ -15,6 +16,15 @@
  * Defines, Enums
  *============================================================================*/
 
+#define ACT_STRLEN 128
+#define MAX_BOUNCES 2
+
+typedef struct
+{
+    char str[ACT_STRLEN];
+    int16_t pos;
+} marquisText_t;
+
 typedef enum
 {
     PDA_WALKING,
@@ -23,9 +33,14 @@ typedef enum
     PDA_OVER_EATING,
     PDA_NOT_EATING,
     PDA_POOPING,
+    PDA_FLUSH,
+    PDA_PLAYING,
+    PDA_NOT_PLAYING,
     PDA_MEDICINE,
     PDA_SCOLD,
     PDA_BIRTH,
+    PDA_DEATH,
+    PDA_BIRTHDAY,
     PDA_NUM_ANIMATIONS
 } pdAnimationState_t;
 
@@ -35,7 +50,7 @@ typedef enum
     PDM_PLAY,
     PDM_SCOLD,
     PDM_MEDS,
-    PDM_SCOOP,
+    PDM_FLUSH,
     PDM_QUIT,
     PDM_NUM_OPTS
 } pdMenuOpt_t;
@@ -71,17 +86,26 @@ typedef struct
     pngSequenceHandle* food;
     pngSequenceHandle syringe;
     pngHandle demonSprite;
+    pngHandle demonSpriteFat;
+    pngHandle demonSpriteThin;
+    pngHandle demonSpriteSick;
     pngHandle hand;
     pngHandle poop;
     pngHandle archL;
     pngHandle archR;
+    pngHandle cake;
+    pngHandle ball;
+    pngHandle water;
 
-    // Demon position and direction
+    // Demon position, direction, and state
     int16_t demonX;
     int16_t demonY;
     bool demonDirLR;
     bool demonDirUD;
     int16_t demonRot;
+    bool drawThin;
+    bool drawFat;
+    bool drawSick;
 
     // Animation variables
     pdAnimationState_t anim;
@@ -90,12 +114,20 @@ typedef struct
     list_t animationQueue;
     pdAnimation animTable[PDA_NUM_ANIMATIONS];
     int16_t seqFrame;
-    int16_t handRot;
+    float handRot;
     int16_t animCnt;
     int16_t drawPoopCnt;
     uint8_t menuIdx;
     int16_t textPos;
     uint8_t numFood;
+    int16_t flushY;
+
+    float ballX;
+    float ballY;
+    float ballVelX;
+    float ballVelY;
+
+    list_t marquisTextQueue;
 
     pdMenuOpt menuTable[PDM_NUM_OPTS];
 } pd_data;
@@ -128,8 +160,18 @@ void initAnimNotEating(void);
 bool updtAnimNotEating(void);
 void drawAnimNotEating(void);
 
+void initAnimPlaying(void);
+bool updtAnimPlaying(void);
+bool updtAnimNotPlaying(void);
+bool _updtAnimPlaying(bool isPlaying);
+void drawAnimPlaying(void);
+
 void initAnimPoop(void);
 bool updtAnimPoop(void);
+
+void initAnimFlush(void);
+bool updtAnimFlush(void);
+void drawAnimFlush(void);
 
 void initAnimMeds(void);
 bool updtAnimMeds(void);
@@ -142,6 +184,13 @@ void drawAnimScold(void);
 void initAnimPortal(void);
 bool updtAnimPortal(void);
 void drawAnimPortal(void);
+
+void initAnimDeath(void);
+bool updtAnimDeath(void);
+void drawAnimDeath(void);
+
+bool updtAnimBirthday(void);
+void drawAnimBirthday(void);
 
 /*==============================================================================
  * Variables
@@ -167,7 +216,7 @@ char menuFeed[]  = "Feed";
 char menuPlay[]  = "Play";
 char menuScold[] = "Scold";
 char menuMeds[]  = "Meds";
-char menuScoop[] = "Scoop";
+char menuFlush[] = "Flush";
 char menuQuit[]  = "Quit";
 
 /*==============================================================================
@@ -184,6 +233,11 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     ets_memset(pd, 0, sizeof(pd_data));
 
     resetDemon(&pd->demon);
+
+    // Initialize demon draw state
+    pd->drawSick = pd->demon.isSick;
+    pd->drawFat = isDemonObese(&(pd->demon));
+    pd->drawThin = isDemonThin(&(pd->demon));
 
     // Set up the animation table
     pd->animTable[PDA_WALKING].initAnim = NULL;
@@ -211,6 +265,18 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     pd->animTable[PDA_POOPING].updtAnim = updtAnimPoop;
     pd->animTable[PDA_POOPING].drawAnim = drawAnimDemon;
 
+    pd->animTable[PDA_FLUSH].initAnim = initAnimFlush;
+    pd->animTable[PDA_FLUSH].updtAnim = updtAnimFlush;
+    pd->animTable[PDA_FLUSH].drawAnim = drawAnimFlush;
+
+    pd->animTable[PDA_PLAYING].initAnim = initAnimPlaying;
+    pd->animTable[PDA_PLAYING].updtAnim = updtAnimPlaying;
+    pd->animTable[PDA_PLAYING].drawAnim = drawAnimPlaying;
+
+    pd->animTable[PDA_NOT_PLAYING].initAnim = initAnimPlaying;
+    pd->animTable[PDA_NOT_PLAYING].updtAnim = updtAnimNotPlaying;
+    pd->animTable[PDA_NOT_PLAYING].drawAnim = drawAnimPlaying;
+
     pd->animTable[PDA_MEDICINE].initAnim = initAnimMeds;
     pd->animTable[PDA_MEDICINE].updtAnim = updtAnimMeds;
     pd->animTable[PDA_MEDICINE].drawAnim = drawAnimMeds;
@@ -222,6 +288,14 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     pd->animTable[PDA_BIRTH].initAnim = initAnimPortal;
     pd->animTable[PDA_BIRTH].updtAnim = updtAnimPortal;
     pd->animTable[PDA_BIRTH].drawAnim = drawAnimPortal;
+
+    pd->animTable[PDA_DEATH].initAnim = initAnimDeath;
+    pd->animTable[PDA_DEATH].updtAnim = updtAnimDeath;
+    pd->animTable[PDA_DEATH].drawAnim = drawAnimDeath;
+
+    pd->animTable[PDA_BIRTHDAY].initAnim = NULL;
+    pd->animTable[PDA_BIRTHDAY].updtAnim = updtAnimBirthday;
+    pd->animTable[PDA_BIRTHDAY].drawAnim = drawAnimBirthday;
 
     // Set up the menu table
     pd->menuTable[PDM_FEED].name = menuFeed;
@@ -236,8 +310,8 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     pd->menuTable[PDM_MEDS].name = menuMeds;
     pd->menuTable[PDM_MEDS].menuAct = ACT_MEDICINE;
 
-    pd->menuTable[PDM_SCOOP].name = menuScoop;
-    pd->menuTable[PDM_SCOOP].menuAct = ACT_SCOOP;
+    pd->menuTable[PDM_FLUSH].name = menuFlush;
+    pd->menuTable[PDM_FLUSH].menuAct = ACT_FLUSH;
 
     pd->menuTable[PDM_QUIT].name = menuQuit;
     pd->menuTable[PDM_QUIT].menuAct = ACT_QUIT;
@@ -262,15 +336,21 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
                      "syringe09.png",
                      "syringe10.png",
                      "syringe11.png");
-    allocPngAsset("dino.png", &(pd->demonSprite));
+    allocPngAsset("pd-norm.png", &(pd->demonSprite));
+    allocPngAsset("pd-fat.png",  &(pd->demonSpriteFat));
+    allocPngAsset("pd-thin.png", &(pd->demonSpriteThin));
+    allocPngAsset("pd-sick.png", &(pd->demonSpriteSick));
     allocPngAsset("scold.png", &(pd->hand));
     allocPngAsset("poop.png", &(pd->poop));
     allocPngAsset("archL.png", &(pd->archL));
     allocPngAsset("archR.png", &(pd->archR));
+    allocPngAsset("cake.png", &(pd->cake));
+    allocPngAsset("ball.png", &(pd->ball));
+    allocPngAsset("water.png", &(pd->water));
 
-    pd->demonX = (OLED_WIDTH / 2) - 8;
+    pd->demonX = (OLED_WIDTH / 2) - (pd->demonSprite.width / 2);
     pd->demonDirLR = false;
-    pd->demonY = (OLED_HEIGHT / 2) - 8;
+    pd->demonY = (OLED_HEIGHT / 2) - (pd->demonSprite.height / 2);
     pd->demonDirUD = false;
 
     // Set up an animation timer
@@ -287,16 +367,44 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
  */
 void ICACHE_FLASH_ATTR personalDemonExitMode(void)
 {
+    // Stop the timers
+    timerDisarm(&pd->animationTimer);
+    timerFlush();
+
+    // Free the assets
     freePngSequence(&(pd->pizza));
     freePngSequence(&(pd->burger));
     freePngSequence(&(pd->syringe));
     freePngAsset(&(pd->demonSprite));
+    freePngAsset(&(pd->demonSpriteFat));
+    freePngAsset(&(pd->demonSpriteSick));
+    freePngAsset(&(pd->demonSpriteThin));
     freePngAsset(&(pd->hand));
     freePngAsset(&(pd->poop));
     freePngAsset(&(pd->archL));
     freePngAsset(&(pd->archR));
-    timerDisarm(&pd->animationTimer);
-    timerFlush();
+    freePngAsset(&(pd->cake));
+    freePngAsset(&(pd->ball));
+    freePngAsset(&(pd->water));
+
+    // Clear the queues
+    while(pd->demon.evQueue.length > 0)
+    {
+        pop(&(pd->demon.evQueue));
+    }
+
+    while(pd->marquisTextQueue.length > 0)
+    {
+        void* node = pop(&(pd->marquisTextQueue));
+        os_free(node);
+    }
+
+    while(pd->animationQueue.length > 0)
+    {
+        pop(&(pd->animationQueue));
+    }
+
+    // Free the memory
     os_free(pd);
 }
 
@@ -353,16 +461,27 @@ void ICACHE_FLASH_ATTR personalDemonButtonCallback(uint8_t state __attribute__((
  */
 void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unused)))
 {
-    // If the demon is walking, and there's something new to do
-    if(pd->anim == PDA_WALKING && pd->animationQueue.length > 0)
+    // If the demon is walking
+    if(pd->anim == PDA_WALKING)
     {
-        // Start doing it
-        pd->anim = (pdAnimationState_t)pop(&(pd->animationQueue));
-
-        // Initialize the animation
-        if(NULL != pd->animTable[pd->anim].initAnim)
+        // and there's something new to do
+        if(pd->animationQueue.length > 0)
         {
-            pd->animTable[pd->anim].initAnim();
+            // Start doing it
+            pd->anim = (pdAnimationState_t)pop(&(pd->animationQueue));
+
+            // Initialize the animation
+            if(NULL != pd->animTable[pd->anim].initAnim)
+            {
+                pd->animTable[pd->anim].initAnim();
+            }
+        }
+        else
+        {
+            // If all animations are finished, update the draw state
+            pd->drawSick = pd->demon.isSick;
+            pd->drawFat = isDemonObese(&(pd->demon));
+            pd->drawThin = isDemonThin(&(pd->demon));
         }
     }
 
@@ -370,6 +489,45 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
     if(pd->animTable[pd->anim].updtAnim() || updtAnimText())
     {
         personalDemonUpdateDisplay();
+    }
+
+    // Shift the text every third cycle
+    static uint8_t marquisTextTimer = 0;
+    if(marquisTextTimer++ > 2)
+    {
+        marquisTextTimer = 0;
+    }
+
+    // If there's anything in the text marquis queue
+    if(pd->marquisTextQueue.length > 0)
+    {
+        // Clear the text background first
+        fillDisplayArea(0, 0, OLED_WIDTH, FONT_HEIGHT_IBMVGA8, BLACK);
+        // Iterate through all the text
+        node_t* node = pd->marquisTextQueue.first;
+        while(NULL != node)
+        {
+            // Get the text from the queue
+            marquisText_t* text = node->val;
+
+            // Shift the text if it's time
+            if(0 == marquisTextTimer)
+            {
+                text->pos--;
+            }
+
+            // Iterate to the next
+            node = node->next;
+
+            // Plot the text that's on the OLED
+            if (text->pos < OLED_WIDTH &&
+                    0 > plotText(text->pos, 0, text->str, IBM_VGA_8, WHITE))
+            {
+                // If the text was plotted off the screen, remove it from the queue
+                shift(&(pd->marquisTextQueue));
+                os_free(text);
+            }
+        }
     }
 }
 
@@ -382,21 +540,45 @@ void ICACHE_FLASH_ATTR personalDemonUpdateDisplay(void)
     clearDisplay();
 
     // Always draw poop if it's there
-    for(uint8_t py = 0; py < 2; py++)
+    for(uint8_t p = 0; p < pd->drawPoopCnt; p++)
     {
-        for(uint8_t px = 0; px < 3; px++)
+        // If flushing, draw the first poop over the water (last)
+        if(0 == p && pd->anim == PDA_FLUSH)
         {
-            if(px + (py * 3) < pd->drawPoopCnt)
-            {
-                drawPng((&pd->poop), (18 * px) + (OLED_WIDTH / 2) + 12, (14 * py) + (OLED_HEIGHT / 2) - 6, false, false, 0);
-            }
+            continue;
         }
+        int16_t x = (OLED_WIDTH / 2) + (pd->demonSprite.width / 2) + p * ((pd->poop.width / 2) + 1);
+        int16_t y;
+        if(0 == p % 2)
+        {
+            y = (OLED_HEIGHT / 2) - (pd->poop.height) - 2;
+        }
+        else
+        {
+            y = (OLED_HEIGHT / 2) + 2;
+        }
+
+        drawPng((&pd->poop), x, y, false, false, 0);
     }
 
     // Draw anything else for this scene
     if(NULL != pd->animTable[pd->anim].drawAnim)
     {
         pd->animTable[pd->anim].drawAnim();
+    }
+
+    // If flushing, draw the first poop over the water (last)
+    if(pd->anim == PDA_FLUSH && pd->drawPoopCnt > 0)
+    {
+        int16_t x = (OLED_WIDTH / 2) + (pd->demonSprite.width / 2);
+        int16_t y = (OLED_HEIGHT / 2) - (pd->poop.height) - 2;
+        int16_t watersEnd = pd->flushY + 3 * (pd->water.height);
+        // If the water is at the end of the poop, flush it away
+        if(watersEnd > y + pd->poop.height)
+        {
+            y = watersEnd - pd->poop.height;
+        }
+        drawPng((&pd->poop), x, y, false, false, 0);
     }
 
     // Draw text
@@ -413,6 +595,11 @@ void ICACHE_FLASH_ATTR personalDemonResetAnimVars(void)
     pd->handRot = 0;
     pd->demonRot = 0;
     pd->anim = PDA_WALKING;
+    pd->ballX = 0;
+    pd->ballY = 0;
+    pd->ballVelX = 0;
+    pd->ballVelY = 0;
+    pd->flushY = 0;
 }
 
 /*******************************************************************************
@@ -426,171 +613,225 @@ void ICACHE_FLASH_ATTR personalDemonResetAnimVars(void)
  */
 void ICACHE_FLASH_ATTR animateEvent(event_t evt)
 {
+    marquisText_t* marquis = (marquisText_t*)os_malloc(sizeof(marquisText_t));
     switch(evt)
     {
         case EVT_GOT_SICK_RANDOMLY:
         {
-            os_printf("%s randomly got sick\n", pd->demon.name);
+            // TODO Animate getting sick?
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s got sick. ", pd->demon.name);
             break;
         }
         case EVT_GOT_SICK_POOP:
         {
-            os_printf("Poop made %s sick\n", pd->demon.name);
+            // TODO Animate getting sick?
+            ets_snprintf(marquis->str, ACT_STRLEN, "Poop made %s sick. ", pd->demon.name);
             break;
         }
         case EVT_GOT_SICK_OBESE:
         {
-            os_printf("Obesity made %s sick\n", pd->demon.name);
+            // TODO Animate getting fat?
+            ets_snprintf(marquis->str, ACT_STRLEN, "Obesity made %s sick. ", pd->demon.name);
             break;
         }
         case EVT_GOT_SICK_MALNOURISHED:
         {
-            os_printf("Malnourishment made %s sick\n", pd->demon.name);
+            // TODO Animate getting thin?
+            ets_snprintf(marquis->str, ACT_STRLEN, "Malnourishment made %s sick. ", pd->demon.name);
             break;
         }
         case EVT_POOPED:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_POOPING);
-            os_printf("%s pooped\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s pooped. ", pd->demon.name);
             break;
         }
         case EVT_LOST_DISCIPLINE:
         {
-            os_printf("%s became less disciplined\n", pd->demon.name);
+            // TODO Animate getting rowdy?
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s got rowdy. ", pd->demon.name);
             break;
         }
         case EVT_EAT:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_EATING);
-            os_printf("%s ate the food\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s ate. ", pd->demon.name);
             break;
         }
         case EVT_OVEREAT:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_OVER_EATING);
-            os_printf("%s ate the food, then stole more and overate\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s overate. ", pd->demon.name);
             break;
         }
         case EVT_NO_EAT_SICK:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_NOT_EATING);
-            os_printf("%s was too sick to eat\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s was too sick to eat. ", pd->demon.name);
             break;
         }
         case EVT_NO_EAT_DISCIPLINE:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_NOT_EATING);
-            os_printf("%s was too unruly eat\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s was too rowdy eat. ", pd->demon.name);
             break;
         }
         case EVT_NO_EAT_FULL:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_NOT_EATING);
-            os_printf("%s was too full to eat\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s was too full to eat. ", pd->demon.name);
             break;
         }
         case EVT_PLAY:
         {
-            os_printf("You played with %s\n", pd->demon.name);
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_PLAYING);
+            ets_snprintf(marquis->str, ACT_STRLEN, "You played with %s. ", pd->demon.name);
             break;
         }
         case EVT_NO_PLAY_DISCIPLINE:
         {
-            os_printf("%s was too unruly to play\n", pd->demon.name);
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_NOT_PLAYING);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s was too rowdy to play. ", pd->demon.name);
             break;
         }
         case EVT_SCOLD:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_SCOLD);
-            os_printf("You scolded %s\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "You scolded %s. ", pd->demon.name);
             break;
         }
         case EVT_NO_SCOLD_SICK:
         {
-            os_printf("You scolded %s, but it was sick\n", pd->demon.name);
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_SCOLD);
+            ets_snprintf(marquis->str, ACT_STRLEN, "You scolded %s, but it was sick. ", pd->demon.name);
             break;
         }
         case EVT_MEDICINE_NOT_SICK:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_MEDICINE);
-            os_printf("You gave %s medicine, but it wasn't sick\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "You gave %s medicine, but it wasn't sick. ", pd->demon.name);
             break;
         }
         case EVT_MEDICINE_CURE:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_MEDICINE);
-            os_printf("You gave %s medicine, and it was cured\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "Medicine cured %s. ", pd->demon.name);
             break;
         }
         case EVT_MEDICINE_FAIL:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_MEDICINE);
-            os_printf("You gave %s medicine, but it didn't work\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "Medicine didn't cure %s. ", pd->demon.name);
             break;
         }
         case EVT_FLUSH_POOP:
         {
-            os_printf("You flushed a poop\n");
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_FLUSH);
+            ets_snprintf(marquis->str, ACT_STRLEN, "You flushed a poop. ");
             break;
         }
         case EVT_FLUSH_NOTHING:
         {
-            os_printf("You flushed nothing\n");
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_FLUSH);
+            ets_snprintf(marquis->str, ACT_STRLEN, "You flushed nothing. ");
             break;
         }
         case EVT_LOST_HEALTH_SICK:
         {
-            os_printf("%s lost health to sickness\n", pd->demon.name);
+            // TODO Animate losing health?
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s lost health to sickness. ", pd->demon.name);
             break;
         }
         case EVT_LOST_HEALTH_OBESITY:
         {
-            os_printf("%s lost health to obesity\n", pd->demon.name);
+            // TODO Animate losing health?
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s lost health to obesity. ", pd->demon.name);
             break;
         }
         case EVT_LOST_HEALTH_MALNOURISHMENT:
         {
-            os_printf("%s lost health to malnourishment\n", pd->demon.name);
+            // TODO Animate losing health?
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s lost health to malnourishment. ", pd->demon.name);
             break;
         }
         case EVT_TEENAGER:
         {
-            os_printf("%s is now a teenager. Watch out.\n", pd->demon.name);
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_BIRTHDAY);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s is a teenager. ", pd->demon.name);
             break;
         }
         case EVT_ADULT:
         {
-            os_printf("%s is now an adult. Boring.\n", pd->demon.name);
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_BIRTHDAY);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s is an adult. ", pd->demon.name);
             break;
         }
         case EVT_BORN:
         {
             unshift(&pd->animationQueue, (void*)PDA_BIRTH);
-            os_printf("%s fell out of a portal\n", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s arrived. ", pd->demon.name);
             break;
         }
         case EVT_DEAD:
         {
-            os_printf("%s died\n", pd->demon.name);
+            unshift(&pd->animationQueue, (void*)PDA_DEATH);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s died. ", pd->demon.name);
             break;
         }
         default:
         case EVT_NONE:
         case EVT_NUM_EVENTS:
         {
-            break;
+            os_free(marquis);
+            return;
         }
     }
+
+    // If there is no marquis text
+    if(pd->marquisTextQueue.length == 0)
+    {
+        // Position this at the edge of the OLED
+        marquis->pos = OLED_WIDTH;
+    }
+    else
+    {
+        // Otherwise position this after the last text
+        // Find the last node in the marquis
+        node_t* node = pd->marquisTextQueue.first;
+        while(NULL != node->next)
+        {
+            node = node->next;
+        }
+        marquisText_t* lastText = node->val;
+        // Set the position
+        marquis->pos = lastText->pos + textWidth(lastText->str, IBM_VGA_8);
+
+        // If this would already be on the OLED
+        if(marquis->pos < OLED_WIDTH)
+        {
+            // shift it to the edge
+            marquis->pos = OLED_WIDTH;
+        }
+    }
+
+    push(&pd->marquisTextQueue, (void*)marquis);
 }
 
 /**
@@ -606,7 +847,7 @@ bool ICACHE_FLASH_ATTR updtAnimWalk(void)
     {
         pd->animCnt = 0;
         // Check if the demon turns around
-        if(os_random() % 64 == 0 || (pd->demonX == OLED_WIDTH - 16) || (pd->demonX == 0))
+        if(os_random() % 64 == 0 || (pd->demonX == OLED_WIDTH - pd->demonSprite.width) || (pd->demonX == 0))
         {
             pd->demonDirLR = !(pd->demonDirLR);
         }
@@ -625,7 +866,8 @@ bool ICACHE_FLASH_ATTR updtAnimWalk(void)
         if(os_random() % 4 == 0)
         {
             // Check if the demon changes up/down direction
-            if(os_random() % 16 == 0 || (pd->demonY == OLED_HEIGHT / 2) || (pd->demonY == (OLED_HEIGHT / 2) - 16))
+            if(os_random() % 16 == 0 || (pd->demonY == OLED_HEIGHT - pd->demonSprite.height - FONT_HEIGHT_IBMVGA8 - 1)
+                    || (pd->demonY == FONT_HEIGHT_IBMVGA8 + 1))
             {
                 pd->demonDirUD = !(pd->demonDirUD);
             }
@@ -659,22 +901,22 @@ bool ICACHE_FLASH_ATTR updtAnimCenter(void)
         bool centeredX = false;
         bool centeredY = false;
 
-        if(pd->demonX > (OLED_WIDTH / 2) - 8)
+        if(pd->demonX > (OLED_WIDTH / 2) - (pd->demonSprite.width / 2))
         {
             pd->demonDirLR = false;
             pd->demonX -= 2;
-            if(pd->demonX < (OLED_WIDTH / 2) - 8)
+            if(pd->demonX < (OLED_WIDTH / 2) - (pd->demonSprite.width / 2))
             {
-                pd->demonX = (OLED_WIDTH / 2) - 8;
+                pd->demonX = (OLED_WIDTH / 2) - (pd->demonSprite.width / 2);
             }
         }
-        else if(pd->demonX < (OLED_WIDTH / 2) - 8)
+        else if(pd->demonX < (OLED_WIDTH / 2) - (pd->demonSprite.width / 2))
         {
             pd->demonDirLR = true;
             pd->demonX += 2;
-            if(pd->demonX > (OLED_WIDTH / 2) - 8)
+            if(pd->demonX > (OLED_WIDTH / 2) - (pd->demonSprite.width / 2))
             {
-                pd->demonX = (OLED_WIDTH / 2) - 8;
+                pd->demonX = (OLED_WIDTH / 2) - (pd->demonSprite.width / 2);
             }
         }
         else
@@ -682,11 +924,11 @@ bool ICACHE_FLASH_ATTR updtAnimCenter(void)
             centeredX = true;
         }
 
-        if(pd->demonY > (OLED_HEIGHT / 2) - 8)
+        if(pd->demonY > (OLED_HEIGHT / 2) - (pd->demonSprite.height / 2))
         {
             pd->demonY--;
         }
-        else if(pd->demonY < (OLED_HEIGHT / 2) - 8)
+        else if(pd->demonY < (OLED_HEIGHT / 2) - (pd->demonSprite.height / 2))
         {
             pd->demonY++;
         }
@@ -711,7 +953,22 @@ bool ICACHE_FLASH_ATTR updtAnimCenter(void)
 void ICACHE_FLASH_ATTR drawAnimDemon(void)
 {
     // Draw the demon
-    drawPng((&pd->demonSprite), pd->demonX, pd->demonY, pd->demonDirLR, false, pd->demonRot);
+    if(pd->drawFat)
+    {
+        drawPng((&pd->demonSpriteFat), pd->demonX, pd->demonY, pd->demonDirLR, false, pd->demonRot);
+    }
+    else if(pd->drawThin)
+    {
+        drawPng((&pd->demonSpriteThin), pd->demonX, pd->demonY, pd->demonDirLR, false, pd->demonRot);
+    }
+    else if(pd->drawSick)
+    {
+        drawPng((&pd->demonSpriteSick), pd->demonX, pd->demonY, pd->demonDirLR, false, pd->demonRot);
+    }
+    else
+    {
+        drawPng((&pd->demonSprite), pd->demonX, pd->demonY, pd->demonDirLR, false, pd->demonRot);
+    }
 }
 
 /*******************************************************************************
@@ -745,7 +1002,7 @@ bool ICACHE_FLASH_ATTR updtAnimEating(void)
     bool shouldDraw = false;
     if(pd->animCnt == 100)
     {
-        pd->demonX = (OLED_WIDTH / 2) - 8;
+        pd->demonX = (OLED_WIDTH / 2) - (pd->demonSprite.width / 2);
         shouldDraw = true;
         if(pd->seqFrame == pd->burger.count)
         {
@@ -757,7 +1014,7 @@ bool ICACHE_FLASH_ATTR updtAnimEating(void)
     {
         pd->animCnt = 0;
 
-        pd->demonX = (OLED_WIDTH / 2) - 12;
+        pd->demonX = (OLED_WIDTH / 2) - (3 * (pd->demonSprite.width / 4));
         pd->seqFrame++;
         shouldDraw = true;
     }
@@ -775,15 +1032,27 @@ void ICACHE_FLASH_ATTR drawAnimEating(void)
     // Draw the food
     if(pd->numFood == 1)
     {
-        drawPngSequence(pd->food,  (OLED_WIDTH / 2) - 28,  (OLED_HEIGHT / 2) - 8, false, false, 0, pd->seqFrame);
+        drawPngSequence(pd->food,
+                        (OLED_WIDTH / 2) - (3 * (pd->demonSprite.width / 4)) - (pd->food->handles->width) - (3),
+                        (OLED_HEIGHT / 2) - (pd->food->handles->height / 2),
+                        false, false, 0, pd->seqFrame);
     }
     else
     {
-        drawPngSequence(pd->food,  (OLED_WIDTH / 2) - 28,  (OLED_HEIGHT / 2) - 16, false, false, 0, pd->seqFrame);
-        drawPngSequence(pd->food,  (OLED_WIDTH / 2) - 46,  (OLED_HEIGHT / 2) - 16, false, false, 0, pd->seqFrame);
-        drawPngSequence(pd->food,  (OLED_WIDTH / 2) - 37,  (OLED_HEIGHT / 2) + 2,  false, false, 0, pd->seqFrame);
+        drawPngSequence(pd->food,
+                        (OLED_WIDTH / 2) - (3 * (pd->demonSprite.width / 4)) - (pd->food->handles->width) - (2),
+                        (OLED_HEIGHT / 2) - (pd->food->handles->height) - 1,
+                        false, false, 0, pd->seqFrame);
+        drawPngSequence(pd->food,
+                        (OLED_WIDTH / 2) - (3 * (pd->demonSprite.width / 4)) - (pd->food->handles->width) - (pd->food->handles->width) - (4),
+                        (OLED_HEIGHT / 2) - (pd->food->handles->height) - 1,
+                        false, false, 0, pd->seqFrame);
+        drawPngSequence(pd->food,
+                        (OLED_WIDTH / 2) - (3 * (pd->demonSprite.width / 4)) - (pd->food->handles->width) - (pd->food->handles->width / 2) -
+                        (3),
+                        (OLED_HEIGHT / 2) + 1,
+                        false, false, 0, pd->seqFrame);
     }
-
 }
 
 /*******************************************************************************
@@ -864,7 +1133,10 @@ void ICACHE_FLASH_ATTR drawAnimNotEating(void)
     // Draw the demon
     drawAnimDemon();
     // Draw the food
-    drawPngSequence(pd->food,  (OLED_WIDTH / 2) - 28,  (OLED_HEIGHT / 2) - 8, false, false, 0, 0);
+    drawPngSequence(pd->food,
+                    (OLED_WIDTH / 2) - (3 * (pd->demonSprite.width / 4)) - (pd->food->handles->width) - (3),
+                    (OLED_HEIGHT / 2) - (pd->food->handles->height / 2),
+                    false, false, 0, 0);
 }
 
 /*******************************************************************************
@@ -925,6 +1197,223 @@ bool ICACHE_FLASH_ATTR updtAnimPoop(void)
 }
 
 /*******************************************************************************
+ * Flushing Animation
+ ******************************************************************************/
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR initAnimFlush(void)
+{
+    pd->flushY = FONT_HEIGHT_IBMVGA8 - 3 * (pd->water.height);
+}
+
+/**
+ * @brief TODO
+ *
+ * @return true
+ * @return false
+ */
+bool ICACHE_FLASH_ATTR updtAnimFlush(void)
+{
+    pd->animCnt++;
+    if(0 == pd->animCnt % 6)
+    {
+        pd->flushY++;
+
+        if(pd->flushY >= OLED_HEIGHT)
+        {
+            if(pd->drawPoopCnt > 0)
+            {
+                pd->drawPoopCnt--;
+            }
+            personalDemonResetAnimVars();
+        }
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @brief
+ *
+ */
+void ICACHE_FLASH_ATTR drawAnimFlush(void)
+{
+    // Draw the flush
+    for(uint8_t i = 0; i < 3; i++)
+    {
+        drawPng(&(pd->water), (OLED_WIDTH / 2) + (pd->demonSprite.width / 2),
+                pd->flushY + (i * pd->water.height), false, false, 0);
+    }
+
+    // Draw the demon
+    drawAnimDemon();
+}
+
+/*******************************************************************************
+ * Playing Animation
+ ******************************************************************************/
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR initAnimPlaying(void)
+{
+    pd->demonDirLR = false;
+    pd->ballX = -pd->ball.width;
+    pd->ballY = (OLED_HEIGHT / 2) - ((pd->ball.width / 2) / 2);
+
+    pd->ballVelX = 20; // Pixels per second
+    pd->ballVelY = 30;
+    pd->handRot = 0;
+}
+
+/**
+ * @brief
+ *
+ */
+bool ICACHE_FLASH_ATTR updtAnimPlaying(void)
+{
+    return _updtAnimPlaying(true);
+}
+
+/**
+ * @brief
+ *
+ */
+bool ICACHE_FLASH_ATTR updtAnimNotPlaying(void)
+{
+    return _updtAnimPlaying(false);
+}
+
+/**
+ * @brief
+ *
+ */
+bool ICACHE_FLASH_ATTR _updtAnimPlaying(bool isPlaying)
+{
+    static uint8_t bounces = 0;
+    static uint32_t timeUs = 0;
+    if(timeUs != 0)
+    {
+        // Get the time, only animate if there's some difference
+        uint32_t tNowUs = system_get_time();
+        if(tNowUs != timeUs)
+        {
+            // Figure out how much time elapsed since the last animation
+            float deltaS = (tNowUs - timeUs) / 1000000.0f;
+            timeUs = tNowUs;
+
+            // Update ball position and rotation
+            pd->handRot += (deltaS * 180);
+            if(pd->handRot >= 360)
+            {
+                pd->handRot -= 360;
+            }
+            pd->ballX += (deltaS * pd->ballVelX);
+            pd->ballY += (deltaS * pd->ballVelY);
+
+            // Bounce the ball off the walls
+            if((pd->ballY + (pd->ball.width / 2) >= OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1) && pd->ballVelY > 0)
+            {
+                pd->ballVelY = -pd->ballVelY;
+            }
+            else if((pd->ballY - (pd->ball.width / 2) <= FONT_HEIGHT_IBMVGA8 + 1) && pd->ballVelY < 0)
+            {
+                pd->ballVelY = -pd->ballVelY;
+            }
+            else if(isPlaying && (pd->ballX + (pd->ball.width / 2) >= OLED_WIDTH) && pd->ballVelX > 0)
+            {
+                pd->ballVelX = -pd->ballVelX;
+            }
+            else if(bounces < MAX_BOUNCES && (pd->ballX - (pd->ball.width / 2) < 0) && pd->ballVelX < 0)
+            {
+                pd->ballVelX = -pd->ballVelX;
+            }
+            else if(isPlaying && bounces >= MAX_BOUNCES && pd->ballX + pd->ball.width < 0)
+            {
+                // Bounced enough, time to finish
+                bounces = 0;
+                timeUs = 0;
+                personalDemonResetAnimVars();
+                return true;
+            }
+            else if(!isPlaying && pd->ballX - pd->ball.width / 2 > OLED_WIDTH)
+            {
+                // Not playing, and the ball is gone, time to finish
+                bounces = 0;
+                timeUs = 0;
+                personalDemonResetAnimVars();
+                return true;
+            }
+
+            if(isPlaying)
+            {
+                // Demon tracks ball
+                pd->demonY = pd->ballY - (pd->ball.width / 2) - (pd->demonSprite.height / 2);
+
+                // Bounce the ball off the demon
+                if((pd->ballY - (pd->ball.width / 2) >= pd->demonY) &&
+                        (pd->ballY < pd->demonY + pd->demonSprite.height))
+                {
+                    if((pd->ballX + (pd->ball.width / 2) >= pd->demonX) &&
+                            (pd->ballX - (pd->ball.width / 2) < pd->demonX) &&
+                            pd->ballVelX > 0)
+                    {
+                        pd->ballVelX = -pd->ballVelX;
+                        bounces++;
+                    }
+                    else if((pd->ballX + (pd->ball.width / 2) >= pd->demonX + pd->demonSprite.width) &&
+                            (pd->ballX - (pd->ball.width / 2) < pd->demonX + pd->demonSprite.width) &&
+                            pd->ballVelX < 0)
+                    {
+                        pd->ballVelX = -pd->ballVelX;
+                        bounces++;
+                    }
+                }
+            }
+            else
+            {
+                // Demon looks away from ball, indifferent
+                if(pd->ballX < OLED_WIDTH / 2)
+                {
+                    pd->demonDirLR = true;
+                }
+                else
+                {
+                    pd->demonDirLR = false;
+                }
+            }
+            return true;
+        }
+    }
+    else
+    {
+        // Set the intitial time
+        timeUs = system_get_time();
+    }
+    return false;
+}
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR drawAnimPlaying(void)
+{
+    // Draw the demon
+    drawAnimDemon();
+
+    // Draw the ball
+    drawPng(&(pd->ball),
+            pd->ballX - (pd->ball.width / 2), pd->ballY - (pd->ball.width / 2),
+            false, false, pd->handRot);
+}
+
+/*******************************************************************************
  * Medicine Animation
  ******************************************************************************/
 
@@ -978,7 +1467,10 @@ void ICACHE_FLASH_ATTR drawAnimMeds(void)
     // Draw the demon
     drawAnimDemon();
     // Draw the syringe
-    drawPngSequence(&(pd->syringe), (OLED_WIDTH / 2) - 24, (OLED_HEIGHT / 2) - 4, false, false, 0, pd->seqFrame);
+    drawPngSequence(&(pd->syringe),
+                    (OLED_WIDTH / 2) - (pd->demonSprite.width / 2) - pd->syringe.handles->width - 2,
+                    (OLED_HEIGHT / 2) - (pd->syringe.handles->height / 2),
+                    false, false, 0, pd->seqFrame);
 }
 
 /*******************************************************************************
@@ -1045,7 +1537,10 @@ void ICACHE_FLASH_ATTR drawAnimScold(void)
     // Draw the demon
     drawAnimDemon();
     // Draw the hand
-    drawPng((&pd->hand), (OLED_WIDTH / 2) - 28, (OLED_HEIGHT / 2) - 28, false, false, pd->handRot);
+    drawPng((&pd->hand),
+            (OLED_WIDTH / 2) - (pd->demonSprite.width / 2) - pd->hand.width - 4,
+            4,
+            false, false, pd->handRot);
 }
 
 /*******************************************************************************
@@ -1059,8 +1554,8 @@ void ICACHE_FLASH_ATTR drawAnimScold(void)
 void ICACHE_FLASH_ATTR initAnimPortal(void)
 {
     pd->demonDirLR = true;
-    pd->demonY = 13 + 38 - 16;
-    pd->demonX = 16 + 24 - 16;
+    pd->demonY = 13 + 38 - pd->demonSprite.height;
+    pd->demonX = 16 + 24 - pd->demonSprite.width;
 }
 
 /**
@@ -1103,8 +1598,112 @@ void ICACHE_FLASH_ATTR drawAnimPortal(void)
     drawPng(&pd->archR, 16 + 24, 13, false, false, 0);
     // Draw the demon
     drawAnimDemon();
+    // Cover the area peeking out of the portal
+    fillDisplayArea(0, 0, 16, OLED_HEIGHT, BLACK);
     // Draw the other half
     drawPng(&pd->archL, 16, 13, false, false, 0);
+}
+
+/*******************************************************************************
+ * Death Animation
+ ******************************************************************************/
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR initAnimDeath(void)
+{
+    pd->demonDirLR = false;
+    pd->demonRot = 0;
+}
+
+/**
+ * @brief TODO every 5 ms
+ *
+ * @return true
+ * @return false
+ */
+bool ICACHE_FLASH_ATTR updtAnimDeath(void)
+{
+    if(pd->animCnt++ % 2 == 0)
+    {
+        if(pd->demonRot < 90)
+        {
+            pd->demonRot++;
+        }
+        else if(pd->demonY < OLED_HEIGHT)
+        {
+            if((pd->animCnt - 1) % 4 == 0)
+            {
+                pd->demonY++;
+            }
+        }
+        else
+        {
+            personalDemonResetAnimVars();
+        }
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR drawAnimDeath(void)
+{
+    // Draw the demon
+    drawAnimDemon();
+}
+
+/*******************************************************************************
+ * Birthday Animation
+ ******************************************************************************/
+
+/**
+ * @brief TODO every 5 ms
+ *
+ * @return true
+ * @return false
+ */
+bool ICACHE_FLASH_ATTR updtAnimBirthday(void)
+{
+    bool shouldDraw = false;
+
+    if(0 == pd->animCnt)
+    {
+        shouldDraw = true;
+    }
+    else if(pd->animCnt % 200 == 0)
+    {
+        pd->demonY += 6;
+        shouldDraw = true;
+    }
+    else if(pd->animCnt % 100 == 0)
+    {
+        pd->demonY -= 6;
+        shouldDraw = true;
+    }
+
+    if((pd->animCnt++) == 600)
+    {
+        personalDemonResetAnimVars();
+        shouldDraw = true;
+    }
+    return shouldDraw;
+}
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR drawAnimBirthday(void)
+{
+    // Draw the demon
+    drawAnimDemon();
+    drawPng(&(pd->cake), pd->demonX - pd->cake.width - 4, (OLED_HEIGHT - pd->cake.height) / 2, false, false, 0);
 }
 
 /*******************************************************************************

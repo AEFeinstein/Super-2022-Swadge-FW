@@ -105,7 +105,7 @@ typedef enum {
 
 #define STORE_ATTR __attribute__((aligned(4)))
 
-#if !defined( __cplusplus ) && !defined( TCC )
+#if !defined( __cplusplus ) && !defined( TCC ) && !defined( __GNUC__ )
 #define BOOL            bool
 #define TRUE            true
 #define FALSE           false

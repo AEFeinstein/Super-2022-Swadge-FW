@@ -62,7 +62,7 @@ void playWithDemon(demon_t* pd);
 void disciplineDemon(demon_t* pd);
 bool disciplineCheck(demon_t* pd);
 void medicineDemon(demon_t* pd);
-void scoopPoop(demon_t* pd);
+void flushPoop(demon_t* pd);
 void updateStatus(demon_t* pd);
 
 event_t dequeueEvt(demon_t* pd);
@@ -307,7 +307,7 @@ void ICACHE_FLASH_ATTR medicineDemon(demon_t* pd)
  *
  * @param pd The demon
  */
-void ICACHE_FLASH_ATTR scoopPoop(demon_t* pd)
+void ICACHE_FLASH_ATTR flushPoop(demon_t* pd)
 {
     // Flushing counts as an action
     INC_BOUND(pd->actionsTaken, 1, 0, INT16_MAX);
@@ -602,16 +602,16 @@ void ICACHE_FLASH_ATTR takeAction(demon_t* pd, action_t action)
             medicineDemon(pd);
             break;
         }
-        case ACT_SCOOP:
+        case ACT_FLUSH:
         {
-            scoopPoop(pd);
+            flushPoop(pd);
             break;
         }
         case ACT_QUIT:
         {
             // TODO save first?
             switchToSwadgeMode(0);
-            break;
+            return; // pd will be uninitialized after this
         }
         case ACT_NUM_ACTIONS:
         default:
@@ -657,4 +657,36 @@ void ICACHE_FLASH_ATTR enqueueEvt(demon_t* pd, event_t evt)
 event_t ICACHE_FLASH_ATTR dequeueEvt(demon_t* pd)
 {
     return (event_t)shift(&(pd->evQueue));
+}
+
+/**
+ * @brief TODO
+ *
+ * @param pd
+ * @return true
+ * @return false
+ */
+bool ICACHE_FLASH_ATTR isDemonObese(demon_t* pd)
+{
+    if (pd->hunger < OBESE_THRESHOLD)
+    {
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @brief TODO
+ *
+ * @param pd
+ * @return true
+ * @return false
+ */
+bool ICACHE_FLASH_ATTR isDemonThin(demon_t* pd)
+{
+    if (pd->hunger > MALNOURISHED_THRESHOLD)
+    {
+        return true;
+    }
+    return false;
 }
