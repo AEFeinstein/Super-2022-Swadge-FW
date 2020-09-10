@@ -378,11 +378,12 @@ void ICACHE_FLASH_ATTR plotSquareWave (int16_t x, int16_t y)
 static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unused)))
 {
     // Pick a random screensaver from a reduced list of dances (missing 12, 13, 18, 19)
-    static const uint8_t acceptableDances[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 17};
+    // static const uint8_t acceptableDances[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 17};
+    static const uint8_t acceptableDances[] = {17};
     mnu->menuScreensaverIdx = acceptableDances[os_random() % sizeof(acceptableDances)];
 
     // Set the brightness to low
-    setDanceBrightness(2);
+    setDanceBrightness(1);
 
     // Animate it at the given period
     timerArm(&mnu->timerScreensaverLEDAnimation, danceTimers[mnu->menuScreensaverIdx].period, true);
@@ -393,7 +394,7 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
     mnu->drawOLEDScreensaver = 0;
 
     // Start a timer to turn the screensaver brighter
-    timerArm(&mnu->timerScreensaverBright, 5000, false);
+    timerArm(&mnu->timerScreensaverBright, 1000, false);
 }
 
 /**
@@ -416,7 +417,7 @@ static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unu
     mnu->drawOLEDScreensaver = 1;
 
     // Set the brightness to medium
-    setDanceBrightness(1);
+    setDanceBrightness(0);
 }
 
 /**
@@ -468,7 +469,7 @@ void ICACHE_FLASH_ATTR stopScreensaver(void)
 #if SWADGE_VERSION != SWADGE_BBKIWI
     // Start a timer to start the screensaver if there's no input
     timerDisarm(&mnu->timerScreensaverStart);
-    timerArm(&mnu->timerScreensaverStart, 5000, false);
+    timerArm(&mnu->timerScreensaverStart, 1000, false);
 #endif
     // Stop this timer too
     timerDisarm(&mnu->timerScreensaverBright);
