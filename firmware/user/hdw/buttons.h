@@ -7,10 +7,11 @@
 
 typedef enum
 {
-    UP    = 0x01,
-    LEFT  = 0x02,
-    RIGHT = 0x04,
-    DOWN  = 0x08,
+    LEFT    = 0x01,
+    DOWN    = 0x02,
+    RIGHT   = 0x04,
+    UP      = 0x08,
+    ACTION  = 0x10,
 } button_mask;
 
 /*============================================================================
