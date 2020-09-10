@@ -39,6 +39,11 @@ int16_t ICACHE_FLASH_ATTR plotSprite(int16_t x, int16_t y, const sprite_t* p_spr
             background = INVERSE;
             break;
         }
+        case TRANSPARENT:
+        {
+            foreground = TRANSPARENT;
+            background = TRANSPARENT;
+        }
     }
 
     // refactor this code if it works!!!
