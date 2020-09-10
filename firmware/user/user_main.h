@@ -93,6 +93,12 @@ typedef struct _swadgeMode
      */
     void (*fnExitMode)(void);
     /**
+     * This function is called once every 'main loop'. There is no guarantee on
+     * timing for these calls, but they will happen as fast as possible, faster
+     * than any software timer.
+     */
+    void (*fnProcTask)(void);
+    /**
      * This function is called when a button press is detected from user_main.c's
      * HandleButtonEvent(). It does not pass mode select button events. It is
      * called from an interrupt, so do the minimal amount of processing here as
