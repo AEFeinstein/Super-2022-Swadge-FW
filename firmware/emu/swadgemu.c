@@ -33,6 +33,23 @@
     #define printf( x...) LOGI( x )
 #endif
 
+#if !defined(WINDOWS) && !defined(ANDROID)
+#define LINUX
+#endif
+
+
+#ifdef LINUX
+//For shm
+#include <sys/mman.h>
+#include <sys/stat.h>        /* For mode constants */
+#include <fcntl.h>           /* For O_* constants */
+
+int swadgeshm_video;
+int swadgeshm_input;
+uint8_t * swadgeshm_video_data;
+uint8_t * swadgeshm_input_data;
+#endif
+
 int px_scale = INIT_PX_SCALE;
 uint32_t* rawvidmem;
 short screenx, screeny;
@@ -232,7 +249,7 @@ void emuCheckResize()
     CNFGBGColor = 0x800000;
     CNFGDialogColor = 0x444444;
     CNFGSetup( "swadgemu", OLED_WIDTH * px_scale, px_scale * ( OLED_HEIGHT + FOOTER_PIXELS ) );
-    rawvidmem = malloc( px_scale * OLED_WIDTH * px_scale * (OLED_HEIGHT + FOOTER_PIXELS) * px_scale * 4 );
+	int rawvmsize = px_scale * OLED_WIDTH * px_scale * (OLED_HEIGHT + FOOTER_PIXELS) * px_scale * 4;
 
     // atexit(exitMode);
     // CNFGSetupFullscreen( "Test Bench", 0 );
@@ -240,6 +257,24 @@ void emuCheckResize()
 #ifdef WINDOWS
     void REGISTERSoundWin();
     REGISTERSoundWin();
+#endif
+
+#ifdef LINUX
+	swadgeshm_video = shm_open("/swadgevideo", O_CREAT | O_RDWR, 0644);
+	swadgeshm_input = shm_open("/swadgeinput", O_CREAT | O_RDWR, 0644);
+	ftruncate( swadgeshm_input, 10 );
+	swadgeshm_input_data = mmap(0,10, PROT_READ | PROT_WRITE, MAP_SHARED, swadgeshm_input, 0);
+
+	ftruncate( swadgeshm_video, rawvmsize+64);
+	swadgeshm_video_data = mmap(0,rawvmsize+64, PROT_READ | PROT_WRITE, MAP_SHARED, swadgeshm_video, 0);
+	((uint32_t*)swadgeshm_video_data)[0] = px_scale * OLED_WIDTH;
+	((uint32_t*)swadgeshm_video_data)[1] = px_scale * OLED_HEIGHT;
+	//[0] = width
+	//[1] = height
+	//[4..12] = LEDs
+    rawvidmem = (uint32_t*)(((uint8_t*)swadgeshm_video_data) + 64);
+#else
+	rawvidmem = malloc( rawvmsize );
 #endif
 
     boottime = OGGetAbsoluteTime();
@@ -260,6 +295,11 @@ void emuCheckResize()
         updateOLED(0);
 
         CNFGHandleInput();
+#ifdef LINUX
+		//Handle input from SHM.
+		for( i = 0; i < 5; i++ )
+	        HandleButtonStatus( i, swadgeshm_input_data[i] );
+#endif
 
         CNFGClearFrame();
         CNFGColor( 0xFFFFFF );
@@ -491,6 +531,9 @@ void ws2812_push( uint8_t* buffer, uint16_t buffersize )
         col |= (buffer[led * 3 + 0] * 240 / 255 + 15) << 8; // g
         col |= (buffer[led * 3 + 2] * 240 / 255 + 15) << 0; // b
         ws2812s[led] = col;
+#ifdef LINUX
+		((uint32_t*)rawvidmem)[4+led] = col;
+#endif
     }
 }
 
