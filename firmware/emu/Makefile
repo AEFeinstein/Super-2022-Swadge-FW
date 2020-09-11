@@ -31,7 +31,7 @@ CFLAGS   := -g $(patsubst %, -I%, $(INCDIRS)) $(patsubst %, -D%, $(DEFINES))
 ifeq ($(OS),Windows_NT)	 # is Windows_NT on XP, 2000, 7, Vista, 10...
 	LDFLAGS  := -lGDI32 -lUser32 -lwinmm
 else
-	LDFLAGS  := -lX11 -lm -lpthread -lasound -lpulse
+	LDFLAGS  := -lX11 -lm -lpthread -lasound -lpulse -lrt
 endif
 
 # A list of files to exclude from compilation
