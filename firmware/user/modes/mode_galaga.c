@@ -14,6 +14,7 @@
 #include <mem.h>
 #include <stdint.h>
 #include <user_interface.h>
+#include <math.h>
 
 #include "user_main.h"
 #include "embeddednf.h"
@@ -105,6 +106,9 @@ typedef struct
 {
     uint8_t active;
     vec_t position;
+    vec_t spawn;
+    uint32_t frameOffsetX;
+    uint32_t frameOffsetY;
     uint8_t health;
 } enemy_t;
 
@@ -488,11 +492,29 @@ void ICACHE_FLASH_ATTR gaSetState(galagaState_t newState)
                 galaga->projectiles[i].damage = 1;
             }
 
-            for (int i = 0; i < 8; i++) {
-                galaga->enemies[i].active = 1;
-                galaga->enemies[i].health = 2;
-                galaga->enemies[i].position.x = i < 4 ? OLED_WIDTH - 10 : OLED_WIDTH - 20;
-                galaga->enemies[i].position.y = OLED_HEIGHT - 20 - (10 * (i % 4));
+            int enemyCounter = 0;
+            for (int i = 0; i < 4; i++) {
+                galaga->enemies[enemyCounter].active = 1;
+                galaga->enemies[enemyCounter].health = 2;
+                galaga->enemies[enemyCounter].position.x = OLED_WIDTH - (10 * i);
+                galaga->enemies[enemyCounter].position.y = OLED_HEIGHT - 20;
+                galaga->enemies[enemyCounter].spawn.x = galaga->enemies[enemyCounter].position.x;
+                galaga->enemies[enemyCounter].spawn.y = galaga->enemies[enemyCounter].position.y;
+                galaga->enemies[enemyCounter].frameOffsetX = 0;
+                galaga->enemies[enemyCounter].frameOffsetY = i * 10;
+                enemyCounter++;
+            }
+
+            for (int i = 0; i < 4; i++) {
+                galaga->enemies[enemyCounter].active = 1;
+                galaga->enemies[enemyCounter].health = 2;
+                galaga->enemies[enemyCounter].position.x = OLED_WIDTH - (10 * i);
+                galaga->enemies[enemyCounter].position.y = OLED_HEIGHT - 50;
+                galaga->enemies[enemyCounter].spawn.x = galaga->enemies[enemyCounter].position.x;
+                galaga->enemies[enemyCounter].spawn.y = galaga->enemies[enemyCounter].position.y;
+                galaga->enemies[enemyCounter].frameOffsetX = 0;
+                galaga->enemies[enemyCounter].frameOffsetY = i * 10;
+                enemyCounter++;
             }
 
             galaga->floor = OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 3;//OLED_HEIGHT - 1;
@@ -615,6 +637,16 @@ void ICACHE_FLASH_ATTR gaGameInput(void)
 void ICACHE_FLASH_ATTR gaGameLogic(void)
 {
     // enemy movement and projectile spawning
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        if (galaga->enemies[i].active) {
+            galaga->enemies[i].position.x = galaga->enemies[i].spawn.x - ((galaga->stateFrames - galaga->enemies[i].frameOffsetX) / 3);
+            if (galaga->enemies[i].position.x < -10) {
+                galaga->enemies[i].frameOffsetX = galaga->stateFrames;
+                galaga->enemies[i].spawn.x = OLED_WIDTH + 10;
+            }
+            galaga->enemies[i].position.y = galaga->enemies[i].spawn.y + (7 * sin(((galaga->stateFrames + galaga->enemies[i].frameOffsetY) / 25.0)));
+        }
+    }
     
     // projectile movement and collision
     for (int i = 0; i < MAX_PROJECTILES; i++) {
@@ -711,7 +743,8 @@ void ICACHE_FLASH_ATTR gaGameDisplay(void)
     // draw enemies
     for (int i = 0; i < MAX_ENEMIES; i++) {
         if (galaga->enemies[i].active) {
-            plotCircle(galaga->enemies[i].position.x, galaga->enemies[i].position.y, 3, WHITE);
+            plotCircle(galaga->enemies[i].position.x, galaga->enemies[i].position.y, 4, WHITE);
+            plotCircle(galaga->enemies[i].position.x, galaga->enemies[i].position.y, (galaga->stateFrames / 15) % 2 ? 2 : 1, WHITE);
         }
     }
     // draw player
@@ -719,7 +752,7 @@ void ICACHE_FLASH_ATTR gaGameDisplay(void)
     fillDisplayArea(galaga->player.position.x - PLAYER_HALF_WIDTH, galaga->player.position.y - PLAYER_HALF_WIDTH, galaga->player.position.x + PLAYER_HALF_WIDTH, galaga->player.position.y + PLAYER_HALF_WIDTH, BLACK);
     plotRect(galaga->player.position.x - PLAYER_HALF_WIDTH, galaga->player.position.y - PLAYER_HALF_WIDTH, galaga->player.position.x + PLAYER_HALF_WIDTH, galaga->player.position.y + PLAYER_HALF_WIDTH, WHITE);
     if (galaga->player.reflectCountdown > 0) {
-        plotCircle(galaga->player.position.x, galaga->player.position.y, (galaga->stateFrames % 3) + 4, WHITE);//galaga->stateFrames % 3 ? WHITE : BLACK);
+        plotCircle(galaga->player.position.x, galaga->player.position.y, ((galaga->stateFrames / 2) % 3) + 4, WHITE);//galaga->stateFrames % 3 ? WHITE : BLACK);
     }
     //plotCircle(galaga->player.position.x, galaga->player.position.y, 5, WHITE);
     // draw ui
