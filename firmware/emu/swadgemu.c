@@ -46,7 +46,7 @@
 
 int swadgeshm_video;
 int swadgeshm_input;
-uint8_t * swadgeshm_video_data;
+uint32_t * swadgeshm_video_data;
 uint8_t * swadgeshm_input_data;
 #endif
 
@@ -266,13 +266,13 @@ void emuCheckResize()
 	swadgeshm_input_data = mmap(0,10, PROT_READ | PROT_WRITE, MAP_SHARED, swadgeshm_input, 0);
 
 	ftruncate( swadgeshm_video, rawvmsize+64);
-	swadgeshm_video_data = mmap(0,rawvmsize+64, PROT_READ | PROT_WRITE, MAP_SHARED, swadgeshm_video, 0);
-	((uint32_t*)swadgeshm_video_data)[0] = px_scale * OLED_WIDTH;
-	((uint32_t*)swadgeshm_video_data)[1] = px_scale * OLED_HEIGHT;
+	swadgeshm_video_data = (uint32_t*)mmap(0,rawvmsize+64, PROT_READ | PROT_WRITE, MAP_SHARED, swadgeshm_video, 0);
+	swadgeshm_video_data[0] = px_scale * OLED_WIDTH;
+	swadgeshm_video_data[1] = px_scale * OLED_HEIGHT;
 	//[0] = width
 	//[1] = height
 	//[4..12] = LEDs
-    rawvidmem = (uint32_t*)(((uint8_t*)swadgeshm_video_data) + 64);
+    rawvidmem = swadgeshm_video_data + 16;
 #else
 	rawvidmem = malloc( rawvmsize );
 #endif
@@ -532,7 +532,7 @@ void ws2812_push( uint8_t* buffer, uint16_t buffersize )
         col |= (buffer[led * 3 + 2] * 240 / 255 + 15) << 0; // b
         ws2812s[led] = col;
 #ifdef LINUX
-		((uint32_t*)rawvidmem)[4+led] = col;
+		swadgeshm_video_data[4+led] = col;
 #endif
     }
 }
