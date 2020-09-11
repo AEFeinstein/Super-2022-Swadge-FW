@@ -16,6 +16,18 @@
             }
         },
         {
+            "label": "make all (win emulator)",
+            "type": "shell",
+            "command": "make -C emu all",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
             "label": "make all (android)",
             "type": "shell",
             "command": "unset ESP_GDB && export SET_SWADGE_VERSION=2 && make -C emu/android -j$(nproc) push run",
@@ -70,6 +82,15 @@
             "label": "make all (barrel 1.0.0)",
             "type": "shell",
             "command": "unset ESP_GDB && export SET_SWADGE_VERSION=4 && make -j$(nproc) all",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build"
+        },
+        {
+            "label": "make all (chainsaw)",
+            "type": "shell",
+            "command": "unset ESP_GDB && export SET_SWADGE_VERSION=5 && make -j$(nproc) all",
             "problemMatcher": [
                 "$gcc"
             ],

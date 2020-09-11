@@ -1,5 +1,7 @@
 #include "cnlohr_i2c.h"
 
+#if defined(FEATURE_OLED) || defined(FEATURE_ACCEL)
+
 //#define REMAP(x) GPIO_ID_PIN(x)
 #define REMAP(x) x
 
@@ -135,7 +137,7 @@ unsigned char GetByte( uint8_t send_nak, bool highSpeed)
     return ret;
 }
 
-void my_i2c_delay(bool highSpeed)
+__attribute__((noinline)) void my_i2c_delay(bool highSpeed)
 {
     asm volatile("nop\nnop\n"); // Less than two nops causes a sad face :(
     asm volatile("nop\nnop\n"); // Four nops work, but have eventual screen glitches
@@ -233,3 +235,5 @@ uint8_t cnlohr_i2c_end_transaction(void)
     cnl_need_new_stop = 0;
     return cnl_err;
 }
+
+#endif

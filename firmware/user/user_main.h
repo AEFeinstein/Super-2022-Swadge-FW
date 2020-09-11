@@ -9,10 +9,16 @@
 #define USER_USER_MAIN_H_
 
 /*============================================================================
+ * Includes
+ *==========================================================================*/
+
+#include "user_config.h"
+
+/*============================================================================
  * Defines
  *==========================================================================*/
 
-#ifndef EMU
+#if !defined(EMU)
 // Ref: http://marrin.org/2017/01/16/putting-data-in-esp8266-flash-memory/
 #define RODATA_ATTR  ICACHE_RODATA_ATTR __attribute__((aligned(4)))
 #define ROMSTR_ATTR  __attribute__((section(".irom.text.romstr"))) __attribute__((aligned(4)))
@@ -87,6 +93,12 @@ typedef struct _swadgeMode
      */
     void (*fnExitMode)(void);
     /**
+     * This function is called once every 'main loop'. There is no guarantee on
+     * timing for these calls, but they will happen as fast as possible, faster
+     * than any software timer.
+     */
+    void (*fnProcTask)(void);
+    /**
      * This function is called when a button press is detected from user_main.c's
      * HandleButtonEvent(). It does not pass mode select button events. It is
      * called from an interrupt, so do the minimal amount of processing here as
@@ -142,11 +154,7 @@ typedef struct _swadgeMode
     /**
      * A pointer to the compressed image data in ROM
      */
-    uint8_t* menuImageData;
-    /**
-     * The length of the compressed image data in ROM
-     */
-    uint16_t menuImageLen;
+    char* menuImg;
 } swadgeMode;
 
 /*============================================================================
@@ -184,8 +192,13 @@ void ExitCritical(void);
 
 uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr);
 void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode);
+#if defined(EMU)
+void ICACHE_FLASH_ATTR exitCurrentSwadgeMode(void);
+#endif
 
+#if defined(FEATURE_ACCEL)
 void setAccelPollTime(uint32_t pollTimeMs);
+#endif
 
 void ICACHE_FLASH_ATTR enterDeepSleep(wifiMode_t wifiMode, uint32_t timeUs);
 

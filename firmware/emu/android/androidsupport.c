@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
-#include "CNFGFunctions.h"
+#include "CNFG.h"
 #include "os_generic.h"
 #include "CNFG3D.h"
 #include <GLES3/gl3.h>

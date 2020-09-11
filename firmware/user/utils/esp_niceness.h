@@ -5,6 +5,7 @@
 void rom_i2c_writeReg_Mask(uint8_t block, uint8_t host_id, uint8_t reg_add, uint8_t msb, uint8_t lsb, uint8_t data);
 void read_sar_dout(uint16_t* );
 uint32_t xthal_get_ccount(void);
+char *ets_strcat(char *dest, const char *src);
 
 // Redefine common functions as their ESP equivalents
 #define bzero ets_bzero
@@ -24,7 +25,7 @@ uint32_t xthal_get_ccount(void);
 #define printf os_printf
 #define run ets_run
 #define set_idle_cb ets_set_idle_cb
-#ifndef EMU
+#if !defined(EMU)
 #define snprintf ets_snprintf
 #define sprintf ets_sprintf
 #define putc ets_putc

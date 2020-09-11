@@ -105,7 +105,7 @@ typedef enum {
 
 #define STORE_ATTR __attribute__((aligned(4)))
 
-#if !defined( __cplusplus ) && !defined( TCC )
+#if !defined( __cplusplus ) && !defined( TCC ) && !defined( __GNUC__ )
 #define BOOL            bool
 #define TRUE            true
 #define FALSE           false
@@ -116,11 +116,13 @@ typedef enum {
 #include <stdio.h>
 void  * ets_memcpy( void * dest, const void * src, size_t n );
 void  * ets_memset( void * s, int c, size_t n );
+void  * ets_memmove(void *dest, const void *src, size_t n);
 int ets_memcmp( const void * a, const void * b, size_t n );
 int ets_strlen( const char * s );
 char * ets_strncpy ( char * destination, const char * source, size_t num );
 int ets_strcmp (const char* str1, const char* str2);
 void * os_malloc( int x );
+void * os_zalloc( int x );
 void os_free( void * x );
 #define os_memcpy ets_memcpy
 unsigned long os_random();

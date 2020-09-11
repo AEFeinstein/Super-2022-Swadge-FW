@@ -8,6 +8,7 @@
 #include <osapi.h>
 #include <user_interface.h>
 #include <stdlib.h>
+#include <mem.h>
 
 #include "linked_list.h"
 
@@ -29,7 +30,7 @@
 void ICACHE_FLASH_ATTR push(list_t* list, void* val)
 {
     dbgList(list);
-    node_t* newLast = malloc(sizeof(node_t));
+    node_t* newLast = os_malloc(sizeof(node_t));
     newLast->val = val;
     newLast->next = NULL;
     newLast->prev = list->last;
@@ -76,7 +77,7 @@ void* ICACHE_FLASH_ATTR pop(list_t* list)
 
         // Get the last node val, then free it and update length.
         retval = target->val;
-        free(target);
+        os_free(target);
         list->length--;
     }
 
@@ -88,7 +89,7 @@ void* ICACHE_FLASH_ATTR pop(list_t* list)
 void ICACHE_FLASH_ATTR unshift(list_t* list, void* val)
 {
     dbgList(list);
-    node_t* newFirst = malloc(sizeof(node_t));
+    node_t* newFirst = os_malloc(sizeof(node_t));
     newFirst->val = val;
     newFirst->next = list->first;
     newFirst->prev = NULL;
@@ -135,7 +136,7 @@ void* ICACHE_FLASH_ATTR shift(list_t* list)
 
         // Get the first node val, then free it and update length.
         retval = target->val;
-        free(target);
+        os_free(target);
         list->length--;
     }
 
@@ -156,7 +157,7 @@ void ICACHE_FLASH_ATTR add(list_t* list, void* val, int index)
     // Else if the index we're trying to add to is before the end of the list.
     else if (index < list->length - 1)
     {
-        node_t* newNode = malloc(sizeof(node_t));
+        node_t* newNode = os_malloc(sizeof(node_t));
         newNode->val = val;
         newNode->next = NULL;
         newNode->prev = NULL;
@@ -222,7 +223,7 @@ void* ICACHE_FLASH_ATTR removeIdx(list_t* list, int index)
         current->next = target->next;
         current->next->prev = current;
 
-        free(target);
+        os_free(target);
         target = NULL;
 
         list->length--;
@@ -290,7 +291,7 @@ void* ICACHE_FLASH_ATTR removeEntry(list_t* list, node_t* entry)
                 curr->next = target->next;
                 curr->next->prev = curr;
 
-                free(target);
+                os_free(target);
                 target = NULL;
 
                 list->length--;

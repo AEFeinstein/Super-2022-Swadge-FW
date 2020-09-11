@@ -26,6 +26,8 @@ especially the comments made on March 15 2019 by phibo23.
     $ cd esp-open-sdk/
     /esp-open-sdk$ make
     ```
+    * Developers using WSL are encouraged to **avoid cloning into windows directories** (e.g., ```/mnt/c/...```) due to conflicts between WSL and Windows file permissions.
+    * If there are issues with ```make``` recognizing bash, you may need to go into ```esp-open-sdk/crosstool-NG/configure.ac``` and change line 193 from ```|$EGREP '^GNU bash, version (3.[1-9]|4)')``` to ```|$EGREP '^GNU bash, version (3.[1-9]|4|5)')```.
 1. Set up environment variables by appending the following to your ```.bashrc``` file. You'll want to modify them with your own home folder name.
     ```
     $ nano ~/.bashrc

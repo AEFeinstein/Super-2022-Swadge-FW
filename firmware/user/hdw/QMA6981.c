@@ -17,6 +17,8 @@
 #include "QMA6981.h"
 #include "printControl.h"
 
+#if defined(FEATURE_ACCEL)
+
 #define QMA6981_ADDR 0x12
 #define QMA6981_FREQ  400
 
@@ -296,3 +298,5 @@ int16_t ICACHE_FLASH_ATTR convertTwosComplement10bit(uint16_t in)
         return (in & 0x01FF); // make sure the sign bits are cleared
     }
 }
+
+#endif

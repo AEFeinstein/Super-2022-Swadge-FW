@@ -89,12 +89,10 @@ CFLAGS = \
 	-nostdlib \
 	-Wl,-Map,output.map \
 	-B$(SDK)/lib \
-	-g \
 	-std=gnu99 \
 	-MD \
-	-Os
+	-O3
 ifneq ($(ESP_GDB),)
-# Would prefer -O0 to -Os, but brz_i2c.c generates errors
   CFLAGS += -ggdb
 endif
 
@@ -135,11 +133,12 @@ CFLAGS_WARNINGS_EXTRA = \
 	# -Wdouble-promotion \
 
 # See these values in user_config.h
-# #define SWADGE_DEV_KIT 0
-# #define SWADGE_BBKIWI  1
-# #define SWADGE_BARREL  2
-# #define SWADGE_2019    3
-# #define BARREL_1_0_0   4
+# #define SWADGE_DEV_KIT  0
+# #define SWADGE_BBKIWI   1
+# #define SWADGE_BARREL   2
+# #define SWADGE_2019     3
+# #define BARREL_1_0_0    4
+# #define SWADGE_CHAINSAW 5
 ifeq ($(SET_SWADGE_VERSION),1)
   swadgeversion = 1
 else ifeq ($(SET_SWADGE_VERSION),2)
@@ -148,6 +147,8 @@ else ifeq ($(SET_SWADGE_VERSION),3)
   swadgeversion = 3
 else ifeq ($(SET_SWADGE_VERSION),4)
   swadgeversion = 4
+else ifeq ($(SET_SWADGE_VERSION),5)
+  swadgeversion = 5
 else
   swadgeversion = 0
 endif
@@ -227,7 +228,7 @@ LIB_DIRS = \
 LIBRARY_FLAGS = $(patsubst %, -L%, $(LIB_DIRS)) --start-group $(patsubst %, -l%, $(LIBS)) --end-group
 
 # These are flags for the linker
-EXTRA_LDFLAGS = -Os -flto -nostdlib -u call_user_start -g
+EXTRA_LDFLAGS = -O3 -flto -nostdlib -u call_user_start
 
 # These are the linker scripts to build with
 LINKER_SCRIPTS = \
@@ -415,7 +416,7 @@ wipechip :
 
 # Generate map and list files from the build elf. Also print some information
 debug : $(FW_FILE0)
-	nm -S -n $(FW_FILE0) > $(DBG_MAP)
+	$(PREFIX)nm -S -n $(FW_FILE0) > $(DBG_MAP)
 	$(PREFIX)objdump -S $(FW_FILE0) > $(DBG_LST)
 	$(PREFIX)size -A $(FW_FILE0) | grep -v debug
 

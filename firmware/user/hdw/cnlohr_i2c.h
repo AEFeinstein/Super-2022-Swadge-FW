@@ -6,6 +6,9 @@
 
 #include <ets_sys.h>
 #include <gpio.h>
+#include "user_config.h"
+
+#if defined(FEATURE_OLED) || defined(FEATURE_ACCEL)
 
 #define I2CSDA 2
 #define I2CSCL 0
@@ -29,5 +32,7 @@ uint8_t cnlohr_i2c_end_transaction(void);
 
 //Do nothing, will be handled on first transaction.
 void cnlohr_i2c_setup(uint32_t clock_stretch_time_out_usec);
+
+#endif
 
 #endif

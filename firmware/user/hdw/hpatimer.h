@@ -8,20 +8,25 @@
 #define _HPATIMER_H
 
 #include "buzzer.h"
+#include "user_config.h"
 
 void ICACHE_FLASH_ATTR StartHPATimer(void);
 void ContinueHPATimer(void);
 void PauseHPATimer(void);
 bool ICACHE_FLASH_ATTR isHpaRunning(void);
 
-void ICACHE_FLASH_ATTR initBuzzer(void);
-void ICACHE_FLASH_ATTR setBuzzerNote(uint16_t note);
-void ICACHE_FLASH_ATTR stopBuzzerSong(void);
-void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song, bool shouldLoop);
+#if defined(FEATURE_BZR)
+    void ICACHE_FLASH_ATTR initBuzzer(void);
+    void ICACHE_FLASH_ATTR setBuzzerNote(uint16_t note);
+    void ICACHE_FLASH_ATTR stopBuzzerSong(void);
+    void ICACHE_FLASH_ATTR startBuzzerSong(const song_t* song, bool shouldLoop);
+#endif
 
-void ICACHE_FLASH_ATTR initMic(void);
-uint8_t ICACHE_FLASH_ATTR getSample(void);
-bool ICACHE_FLASH_ATTR sampleAvailable(void);
+#if defined(FEATURE_MIC)
+    void ICACHE_FLASH_ATTR initMic(void);
+    uint8_t ICACHE_FLASH_ATTR getSample(void);
+    bool ICACHE_FLASH_ATTR sampleAvailable(void);
+#endif
 
 #endif
 

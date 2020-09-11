@@ -5,6 +5,8 @@
 #include "synced_timer.h"
 #include "linked_list.h"
 
+#ifdef SYNCED_TIMER
+
 // #define debugTmr(t) os_printf("%s::%d -- %p: armed %s, repeat %s, src %d\n", __func__, __LINE__, t, t->isArmed?"true":"false", t->isRepeat?"true":"false", t->shouldRunCnt)
 #define debugTmr(t)
 
@@ -171,8 +173,16 @@ void ICACHE_FLASH_ATTR syncedTimersCheck(void)
         currentNode = currentNode->next;
     }
 
-    // After the functions have been called, remove disarmed timers from the list
-    currentNode = syncedTimerList.first;
+    syncedTimerFlush();
+}
+
+/**
+ * Remove all disarmed timers from the list
+ */
+void ICACHE_FLASH_ATTR syncedTimerFlush(void)
+{
+    // remove disarmed timers from the list
+    node_t* currentNode = syncedTimerList.first;
     while (currentNode != NULL)
     {
         // Save the next node because currentNode may be freed below
@@ -189,3 +199,5 @@ void ICACHE_FLASH_ATTR syncedTimersCheck(void)
         currentNode = next;
     }
 }
+
+#endif

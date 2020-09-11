@@ -15,6 +15,8 @@
 #include "cnlohr_i2c.h"
 #include "gpio_user.h"
 
+#if defined(FEATURE_OLED)
+
 //==============================================================================
 // Defines and Enums
 //==============================================================================
@@ -120,16 +122,12 @@ void ICACHE_FLASH_ATTR setUpperColAddrPagingMode(uint8_t col);
 bool ICACHE_FLASH_ATTR findDiffBounds(uint8_t* prior, uint8_t* curr, int16_t* bounds);
 void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* curr, int16_t* bounds);
 
-void ICACHE_FLASH_ATTR saveOverwriteMenuBar(color* bottomBar);
-void ICACHE_FLASH_ATTR restoreMenuBar(color* bottomBar);
-
 //==============================================================================
 // Variables
 //==============================================================================
 
 uint8_t currentFb[(OLED_WIDTH * (OLED_HEIGHT / 8))] = {0};
 uint8_t priorFb[(OLED_WIDTH * (OLED_HEIGHT / 8))] = {0};
-uint8_t mBarLen = 0;
 bool fbChanges = false;
 
 //==============================================================================
@@ -146,13 +144,13 @@ void ICACHE_FLASH_ATTR clearDisplay(void)
 }
 
 /**
- * TODO
+ * Fill a rectangular display area with a single color
  *
- * @param x1
- * @param y1
- * @param x2
- * @param y2
- * @param c
+ * @param x1 The X pixel to start at
+ * @param y1 The Y pixel to start at
+ * @param x2 The X pixel to end at
+ * @param y2 The Y pixel to end at
+ * @param c  The color to fill
  */
 void ICACHE_FLASH_ATTR fillDisplayArea(int16_t x1, int16_t y1, int16_t x2, int16_t y2, color c)
 {
@@ -169,13 +167,16 @@ void ICACHE_FLASH_ATTR fillDisplayArea(int16_t x1, int16_t y1, int16_t x2, int16
 /**
  * Set/clear/invert a single pixel.
  *
+ * This intentionally does not have ICACHE_FLASH_ATTR because it may be called often
+ *
  * @param x Column of display, 0 is at the left
  * @param y Row of the display, 0 is at the top
  * @param c Pixel color, one of: BLACK, WHITE or INVERT
  */
-void ICACHE_FLASH_ATTR drawPixel(int16_t x, int16_t y, color c)
+void drawPixel(int16_t x, int16_t y, color c)
 {
-    if ((0 <= x) && (x < OLED_WIDTH) &&
+    if (c != TRANSPARENT &&
+            (0 <= x) && (x < OLED_WIDTH) &&
             (0 <= y) && (y < OLED_HEIGHT))
     {
         fbChanges = true;
@@ -200,6 +201,7 @@ void ICACHE_FLASH_ATTR drawPixel(int16_t x, int16_t y, color c)
             case INVERSE:
                 currentFb[(x + (y / 8) * OLED_WIDTH)] ^= (1 << (y & 7));
                 break;
+            case TRANSPARENT:
             default:
             {
                 break;
@@ -387,26 +389,6 @@ inline void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* c
 }
 
 /**
- * @brief Return the menu bar to zero length, hiding it
- */
-void ICACHE_FLASH_ATTR zeroMenuBar(void)
-{
-    fbChanges = true;
-    mBarLen = 0;
-}
-
-/**
- * @brief Make the menu bar one pixel larger
- *
- * @return the current length of the menu bar
- */
-uint8_t ICACHE_FLASH_ATTR incrementMenuBar(void)
-{
-    fbChanges = true;
-    return ++mBarLen;
-}
-
-/**
  * Push data currently in RAM to SSD1306 display.
  *
  * @param drawDifference true to only draw differences from the prior frame
@@ -444,9 +426,6 @@ oledResult_t ICACHE_FLASH_ATTR updateOLED(bool drawDifference)
             {-1, -1},
         };
 
-        color bottomBar[OLED_WIDTH] = {0};
-        saveOverwriteMenuBar(bottomBar);
-
         // Compare the prior and current framebuffers, looking for any differences
         for (page = 0; page < SSD1306_NUM_PAGES; page++)
         {
@@ -459,7 +438,6 @@ oledResult_t ICACHE_FLASH_ATTR updateOLED(bool drawDifference)
         // No framebuffer updates, just return
         if (true == drawDifference && false == anyDiffs)
         {
-            restoreMenuBar(bottomBar);
             return NOTHING_TO_DO;
         }
 
@@ -479,9 +457,6 @@ oledResult_t ICACHE_FLASH_ATTR updateOLED(bool drawDifference)
         // Copy the framebuffer to the prior
         ets_memcpy(priorFb, currentFb, sizeof(currentFb));
 
-        // Restore the bottom bar
-        restoreMenuBar(bottomBar);
-
         // end i2c
         if (0 == cnlohr_i2c_end_transaction())
         {
@@ -494,10 +469,6 @@ oledResult_t ICACHE_FLASH_ATTR updateOLED(bool drawDifference)
     }
     else // Draw the entire OLED
     {
-        // Draw the menu bar
-        color bottomBar[OLED_WIDTH] = {0};
-        saveOverwriteMenuBar(bottomBar);
-
         // Start i2c
         cnlohr_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
 
@@ -519,9 +490,6 @@ oledResult_t ICACHE_FLASH_ATTR updateOLED(bool drawDifference)
         // Copy the framebuffer to the prior
         ets_memcpy(priorFb, currentFb, sizeof(currentFb));
 
-        // Restore the bottom bar
-        restoreMenuBar(bottomBar);
-
         // end i2c
         if (0 == cnlohr_i2c_end_transaction())
         {
@@ -530,53 +498,6 @@ oledResult_t ICACHE_FLASH_ATTR updateOLED(bool drawDifference)
         else
         {
             return FRAME_NOT_DRAWN;
-        }
-    }
-}
-
-/**
- * Copy the bottom bar into the bottomBar arg, then overwrite
- * the pixels in the framebuffer with the menu progress bar.
- * Only do this if there is a menu to draw
- *
- * @param bottomBar The array to copy the pixels into
- */
-void ICACHE_FLASH_ATTR saveOverwriteMenuBar(color* bottomBar)
-{
-    if(mBarLen > 0)
-    {
-        // Save the bottom bar's pixels
-        for(uint8_t i = 0; i < OLED_WIDTH; i++)
-        {
-            bottomBar[i] = getPixel(i, OLED_HEIGHT - 1);
-        }
-        // overwrite with menu bar
-        for(uint8_t i = 0; i < OLED_WIDTH; i++)
-        {
-            if(i <= mBarLen)
-            {
-                drawPixel(i, OLED_HEIGHT - 1, WHITE);
-            }
-            else
-            {
-                drawPixel(i, OLED_HEIGHT - 1, BLACK);
-            }
-        }
-    }
-}
-
-/**
- * Restore the bottom bar of pixels from bottomBar
- *
- * @param bottomBar The original pixels to write into the framebuffer
- */
-void ICACHE_FLASH_ATTR restoreMenuBar(color* bottomBar)
-{
-    if(mBarLen > 0)
-    {
-        for(uint8_t i = 0; i < OLED_WIDTH; i++)
-        {
-            drawPixel(i, OLED_HEIGHT - 1, bottomBar[i]);
         }
     }
 }
@@ -661,8 +582,6 @@ void ICACHE_FLASH_ATTR setDisplayOn(bool on)
 // Scrolling Command Table
 //==============================================================================
 
-// TODO fill out
-
 /**
  *
  * @param on true  - Start scrolling that is configured by the scrolling setup
@@ -686,8 +605,6 @@ void ICACHE_FLASH_ATTR activateScroll(bool on)
 //==============================================================================
 // Addressing Setting Commands
 //==============================================================================
-
-// TODO fill out
 
 /**
  * Set Memory Addressing Mode
@@ -1018,3 +935,5 @@ void ICACHE_FLASH_ATTR setChargePumpSetting(bool enable)
     };
     cnlohr_i2c_write(data, sizeof(data), false);
 }
+
+#endif
