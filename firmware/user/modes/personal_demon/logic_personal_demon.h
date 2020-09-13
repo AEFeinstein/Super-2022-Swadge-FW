@@ -88,7 +88,8 @@ typedef struct
     int32_t stomach[STOMACH_SIZE];
     char name[32];
     age_t age;
-    list_t evQueue;
+    event_t evQueue[32];
+    uint8_t evQueueIdx;
 } demon_t;
 
 /*******************************************************************************
@@ -96,7 +97,7 @@ typedef struct
  ******************************************************************************/
 
 void resetDemon(demon_t* pd);
-void takeAction(demon_t* pd, action_t act);
+bool takeAction(demon_t* pd, action_t act);
 
 bool ICACHE_FLASH_ATTR isDemonObese(demon_t* pd);
 bool ICACHE_FLASH_ATTR isDemonThin(demon_t* pd);

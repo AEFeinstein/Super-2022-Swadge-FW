@@ -11,6 +11,7 @@
 #include "linked_list.h"
 #include "font.h"
 #include "logic_personal_demon.h"
+#include "nvm_interface.h"
 
 /*==============================================================================
  * Defines, Enums
@@ -232,7 +233,20 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     pd = (pd_data*)os_malloc(sizeof(pd_data));
     ets_memset(pd, 0, sizeof(pd_data));
 
-    resetDemon(&pd->demon);
+    // Try loading the demon from NVM
+    getSavedDemon(&pd->demon);
+
+    if(0 == pd->demon.name[0])
+    {
+        // Demon not loaded, init from scratch
+        resetDemon(&pd->demon);
+    }
+    else
+    {
+        // Demon loaded, set the internal state
+        pd->drawPoopCnt = pd->demon.poopCount;
+    }
+
 
     // Initialize demon draw state
     pd->drawSick = pd->demon.isSick;
@@ -388,10 +402,7 @@ void ICACHE_FLASH_ATTR personalDemonExitMode(void)
     freePngAsset(&(pd->water));
 
     // Clear the queues
-    while(pd->demon.evQueue.length > 0)
-    {
-        pop(&(pd->demon.evQueue));
-    }
+    ets_memset(&(pd->demon.evQueue), EVT_NONE, sizeof(pd->demon.evQueue));
 
     while(pd->marquisTextQueue.length > 0)
     {
@@ -443,7 +454,11 @@ void ICACHE_FLASH_ATTR personalDemonButtonCallback(uint8_t state __attribute__((
             }
             case 4:
             {
-                takeAction(&pd->demon, pd->menuTable[pd->menuIdx].menuAct);
+                if(false == takeAction(&pd->demon, pd->menuTable[pd->menuIdx].menuAct))
+                {
+                    // If it didn't quit, save the demon state
+                    setSavedDemon(&(pd->demon));
+                }
                 break;
             }
             default:
