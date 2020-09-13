@@ -18,7 +18,17 @@ especially the comments made on March 15 2019 by phibo23.
     ```
     $ sudo apt-get update
     $ sudo apt-get dist-upgrade
-    $ sudo apt-get install build-essential make unrar-free autoconf automake libtool gcc g++ gperf flex bison texinfo gawk ncurses-dev libexpat-dev sed git unzip bash help2man wget bzip2 libtool-bin libusb-1.0-0-dev python-dev python python-serial
+    $ sudo apt-get install build-essential make curl unrar-free autoconf automake libtool gcc g++ gperf flex bison texinfo gawk ncurses-dev libexpat-dev sed git unzip bash help2man wget bzip2 libtool-bin libusb-1.0-0-dev python-dev python python-serial
+    ```
+    * If you're using Ubuntu 20.04+, apt-get won't be able to find `python-serial`. Run the following commands
+    ```
+    $ sudo apt-get update
+    $ sudo apt-get dist-upgrade
+    $ sudo apt-get install build-essential make curl unrar-free autoconf automake libtool gcc g++ gperf flex bison texinfo gawk ncurses-dev libexpat-dev sed git unzip bash help2man wget bzip2 libtool-bin libusb-1.0-0-dev python-dev python
+    $ curl https://bootstrap.pypa.io/get-pip.py --output get-pip.py
+    $ sudo python2 get-pip.py
+    $ pip2 install pyserial rtttl
+    $ pip3 install pyserial rtttl
     ```
 1. Check out the [pfalcon's esp-open-sdk](https://github.com/pfalcon/esp-open-sdk), move to the ```esp-open-sdk``` folder and build it. More detailed instructions are on that project's page. Warning, building this takes a while (like 30 minutes)!
     ```
