@@ -12,6 +12,7 @@
 #include "font.h"
 #include "logic_personal_demon.h"
 #include "nvm_interface.h"
+#include "menu2d.h"
 
 /*==============================================================================
  * Defines, Enums
@@ -118,8 +119,6 @@ typedef struct
     float handRot;
     int16_t animCnt;
     int16_t drawPoopCnt;
-    uint8_t menuIdx;
-    int16_t textPos;
     uint8_t numFood;
     int16_t flushY;
 
@@ -130,7 +129,7 @@ typedef struct
 
     list_t marquisTextQueue;
 
-    pdMenuOpt menuTable[PDM_NUM_OPTS];
+    menu_t* menu;
 } pd_data;
 
 /*==============================================================================
@@ -144,12 +143,11 @@ void personalDemonAnimationTimer(void* arg __attribute__((unused)));
 void personalDemonUpdateDisplay(void);
 void personalDemonResetAnimVars(void);
 
+static void demonMenuCb(const char* menuItem);
+
 bool updtAnimWalk(void);
 bool updtAnimCenter(void);
 void drawAnimDemon(void);
-
-bool updtAnimText(void);
-void drawAnimText(void);
 
 void initAnimEating(void);
 bool updtAnimEating(void);
@@ -311,24 +309,15 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     pd->animTable[PDA_BIRTHDAY].updtAnim = updtAnimBirthday;
     pd->animTable[PDA_BIRTHDAY].drawAnim = drawAnimBirthday;
 
-    // Set up the menu table
-    pd->menuTable[PDM_FEED].name = menuFeed;
-    pd->menuTable[PDM_FEED].menuAct = ACT_FEED;
 
-    pd->menuTable[PDM_PLAY].name = menuPlay;
-    pd->menuTable[PDM_PLAY].menuAct = ACT_PLAY;
-
-    pd->menuTable[PDM_SCOLD].name = menuScold;
-    pd->menuTable[PDM_SCOLD].menuAct = ACT_DISCIPLINE;
-
-    pd->menuTable[PDM_MEDS].name = menuMeds;
-    pd->menuTable[PDM_MEDS].menuAct = ACT_MEDICINE;
-
-    pd->menuTable[PDM_FLUSH].name = menuFlush;
-    pd->menuTable[PDM_FLUSH].menuAct = ACT_FLUSH;
-
-    pd->menuTable[PDM_QUIT].name = menuQuit;
-    pd->menuTable[PDM_QUIT].menuAct = ACT_QUIT;
+    pd->menu = initMenu(NULL, demonMenuCb);
+    addRowToMenu(pd->menu);
+    addItemToRow(pd->menu, menuFeed);
+    addItemToRow(pd->menu, menuPlay);
+    addItemToRow(pd->menu, menuScold);
+    addItemToRow(pd->menu, menuMeds);
+    addItemToRow(pd->menu, menuFlush);
+    addItemToRow(pd->menu, menuQuit);
 
     allocPngSequence(&(pd->pizza), 3,
                      "pizza1.png",
@@ -428,44 +417,41 @@ void ICACHE_FLASH_ATTR personalDemonExitMode(void)
  * @param down   true if the button was pressed, false if it was released
  */
 void ICACHE_FLASH_ATTR personalDemonButtonCallback(uint8_t state __attribute__((unused)),
-        int button, int down)
+        int button, int down __attribute__((unused)))
 {
-    if(down)
+    menuButton(pd->menu, button);
+}
+
+/**
+ * @brief
+ *
+ * @param menuItem
+ */
+static void ICACHE_FLASH_ATTR demonMenuCb(const char* menuItem)
+{
+    if(menuItem == menuFeed)
     {
-        switch(button)
-        {
-            case 0:
-            {
-                pd->textAnimation = TEXT_MOVING_RIGHT;
-                break;
-            }
-            case 1:
-            {
-                break;
-            }
-            case 2:
-            {
-                pd->textAnimation = TEXT_MOVING_LEFT;
-                break;
-            }
-            case 3:
-            {
-                break;
-            }
-            case 4:
-            {
-                if(false == takeAction(&pd->demon, pd->menuTable[pd->menuIdx].menuAct))
-                {
-                    // If it didn't quit, save the demon state
-                    setSavedDemon(&(pd->demon));
-                }
-                break;
-            }
-            default:
-            {
-                break;
-            }
-        }
+        takeAction(&(pd->demon), ACT_FEED);
+    }
+    else if(menuItem == menuPlay)
+    {
+        takeAction(&(pd->demon), ACT_PLAY);
+    }
+    else if(menuItem == menuScold)
+    {
+        takeAction(&(pd->demon), ACT_DISCIPLINE);
+    }
+    else if(menuItem == menuMeds)
+    {
+        takeAction(&(pd->demon), ACT_MEDICINE);
+    }
+    else if(menuItem == menuFlush)
+    {
+        takeAction(&(pd->demon), ACT_FLUSH);
+    }
+    else if(menuItem == menuQuit)
+    {
+        takeAction(&(pd->demon), ACT_QUIT);
     }
 }
 
@@ -501,11 +487,26 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
     }
 
     // Draw anything else for this scene
-    if(pd->animTable[pd->anim].updtAnim() || updtAnimText())
+    bool sceneDrawn = false;
+    if(pd->animTable[pd->anim].updtAnim())
     {
         personalDemonUpdateDisplay();
+        sceneDrawn = true;
     }
 
+    // Draw the menu text for this scene
+    static bool shouldDrawMenu = true;
+    if(shouldDrawMenu || sceneDrawn)
+    {
+        shouldDrawMenu = false;
+        drawMenu(pd->menu);
+    }
+    else
+    {
+        shouldDrawMenu = true;
+    }
+
+    // Draw the menu text for this screen
     // Shift the text every second cycle
     static uint8_t marquisTextTimer = 0;
     marquisTextTimer = (marquisTextTimer + 1) % 2;
@@ -595,9 +596,6 @@ void ICACHE_FLASH_ATTR personalDemonUpdateDisplay(void)
         }
         drawPng((&pd->poop), x, y, false, false, 0);
     }
-
-    // Draw text
-    drawAnimText();
 }
 
 /**
@@ -879,7 +877,7 @@ bool ICACHE_FLASH_ATTR updtAnimWalk(void)
         if(os_random() % 2 == 0)
         {
             // Check if the demon changes up/down direction
-            if(os_random() % 8 == 0 || (pd->demonY == OLED_HEIGHT - pd->demonSprite.height - FONT_HEIGHT_IBMVGA8 - 1)
+            if(os_random() % 8 == 0 || (pd->demonY == OLED_HEIGHT - pd->demonSprite.height - FONT_HEIGHT_IBMVGA8 - 4)
                     || (pd->demonY == FONT_HEIGHT_IBMVGA8 + 1))
             {
                 pd->demonDirUD = !(pd->demonDirUD);
@@ -1330,7 +1328,7 @@ bool ICACHE_FLASH_ATTR _updtAnimPlaying(bool isPlaying)
             pd->ballY += (deltaS * pd->ballVelY);
 
             // Bounce the ball off the walls
-            if((pd->ballY + (pd->ball.width / 2) >= OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1) && pd->ballVelY > 0)
+            if((pd->ballY + (pd->ball.width / 2) >= OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 4) && pd->ballVelY > 0)
             {
                 pd->ballVelY = -pd->ballVelY;
             }
@@ -1530,7 +1528,7 @@ bool ICACHE_FLASH_ATTR updtAnimScold(void)
     {
         if(pd->animCnt == 45)
         {
-            pd->demonY += 2;
+            pd->demonY += 1;
         }
         pd->handRot -= 2;
     }
@@ -1714,111 +1712,4 @@ void ICACHE_FLASH_ATTR drawAnimBirthday(void)
     // Draw the demon
     drawAnimDemon();
     drawPng(&(pd->cake), pd->demonX - pd->cake.width - 4, (OLED_HEIGHT - pd->cake.height) / 2, false, false, 0);
-}
-
-/*******************************************************************************
- * Text Animation
- ******************************************************************************/
-
-/**
- * @brief TODO
- *
- * @return true
- * @return false
- */
-bool ICACHE_FLASH_ATTR updtAnimText(void)
-{
-    switch (pd->textAnimation)
-    {
-        case TEXT_MOVING_LEFT:
-        {
-            pd->textPos--;
-            if(pd->textPos == -1 * OLED_WIDTH)
-            {
-                pd->textPos = 0;
-                pd->textAnimation = TEXT_STATIC;
-
-                if(pd->menuIdx == PDM_NUM_OPTS - 1)
-                {
-                    pd->menuIdx = 0;
-                }
-                else
-                {
-                    pd->menuIdx++;
-                }
-            }
-            return true;
-        }
-        case TEXT_MOVING_RIGHT:
-        {
-            pd->textPos++;
-            if(pd->textPos == OLED_WIDTH)
-            {
-                pd->textPos = 0;
-                pd->textAnimation = TEXT_STATIC;
-
-                if(pd->menuIdx == 0)
-                {
-                    pd->menuIdx = PDM_NUM_OPTS - 1;
-                }
-                else
-                {
-                    pd->menuIdx--;
-                }
-            }
-            return true;
-        }
-        case TEXT_STATIC:
-        default:
-        {
-            return false;
-        }
-    }
-}
-
-/**
- * @brief TODO
- *
- */
-void ICACHE_FLASH_ATTR drawAnimText(void)
-{
-    switch (pd->textAnimation)
-    {
-        case TEXT_MOVING_LEFT:
-        {
-            uint8_t next;
-            if(pd->menuIdx < PDM_NUM_OPTS - 1)
-            {
-                next = pd->menuIdx + 1;
-            }
-            else
-            {
-                next = 0;
-            }
-            plotText(pd->textPos, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, pd->menuTable[pd->menuIdx].name, IBM_VGA_8, WHITE);
-            plotText(pd->textPos + OLED_WIDTH, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, pd->menuTable[next].name, IBM_VGA_8, WHITE);
-            break;
-        }
-        case TEXT_MOVING_RIGHT:
-        {
-            uint8_t prev;
-            if(pd->menuIdx > 0)
-            {
-                prev = pd->menuIdx - 1;
-            }
-            else
-            {
-                prev = PDM_NUM_OPTS - 1;
-            }
-            plotText(pd->textPos - OLED_WIDTH, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, pd->menuTable[prev].name, IBM_VGA_8, WHITE);
-            plotText(pd->textPos, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, pd->menuTable[pd->menuIdx].name, IBM_VGA_8, WHITE);
-            break;
-        }
-        default:
-        case TEXT_STATIC:
-        {
-            plotText(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, pd->menuTable[pd->menuIdx].name, IBM_VGA_8, WHITE);
-            break;
-        }
-    }
 }
