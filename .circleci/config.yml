@@ -49,12 +49,8 @@ jobs:
           name: Create a tarball
           working_directory: Super-2021-Swadge-FW-Sandbox/firmware
           command: tar -cJf << parameters.label >>.tar.xz image* assets.bin ESP8266_NONOS_SDK/bin/blank.bin ESP8266_NONOS_SDK/bin/esp_init_data_default_v08.bin
-      - persist_to_workspace:
-          root: .
-          paths:
-            - << parameters.label >>.tar.xz
       - store_artifacts:
-          path: << parameters.label >>.tar.xz
+          path: Super-2021-Swadge-FW-Sandbox/firmware/<< parameters.label >>.tar.xz
 
 #  test-linux:
 #    docker:
