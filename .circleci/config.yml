@@ -24,26 +24,14 @@ jobs:
           name: Install dependencies
           command: sudo apt-get -y install build-essential make curl unrar-free autoconf automake libtool gcc g++ gperf flex bison texinfo gawk ncurses-dev libexpat-dev sed git unzip bash help2man wget bzip2 libtool-bin python-dev python python-serial
       - run:
+          name: Install python dependencies
+          command: pip3 install pillow rtttl
+      - run:
           name: Download toolchain
           command: wget https://github.com/cnlohr/esp82xx_bin_toolchain/raw/master/esp-open-sdk-x86_64-20200810.tar.xz
       - run:
           name: Unzip toolchain
           command: tar xJvf esp-open-sdk-x86_64-20200810.tar.xz
-      - run:
-          name: ls1
-          command: ls -la /home/circleci/
-      - run:
-          name: ls2
-          command: ls -la /home/circleci/project/
-      - run:
-          name: ls2
-          command: ls -la /home/circleci/project/esp-open-sdk/
-      - run:
-          name: ls3
-          command: ls -la /home/circleci/project/esp-open-sdk/xtensa-lx106-elf/
-      - run:
-          name: ls4
-          command: ls -la /home/circleci/project/esp-open-sdk/xtensa-lx106-elf/bin/
       - run:
           name: Set SDK environment variable
           command: echo 'export ESP_ROOT=$HOME/project/esp-open-sdk' >> $BASH_ENV
