@@ -419,7 +419,10 @@ void ICACHE_FLASH_ATTR personalDemonExitMode(void)
 void ICACHE_FLASH_ATTR personalDemonButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down __attribute__((unused)))
 {
-    menuButton(pd->menu, button);
+    if(pd->anim == PDA_WALKING)
+    {
+        menuButton(pd->menu, button);
+    }
 }
 
 /**
