@@ -30,7 +30,16 @@ jobs:
           name: Unzip toolchain
           command: tar xJvf esp-open-sdk-x86_64-20200810.tar.xz
       - run:
-          name: ls
+          name: ls1
+          command: ls -la /home/circleci/
+      - run:
+          name: ls2
+          command: ls -la /home/circleci/esp-open-sdk/
+      - run:
+          name: ls3
+          command: ls -la /home/circleci/esp-open-sdk/xtensa-lx106-elf/
+      - run:
+          name: ls4
           command: ls -la /home/circleci/esp-open-sdk/xtensa-lx106-elf/bin/
       - run:
           name: Set SDK environment variable
