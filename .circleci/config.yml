@@ -1,13 +1,98 @@
-# Use the latest 2.1 version of CircleCI pipeline process engine. See: https://circleci.com/docs/2.0/configuration-reference
 version: 2.1
-# Use a package of configuration called an orb.
-orbs:
-  # Declare a dependency on the welcome-orb
-  welcome: circleci/welcome-orb@0.4.1
-# Orchestrate or schedule a set of jobs
+
+parameters:
+  src-repo-url:
+    type: string
+    default: https://github.com/AEFeinstein/Super-2021-Swadge-FW-Sandbox.git
+  common-build-params:
+    type: string
+    default: "--disable-shared --disable-static"
+
+jobs:
+  build-linux:
+    docker:
+      - image: cimg/base:2020.01
+    parameters:
+      label:
+        type: string
+        default: swadge-chainsaw
+    steps:
+      - run:
+          name: Install dependencies
+          command: apt-get install build-essential make curl unrar-free autoconf automake libtool gcc g++ gperf flex bison texinfo gawk ncurses-dev libexpat-dev sed git unzip bash help2man wget bzip2 libtool-bin python-dev python
+            mkdir -p ~/esp8266
+            cd ~/esp8266
+            wget https://github.com/cnlohr/esp82xx_bin_toolchain/raw/master/esp-open-sdk-x86_64-20200810.tar.xz
+            tar xJvf esp-open-sdk-x86_64-20200810.tar.xz
+            export ESP_ROOT=$HOME/esp8266/esp-open-sdk
+            export PATH=$HOME/esp8266/esp-open-sdk/xtensa-lx106-elf/bin:$PATH
+      - run:
+          name: Clone Repository
+          command: git clone << pipeline.parameters.src-repo-url >> --recurse-submodules
+      - run:
+          name: Build Swadge
+          working_directory: Super-2021-Swadge-FW-Sandbox/firmware
+          command: make all debug
+      - run:
+          name: Create a tarball
+          command: tar -cJf << parameters.label >>.tar.xz image* assets.bin ESP8266_NONOS_SDK/bin/blank.bin ESP8266_NONOS_SDK/bin/esp_init_data_default_v08.bin
+      - persist_to_workspace:
+          root: .
+          paths:
+            - << parameters.label >>.tar.xz
+      - store_artifacts:
+          path: << parameters.label >>.tar.xz
+
+#  test-linux:
+#    docker:
+#      - image: cimg/base:stable
+#    parameters:
+#      label:
+#        type: string
+#        default: iperf3-linux
+#    steps:
+#      - attach_workspace:
+#          at: ./
+#      - run:
+#          name: Extract << parameters.label >>.tar.xz
+#          command: tar -xf << parameters.label >>.tar.xz
+#      - run:
+#          name: Test executable
+#          command: << parameters.label >>/bin/iperf3 -v
+#      - run:
+#          name: Run as a server
+#          command: << parameters.label >>/bin/iperf3 -s
+#          background: true
+#      - run:
+#          name: Run as a client
+#          command: << parameters.label >>/bin/iperf3 -c localhost -R
+
+#  release:
+#    executor: github-release/default
+#    steps:
+#      - attach_workspace:
+#          at: .
+#      - run:
+#          name: Compute version number
+#          command: |
+#            echo "export IPERF3_BUILD_VERSION=\"<< pipeline.parameters.branch-name>>-${CIRCLE_BUILD_NUM}-${CIRCLE_SHA1:0:7}\"" | tee -a $BASH_ENV
+#      - github-release/release:
+#          tag: v$IPERF3_BUILD_VERSION
+#          title: $IPERF3_BUILD_VERSION
+#          artefacts-folder: .
+
 workflows:
-  # Name the workflow "welcome"
-  welcome:
-    # Run the welcome/run job in its own container
+  version: 2
+  build-test-release:
     jobs:
-      - welcome/run
+      - build-linux
+#      - test-linux:
+#          requires:
+#            - build-linux
+#      - release:
+#          requires:
+#            - test-linux
+#          context: github
+#          filters:
+#            branches:
+#              only: master
