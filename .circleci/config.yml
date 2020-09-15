@@ -31,7 +31,7 @@ jobs:
           command: tar xJvf esp-open-sdk-x86_64-20200810.tar.xz
       - run:
           name: ls
-          command: ls -la
+          command: ls -la /home/circleci/esp-open-sdk/xtensa-lx106-elf/bin/
       - run:
           name: Set SDK environment variable
           command: echo 'export ESP_ROOT=$HOME/esp-open-sdk' >> $BASH_ENV
