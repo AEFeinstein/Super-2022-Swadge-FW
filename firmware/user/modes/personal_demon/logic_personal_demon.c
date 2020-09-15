@@ -45,7 +45,6 @@
 #define DISCIPLINE_GAINED_PER_SCOLDING 4 ///< Scolding increases discipline
 #define DISCIPLINE_LOST_RANDOMLY       2 ///< Discipline is randomly lost
 
-#define STARTING_HEALTH          20 ///< Health is started with, cannot be increased
 #define HEALTH_LOST_PER_SICKNESS  1 ///< Health is lost every turn while sick
 #define HEALTH_LOST_PER_OBE_MAL   2 ///< Health is lost every turn while obese or malnourished
 

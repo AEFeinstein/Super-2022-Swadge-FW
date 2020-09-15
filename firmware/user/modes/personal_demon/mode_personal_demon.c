@@ -98,6 +98,7 @@ typedef struct
     pngHandle cake;
     pngHandle ball;
     pngHandle water;
+    pngHandle heart;
 
     // Demon position, direction, and state
     int16_t demonX;
@@ -108,6 +109,7 @@ typedef struct
     bool drawThin;
     bool drawFat;
     bool drawSick;
+    int16_t drawHealth;
 
     // Animation variables
     pdAnimationState_t anim;
@@ -239,17 +241,13 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
         // Demon not loaded, init from scratch
         resetDemon(&pd->demon);
     }
-    else
-    {
-        // Demon loaded, set the internal state
-        pd->drawPoopCnt = pd->demon.poopCount;
-    }
-
 
     // Initialize demon draw state
     pd->drawSick = pd->demon.isSick;
     pd->drawFat = isDemonObese(&(pd->demon));
     pd->drawThin = isDemonThin(&(pd->demon));
+    pd->drawHealth = pd->demon.health;
+    pd->drawPoopCnt = pd->demon.poopCount;
 
     // Set up the animation table
     pd->animTable[PDA_WALKING].initAnim = NULL;
@@ -350,6 +348,7 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     allocPngAsset("cake.png", &(pd->cake));
     allocPngAsset("ball.png", &(pd->ball));
     allocPngAsset("water.png", &(pd->water));
+    allocPngAsset("heart.png", &(pd->heart));
 
     pd->demonX = (OLED_WIDTH / 2) - (pd->demonSprite.width / 2);
     pd->demonDirLR = false;
@@ -389,6 +388,7 @@ void ICACHE_FLASH_ATTR personalDemonExitMode(void)
     freePngAsset(&(pd->cake));
     freePngAsset(&(pd->ball));
     freePngAsset(&(pd->water));
+    freePngAsset(&(pd->heart));
 
     // Clear the queues
     ets_memset(&(pd->demon.evQueue), EVT_NONE, sizeof(pd->demon.evQueue));
@@ -483,6 +483,7 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
             pd->drawSick = pd->demon.isSick;
             pd->drawFat = isDemonObese(&(pd->demon));
             pd->drawThin = isDemonThin(&(pd->demon));
+            pd->drawHealth = pd->demon.health;
         }
     }
 
@@ -500,6 +501,24 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
     {
         shouldDrawMenu = false;
         drawMenu(pd->menu);
+
+        int16_t healthPxCovered = 40 - (pd->drawHealth * 40) / STARTING_HEALTH;
+
+        // Always draw the health counter
+        for(uint8_t i = 0; i < 4; i++)
+        {
+            drawPng(&(pd->heart),
+                    OLED_WIDTH - pd->heart.width,
+                    FONT_HEIGHT_IBMVGA8 + 1 + i * (pd->heart.height),
+                    false, false, 0);
+        }
+
+        if(healthPxCovered)
+        {
+            fillDisplayArea(OLED_WIDTH - pd->heart.width, FONT_HEIGHT_IBMVGA8 + 1,
+                            OLED_WIDTH, FONT_HEIGHT_IBMVGA8 + healthPxCovered,
+                            BLACK);
+        }
     }
     else
     {
@@ -858,7 +877,7 @@ bool ICACHE_FLASH_ATTR updtAnimWalk(void)
     {
         pd->animCnt = 0;
         // Check if the demon turns around
-        if(os_random() % 32 == 0 || (pd->demonX == OLED_WIDTH - pd->demonSprite.width) || (pd->demonX == 0))
+        if(os_random() % 32 == 0 || (pd->demonX == OLED_WIDTH - pd->demonSprite.width - pd->heart.width) || (pd->demonX == 0))
         {
             pd->demonDirLR = !(pd->demonDirLR);
         }
@@ -1336,7 +1355,7 @@ bool ICACHE_FLASH_ATTR _updtAnimPlaying(bool isPlaying)
             {
                 pd->ballVelY = -pd->ballVelY;
             }
-            else if(isPlaying && (pd->ballX + (pd->ball.width / 2) >= OLED_WIDTH) && pd->ballVelX > 0)
+            else if(isPlaying && (pd->ballX + (pd->ball.width / 2) >= OLED_WIDTH - pd->heart.width) && pd->ballVelX > 0)
             {
                 pd->ballVelX = -pd->ballVelX;
             }
@@ -1352,7 +1371,7 @@ bool ICACHE_FLASH_ATTR _updtAnimPlaying(bool isPlaying)
                 personalDemonResetAnimVars();
                 return true;
             }
-            else if(!isPlaying && pd->ballX - pd->ball.width / 2 > OLED_WIDTH)
+            else if(!isPlaying && pd->ballX - pd->ball.width / 2 > OLED_WIDTH - pd->heart.width)
             {
                 // Not playing, and the ball is gone, time to finish
                 bounces = 0;
@@ -1565,7 +1584,7 @@ void ICACHE_FLASH_ATTR drawAnimScold(void)
 void ICACHE_FLASH_ATTR initAnimPortal(void)
 {
     pd->demonDirLR = true;
-    pd->demonY = 13 + 38 - pd->demonSprite.height;
+    pd->demonY = 11 + 38 - pd->demonSprite.height;
     pd->demonX = 16 + 24 - pd->demonSprite.width;
 }
 
@@ -1606,13 +1625,13 @@ bool ICACHE_FLASH_ATTR updtAnimPortal(void)
 void ICACHE_FLASH_ATTR drawAnimPortal(void)
 {
     // Draw half of the portal
-    drawPng(&pd->archR, 16 + 24, 13, false, false, 0);
+    drawPng(&pd->archR, 16 + 24, 11, false, false, 0);
     // Draw the demon
     drawAnimDemon();
     // Cover the area peeking out of the portal
     fillDisplayArea(0, 0, 16, OLED_HEIGHT, BLACK);
     // Draw the other half
-    drawPng(&pd->archL, 16, 13, false, false, 0);
+    drawPng(&pd->archL, 16, 11, false, false, 0);
 }
 
 /*******************************************************************************

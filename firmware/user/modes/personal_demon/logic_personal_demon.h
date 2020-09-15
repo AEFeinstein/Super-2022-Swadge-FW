@@ -9,6 +9,8 @@
 
 #define STOMACH_SIZE 5 // Max number of foods being digested
 
+#define STARTING_HEALTH 20 ///< Health is started with, cannot be increased
+
 /*******************************************************************************
  * Enums
  ******************************************************************************/
