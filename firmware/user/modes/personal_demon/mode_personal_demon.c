@@ -503,6 +503,10 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
         drawMenu(pd->menu);
 
         int16_t healthPxCovered = 40 - (pd->drawHealth * 40) / STARTING_HEALTH;
+        if(healthPxCovered > 40)
+        {
+            healthPxCovered = 40;
+        }
 
         // Always draw the health counter
         for(uint8_t i = 0; i < 4; i++)
