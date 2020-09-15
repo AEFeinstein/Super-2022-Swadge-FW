@@ -18,15 +18,23 @@ jobs:
         default: swadge-chainsaw
     steps:
       - run:
+          name: Update packages
+          command: sudo apt-get update
+      - run:
           name: Install dependencies
-          command: sudo apt-get update &&
-            sudo apt-get install build-essential make curl unrar-free autoconf automake libtool gcc g++ gperf flex bison texinfo gawk ncurses-dev libexpat-dev sed git unzip bash help2man wget bzip2 libtool-bin python-dev python &&
-            mkdir -p ~/esp8266 &&
-            cd ~/esp8266 &&
-            wget https://github.com/cnlohr/esp82xx_bin_toolchain/raw/master/esp-open-sdk-x86_64-20200810.tar.xz &&
-            tar xJvf esp-open-sdk-x86_64-20200810.tar.xz &&
-            export ESP_ROOT=$HOME/esp8266/esp-open-sdk &&
-            export PATH=$HOME/esp8266/esp-open-sdk/xtensa-lx106-elf/bin:$PATH
+          command: sudo apt-get install build-essential make curl unrar-free autoconf automake libtool gcc g++ gperf flex bison texinfo gawk ncurses-dev libexpat-dev sed git unzip bash help2man wget bzip2 libtool-bin python-dev python
+      - run:
+          name: Download toolchain
+          command: wget https://github.com/cnlohr/esp82xx_bin_toolchain/raw/master/esp-open-sdk-x86_64-20200810.tar.xz
+      - run:
+          name: Unzip toolchain
+          command: tar xJvf esp-open-sdk-x86_64-20200810.tar.xz
+      - run:
+          name: Set SDK environment variable
+          command: export ESP_ROOT=$HOME/esp-open-sdk
+      - run:
+          name: Append xtenxa bin to PATH
+          command: export PATH=$HOME/esp-open-sdk/xtensa-lx106-elf/bin:$PATH
       - run:
           name: Clone Repository
           command: git clone << pipeline.parameters.src-repo-url >> --recurse-submodules
