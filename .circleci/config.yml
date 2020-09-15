@@ -31,10 +31,10 @@ jobs:
           command: tar xJvf esp-open-sdk-x86_64-20200810.tar.xz
       - run:
           name: Set SDK environment variable
-          command: export ESP_ROOT=$HOME/esp-open-sdk
+          command: echo 'export ESP_ROOT=$HOME/esp-open-sdk' >> $BASH_ENV
       - run:
           name: Append xtenxa bin to PATH
-          command: export PATH=$HOME/esp-open-sdk/xtensa-lx106-elf/bin:$PATH
+          command: echo 'export PATH=$HOME/esp-open-sdk/xtensa-lx106-elf/bin:$PATH' >> $BASH_ENV
       - run:
           name: Clone Repository
           command: git clone << pipeline.parameters.src-repo-url >> --recurse-submodules
