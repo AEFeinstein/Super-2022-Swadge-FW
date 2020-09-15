@@ -240,6 +240,8 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     {
         // Demon not loaded, init from scratch
         resetDemon(&pd->demon);
+        // And immediately save it
+        setSavedDemon(&(pd->demon));
     }
 
     // Initialize demon draw state
@@ -454,8 +456,14 @@ static void ICACHE_FLASH_ATTR demonMenuCb(const char* menuItem)
     }
     else if(menuItem == menuQuit)
     {
+        // Save before quitting, otherwise pd->demon is free()'d
+        setSavedDemon(&(pd->demon));
         takeAction(&(pd->demon), ACT_QUIT);
+        return;
     }
+
+    // Save after the action was taken
+    setSavedDemon(&(pd->demon));
 }
 
 /**
