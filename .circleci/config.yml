@@ -30,6 +30,9 @@ jobs:
           name: Unzip toolchain
           command: tar xJvf esp-open-sdk-x86_64-20200810.tar.xz
       - run:
+          name: ls
+          command: ls -la
+      - run:
           name: Set SDK environment variable
           command: echo 'export ESP_ROOT=$HOME/esp-open-sdk' >> $BASH_ENV
       - run:
