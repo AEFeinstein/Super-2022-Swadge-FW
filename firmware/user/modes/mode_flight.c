@@ -205,6 +205,26 @@ static void ICACHE_FLASH_ATTR flightUpdate(void* arg __attribute__((unused)))
 	}
 }
 
+
+static uint8_t sintable[128] = { 0, 6, 12, 18, 25, 31, 37, 43, 49, 55, 62, 68, 74, 80, 86, 91, 97, 103, 109, 114, 120, 125, 131, 136, 141, 147, 152, 157, 162, 166, 171, 176, 180, 185, 189, 193, 197, 201, 205, 208, 212, 215, 219, 222, 225, 228, 230, 233, 236, 238, 240, 242, 244, 246, 247, 249, 250, 251, 252, 253, 254, 254, 255, 255, 255, 255, 255, 254, 254, 253, 252, 251, 250, 249, 247, 246, 244, 242, 240, 238, 236, 233, 230, 228, 225, 222, 219, 215, 212, 208, 205, 201, 197, 193, 189, 185, 180, 176, 171, 166, 162, 157, 152, 147, 141, 136, 131, 125, 120, 114, 109, 103, 97, 91, 86, 80, 74, 68, 62, 55, 49, 43, 37, 31, 25, 18, 12, 6, };
+
+static int16_t ICACHE_FLASH_ATTR tdSIN( uint8_t iv )
+{
+	if( iv > 127 )
+	{
+		return -sintable[iv-128];
+	}
+	else
+	{
+		return sintable[iv];
+	}
+}
+
+int16_t tdCOS( uint8_t iv )
+{
+	return tdSIN( iv + 64 );
+}
+
 int vTransform( flight_t * flightsim, int16_t * xformed, const int16_t * input )
 {
 	int16_t x = input[0];
@@ -212,27 +232,33 @@ int vTransform( flight_t * flightsim, int16_t * xformed, const int16_t * input )
 	int16_t z = input[2];
 	if( x == 0 && y == 0 && z == 0 ) return 0;
 
-	x -= flightsim->planeplaneloc[0];
-	y -= flightsim->planeplaneloc[1];
-	z -= flightsim->planeplaneloc[2];
+	x -= flightsim->planeloc[0];
+	y -= flightsim->planeloc[1];
+	z -= flightsim->planeloc[2];
 
-	xformed[0] = (x>>9) + 20;
-	xformed[1] = (y>>9) + 20;
-	xformed[2] = (z>>9) + 20;
+	xformed[0] = (x>>7) + 20;
+	xformed[1] = (y>>7) + 20;
+	xformed[2] = (z>>7) + 20;
 	return 1;
 }
 
 static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * flight )
 {
+	uint8_t bs = flight->buttonState;
 
     // First clear the OLED
     clearDisplay();
 
     char framesStr[8] = {0};
-    ets_snprintf(framesStr, sizeof(framesStr), "%d", flight->buttonStates / 8);
+    ets_snprintf(framesStr, sizeof(framesStr), "%d", flight->buttonState);
     plotText(0, 0, framesStr, TOM_THUMB, WHITE);
 
+	if( bs & 1 ) flight->hpr[0]++;
+	if( bs & 4 ) flight->hpr[0]--;
 
+	flight->planeloc[0] += tdSIN( flight->hpr[0] )>>4;
+	flight->planeloc[1] += tdCOS( flight->hpr[0] )>>4;
+	flight->planeloc[2] += tdCOS( flight->hpr[1] )>>4;
 //		x -= flightsim->planeplaneloc[0];
 	
 
