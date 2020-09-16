@@ -37,6 +37,7 @@
 #include "mode_colorchord.h"
 #include "mode_personal_demon.h"
 #include "mode_flappy.h"
+#include "mode_flight.h"
 #include "mode_raycaster.h"
 
 #include "ccconfig.h"
@@ -76,6 +77,7 @@ swadgeMode* swadgeModes[] =
     &menuMode,
     &raycasterMode,
     &flappyMode,
+    &flightMode,
     &personalDemonMode,
     &colorchordMode,
     &ddrMode,
