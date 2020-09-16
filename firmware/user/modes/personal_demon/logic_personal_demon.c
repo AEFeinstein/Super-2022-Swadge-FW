@@ -631,6 +631,7 @@ void ICACHE_FLASH_ATTR resetDemon(demon_t* pd)
     pd->health = STARTING_HEALTH;
     namegen(pd->name);
     pd->name[0] -= ('a' - 'A');
+    pd->species = (os_random() % getNumDemonSpecies());
 
     animateEvent(EVT_BORN);
 }

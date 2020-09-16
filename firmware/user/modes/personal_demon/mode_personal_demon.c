@@ -134,6 +134,14 @@ typedef struct
     menu_t* menu;
 } pd_data;
 
+typedef struct
+{
+    char* norm;
+    char* thin;
+    char* fat;
+    char* sick;
+} demonSprites_t;
+
 /*==============================================================================
  * Function Prototypes
  *============================================================================*/
@@ -219,6 +227,34 @@ char menuScold[] = "Scold";
 char menuMeds[]  = "Meds";
 char menuFlush[] = "Flush";
 char menuQuit[]  = "Quit";
+
+const demonSprites_t demonSprites[] =
+{
+    {
+        .norm = "pd-1-norm.png",
+        .sick = "pd-1-sick.png",
+        .thin = "pd-1-thin.png",
+        .fat  = "pd-1-fat.png"
+    },
+    {
+        .norm = "pd-2-norm.png",
+        .sick = "pd-2-sick.png",
+        .thin = "pd-2-thin.png",
+        .fat  = "pd-2-fat.png"
+    },
+    {
+        .norm = "pd-3-norm.png",
+        .sick = "pd-3-sick.png",
+        .thin = "pd-3-thin.png",
+        .fat  = "pd-3-fat.png"
+    },
+    {
+        .norm = "pd-4-norm.png",
+        .sick = "pd-4-sick.png",
+        .thin = "pd-4-thin.png",
+        .fat  = "pd-4-fat.png"
+    },
+};
 
 /*==============================================================================
  * Functions
@@ -339,10 +375,10 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
                      "syringe09.png",
                      "syringe10.png",
                      "syringe11.png");
-    allocPngAsset("pd-norm.png", &(pd->demonSprite));
-    allocPngAsset("pd-fat.png",  &(pd->demonSpriteFat));
-    allocPngAsset("pd-thin.png", &(pd->demonSpriteThin));
-    allocPngAsset("pd-sick.png", &(pd->demonSpriteSick));
+    allocPngAsset(demonSprites[pd->demon.species].norm, &(pd->demonSprite));
+    allocPngAsset(demonSprites[pd->demon.species].fat,  &(pd->demonSpriteFat));
+    allocPngAsset(demonSprites[pd->demon.species].thin, &(pd->demonSpriteThin));
+    allocPngAsset(demonSprites[pd->demon.species].sick, &(pd->demonSpriteSick));
     allocPngAsset("scold.png", &(pd->hand));
     allocPngAsset("poop.png", &(pd->poop));
     allocPngAsset("archL.png", &(pd->archL));
@@ -364,6 +400,14 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     // Draw the initial display
     personalDemonAnimationTimer(NULL);
     personalDemonUpdateDisplay();
+}
+
+/**
+ * @return The number of demon species
+ */
+uint8_t ICACHE_FLASH_ATTR getNumDemonSpecies(void)
+{
+    return (sizeof(demonSprites) / sizeof(demonSprites[0]));
 }
 
 /**
