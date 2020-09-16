@@ -729,14 +729,13 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         case EVT_GOT_SICK_MALNOURISHED:
         {
             // TODO Animate getting thin?
-            ets_snprintf(marquis->str, ACT_STRLEN, "Malnourishment made %s sick. ", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "Hunger made %s sick. ", pd->demon.name);
             break;
         }
         case EVT_POOPED:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_POOPING);
-            // ets_snprintf(marquis->str, ACT_STRLEN, "%s pooped. ", pd->demon.name);
             break;
         }
         case EVT_LOST_DISCIPLINE:
@@ -749,49 +748,45 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_EATING);
-            // ets_snprintf(marquis->str, ACT_STRLEN, "%s ate. ", pd->demon.name);
             break;
         }
         case EVT_OVEREAT:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_OVER_EATING);
-            // ets_snprintf(marquis->str, ACT_STRLEN, "%s overate. ", pd->demon.name);
             break;
         }
         case EVT_NO_EAT_SICK:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_NOT_EATING);
-            ets_snprintf(marquis->str, ACT_STRLEN, "Too sick to eat. ");
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s is too sick to eat. ", pd->demon.name);
             break;
         }
         case EVT_NO_EAT_DISCIPLINE:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_NOT_EATING);
-            ets_snprintf(marquis->str, ACT_STRLEN, "Too rowdy eat. ");
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s is too rowdy eat. ", pd->demon.name);
             break;
         }
         case EVT_NO_EAT_FULL:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_NOT_EATING);
-            ets_snprintf(marquis->str, ACT_STRLEN, "Too full to eat. ");
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s is too full to eat. ", pd->demon.name);
             break;
         }
         case EVT_PLAY:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_PLAYING);
-            // ets_snprintf(marquis->str, ACT_STRLEN, "You played with %s. ", pd->demon.name);
             break;
         }
         case EVT_NO_PLAY_DISCIPLINE:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_NOT_PLAYING);
-            ets_snprintf(marquis->str, ACT_STRLEN, "Too rowdy to play. ");
             break;
         }
         case EVT_SCOLD:
@@ -811,18 +806,21 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_MEDICINE);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s wasn't sick. ", pd->demon.name);
             break;
         }
         case EVT_MEDICINE_CURE:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_MEDICINE);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s is cured. ", pd->demon.name);
             break;
         }
         case EVT_MEDICINE_FAIL:
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_MEDICINE);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s isn't cured. ", pd->demon.name);
             break;
         }
         case EVT_FLUSH_POOP:
@@ -852,7 +850,7 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         case EVT_LOST_HEALTH_MALNOURISHMENT:
         {
             // TODO Animate losing health?
-            ets_snprintf(marquis->str, ACT_STRLEN, "%s lost health to malnourishment. ", pd->demon.name);
+            ets_snprintf(marquis->str, ACT_STRLEN, "%s lost health to hunger. ", pd->demon.name);
             break;
         }
         case EVT_TEENAGER:
