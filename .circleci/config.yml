@@ -18,9 +18,6 @@ jobs:
         default: swadge-chainsaw
     steps:
       - run:
-          name: Create artifact name
-          command: echo 'export ARTIFACT_NAME=${CIRCLE_PROJECT_REPONAME}_$(date +%Y-%m-%d_%H-%M-%S)_${CIRCLE_SHA1:0:7}.zip' >> $BASH_ENV
-      - run:
           name: Update packages
           command: sudo apt-get update
       - run:
@@ -49,15 +46,18 @@ jobs:
           working_directory: Super-2021-Swadge-FW-Sandbox/firmware
           command: unset ESP_GDB && export SET_SWADGE_VERSION=5 && make -j$(nproc) all debug
       - run:
+          name: Store version information
+          command: echo $(date) >> version.txt && echo "https://github.com/AEFeinstein/Super-2021-Swadge-FW-Sandbox/commit/${CIRCLE_SHA1}" >> version.txt
+      - run:
           name: Create a ZIP of firmware
           working_directory: Super-2021-Swadge-FW-Sandbox/firmware
-          command: zip -j ${ARTIFACT_NAME} image* assets.bin ESP8266_NONOS_SDK/bin/blank.bin ESP8266_NONOS_SDK/bin/esp_init_data_default_v08.bin
+          command: zip -j << parameters.label >>.zip version.txt image* assets.bin ESP8266_NONOS_SDK/bin/blank.bin ESP8266_NONOS_SDK/bin/esp_init_data_default_v08.bin
       - run:
           name: Add pyFlashGui to the ZIP
           working_directory: Super-2021-Swadge-FW-Sandbox/pyFlashGui
-          command: zip -r ../firmware/${ARTIFACT_NAME} .
+          command: zip -r ../firmware/<< parameters.label >>.zip .
       - store_artifacts:
-          path: Super-2021-Swadge-FW-Sandbox/firmware/${ARTIFACT_NAME}
+          path: Super-2021-Swadge-FW-Sandbox/firmware/<< parameters.label >>.zip
 
 #  test-linux:
 #    docker:
