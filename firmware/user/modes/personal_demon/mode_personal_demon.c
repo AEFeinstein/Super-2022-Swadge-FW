@@ -1666,7 +1666,7 @@ bool ICACHE_FLASH_ATTR updtAnimPortal(void)
             pd->demonY++;
         }
 
-        if(pd->demonX >= 35)
+        if(pd->demonX > 16 + pd->archL.width + pd->archR.width)
         {
             personalDemonResetAnimVars();
         }
@@ -1682,7 +1682,7 @@ bool ICACHE_FLASH_ATTR updtAnimPortal(void)
 void ICACHE_FLASH_ATTR drawAnimPortal(void)
 {
     // Draw half of the portal
-    drawPng(&pd->archR, 16 + 24, 11, false, false, 0);
+    drawPng(&pd->archR, 16 + pd->archL.width, 11, false, false, 0);
     // Draw the demon
     drawAnimDemon();
     // Cover the area peeking out of the portal
@@ -1713,9 +1713,12 @@ void ICACHE_FLASH_ATTR initAnimDeath(void)
  */
 bool ICACHE_FLASH_ATTR updtAnimDeath(void)
 {
+    static int16_t textCnt = 0;
+
     pd->animCnt++;
     if(pd->demonRot < 90)
     {
+        textCnt = 0;
         pd->demonRot++;
     }
     else if(pd->demonY < OLED_HEIGHT)
@@ -1725,9 +1728,56 @@ bool ICACHE_FLASH_ATTR updtAnimDeath(void)
             pd->demonY++;
         }
     }
+    else if(textCnt < 100 * 5) // 5 seconds
+    {
+        textCnt++;
+    }
     else
     {
         personalDemonResetAnimVars();
+
+        // The demon is dead, so make a new one
+
+        // TODO save demon record
+
+        // Reset the demon
+        resetDemon(&(pd->demon));
+        // And immediately save it
+        setSavedDemon(&(pd->demon));
+
+        // Reload the PNGs for the new demon
+        freePngAsset(&(pd->demonSprite));
+        freePngAsset(&(pd->demonSpriteFat));
+        freePngAsset(&(pd->demonSpriteThin));
+        freePngAsset(&(pd->demonSpriteSick));
+        allocPngAsset(demonSprites[pd->demon.species].norm, &(pd->demonSprite));
+        allocPngAsset(demonSprites[pd->demon.species].fat,  &(pd->demonSpriteFat));
+        allocPngAsset(demonSprites[pd->demon.species].thin, &(pd->demonSpriteThin));
+        allocPngAsset(demonSprites[pd->demon.species].sick, &(pd->demonSpriteSick));
+
+        // Initialize demon draw state
+        pd->drawSick = pd->demon.isSick;
+        pd->drawFat = isDemonObese(&(pd->demon));
+        pd->drawThin = isDemonThin(&(pd->demon));
+        pd->drawHealth = pd->demon.health;
+        pd->drawPoopCnt = pd->demon.poopCount;
+
+        // Clear the queues
+        ets_memset(&(pd->demon.evQueue), EVT_NONE, sizeof(pd->demon.evQueue));
+
+        while(pd->marquisTextQueue.length > 0)
+        {
+            void* node = pop(&(pd->marquisTextQueue));
+            os_free(node);
+        }
+
+        while(pd->animationQueue.length > 0)
+        {
+            pop(&(pd->animationQueue));
+        }
+
+        // Start
+        animateEvent(EVT_BORN);
     }
     return true;
 }
@@ -1738,8 +1788,25 @@ bool ICACHE_FLASH_ATTR updtAnimDeath(void)
  */
 void ICACHE_FLASH_ATTR drawAnimDeath(void)
 {
-    // Draw the demon
-    drawAnimDemon();
+    if(pd->demonY < OLED_HEIGHT)
+    {
+        // Draw the demon
+        drawAnimDemon();
+    }
+    else
+    {
+        char str[64] = {0};
+
+        ets_snprintf(str, sizeof(str), "%s", pd->demon.name);
+        int16_t width = textWidth(str, IBM_VGA_8);
+        plotText((OLED_WIDTH - width - pd->heart.width) / 2, OLED_HEIGHT / 2 - FONT_HEIGHT_IBMVGA8 - 1,
+                 str, IBM_VGA_8, WHITE);
+
+        ets_snprintf(str, sizeof(str), "lived %d days", pd->demon.actionsTaken);
+        width = textWidth(str, IBM_VGA_8);
+        plotText((OLED_WIDTH - width - pd->heart.width) / 2, OLED_HEIGHT / 2 + 1,
+                 str, IBM_VGA_8, WHITE);
+    }
 }
 
 /*******************************************************************************
