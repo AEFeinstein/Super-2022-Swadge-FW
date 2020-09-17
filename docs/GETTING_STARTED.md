@@ -18,43 +18,58 @@ especially the comments made on March 15 2019 by phibo23.
     ```
     $ sudo apt-get update
     $ sudo apt-get dist-upgrade
-    $ sudo apt-get install build-essential make unrar-free autoconf automake libtool gcc g++ gperf flex bison texinfo gawk ncurses-dev libexpat-dev python-dev python python-serial sed git unzip bash help2man wget bzip2 libtool-bin libusb-1.0-0-dev
+    $ sudo apt-get install build-essential make curl unrar-free autoconf automake libtool gcc g++ gperf flex bison texinfo gawk ncurses-dev libexpat-dev sed git unzip bash help2man wget bzip2 libtool-bin libusb-1.0-0-dev libx11-dev libpulse-dev libasound-dev python-dev python python-serial
+    ```
+    * If you're using Ubuntu 20.04+, apt-get won't be able to find `python-serial`. Run the following commands
+    ```
+    $ sudo apt-get update
+    $ sudo apt-get dist-upgrade
+    $ sudo apt-get install build-essential make curl unrar-free autoconf automake libtool gcc g++ gperf flex bison texinfo gawk ncurses-dev libexpat-dev sed git unzip bash help2man wget bzip2 libtool-bin libusb-1.0-0-dev libx11-dev libpulse-dev libasound-dev python-dev python
+    $ curl https://bootstrap.pypa.io/get-pip.py --output get-pip.py
+    $ sudo python2 get-pip.py
+    $ pip2 install pyserial rtttl
+    $ pip3 install pyserial rtttl
     ```
 1. Check out the [pfalcon's esp-open-sdk](https://github.com/pfalcon/esp-open-sdk), move to the ```esp-open-sdk``` folder and build it. More detailed instructions are on that project's page. Warning, building this takes a while (like 30 minutes)!
     ```
     $ git clone --recursive https://github.com/pfalcon/esp-open-sdk.git
     $ cd esp-open-sdk/
-    /esp-open-sdk$ make
+    /esp-open-sdk$ make -j$(nproc)
     ```
     * Developers using WSL are encouraged to **avoid cloning into windows directories** (e.g., ```/mnt/c/...```) due to conflicts between WSL and Windows file permissions.
     * If there are issues with ```make``` recognizing bash, you may need to go into ```esp-open-sdk/crosstool-NG/configure.ac``` and change line 193 from ```|$EGREP '^GNU bash, version (3.[1-9]|4)')``` to ```|$EGREP '^GNU bash, version (3.[1-9]|4|5)')```.
-1. Set up environment variables by appending the following to your ```.bashrc``` file. You'll want to modify them with your own home folder name.
+1. Set up environment variables by appending the following to your ```.bashrc``` file. If you cloned `esp-open-sdk` elsewhere, you'll want to modify the paths to match.
     ```
     $ nano ~/.bashrc
     
-    Append this, after changing the username in the path:
-    export PATH=/home/adam/esp-open-sdk/xtensa-lx106-elf/bin:$PATH
-    export ESP_ROOT=/home/adam/esp-open-sdk
+    Append this, after verifying the location of your esp-open-sdk:
+    
+    export PATH=$HOME/esp-open-sdk/xtensa-lx106-elf/bin:$PATH
+    export ESP_ROOT=$HOME/esp-open-sdk
     ```
 1. Restart your Linux environment so the environment variables are actually set.
 1. Check out this repository, move to the ```firmware``` folder, and build it. 
     ```
-    $ git clone --recursive https://github.com/AEFeinstein/Swadge-Devkit-Fw.git
-    $ cd Swadge-Devkit-Fw/firmware/
-    /Swadge-Devkit-Fw/firmware$ make
+    $ git clone --recursive https://github.com/AEFeinstein/Super-2021-Swadge-FW-Sandbox.git
+    $ cd Super-2021-Swadge-FW-Sandbox/firmware/
+    /Super-2021-Swadge-FW-Sandbox/firmware$ unset ESP_GDB && EXPORT SET_SWADGE_VERSION=5 && make -j$(nproc)
     ```
-1. Flash the firmware to an ESP8266. You will need to add two environment variables to your ```.bashrc``` file so ```makefile``` knows where to find the Swadge, and an optional third one to automatically start ```putty.exe```. ```ESP_PORT``` is the ESP8266's serial port, and will be specific to your machine. ```ESP_FLASH_BITRATE``` is how fast the firmware is flashed. 2000000 is a common value, though if it doesn't work, try something slower, like 1500000. ```ESP_PORT_WIN``` is an optional Windows COM port to be used when starting ```putty.exe``` from WSL.
+1. Flash the firmware to an ESP8266. You will need to add two environment variables to your ```.bashrc``` file so ```makefile``` knows where to find the Swadge, and an optional third one to automatically start ```putty.exe```.
+    * ```ESP_PORT``` is the ESP8266's serial port, and will be specific to your machine. One way to find this is by running ```dmesg | grep tty```, plugging your ESP8266 or programmer in, waiting a few seconds, and rerunning the command. There should be a new line of output the second time which includes the name of your serial port.
+    * ```ESP_FLASH_BITRATE``` is how fast the firmware is flashed. 2000000 is a common value, though if it doesn't work, try something slower, like 1500000.
+    * ```ESP_PORT_WIN``` is an optional Windows COM port to be used when starting ```putty.exe``` from WSL.
     ```
     $ nano ~/.bashrc
     
     Append this, after changing the port:
+    
     export ESP_PORT=/dev/ttyS3
     export ESP_FLASH_BITRATE=2000000
     export ESP_PORT_WIN=COM3
     ```
-   If you're using WSL, [the Windows port ```COM{N}``` maps to the Linux port ```/dev/ttyS{N}```](https://blogs.msdn.microsoft.com/wsl/2017/04/14/serial-support-on-the-windows-subsystem-for-linux/). If you're using a virtual machine, you'll need to forward your COM port to a Linux serial port.
+   If you're using WSL, [the Windows port ```COM{N}``` maps to the Linux port ```/dev/ttyS{N}```](https://blogs.msdn.microsoft.com/wsl/2017/04/14/serial-support-on-the-windows-subsystem-for-linux/). If you're using a virtual machine, you'll need to forward your COM port to a Linux serial port, or configure the VM software to pass the VM the USB interface device, if you're using one.
 1. Restart your Linux environment so the environment variables are actually set.
-1. Flash the firmware to your Swadge. You may have to set read and write permissions on the serial port before flashing.
+1. Flash the firmware to your Swadge. You may have to set read and write permissions on the serial port before flashing. Also, if you're using the Swadge programmer, make sure to read [Programming with the Programmer](#5-programming-with-the-programmer) below.
     ```
     $ sudo chmod 666 /dev/ttyS3
     $ make burn
@@ -71,7 +86,7 @@ Eclipse & WSL is kind of janky. I find Eclipse runs better in either native Linu
 This year I'm trying [Visual Studio Code](https://code.visualstudio.com/)
 Here's a guide to using Visual Studio Code with WSL: https://code.visualstudio.com/docs/remote/wsl
 
-This repo has project files for both Eclipse and Visual Studio Code. The project is based on a makefile, so you can do whatever you're comfortable with.
+This repo has project files for both Eclipse and Visual Studio Code. The project is based on a makefile, so you can do whatever you're comfortable with. Simply open the ```firmware``` folder with your IDE of choice.
 
 # 4. Hardware Connection
 
@@ -81,11 +96,11 @@ The UART is used for both programming and printing debug statements, so any seri
 
 # 5. Programming with the Programmer
 
-The Swadge programmer is a breakout for all the ESP8266 pins, a USB-UART chip, and some useful buttons and switches. It can be used in conjunction with [pyFlashGui](https://github.com/AEFeinstein/Swadge-Devkit-Fw/tree/master/piflash/pyFlashGui) to program lots of Swadges quickly. To program a Swadge with the programmer:
+The Swadge programmer is a breakout for all the ESP8266 pins, a USB-UART chip, and some useful buttons and switches. It can be used in conjunction with [pyFlashGui](/pyFlashGui) to program lots of Swadges quickly. To program a Swadge with the programmer:
 1. Connect the programmer to your computer and note what serial port is created.
 1. Set the Swadge to USB power
 2. Set the programmer to "OFF" and "5V"
 3. Plug the Swadge into the programmer
 4. Either hold the `GPIO0` button or put a jumper between `GND` and `SCL` breakout pins
 5. Set the programmer to "ON"
-6. Program your Swadge with the serial port noted in step 1.
+6. Program your Swadge with the serial port noted in step 6 of [Compiling and Flashing a Swadge](#2-compiling-and-flashing-a-swadge).

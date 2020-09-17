@@ -164,7 +164,7 @@ static uint16_t SquareRootRounded(uint32_t a_nInput)
 }
 #endif
 
-void UpdateOutputBins32(void)
+void ICACHE_FLASH_ATTR UpdateOutputBins32(void)
 {
     int i;
     int32_t* ipt = &Sdatspace32BOut[0];
@@ -207,7 +207,7 @@ void UpdateOutputBins32(void)
     }
 }
 
-static void HandleInt( int16_t sample )
+static void ICACHE_FLASH_ATTR HandleInt( int16_t sample )
 {
     int i;
     uint16_t adv;
@@ -267,7 +267,7 @@ static void HandleInt( int16_t sample )
     }
 }
 
-int SetupDFTProgressive32(void)
+int ICACHE_FLASH_ATTR SetupDFTProgressive32(void)
 {
     int i;
     int j;
@@ -303,7 +303,7 @@ int SetupDFTProgressive32(void)
 
 
 
-void UpdateBins32( const uint16_t* frequencies )
+void ICACHE_FLASH_ATTR UpdateBins32( const uint16_t* frequencies )
 {
     int i;
     int imod = 0;
@@ -318,7 +318,7 @@ void UpdateBins32( const uint16_t* frequencies )
     }
 }
 
-void PushSample32( int16_t dat )
+void ICACHE_FLASH_ATTR PushSample32( int16_t dat )
 {
     HandleInt( dat );
     HandleInt( dat );

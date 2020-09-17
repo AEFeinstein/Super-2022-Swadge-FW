@@ -9,6 +9,8 @@
 
 #define STOMACH_SIZE 5 // Max number of foods being digested
 
+#define STARTING_HEALTH 20 ///< Health is started with, cannot be increased
+
 /*******************************************************************************
  * Enums
  ******************************************************************************/
@@ -26,7 +28,7 @@ typedef enum
     ACT_PLAY,
     ACT_DISCIPLINE,
     ACT_MEDICINE,
-    ACT_SCOOP,
+    ACT_FLUSH,
     ACT_QUIT,
     ACT_NUM_ACTIONS
 } action_t;
@@ -88,7 +90,8 @@ typedef struct
     int32_t stomach[STOMACH_SIZE];
     char name[32];
     age_t age;
-    list_t evQueue;
+    event_t evQueue[32];
+    uint8_t evQueueIdx;
 } demon_t;
 
 /*******************************************************************************
@@ -96,7 +99,7 @@ typedef struct
  ******************************************************************************/
 
 void resetDemon(demon_t* pd);
-void takeAction(demon_t* pd, action_t act);
+bool takeAction(demon_t* pd, action_t act);
 
 bool ICACHE_FLASH_ATTR isDemonObese(demon_t* pd);
 bool ICACHE_FLASH_ATTR isDemonThin(demon_t* pd);

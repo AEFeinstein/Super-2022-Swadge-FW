@@ -19,7 +19,7 @@
 #include "embeddedout.h"
 #include "mode_dance.h"
 #include "hsv_utils.h"
- 
+
 /*============================================================================
  * Prototypes
  *==========================================================================*/
@@ -54,6 +54,7 @@ void ICACHE_FLASH_ATTR danceTimerMode15(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode16(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode17(void* arg);
 void ICACHE_FLASH_ATTR danceTimerMode18(void* arg);
+void ICACHE_FLASH_ATTR danceTimerMode19(void* arg);
 
 /*============================================================================
  * Static Const Variables
@@ -145,6 +146,10 @@ timerWithPeriod danceTimers[] =
     {
         .timerFn = danceTimerMode18,
         .period = 7
+    },
+    {
+        .timerFn = danceTimerMode19,
+        .period = 10
     },
     {
         .timerFn = danceTimerMode7,
@@ -953,6 +958,36 @@ void ICACHE_FLASH_ATTR danceTimerMode18(void* arg __attribute__((unused)))
         leds[i].g = (EHSVtoHEX(current_color_hue[i],  current_color_saturation[i], dance_rand(15) + 240) >>  8) & 0xFF;
         leds[i].b = (EHSVtoHEX(current_color_hue[i],  current_color_saturation[i], dance_rand(15) + 240) >> 16) & 0xFF;
     }
+    // Output the LED data, actually turning them on
+    setDanceLeds(leds, sizeof(leds));
+}
+
+/**
+ * Called every 10ms
+ * 
+ * Chainsaw blade. Use EHSVtoHEX() to smoothly iterate, but only draw red
+ *
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR danceTimerMode19(void* arg __attribute__((unused)))
+{
+    // setDanceLeds(leds, sizeof(leds));
+    led_t leds[NUM_LIN_LEDS] = {{0}};
+
+    ledCount = ledCount + 2;
+    if(ledCount > 256)
+    {
+        ledCount = 0;
+    }
+
+    uint8_t i;
+    for(i = 0; i < NUM_LIN_LEDS; i++)
+    {
+        int16_t angle = 256 - (((i * 256) / NUM_LIN_LEDS)) + ledCount % 256;
+        uint32_t color = EHSVtoHEX(angle, 0xFF, 0xFF);
+        leds[i].r = (color >>  0) & 0xFF;
+    }
+
     // Output the LED data, actually turning them on
     setDanceLeds(leds, sizeof(leds));
 }

@@ -137,7 +137,7 @@ unsigned char GetByte( uint8_t send_nak, bool highSpeed)
     return ret;
 }
 
-void my_i2c_delay(bool highSpeed)
+__attribute__((noinline)) void my_i2c_delay(bool highSpeed)
 {
     asm volatile("nop\nnop\n"); // Less than two nops causes a sad face :(
     asm volatile("nop\nnop\n"); // Four nops work, but have eventual screen glitches
