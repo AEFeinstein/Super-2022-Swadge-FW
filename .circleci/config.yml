@@ -1,5 +1,8 @@
 version: 2.1
 
+orbs:
+  slack: circleci/slack@3.4.2
+
 parameters:
   src-repo-url:
     type: string
@@ -59,6 +62,10 @@ jobs:
           command: zip -r ../firmware/<< parameters.label >>.zip .
       - store_artifacts:
           path: Super-2021-Swadge-FW-Sandbox/firmware/<< parameters.label >>.zip
+      - slack/status:
+          fail_only: false
+          success_only: true
+          success_message: Build successful! Get it at https://circleci.com/gh/AEFeinstein/Super-2021-Swadge-FW-Sandbox
 
 #  test-linux:
 #    docker:
