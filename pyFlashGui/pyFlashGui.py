@@ -42,11 +42,15 @@ class StoppableThread(threading.Thread):
                     "--port", self.name,
                     "--chip", "esp8266",
                     "write_flash", "-fm", "dio",
+                    "--flash_size", "16m",
                     "0x00000", "image.elf-0x00000.bin",
                     "0x10000", "image.elf-0x10000.bin",
+                    "0x6F000", "assets.bin",
                     "0x1FB000", "blank.bin",
                     "0x1FC000", "esp_init_data_default_v08.bin",
-                    "0x1FE000", "blank.bin"])
+                    "0x1FD000", "blank.bin",
+                    "0x1FE000", "blank.bin",
+                    "0x1FF000", "blank.bin"])
                 # It worked! Display a nice green message
                 if(retval is True):
                     self.label.config(

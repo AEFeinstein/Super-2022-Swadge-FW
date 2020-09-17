@@ -280,17 +280,31 @@ void ICACHE_FLASH_ATTR drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDraw
 void ICACHE_FLASH_ATTR drawMenu(menu_t* menu)
 {
     // First clear the OLED
-    clearDisplay();
+    if(1 == menu->numRows)
+    {
+        fillDisplayArea(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 4, OLED_WIDTH, OLED_HEIGHT, BLACK);
+    }
+    else
+    {
+        clearDisplay();
+    }
 
     // Start with the seleted row to be drawn
     int16_t yPos = menu->yOffset + SELECTED_ROW_Y;
     cLinkedNode_t* row = menu->rows;
 
-    // Work backwards to draw all prior rows on the OLED
-    while(yPos + FONT_HEIGHT_IBMVGA8 >= BLANK_SPACE_Y)
+    if(1 == menu->numRows)
     {
-        row = row->prev;
-        yPos -= (FONT_HEIGHT_IBMVGA8 + ROW_SPACING);
+        yPos = OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 2;
+    }
+    else
+    {
+        // Work backwards to draw all prior rows on the OLED
+        while(yPos + FONT_HEIGHT_IBMVGA8 >= BLANK_SPACE_Y)
+        {
+            row = row->prev;
+            yPos -= (FONT_HEIGHT_IBMVGA8 + ROW_SPACING);
+        }
     }
 
     // Draw rows until you run out of space on the OLED
@@ -305,22 +319,25 @@ void ICACHE_FLASH_ATTR drawMenu(menu_t* menu)
         yPos += FONT_HEIGHT_IBMVGA8 + ROW_SPACING;
     }
 
-    // If the offset is nonzero, move it towards zero
-    if(menu->yOffset < 0)
+    if(1 != menu->numRows)
     {
-        menu->yOffset++;
-    }
-    if(menu->yOffset > 0)
-    {
-        menu->yOffset--;
-    }
+        // If the offset is nonzero, move it towards zero
+        if(menu->yOffset < 0)
+        {
+            menu->yOffset++;
+        }
+        if(menu->yOffset > 0)
+        {
+            menu->yOffset--;
+        }
 
-    // Clear the top 37 pixels of the OLED
-    fillDisplayArea(0, 0, OLED_WIDTH, BLANK_SPACE_Y, BLACK);
+        // Clear the top 37 pixels of the OLED
+        fillDisplayArea(0, 0, OLED_WIDTH, BLANK_SPACE_Y, BLACK);
 
-    // Draw the title, centered
-    int16_t titleOffset = (OLED_WIDTH - textWidth((char*)menu->title, RADIOSTARS)) / 2;
-    plotText(titleOffset, 8, (char*)menu->title, RADIOSTARS, WHITE);
+        // Draw the title, centered
+        int16_t titleOffset = (OLED_WIDTH - textWidth((char*)menu->title, RADIOSTARS)) / 2;
+        plotText(titleOffset, 8, (char*)menu->title, RADIOSTARS, WHITE);
+    }
 }
 
 /**
