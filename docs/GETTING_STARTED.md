@@ -34,7 +34,7 @@ especially the comments made on March 15 2019 by phibo23.
     ```
     $ git clone --recursive https://github.com/pfalcon/esp-open-sdk.git
     $ cd esp-open-sdk/
-    /esp-open-sdk$ make -j$(nproc)
+    $ make -j$(nproc)
     ```
     * Developers using WSL are encouraged to **avoid cloning into windows directories** (e.g., ```/mnt/c/...```) due to conflicts between WSL and Windows file permissions.
     * If there are issues with ```make``` recognizing bash, you may need to go into ```esp-open-sdk/crosstool-NG/configure.ac``` and change line 193 from ```|$EGREP '^GNU bash, version (3.[1-9]|4)')``` to ```|$EGREP '^GNU bash, version (3.[1-9]|4|5)')```.
@@ -52,7 +52,7 @@ especially the comments made on March 15 2019 by phibo23.
     ```
     $ git clone --recursive https://github.com/AEFeinstein/Super-2021-Swadge-FW-Sandbox.git
     $ cd Super-2021-Swadge-FW-Sandbox/firmware/
-    /Super-2021-Swadge-FW-Sandbox/firmware$ unset ESP_GDB && EXPORT SET_SWADGE_VERSION=5 && make -j$(nproc)
+    $ unset ESP_GDB && export SET_SWADGE_VERSION=5 && make -j$(nproc)
     ```
 1. Flash the firmware to an ESP8266. You will need to add two environment variables to your ```.bashrc``` file so ```makefile``` knows where to find the Swadge, and an optional third one to automatically start ```putty.exe```.
     * ```ESP_PORT``` is the ESP8266's serial port, and will be specific to your machine. One way to find this is by running ```dmesg | grep tty```, plugging your ESP8266 or programmer in, waiting a few seconds, and rerunning the command. There should be a new line of output the second time which includes the name of your serial port.
