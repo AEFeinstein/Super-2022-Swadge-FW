@@ -64,8 +64,7 @@ jobs:
           path: Super-2021-Swadge-FW-Sandbox/firmware/<< parameters.label >>.zip
       - slack/status:
           fail_only: false
-          success_only: true
-          success_message: Build successful! Get it at https://circleci.com/gh/AEFeinstein/Super-2021-Swadge-FW-Sandbox
+          success_message: A $CIRCLE_JOB job has succeeded! Get it at https://circleci.com/gh/AEFeinstein/Super-2021-Swadge-FW-Sandbox
 
 #  test-linux:
 #    docker:
