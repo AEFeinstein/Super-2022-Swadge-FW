@@ -600,16 +600,29 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
         fillDisplayArea(0, 0, OLED_WIDTH, FONT_HEIGHT_IBMVGA8, BLACK);
         // Iterate through all the text
         node_t* node = pd->marqueeTextQueue.first;
+
+        // Shift all the text
         while(NULL != node)
         {
             // Get the text from the queue
             marqueeText_t* text = node->val;
+
+            // Iterate to the next
+            node = node->next;
 
             // Shift the text if it's time
             if(0 == marqueeTextTimer)
             {
                 text->pos--;
             }
+        }
+
+        // Then draw the necessary text
+        node = pd->marqueeTextQueue.first;
+        while(NULL != node)
+        {
+            // Get the text from the queue
+            marqueeText_t* text = node->val;
 
             // Iterate to the next
             node = node->next;
@@ -617,6 +630,7 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
             // Plot the text that's on the OLED
             if(text->pos >= OLED_WIDTH)
             {
+                // Out of bounds, so return
                 return;
             }
             else if (0 > plotText(text->pos, 0, text->str, IBM_VGA_8, WHITE))
