@@ -557,26 +557,30 @@ void ICACHE_FLASH_ATTR personalDemonAnimationTimer(void* arg __attribute__((unus
         shouldDrawMenu = false;
         drawMenu(pd->menu);
 
-        int16_t healthPxCovered = 40 - (pd->drawHealth * 40) / STARTING_HEALTH;
-        if(healthPxCovered > 40)
+        // Only draw health if the demon is alive
+        if(pd->demon.health)
         {
-            healthPxCovered = 40;
-        }
+            int16_t healthPxCovered = 40 - (pd->drawHealth * 40) / STARTING_HEALTH;
+            if(healthPxCovered > 40)
+            {
+                healthPxCovered = 40;
+            }
 
-        // Always draw the health counter
-        for(uint8_t i = 0; i < 4; i++)
-        {
-            drawPng(&(pd->heart),
-                    OLED_WIDTH - pd->heart.width,
-                    FONT_HEIGHT_IBMVGA8 + 1 + i * (pd->heart.height),
-                    false, false, 0);
-        }
+            // Always draw the health counter
+            for(uint8_t i = 0; i < 4; i++)
+            {
+                drawPng(&(pd->heart),
+                        OLED_WIDTH - pd->heart.width,
+                        FONT_HEIGHT_IBMVGA8 + 1 + i * (pd->heart.height),
+                        false, false, 0);
+            }
 
-        if(healthPxCovered)
-        {
-            fillDisplayArea(OLED_WIDTH - pd->heart.width, FONT_HEIGHT_IBMVGA8 + 1,
-                            OLED_WIDTH, FONT_HEIGHT_IBMVGA8 + healthPxCovered,
-                            BLACK);
+            if(healthPxCovered)
+            {
+                fillDisplayArea(OLED_WIDTH - pd->heart.width, FONT_HEIGHT_IBMVGA8 + 1,
+                                OLED_WIDTH, FONT_HEIGHT_IBMVGA8 + healthPxCovered,
+                                BLACK);
+            }
         }
     }
     else
@@ -1730,6 +1734,7 @@ bool ICACHE_FLASH_ATTR updtAnimDeath(void)
     }
     else if(textCnt < 100 * 5) // 5 seconds
     {
+        pd->drawPoopCnt = 0;
         textCnt++;
     }
     else
@@ -1799,12 +1804,12 @@ void ICACHE_FLASH_ATTR drawAnimDeath(void)
 
         ets_snprintf(str, sizeof(str), "%s", pd->demon.name);
         int16_t width = textWidth(str, IBM_VGA_8);
-        plotText((OLED_WIDTH - width - pd->heart.width) / 2, OLED_HEIGHT / 2 - FONT_HEIGHT_IBMVGA8 - 1,
+        plotText((OLED_WIDTH - width) / 2, OLED_HEIGHT / 2 - FONT_HEIGHT_IBMVGA8 - 1,
                  str, IBM_VGA_8, WHITE);
 
         ets_snprintf(str, sizeof(str), "lived %d days", pd->demon.actionsTaken);
         width = textWidth(str, IBM_VGA_8);
-        plotText((OLED_WIDTH - width - pd->heart.width) / 2, OLED_HEIGHT / 2 + 1,
+        plotText((OLED_WIDTH - width) / 2, OLED_HEIGHT / 2 + 1,
                  str, IBM_VGA_8, WHITE);
     }
 }
