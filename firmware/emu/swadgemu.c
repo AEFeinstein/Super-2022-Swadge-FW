@@ -33,6 +33,24 @@
     #define printf( x...) LOGI( x )
 #endif
 
+#if !defined(WINDOWS) && !defined(ANDROID)
+    #define LINUX
+#endif
+
+
+#ifdef LINUX
+    //For shm
+    #include <sys/mman.h>
+    #include <sys/stat.h>        /* For mode constants */
+    #include <fcntl.h>           /* For O_* constants */
+
+    int swadgeshm_video;
+    int swadgeshm_input;
+    uint32_t* swadgeshm_video_data;
+    uint8_t* swadgeshm_input_data;
+    size_t swadgeshm_video_data_size;
+#endif
+
 int px_scale = INIT_PX_SCALE;
 uint32_t* rawvidmem;
 short screenx, screeny;
@@ -204,15 +222,37 @@ void emuCheckResize()
     {
         px_scale = targsx;
         printf( "Rescaling OLED to scale %d\n", px_scale );
+#ifdef LINUX
+        // Unmap old memory
+        munmap(swadgeshm_video_data, swadgeshm_video_data_size);
+
+        // Figure out new size
+        int rawvmsize = px_scale * OLED_WIDTH * px_scale * (OLED_HEIGHT + FOOTER_PIXELS) * px_scale * 4;
+        swadgeshm_video_data_size = rawvmsize + 64;
+
+        // Resize the file, should still be open
+        ftruncate( swadgeshm_video, swadgeshm_video_data_size);
+
+        // Remap memory
+        swadgeshm_video_data = (uint32_t*)mmap(0, swadgeshm_video_data_size, PROT_READ | PROT_WRITE, MAP_SHARED,
+                                               swadgeshm_video, 0);
+        swadgeshm_video_data[0] = px_scale * OLED_WIDTH;
+        swadgeshm_video_data[1] = px_scale * OLED_HEIGHT;
+        //[0] = width
+        //[1] = height
+        //[4..12] = LEDs
+        rawvidmem = swadgeshm_video_data + 16;
+#else
         rawvidmem = realloc( rawvidmem, px_scale * OLED_WIDTH * px_scale * (OLED_HEIGHT + FOOTER_PIXELS) * px_scale * 4 );
+#endif
         updateOLED( false );
     }
 }
 
 // void exitMode(void)
 // {
-// 	printf("called on exit");
-// 	exitCurrentSwadgeMode();
+//  printf("called on exit");
+//  exitCurrentSwadgeMode();
 // }
 
 #ifndef ANDROID
@@ -232,7 +272,7 @@ void emuCheckResize()
     CNFGBGColor = 0x800000;
     CNFGDialogColor = 0x444444;
     CNFGSetup( "swadgemu", OLED_WIDTH * px_scale, px_scale * ( OLED_HEIGHT + FOOTER_PIXELS ) );
-    rawvidmem = malloc( px_scale * OLED_WIDTH * px_scale * (OLED_HEIGHT + FOOTER_PIXELS) * px_scale * 4 );
+    int rawvmsize = px_scale * OLED_WIDTH * px_scale * (OLED_HEIGHT + FOOTER_PIXELS) * px_scale * 4;
 
     // atexit(exitMode);
     // CNFGSetupFullscreen( "Test Bench", 0 );
@@ -240,6 +280,26 @@ void emuCheckResize()
 #ifdef WINDOWS
     void REGISTERSoundWin();
     REGISTERSoundWin();
+#endif
+
+#ifdef LINUX
+    swadgeshm_video = shm_open("/swadgevideo", O_CREAT | O_RDWR, 0644);
+    swadgeshm_input = shm_open("/swadgeinput", O_CREAT | O_RDWR, 0644);
+    ftruncate( swadgeshm_input, 10 );
+    swadgeshm_input_data = mmap(0, 10, PROT_READ | PROT_WRITE, MAP_SHARED, swadgeshm_input, 0);
+
+    swadgeshm_video_data_size = rawvmsize + 64;
+    ftruncate( swadgeshm_video, swadgeshm_video_data_size);
+    swadgeshm_video_data = (uint32_t*)mmap(0, swadgeshm_video_data_size, PROT_READ | PROT_WRITE, MAP_SHARED,
+                                           swadgeshm_video, 0);
+    swadgeshm_video_data[0] = px_scale * OLED_WIDTH;
+    swadgeshm_video_data[1] = px_scale * OLED_HEIGHT;
+    //[0] = width
+    //[1] = height
+    //[4..12] = LEDs
+    rawvidmem = swadgeshm_video_data + 16;
+#else
+    rawvidmem = malloc( rawvmsize );
 #endif
 
     boottime = OGGetAbsoluteTime();
@@ -260,6 +320,13 @@ void emuCheckResize()
         updateOLED(0);
 
         CNFGHandleInput();
+#ifdef LINUX
+        //Handle input from SHM.
+        for( i = 0; i < 5; i++ )
+        {
+            HandleButtonStatus( i, swadgeshm_input_data[i] );
+        }
+#endif
 
         CNFGClearFrame();
         CNFGColor( 0xFFFFFF );
@@ -328,7 +395,7 @@ int ets_strcmp (const char* str1, const char* str2)
 {
     return strcmp( str1, str2 );
 }
-char *ets_strcat(char *dest, const char *src)
+char* ets_strcat(char* dest, const char* src)
 {
     return strcat(dest, src);
 }
@@ -368,7 +435,7 @@ uint32 system_get_time(void)
     return (OGGetAbsoluteTime() - boottime) * 1000000;
 }
 
-struct rst_info srst = 
+struct rst_info srst =
 {
     .reason = REASON_DEFAULT_RST,
     .exccause = 0,
@@ -491,6 +558,9 @@ void ws2812_push( uint8_t* buffer, uint16_t buffersize )
         col |= (buffer[led * 3 + 0] * 240 / 255 + 15) << 8; // g
         col |= (buffer[led * 3 + 2] * 240 / 255 + 15) << 0; // b
         ws2812s[led] = col;
+#ifdef LINUX
+        swadgeshm_video_data[4 + led] = col;
+#endif
     }
 }
 
@@ -1298,10 +1368,20 @@ void HandleDestroy()
         OGDeleteMutex(buzzernotemutex);
     }
 
+#ifdef LINUX
+    // Unmap old memory
+    munmap(swadgeshm_video_data, swadgeshm_video_data_size);
+    munmap(swadgeshm_input_data, 10);
+
+    // Unlink shared memory
+    shm_unlink("/swadgevideo");
+    shm_unlink("/swadgeinput");
+#else
     if(rawvidmem)
     {
         free(rawvidmem);
     }
+#endif
 
     freeAssets();
 }

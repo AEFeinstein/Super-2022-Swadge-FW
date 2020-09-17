@@ -37,6 +37,7 @@
 #include "mode_colorchord.h"
 #include "mode_personal_demon.h"
 #include "mode_flappy.h"
+#include "mode_raycaster.h"
 
 #include "ccconfig.h"
 
@@ -73,18 +74,15 @@ os_event_t procTaskQueue[PROC_TASK_QUEUE_LEN] = {{0}};
 swadgeMode* swadgeModes[] =
 {
     &menuMode,
+    &raycasterMode,
+    &flappyMode,
     &personalDemonMode,
     &colorchordMode,
-    &flappyMode,
     &ddrMode,
 };
 
 bool swadgeModeInit = false;
 rtcMem_t rtcMem = {0};
-
-#if defined(FEATURE_OLED)
-    uint16_t framesDrawn = 0;
-#endif
 
 /*============================================================================
  * Prototypes
@@ -229,7 +227,6 @@ void ICACHE_FLASH_ATTR user_init(void)
         {
             INIT_PRINTF("OLED initialization failed\n");
         }
-        framesDrawn = 0;
 #endif
 
 #if defined(FEATURE_MIC)
@@ -311,22 +308,49 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events __attribute__((unused)
     // Process all the synchronous timers
     timersCheck();
 
-#if defined(FEATURE_OLED)
-    // Update the display as fast as possible.
-    if(1000 <= framesDrawn)
+    // Call this mode's procTask function, if it exists
+    if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnProcTask)
     {
-        // Every 1000 frames, reset OLED params and redraw the entire OLED
-        // Experimentally, this is about every 15s
-        setOLEDparams(false);
-        updateOLED(false);
-        framesDrawn = 0;
+        swadgeModes[rtcMem.currentSwadgeMode]->fnProcTask();
     }
-    else
+
+#if defined(FEATURE_OLED)
+    // Track if the full frame, or difference should be drawn
+    static bool shouldDrawDifference = true;
+
+    // Cap the display updates at 30fps
+    static uint32_t lastDrawTime = 0;
+    if(system_get_time() - lastDrawTime > 33333)
     {
-        // This only sends I2C data if there was some pixel change
-        if(FRAME_DRAWN == updateOLED(true))
+        lastDrawTime = system_get_time();
+
+        // If we should draw the whole frame, reinit the OLED first
+        if(false == shouldDrawDifference)
         {
-            framesDrawn++;
+            initOLED(true);
+        }
+
+        // Draw either the whole frame, or just the difference
+        switch(updateOLED(shouldDrawDifference))
+        {
+            case FRAME_DRAWN:
+            {
+                // Draw was successful, draw a difference the next time
+                shouldDrawDifference = true;
+                break;
+            }
+            case FRAME_NOT_DRAWN:
+            {
+                // Draw was not successful, reset the OLED and
+                // draw a full frame next time
+                shouldDrawDifference = false;
+                break;
+            }
+            default:
+            case NOTHING_TO_DO:
+            {
+                break;
+            }
         }
     }
 #endif

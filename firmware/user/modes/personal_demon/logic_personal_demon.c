@@ -45,7 +45,6 @@
 #define DISCIPLINE_GAINED_PER_SCOLDING 4 ///< Scolding increases discipline
 #define DISCIPLINE_LOST_RANDOMLY       2 ///< Discipline is randomly lost
 
-#define STARTING_HEALTH          20 ///< Health is started with, cannot be increased
 #define HEALTH_LOST_PER_SICKNESS  1 ///< Health is lost every turn while sick
 #define HEALTH_LOST_PER_OBE_MAL   2 ///< Health is lost every turn while obese or malnourished
 
@@ -62,11 +61,11 @@ void playWithDemon(demon_t* pd);
 void disciplineDemon(demon_t* pd);
 bool disciplineCheck(demon_t* pd);
 void medicineDemon(demon_t* pd);
-void scoopPoop(demon_t* pd);
+void flushPoop(demon_t* pd);
 void updateStatus(demon_t* pd);
 
 event_t dequeueEvt(demon_t* pd);
-void enqueueEvt(demon_t* pd, event_t evt);
+bool enqueueEvt(demon_t* pd, event_t evt);
 
 /*******************************************************************************
  * Functions
@@ -307,7 +306,7 @@ void ICACHE_FLASH_ATTR medicineDemon(demon_t* pd)
  *
  * @param pd The demon
  */
-void ICACHE_FLASH_ATTR scoopPoop(demon_t* pd)
+void ICACHE_FLASH_ATTR flushPoop(demon_t* pd)
 {
     // Flushing counts as an action
     INC_BOUND(pd->actionsTaken, 1, 0, INT16_MAX);
@@ -575,10 +574,9 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
  * actions
  *
  * @param pd
- * @return true
- * @return false
+ * @return true if the mode quit, false if it did not
  */
-void ICACHE_FLASH_ATTR takeAction(demon_t* pd, action_t action)
+bool ICACHE_FLASH_ATTR takeAction(demon_t* pd, action_t action)
 {
     switch (action)
     {
@@ -602,24 +600,24 @@ void ICACHE_FLASH_ATTR takeAction(demon_t* pd, action_t action)
             medicineDemon(pd);
             break;
         }
-        case ACT_SCOOP:
+        case ACT_FLUSH:
         {
-            scoopPoop(pd);
+            flushPoop(pd);
             break;
         }
         case ACT_QUIT:
         {
-            // TODO save first?
             switchToSwadgeMode(0);
-            return; // pd will be uninitialized after this
+            return true; // pd will be uninitialized after this
         }
         case ACT_NUM_ACTIONS:
         default:
         {
-            return;
+            return false;
         }
     }
     updateStatus(pd);
+    return false;
 }
 
 /**
@@ -633,6 +631,7 @@ void ICACHE_FLASH_ATTR resetDemon(demon_t* pd)
     pd->health = STARTING_HEALTH;
     namegen(pd->name);
     pd->name[0] -= ('a' - 'A');
+    pd->species = (os_random() % getNumDemonSpecies());
 
     animateEvent(EVT_BORN);
 }
@@ -643,9 +642,18 @@ void ICACHE_FLASH_ATTR resetDemon(demon_t* pd)
  * @param pd
  * @param evt
  */
-void ICACHE_FLASH_ATTR enqueueEvt(demon_t* pd, event_t evt)
+bool ICACHE_FLASH_ATTR enqueueEvt(demon_t* pd, event_t evt)
 {
-    push(&(pd->evQueue), (void*)evt);
+    uint8_t arrLen = sizeof(pd->evQueue) / sizeof(pd->evQueue[0]);
+    for(uint8_t i = 0; i < arrLen; i++)
+    {
+        if(EVT_NONE == pd->evQueue[(pd->evQueueIdx + i) % arrLen])
+        {
+            pd->evQueue[(pd->evQueueIdx + i) % arrLen] = evt;
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -656,7 +664,10 @@ void ICACHE_FLASH_ATTR enqueueEvt(demon_t* pd, event_t evt)
  */
 event_t ICACHE_FLASH_ATTR dequeueEvt(demon_t* pd)
 {
-    return (event_t)shift(&(pd->evQueue));
+    event_t evt = pd->evQueue[pd->evQueueIdx];
+    pd->evQueue[pd->evQueueIdx] = EVT_NONE;
+    pd->evQueueIdx = (pd->evQueueIdx + 1) % (sizeof(pd->evQueue) / sizeof(pd->evQueue[0]));
+    return evt;
 }
 
 /**

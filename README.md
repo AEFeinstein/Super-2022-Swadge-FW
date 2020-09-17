@@ -1,5 +1,7 @@
 # Super 2021 Swadge Firmware
 
+Continuous Integration: [![AEFeinstein](https://circleci.com/gh/AEFeinstein/Super-2021-Swadge-FW-Sandbox.svg?style=svg)](https://circleci.com/gh/AEFeinstein/Super-2021-Swadge-FW-Sandbox)
+
 ## Welcome
 
 This is the firmware repository for the Super 2021 Swadge.

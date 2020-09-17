@@ -44,7 +44,8 @@
 
 #define LEDS_TIMER ARROWS_TIMER
 #define MAX_PULSE_TIMER (60000 / LEDS_TIMER)
-#define START_PULSE_TIMER 2000
+#define ARROW_SPACING_FACTOR 0.12
+#define START_PULSE_TIMER 3000
 
 #define SONG_DURATION 1000 * 60
 
@@ -55,6 +56,13 @@
 #define FEEDBACK_NONE 0
 
 #define MAX_FEEDBACK_TIMER 250
+
+//#define DEBUG
+
+#ifdef DEBUG
+#define DEBUG_QUARTER_NOTES
+#define DEBUG_EVERY_PERFECT
+#endif
 
 /*============================================================================
  * Prototypes
@@ -238,15 +246,15 @@ static void ICACHE_FLASH_ATTR ddrMenuCb(const char* menuItem)
 {
     if(ddr_easy == menuItem)
     {
-        ddrStartGame(90, 0.8f, 0);
+        ddrStartGame(80, 0.8f, 0);
     }
     else if (ddr_medium == menuItem)
     {
-        ddrStartGame(110, 2.f, 10);
+        ddrStartGame(85, 2.f, 10);
     }
     else if (ddr_hard == menuItem)
     {
-        ddrStartGame(130, 4.f, 50);
+        ddrStartGame(90, 3.f, 40);
     }
 
     else if (ddr_quit == menuItem)
@@ -442,6 +450,11 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void)
         ddr->sixteenthNoteCounter = MAX_SIXTEENTH_TIMER - ddr->tempo + ddr->sixteenthNoteCounter;
         ddr->sixteenths = (ddr->sixteenths + 1 ) % 16;
 
+        #ifdef DEBUG_QUARTER_NOTES
+        // 100 percent chance on each beat
+        percentChanceSpawn = 100; 
+        canSpawnArrow = 0 == ddr->sixteenths % 4;
+        #else
         canSpawnArrow = true;
 
         if (0 == ddr->sixteenths)
@@ -450,20 +463,21 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void)
         }
         else if ( 8 == ddr->sixteenths)
         {
-            percentChanceSpawn = 25; // 20 percent chance on 3rd beat
+            percentChanceSpawn = 25; // 25 percent chance on 3rd beat
         }
         else if ( 0 == ddr->sixteenths % 4)
         {
-            percentChanceSpawn = 20; // 10 percent chance on 2nd/4th beat
+            percentChanceSpawn = 20; // 20 percent chance on 2nd/4th beat
         }
         else if ( 0 == ddr->sixteenths % 2)
         {
-            percentChanceSpawn = 5 * ddr->eighthNoteProbabilityModifier; // 5 percent chance on half beats
+            percentChanceSpawn = 5 * ddr->eighthNoteProbabilityModifier; // ~5 percent chance on half beats
         }
         else
         {
             percentChanceSpawn = 0; // 0 percent chance on other 16th beats
         }
+        #endif
 
     }
     else
@@ -488,14 +502,18 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void)
         for(int arrowIdx = curStart; arrowIdx != curEnd; arrowIdx = (arrowIdx + 1) % ARROW_ROW_MAX_COUNT)
         {
             curArrow = &(curRow->arrows[arrowIdx]);
-            *curArrow += ddr->tempo * 0.07;
+            *curArrow += ddr->tempo * ARROW_SPACING_FACTOR;
 
             int16_t arrowDiff = (int) * curArrow - ARROW_PERFECT_HPOS;
             uint16_t arrowDist = abs(arrowDiff);
 
             if (arrowDist <= ARROW_PERFECT_RADIUS)
             {
+            #ifdef DEBUG_EVERY_PERFECT
+                if(true)
+            #else
                 if(ddr->ButtonDownState & curRow->pressDirection)
+            #endif
                 {
                     curRow->count--;
                     curRow->start = (curRow->start + 1) % ARROW_ROW_MAX_COUNT;

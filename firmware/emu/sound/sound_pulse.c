@@ -78,6 +78,7 @@ void CloseSoundPulse( void * v )
 		{
 			pa_signal_done();
 			pa_mainloop_free(r->pa_ml);
+			r->pa_ml = NULL;
 		}
 
 		OGUSleep(2000);
@@ -94,7 +95,10 @@ static void * SoundThread( void * v )
 	struct SoundDriverPulse * r = (struct SoundDriverPulse*)v;
 	while(1)
 	{
-		pa_mainloop_iterate( r->pa_ml, 1, NULL );
+		if(NULL != r->pa_ml)
+		{
+			pa_mainloop_iterate( r->pa_ml, 1, NULL );
+		}
 	}
 	return 0;
 }
@@ -306,6 +310,7 @@ fail:
 		{
 			pa_signal_done();
 			pa_mainloop_free(r->pa_ml);
+			r->pa_ml = NULL;
 		}
 
 		free( r );

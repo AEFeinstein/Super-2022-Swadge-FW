@@ -17,7 +17,7 @@
  * Defines
  *==========================================================================*/
 
-#define SAVE_LOAD_KEY 0xB5
+#define SAVE_LOAD_KEY 0xB7
 
 /*============================================================================
  * Structs
@@ -29,6 +29,7 @@ typedef struct __attribute__((aligned(4)))
     uint8_t SaveLoadKey; //Must be SAVE_LOAD_KEY to be valid.
     bool isMuted;
     uint8_t menuPos;
+    demon_t savedDemon;
 }
 settings_t;
 
@@ -48,6 +49,7 @@ settings_t settings =
     .SaveLoadKey = 0,
     .isMuted = 0,
     .menuPos = 0,
+    .savedDemon = {0},
 };
 
 bool muteOverride = false;
@@ -84,6 +86,7 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
         settings.SaveLoadKey = SAVE_LOAD_KEY;
         // Load in default values
         settings.isMuted = false;
+        ets_memset(&(settings.savedDemon), 0, sizeof(demon_t));
         // Save the values
         SaveSettings();
     }
@@ -133,3 +136,14 @@ void ICACHE_FLASH_ATTR setIsMutedOption(bool mute)
     SaveSettings();
 }
 #endif
+
+void ICACHE_FLASH_ATTR getSavedDemon(demon_t* demon)
+{
+    ets_memcpy(demon, &(settings.savedDemon), sizeof(demon_t));
+}
+
+void ICACHE_FLASH_ATTR setSavedDemon(demon_t* demon)
+{
+    ets_memcpy(&(settings.savedDemon), demon, sizeof(demon_t));
+    SaveSettings();
+}
