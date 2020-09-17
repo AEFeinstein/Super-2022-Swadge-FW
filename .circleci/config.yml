@@ -64,7 +64,7 @@ jobs:
           path: Super-2021-Swadge-FW-Sandbox/firmware/<< parameters.label >>.zip
       - slack/status:
           fail_only: false
-          success_message: A $CIRCLE_JOB job has succeeded! Get it at https://circleci.com/gh/AEFeinstein/Super-2021-Swadge-FW-Sandbox
+          success_message: :tada: A $CIRCLE_JOB job has succeeded! Get it at while it's hot: https://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/swadge-chainsaw.zip
 
 #  test-linux:
 #    docker:
