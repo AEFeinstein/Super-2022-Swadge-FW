@@ -777,26 +777,34 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
     {
         case EVT_GOT_SICK_RANDOMLY:
         {
-            // TODO Animate getting sick?
-            ets_snprintf(marquee->str, ACT_STRLEN, "%s got sick. ", pd->demon.name);
+            if(!pd->drawSick)
+            {
+                ets_snprintf(marquee->str, ACT_STRLEN, "%s got sick. ", pd->demon.name);
+            }
             break;
         }
         case EVT_GOT_SICK_POOP:
         {
-            // TODO Animate getting sick?
-            ets_snprintf(marquee->str, ACT_STRLEN, "Poop made %s sick. ", pd->demon.name);
+            if(!pd->drawSick)
+            {
+                ets_snprintf(marquee->str, ACT_STRLEN, "Poop made %s sick. ", pd->demon.name);
+            }
             break;
         }
         case EVT_GOT_SICK_OBESE:
         {
-            // TODO Animate getting fat?
-            ets_snprintf(marquee->str, ACT_STRLEN, "Obesity made %s sick. ", pd->demon.name);
+            if(!pd->drawSick)
+            {
+                ets_snprintf(marquee->str, ACT_STRLEN, "Obesity made %s sick. ", pd->demon.name);
+            }
             break;
         }
         case EVT_GOT_SICK_MALNOURISHED:
         {
-            // TODO Animate getting thin?
-            ets_snprintf(marquee->str, ACT_STRLEN, "Hunger made %s sick. ", pd->demon.name);
+            if(!pd->drawSick)
+            {
+                ets_snprintf(marquee->str, ACT_STRLEN, "Hunger made %s sick. ", pd->demon.name);
+            }
             break;
         }
         case EVT_POOPED:
@@ -904,19 +912,16 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         }
         case EVT_LOST_HEALTH_SICK:
         {
-            // TODO Animate losing health?
             ets_snprintf(marquee->str, ACT_STRLEN, "%s lost health to sickness. ", pd->demon.name);
             break;
         }
         case EVT_LOST_HEALTH_OBESITY:
         {
-            // TODO Animate losing health?
             ets_snprintf(marquee->str, ACT_STRLEN, "%s lost health to obesity. ", pd->demon.name);
             break;
         }
         case EVT_LOST_HEALTH_MALNOURISHMENT:
         {
-            // TODO Animate losing health?
             ets_snprintf(marquee->str, ACT_STRLEN, "%s lost health to hunger. ", pd->demon.name);
             break;
         }
