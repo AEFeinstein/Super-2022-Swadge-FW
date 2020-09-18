@@ -38,6 +38,7 @@
 #include "mode_personal_demon.h"
 #include "mode_flappy.h"
 #include "mode_raycaster.h"
+#include "mode_tunernome.h"
 
 #include "ccconfig.h"
 
@@ -77,8 +78,9 @@ swadgeMode* swadgeModes[] =
     &raycasterMode,
     &flappyMode,
     &personalDemonMode,
-    &colorchordMode,
     &ddrMode,
+    &colorchordMode,
+    &tunernomeMode
 };
 
 bool swadgeModeInit = false;
