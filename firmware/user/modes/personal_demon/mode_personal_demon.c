@@ -419,6 +419,20 @@ void ICACHE_FLASH_ATTR personalDemonExitMode(void)
     timerDisarm(&pd->animationTimer);
     timerFlush();
 
+    // Clear the queues
+    ets_memset(&(pd->demon.evQueue), EVT_NONE, sizeof(pd->demon.evQueue));
+
+    while(pd->marqueeTextQueue.length > 0)
+    {
+        void* node = pop(&(pd->marqueeTextQueue));
+        os_free(node);
+    }
+
+    while(pd->animationQueue.length > 0)
+    {
+        pop(&(pd->animationQueue));
+    }
+
     // Free the assets
     freePngSequence(&(pd->pizza));
     freePngSequence(&(pd->burger));
@@ -436,19 +450,8 @@ void ICACHE_FLASH_ATTR personalDemonExitMode(void)
     freePngAsset(&(pd->water));
     freePngAsset(&(pd->heart));
 
-    // Clear the queues
-    ets_memset(&(pd->demon.evQueue), EVT_NONE, sizeof(pd->demon.evQueue));
-
-    while(pd->marqueeTextQueue.length > 0)
-    {
-        void* node = pop(&(pd->marqueeTextQueue));
-        os_free(node);
-    }
-
-    while(pd->animationQueue.length > 0)
-    {
-        pop(&(pd->animationQueue));
-    }
+    // Free the menu
+    deinitMenu(pd->menu);
 
     // Free the memory
     os_free(pd);
