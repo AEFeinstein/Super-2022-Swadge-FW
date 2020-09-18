@@ -1724,6 +1724,8 @@ void ICACHE_FLASH_ATTR initAnimDeath(void)
 {
     pd->demonDirLR = false;
     pd->demonRot = 0;
+    // Save demon record
+    addDemonMemorial(pd->demon.name, pd->demon.actionsTaken);
 }
 
 /**
@@ -1758,11 +1760,7 @@ bool ICACHE_FLASH_ATTR updtAnimDeath(void)
     {
         personalDemonResetAnimVars();
 
-        // The demon is dead, so make a new one
-
-        // TODO save demon record
-
-        // Reset the demon
+        // The demon is dead, so make a new one. Reset the demon
         resetDemon(&(pd->demon));
         // And immediately save it
         setSavedDemon(&(pd->demon));
