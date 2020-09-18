@@ -132,6 +132,8 @@ typedef struct
     list_t marqueeTextQueue;
 
     menu_t* menu;
+
+    bool isDisplayingRecords;
 } pd_data;
 
 typedef struct
@@ -226,6 +228,7 @@ char menuPlay[]  = "Play";
 char menuScold[] = "Scold";
 char menuMeds[]  = "Meds";
 char menuFlush[] = "Flush";
+char menuRecords[] = "Records";
 char menuQuit[]  = "Quit";
 
 const demonSprites_t demonSprites[] =
@@ -353,6 +356,7 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     addItemToRow(pd->menu, menuScold);
     addItemToRow(pd->menu, menuMeds);
     addItemToRow(pd->menu, menuFlush);
+    addItemToRow(pd->menu, menuRecords);
     addItemToRow(pd->menu, menuQuit);
 
     allocPngSequence(&(pd->pizza), 3,
@@ -392,6 +396,8 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     pd->demonDirLR = false;
     pd->demonY = (OLED_HEIGHT / 2) - (pd->demonSprite.height / 2);
     pd->demonDirUD = false;
+
+    pd->isDisplayingRecords = false;
 
     // Set up an animation timer
     timerSetFn(&pd->animationTimer, personalDemonAnimationTimer, NULL);
@@ -468,7 +474,16 @@ void ICACHE_FLASH_ATTR personalDemonExitMode(void)
 void ICACHE_FLASH_ATTR personalDemonButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down __attribute__((unused)))
 {
-    if(pd->anim == PDA_WALKING)
+    // If any button is pressed while the records are displayed
+    if(down && pd->isDisplayingRecords)
+    {
+        // Start animating again
+        clearDisplay();
+        timerArm(&(pd->animationTimer), 10, true);
+        drawAnimDemon();
+        pd->isDisplayingRecords = false;
+    }
+    else if(pd->anim == PDA_WALKING)
     {
         menuButton(pd->menu, button);
     }
@@ -500,6 +515,37 @@ static void ICACHE_FLASH_ATTR demonMenuCb(const char* menuItem)
     else if(menuItem == menuFlush)
     {
         takeAction(&(pd->demon), ACT_FLUSH);
+    }
+    else if(menuItem == menuRecords)
+    {
+        // Stop animating
+        timerDisarm(&(pd->animationTimer));
+
+        // Show the memorials instead
+        clearDisplay();
+
+        // Get the records from NVM
+        demonMemorial_t* memorials = getDemonMemorials();
+
+        // There's space to draw five rows
+        for(int i = 0; i < 5; i++)
+        {
+            // If there's an entry
+            if(memorials[i].actionsTaken > 0 && memorials[i].name[0] != 0)
+            {
+                // Plot the name, left justified
+                plotText(0, 1 + i * (FONT_HEIGHT_IBMVGA8 + 2), memorials[i].name, IBM_VGA_8, WHITE);
+
+                // Plot the number of actions, right justified
+                char actionsTaken[8] = {0};
+                ets_snprintf(actionsTaken, sizeof(actionsTaken), "%d", memorials[i].actionsTaken);
+                int16_t width = textWidth(actionsTaken, IBM_VGA_8);
+                plotText(OLED_WIDTH - width, 1 + i * (FONT_HEIGHT_IBMVGA8 + 2), actionsTaken, IBM_VGA_8, WHITE);
+            }
+        }
+
+        // Note that the records are being displayed
+        pd->isDisplayingRecords = true;
     }
     else if(menuItem == menuQuit)
     {
