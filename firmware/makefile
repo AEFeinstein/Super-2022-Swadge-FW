@@ -140,7 +140,9 @@ CFLAGS_WARNINGS_EXTRA = \
 # #define SWADGE_2019     3
 # #define BARREL_1_0_0    4
 # #define SWADGE_CHAINSAW 5
-ifeq ($(SET_SWADGE_VERSION),1)
+ifeq ($(SET_SWADGE_VERSION),0)
+  swadgeversion = 0
+else ifeq ($(SET_SWADGE_VERSION),1)
   swadgeversion = 1
 else ifeq ($(SET_SWADGE_VERSION),2)
   swadgeversion = 2
@@ -151,7 +153,7 @@ else ifeq ($(SET_SWADGE_VERSION),4)
 else ifeq ($(SET_SWADGE_VERSION),5)
   swadgeversion = 5
 else
-  swadgeversion = 0
+  swadgeversion = 5 #TODO: CHANGE THIS DEFAULT WHEN MAKING THE SUPER 2022 SWADGE
 endif
 
 # Used by the ESP SDK
