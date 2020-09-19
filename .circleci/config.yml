@@ -124,23 +124,23 @@ jobs:
       - run:
           name: Build Swadge
           shell: C:\\cygwin64\\bin\\bash.exe --login -eo pipefail
-          working_directory: Super-2021-Swadge-FW-Sandbox\\firmware
           command: |
-            echo "working dir: "$(pwd)
-            ls -la
+            cd Super-2021-Swadge-FW-Sandbox\\firmware
             unset ESP_GDB && export SET_SWADGE_VERSION=2 && make -C emu all
       - run:
           name: Store version information
           shell: C:\\cygwin64\\bin\\bash.exe --login -eo pipefail
-          working_directory: Super-2021-Swadge-FW-Sandbox\\firmware
-          command: echo $(date) >> version.txt && echo "https://github.com/AEFeinstein/Super-2021-Swadge-FW-Sandbox/commit/${CIRCLE_SHA1}" >> version.txt
+          command:  |
+            cd Super-2021-Swadge-FW-Sandbox\\firmware
+            echo $(date) >> version.txt && echo "https://github.com/AEFeinstein/Super-2021-Swadge-FW-Sandbox/commit/${CIRCLE_SHA1}" >> version.txt
       - run:
           name: Create a ZIP of software
           shell: C:\\cygwin64\\bin\\bash.exe --login -eo pipefail
-          working_directory: Super-2021-Swadge-FW-Sandbox\\firmware
-          command: zip << parameters.label >>.zip -j emu/swadgemu.exe emu/assets.bin version.txt /bin/cygwin1.dll
+          command:  |
+            cd Super-2021-Swadge-FW-Sandbox\\firmware
+            zip << parameters.label >>.zip -j emu/swadgemu.exe emu/assets.bin version.txt /bin/cygwin1.dll
       - store_artifacts:
-          path: Super-2021-Swadge-FW-Sandbox/firmware/<< parameters.label >>.zip
+          path: Super-2021-Swadge-FW-Sandbox\\firmware\\<< parameters.label >>.zip
 
 #  release:
 #    executor: github-release/default
