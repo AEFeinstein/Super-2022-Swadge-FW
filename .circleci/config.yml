@@ -67,7 +67,7 @@ jobs:
           path: Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.esp8266-artifact >>
       - slack/status:
           fail_only: false
-          success_message: "Fresh hot builds!\n:esp8266-icon: https://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.esp8266-artifact >>\n:windows: https://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.windows-artifact >>"
+          success_message: "Fresh hot builds!\n:esp8266-icon: https://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.esp8266-artifact >>\n:windows95: https://`expr ${CIRCLE_BUILD_NUM} - 1`-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.windows-artifact >>"
 
   build-windows:
     machine:
