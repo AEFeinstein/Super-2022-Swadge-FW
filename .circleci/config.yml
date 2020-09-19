@@ -13,9 +13,6 @@ parameters:
   esp8266-artifact:
     type: string
     default: swadge-chainsaw-esp8266.zip
-  common-build-params:
-    type: string
-    default: "--disable-shared --disable-static"
 
 jobs:
   build-firmware:
@@ -61,16 +58,16 @@ jobs:
       - run:
           name: Create a ZIP of firmware
           working_directory: Super-2021-Swadge-FW-Sandbox/firmware
-          command: zip -j << esp8266-artifact >> version.txt image* assets.bin ESP8266_NONOS_SDK/bin/blank.bin ESP8266_NONOS_SDK/bin/esp_init_data_default_v08.bin
+          command: zip -j << pipeline.parameters.esp8266-artifact >> version.txt image* assets.bin ESP8266_NONOS_SDK/bin/blank.bin ESP8266_NONOS_SDK/bin/esp_init_data_default_v08.bin
       - run:
           name: Add pyFlashGui to the ZIP
           working_directory: Super-2021-Swadge-FW-Sandbox/pyFlashGui
-          command: zip -r ../firmware/<< esp8266-artifact >> .
+          command: zip -r ../firmware/<< pipeline.parameters.esp8266-artifact >> .
       - store_artifacts:
-          path: Super-2021-Swadge-FW-Sandbox/firmware/<< esp8266-artifact >>
+          path: Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.esp8266-artifact >>
       - slack/status:
           fail_only: false
-          success_message: "Fresh hot builds!\n:esp8266-icon: https://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< esp8266-artifact >>\n:windows: https://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< windows-artifact >>"
+          success_message: "Fresh hot builds!\n:esp8266-icon: https://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.esp8266-artifact >>\n:windows: https://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.windows-artifact >>"
 
   build-windows:
     machine:
@@ -108,9 +105,9 @@ jobs:
             cd Super-2021-Swadge-FW-Sandbox/firmware
             unset ESP_GDB && export SET_SWADGE_VERSION=2 && make -C emu all
             echo $(date) >> version.txt && echo "https://github.com/AEFeinstein/Super-2021-Swadge-FW-Sandbox/commit/${CIRCLE_SHA1}" >> version.txt
-            zip << windows-artifact >> -j emu/swadgemu.exe emu/assets.bin version.txt /bin/cygwin1.dll
+            zip << pipeline.parameters.windows-artifact >> -j emu/swadgemu.exe emu/assets.bin version.txt /bin/cygwin1.dll
       - store_artifacts:
-          path: Super-2021-Swadge-FW-Sandbox\\firmware\\<< windows-artifact >>
+          path: Super-2021-Swadge-FW-Sandbox\\firmware\\<< pipeline.parameters.windows-artifact >>
 # Slack notifications don't work from the windows environment, so just make the windows build a prerequisite for the esp8266 build
 #     - slack/status:
 #         fail_only: false
