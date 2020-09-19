@@ -14,6 +14,7 @@
 #include <mem.h>
 #include <stdint.h>
 #include <limits.h>
+#include <math.h>
 
 #include "buttons.h"
 #include "user_main.h"
@@ -33,6 +34,10 @@
  * Defines, Structs, Enums
  *==========================================================================*/
 
+#ifndef M_PI
+#define M_PI		3.14159265358979323846
+#endif
+
 #define TUNERNOME_UPDATE_MS 20
 #define TUNERNOME_UPDATE_S (TUNERNOME_UPDATE_MS / 1000.0f)
 
@@ -40,6 +45,13 @@
 #define GUITAR_OFFSET          0
 #define CHROMATIC_OFFSET       6 // adjust start point by quartertones   
 #define SENSITIVITY            5
+
+#define METRONOME_CENTER_X OLED_WIDTH / 2
+#define METRONOME_CENTER_Y OLED_HEIGHT - 10
+#define METRONOME_RADIUS 35
+#define INITIAL_BPM 60
+#define MAX_BPM 600
+#define METRONOME_FLASH_MS 50
 
 /// Helper macro to return an integer clamped within a range (MIN to MAX)
 #define CLAMP(X, MIN, MAX) ( ((X) > (MAX)) ? (MAX) : ( ((X) < (MIN)) ? (MIN) : (X)) )
@@ -76,10 +88,26 @@ typedef struct
     tuner_mode_t currentMode;
 
     timer_t updateTimer;
+    timer_t ledTimer;
 
     int audioSamplesProcessed;
     uint32_t intensities_filt[NUM_STRINGS];
     int32_t diffs_filt[NUM_STRINGS];
+
+    int frame;
+    int pause;
+    int lastX, lastY;
+    int bpm;
+
+    //mostly temp values
+    float bps;
+    float periodS;
+    float periodMS;
+    float cycleFrames;
+    float halfCycleFrames;
+    int tockFrame1;
+    int tockFrame2;
+    int finalCycleFrame;
 
     uint32_t semitone_intensitiy_filt;
     int32_t semitone_diff_filt;
@@ -95,8 +123,9 @@ void ICACHE_FLASH_ATTR switchToSubmode(tnMode);
 void ICACHE_FLASH_ATTR tunernomeButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down);
 void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp);
-
+void ICACHE_FLASH_ATTR recalcMetronome();
 static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)));
+void ICACHE_FLASH_ATTR ledReset(void* timer_arg __attribute__((unused)));
 
 static inline int16_t getMagnitude(uint16_t idx);
 static inline int16_t getDiffAround(uint16_t idx);
@@ -162,6 +191,9 @@ void ICACHE_FLASH_ATTR tunernomeEnterMode(void)
     timerSetFn(&(tunernome->updateTimer), tunernomeUpdate, NULL);
     timerArm(&(tunernome->updateTimer), TUNERNOME_UPDATE_MS, true);
 
+    timerDisarm(&(tunernome->ledTimer));
+    timerSetFn(&(tunernome->ledTimer), ledReset, NULL);
+
     enableDebounce(true);
 
     InitColorChord();
@@ -189,10 +221,21 @@ void ICACHE_FLASH_ATTR switchToSubmode(tnMode newMode)
         {
             tunernome-> mode = newMode;
 
+            tunernome->lastX = 0;
+            tunernome->lastY = 0;
+            tunernome->frame = 0;
+            tunernome->bpm = INITIAL_BPM;
+
+            recalcMetronome();
+
             led_t leds[NUM_LIN_LEDS] = {{0}};
             setLeds(leds, sizeof(leds));
 
             clearDisplay();
+            break;
+        }
+        default:
+        {
             break;
         }
     }
@@ -263,6 +306,20 @@ static inline int16_t getSemiDiffAround(uint16_t idx)
 }
 
 /**
+ * Recalculate the per-bpm values for the metronome
+ */
+void ICACHE_FLASH_ATTR recalcMetronome() {
+    tunernome->bps = tunernome->bpm / 60.0f;
+    tunernome->periodS = 1.0f / tunernome->bps;
+    tunernome->periodMS = 1000.0f * tunernome->periodS;
+    tunernome->cycleFrames = tunernome->periodMS / TUNERNOME_UPDATE_MS;
+    tunernome->halfCycleFrames = tunernome->cycleFrames * 0.5f;
+    tunernome->tockFrame1 = round(tunernome->cycleFrames * 0.25f);
+    tunernome->tockFrame2 = round(tunernome->cycleFrames * 0.75f);
+    tunernome->finalCycleFrame = round(tunernome->cycleFrames);
+}
+
+/**
  * @brief called on a timer, updates the game state
  *
  * @param arg
@@ -280,11 +337,57 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
         }
         case TN_METRONOME:
         {
+            clearDisplay();
+
+            if(!tunernome->pause)
+            {
+                // TODO: calculate x and y
+                
+                float intermed = -1 * round(cosf(tunernome->frame * M_PI / tunernome->halfCycleFrames ));
+
+                char tempStr[50] = {0};
+                ets_sprintf(tempStr, "%d.%d", (int)(tunernome->frame /** M_PI / tunernome->halfCycleFrames*/), (int)((tunernome->frame /** M_PI / tunernome->halfCycleFrames*/)*1000)%1000);
+                plotText(0, 0, tempStr, IBM_VGA_8, WHITE);
+                int x = round(METRONOME_CENTER_X - (intermed * METRONOME_RADIUS));
+                int y = round(METRONOME_CENTER_Y - (ABS(intermed) * METRONOME_RADIUS));
+
+                if(tunernome->frame == tunernome->tockFrame1 || tunernome->frame == tunernome->tockFrame2)
+                {
+                    led_t leds[NUM_LIN_LEDS] = {{0}};
+                    for(int i = 0; i < NUM_LIN_LEDS; i++)
+                    {
+                        leds[i].r = 0xFF;
+                        leds[i].g = 0xFF;
+                        leds[i].b = 0xFF;
+                    }
+                    setLeds(leds, sizeof(leds));
+
+                    timerDisarm(&(tunernome->ledTimer));
+                    timerArm(&(tunernome->ledTimer), METRONOME_FLASH_MS, false);
+                }
+
+                /*if(tunernome->lastX !=0) {
+                    plotLine(METRONOME_CENTER_X, METRONOME_CENTER_Y, tunernome->lastX, tunernome->lastY, BLACK);
+                }*/
+                plotLine(METRONOME_CENTER_X, METRONOME_CENTER_Y, x, y, WHITE);
+
+                tunernome-> lastX = x;
+                tunernome-> lastY = y;
+
+                if(++(tunernome->frame) == tunernome->finalCycleFrame)
+                {
+                    tunernome->frame = 0;
+                }
+            } // if(!pause)
+
+            char bpmStr[8];
+            ets_sprintf(bpmStr, "%d bpm", tunernome->bpm);
+            plotText((OLED_WIDTH - textWidth(bpmStr, IBM_VGA_8)) / 2, (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2, bpmStr, IBM_VGA_8, WHITE);
             plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "< Exit", TOM_THUMB, WHITE);
             plotText(OLED_WIDTH - 27, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Tuner >", TOM_THUMB, WHITE);
             break;
-        }
-    }
+        } // case TN_METRONOME:
+    } // switch(tunernome->mode)
 }
 
 /**
@@ -294,7 +397,7 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
  * @param button The button which triggered this event
  * @param down   true if the button was pressed, false if it was released
  */
-void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state,
+void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unused)),
         int button, int down)
 {
     switch (tunernome->mode)
@@ -338,7 +441,11 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state,
                         switchToSwadgeMode(0);
                         break;
                     }
-                } //switch(button)
+                    default:
+                    {
+                        break;
+                    }
+                } // switch(button)
 
                 if(button == UP || button == DOWN)
                 {
@@ -389,6 +496,23 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state,
             {
                 switch(button)
                 {
+                    case UP:
+                    {
+                        tunernome->bpm++;
+                        recalcMetronome();
+                        break;
+                    }
+                    case DOWN:
+                    {
+                        tunernome->bpm--;
+                        recalcMetronome();
+                        break;
+                    }
+                    case ACTION:
+                    {
+                        tunernome->pause = !tunernome->pause;
+                        break;
+                    }
                     case RIGHT:
                     {
                         switchToSubmode(TN_TUNER);
@@ -397,6 +521,10 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state,
                     case LEFT:
                     {
                         switchToSwadgeMode(0);
+                        break;
+                    }
+                    default:
+                    {
                         break;
                     }
                 }
@@ -455,7 +583,7 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
                         int16_t intensity = (tunernome->intensities_filt[i] >> SENSITIVITY) - 40; // drop a baseline.
                         intensity = CLAMP(intensity, 0, 255);
 
-                        //This is the tonal difference.  You "calibrate" out the intensity.
+                        // This is the tonal difference.  You "calibrate" out the intensity.
                         int16_t tonalDiff = (tunernome->diffs_filt[i] >> SENSITIVITY) * 200 / (intensity + 1);
 
                         int32_t red, grn, blu;
@@ -500,7 +628,7 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
                         colors[i].b = CLAMP(blu, 0, 255);
                     }
                     break;
-                }
+                } // case GUITAR_TUNER:
                 default:
                 {
                     uint8_t semitoneIdx = (tunernome->currentMode - SEMITONE_0) * 2;
@@ -568,7 +696,7 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
                     }
 
                     break;
-                }
+                } // default:
             }
 
             // Draw the LEDs
@@ -577,5 +705,16 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
             // Reset the sample count
             tunernome->audioSamplesProcessed = 0;
         }
-    } //if(tunernome-> mode == TN_TUNER)
+    } // if(tunernome-> mode == TN_TUNER)
+}
+
+/**
+ * This timer function is called after a metronome flash to reset the LEDs to off.
+ *
+ * @param timer_arg unused
+ */
+void ICACHE_FLASH_ATTR ledReset(void* timer_arg __attribute__((unused)))
+{
+    led_t leds[NUM_LIN_LEDS] = {{0}};
+    setLeds(leds, sizeof(leds));
 }
