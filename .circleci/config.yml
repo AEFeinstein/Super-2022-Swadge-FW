@@ -108,7 +108,7 @@ jobs:
           name: Install Cygwin and required packages
           shell: powershell.exe
           command: |
-            .\setup-x86_64.exe -q -s https://mirrors.kernel.org/sourceware/cygwin/ -P libssl-devel,git,gcc-core,gcc-g++,gcc-fortran,make,zip,find,python3,python3-devel,python36-pip,python-pip-wheel,python36-imaging,libjpeg-devel,zlib-devel,libtiff-devel,libfreetype-devel,libwebp-devel,libopenjpeg-devel,libimagequant-devel,libraqm-devel,libxcb-devel
+            .\setup-x86_64.exe -q -s https://mirrors.kernel.org/sourceware/cygwin/ -P git,gcc-core,make,zip,find,python3,python3-devel,python36-pip,python36-imaging
             $env:Path = "C:\cygwin64\bin\;" + $env:Path
       - run:
           name: Setup Python
@@ -116,8 +116,7 @@ jobs:
           command: |
             alias python='python3'
             python3 -m pip install --upgrade pip
-            python3 -m pip install wheel
-            python3 -m pip install rtttl pillow          
+            python3 -m pip install rtttl
       - run:
           name: Clone Repository
           shell: C:\\cygwin64\\bin\\bash.exe --login -eo pipefail
@@ -125,17 +124,20 @@ jobs:
       - run:
           name: Build Swadge
           shell: C:\\cygwin64\\bin\\bash.exe --login -eo pipefail
-          working_directory: Super-2021-Swadge-FW-Sandbox/firmware
-          command: unset ESP_GDB && export SET_SWADGE_VERSION=2 && make -C emu all
+          working_directory: Super-2021-Swadge-FW-Sandbox\\firmware
+          command: |
+            echo "working dir: "$(pwd)
+            ls -la
+            unset ESP_GDB && export SET_SWADGE_VERSION=2 && make -C emu all
       - run:
           name: Store version information
           shell: C:\\cygwin64\\bin\\bash.exe --login -eo pipefail
-          working_directory: Super-2021-Swadge-FW-Sandbox/firmware
+          working_directory: Super-2021-Swadge-FW-Sandbox\\firmware
           command: echo $(date) >> version.txt && echo "https://github.com/AEFeinstein/Super-2021-Swadge-FW-Sandbox/commit/${CIRCLE_SHA1}" >> version.txt
       - run:
           name: Create a ZIP of software
           shell: C:\\cygwin64\\bin\\bash.exe --login -eo pipefail
-          working_directory: Super-2021-Swadge-FW-Sandbox/firmware
+          working_directory: Super-2021-Swadge-FW-Sandbox\\firmware
           command: zip << parameters.label >>.zip -j emu/swadgemu.exe emu/assets.bin version.txt /bin/cygwin1.dll
       - store_artifacts:
           path: Super-2021-Swadge-FW-Sandbox/firmware/<< parameters.label >>.zip
