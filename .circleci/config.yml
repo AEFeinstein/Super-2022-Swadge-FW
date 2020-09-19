@@ -12,13 +12,13 @@ parameters:
     default: "--disable-shared --disable-static"
 
 jobs:
-  build:
+  build-firmware:
     docker:
       - image: cimg/base:2020.01
     parameters:
       label:
         type: string
-        default: swadge-chainsaw
+        default: swadge-chainsaw-firmware
     steps:
       - run:
           name: Update packages
@@ -62,9 +62,9 @@ jobs:
           command: zip -r ../firmware/<< parameters.label >>.zip .
       - store_artifacts:
           path: Super-2021-Swadge-FW-Sandbox/firmware/<< parameters.label >>.zip
-      - slack/status:
-          fail_only: false
-          success_message: ':tada: A $CIRCLE_JOB job has succeeded! Get it at while it''s hot: https://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/swadge-chainsaw.zip'
+      # - slack/status:
+      #     fail_only: false
+      #     success_message: ':tada: A $CIRCLE_JOB job has succeeded! Get it while it''s hot: https://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/swadge-chainsaw.zip'
 
 #  test-linux:
 #    docker:
@@ -90,6 +90,56 @@ jobs:
 #          name: Run as a client
 #          command: << parameters.label >>/bin/iperf3 -c localhost -R
 
+  build-windows:
+    machine:
+      image: windows-server-2019-vs2019:stable
+      shell: powershell.exe
+    resource_class: windows.medium
+    parameters:
+      label:
+        type: string
+        default: swadge-chainsaw-windows
+    steps:
+      - run:
+          name: Download Cygwin installer
+          shell: bash.exe
+          command: curl -sSJOL https://cygwin.com/setup-x86_64.exe
+      - run:
+          name: Install Cygwin and required packages
+          shell: powershell.exe
+          command: |
+            .\setup-x86_64.exe -q -s https://mirrors.kernel.org/sourceware/cygwin/ -P libssl-devel,git,gcc-core,gcc-g++,gcc-fortran,make,zip,find,python3,python3-devel,python36-pip,python-pip-wheel,python36-imaging,libjpeg-devel,zlib-devel,libtiff-devel,libfreetype-devel,libwebp-devel,libopenjpeg-devel,libimagequant-devel,libraqm-devel,libxcb-devel
+            $env:Path = "C:\cygwin64\bin\;" + $env:Path
+      - run:
+          name: Setup Python
+          shell: C:\\cygwin64\\bin\\bash.exe --login -eo pipefail
+          command: |
+            alias python='python3'
+            python3 -m pip install --upgrade pip
+            python3 -m pip install wheel
+            python3 -m pip install rtttl pillow          
+      - run:
+          name: Clone Repository
+          shell: C:\\cygwin64\\bin\\bash.exe --login -eo pipefail
+          command: git clone << pipeline.parameters.src-repo-url >> --recurse-submodules
+      - run:
+          name: Build Swadge
+          shell: C:\\cygwin64\\bin\\bash.exe --login -eo pipefail
+          working_directory: Super-2021-Swadge-FW-Sandbox/firmware
+          command: unset ESP_GDB && export SET_SWADGE_VERSION=2 && make -C emu all
+      - run:
+          name: Store version information
+          shell: C:\\cygwin64\\bin\\bash.exe --login -eo pipefail
+          working_directory: Super-2021-Swadge-FW-Sandbox/firmware
+          command: echo $(date) >> version.txt && echo "https://github.com/AEFeinstein/Super-2021-Swadge-FW-Sandbox/commit/${CIRCLE_SHA1}" >> version.txt
+      - run:
+          name: Create a ZIP of software
+          shell: C:\\cygwin64\\bin\\bash.exe --login -eo pipefail
+          working_directory: Super-2021-Swadge-FW-Sandbox/firmware
+          command: zip << parameters.label >>.zip -j emu/swadgemu.exe emu/assets.bin version.txt /bin/cygwin1.dll
+      - store_artifacts:
+          path: Super-2021-Swadge-FW-Sandbox/firmware/<< parameters.label >>.zip
+
 #  release:
 #    executor: github-release/default
 #    steps:
@@ -108,7 +158,8 @@ workflows:
   version: 2
   build-test-release:
     jobs:
-      - build
+      - build-firmware
+      - build-windows
 #      - test-linux:
 #          requires:
 #            - build
