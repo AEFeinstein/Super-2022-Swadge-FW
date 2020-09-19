@@ -120,7 +120,7 @@ workflows:
   version: 2
   build-firmware-windows:
     jobs:
-      - build-windows:
+      - build-windows
       - build-firmware:
           requires:
             - build-windows
