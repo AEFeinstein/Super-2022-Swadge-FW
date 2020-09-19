@@ -75,6 +75,8 @@ typedef struct
     tnMode mode;
     tuner_mode_t currentMode;
 
+    timer_t updateTimer;
+
     int audioSamplesProcessed;
     uint32_t intensities_filt[NUM_STRINGS];
     int32_t diffs_filt[NUM_STRINGS];
@@ -89,6 +91,7 @@ typedef struct
 
 void ICACHE_FLASH_ATTR tunernomeEnterMode(void);
 void ICACHE_FLASH_ATTR tunernomeExitMode(void);
+void ICACHE_FLASH_ATTR switchToSubmode(tnMode);
 void ICACHE_FLASH_ATTR tunernomeButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down);
 void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp);
@@ -153,7 +156,11 @@ void ICACHE_FLASH_ATTR tunernomeEnterMode(void)
     tunernome = os_malloc(sizeof(tunernome_t));
     ets_memset(tunernome, 0, sizeof(tunernome_t));
 
-    tunernome->mode = TN_TUNER;
+    switchToSubmode(TN_TUNER);
+
+    timerDisarm(&(tunernome->updateTimer));
+    timerSetFn(&(tunernome->updateTimer), tunernomeUpdate, NULL);
+    timerArm(&(tunernome->updateTimer), TUNERNOME_UPDATE_MS, true);
 
     enableDebounce(true);
 
@@ -161,10 +168,43 @@ void ICACHE_FLASH_ATTR tunernomeEnterMode(void)
 }
 
 /**
+ * Switch internal mode
+ */
+void ICACHE_FLASH_ATTR switchToSubmode(tnMode newMode)
+{
+    switch(newMode)
+    {
+        case TN_TUNER:
+        {
+            tunernome->mode = newMode;
+
+            led_t leds[NUM_LIN_LEDS] = {{0}};
+            setLeds(leds, sizeof(leds));
+
+            clearDisplay();
+            
+            break;
+        }
+        case TN_METRONOME:
+        {
+            tunernome-> mode = newMode;
+
+            led_t leds[NUM_LIN_LEDS] = {{0}};
+            setLeds(leds, sizeof(leds));
+
+            clearDisplay();
+            break;
+        }
+    }
+}
+
+/**
  * Called when tunernome is exited
  */
 void ICACHE_FLASH_ATTR tunernomeExitMode(void)
 {
+    timerDisarm(&(tunernome->updateTimer));
+    timerFlush();
     os_free(tunernome);
 }
 
@@ -234,12 +274,14 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
         default:
         case TN_TUNER:
         {
-
+            plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "< Exit", TOM_THUMB, WHITE);
+            plotText(OLED_WIDTH - 43, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Metronome >", TOM_THUMB, WHITE);
             break;
         }
         case TN_METRONOME:
         {
-            
+            plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "< Exit", TOM_THUMB, WHITE);
+            plotText(OLED_WIDTH - 27, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Tuner >", TOM_THUMB, WHITE);
             break;
         }
     }
@@ -288,15 +330,13 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state,
                     }
                     case RIGHT:
                     {
-                        //TODO: switch to metronome mode
-                        tunernome->mode = TN_METRONOME;
-                        led_t leds[NUM_LIN_LEDS] = {{0}};
-                        setLeds(leds, sizeof(leds));
+                        switchToSubmode(TN_METRONOME);
                         break;
                     }
                     case LEFT:
                     {
                         switchToSwadgeMode(0);
+                        clearDisplay();
                         break;
                     }
                 } //switch(button)
@@ -352,8 +392,7 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state,
                 {
                     case RIGHT:
                     {
-                        //TODO: switch to tuner mode
-                        tunernome->mode = TN_TUNER;
+                        switchToSubmode(TN_TUNER);
                         break;
                     }
                     case LEFT:
