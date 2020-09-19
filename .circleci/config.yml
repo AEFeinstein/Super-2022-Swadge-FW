@@ -64,7 +64,7 @@ jobs:
           path: Super-2021-Swadge-FW-Sandbox/firmware/<< parameters.label >>.zip
       # - slack/status:
       #     fail_only: false
-      #     success_message: ':tada: A $CIRCLE_JOB job has succeeded! Get it while it''s hot: https://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/swadge-chainsaw.zip'
+      #     success_message: ':esp8266: Get some fresh, hot firmware here: https://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/swadge-chainsaw.zip'
 
 #  test-linux:
 #    docker:
@@ -130,6 +130,9 @@ jobs:
             zip << parameters.label >>.zip -j emu/swadgemu.exe emu/assets.bin version.txt /bin/cygwin1.dll
       - store_artifacts:
           path: Super-2021-Swadge-FW-Sandbox\\firmware\\<< parameters.label >>.zip
+      # - slack/status:
+      #     fail_only: false
+      #     success_message: ':windows95: Get a fresh, hot emulator here: https://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< parameters.label >>.zip'
 
 #  release:
 #    executor: github-release/default
