@@ -336,7 +336,6 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state,
                     case LEFT:
                     {
                         switchToSwadgeMode(0);
-                        clearDisplay();
                         break;
                     }
                 } //switch(button)
