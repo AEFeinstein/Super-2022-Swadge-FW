@@ -19,6 +19,7 @@
 #include "embeddednf.h"
 #include "embeddedout.h"
 #include "font.h"
+#include "buttons.h"
 
 /*============================================================================
  * Defines
@@ -309,14 +310,18 @@ void ICACHE_FLASH_ATTR colorchordButtonCallback(
 {
     if(down)
     {
-        // Start a timer to restore LED functionality to colorchord
-        cc.ccOverrideLeds = true;
-        timerDisarm(&cc.ccLedOverrideTimer);
-        timerArm(&cc.ccLedOverrideTimer, 1000, false);
+        // Only freeze LEDs if the button pressed displays status change via LEDs
+        if(button == RIGHT || button == DOWN)
+        {
+            // Start a timer to restore LED functionality to colorchord
+            cc.ccOverrideLeds = true;
+            timerDisarm(&cc.ccLedOverrideTimer);
+            timerArm(&cc.ccLedOverrideTimer, 1000, false);
+        }
 
         switch(button)
         {
-            case 1:
+            case DOWN:
             {
                 // gCOLORCHORD_OUTPUT_DRIVER can be either 0 for multiple LED
                 // colors or 1 for all the same LED color
@@ -350,10 +355,14 @@ void ICACHE_FLASH_ATTR colorchordButtonCallback(
                 setLeds(leds, sizeof(leds));
                 break;
             }
-            case 2:
+            case RIGHT:
             {
                 cycleColorchordSensitivity();
                 break;
+            }
+            case LEFT:
+            {
+                switchToSwadgeMode(0);
             }
             default:
             {
