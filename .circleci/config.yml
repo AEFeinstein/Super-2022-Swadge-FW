@@ -64,7 +64,7 @@ jobs:
           path: Super-2021-Swadge-FW-Sandbox/firmware/<< parameters.label >>.zip
       - slack/status:
           fail_only: false
-          success_message: ':esp8266: Get some fresh, hot firmware here: https://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/swadge-chainsaw.zip'
+          success_message: ':esp8266-icon: Get some fresh, hot firmware here: https://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/swadge-chainsaw.zip'
 
 #  test-linux:
 #    docker:
@@ -93,7 +93,7 @@ jobs:
   build-windows:
     machine:
       image: windows-server-2019-vs2019:stable
-      shell: powershell.exe
+      shell: bash.exe
     resource_class: windows.medium
     parameters:
       label:
@@ -102,7 +102,6 @@ jobs:
     steps:
       - run:
           name: Download Cygwin installer
-          shell: bash.exe
           command: curl -sSJOL https://cygwin.com/setup-x86_64.exe
       - run:
           name: Install Cygwin and required packages
@@ -152,7 +151,7 @@ workflows:
   version: 2
   build-firmware-windows:
     jobs:
-      - build-firmware
+#     - build-firmware
       - build-windows
 #      - test-linux:
 #          requires:
