@@ -343,13 +343,14 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
             {
                 // TODO: calculate x and y
                 
-                float intermed = -1 * round(cosf(tunernome->frame * M_PI / tunernome->halfCycleFrames ));
+                float intermedX = -1 * cosf(tunernome->frame * M_PI / tunernome->halfCycleFrames );
+                float intermedY = -1 * sinf(tunernome->frame * M_PI / tunernome->halfCycleFrames );
 
                 char tempStr[50] = {0};
                 ets_sprintf(tempStr, "%d.%d", (int)(tunernome->frame /** M_PI / tunernome->halfCycleFrames*/), (int)((tunernome->frame /** M_PI / tunernome->halfCycleFrames*/)*1000)%1000);
                 plotText(0, 0, tempStr, IBM_VGA_8, WHITE);
-                int x = round(METRONOME_CENTER_X - (intermed * METRONOME_RADIUS));
-                int y = round(METRONOME_CENTER_Y - (ABS(intermed) * METRONOME_RADIUS));
+                int x = round(METRONOME_CENTER_X - (intermedX * METRONOME_RADIUS));
+                int y = round(METRONOME_CENTER_Y - (ABS(intermedY) * METRONOME_RADIUS));
 
                 if(tunernome->frame == tunernome->tockFrame1 || tunernome->frame == tunernome->tockFrame2)
                 {
