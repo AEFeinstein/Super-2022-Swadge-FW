@@ -103,11 +103,11 @@ typedef struct
     float bps;
     float periodS;
     float periodMS;
-    float cycleFrames;
-    float halfCycleFrames;
+    float barHalfCycleFrames;
+    float barCycleFrames;
     int tockFrame1;
     int tockFrame2;
-    int finalCycleFrame;
+    int finalBarCycleFrame;
 
     uint32_t semitone_intensitiy_filt;
     int32_t semitone_diff_filt;
@@ -171,6 +171,9 @@ const uint16_t freqBinIdxs[NUM_STRINGS] =
 };
 
 static const char tn_title[]  = "Tunernome";
+static const char leftStr[] = "< Exit";
+static const char rightStrTuner[] = "Tuner >";
+static const char rightStrMetronome[] = "Metronome >";
 
 /*============================================================================
  * Functions
@@ -247,6 +250,7 @@ void ICACHE_FLASH_ATTR switchToSubmode(tnMode newMode)
 void ICACHE_FLASH_ATTR tunernomeExitMode(void)
 {
     timerDisarm(&(tunernome->updateTimer));
+    timerDisarm(&(tunernome->ledTimer));
     timerFlush();
     os_free(tunernome);
 }
@@ -312,11 +316,11 @@ void ICACHE_FLASH_ATTR recalcMetronome() {
     tunernome->bps = tunernome->bpm / 60.0f;
     tunernome->periodS = 1.0f / tunernome->bps;
     tunernome->periodMS = 1000.0f * tunernome->periodS;
-    tunernome->cycleFrames = tunernome->periodMS / TUNERNOME_UPDATE_MS;
-    tunernome->halfCycleFrames = tunernome->cycleFrames * 0.5f;
-    tunernome->tockFrame1 = round(tunernome->cycleFrames * 0.25f);
-    tunernome->tockFrame2 = round(tunernome->cycleFrames * 0.75f);
-    tunernome->finalCycleFrame = round(tunernome->cycleFrames);
+    tunernome->barHalfCycleFrames = tunernome->periodMS / TUNERNOME_UPDATE_MS;
+    tunernome->barCycleFrames = tunernome->barHalfCycleFrames * 2.0f;
+    tunernome->tockFrame1 = round(tunernome->barCycleFrames * 0.25f);
+    tunernome->tockFrame2 = round(tunernome->barCycleFrames * 0.75f);
+    tunernome->finalBarCycleFrame = round(tunernome->barCycleFrames);
 }
 
 /**
@@ -331,8 +335,8 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
         default:
         case TN_TUNER:
         {
-            plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "< Exit", TOM_THUMB, WHITE);
-            plotText(OLED_WIDTH - 43, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Metronome >", TOM_THUMB, WHITE);
+            plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, leftStr, TOM_THUMB, WHITE);
+            plotText(OLED_WIDTH - textWidth(rightStrMetronome, TOM_THUMB), OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, rightStrMetronome, TOM_THUMB, WHITE);
             break;
         }
         case TN_METRONOME:
@@ -341,13 +345,15 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
 
             if(!tunernome->pause)
             {
-                // TODO: calculate x and y
+                // TODO: use ints, keep time better
+                // TODO: maybe make the metronome bar move faster at the middle and slower at the sides like a real one
+                // TODO: maybe make the metronome bar follow a shorter arc like a real one
                 
-                float intermedX = -1 * cosf(tunernome->frame * M_PI / tunernome->halfCycleFrames );
-                float intermedY = -1 * sinf(tunernome->frame * M_PI / tunernome->halfCycleFrames );
+                float intermedX = -1 * cosf(tunernome->frame * M_PI / tunernome->barHalfCycleFrames );
+                float intermedY = -1 * sinf(tunernome->frame * M_PI / tunernome->barHalfCycleFrames );
 
                 char tempStr[50] = {0};
-                ets_sprintf(tempStr, "%d.%d", (int)(tunernome->frame /** M_PI / tunernome->halfCycleFrames*/), (int)((tunernome->frame /** M_PI / tunernome->halfCycleFrames*/)*1000)%1000);
+                ets_sprintf(tempStr, "%d.%d", (int)(tunernome->frame), (int)((tunernome->frame)*1000)%1000);
                 plotText(0, 0, tempStr, IBM_VGA_8, WHITE);
                 int x = round(METRONOME_CENTER_X - (intermedX * METRONOME_RADIUS));
                 int y = round(METRONOME_CENTER_Y - (ABS(intermedY) * METRONOME_RADIUS));
@@ -375,7 +381,7 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
                 tunernome-> lastX = x;
                 tunernome-> lastY = y;
 
-                if(++(tunernome->frame) == tunernome->finalCycleFrame)
+                if(++(tunernome->frame) == tunernome->finalBarCycleFrame)
                 {
                     tunernome->frame = 0;
                 }
@@ -383,9 +389,10 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
 
             char bpmStr[8];
             ets_sprintf(bpmStr, "%d bpm", tunernome->bpm);
+
             plotText((OLED_WIDTH - textWidth(bpmStr, IBM_VGA_8)) / 2, (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2, bpmStr, IBM_VGA_8, WHITE);
-            plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "< Exit", TOM_THUMB, WHITE);
-            plotText(OLED_WIDTH - 27, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Tuner >", TOM_THUMB, WHITE);
+            plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, leftStr, TOM_THUMB, WHITE);
+            plotText(OLED_WIDTH - textWidth(rightStrTuner, TOM_THUMB), OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, rightStrTuner, TOM_THUMB, WHITE);
             break;
         } // case TN_METRONOME:
     } // switch(tunernome->mode)

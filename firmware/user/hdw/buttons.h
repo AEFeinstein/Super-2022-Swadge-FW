@@ -7,21 +7,23 @@
 
 typedef enum
 {
-    LEFT_MASK   = 0x01,
-    DOWN_MASK   = 0x02,
-    RIGHT_MASK  = 0x04,
-    UP_MASK     = 0x08,
-    ACTION_MASK = 0x0F
-} button_mask;
-
-typedef enum
-{
     LEFT   = 0,
     DOWN   = 1,
     RIGHT  = 2,
     UP     = 3,
     ACTION = 4
 } button_num;
+
+typedef enum
+{
+    LEFT_MASK   = 1 << LEFT,
+    DOWN_MASK   = 1 << DOWN,
+    RIGHT_MASK  = 1 << RIGHT,
+    UP_MASK     = 1 << UP,
+    ACTION_MASK = 1 << ACTION
+} button_mask;
+
+
 
 /*============================================================================
  * Function Prototypes
