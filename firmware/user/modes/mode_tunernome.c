@@ -50,8 +50,8 @@
 #define METRONOME_CENTER_Y OLED_HEIGHT - 10
 #define METRONOME_RADIUS 35
 #define INITIAL_BPM 60
-#define MAX_BPM 600
-#define METRONOME_FLASH_MS 50
+#define MAX_BPM 400
+#define METRONOME_FLASH_MS 35
 
 /// Helper macro to return an integer clamped within a range (MIN to MAX)
 #define CLAMP(X, MIN, MAX) ( ((X) > (MAX)) ? (MAX) : ( ((X) < (MIN)) ? (MIN) : (X)) )
@@ -381,7 +381,7 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
                 tunernome-> lastX = x;
                 tunernome-> lastY = y;
 
-                if(++(tunernome->frame) == tunernome->finalBarCycleFrame)
+                if(++(tunernome->frame) >= tunernome->finalBarCycleFrame)
                 {
                     tunernome->frame = 0;
                 }
@@ -506,13 +506,13 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unu
                 {
                     case UP:
                     {
-                        tunernome->bpm++;
+                        tunernome->bpm = CLAMP(tunernome->bpm + 1, 1, MAX_BPM);
                         recalcMetronome();
                         break;
                     }
                     case DOWN:
                     {
-                        tunernome->bpm--;
+                        tunernome->bpm = CLAMP(tunernome->bpm - 1, 1, MAX_BPM);
                         recalcMetronome();
                         break;
                     }
