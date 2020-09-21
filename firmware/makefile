@@ -5,7 +5,7 @@
 ################################################################################
 
 GCC_FOLDER = $(ESP_ROOT)/xtensa-lx106-elf
-ESPTOOL_PY = $(ESP_ROOT)/esptool/esptool.py
+ESPTOOL_PY = python2 $(ESP_ROOT)/esptool/esptool.py
 SDK        = ./ESP8266_NONOS_SDK
 
 XTGCCLIB     = $(GCC_FOLDER)/lib/gcc/xtensa-lx106-elf/4.8.5/libgcc.a
@@ -265,7 +265,7 @@ all: $(FW_FILE1) $(FW_FILE2) $(ASSETS_FILE)
 
 # To build the two firmware files for flashing, you have to build the main file
 $(FW_FILE1) $(FW_FILE2) : $(FW_FILE0)
-	$(ESP_ROOT)/esptool/esptool.py elf2image $(FW_FILE0)
+	PATH=$(PATH):$(GCC_FOLDER)/bin python2 $(ESP_ROOT)/esptool/esptool.py elf2image $(FW_FILE0)
 
 # To build the main file, you have to compile the objects and create the stripped libgcc
 $(FW_FILE0): $(OBJECTS) $(LIBGCC_STRIPPED)

@@ -322,9 +322,12 @@ void emuCheckResize()
         CNFGHandleInput();
 #ifdef LINUX
         //Handle input from SHM.
-        for( i = 0; i < 5; i++ )
+        if( swadgeshm_input_data[6] )
         {
-            HandleButtonStatus( i, swadgeshm_input_data[i] );
+            for( i = 0; i < 5; i++ )
+            {
+                HandleButtonStatus( i, swadgeshm_input_data[i] );
+            }
         }
 #endif
 
