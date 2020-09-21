@@ -475,13 +475,18 @@ void ICACHE_FLASH_ATTR personalDemonButtonCallback(uint8_t state __attribute__((
         int button, int down __attribute__((unused)))
 {
     // If any button is pressed while the records are displayed
-    if(down && pd->isDisplayingRecords)
+    if(pd->isDisplayingRecords)
     {
-        // Start animating again
-        clearDisplay();
-        timerArm(&(pd->animationTimer), 10, true);
-        drawAnimDemon();
-        pd->isDisplayingRecords = false;
+#if !defined(EMU)
+        if(!down)
+#endif
+        {
+            // Start animating again
+            clearDisplay();
+            timerArm(&(pd->animationTimer), 10, true);
+            drawAnimDemon();
+            pd->isDisplayingRecords = false;
+        }
     }
     else if(pd->anim == PDA_WALKING)
     {
@@ -527,6 +532,8 @@ static void ICACHE_FLASH_ATTR demonMenuCb(const char* menuItem)
         // Get the records from NVM
         demonMemorial_t* memorials = getDemonMemorials();
 
+        bool memorialsDrawn = false;
+
         // There's space to draw five rows
         for(int i = 0; i < 5; i++)
         {
@@ -541,7 +548,16 @@ static void ICACHE_FLASH_ATTR demonMenuCb(const char* menuItem)
                 ets_snprintf(actionsTaken, sizeof(actionsTaken), "%d", memorials[i].actionsTaken);
                 int16_t width = textWidth(actionsTaken, IBM_VGA_8);
                 plotText(OLED_WIDTH - width, 1 + i * (FONT_HEIGHT_IBMVGA8 + 2), actionsTaken, IBM_VGA_8, WHITE);
+
+                memorialsDrawn = true;
             }
+        }
+
+        if(false == memorialsDrawn)
+        {
+            char text[] = "No Records";
+            int16_t width = textWidth(text, IBM_VGA_8);
+            plotText((OLED_WIDTH - width) / 2, (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2, text, IBM_VGA_8, WHITE);
         }
 
         // Note that the records are being displayed
