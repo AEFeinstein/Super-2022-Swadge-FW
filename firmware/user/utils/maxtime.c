@@ -22,8 +22,8 @@ void ICACHE_FLASH_ATTR maxTimeEnd  ( struct maxtime_t* mymaxtime )
     {
         mymaxtime->max_us = time_now_us - mymaxtime->start_us;
         TIME_PRINTF ( "%s: period=%6dus, max=%dus\n",
-                    mymaxtime->name,
-                    mymaxtime->period_us,
-                    mymaxtime->max_us );
+                      mymaxtime->name,
+                      mymaxtime->period_us,
+                      mymaxtime->max_us );
     }
 }
