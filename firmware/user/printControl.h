@@ -5,7 +5,7 @@
 
 /* The following chars are not printed by the system during normal boot. They
  * can be used to print searchable single chars when debugging
- * 
+ *
  * ! " # $ % & ' * + - . / ; < = > ? @ G P Q
  * V W Y Z [ \ ] ^ _ ` g p q v w y z { | } ~
  */

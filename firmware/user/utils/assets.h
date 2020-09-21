@@ -10,7 +10,7 @@
 uint32_t* getAsset(const char* name, uint32_t* retLen);
 
 #if defined(EMU)
-void ICACHE_FLASH_ATTR freeAssets(void);
+    void ICACHE_FLASH_ATTR freeAssets(void);
 #endif
 
 typedef struct

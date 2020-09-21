@@ -964,7 +964,7 @@ void ICACHE_FLASH_ATTR danceTimerMode18(void* arg __attribute__((unused)))
 
 /**
  * Called every 10ms
- * 
+ *
  * Chainsaw blade. Use EHSVtoHEX() to smoothly iterate, but only draw red
  *
  * @param arg unused
