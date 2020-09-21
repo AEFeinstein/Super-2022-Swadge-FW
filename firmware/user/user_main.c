@@ -86,10 +86,6 @@ swadgeMode* swadgeModes[] =
 bool swadgeModeInit = false;
 rtcMem_t rtcMem = {0};
 
-#if defined(FEATURE_OLED)
-    uint16_t framesDrawn = 0;
-#endif
-
 /*============================================================================
  * Prototypes
  *==========================================================================*/
@@ -233,7 +229,6 @@ void ICACHE_FLASH_ATTR user_init(void)
         {
             INIT_PRINTF("OLED initialization failed\n");
         }
-        framesDrawn = 0;
 #endif
 
 #if defined(FEATURE_MIC)
@@ -322,26 +317,41 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events __attribute__((unused)
     }
 
 #if defined(FEATURE_OLED)
-    // Cap the display updates at 60fps
+    // Track if the full frame, or difference should be drawn
+    static bool shouldDrawDifference = true;
+
+    // Cap the display updates at 30fps
     static uint32_t lastDrawTime = 0;
-    if(system_get_time() - lastDrawTime > 16667)
+    if(system_get_time() - lastDrawTime > 33333)
     {
         lastDrawTime = system_get_time();
-        // Update the display as fast as possible.
-        if(1000 <= framesDrawn)
+
+        // If we should draw the whole frame, reinit the OLED first
+        if(false == shouldDrawDifference)
         {
-            // Every 1000 frames, reset OLED params and redraw the entire OLED
-            // Experimentally, this is about every 15s
-            setOLEDparams(false);
-            updateOLED(false);
-            framesDrawn = 0;
+            initOLED(true);
         }
-        else
+
+        // Draw either the whole frame, or just the difference
+        switch(updateOLED(shouldDrawDifference))
         {
-            // This only sends I2C data if there was some pixel change
-            if(FRAME_DRAWN == updateOLED(true))
+            case FRAME_DRAWN:
             {
-                framesDrawn++;
+                // Draw was successful, draw a difference the next time
+                shouldDrawDifference = true;
+                break;
+            }
+            case FRAME_NOT_DRAWN:
+            {
+                // Draw was not successful, reset the OLED and
+                // draw a full frame next time
+                shouldDrawDifference = false;
+                break;
+            }
+            default:
+            case NOTHING_TO_DO:
+            {
+                break;
             }
         }
     }

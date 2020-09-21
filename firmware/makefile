@@ -91,7 +91,8 @@ CFLAGS = \
 	-B$(SDK)/lib \
 	-std=gnu99 \
 	-MD \
-	-O3
+	-O3 \
+	-fshort-enums
 ifneq ($(ESP_GDB),)
   CFLAGS += -ggdb
 endif

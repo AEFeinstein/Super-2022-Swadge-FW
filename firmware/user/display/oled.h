@@ -18,7 +18,7 @@ typedef enum
     BLACK = 0,
     WHITE = 1,
     INVERSE = 2,
-    TRANSPARENT = 3
+    TRANSPARENT_COLOR = 3
 } color;
 
 typedef enum

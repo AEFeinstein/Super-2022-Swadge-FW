@@ -175,7 +175,7 @@ void ICACHE_FLASH_ATTR fillDisplayArea(int16_t x1, int16_t y1, int16_t x2, int16
  */
 void drawPixel(int16_t x, int16_t y, color c)
 {
-    if (c != TRANSPARENT &&
+    if (c != TRANSPARENT_COLOR &&
             (0 <= x) && (x < OLED_WIDTH) &&
             (0 <= y) && (y < OLED_HEIGHT))
     {
@@ -201,7 +201,7 @@ void drawPixel(int16_t x, int16_t y, color c)
             case INVERSE:
                 currentFb[(x + (y / 8) * OLED_WIDTH)] ^= (1 << (y & 7));
                 break;
-            case TRANSPARENT:
+            case TRANSPARENT_COLOR:
             default:
             {
                 break;

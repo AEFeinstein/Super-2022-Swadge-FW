@@ -458,7 +458,7 @@ void ICACHE_FLASH_ATTR drawPngToBuffer(pngHandle* handle, color* buf)
                 if(chunk & (0x80000000 >> (bitIdx++)))
                 {
                     // zero-one means transparent
-                    buf[(x * handle->height) + y] = TRANSPARENT;
+                    buf[(x * handle->height) + y] = TRANSPARENT_COLOR;
                 }
                 else
                 {

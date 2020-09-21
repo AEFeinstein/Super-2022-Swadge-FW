@@ -17,7 +17,7 @@
  * Defines
  *==========================================================================*/
 
-#define SAVE_LOAD_KEY 0xB5
+#define SAVE_LOAD_KEY 0xB8
 
 /*============================================================================
  * Structs
@@ -29,6 +29,8 @@ typedef struct __attribute__((aligned(4)))
     uint8_t SaveLoadKey; //Must be SAVE_LOAD_KEY to be valid.
     bool isMuted;
     uint8_t menuPos;
+    demon_t savedDemon;
+    demonMemorial_t demonMemorials[NUM_DEMON_MEMORIALS];
 }
 settings_t;
 
@@ -48,6 +50,7 @@ settings_t settings =
     .SaveLoadKey = 0,
     .isMuted = 0,
     .menuPos = 0,
+    .savedDemon = {0},
 };
 
 bool muteOverride = false;
@@ -84,6 +87,7 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
         settings.SaveLoadKey = SAVE_LOAD_KEY;
         // Load in default values
         settings.isMuted = false;
+        ets_memset(&(settings.savedDemon), 0, sizeof(demon_t));
         // Save the values
         SaveSettings();
     }
@@ -133,3 +137,55 @@ void ICACHE_FLASH_ATTR setIsMutedOption(bool mute)
     SaveSettings();
 }
 #endif
+
+void ICACHE_FLASH_ATTR getSavedDemon(demon_t* demon)
+{
+    ets_memcpy(demon, &(settings.savedDemon), sizeof(demon_t));
+}
+
+void ICACHE_FLASH_ATTR setSavedDemon(demon_t* demon)
+{
+    ets_memcpy(&(settings.savedDemon), demon, sizeof(demon_t));
+    SaveSettings();
+}
+
+void ICACHE_FLASH_ATTR addDemonMemorial(char* name, int32_t actionsTaken)
+{
+    // Keep the memorials in high to low order. Find the insertion index
+    uint8_t insertionIdx = 0;
+    for(insertionIdx = 0; insertionIdx < NUM_DEMON_MEMORIALS; insertionIdx++)
+    {
+        if(actionsTaken > settings.demonMemorials[insertionIdx].actionsTaken)
+        {
+            break;
+        }
+    }
+
+    // If this would be inserted after the list, just return
+    if(insertionIdx == NUM_DEMON_MEMORIALS)
+    {
+        return;
+    }
+
+    // If this would be inserted anywhere except the end of the list
+    if(insertionIdx != (NUM_DEMON_MEMORIALS - 1))
+    {
+        // Move all the memory after this index to make room for insertion
+        ets_memmove(
+            &settings.demonMemorials[insertionIdx + 1],
+            &settings.demonMemorials[insertionIdx],
+            (NUM_DEMON_MEMORIALS - insertionIdx - 1) * sizeof(demonMemorial_t));
+    }
+
+    // Copy in the name and actions taken
+    ets_memcpy(&(settings.demonMemorials[insertionIdx].name), name, ets_strlen(name) + 1);
+    settings.demonMemorials[insertionIdx].actionsTaken = actionsTaken;
+
+    // Save the settings
+    SaveSettings();
+}
+
+demonMemorial_t* ICACHE_FLASH_ATTR getDemonMemorials(void)
+{
+    return settings.demonMemorials;
+}
