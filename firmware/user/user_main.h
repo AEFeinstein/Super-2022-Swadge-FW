@@ -19,12 +19,12 @@
  *==========================================================================*/
 
 #if !defined(EMU)
-// Ref: http://marrin.org/2017/01/16/putting-data-in-esp8266-flash-memory/
-#define RODATA_ATTR  ICACHE_RODATA_ATTR __attribute__((aligned(4)))
-#define ROMSTR_ATTR  __attribute__((section(".irom.text.romstr"))) __attribute__((aligned(4)))
+    // Ref: http://marrin.org/2017/01/16/putting-data-in-esp8266-flash-memory/
+    #define RODATA_ATTR  ICACHE_RODATA_ATTR __attribute__((aligned(4)))
+    #define ROMSTR_ATTR  __attribute__((section(".irom.text.romstr"))) __attribute__((aligned(4)))
 #else
-#define RODATA_ATTR 
-#define ROMSTR_ATTR 
+    #define RODATA_ATTR
+    #define ROMSTR_ATTR
 #endif
 
 /*============================================================================
@@ -193,11 +193,11 @@ void ExitCritical(void);
 uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr);
 void ICACHE_FLASH_ATTR switchToSwadgeMode(uint8_t newMode);
 #if defined(EMU)
-void ICACHE_FLASH_ATTR exitCurrentSwadgeMode(void);
+    void ICACHE_FLASH_ATTR exitCurrentSwadgeMode(void);
 #endif
 
 #if defined(FEATURE_ACCEL)
-void setAccelPollTime(uint32_t pollTimeMs);
+    void setAccelPollTime(uint32_t pollTimeMs);
 #endif
 
 void ICACHE_FLASH_ATTR enterDeepSleep(wifiMode_t wifiMode, uint32_t timeUs);

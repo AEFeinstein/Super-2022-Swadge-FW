@@ -1026,7 +1026,7 @@ bool ICACHE_FLASH_ATTR updtAnimWalk(void)
         {
             // Check if the demon changes up/down direction
             if(os_random() % 8 == 0 || (pd->demonY == OLED_HEIGHT - pd->demonSprite.height - FONT_HEIGHT_IBMVGA8 - 4)
-                    || (pd->demonY == FONT_HEIGHT_IBMVGA8 + 1))
+               || (pd->demonY == FONT_HEIGHT_IBMVGA8 + 1))
             {
                 pd->demonDirUD = !(pd->demonDirUD);
             }
@@ -1516,11 +1516,11 @@ bool ICACHE_FLASH_ATTR _updtAnimPlaying(bool isPlaying)
 
                 // Bounce the ball off the demon
                 if((pd->ballY - (pd->ball.width / 2) >= pd->demonY) &&
-                        (pd->ballY < pd->demonY + pd->demonSprite.height))
+                   (pd->ballY < pd->demonY + pd->demonSprite.height))
                 {
                     if((pd->ballX + (pd->ball.width / 2) >= pd->demonX) &&
-                            (pd->ballX - (pd->ball.width / 2) < pd->demonX) &&
-                            pd->ballVelX > 0)
+                       (pd->ballX - (pd->ball.width / 2) < pd->demonX) &&
+                       pd->ballVelX > 0)
                     {
                         pd->ballVelX = -pd->ballVelX;
                         bounces++;

@@ -176,8 +176,8 @@ void ICACHE_FLASH_ATTR fillDisplayArea(int16_t x1, int16_t y1, int16_t x2, int16
 void drawPixel(int16_t x, int16_t y, color c)
 {
     if (c != TRANSPARENT_COLOR &&
-            (0 <= x) && (x < OLED_WIDTH) &&
-            (0 <= y) && (y < OLED_HEIGHT))
+        (0 <= x) && (x < OLED_WIDTH) &&
+        (0 <= y) && (y < OLED_HEIGHT))
     {
         fbChanges = true;
         x = (OLED_WIDTH - 1) - x;
@@ -220,7 +220,7 @@ void drawPixel(int16_t x, int16_t y, color c)
 color ICACHE_FLASH_ATTR getPixel(int16_t x, int16_t y)
 {
     if ((0 <= x) && (x < OLED_WIDTH) &&
-            (0 <= y) && (y < OLED_HEIGHT))
+        (0 <= y) && (y < OLED_HEIGHT))
     {
         x = (OLED_WIDTH - 1) - x;
         y = (OLED_HEIGHT - 1) - y;

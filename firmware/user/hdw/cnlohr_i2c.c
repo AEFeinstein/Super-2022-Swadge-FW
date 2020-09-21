@@ -87,8 +87,8 @@ unsigned char SendByte( unsigned char data, bool highSpeed )
     PIN_OUT_SET = (1 << I2CSCL);
     my_i2c_delay(highSpeed);
     my_i2c_delay(highSpeed);
-   	i = (PIN_IN & (1 << I2CSDA)) ? 1 : 0; //Read in input.  See if client is there.
-   	asm volatile( "memw" ); //Why after? It seems to fix things.
+    i = (PIN_IN & (1 << I2CSDA)) ? 1 : 0; //Read in input.  See if client is there.
+    asm volatile( "memw" ); //Why after? It seems to fix things.
     PIN_OUT_CLEAR = (1 << I2CSCL);
     my_i2c_delay(highSpeed);
     return i;
@@ -108,7 +108,7 @@ unsigned char ICACHE_FLASH_ATTR GetByte( uint8_t send_nak, bool highSpeed)
         my_i2c_delay(highSpeed);
         my_i2c_delay(highSpeed);
         ret <<= 1;
-		asm volatile( "memw" );
+        asm volatile( "memw" );
         if( PIN_IN & (1 << I2CSDA) )
         {
             ret |= 1;
