@@ -87,13 +87,14 @@ unsigned char SendByte( unsigned char data, bool highSpeed )
     PIN_OUT_SET = (1 << I2CSCL);
     my_i2c_delay(highSpeed);
     my_i2c_delay(highSpeed);
-    i = (PIN_IN & (1 << I2CSDA)) ? 1 : 0; //Read in input.  See if client is there.
+   	i = (PIN_IN & (1 << I2CSDA)) ? 1 : 0; //Read in input.  See if client is there.
+   	asm volatile( "memw" ); //Why after? It seems to fix things.
     PIN_OUT_CLEAR = (1 << I2CSCL);
     my_i2c_delay(highSpeed);
-    return (i) ? 1 : 0;
+    return i;
 }
 
-unsigned char GetByte( uint8_t send_nak, bool highSpeed)
+unsigned char ICACHE_FLASH_ATTR GetByte( uint8_t send_nak, bool highSpeed)
 {
     unsigned char i;
     unsigned char ret = 0;
@@ -107,6 +108,7 @@ unsigned char GetByte( uint8_t send_nak, bool highSpeed)
         my_i2c_delay(highSpeed);
         my_i2c_delay(highSpeed);
         ret <<= 1;
+		asm volatile( "memw" );
         if( PIN_IN & (1 << I2CSDA) )
         {
             ret |= 1;
@@ -159,7 +161,7 @@ __attribute__((noinline)) void my_i2c_delay(bool highSpeed)
     return;
 }
 
-void cnlohr_i2c_setup( uint32_t clock_stretch_time_out_usec __attribute__((unused)))
+void ICACHE_FLASH_ATTR cnlohr_i2c_setup( uint32_t clock_stretch_time_out_usec __attribute__((unused)))
 {
     PIN_FUNC_SELECT(CNLOHR_I2C_SDA_MUX, CNLOHR_I2C_SDA_FUNC);
     PIN_FUNC_SELECT(CNLOHR_I2C_SCL_MUX, CNLOHR_I2C_SCL_FUNC);
@@ -195,7 +197,7 @@ void cnlohr_i2c_write(const uint8_t* data, uint32_t no_of_bytes, bool repeated_s
     cnl_need_new_stop = 1;
 }
 
-void cnlohr_i2c_start_transaction(uint8_t slave_address, uint16_t SCL_frequency_KHz)
+void ICACHE_FLASH_ATTR cnlohr_i2c_start_transaction(uint8_t slave_address, uint16_t SCL_frequency_KHz)
 {
     cnl_highSpeed = (800 == SCL_frequency_KHz);
     cnl_err = 0;
@@ -205,7 +207,7 @@ void cnlohr_i2c_start_transaction(uint8_t slave_address, uint16_t SCL_frequency_
 }
 
 
-void cnlohr_i2c_read(uint8_t* data, uint32_t nr_of_bytes, bool repeated_start)
+void ICACHE_FLASH_ATTR cnlohr_i2c_read(uint8_t* data, uint32_t nr_of_bytes, bool repeated_start)
 {
     if( cnl_need_new_stop && !repeated_start )
     {
@@ -229,7 +231,7 @@ void cnlohr_i2c_read(uint8_t* data, uint32_t nr_of_bytes, bool repeated_start)
     SendStop(cnl_highSpeed);
 }
 
-uint8_t cnlohr_i2c_end_transaction(void)
+uint8_t ICACHE_FLASH_ATTR cnlohr_i2c_end_transaction(void)
 {
     SendStop(cnl_highSpeed);
     cnl_need_new_stop = 0;
