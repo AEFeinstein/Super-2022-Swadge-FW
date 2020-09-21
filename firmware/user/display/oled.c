@@ -264,9 +264,17 @@ void ICACHE_FLASH_ATTR speedyWhiteLine( int16_t x0, int16_t y0, int16_t x1, int1
 	int y = y0;
 
 	if( x0 < 0 && x1 < 0 ) return;
-	if( y0 < 0 && y1 < 0 ) return;
 	if( x0 >= OLED_WIDTH && x1 >= OLED_WIDTH ) return;
+	if( y0 < 0 && y1 < 0 ) return;
 	if( y0 >= OLED_HEIGHT && y1 >= OLED_HEIGHT ) return;
+
+	//TODO: Compute early-outs.  Them we can forego checks.
+	//ysg is always minimum y component.  Something like this:
+	//if( ysg < 0 )
+	//{
+	//	int yz = 0 - ysg;
+	//	x1 += deltax * yz;
+	//}
 
     fbChanges = true;
 
@@ -279,7 +287,9 @@ void ICACHE_FLASH_ATTR speedyWhiteLine( int16_t x0, int16_t y0, int16_t x1, int1
 			return;
 		}
 
-		for( ; y != y1+ysg; y+=ysg )
+		y1+=ysg;
+
+		for( ; y != y1; y+=ysg )
 			drawPixelFastWhite( x1, y );
 		return;
 	}
@@ -292,14 +302,13 @@ void ICACHE_FLASH_ATTR speedyWhiteLine( int16_t x0, int16_t y0, int16_t x1, int1
 	{
 		drawPixelFastWhite(x,y);
 		error = error + deltaerr;
-		while( error >= 128 && y >= 0 && y < OLED_HEIGHT)
+		while( error >= 128 )
 		{
-			y = y + ysg;
+			y += ysg;
 			drawPixelFastWhite(x, y);
 			error = error - 256;
 		}
 	}
-
 	drawPixelFastWhite(x1,y1);
 }
 

@@ -215,7 +215,7 @@ static uint8_t sintable[128] = { 0, 6, 12, 18, 25, 31, 37, 43, 49, 55, 62, 68, 7
 int16_t ModelviewMatrix[16];
 int16_t ProjectionMatrix[16];
 
-static int16_t ICACHE_FLASH_ATTR tdSIN( uint8_t iv )
+static int16_t ICACHE_FLASH_ATTR ICACHE_FLASH_ATTR tdSIN( uint8_t iv )
 {
 	if( iv > 127 )
 	{
@@ -227,7 +227,7 @@ static int16_t ICACHE_FLASH_ATTR tdSIN( uint8_t iv )
 	}
 }
 
-int16_t tdCOS( uint8_t iv )
+int16_t ICACHE_FLASH_ATTR tdCOS( uint8_t iv )
 {
 	return tdSIN( iv + 64 );
 }
@@ -466,6 +466,7 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * flight )
     // First clear the OLED
     clearDisplay();
 
+
     char framesStr[8] = {0};
     ets_snprintf(framesStr, sizeof(framesStr), "%d", flight->buttonState);
     plotText(0, 0, framesStr, TOM_THUMB, WHITE);
@@ -483,7 +484,7 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * flight )
 
 	PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.  
 	GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
-
+	ij = 0;
 	int x = 0;
 	int y = 0;
 	for( x = -2; x < 4; x++ )
