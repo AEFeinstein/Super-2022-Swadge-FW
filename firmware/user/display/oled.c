@@ -182,6 +182,9 @@ void drawPixel(int16_t x, int16_t y, color c)
         fbChanges = true;
         x = (OLED_WIDTH - 1) - x;
         y = (OLED_HEIGHT - 1) - y;
+        y = (y>>1) + ((y&1)?(OLED_HEIGHT >> 1):0);
+	/*
+        //Somehow, writing it the way we do above is slightly faster.
         if (y % 2 == 0)
         {
             y = (y >> 1);
@@ -190,24 +193,114 @@ void drawPixel(int16_t x, int16_t y, color c)
         {
             y = (y >> 1) + (OLED_HEIGHT >> 1);
         }
+	*/
+        int index = (x + (y / 8) * OLED_WIDTH);
+        uint8_t mask = (1 << (y & 7));
         switch (c)
         {
             case WHITE:
-                currentFb[(x + (y / 8) * OLED_WIDTH)] |= (1 << (y & 7));
+                currentFb[index] |= mask;
                 break;
             case BLACK:
-                currentFb[(x + (y / 8) * OLED_WIDTH)] &= ~(1 << (y & 7));
+                currentFb[index] &= ~mask;
                 break;
             case INVERSE:
-                currentFb[(x + (y / 8) * OLED_WIDTH)] ^= (1 << (y & 7));
+                currentFb[index] ^= mask;
                 break;
-            case TRANSPARENT_COLOR:
+            //case TRANSPARENT_COLOR:
             default:
             {
                 break;
             }
         }
     }
+}
+
+
+/**
+ * Set/clear/invert a single pixel.
+ *
+ * This intentionally does not have ICACHE_FLASH_ATTR because it may be called often
+ *
+ * @param x Column of display, 0 is at the left
+ * @param y Row of the display, 0 is at the top
+ */
+
+void ICACHE_FLASH_ATTR drawPixelFastWhite( int x, int y )
+{
+	if( x < 0 || x >= OLED_WIDTH ) return;
+	if( y < 0 || y >= OLED_HEIGHT ) return;
+
+    int yv = (y>>1) + ((y&1)?(OLED_HEIGHT >> 1):0);
+	int index = (x + (((yv >> 3)*OLED_WIDTH)) );
+	currentFb[index] |= (1 << (yv & 7));
+}
+
+/**
+ * @brief Optimized method to quickly draw a white line.
+ *
+ * @param x1, x0 Column of display, 0 is at the left
+ * @param y1, y0 Row of the display, 0 is at the top
+ *
+ */
+
+
+#define LABS( x ) (((x)<0)?-(x):(x))
+
+
+void ICACHE_FLASH_ATTR speedyWhiteLine( int16_t x0, int16_t y0, int16_t x1, int16_t y1 )
+{
+    x0 = (OLED_WIDTH - 1) - x0;
+    y0 = (OLED_HEIGHT - 1) - y0;
+    x1 = (OLED_WIDTH - 1) - x1;
+    y1 = (OLED_HEIGHT - 1) - y1;
+
+	int deltax = x1 - x0;
+	int deltay = y1 - y0;
+	int error = 0;
+	int x;
+	int sy = LABS(deltay);
+	int ysg = (y0>y1)?-1:1;
+	int y = y0;
+
+	if( x0 < 0 && x1 < 0 ) return;
+	if( y0 < 0 && y1 < 0 ) return;
+	if( x0 >= OLED_WIDTH && x1 >= OLED_WIDTH ) return;
+	if( y0 >= OLED_HEIGHT && y1 >= OLED_HEIGHT ) return;
+
+    fbChanges = true;
+
+	//My own spin on bresenham's.
+	if( deltax == 0 )
+	{
+		if( y1 == y0 )
+		{
+			drawPixelFastWhite( x1, y );
+			return;
+		}
+
+		for( ; y != y1+ysg; y+=ysg )
+			drawPixelFastWhite( x1, y );
+		return;
+	}
+
+	int deltaerr = (deltay * 256) / deltax;
+	deltaerr = LABS(deltaerr);
+	int xsg = (x0>x1)?-1:1;
+
+	for( x = x0; x != x1; x+=xsg )
+	{
+		drawPixelFastWhite(x,y);
+		error = error + deltaerr;
+		while( error >= 128 && y >= 0 && y < OLED_HEIGHT)
+		{
+			y = y + ysg;
+			drawPixelFastWhite(x, y);
+			error = error - 256;
+		}
+	}
+
+	drawPixelFastWhite(x1,y1);
 }
 
 /**
