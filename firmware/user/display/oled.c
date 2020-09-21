@@ -308,11 +308,10 @@ int ICACHE_FLASH_ATTR updateOLEDScreenRange( uint8_t minX, uint8_t maxX, uint8_t
     uint8_t encountered_error = false;
     uint8_t x, page;
 
-    cnlohr_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
     setColumnAddress( minX, maxX );
     setPageAddress( minPage, maxPage );
-    if( cnlohr_i2c_end_transaction() ) encountered_error = true;
 
+    if( cnlohr_i2c_end_transaction() ) encountered_error = true;
     SendStart(OLED_HIGH_SPEED);
     SendByte( OLED_ADDRESS << 1, OLED_HIGH_SPEED );
     SendByte( SSD1306_DATA, OLED_HIGH_SPEED );
@@ -324,11 +323,7 @@ int ICACHE_FLASH_ATTR updateOLEDScreenRange( uint8_t minX, uint8_t maxX, uint8_t
 
         for( page = minPage; page <= maxPage; page++ )
         {
-            uint8_t c = *(prior++) = *(cur++);
-            if( SendByte( c, OLED_HIGH_SPEED ) )
-            {
-                encountered_error = true;
-            }
+            SendByteFast( *(prior++) = *(cur++) );
         }
     }
     SendStop(OLED_HIGH_SPEED);
@@ -361,7 +356,7 @@ oledResult_t ICACHE_FLASH_ATTR updateOLED(bool drawDifference)
     uint8_t minPage = SSD1306_NUM_PAGES;
     uint8_t maxPage = 0;
 
-    if(drawDifference)
+    if( drawDifference )
     {
         //Right now, we just look for the rect on the screen which encompasses the biggest changed area.
         //We could, however, update multiple rectangles if we wanted, more similar to the previous system.
