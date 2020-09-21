@@ -44,7 +44,6 @@ especially the comments made on March 15 2019 by phibo23.
     
     Append this, after verifying the location of your esp-open-sdk:
     
-    export PATH=$HOME/esp-open-sdk/xtensa-lx106-elf/bin:$PATH
     export ESP_ROOT=$HOME/esp-open-sdk
     ```
 1. Restart your Linux environment so the environment variables are actually set.
