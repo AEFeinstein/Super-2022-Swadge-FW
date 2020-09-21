@@ -484,14 +484,14 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * flight )
 
 	PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.  
 	GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
-	ij = 0;
+//	ij = 0;
 	int x = 0;
 	int y = 0;
 	for( x = -2; x < 4; x++ )
 	{
 		for( y = 0; y < 2; y++ )
 		{
-			ModelviewMatrix[11] = 1400 + tdSIN( (x + y)*40 + ij*2 );
+			ModelviewMatrix[11] = 1400 + tdSIN( (x + y)*40 + ij*2 ) * 3;
 			ModelviewMatrix[3] = 500*x-800;
 			ModelviewMatrix[7] = 500*y+500;
 			DrawGeoSphere();

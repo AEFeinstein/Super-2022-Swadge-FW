@@ -228,8 +228,8 @@ void drawPixel(int16_t x, int16_t y, color c)
 
 void ICACHE_FLASH_ATTR drawPixelFastWhite( int x, int y )
 {
-	if( x < 0 || x >= OLED_WIDTH ) return;
-	if( y < 0 || y >= OLED_HEIGHT ) return;
+//	if( x < 0 || x >= OLED_WIDTH ) return;
+//	if( y < 0 || y >= OLED_HEIGHT ) return;
 
     int yv = (y>>1) + ((y&1)?(OLED_HEIGHT >> 1):0);
 	int index = (x + (((yv >> 3)*OLED_WIDTH)) );
@@ -247,7 +247,7 @@ void ICACHE_FLASH_ATTR drawPixelFastWhite( int x, int y )
 
 #define LABS( x ) (((x)<0)?-(x):(x))
 
-
+//This is fast, but broken :(
 void ICACHE_FLASH_ATTR speedyWhiteLine( int16_t x0, int16_t y0, int16_t x1, int16_t y1 )
 {
     x0 = (OLED_WIDTH - 1) - x0;
@@ -265,16 +265,6 @@ void ICACHE_FLASH_ATTR speedyWhiteLine( int16_t x0, int16_t y0, int16_t x1, int1
 
 	if( x0 < 0 && x1 < 0 ) return;
 	if( x0 >= OLED_WIDTH && x1 >= OLED_WIDTH ) return;
-	if( y0 < 0 && y1 < 0 ) return;
-	if( y0 >= OLED_HEIGHT && y1 >= OLED_HEIGHT ) return;
-
-	//TODO: Compute early-outs.  Them we can forego checks.
-	//ysg is always minimum y component.  Something like this:
-	//if( ysg < 0 )
-	//{
-	//	int yz = 0 - ysg;
-	//	x1 += deltax * yz;
-	//}
 
     fbChanges = true;
 
@@ -283,20 +273,85 @@ void ICACHE_FLASH_ATTR speedyWhiteLine( int16_t x0, int16_t y0, int16_t x1, int1
 	{
 		if( y1 == y0 )
 		{
-			drawPixelFastWhite( x1, y );
+			if( y >= 0 && y < OLED_HEIGHT && x1 >= 0 && x1 < OLED_WIDTH )
+				drawPixelFastWhite( x1, y );
 			return;
 		}
 
-		y1+=ysg;
-
+		y = y0;
+		if( y < 0 ) y = 0;
+		if( y >= OLED_HEIGHT ) y = OLED_HEIGHT - 1;
+		if( y1 < 0 ) y = 0;
+		if( y1 >= OLED_HEIGHT ) y = OLED_HEIGHT - 1;
 		for( ; y != y1; y+=ysg )
 			drawPixelFastWhite( x1, y );
 		return;
 	}
 
 	int deltaerr = (deltay * 256) / deltax;
+	int sx = LABS(deltax);
 	deltaerr = LABS(deltaerr);
 	int xsg = (x0>x1)?-1:1;
+
+	//TODO: Compute early-outs.  Them we can forego checks.
+	//ysg is always minimum y component.  Something like this:
+	if( y < 0 )
+	{
+		if( ysg < 0 ) return;
+		int yz = 0 - y;
+		x0 += (deltax * yz) / sy;
+		y = 0;
+	}
+	if( y >= OLED_HEIGHT )
+	{
+		if( ysg > 0 ) return;
+		int yz = OLED_HEIGHT - y + 1;
+		x0 += (deltax * yz) / sy;
+		y = OLED_HEIGHT-1;
+	}
+	if( x0 < 0 )
+	{
+		if( xsg < 0 ) return;
+		int xz = 0 - x0;
+		y += (deltay * xz) / sx;
+		x0 = 0;
+	}
+	if( x0 >= OLED_WIDTH )
+	{
+		if( xsg < 0 ) return;
+		int xz = OLED_WIDTH - x0 + 1;
+		y += (deltay * xz) / sx;
+		x0 = OLED_WIDTH-1;
+	}
+
+	if( y1 < 0 )
+	{
+		if( ysg < 0 ) return;
+		int yz = 0 - y1;
+		x1 += (deltax * yz) / sy;
+		y = 0;
+	}
+	if( y1 >= OLED_HEIGHT )
+	{
+		if( ysg > 0 ) return;
+		int yz = OLED_HEIGHT - y1 + 1;
+		x1 += (deltax * yz) / sy;
+		y1 = OLED_HEIGHT-1;
+	}
+	if( x1 < 0 )
+	{
+		if( xsg < 0 ) return;
+		int xz = 0 - x1;
+		y1 += (deltay * xz) / sx;
+		x1 = 0;
+	}
+	if( x1 >= OLED_WIDTH )
+	{
+		if( xsg < 0 ) return;
+		int xz = OLED_WIDTH - x1 + 1;
+		y1 += (deltay * xz) / sx;
+		x1 = OLED_WIDTH-1;
+	}
 
 	for( x = x0; x != x1; x+=xsg )
 	{
