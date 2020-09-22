@@ -179,18 +179,7 @@ void emuSendOLEDData( int disp, uint8_t* currentFb )
             uint32_t pxcol;
             if( disp == 0 )
             {
-                int memx = (OLED_WIDTH - 1) - x;
-                int memy = (OLED_HEIGHT - 1) - y;
-                if (memy % 2 == 0)
-                {
-                    memy = (memy >> 1);
-                }
-                else
-                {
-                    memy = (memy >> 1) + (OLED_HEIGHT >> 1);
-                }
-
-                uint8_t col = currentFb[(memx + (memy / 8) * OLED_WIDTH)] & (1 << (memy & 7));
+                uint8_t col = currentFb[(y + x * OLED_HEIGHT)/8] & (1 << (y & 7));
                 pxcol = col ? (disp ? 0xffffffff : OLED_ON_COLOR) : BACKGROUND_COLOR;
             }
             else

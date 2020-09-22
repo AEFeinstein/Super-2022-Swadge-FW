@@ -37,6 +37,7 @@ void ICACHE_FLASH_ATTR drawPixelFastWhite( int x, int y );
 void ICACHE_FLASH_ATTR speedyWhiteLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1 );
 color getPixel(int16_t x, int16_t y);
 bool ICACHE_FLASH_ATTR setOLEDparams(bool turnOnOff);
+int ICACHE_FLASH_ATTR updateOLEDScreenRange( uint8_t minX, uint8_t maxX, uint8_t minPage, uint8_t maxPage );
 oledResult_t updateOLED(bool drawDifference);
 void clearDisplay(void);
 void fillDisplayArea(int16_t x1, int16_t y1, int16_t x2, int16_t y2, color c);

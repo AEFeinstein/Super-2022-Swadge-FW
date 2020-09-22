@@ -23,6 +23,7 @@
 
 #define OLED_ADDRESS (0x78 >> 1)
 #define OLED_FREQ 800
+#define OLED_HIGH_SPEED 1
 
 #define SSD1306_NUM_PAGES 8
 #define SSD1306_NUM_COLS 128
@@ -119,15 +120,14 @@ void ICACHE_FLASH_ATTR setPageAddressPagingMode(uint8_t page);
 void ICACHE_FLASH_ATTR setLowerColAddrPagingMode(uint8_t col);
 void ICACHE_FLASH_ATTR setUpperColAddrPagingMode(uint8_t col);
 
-bool ICACHE_FLASH_ATTR findDiffBounds(uint8_t* prior, uint8_t* curr, int16_t* bounds);
-void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* curr, int16_t* bounds);
-
 //==============================================================================
 // Variables
 //==============================================================================
 
 uint8_t currentFb[(OLED_WIDTH * (OLED_HEIGHT / 8))] = {0};
 uint8_t priorFb[(OLED_WIDTH * (OLED_HEIGHT / 8))] = {0};
+
+
 bool fbChanges = false;
 
 //==============================================================================
@@ -139,7 +139,7 @@ bool fbChanges = false;
  */
 void ICACHE_FLASH_ATTR clearDisplay(void)
 {
-    ets_memset(currentFb, 0, sizeof(currentFb));
+    ets_memset(currentFb, 0, (OLED_WIDTH * (OLED_HEIGHT / 8)) );
     fbChanges = true;
 }
 
@@ -180,32 +180,18 @@ void drawPixel(int16_t x, int16_t y, color c)
             (0 <= y) && (y < OLED_HEIGHT))
     {
         fbChanges = true;
-        x = (OLED_WIDTH - 1) - x;
-        y = (OLED_HEIGHT - 1) - y;
-        y = (y>>1) + ((y&1)?(OLED_HEIGHT >> 1):0);
-	/*
-        //Somehow, writing it the way we do above is slightly faster.
-        if (y % 2 == 0)
-        {
-            y = (y >> 1);
-        }
-        else
-        {
-            y = (y >> 1) + (OLED_HEIGHT >> 1);
-        }
-	*/
-        int index = (x + (y / 8) * OLED_WIDTH);
-        uint8_t mask = (1 << (y & 7));
+        uint8_t* addy = &currentFb[(y + x * OLED_HEIGHT) / 8];
+        uint8_t mask = 1 << (y & 7);
         switch (c)
         {
             case WHITE:
-                currentFb[index] |= mask;
+                *addy |= mask;
                 break;
             case BLACK:
-                currentFb[index] &= ~mask;
+                *addy &= ~mask;
                 break;
             case INVERSE:
-                currentFb[index] ^= mask;
+                *addy ^= mask;
                 break;
             //case TRANSPARENT_COLOR:
             default:
@@ -226,14 +212,11 @@ void drawPixel(int16_t x, int16_t y, color c)
  * @param y Row of the display, 0 is at the top
  */
 
-void ICACHE_FLASH_ATTR drawPixelFastWhite( int x, int y )
+void drawPixelFastWhite( int x, int y )
 {
-//	if( x < 0 || x >= OLED_WIDTH ) return;
-//	if( y < 0 || y >= OLED_HEIGHT ) return;
-
-    int yv = (y>>1) + ((y&1)?(OLED_HEIGHT >> 1):0);
-	int index = (x + (((yv >> 3)*OLED_WIDTH)) );
-	currentFb[index] |= (1 << (yv & 7));
+    uint8_t* addy = &currentFb[(y + x * OLED_HEIGHT) / 8];
+    uint8_t mask = 1 << (y & 7);
+    *addy |= mask;
 }
 
 /**
@@ -250,121 +233,180 @@ void ICACHE_FLASH_ATTR drawPixelFastWhite( int x, int y )
 //This is fast, but broken :(
 void ICACHE_FLASH_ATTR speedyWhiteLine( int16_t x0, int16_t y0, int16_t x1, int16_t y1 )
 {
-    x0 = (OLED_WIDTH - 1) - x0;
-    y0 = (OLED_HEIGHT - 1) - y0;
-    x1 = (OLED_WIDTH - 1) - x1;
-    y1 = (OLED_HEIGHT - 1) - y1;
+//Tune this as a function of the size of your viewing window, line accuracy, and worst-case scenario incoming lines.
+#define BRESEN_W OLED_WIDTH
+#define BRESEN_H OLED_HEIGHT
+#define FIXEDPOINT 65536
+#define FIXEDPOINTD2 (FIXEDPOINT/2)
+    int dx = (x1-x0);
+    int dy = (y1-y0);
+    int sdx = (dx>0)?1:-1;
+    int sdy = (dy>0)?1:-1;
+    int x = x0;
+    int y = y0;
 
-	int deltax = x1 - x0;
-	int deltay = y1 - y0;
-	int error = 0;
-	int x;
-	int sy = LABS(deltay);
-	int ysg = (y0>y1)?-1:1;
-	int y = y0;
+    int yerrdiv = ( dx * sdx );  //dy, but always positive.
+    int xerrdiv = ( dy * sdy );  //dx, but always positive.
+    int yerrnumerator;
+    int xerrnumerator;
 
-	if( x0 < 0 && x1 < 0 ) return;
-	if( x0 >= OLED_WIDTH && x1 >= OLED_WIDTH ) return;
+    //printf( "\n%d %d -> %d %d  (%d %d) (%d %d)\n", x, y, x1, y1, dx, dy, sdx, sdy );
 
-    fbChanges = true;
+    if( x < 0 && x1 < 0 ) return;
+    if( y < 0 && y1 < 0 ) return;
+    if( x >= BRESEN_W && x1 >= BRESEN_W ) return;
+    if( y >= BRESEN_H && y1 >= BRESEN_H ) return;
 
-	//My own spin on bresenham's.
-	if( deltax == 0 )
-	{
-		if( y1 == y0 )
-		{
-			if( y >= 0 && y < OLED_HEIGHT && x1 >= 0 && x1 < OLED_WIDTH )
-				drawPixelFastWhite( x1, y );
-			return;
-		}
+    //We put the checks above to check this, in case we have a situation where
+    // we have a 0-length line outside of the viewable area.  If that happened,
+    // we would have aborted before hitting this code.
 
-		y = y0;
-		if( y < 0 ) y = 0;
-		if( y >= OLED_HEIGHT ) y = OLED_HEIGHT - 1;
-		if( y1 < 0 ) y = 0;
-		if( y1 >= OLED_HEIGHT ) y = OLED_HEIGHT - 1;
-		for( ; y != y1; y+=ysg )
-			drawPixelFastWhite( x1, y );
-		return;
-	}
+    if( yerrdiv > 0 )
+    {
+        int dxA = 0;
+        if( x < 0 )
+        {
+            dxA = 0 - x;
+            x = 0;
+        }
+        if( x > BRESEN_W-1 )
+        {
+            dxA = (x - (BRESEN_W-1));
+            x = BRESEN_W-1;
+        }
+        if( dxA || xerrdiv <= yerrdiv )
+        {
+            yerrnumerator = ((dy * sdy) * FIXEDPOINT + yerrdiv/2) / yerrdiv;
+            if( dxA )
+            {
+                int yn = (yerrnumerator * dxA)*sdy;
+                yn += FIXEDPOINTD2 * sdy; //This "feels" right
+                yn /= FIXEDPOINT;
+                y += yn;
+                //Weird situation - if we cal, and now, both ends are out on the same side abort.
+                if( y < 0 && y1 < 0 ) return;
+                if( y > BRESEN_H-1 && y1 > BRESEN_H-1 ) return;
+            }
+        }
+    }
 
-	int deltaerr = (deltay * 256) / deltax;
-	int sx = LABS(deltax);
-	deltaerr = LABS(deltaerr);
-	int xsg = (x0>x1)?-1:1;
+    if( xerrdiv > 0 )
+    {
+        int dyA = 0;    
+        if( y < 0 )
+        {
+            dyA = 0 - y;
+            y = 0;
+        }
+        if( y > BRESEN_H-1 )
+        {
+            dyA = (y - (BRESEN_H-1));
+            y = BRESEN_H-1;
+        }
+        if( dyA || xerrdiv > yerrdiv )
+        {
+            xerrnumerator = ((dx * sdx) * FIXEDPOINT + xerrdiv/2 ) / xerrdiv;
+            if( dyA )
+            {
+                int xn = (xerrnumerator*dyA)*sdx;
+                xn += FIXEDPOINTD2 * sdx; //This "feels" right.
+                xn /= FIXEDPOINT;
+                x += xn;
+                //If we've come to discover the line is actually out of bounds, abort.
+                if( x < 0 && x1 < 0 ) return;
+                if( x > BRESEN_W-1 && x1 > BRESEN_W-1 ) return;
+            }
+        }
+    }
 
-	//TODO: Compute early-outs.  Them we can forego checks.
-	//ysg is always minimum y component.  Something like this:
-	if( y < 0 )
-	{
-		if( ysg < 0 ) return;
-		int yz = 0 - y;
-		x0 += (deltax * yz) / sy;
-		y = 0;
-	}
-	if( y >= OLED_HEIGHT )
-	{
-		if( ysg > 0 ) return;
-		int yz = OLED_HEIGHT - y + 1;
-		x0 += (deltax * yz) / sy;
-		y = OLED_HEIGHT-1;
-	}
-	if( x0 < 0 )
-	{
-		if( xsg < 0 ) return;
-		int xz = 0 - x0;
-		y += (deltay * xz) / sx;
-		x0 = 0;
-	}
-	if( x0 >= OLED_WIDTH )
-	{
-		if( xsg < 0 ) return;
-		int xz = OLED_WIDTH - x0 + 1;
-		y += (deltay * xz) / sx;
-		x0 = OLED_WIDTH-1;
-	}
+    if( x1 == x && y1 == y )
+    {
+        drawPixelFastWhite( x, y );
+        return;
+    }
 
-	if( y1 < 0 )
-	{
-		if( ysg < 0 ) return;
-		int yz = 0 - y1;
-		x1 += (deltax * yz) / sy;
-		y = 0;
-	}
-	if( y1 >= OLED_HEIGHT )
-	{
-		if( ysg > 0 ) return;
-		int yz = OLED_HEIGHT - y1 + 1;
-		x1 += (deltax * yz) / sy;
-		y1 = OLED_HEIGHT-1;
-	}
-	if( x1 < 0 )
-	{
-		if( xsg < 0 ) return;
-		int xz = 0 - x1;
-		y1 += (deltay * xz) / sx;
-		x1 = 0;
-	}
-	if( x1 >= OLED_WIDTH )
-	{
-		if( xsg < 0 ) return;
-		int xz = OLED_WIDTH - x1 + 1;
-		y1 += (deltay * xz) / sx;
-		x1 = OLED_WIDTH-1;
-	}
+    //Make sure we haven't clamped the wrong way.
+    //Also this checks for vertical/horizontal violations.
+    if( dx > 0 )
+    {
+        if( x > BRESEN_W-1 ) return;
+        if( x > x1 ) return;
+    }
+    else if( dx < 0 )
+    {
+        if( x < 0 ) return;
+        if( x < x1 ) return;
+    }
 
-	for( x = x0; x != x1; x+=xsg )
-	{
-		drawPixelFastWhite(x,y);
-		error = error + deltaerr;
-		while( error >= 128 )
-		{
-			y += ysg;
-			drawPixelFastWhite(x, y);
-			error = error - 256;
-		}
-	}
-	drawPixelFastWhite(x1,y1);
+    if( dy > 0 )
+    {
+        if( y > BRESEN_H-1 ) return;
+        if( y > y1 ) return;
+    }
+    else if( dy < 0 )
+    {
+        if( y < 0 ) return;
+        if( y < y1 ) return;
+    }
+
+    //Force clip end coordinate.
+    //NOTE: We have an extra check within the inner loop, to avoid complicated math here.
+    //Theoretically, we could math this so that in the end-coordinate clip stage
+    //to make sure this condition just could never be hit, however, that is very
+    //difficult to guarantee under all situations and may have weird edge cases.
+    //So, I've decided to stick this here.
+
+    if( xerrdiv > yerrdiv )
+    {
+        int xerr = FIXEDPOINTD2;
+        if( x1 < 0 ) x1 = 0;
+        if( x1 > BRESEN_W-1) x1 = BRESEN_W-1;
+        x1 += sdx; //Tricky - make sure the "next" mark we hit doesn't overflow.
+
+        if( y1 < 0 ) y1 = 0;
+        if( y1 > BRESEN_H-1 ) y1 = BRESEN_H-1;
+
+        for( ; y != y1; y+=sdy )
+        {
+            drawPixelFastWhite( x, y );
+            xerr += xerrnumerator;
+            while( xerr >= FIXEDPOINT )
+            {
+                x += sdx;
+                if( x == x1 ) goto abortline;
+                drawPixelFastWhite( x, y );
+                xerr -= FIXEDPOINT;
+            }
+        }
+        drawPixelFastWhite( x, y );
+    }
+    else
+    {
+        int yerr = FIXEDPOINTD2;
+
+        if( y1 < 0 ) y1 = 0;
+        if( y1 > BRESEN_H-1 ) y1 = BRESEN_H-1;
+        y1 += sdy;        //Tricky: Make sure the NEXT mark we hit doens't overflow.
+
+        if( x1 < 0 ) x1 = 0;
+        if( x1 > BRESEN_W-1) x1 = BRESEN_W-1;
+
+        for( ; x != x1; x+=sdx )
+        {
+            drawPixelFastWhite( x, y );
+            yerr += yerrnumerator;
+            while( yerr >= FIXEDPOINT )
+            {
+                y += sdy;
+                if( y == y1 ) goto abortline;
+                drawPixelFastWhite( x, y );
+                yerr -= FIXEDPOINT;
+            }
+        }
+        drawPixelFastWhite( x, y );
+    }
+abortline:
+    ;
 }
 
 /**
@@ -379,18 +421,7 @@ color ICACHE_FLASH_ATTR getPixel(int16_t x, int16_t y)
     if ((0 <= x) && (x < OLED_WIDTH) &&
             (0 <= y) && (y < OLED_HEIGHT))
     {
-        x = (OLED_WIDTH - 1) - x;
-        y = (OLED_HEIGHT - 1) - y;
-        if (y % 2 == 0)
-        {
-            y = (y >> 1);
-        }
-        else
-        {
-            y = (y >> 1) + (OLED_HEIGHT >> 1);
-        }
-
-        if(currentFb[(x + (y / 8) * OLED_WIDTH)] & (1 << (y & 7)))
+        if(currentFb[(y + x * OLED_HEIGHT) / 8] & (1 << (y & 7)))
         {
             return WHITE;
         }
@@ -450,15 +481,15 @@ bool ICACHE_FLASH_ATTR setOLEDparams(bool turnOnOff)
     setMultiplexRatio(OLED_HEIGHT - 1);
     setDisplayOffset(0);
     setDisplayStartLine(0);
-    setMemoryAddressingMode(PAGE_ADDRESSING);
+    setMemoryAddressingMode(VERTICAL_ADDRESSING);
 #if (SWADGE_VERSION == BARREL_1_0_0)
-    setSegmentRemap(false);
-    setComOutputScanDirection(true);
-#else
     setSegmentRemap(true);
     setComOutputScanDirection(false);
+#else
+    setSegmentRemap(false);
+    setComOutputScanDirection(true);
 #endif
-    setComPinsHardwareConfig(true, false);
+    setComPinsHardwareConfig(false, false);
     setContrastControl(0x7F);
     setPrechargePeriod(1, 15);
     setVcomhDeselectLevel(Vcc_X_0_77);
@@ -479,70 +510,35 @@ bool ICACHE_FLASH_ATTR setOLEDparams(bool turnOnOff)
     return (0 == cnlohr_i2c_end_transaction());
 }
 
-/**
- * @brief Find the first and last differences in a page
- *
- * @param prior The prior framebuffer to compare
- * @param curr  The current framebuffer to compare
- * @param bounds A pointer to return the first and last difference index through
- * @return true if there are any differences, false otherwise
- */
-inline bool ICACHE_FLASH_ATTR findDiffBounds(uint8_t* prior, uint8_t* curr, int16_t* bounds)
+int ICACHE_FLASH_ATTR updateOLEDScreenRange( uint8_t minX, uint8_t maxX, uint8_t minPage, uint8_t maxPage )
 {
-    int16_t col;
-    bool anyDiffs = false;
-    // Look for the first difference
-    for (col = 0; col < SSD1306_NUM_COLS; col++)
+    uint8_t encountered_error = false;
+    uint8_t x, page;
+
+    cnlohr_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
+    setColumnAddress( minX, maxX );
+    setPageAddress( minPage, maxPage );
+    if( cnlohr_i2c_end_transaction() )
     {
-        // If there's a difference
-        if (prior[col] != curr[col])
+        encountered_error = true;
+    }
+
+    SendStart(OLED_HIGH_SPEED);
+    SendByte( OLED_ADDRESS << 1, OLED_HIGH_SPEED );
+    SendByte( SSD1306_DATA, OLED_HIGH_SPEED );
+    for( x = minX; x <= maxX; x++ )
+    {
+        int index = x * SSD1306_NUM_PAGES + minPage;
+        uint8_t* prior = &priorFb[index];
+        uint8_t* cur = &currentFb[index];
+
+        for( page = minPage; page <= maxPage; page++ )
         {
-            // Mark it
-            bounds[0] = col;
-            // Then look for the last difference
-            for (col = SSD1306_NUM_COLS - 1; col >= 0; col--)
-            {
-                // If there's a difference
-                if (prior[col] != curr[col])
-                {
-                    // Mark it
-                    bounds[1] = col;
-                    break;
-                }
-            }
-            anyDiffs = true;
-            break;
+            SendByteFast( *(prior++) = *(cur++) );
         }
     }
-    return anyDiffs;
-}
-
-/**
- * Send the differences between the prior frame and the current frame to the
- * OLED using the fewest number of SPI bytes
- *
- * @param prior The prior frame
- * @param curr  The current frame
- * @param bounds The indices of the first and last differences
- */
-inline void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* curr, int16_t* bounds)
-{
-    // Address the page
-    setPageAddressPagingMode(page);
-
-    // Suppresses a warning
-    (void)prior;
-
-    setLowerColAddrPagingMode(bounds[0] & 0x0F);
-    setUpperColAddrPagingMode((bounds[0] >> 4) & 0x0F);
-
-    uint8_t numBytesDifferent = bounds[1] - bounds[0] + 1;
-    uint8_t diffs[1 + numBytesDifferent];
-    diffs[0] = SSD1306_DATA;
-    ets_memcpy(&diffs[1], &curr[bounds[0]], numBytesDifferent);
-
-    // Write the data
-    cnlohr_i2c_write(diffs, sizeof(diffs), false);
+    SendStop(OLED_HIGH_SPEED);
+    return encountered_error ? FRAME_NOT_DRAWN : FRAME_DRAWN;
 }
 
 /**
@@ -566,96 +562,59 @@ oledResult_t ICACHE_FLASH_ATTR updateOLED(bool drawDifference)
         fbChanges = false;
     }
 
-    if(drawDifference)
-    {
-        // Just draw the differences
-        int16_t page;
-        bool anyDiffs = false;
-        int16_t diffBounds[SSD1306_NUM_PAGES][2] =
-        {
-            {-1, -1},
-            {-1, -1},
-            {-1, -1},
-            {-1, -1},
-            {-1, -1},
-            {-1, -1},
-            {-1, -1},
-            {-1, -1},
-        };
+    uint8_t minX = OLED_WIDTH;
+    uint8_t maxX = 0;
+    uint8_t minPage = SSD1306_NUM_PAGES;
+    uint8_t maxPage = 0;
 
-        // Compare the prior and current framebuffers, looking for any differences
-        for (page = 0; page < SSD1306_NUM_PAGES; page++)
+    if( drawDifference )
+    {
+        //Right now, we just look for the rect on the screen which encompasses the biggest changed area.
+        //We could, however, update multiple rectangles if we wanted, more similar to the previous system.
+
+        uint8_t x, page;
+        uint8_t* pPrev = priorFb;
+        uint8_t* pCur = currentFb;
+        for( x = 0; x < OLED_WIDTH; x++ )
         {
-            if (findDiffBounds(&priorFb[page * SSD1306_NUM_COLS], &currentFb[page * SSD1306_NUM_COLS], diffBounds[page]))
+            for( page = 0; page < SSD1306_NUM_PAGES; page++ )
             {
-                anyDiffs = true;
+                if( *pPrev != *pCur )
+                {
+                    if( x < minX )
+                    {
+                        minX = x;
+                    }
+                    if( x > maxX )
+                    {
+                        maxX = x;
+                    }
+                    if( page < minPage )
+                    {
+                        minPage = page;
+                    }
+                    if( page > maxPage )
+                    {
+                        maxPage = page;
+                    }
+                }
+                pPrev++;
+                pCur++;
             }
         }
 
-        // No framebuffer updates, just return
-        if (true == drawDifference && false == anyDiffs)
+        if( maxX >= minX && maxPage >= minPage )
+        {
+            return updateOLEDScreenRange( minX, maxX, minPage, maxPage );
+        }
+        else
         {
             return NOTHING_TO_DO;
         }
-
-        // Start i2c
-        cnlohr_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
-
-        // Find the actual differences and push them out
-        for (page = 0; page < SSD1306_NUM_PAGES; page++)
-        {
-            // If there's a difference in this page, look harder
-            if (0 <= diffBounds[page][0])
-            {
-                checkPage(page, &priorFb[page * SSD1306_NUM_COLS], &currentFb[page * SSD1306_NUM_COLS], diffBounds[page]);
-            }
-        }
-
-        // Copy the framebuffer to the prior
-        ets_memcpy(priorFb, currentFb, sizeof(currentFb));
-
-        // end i2c
-        if (0 == cnlohr_i2c_end_transaction())
-        {
-            return FRAME_DRAWN;
-        }
-        else
-        {
-            return FRAME_NOT_DRAWN;
-        }
     }
-    else // Draw the entire OLED
+    else
     {
-        // Start i2c
-        cnlohr_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
-
-        // Draw every page
-        uint8_t wholePage[1 + SSD1306_NUM_COLS] = {0};
-        wholePage[0] = SSD1306_DATA;
-        uint8_t page;
-        for (page = 0; page < SSD1306_NUM_PAGES; page++)
-        {
-            // Address the page
-            setPageAddressPagingMode(page);
-            setLowerColAddrPagingMode(0);
-            setUpperColAddrPagingMode(0);
-            // Write the page
-            ets_memcpy(&wholePage[1], &currentFb[page * SSD1306_NUM_COLS], sizeof(wholePage) - 1);
-            cnlohr_i2c_write(wholePage, sizeof(wholePage), false);
-        }
-
-        // Copy the framebuffer to the prior
-        ets_memcpy(priorFb, currentFb, sizeof(currentFb));
-
-        // end i2c
-        if (0 == cnlohr_i2c_end_transaction())
-        {
-            return FRAME_DRAWN;
-        }
-        else
-        {
-            return FRAME_NOT_DRAWN;
-        }
+        return updateOLEDScreenRange( 0, OLED_WIDTH - 1, 0, SSD1306_NUM_PAGES - 1 );
     }
 }
 

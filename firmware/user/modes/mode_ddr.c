@@ -60,8 +60,8 @@
 //#define DEBUG
 
 #ifdef DEBUG
-#define DEBUG_QUARTER_NOTES
-#define DEBUG_EVERY_PERFECT
+    #define DEBUG_QUARTER_NOTES
+    #define DEBUG_EVERY_PERFECT
 #endif
 
 /*============================================================================
@@ -450,11 +450,11 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void)
         ddr->sixteenthNoteCounter = MAX_SIXTEENTH_TIMER - ddr->tempo + ddr->sixteenthNoteCounter;
         ddr->sixteenths = (ddr->sixteenths + 1 ) % 16;
 
-        #ifdef DEBUG_QUARTER_NOTES
+#ifdef DEBUG_QUARTER_NOTES
         // 100 percent chance on each beat
-        percentChanceSpawn = 100; 
+        percentChanceSpawn = 100;
         canSpawnArrow = 0 == ddr->sixteenths % 4;
-        #else
+#else
         canSpawnArrow = true;
 
         if (0 == ddr->sixteenths)
@@ -477,7 +477,7 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void)
         {
             percentChanceSpawn = 0; // 0 percent chance on other 16th beats
         }
-        #endif
+#endif
 
     }
     else
@@ -509,11 +509,11 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void)
 
             if (arrowDist <= ARROW_PERFECT_RADIUS)
             {
-            #ifdef DEBUG_EVERY_PERFECT
+#ifdef DEBUG_EVERY_PERFECT
                 if(true)
-            #else
+#else
                 if(ddr->ButtonDownState & curRow->pressDirection)
-            #endif
+#endif
                 {
                     curRow->count--;
                     curRow->start = (curRow->start + 1) % ARROW_ROW_MAX_COUNT;

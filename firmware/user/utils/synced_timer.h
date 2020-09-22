@@ -11,7 +11,7 @@
 #define timerSetFn(timer, fn, arg)    os_timer_setfn(timer, fn, arg)
 #define timerArm(timer, time, repeat) os_timer_arm(timer, time, repeat)
 #define timerDisarm(timer)            os_timer_disarm(timer)
-#define timersCheck()                 
+#define timersCheck()
 #define timerFlush()
 
 #else
