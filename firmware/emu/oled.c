@@ -26,31 +26,25 @@ bool initOLED(bool reset)
 
 void drawPixel(int16_t x, int16_t y, color c)
 {
-    if ((0 <= x) && (x < OLED_WIDTH) &&
+    if (c != TRANSPARENT_COLOR &&
+            (0 <= x) && (x < OLED_WIDTH) &&
             (0 <= y) && (y < OLED_HEIGHT))
     {
         fbChanges = true;
-        x = (OLED_WIDTH - 1) - x;
-        y = (OLED_HEIGHT - 1) - y;
-        if (y % 2 == 0)
-        {
-            y = (y >> 1);
-        }
-        else
-        {
-            y = (y >> 1) + (OLED_HEIGHT >> 1);
-        }
+        uint8_t * addy = &currentFb[(y + x * OLED_HEIGHT)/8];
+        uint8_t mask = 1<<(y&7);
         switch (c)
         {
             case WHITE:
-                currentFb[(x + (y / 8) * OLED_WIDTH)] |= (1 << (y & 7));
+                *addy |= mask;
                 break;
             case BLACK:
-                currentFb[(x + (y / 8) * OLED_WIDTH)] &= ~(1 << (y & 7));
+                *addy &= ~mask;
                 break;
             case INVERSE:
-                currentFb[(x + (y / 8) * OLED_WIDTH)] ^= (1 << (y & 7));
+                *addy ^= mask;
                 break;
+            case TRANSPARENT_COLOR:
             default:
             {
                 break;
@@ -64,18 +58,7 @@ color getPixel(int16_t x, int16_t y)
     if ((0 <= x) && (x < OLED_WIDTH) &&
             (0 <= y) && (y < OLED_HEIGHT))
     {
-        x = (OLED_WIDTH - 1) - x;
-        y = (OLED_HEIGHT - 1) - y;
-        if (y % 2 == 0)
-        {
-            y = (y >> 1);
-        }
-        else
-        {
-            y = (y >> 1) + (OLED_HEIGHT >> 1);
-        }
-
-        if(currentFb[(x + (y / 8) * OLED_WIDTH)] & (1 << (y & 7)))
+        if(currentFb[(y + x * OLED_HEIGHT)/8] & (1 << (y & 7)))
         {
             return WHITE;
         }

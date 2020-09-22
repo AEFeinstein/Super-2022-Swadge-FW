@@ -29,7 +29,7 @@ void ICACHE_FLASH_ATTR ConfigI2C(void)
     GPIO_OUTPUT_SET(REMAP(I2CSCL), 1);
 }
 
-void SendStart(bool highSpeed)
+void ICACHE_FLASH_ATTR SendStart(bool highSpeed)
 {
     my_i2c_delay(highSpeed);
     my_i2c_delay(highSpeed);
@@ -39,7 +39,7 @@ void SendStart(bool highSpeed)
     my_i2c_delay(highSpeed);
 }
 
-void SendStop(bool highSpeed)
+void ICACHE_FLASH_ATTR SendStop(bool highSpeed)
 {
     my_i2c_delay(highSpeed);
     GPIO_OUTPUT_SET(REMAP(I2CSDA), 0);  //May or may not be done.
@@ -52,8 +52,42 @@ void SendStop(bool highSpeed)
     my_i2c_delay(highSpeed);
 }
 
+void SendByteFast( unsigned char data )
+{
+    uint8_t i;
+    PIN_OUT_SET = (1 << I2CSDA);
+    PIN_DIR_OUTPUT = 1 << I2CSDA;
+    my_i2c_delay(1);
+    PIN_DIR_OUTPUT = 1 << I2CSCL;
+    for( i = 0; i < 8; i++ )
+    {
+        my_i2c_delay(1);
+        if( data & 0x80 )
+        {
+            PIN_OUT_SET = (1 << I2CSDA);
+        }
+        else
+        {
+            PIN_OUT_CLEAR = (1 << I2CSDA);
+        }
+        data <<= 1;
+        my_i2c_delay(1);
+        PIN_OUT_SET = (1 << I2CSCL);
+        asm volatile( "memw" ); //Make this area take a tiny bit more time.
+        my_i2c_delay(1); 
+        PIN_OUT_CLEAR = (1 << I2CSCL);
+    }
+
+    //Immediately after sending just pretend we see the OLED's ACK.
+    PIN_OUT_CLEAR = (1 << I2CSDA);
+    my_i2c_delay(1);
+    PIN_OUT_SET = (1 << I2CSCL);
+    my_i2c_delay(1);
+    PIN_OUT_CLEAR = (1 << I2CSCL);
+}
+
 //Return nonzero on failure.
-unsigned char SendByte( unsigned char data, bool highSpeed )
+unsigned char ICACHE_FLASH_ATTR SendByte( unsigned char data, bool highSpeed )
 {
     unsigned char i;
     PIN_OUT_SET = (1 << I2CSDA);
@@ -88,12 +122,13 @@ unsigned char SendByte( unsigned char data, bool highSpeed )
     my_i2c_delay(highSpeed);
     my_i2c_delay(highSpeed);
     i = (PIN_IN & (1 << I2CSDA)) ? 1 : 0; //Read in input.  See if client is there.
+    asm volatile( "memw" ); //Why after? It seems to fix things.
     PIN_OUT_CLEAR = (1 << I2CSCL);
     my_i2c_delay(highSpeed);
-    return (i) ? 1 : 0;
+    return i;
 }
 
-unsigned char GetByte( uint8_t send_nak, bool highSpeed)
+unsigned char ICACHE_FLASH_ATTR GetByte( uint8_t send_nak, bool highSpeed)
 {
     unsigned char i;
     unsigned char ret = 0;
@@ -107,6 +142,7 @@ unsigned char GetByte( uint8_t send_nak, bool highSpeed)
         my_i2c_delay(highSpeed);
         my_i2c_delay(highSpeed);
         ret <<= 1;
+        asm volatile( "memw" );
         if( PIN_IN & (1 << I2CSDA) )
         {
             ret |= 1;
@@ -159,7 +195,7 @@ __attribute__((noinline)) void my_i2c_delay(bool highSpeed)
     return;
 }
 
-void cnlohr_i2c_setup( uint32_t clock_stretch_time_out_usec __attribute__((unused)))
+void ICACHE_FLASH_ATTR cnlohr_i2c_setup( uint32_t clock_stretch_time_out_usec __attribute__((unused)))
 {
     PIN_FUNC_SELECT(CNLOHR_I2C_SDA_MUX, CNLOHR_I2C_SDA_FUNC);
     PIN_FUNC_SELECT(CNLOHR_I2C_SCL_MUX, CNLOHR_I2C_SCL_FUNC);
@@ -195,7 +231,7 @@ void cnlohr_i2c_write(const uint8_t* data, uint32_t no_of_bytes, bool repeated_s
     cnl_need_new_stop = 1;
 }
 
-void cnlohr_i2c_start_transaction(uint8_t slave_address, uint16_t SCL_frequency_KHz)
+void ICACHE_FLASH_ATTR cnlohr_i2c_start_transaction(uint8_t slave_address, uint16_t SCL_frequency_KHz)
 {
     cnl_highSpeed = (800 == SCL_frequency_KHz);
     cnl_err = 0;
@@ -205,7 +241,7 @@ void cnlohr_i2c_start_transaction(uint8_t slave_address, uint16_t SCL_frequency_
 }
 
 
-void cnlohr_i2c_read(uint8_t* data, uint32_t nr_of_bytes, bool repeated_start)
+void ICACHE_FLASH_ATTR cnlohr_i2c_read(uint8_t* data, uint32_t nr_of_bytes, bool repeated_start)
 {
     if( cnl_need_new_stop && !repeated_start )
     {
@@ -229,7 +265,7 @@ void cnlohr_i2c_read(uint8_t* data, uint32_t nr_of_bytes, bool repeated_start)
     SendStop(cnl_highSpeed);
 }
 
-uint8_t cnlohr_i2c_end_transaction(void)
+uint8_t ICACHE_FLASH_ATTR cnlohr_i2c_end_transaction(void)
 {
     SendStop(cnl_highSpeed);
     cnl_need_new_stop = 0;

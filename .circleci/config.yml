@@ -103,7 +103,7 @@ jobs:
             cd $CIRCLE_WORKING_DIRECTORY
             git clone << pipeline.parameters.src-repo-url >> --recurse-submodules
             cd Super-2021-Swadge-FW-Sandbox/firmware
-            unset ESP_GDB && export SET_SWADGE_VERSION=2 && make -C emu all
+            unset ESP_GDB && export SET_SWADGE_VERSION=5 && make -C emu all
             echo $(date) >> version.txt && echo "https://github.com/AEFeinstein/Super-2021-Swadge-FW-Sandbox/commit/${CIRCLE_SHA1}" >> version.txt
             zip << pipeline.parameters.windows-artifact >> -j emu/swadgemu.exe emu/assets.bin version.txt /bin/cygwin1.dll
       - store_artifacts:

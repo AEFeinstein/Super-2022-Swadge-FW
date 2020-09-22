@@ -23,6 +23,7 @@
 
 #define OLED_ADDRESS (0x78 >> 1)
 #define OLED_FREQ 800
+#define OLED_HIGH_SPEED 1
 
 #define SSD1306_NUM_PAGES 8
 #define SSD1306_NUM_COLS 128
@@ -119,15 +120,14 @@ void ICACHE_FLASH_ATTR setPageAddressPagingMode(uint8_t page);
 void ICACHE_FLASH_ATTR setLowerColAddrPagingMode(uint8_t col);
 void ICACHE_FLASH_ATTR setUpperColAddrPagingMode(uint8_t col);
 
-bool ICACHE_FLASH_ATTR findDiffBounds(uint8_t* prior, uint8_t* curr, int16_t* bounds);
-void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* curr, int16_t* bounds);
-
 //==============================================================================
 // Variables
 //==============================================================================
 
 uint8_t currentFb[(OLED_WIDTH * (OLED_HEIGHT / 8))] = {0};
 uint8_t priorFb[(OLED_WIDTH * (OLED_HEIGHT / 8))] = {0};
+
+
 bool fbChanges = false;
 
 //==============================================================================
@@ -139,7 +139,7 @@ bool fbChanges = false;
  */
 void ICACHE_FLASH_ATTR clearDisplay(void)
 {
-    ets_memset(currentFb, 0, sizeof(currentFb));
+    ets_memset(currentFb, 0, (OLED_WIDTH * (OLED_HEIGHT / 8)) );
     fbChanges = true;
 }
 
@@ -176,30 +176,22 @@ void ICACHE_FLASH_ATTR fillDisplayArea(int16_t x1, int16_t y1, int16_t x2, int16
 void drawPixel(int16_t x, int16_t y, color c)
 {
     if (c != TRANSPARENT_COLOR &&
-            (0 <= x) && (x < OLED_WIDTH) &&
-            (0 <= y) && (y < OLED_HEIGHT))
+        (0 <= x) && (x < OLED_WIDTH) &&
+        (0 <= y) && (y < OLED_HEIGHT))
     {
         fbChanges = true;
-        x = (OLED_WIDTH - 1) - x;
-        y = (OLED_HEIGHT - 1) - y;
-        if (y % 2 == 0)
-        {
-            y = (y >> 1);
-        }
-        else
-        {
-            y = (y >> 1) + (OLED_HEIGHT >> 1);
-        }
+        uint8_t * addy = &currentFb[(y + x * OLED_HEIGHT)/8];
+        uint8_t mask = 1<<(y&7);
         switch (c)
         {
             case WHITE:
-                currentFb[(x + (y / 8) * OLED_WIDTH)] |= (1 << (y & 7));
+                *addy |= mask;
                 break;
             case BLACK:
-                currentFb[(x + (y / 8) * OLED_WIDTH)] &= ~(1 << (y & 7));
+                *addy &= ~mask;
                 break;
             case INVERSE:
-                currentFb[(x + (y / 8) * OLED_WIDTH)] ^= (1 << (y & 7));
+                *addy ^= mask;
                 break;
             case TRANSPARENT_COLOR:
             default:
@@ -220,20 +212,9 @@ void drawPixel(int16_t x, int16_t y, color c)
 color ICACHE_FLASH_ATTR getPixel(int16_t x, int16_t y)
 {
     if ((0 <= x) && (x < OLED_WIDTH) &&
-            (0 <= y) && (y < OLED_HEIGHT))
+        (0 <= y) && (y < OLED_HEIGHT))
     {
-        x = (OLED_WIDTH - 1) - x;
-        y = (OLED_HEIGHT - 1) - y;
-        if (y % 2 == 0)
-        {
-            y = (y >> 1);
-        }
-        else
-        {
-            y = (y >> 1) + (OLED_HEIGHT >> 1);
-        }
-
-        if(currentFb[(x + (y / 8) * OLED_WIDTH)] & (1 << (y & 7)))
+        if(currentFb[(y + x * OLED_HEIGHT)/8] & (1 << (y & 7)))
         {
             return WHITE;
         }
@@ -293,15 +274,15 @@ bool ICACHE_FLASH_ATTR setOLEDparams(bool turnOnOff)
     setMultiplexRatio(OLED_HEIGHT - 1);
     setDisplayOffset(0);
     setDisplayStartLine(0);
-    setMemoryAddressingMode(PAGE_ADDRESSING);
+    setMemoryAddressingMode(VERTICAL_ADDRESSING);
 #if (SWADGE_VERSION == BARREL_1_0_0)
-    setSegmentRemap(false);
-    setComOutputScanDirection(true);
-#else
     setSegmentRemap(true);
     setComOutputScanDirection(false);
+#else
+    setSegmentRemap(false);
+    setComOutputScanDirection(true);
 #endif
-    setComPinsHardwareConfig(true, false);
+    setComPinsHardwareConfig(false, false);
     setContrastControl(0x7F);
     setPrechargePeriod(1, 15);
     setVcomhDeselectLevel(Vcc_X_0_77);
@@ -322,70 +303,32 @@ bool ICACHE_FLASH_ATTR setOLEDparams(bool turnOnOff)
     return (0 == cnlohr_i2c_end_transaction());
 }
 
-/**
- * @brief Find the first and last differences in a page
- *
- * @param prior The prior framebuffer to compare
- * @param curr  The current framebuffer to compare
- * @param bounds A pointer to return the first and last difference index through
- * @return true if there are any differences, false otherwise
- */
-inline bool ICACHE_FLASH_ATTR findDiffBounds(uint8_t* prior, uint8_t* curr, int16_t* bounds)
+int ICACHE_FLASH_ATTR updateOLEDScreenRange( uint8_t minX, uint8_t maxX, uint8_t minPage, uint8_t maxPage )
 {
-    int16_t col;
-    bool anyDiffs = false;
-    // Look for the first difference
-    for (col = 0; col < SSD1306_NUM_COLS; col++)
+    uint8_t encountered_error = false;
+    uint8_t x, page;
+
+    cnlohr_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
+    setColumnAddress( minX, maxX );
+    setPageAddress( minPage, maxPage );
+    if( cnlohr_i2c_end_transaction() ) encountered_error = true;
+
+    SendStart(OLED_HIGH_SPEED);
+    SendByte( OLED_ADDRESS << 1, OLED_HIGH_SPEED );
+    SendByte( SSD1306_DATA, OLED_HIGH_SPEED );
+    for( x = minX; x <= maxX; x++ )
     {
-        // If there's a difference
-        if (prior[col] != curr[col])
+        int index = x*SSD1306_NUM_PAGES+minPage;
+		uint8_t * prior = &priorFb[index];
+		uint8_t * cur = &currentFb[index];
+
+        for( page = minPage; page <= maxPage; page++ )
         {
-            // Mark it
-            bounds[0] = col;
-            // Then look for the last difference
-            for (col = SSD1306_NUM_COLS - 1; col >= 0; col--)
-            {
-                // If there's a difference
-                if (prior[col] != curr[col])
-                {
-                    // Mark it
-                    bounds[1] = col;
-                    break;
-                }
-            }
-            anyDiffs = true;
-            break;
+            SendByteFast( *(prior++) = *(cur++) );
         }
     }
-    return anyDiffs;
-}
-
-/**
- * Send the differences between the prior frame and the current frame to the
- * OLED using the fewest number of SPI bytes
- *
- * @param prior The prior frame
- * @param curr  The current frame
- * @param bounds The indices of the first and last differences
- */
-inline void ICACHE_FLASH_ATTR checkPage(uint8_t page, uint8_t* prior, uint8_t* curr, int16_t* bounds)
-{
-    // Address the page
-    setPageAddressPagingMode(page);
-
-    // Suppresses a warning
-    (void)prior;
-
-    setLowerColAddrPagingMode(bounds[0] & 0x0F);
-    setUpperColAddrPagingMode((bounds[0] >> 4) & 0x0F);
-
-    uint8_t numBytesDifferent = bounds[1] - bounds[0] + 1;
-    uint8_t diffs[1 + numBytesDifferent];
-    diffs[0] = SSD1306_DATA;
-    ets_memcpy(&diffs[1], &curr[bounds[0]], numBytesDifferent);
-
-    // Write the data
-    cnlohr_i2c_write(diffs, sizeof(diffs), false);
+    SendStop(OLED_HIGH_SPEED);
+    return encountered_error?FRAME_NOT_DRAWN:FRAME_DRAWN;
 }
 
 /**
@@ -409,97 +352,48 @@ oledResult_t ICACHE_FLASH_ATTR updateOLED(bool drawDifference)
         fbChanges = false;
     }
 
-    if(drawDifference)
-    {
-        // Just draw the differences
-        int16_t page;
-        bool anyDiffs = false;
-        int16_t diffBounds[SSD1306_NUM_PAGES][2] =
-        {
-            {-1, -1},
-            {-1, -1},
-            {-1, -1},
-            {-1, -1},
-            {-1, -1},
-            {-1, -1},
-            {-1, -1},
-            {-1, -1},
-        };
+    uint8_t minX = OLED_WIDTH;
+    uint8_t maxX = 0;
+    uint8_t minPage = SSD1306_NUM_PAGES;
+    uint8_t maxPage = 0;
 
-        // Compare the prior and current framebuffers, looking for any differences
-        for (page = 0; page < SSD1306_NUM_PAGES; page++)
+    if( drawDifference )
+    {
+        //Right now, we just look for the rect on the screen which encompasses the biggest changed area.
+        //We could, however, update multiple rectangles if we wanted, more similar to the previous system.
+
+        uint8_t x, page;
+        uint8_t * pPrev = priorFb;
+        uint8_t * pCur = currentFb;
+        for( x = 0; x < OLED_WIDTH; x++ )
         {
-            if (findDiffBounds(&priorFb[page * SSD1306_NUM_COLS], &currentFb[page * SSD1306_NUM_COLS], diffBounds[page]))
+            for( page = 0; page < SSD1306_NUM_PAGES; page++ )
             {
-                anyDiffs = true;
+                if( *pPrev != *pCur )
+                {
+                    if( x < minX ) minX = x;
+                    if( x > maxX ) maxX = x;
+                    if( page < minPage ) minPage = page;
+                    if( page > maxPage ) maxPage = page;
+                }
+                pPrev++;
+                pCur++;
             }
         }
 
-        // No framebuffer updates, just return
-        if (true == drawDifference && false == anyDiffs)
-        {
-            return NOTHING_TO_DO;
-        }
-
-        // Start i2c
-        cnlohr_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
-
-        // Find the actual differences and push them out
-        for (page = 0; page < SSD1306_NUM_PAGES; page++)
-        {
-            // If there's a difference in this page, look harder
-            if (0 <= diffBounds[page][0])
-            {
-                checkPage(page, &priorFb[page * SSD1306_NUM_COLS], &currentFb[page * SSD1306_NUM_COLS], diffBounds[page]);
-            }
-        }
-
-        // Copy the framebuffer to the prior
-        ets_memcpy(priorFb, currentFb, sizeof(currentFb));
-
-        // end i2c
-        if (0 == cnlohr_i2c_end_transaction())
-        {
-            return FRAME_DRAWN;
-        }
-        else
-        {
-            return FRAME_NOT_DRAWN;
-        }
-    }
-    else // Draw the entire OLED
-    {
-        // Start i2c
-        cnlohr_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
-
-        // Draw every page
-        uint8_t wholePage[1 + SSD1306_NUM_COLS] = {0};
-        wholePage[0] = SSD1306_DATA;
-        uint8_t page;
-        for (page = 0; page < SSD1306_NUM_PAGES; page++)
-        {
-            // Address the page
-            setPageAddressPagingMode(page);
-            setLowerColAddrPagingMode(0);
-            setUpperColAddrPagingMode(0);
-            // Write the page
-            ets_memcpy(&wholePage[1], &currentFb[page * SSD1306_NUM_COLS], sizeof(wholePage) - 1);
-            cnlohr_i2c_write(wholePage, sizeof(wholePage), false);
-        }
-
-        // Copy the framebuffer to the prior
-        ets_memcpy(priorFb, currentFb, sizeof(currentFb));
-
-        // end i2c
-        if (0 == cnlohr_i2c_end_transaction())
-        {
-            return FRAME_DRAWN;
-        }
-        else
-        {
-            return FRAME_NOT_DRAWN;
-        }
-    }
+		if( maxX >= minX && maxPage >= minPage )
+		{
+			return updateOLEDScreenRange( minX, maxX, minPage, maxPage );
+		}
+		else
+		{
+			return NOTHING_TO_DO;
+		}
+	}
+	else
+	{
+		return updateOLEDScreenRange( 0, OLED_WIDTH-1, 0, SSD1306_NUM_PAGES-1 );
+	}
 }
 
 //==============================================================================

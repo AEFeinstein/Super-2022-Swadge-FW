@@ -1056,7 +1056,7 @@ bool ICACHE_FLASH_ATTR updtAnimWalk(uint32_t tElapsed)
         {
             // Check if the demon changes up/down direction
             if(os_random() % 8 == 0 || (pd->demonY == OLED_HEIGHT - pd->demonSprite.height - FONT_HEIGHT_IBMVGA8 - 4)
-                    || (pd->demonY == FONT_HEIGHT_IBMVGA8 + 1))
+               || (pd->demonY == FONT_HEIGHT_IBMVGA8 + 1))
             {
                 pd->demonDirUD = !(pd->demonDirUD);
             }

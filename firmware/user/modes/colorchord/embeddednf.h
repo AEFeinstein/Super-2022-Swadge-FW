@@ -91,7 +91,8 @@
 
 extern uint16_t folded_bins[FIXBPERO]; // The folded fourier output.
 extern uint16_t fuzzed_bins[FIXBINS]; // The Full DFT after IIR, Blur and Taper
-extern uint8_t  note_peak_freqs[MAXNOTES]; //frequency of note; Note if it is == 255, then it means it is not set. It is generally a value from
+//frequency of note; Note if it is == 255, then it means it is not set. It is generally a value from
+extern uint8_t note_peak_freqs[MAXNOTES];
 extern uint16_t note_peak_amps[MAXNOTES];
 extern uint16_t note_peak_amps2[MAXNOTES]; // (Responds quicker)
 extern uint8_t  note_jumped_to[MAXNOTES]; // When a note combines into another one,
