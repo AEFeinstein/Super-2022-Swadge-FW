@@ -18,6 +18,8 @@
  * Defines, Enums
  *============================================================================*/
 
+#define ANIMATION_TIMER_MS 20
+
 #define ACT_STRLEN 128
 #define MAX_BOUNCES 2
 
@@ -401,7 +403,7 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
 
     // Set up an animation timer
     timerSetFn(&pd->animationTimer, personalDemonAnimationTimer, NULL);
-    timerArm(&pd->animationTimer, 10, true);
+    timerArm(&pd->animationTimer, ANIMATION_TIMER_MS, true);
 
     // Draw the initial display
     personalDemonAnimationTimer(NULL);
@@ -474,23 +476,21 @@ void ICACHE_FLASH_ATTR personalDemonExitMode(void)
 void ICACHE_FLASH_ATTR personalDemonButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down __attribute__((unused)))
 {
-    // If any button is pressed while the records are displayed
-    if(pd->isDisplayingRecords)
+    if(down)
     {
-#if !defined(EMU)
-        if(!down)
-#endif
+        // If any button is pressed while the records are displayed
+        if(pd->isDisplayingRecords)
         {
             // Start animating again
             clearDisplay();
-            timerArm(&(pd->animationTimer), 10, true);
+            timerArm(&(pd->animationTimer), ANIMATION_TIMER_MS, true);
             drawAnimDemon();
             pd->isDisplayingRecords = false;
         }
-    }
-    else if(down && pd->anim == PDA_WALKING)
-    {
-        menuButton(pd->menu, button);
+        else if(pd->anim == PDA_WALKING)
+        {
+            menuButton(pd->menu, button);
+        }
     }
 }
 
