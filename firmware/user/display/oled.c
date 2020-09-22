@@ -308,10 +308,11 @@ int ICACHE_FLASH_ATTR updateOLEDScreenRange( uint8_t minX, uint8_t maxX, uint8_t
     uint8_t encountered_error = false;
     uint8_t x, page;
 
+    cnlohr_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
     setColumnAddress( minX, maxX );
     setPageAddress( minPage, maxPage );
-
     if( cnlohr_i2c_end_transaction() ) encountered_error = true;
+
     SendStart(OLED_HIGH_SPEED);
     SendByte( OLED_ADDRESS << 1, OLED_HIGH_SPEED );
     SendByte( SSD1306_DATA, OLED_HIGH_SPEED );
