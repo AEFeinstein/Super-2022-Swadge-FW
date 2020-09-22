@@ -472,8 +472,8 @@ void ICACHE_FLASH_ATTR drawOutlines(rayResult_t* rayResult)
         else if(x < OLED_WIDTH - 1)
         {
             if(((rayResult[x].mapX == rayResult[x + 1].mapX) ||
-                (rayResult[x].mapY == rayResult[x + 1].mapY)) &&
-               (rayResult[x].side == rayResult[x + 1].side))
+                    (rayResult[x].mapY == rayResult[x + 1].mapY)) &&
+                    (rayResult[x].side == rayResult[x + 1].side))
             {
                 // This vertical strip is part of a continuous wall with the next strip
                 // Just draw top and bottom pixels

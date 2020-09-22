@@ -30,6 +30,7 @@ typedef struct
     struct cLinkedNode* items;
     uint8_t numItems;
     int8_t xOffset;
+    uint32_t tAccumulatedUs;
 } rowInfo_t;
 
 typedef struct
@@ -57,6 +58,8 @@ typedef struct
     uint8_t numRows;
     menuCb cbFunc;
     int8_t yOffset;
+    uint32_t tLastCallUs;
+    uint32_t tAccumulatedUs;
 } menu_t;
 
 /*==============================================================================

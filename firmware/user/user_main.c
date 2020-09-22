@@ -160,7 +160,7 @@ void ICACHE_FLASH_ATTR user_init(void)
         case ESP_NOW:
         {
             if(!(wifi_set_opmode_current( SOFTAP_MODE ) &&
-                 wifi_set_opmode( SOFTAP_MODE )))
+                    wifi_set_opmode( SOFTAP_MODE )))
             {
                 INIT_PRINTF("Set SOFTAP_MODE before boot failed\n");
             }
@@ -172,7 +172,7 @@ void ICACHE_FLASH_ATTR user_init(void)
         case NO_WIFI:
         {
             if(!(wifi_set_opmode_current( NULL_MODE ) &&
-                 wifi_set_opmode( NULL_MODE )))
+                    wifi_set_opmode( NULL_MODE )))
             {
                 INIT_PRINTF("Set NULL_MODE before boot failed\n");
             }
