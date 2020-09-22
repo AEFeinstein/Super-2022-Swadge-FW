@@ -52,12 +52,12 @@ typedef struct
     flightModeScreen mode;
 
     timer_t updateTimer;
-	int frames;
-	uint8_t buttonState;
+    int frames;
+    uint8_t buttonState;
     flGameType type;
 
-	int16_t planeloc[3];
-	int16_t hpr[3];
+    int16_t planeloc[3];
+    int16_t hpr[3];
 
     menu_t* menu;
 } flight_t;
@@ -176,7 +176,7 @@ static void ICACHE_FLASH_ATTR flightStartGame(flGameType type)
 {
     flight->mode = FLIGHT_GAME;
     flight->type = type;
-	flight->frames = 0;
+    flight->frames = 0;
 }
 
 /**
@@ -199,9 +199,9 @@ static void ICACHE_FLASH_ATTR flightUpdate(void* arg __attribute__((unused)))
             // Increment the frame count
             flight->frames++;
 
-			flightGameUpdate( flight );
-		}
-	}
+            flightGameUpdate( flight );
+        }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -217,28 +217,28 @@ int16_t ProjectionMatrix[16];
 
 static int16_t ICACHE_FLASH_ATTR ICACHE_FLASH_ATTR tdSIN( uint8_t iv )
 {
-	if( iv > 127 )
-	{
-		return -sintable[iv-128];
-	}
-	else
-	{
-		return sintable[iv];
-	}
+    if( iv > 127 )
+    {
+        return -sintable[iv-128];
+    }
+    else
+    {
+        return sintable[iv];
+    }
 }
 
 int16_t ICACHE_FLASH_ATTR tdCOS( uint8_t iv )
 {
-	return tdSIN( iv + 64 );
+    return tdSIN( iv + 64 );
 }
 
 
 void ICACHE_FLASH_ATTR tdIdentity( int16_t * matrix )
 {
-	matrix[0] = 256; matrix[1] = 0; matrix[2] = 0; matrix[3] = 0;
-	matrix[4] = 0; matrix[5] = 256; matrix[6] = 0; matrix[7] = 0;
-	matrix[8] = 0; matrix[9] = 0; matrix[10] = 256; matrix[11] = 0;
-	matrix[12] = 0; matrix[13] = 0; matrix[14] = 0; matrix[15] = 256;
+    matrix[0] = 256; matrix[1] = 0; matrix[2] = 0; matrix[3] = 0;
+    matrix[4] = 0; matrix[5] = 256; matrix[6] = 0; matrix[7] = 0;
+    matrix[8] = 0; matrix[9] = 0; matrix[10] = 256; matrix[11] = 0;
+    matrix[12] = 0; matrix[13] = 0; matrix[14] = 0; matrix[15] = 256;
 }
 
 #define FBW 128
@@ -263,150 +263,154 @@ void ICACHE_FLASH_ATTR tdIdentity( int16_t * matrix )
 /*
 int vTransform( flight_t * flightsim, int16_t * xformed, const int16_t * input )
 {
-	int16_t x = input[0];
-	int16_t y = input[1];
-	int16_t z = input[2];
-	if( x == 0 && y == 0 && z == 0 ) return 0;
+    int16_t x = input[0];
+    int16_t y = input[1];
+    int16_t z = input[2];
+    if( x == 0 && y == 0 && z == 0 ) return 0;
 
-	x -= flightsim->planeloc[0];
-	y -= flightsim->planeloc[1];
-	z -= flightsim->planeloc[2];
+    x -= flightsim->planeloc[0];
+    y -= flightsim->planeloc[1];
+    z -= flightsim->planeloc[2];
 
-	xformed[0] = (x>>7) + 20;
-	xformed[1] = (y>>7) + 20;
-	xformed[2] = (z>>7) + 20;
-	return 1;
+    xformed[0] = (x>>7) + 20;
+    xformed[1] = (y>>7) + 20;
+    xformed[2] = (z>>7) + 20;
+    return 1;
 }
 */
 
 void ICACHE_FLASH_ATTR Perspective( int fovx, int aspect, int zNear, int zFar, int16_t * out )
 {
-	int16_t f = fovx;
-	out[0] = f*256/aspect; out[1] = 0; out[2] = 0; out[3] = 0;
-	out[4] = 0; out[5] = f; out[6] = 0; out[7] = 0;
-	out[8] = 0; out[9] = 0;
-	out[10] = 256*(zFar + zNear)/(zNear - zFar);
-	out[11] = 2*zFar*zNear  /(zNear - zFar);
-	out[12] = 0; out[13] = 0; out[14] = -256; out[15] = 0;
+    int16_t f = fovx;
+    out[0] = f*256/aspect; out[1] = 0; out[2] = 0; out[3] = 0;
+    out[4] = 0; out[5] = f; out[6] = 0; out[7] = 0;
+    out[8] = 0; out[9] = 0;
+    out[10] = 256*(zFar + zNear)/(zNear - zFar);
+    out[11] = 2*zFar*zNear  /(zNear - zFar);
+    out[12] = 0; out[13] = 0; out[14] = -256; out[15] = 0;
 }
 
 
 void ICACHE_FLASH_ATTR SetupMatrix( )
 {
-	int16_t lmatrix[16];
-	tdIdentity( ProjectionMatrix );
-	tdIdentity( ModelviewMatrix );
+    int16_t lmatrix[16];
+    tdIdentity( ProjectionMatrix );
+    tdIdentity( ModelviewMatrix );
 
-	Perspective( 600, 128 /* 0.5 */, 50, 8192, ProjectionMatrix );
+    Perspective( 600, 128 /* 0.5 */, 50, 8192, ProjectionMatrix );
 }
 
 void ICACHE_FLASH_ATTR tdMultiply( int16_t * fin1, int16_t * fin2, int16_t * fout )
 {
-	int16_t fotmp[16];
+    int16_t fotmp[16];
 
-	fotmp[m00] = ((int32_t)fin1[m00] * (int32_t)fin2[m00] + (int32_t)fin1[m01] * (int32_t)fin2[m10] + (int32_t)fin1[m02] * (int32_t)fin2[m20] + (int32_t)fin1[m03] * (int32_t)fin2[m30])>>8;
-	fotmp[m01] = ((int32_t)fin1[m00] * (int32_t)fin2[m01] + (int32_t)fin1[m01] * (int32_t)fin2[m11] + (int32_t)fin1[m02] * (int32_t)fin2[m21] + (int32_t)fin1[m03] * (int32_t)fin2[m31])>>8;
-	fotmp[m02] = ((int32_t)fin1[m00] * (int32_t)fin2[m02] + (int32_t)fin1[m01] * (int32_t)fin2[m12] + (int32_t)fin1[m02] * (int32_t)fin2[m22] + (int32_t)fin1[m03] * (int32_t)fin2[m32])>>8;
-	fotmp[m03] = ((int32_t)fin1[m00] * (int32_t)fin2[m03] + (int32_t)fin1[m01] * (int32_t)fin2[m13] + (int32_t)fin1[m02] * (int32_t)fin2[m23] + (int32_t)fin1[m03] * (int32_t)fin2[m33])>>8;
+    fotmp[m00] = ((int32_t)fin1[m00] * (int32_t)fin2[m00] + (int32_t)fin1[m01] * (int32_t)fin2[m10] + (int32_t)fin1[m02] * (int32_t)fin2[m20] + (int32_t)fin1[m03] * (int32_t)fin2[m30])>>8;
+    fotmp[m01] = ((int32_t)fin1[m00] * (int32_t)fin2[m01] + (int32_t)fin1[m01] * (int32_t)fin2[m11] + (int32_t)fin1[m02] * (int32_t)fin2[m21] + (int32_t)fin1[m03] * (int32_t)fin2[m31])>>8;
+    fotmp[m02] = ((int32_t)fin1[m00] * (int32_t)fin2[m02] + (int32_t)fin1[m01] * (int32_t)fin2[m12] + (int32_t)fin1[m02] * (int32_t)fin2[m22] + (int32_t)fin1[m03] * (int32_t)fin2[m32])>>8;
+    fotmp[m03] = ((int32_t)fin1[m00] * (int32_t)fin2[m03] + (int32_t)fin1[m01] * (int32_t)fin2[m13] + (int32_t)fin1[m02] * (int32_t)fin2[m23] + (int32_t)fin1[m03] * (int32_t)fin2[m33])>>8;
 
-	fotmp[m10] = ((int32_t)fin1[m10] * (int32_t)fin2[m00] + (int32_t)fin1[m11] * (int32_t)fin2[m10] + (int32_t)fin1[m12] * (int32_t)fin2[m20] + (int32_t)fin1[m13] * (int32_t)fin2[m30])>>8;
-	fotmp[m11] = ((int32_t)fin1[m10] * (int32_t)fin2[m01] + (int32_t)fin1[m11] * (int32_t)fin2[m11] + (int32_t)fin1[m12] * (int32_t)fin2[m21] + (int32_t)fin1[m13] * (int32_t)fin2[m31])>>8;
-	fotmp[m12] = ((int32_t)fin1[m10] * (int32_t)fin2[m02] + (int32_t)fin1[m11] * (int32_t)fin2[m12] + (int32_t)fin1[m12] * (int32_t)fin2[m22] + (int32_t)fin1[m13] * (int32_t)fin2[m32])>>8;
-	fotmp[m13] = ((int32_t)fin1[m10] * (int32_t)fin2[m03] + (int32_t)fin1[m11] * (int32_t)fin2[m13] + (int32_t)fin1[m12] * (int32_t)fin2[m23] + (int32_t)fin1[m13] * (int32_t)fin2[m33])>>8;
+    fotmp[m10] = ((int32_t)fin1[m10] * (int32_t)fin2[m00] + (int32_t)fin1[m11] * (int32_t)fin2[m10] + (int32_t)fin1[m12] * (int32_t)fin2[m20] + (int32_t)fin1[m13] * (int32_t)fin2[m30])>>8;
+    fotmp[m11] = ((int32_t)fin1[m10] * (int32_t)fin2[m01] + (int32_t)fin1[m11] * (int32_t)fin2[m11] + (int32_t)fin1[m12] * (int32_t)fin2[m21] + (int32_t)fin1[m13] * (int32_t)fin2[m31])>>8;
+    fotmp[m12] = ((int32_t)fin1[m10] * (int32_t)fin2[m02] + (int32_t)fin1[m11] * (int32_t)fin2[m12] + (int32_t)fin1[m12] * (int32_t)fin2[m22] + (int32_t)fin1[m13] * (int32_t)fin2[m32])>>8;
+    fotmp[m13] = ((int32_t)fin1[m10] * (int32_t)fin2[m03] + (int32_t)fin1[m11] * (int32_t)fin2[m13] + (int32_t)fin1[m12] * (int32_t)fin2[m23] + (int32_t)fin1[m13] * (int32_t)fin2[m33])>>8;
 
-	fotmp[m20] = ((int32_t)fin1[m20] * (int32_t)fin2[m00] + (int32_t)fin1[m21] * (int32_t)fin2[m10] + (int32_t)fin1[m22] * (int32_t)fin2[m20] + (int32_t)fin1[m23] * (int32_t)fin2[m30])>>8;
-	fotmp[m21] = ((int32_t)fin1[m20] * (int32_t)fin2[m01] + (int32_t)fin1[m21] * (int32_t)fin2[m11] + (int32_t)fin1[m22] * (int32_t)fin2[m21] + (int32_t)fin1[m23] * (int32_t)fin2[m31])>>8;
-	fotmp[m22] = ((int32_t)fin1[m20] * (int32_t)fin2[m02] + (int32_t)fin1[m21] * (int32_t)fin2[m12] + (int32_t)fin1[m22] * (int32_t)fin2[m22] + (int32_t)fin1[m23] * (int32_t)fin2[m32])>>8;
-	fotmp[m23] = ((int32_t)fin1[m20] * (int32_t)fin2[m03] + (int32_t)fin1[m21] * (int32_t)fin2[m13] + (int32_t)fin1[m22] * (int32_t)fin2[m23] + (int32_t)fin1[m23] * (int32_t)fin2[m33])>>8;
+    fotmp[m20] = ((int32_t)fin1[m20] * (int32_t)fin2[m00] + (int32_t)fin1[m21] * (int32_t)fin2[m10] + (int32_t)fin1[m22] * (int32_t)fin2[m20] + (int32_t)fin1[m23] * (int32_t)fin2[m30])>>8;
+    fotmp[m21] = ((int32_t)fin1[m20] * (int32_t)fin2[m01] + (int32_t)fin1[m21] * (int32_t)fin2[m11] + (int32_t)fin1[m22] * (int32_t)fin2[m21] + (int32_t)fin1[m23] * (int32_t)fin2[m31])>>8;
+    fotmp[m22] = ((int32_t)fin1[m20] * (int32_t)fin2[m02] + (int32_t)fin1[m21] * (int32_t)fin2[m12] + (int32_t)fin1[m22] * (int32_t)fin2[m22] + (int32_t)fin1[m23] * (int32_t)fin2[m32])>>8;
+    fotmp[m23] = ((int32_t)fin1[m20] * (int32_t)fin2[m03] + (int32_t)fin1[m21] * (int32_t)fin2[m13] + (int32_t)fin1[m22] * (int32_t)fin2[m23] + (int32_t)fin1[m23] * (int32_t)fin2[m33])>>8;
 
-	fotmp[m30] = ((int32_t)fin1[m30] * (int32_t)fin2[m00] + (int32_t)fin1[m31] * (int32_t)fin2[m10] + (int32_t)fin1[m32] * (int32_t)fin2[m20] + (int32_t)fin1[m33] * (int32_t)fin2[m30])>>8;
-	fotmp[m31] = ((int32_t)fin1[m30] * (int32_t)fin2[m01] + (int32_t)fin1[m31] * (int32_t)fin2[m11] + (int32_t)fin1[m32] * (int32_t)fin2[m21] + (int32_t)fin1[m33] * (int32_t)fin2[m31])>>8;
-	fotmp[m32] = ((int32_t)fin1[m30] * (int32_t)fin2[m02] + (int32_t)fin1[m31] * (int32_t)fin2[m12] + (int32_t)fin1[m32] * (int32_t)fin2[m22] + (int32_t)fin1[m33] * (int32_t)fin2[m32])>>8;
-	fotmp[m33] = ((int32_t)fin1[m30] * (int32_t)fin2[m03] + (int32_t)fin1[m31] * (int32_t)fin2[m13] + (int32_t)fin1[m32] * (int32_t)fin2[m23] + (int32_t)fin1[m33] * (int32_t)fin2[m33])>>8;
+    fotmp[m30] = ((int32_t)fin1[m30] * (int32_t)fin2[m00] + (int32_t)fin1[m31] * (int32_t)fin2[m10] + (int32_t)fin1[m32] * (int32_t)fin2[m20] + (int32_t)fin1[m33] * (int32_t)fin2[m30])>>8;
+    fotmp[m31] = ((int32_t)fin1[m30] * (int32_t)fin2[m01] + (int32_t)fin1[m31] * (int32_t)fin2[m11] + (int32_t)fin1[m32] * (int32_t)fin2[m21] + (int32_t)fin1[m33] * (int32_t)fin2[m31])>>8;
+    fotmp[m32] = ((int32_t)fin1[m30] * (int32_t)fin2[m02] + (int32_t)fin1[m31] * (int32_t)fin2[m12] + (int32_t)fin1[m32] * (int32_t)fin2[m22] + (int32_t)fin1[m33] * (int32_t)fin2[m32])>>8;
+    fotmp[m33] = ((int32_t)fin1[m30] * (int32_t)fin2[m03] + (int32_t)fin1[m31] * (int32_t)fin2[m13] + (int32_t)fin1[m32] * (int32_t)fin2[m23] + (int32_t)fin1[m33] * (int32_t)fin2[m33])>>8;
 
-	ets_memcpy( fout, fotmp, sizeof( fotmp ) );
+    ets_memcpy( fout, fotmp, sizeof( fotmp ) );
 }
 
 
 void ICACHE_FLASH_ATTR tdTranslate( int16_t * f, int16_t x, int16_t y, int16_t z )
 {
-	int16_t ftmp[16];
-	tdIdentity(ftmp);
-	ftmp[m03] += x;
-	ftmp[m13] += y;
-	ftmp[m23] += z;
-	tdMultiply( f, ftmp, f );
+    int16_t ftmp[16];
+    tdIdentity(ftmp);
+    ftmp[m03] += x;
+    ftmp[m13] += y;
+    ftmp[m23] += z;
+    tdMultiply( f, ftmp, f );
 }
 
 void ICACHE_FLASH_ATTR tdRotateEA( int16_t * f, int16_t x, int16_t y, int16_t z )
 {
-	int16_t ftmp[16];
+    int16_t ftmp[16];
 
-	//x,y,z must be negated for some reason
-	int16_t cx = tdCOS(x);
-	int16_t sx = tdSIN(x);
-	int16_t cy = tdCOS(y);
-	int16_t sy = tdSIN(y);
-	int16_t cz = tdCOS(z);
-	int16_t sz = tdSIN(z);
+    //x,y,z must be negated for some reason
+    int16_t cx = tdCOS(x);
+    int16_t sx = tdSIN(x);
+    int16_t cy = tdCOS(y);
+    int16_t sy = tdSIN(y);
+    int16_t cz = tdCOS(z);
+    int16_t sz = tdSIN(z);
 
-	//Row major
-	//manually transposed
-	ftmp[m00] = (cy*cz)>>8;
-	ftmp[m10] = ((((sx*sy)>>8)*cz)-(cx*sz))>>8;
-	ftmp[m20] = ((((cx*sy)>>8)*cz)+(sx*sz))>>8;
-	ftmp[m30] = 0;
+    //Row major
+    //manually transposed
+    ftmp[m00] = (cy*cz)>>8;
+    ftmp[m10] = ((((sx*sy)>>8)*cz)-(cx*sz))>>8;
+    ftmp[m20] = ((((cx*sy)>>8)*cz)+(sx*sz))>>8;
+    ftmp[m30] = 0;
 
-	ftmp[m01] = (cy*sz)>>8;
-	ftmp[m11] = ((((sx*sy)>>8)*sz)+(cx*cz))>>8;
-	ftmp[m21] = ((((cx*sy)>>8)*sz)-(sx*cz))>>8;
-	ftmp[m31] = 0;
+    ftmp[m01] = (cy*sz)>>8;
+    ftmp[m11] = ((((sx*sy)>>8)*sz)+(cx*cz))>>8;
+    ftmp[m21] = ((((cx*sy)>>8)*sz)-(sx*cz))>>8;
+    ftmp[m31] = 0;
 
-	ftmp[m02] = -sy;
-	ftmp[m12] = (sx*cy)>>8;
-	ftmp[m22] = (cx*cy)>>8;
-	ftmp[m32] = 0;
+    ftmp[m02] = -sy;
+    ftmp[m12] = (sx*cy)>>8;
+    ftmp[m22] = (cx*cy)>>8;
+    ftmp[m32] = 0;
 
-	ftmp[m03] = 0;
-	ftmp[m13] = 0;
-	ftmp[m23] = 0;
-	ftmp[m33] = 1;
+    ftmp[m03] = 0;
+    ftmp[m13] = 0;
+    ftmp[m23] = 0;
+    ftmp[m33] = 1;
 
-	tdMultiply( f, ftmp, f );
+    tdMultiply( f, ftmp, f );
 }
 
 void ICACHE_FLASH_ATTR td4Transform( int16_t * pin, int16_t * f, int16_t * pout )
 {
-	int16_t ptmp[3];
-	ptmp[0] = (pin[0] * f[m00] + pin[1] * f[m01] + pin[2] * f[m02] + pin[3] * f[m03])>>8;
-	ptmp[1] = (pin[0] * f[m10] + pin[1] * f[m11] + pin[2] * f[m12] + pin[3] * f[m13])>>8;
-	ptmp[2] = (pin[0] * f[m20] + pin[1] * f[m21] + pin[2] * f[m22] + pin[3] * f[m23])>>8;
-	pout[3] = (pin[0] * f[m30] + pin[1] * f[m31] + pin[2] * f[m32] + pin[3] * f[m33])>>8;
-	pout[0] = ptmp[0];
-	pout[1] = ptmp[1];
-	pout[2] = ptmp[2];
+    int16_t ptmp[3];
+    ptmp[0] = (pin[0] * f[m00] + pin[1] * f[m01] + pin[2] * f[m02] + pin[3] * f[m03])>>8;
+    ptmp[1] = (pin[0] * f[m10] + pin[1] * f[m11] + pin[2] * f[m12] + pin[3] * f[m13])>>8;
+    ptmp[2] = (pin[0] * f[m20] + pin[1] * f[m21] + pin[2] * f[m22] + pin[3] * f[m23])>>8;
+    pout[3] = (pin[0] * f[m30] + pin[1] * f[m31] + pin[2] * f[m32] + pin[3] * f[m33])>>8;
+    pout[0] = ptmp[0];
+    pout[1] = ptmp[1];
+    pout[2] = ptmp[2];
 }
 
 
 void ICACHE_FLASH_ATTR LocalToScreenspace( int16_t * coords_3v, int16_t * o1, int16_t * o2 )
 {
-	int16_t tmppt[4] = { coords_3v[0], coords_3v[1], coords_3v[2], 256 };
-	td4Transform( tmppt, ModelviewMatrix, tmppt );
-	td4Transform( tmppt, ProjectionMatrix, tmppt );
-	if( tmppt[3] >= 0 ) { *o1 = -1; *o2 = -1; return; }
+    int16_t tmppt[4] = { coords_3v[0], coords_3v[1], coords_3v[2], 256 };
+    td4Transform( tmppt, ModelviewMatrix, tmppt );
+    td4Transform( tmppt, ProjectionMatrix, tmppt );
+    if( tmppt[3] >= 0 ) { *o1 = -1; *o2 = -1; return; }
 
-	*o1 = ((256 * tmppt[0] / tmppt[3])/8+(FBW/2))/2;
-	*o2 = ((256 * tmppt[1] / tmppt[3])/8+(FBH/2));
+    *o1 = ((256 * tmppt[0] / tmppt[3])/8+(FBW/2))/2;
+    *o2 = ((256 * tmppt[1] / tmppt[3])/8+(FBH/2));
 }
 
 
 void ICACHE_FLASH_ATTR Draw3DSegment( int16_t * c1, int16_t * c2 )
 {
-	int16_t sx0, sy0, sx1, sy1;
-	LocalToScreenspace( c1, &sx0, &sy0 );
-	LocalToScreenspace( c2, &sx1, &sy1 );
-	speedyWhiteLine( sx0, sy0, sx1, sy1 );
-	//plotLine( sx0, sy0, sx1, sy1, WHITE );
+    int16_t sx0, sy0, sx1, sy1;
+    LocalToScreenspace( c1, &sx0, &sy0 );
+    LocalToScreenspace( c2, &sx1, &sy1 );
+
+    //GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
+    speedyWhiteLine( sx0, sy0, sx1, sy1 );
+    //GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
+
+    //plotLine( sx0, sy0, sx1, sy1, WHITE );
 }
 
 
@@ -443,14 +447,14 @@ uint16_t indices[] = { /* 120 line segments */
 
 void ICACHE_FLASH_ATTR DrawGeoSphere()
 {
-	int i;
-	int nrv = sizeof(indices)/sizeof(uint16_t);
-	for( i = 0; i < nrv; i+=2 )
-	{
-		int16_t * c1 = &verts[indices[i]];
-		int16_t * c2 = &verts[indices[i+1]];
-		Draw3DSegment( c1, c2 );
-	}
+    int i;
+    int nrv = sizeof(indices)/sizeof(uint16_t);
+    for( i = 0; i < nrv; i+=2 )
+    {
+        int16_t * c1 = &verts[indices[i]];
+        int16_t * c2 = &verts[indices[i+1]];
+        Draw3DSegment( c1, c2 );
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -461,7 +465,7 @@ void ICACHE_FLASH_ATTR DrawGeoSphere()
 
 static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * flight )
 {
-	uint8_t bs = flight->buttonState;
+    uint8_t bs = flight->buttonState;
 
     // First clear the OLED
     clearDisplay();
@@ -471,64 +475,66 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * flight )
     ets_snprintf(framesStr, sizeof(framesStr), "%d", flight->buttonState);
     plotText(0, 0, framesStr, TOM_THUMB, WHITE);
 
-	if( bs & 1 ) flight->hpr[0]++;
-	if( bs & 4 ) flight->hpr[0]--;
+    if( bs & 1 ) flight->hpr[0]++;
+    if( bs & 4 ) flight->hpr[0]--;
 
-	static int ij;
-	ij++;
-	SetupMatrix();
+    static int ij;
+    ij++;
+    SetupMatrix();
 
-	tdRotateEA( ProjectionMatrix, -20, 0, 0 );
-	tdRotateEA( ModelviewMatrix, ij, 0, 0 );
-	//tdTranslate( ModelviewMatrix, 0, 0, 200 );
+    tdRotateEA( ProjectionMatrix, -20, 0, 0 );
+    tdRotateEA( ModelviewMatrix, ij, 0, 0 );
+    //tdTranslate( ModelviewMatrix, 0, 0, 200 );
 
-	PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.  
-	GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
-//	ij = 0;
-	int x = 0;
-	int y = 0;
-	for( x = -2; x < 4; x++ )
-	{
-		for( y = 0; y < 2; y++ )
-		{
-			ModelviewMatrix[11] = 1400 + tdSIN( (x + y)*40 + ij*2 ) * 3;
-			ModelviewMatrix[3] = 500*x-800;
-			ModelviewMatrix[7] = 500*y+500;
-			DrawGeoSphere();
-		}
-	}
-
-	GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
+    PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.  
+    GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
+    REG_SET_BIT(0x3ff00014, BIT(0)); //Overclock
+    //ij = 0;    //Uncomment to prevent animation (for perf test)
+    int x = 0;
+    int y = 0;
+    for( x = -3; x < 4; x++ )
+    {
+        for( y = 0; y < 4; y++ )
+        {
+            //7 * 4 * 120 = 3360 lines per frame.
+            ModelviewMatrix[11] = 2400 + tdSIN( (x + y)*40 + ij*2 ) * 3;
+            ModelviewMatrix[3] = 500*x-800;
+            ModelviewMatrix[7] = 500*y+500;
+            DrawGeoSphere();
+        }
+    }
+    REG_CLR_BIT(0x3ff00014, BIT(0)); //Back to normal clocking.
+    GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
 
 /*
-	flight->planeloc[0] += tdSIN( flight->hpr[0] )>>4;
-	flight->planeloc[1] += tdCOS( flight->hpr[0] )>>4;
-	flight->planeloc[2] += tdCOS( flight->hpr[1] )>>4;
+    flight->planeloc[0] += tdSIN( flight->hpr[0] )>>4;
+    flight->planeloc[1] += tdCOS( flight->hpr[0] )>>4;
+    flight->planeloc[2] += tdCOS( flight->hpr[1] )>>4;
 */
-//		x -= flightsim->planeplaneloc[0];
+//        x -= flightsim->planeplaneloc[0];
 /*
-	int i;
-	int16_t xformlast[3];
-	int newseg = 1;
-	for( i = 0; ; i++ )
-	{
-		if( newseg )
-		{
-			if( vTransform( flight, xformlast, pittsburg+i*3 ) == 0 )
-			{
-				break;
-			}
-			
-			newseg = 0;
-		}
-		else
-		{
-			int16_t xformednow[3];
-			if( vTransform( flight, xformednow, pittsburg+i*3 ) == 0 ) { newseg = 1; continue; }
-			plotLine( xformlast[0], xformlast[1], xformednow[0], xformednow[1], WHITE );
-			ets_memcpy( xformlast, xformednow, sizeof( xformednow) );
-		}
-	}
+    int i;
+    int16_t xformlast[3];
+    int newseg = 1;
+    for( i = 0; ; i++ )
+    {
+        if( newseg )
+        {
+            if( vTransform( flight, xformlast, pittsburg+i*3 ) == 0 )
+            {
+                break;
+            }
+            
+            newseg = 0;
+        }
+        else
+        {
+            int16_t xformednow[3];
+            if( vTransform( flight, xformednow, pittsburg+i*3 ) == 0 ) { newseg = 1; continue; }
+            plotLine( xformlast[0], xformlast[1], xformednow[0], xformednow[1], WHITE );
+            ets_memcpy( xformlast, xformednow, sizeof( xformednow) );
+        }
+    }
 */
 
 #if 0

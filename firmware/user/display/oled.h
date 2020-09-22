@@ -33,7 +33,7 @@ typedef enum
 
 bool initOLED(bool reset);
 void drawPixel(int16_t x, int16_t y, color c);
-void ICACHE_FLASH_ATTR drawPixelFastWhite( int x, int y );
+void drawPixelFastWhite( int x, int y );
 void ICACHE_FLASH_ATTR speedyWhiteLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1 );
 color getPixel(int16_t x, int16_t y);
 bool ICACHE_FLASH_ATTR setOLEDparams(bool turnOnOff);
