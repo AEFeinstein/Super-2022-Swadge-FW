@@ -193,13 +193,220 @@ void drawPixel(int16_t x, int16_t y, color c)
             case INVERSE:
                 *addy ^= mask;
                 break;
-            case TRANSPARENT_COLOR:
+            //case TRANSPARENT_COLOR:
             default:
             {
                 break;
             }
         }
     }
+}
+
+
+/**
+ * Set/clear/invert a single pixel.
+ *
+ * This intentionally does not have ICACHE_FLASH_ATTR because it may be called often
+ *
+ * @param x Column of display, 0 is at the left
+ * @param y Row of the display, 0 is at the top
+ */
+
+void drawPixelFastWhite( int x, int y )
+{
+    uint8_t* addy = &currentFb[(y + x * OLED_HEIGHT) / 8];
+    uint8_t mask = 1 << (y & 7);
+    *addy |= mask;
+}
+
+/**
+ * @brief Optimized method to quickly draw a white line.
+ *
+ * @param x1, x0 Column of display, 0 is at the left
+ * @param y1, y0 Row of the display, 0 is at the top
+ *
+ */
+
+
+#define LABS( x ) (((x)<0)?-(x):(x))
+
+//This is fast, but broken :(
+void ICACHE_FLASH_ATTR speedyWhiteLine( int16_t x0, int16_t y0, int16_t x1, int16_t y1 )
+{
+//Tune this as a function of the size of your viewing window, line accuracy, and worst-case scenario incoming lines.
+#define BRESEN_W OLED_WIDTH
+#define BRESEN_H OLED_HEIGHT
+#define FIXEDPOINT 65536
+#define FIXEDPOINTD2 (FIXEDPOINT/2)
+    int dx = (x1-x0);
+    int dy = (y1-y0);
+    int sdx = (dx>0)?1:-1;
+    int sdy = (dy>0)?1:-1;
+    int x = x0;
+    int y = y0;
+
+    int yerrdiv = ( dx * sdx );  //dy, but always positive.
+    int xerrdiv = ( dy * sdy );  //dx, but always positive.
+    int yerrnumerator;
+    int xerrnumerator;
+
+    //printf( "\n%d %d -> %d %d  (%d %d) (%d %d)\n", x, y, x1, y1, dx, dy, sdx, sdy );
+
+    if( x < 0 && x1 < 0 ) return;
+    if( y < 0 && y1 < 0 ) return;
+    if( x >= BRESEN_W && x1 >= BRESEN_W ) return;
+    if( y >= BRESEN_H && y1 >= BRESEN_H ) return;
+
+    //We put the checks above to check this, in case we have a situation where
+    // we have a 0-length line outside of the viewable area.  If that happened,
+    // we would have aborted before hitting this code.
+
+    if( yerrdiv > 0 )
+    {
+        int dxA = 0;
+        if( x < 0 )
+        {
+            dxA = 0 - x;
+            x = 0;
+        }
+        if( x > BRESEN_W-1 )
+        {
+            dxA = (x - (BRESEN_W-1));
+            x = BRESEN_W-1;
+        }
+        if( dxA || xerrdiv <= yerrdiv )
+        {
+            yerrnumerator = ((dy * sdy) * FIXEDPOINT + yerrdiv/2) / yerrdiv;
+            if( dxA )
+            {
+                int yn = (yerrnumerator * dxA)*sdy;
+                yn += FIXEDPOINTD2 * sdy; //This "feels" right
+                yn /= FIXEDPOINT;
+                y += yn;
+                //Weird situation - if we cal, and now, both ends are out on the same side abort.
+                if( y < 0 && y1 < 0 ) return;
+                if( y > BRESEN_H-1 && y1 > BRESEN_H-1 ) return;
+            }
+        }
+    }
+
+    if( xerrdiv > 0 )
+    {
+        int dyA = 0;    
+        if( y < 0 )
+        {
+            dyA = 0 - y;
+            y = 0;
+        }
+        if( y > BRESEN_H-1 )
+        {
+            dyA = (y - (BRESEN_H-1));
+            y = BRESEN_H-1;
+        }
+        if( dyA || xerrdiv > yerrdiv )
+        {
+            xerrnumerator = ((dx * sdx) * FIXEDPOINT + xerrdiv/2 ) / xerrdiv;
+            if( dyA )
+            {
+                int xn = (xerrnumerator*dyA)*sdx;
+                xn += FIXEDPOINTD2 * sdx; //This "feels" right.
+                xn /= FIXEDPOINT;
+                x += xn;
+                //If we've come to discover the line is actually out of bounds, abort.
+                if( x < 0 && x1 < 0 ) return;
+                if( x > BRESEN_W-1 && x1 > BRESEN_W-1 ) return;
+            }
+        }
+    }
+
+    if( x1 == x && y1 == y )
+    {
+        drawPixelFastWhite( x, y );
+        return;
+    }
+
+    //Make sure we haven't clamped the wrong way.
+    //Also this checks for vertical/horizontal violations.
+    if( dx > 0 )
+    {
+        if( x > BRESEN_W-1 ) return;
+        if( x > x1 ) return;
+    }
+    else if( dx < 0 )
+    {
+        if( x < 0 ) return;
+        if( x < x1 ) return;
+    }
+
+    if( dy > 0 )
+    {
+        if( y > BRESEN_H-1 ) return;
+        if( y > y1 ) return;
+    }
+    else if( dy < 0 )
+    {
+        if( y < 0 ) return;
+        if( y < y1 ) return;
+    }
+
+    //Force clip end coordinate.
+    //NOTE: We have an extra check within the inner loop, to avoid complicated math here.
+    //Theoretically, we could math this so that in the end-coordinate clip stage
+    //to make sure this condition just could never be hit, however, that is very
+    //difficult to guarantee under all situations and may have weird edge cases.
+    //So, I've decided to stick this here.
+
+    if( xerrdiv > yerrdiv )
+    {
+        int xerr = FIXEDPOINTD2;
+        if( x1 < 0 ) x1 = 0;
+        if( x1 > BRESEN_W-1) x1 = BRESEN_W-1;
+        x1 += sdx; //Tricky - make sure the "next" mark we hit doesn't overflow.
+
+        if( y1 < 0 ) y1 = 0;
+        if( y1 > BRESEN_H-1 ) y1 = BRESEN_H-1;
+
+        for( ; y != y1; y+=sdy )
+        {
+            drawPixelFastWhite( x, y );
+            xerr += xerrnumerator;
+            while( xerr >= FIXEDPOINT )
+            {
+                x += sdx;
+                if( x == x1 ) goto abortline;
+                drawPixelFastWhite( x, y );
+                xerr -= FIXEDPOINT;
+            }
+        }
+        drawPixelFastWhite( x, y );
+    }
+    else
+    {
+        int yerr = FIXEDPOINTD2;
+
+        if( y1 < 0 ) y1 = 0;
+        if( y1 > BRESEN_H-1 ) y1 = BRESEN_H-1;
+        y1 += sdy;        //Tricky: Make sure the NEXT mark we hit doens't overflow.
+
+        if( x1 < 0 ) x1 = 0;
+        if( x1 > BRESEN_W-1) x1 = BRESEN_W-1;
+
+        for( ; x != x1; x+=sdx )
+        {
+            drawPixelFastWhite( x, y );
+            yerr += yerrnumerator;
+            while( yerr >= FIXEDPOINT )
+            {
+                y += sdy;
+                if( y == y1 ) goto abortline;
+                drawPixelFastWhite( x, y );
+                yerr -= FIXEDPOINT;
+            }
+        }
+        drawPixelFastWhite( x, y );
+    }
+abortline:
+    ;
 }
 
 /**
