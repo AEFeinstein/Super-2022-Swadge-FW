@@ -176,12 +176,12 @@ void ICACHE_FLASH_ATTR fillDisplayArea(int16_t x1, int16_t y1, int16_t x2, int16
 void drawPixel(int16_t x, int16_t y, color c)
 {
     if (c != TRANSPARENT_COLOR &&
-        (0 <= x) && (x < OLED_WIDTH) &&
-        (0 <= y) && (y < OLED_HEIGHT))
+            (0 <= x) && (x < OLED_WIDTH) &&
+            (0 <= y) && (y < OLED_HEIGHT))
     {
         fbChanges = true;
-        uint8_t * addy = &currentFb[(y + x * OLED_HEIGHT)/8];
-        uint8_t mask = 1<<(y&7);
+        uint8_t* addy = &currentFb[(y + x * OLED_HEIGHT) / 8];
+        uint8_t mask = 1 << (y & 7);
         switch (c)
         {
             case WHITE:
@@ -212,9 +212,9 @@ void drawPixel(int16_t x, int16_t y, color c)
 color ICACHE_FLASH_ATTR getPixel(int16_t x, int16_t y)
 {
     if ((0 <= x) && (x < OLED_WIDTH) &&
-        (0 <= y) && (y < OLED_HEIGHT))
+            (0 <= y) && (y < OLED_HEIGHT))
     {
-        if(currentFb[(y + x * OLED_HEIGHT)/8] & (1 << (y & 7)))
+        if(currentFb[(y + x * OLED_HEIGHT) / 8] & (1 << (y & 7)))
         {
             return WHITE;
         }
@@ -311,16 +311,19 @@ int ICACHE_FLASH_ATTR updateOLEDScreenRange( uint8_t minX, uint8_t maxX, uint8_t
     cnlohr_i2c_start_transaction(OLED_ADDRESS, OLED_FREQ);
     setColumnAddress( minX, maxX );
     setPageAddress( minPage, maxPage );
-    if( cnlohr_i2c_end_transaction() ) encountered_error = true;
+    if( cnlohr_i2c_end_transaction() )
+    {
+        encountered_error = true;
+    }
 
     SendStart(OLED_HIGH_SPEED);
     SendByte( OLED_ADDRESS << 1, OLED_HIGH_SPEED );
     SendByte( SSD1306_DATA, OLED_HIGH_SPEED );
     for( x = minX; x <= maxX; x++ )
     {
-        int index = x*SSD1306_NUM_PAGES+minPage;
-		uint8_t * prior = &priorFb[index];
-		uint8_t * cur = &currentFb[index];
+        int index = x * SSD1306_NUM_PAGES + minPage;
+        uint8_t* prior = &priorFb[index];
+        uint8_t* cur = &currentFb[index];
 
         for( page = minPage; page <= maxPage; page++ )
         {
@@ -328,7 +331,7 @@ int ICACHE_FLASH_ATTR updateOLEDScreenRange( uint8_t minX, uint8_t maxX, uint8_t
         }
     }
     SendStop(OLED_HIGH_SPEED);
-    return encountered_error?FRAME_NOT_DRAWN:FRAME_DRAWN;
+    return encountered_error ? FRAME_NOT_DRAWN : FRAME_DRAWN;
 }
 
 /**
@@ -363,37 +366,49 @@ oledResult_t ICACHE_FLASH_ATTR updateOLED(bool drawDifference)
         //We could, however, update multiple rectangles if we wanted, more similar to the previous system.
 
         uint8_t x, page;
-        uint8_t * pPrev = priorFb;
-        uint8_t * pCur = currentFb;
+        uint8_t* pPrev = priorFb;
+        uint8_t* pCur = currentFb;
         for( x = 0; x < OLED_WIDTH; x++ )
         {
             for( page = 0; page < SSD1306_NUM_PAGES; page++ )
             {
                 if( *pPrev != *pCur )
                 {
-                    if( x < minX ) minX = x;
-                    if( x > maxX ) maxX = x;
-                    if( page < minPage ) minPage = page;
-                    if( page > maxPage ) maxPage = page;
+                    if( x < minX )
+                    {
+                        minX = x;
+                    }
+                    if( x > maxX )
+                    {
+                        maxX = x;
+                    }
+                    if( page < minPage )
+                    {
+                        minPage = page;
+                    }
+                    if( page > maxPage )
+                    {
+                        maxPage = page;
+                    }
                 }
                 pPrev++;
                 pCur++;
             }
         }
 
-		if( maxX >= minX && maxPage >= minPage )
-		{
-			return updateOLEDScreenRange( minX, maxX, minPage, maxPage );
-		}
-		else
-		{
-			return NOTHING_TO_DO;
-		}
-	}
-	else
-	{
-		return updateOLEDScreenRange( 0, OLED_WIDTH-1, 0, SSD1306_NUM_PAGES-1 );
-	}
+        if( maxX >= minX && maxPage >= minPage )
+        {
+            return updateOLEDScreenRange( minX, maxX, minPage, maxPage );
+        }
+        else
+        {
+            return NOTHING_TO_DO;
+        }
+    }
+    else
+    {
+        return updateOLEDScreenRange( 0, OLED_WIDTH - 1, 0, SSD1306_NUM_PAGES - 1 );
+    }
 }
 
 //==============================================================================

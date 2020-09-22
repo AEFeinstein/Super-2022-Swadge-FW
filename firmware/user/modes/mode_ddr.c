@@ -799,10 +799,10 @@ static void ICACHE_FLASH_ATTR ddrGameOver()
 static void ICACHE_FLASH_ATTR ddrCheckSongEnd()
 {
     if (ddr->isSongOver
-        && ddr->arrowRows[0].count == 0
-        && ddr->arrowRows[1].count == 0
-        && ddr->arrowRows[2].count == 0
-        && ddr->arrowRows[3].count == 0 )
+            && ddr->arrowRows[0].count == 0
+            && ddr->arrowRows[1].count == 0
+            && ddr->arrowRows[2].count == 0
+            && ddr->arrowRows[3].count == 0 )
     {
         ddr->mode = DDR_SCORE;
     }

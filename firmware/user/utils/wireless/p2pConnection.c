@@ -508,7 +508,7 @@ void ICACHE_FLASH_ATTR p2pRecvCb(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data,
 
     // Check if this message matches our message ID
     if(len < CMD_IDX ||
-       (0 != ets_memcmp(data, p2p->conMsg, CMD_IDX)))
+            (0 != ets_memcmp(data, p2p->conMsg, CMD_IDX)))
     {
         // This message is too short, or does not match our message ID
         P2P_PRINTF("DISCARD: Not a message for '%s'\n", p2p->msgId);
@@ -517,7 +517,7 @@ void ICACHE_FLASH_ATTR p2pRecvCb(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data,
 
     // If this message has a MAC, check it
     if(len >= ets_strlen(p2p->ackMsg) &&
-       0 != ets_memcmp(&data[MAC_IDX], p2p->cnc.macStr, ets_strlen(p2p->cnc.macStr)))
+            0 != ets_memcmp(&data[MAC_IDX], p2p->cnc.macStr, ets_strlen(p2p->cnc.macStr)))
     {
         // This MAC isn't for us
         P2P_PRINTF("DISCARD: Not for our MAC\n");
@@ -526,8 +526,8 @@ void ICACHE_FLASH_ATTR p2pRecvCb(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data,
 
     // If this is anything besides a broadcast, check the other MAC
     if(p2p->cnc.otherMacReceived &&
-       len > ets_strlen(p2p->conMsg) &&
-       0 != ets_memcmp(mac_addr, p2p->cnc.otherMac, sizeof(p2p->cnc.otherMac)))
+            len > ets_strlen(p2p->conMsg) &&
+            0 != ets_memcmp(mac_addr, p2p->cnc.otherMac, sizeof(p2p->cnc.otherMac)))
     {
         // This isn't from the other known swadge
         P2P_PRINTF("DISCARD: Not from the other MAC\n");
@@ -537,7 +537,7 @@ void ICACHE_FLASH_ATTR p2pRecvCb(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data,
     // By here, we know the received message matches our message ID, either a
     // broadcast or for us. If this isn't an ack message, ack it
     if(len >= SEQ_IDX &&
-       0 != ets_memcmp(data, p2p->ackMsg, SEQ_IDX))
+            0 != ets_memcmp(data, p2p->ackMsg, SEQ_IDX))
     {
         p2pSendAckToMac(p2p, mac_addr);
     }
@@ -569,7 +569,7 @@ void ICACHE_FLASH_ATTR p2pRecvCb(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data,
     {
         // Check if this is an ACK
         if(ets_strlen(p2p->ackMsg) == len &&
-           0 == ets_memcmp(data, p2p->ackMsg, SEQ_IDX))
+                0 == ets_memcmp(data, p2p->ackMsg, SEQ_IDX))
         {
             P2P_PRINTF("ACK Received\n");
 
@@ -598,9 +598,9 @@ void ICACHE_FLASH_ATTR p2pRecvCb(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data,
         {
             // Received another broadcast, Check if this RSSI is strong enough
             if(!p2p->cnc.broadcastReceived &&
-               rssi > p2p->connectionRssi &&
-               ets_strlen(p2p->conMsg) == len &&
-               0 == ets_memcmp(data, p2p->conMsg, len))
+                    rssi > p2p->connectionRssi &&
+                    ets_strlen(p2p->conMsg) == len &&
+                    0 == ets_memcmp(data, p2p->conMsg, len))
             {
                 // We received a broadcast, don't allow another
                 p2p->cnc.broadcastReceived = true;

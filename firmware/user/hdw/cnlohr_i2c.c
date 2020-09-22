@@ -74,7 +74,7 @@ void SendByteFast( unsigned char data )
         my_i2c_delay(1);
         PIN_OUT_SET = (1 << I2CSCL);
         asm volatile( "memw" ); //Make this area take a tiny bit more time.
-        my_i2c_delay(1); 
+        my_i2c_delay(1);
         PIN_OUT_CLEAR = (1 << I2CSCL);
     }
 
