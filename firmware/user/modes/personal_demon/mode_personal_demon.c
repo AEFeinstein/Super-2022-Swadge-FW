@@ -488,7 +488,7 @@ void ICACHE_FLASH_ATTR personalDemonButtonCallback(uint8_t state __attribute__((
             pd->isDisplayingRecords = false;
         }
     }
-    else if(pd->anim == PDA_WALKING)
+    else if(down && pd->anim == PDA_WALKING)
     {
         menuButton(pd->menu, button);
     }
@@ -1036,9 +1036,19 @@ bool ICACHE_FLASH_ATTR updtAnimWalk(uint32_t tElapsed)
     {
         pd->animTimeUs -= 320000;
         // Check if the demon turns around
-        if(os_random() % 32 == 0 || (pd->demonX == OLED_WIDTH - pd->demonSprite.width - pd->heart.width) || (pd->demonX == 0))
+        if(os_random() % 32 == 0)
         {
             pd->demonDirLR = !(pd->demonDirLR);
+        }
+
+        if(pd->demonX >= OLED_WIDTH - pd->demonSprite.width - pd->heart.width)
+        {
+            pd->demonDirLR = false;
+        }
+
+        if(pd->demonX <= 0)
+        {
+            pd->demonDirLR = true;
         }
 
         // Move the demon LR
@@ -1055,10 +1065,18 @@ bool ICACHE_FLASH_ATTR updtAnimWalk(uint32_t tElapsed)
         if(os_random() % 2 == 0)
         {
             // Check if the demon changes up/down direction
-            if(os_random() % 8 == 0 || (pd->demonY == OLED_HEIGHT - pd->demonSprite.height - FONT_HEIGHT_IBMVGA8 - 4)
-                    || (pd->demonY == FONT_HEIGHT_IBMVGA8 + 1))
+            if(os_random() % 8 == 0)
             {
                 pd->demonDirUD = !(pd->demonDirUD);
+            }
+
+            if (pd->demonY >= OLED_HEIGHT - pd->demonSprite.height - FONT_HEIGHT_IBMVGA8 - 4)
+            {
+                pd->demonDirUD = false;
+            }
+            if (pd->demonY <= FONT_HEIGHT_IBMVGA8 + 1)
+            {
+                pd->demonDirUD = true;
             }
 
             // Move the demon UD
@@ -1960,16 +1978,17 @@ bool ICACHE_FLASH_ATTR updtAnimBirthday(uint32_t tElapsed)
         pd->demonY -= 6;
         isUp = false;
         shouldDraw = true;
+        jumps++;
     }
     else if(false == isUp && pd->animTimeUs >= 1000000)
     {
+        pd->animTimeUs -= 1000000;
         pd->demonY += 6;
         isUp = true;
         shouldDraw = true;
-        jumps++;
     }
 
-    if(3 == jumps)
+    if(4 == jumps)
     {
         personalDemonResetAnimVars();
         shouldDraw = true;
