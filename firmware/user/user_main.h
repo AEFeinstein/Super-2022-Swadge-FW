@@ -99,6 +99,14 @@ typedef struct _swadgeMode
      */
     void (*fnProcTask)(void);
     /**
+     * This function is called immediately before display.  There's no framerate
+     * guarantee, just that this is called before the display is actually
+     * scanned out.  Return nonzero here to force a full-screen refresh.
+     * forcing a full-screen refresh may be slightly faster if you know most of
+     * the screen requires an update.
+     */
+    int (*fnRenderTask)(void);
+    /**
      * This function is called when a button press is detected from user_main.c's
      * HandleButtonEvent(). It does not pass mode select button events. It is
      * called from an interrupt, so do the minimal amount of processing here as
