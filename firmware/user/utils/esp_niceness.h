@@ -53,4 +53,7 @@ char* ets_strcat(char* dest, const char* src);
 #define vsprintf ets_vsprintf
 #define write_char ets_write_char
 
+#define OVERCLOCK_SECTION_ENABLE()  REG_SET_BIT(0x3ff00014, BIT(0));
+#define OVERCLOCK_SECTION_DISABLE() REG_CLR_BIT(0x3ff00014, BIT(0));
+
 #endif

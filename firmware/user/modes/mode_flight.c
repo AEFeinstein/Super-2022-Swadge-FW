@@ -24,6 +24,7 @@
 #include "linked_list.h"
 #include "font.h"
 #include "gpio.h"
+#include "esp_niceness.h"
 
 #include "embeddednf.h"
 #include "embeddedout.h"
@@ -210,7 +211,7 @@ static void ICACHE_FLASH_ATTR flightUpdate(void* arg __attribute__((unused)))
 
 //From https://github.com/cnlohr/channel3/blob/master/user/3d.c
 
-static uint8_t sintable[128] = { 0, 6, 12, 18, 25, 31, 37, 43, 49, 55, 62, 68, 74, 80, 86, 91, 97, 103, 109, 114, 120, 125, 131, 136, 141, 147, 152, 157, 162, 166, 171, 176, 180, 185, 189, 193, 197, 201, 205, 208, 212, 215, 219, 222, 225, 228, 230, 233, 236, 238, 240, 242, 244, 246, 247, 249, 250, 251, 252, 253, 254, 254, 255, 255, 255, 255, 255, 254, 254, 253, 252, 251, 250, 249, 247, 246, 244, 242, 240, 238, 236, 233, 230, 228, 225, 222, 219, 215, 212, 208, 205, 201, 197, 193, 189, 185, 180, 176, 171, 166, 162, 157, 152, 147, 141, 136, 131, 125, 120, 114, 109, 103, 97, 91, 86, 80, 74, 68, 62, 55, 49, 43, 37, 31, 25, 18, 12, 6, };
+const static uint8_t sintable[128] = { 0, 6, 12, 18, 25, 31, 37, 43, 49, 55, 62, 68, 74, 80, 86, 91, 97, 103, 109, 114, 120, 125, 131, 136, 141, 147, 152, 157, 162, 166, 171, 176, 180, 185, 189, 193, 197, 201, 205, 208, 212, 215, 219, 222, 225, 228, 230, 233, 236, 238, 240, 242, 244, 246, 247, 249, 250, 251, 252, 253, 254, 254, 255, 255, 255, 255, 255, 254, 254, 253, 252, 251, 250, 249, 247, 246, 244, 242, 240, 238, 236, 233, 230, 228, 225, 222, 219, 215, 212, 208, 205, 201, 197, 193, 189, 185, 180, 176, 171, 166, 162, 157, 152, 147, 141, 136, 131, 125, 120, 114, 109, 103, 97, 91, 86, 80, 74, 68, 62, 55, 49, 43, 37, 31, 25, 18, 12, 6, };
 
 int16_t ModelviewMatrix[16];
 int16_t ProjectionMatrix[16];
@@ -488,8 +489,8 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * flight )
 
     PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.  
     GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
-    REG_SET_BIT(0x3ff00014, BIT(0)); //Overclock
-    //ij = 0;    //Uncomment to prevent animation (for perf test)
+    OVERCLOCK_SECTION_ENABLE();
+//    ij = 0;    //Uncomment to prevent animation (for perf test)
     int x = 0;
     int y = 0;
     for( x = -3; x < 4; x++ )
@@ -503,7 +504,7 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * flight )
             DrawGeoSphere();
         }
     }
-    REG_CLR_BIT(0x3ff00014, BIT(0)); //Back to normal clocking.
+    OVERCLOCK_SECTION_DISABLE();
     GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
 
 /*
