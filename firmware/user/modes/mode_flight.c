@@ -94,7 +94,7 @@ void ICACHE_FLASH_ATTR flightButtonCallback(uint8_t state __attribute__((unused)
 static void ICACHE_FLASH_ATTR flightUpdate(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem);
 static void ICACHE_FLASH_ATTR flightStartGame(flGameType type);
-static void ICACHE_FLASH_ATTR flightRender();
+static int ICACHE_FLASH_ATTR flightRender();
 static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight );
 
 static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int nr_segments, const uint16_t * indices, const int16_t * vertices );
@@ -113,7 +113,7 @@ swadgeMode flightMode =
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
-    .fnProcTask = flightRender,
+    .fnRenderTask = flightRender,
     .fnAccelerometerCallback = NULL,
     .fnAudioCallback = NULL,
     .menuImg = "flight-menu.gif"
@@ -537,7 +537,7 @@ static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int nr_segments, const uint1
     {
         if( indices[i] > highest_v ) highest_v = indices[i];
     }
-	highest_v += 3; //We only looked at indices.
+    highest_v += 3; //We only looked at indices.
 
     tdModel * ret = os_malloc( sizeof( tdModel ) + highest_v * sizeof(uint16_t) + nr_segments * sizeof(uint16_t) * 2  );
     ret->nr_segments = nr_segments;
@@ -609,7 +609,7 @@ void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
 
     //This looks a little odd, but what we're doing is caching our vertex computations
     //so we don't have to re-compute every time round.
-	//f( "%d\n", nrv );
+    //f( "%d\n", nrv );
     int16_t cached_verts[nrv];
     memset( cached_verts, 0x00, sizeof(cached_verts) );
 
@@ -640,7 +640,7 @@ void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-static void ICACHE_FLASH_ATTR flightRender()
+static int ICACHE_FLASH_ATTR flightRender()
 {
     flight_t * tflight = flight;
 
@@ -682,19 +682,19 @@ static void ICACHE_FLASH_ATTR flightRender()
     int x = 0;
     int y = -1;
     tdRotateEA( ProjectionMatrix, tflight->hpr[1], tflight->hpr[0], 0 );
-	tdTranslate( ModelviewMatrix, tflight->planeloc[0], tflight->planeloc[1], tflight->planeloc[2] );
+    tdTranslate( ModelviewMatrix, tflight->planeloc[0], tflight->planeloc[1], tflight->planeloc[2] );
 
-	int16_t BackupMatrix[16];
+    int16_t BackupMatrix[16];
     for( x = -6; x < 17; x++ )
     {
         for( y = -2; y < 10; y++ )
         {
             memcpy( BackupMatrix, ModelviewMatrix, sizeof( BackupMatrix ) );
-			tdTranslate( ModelviewMatrix, 
-				500*x-800,
-				140 + tdSIN( (x + y)*40 + ij*1 )>>2,
-  		        500*y+500 );
-			tdScale( ModelviewMatrix, 70, 70, 70 );
+            tdTranslate( ModelviewMatrix, 
+                500*x-800,
+                140 + tdSIN( (x + y)*40 + ij*1 )>>2,
+                500*y+500 );
+            tdScale( ModelviewMatrix, 70, 70, 70 );
             tdDrawModel( tflight->isosphere );
             memcpy( ModelviewMatrix, BackupMatrix, sizeof( BackupMatrix ) );
         }
@@ -717,8 +717,8 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
     if( bs & 2 ) tflight->hpr[1]++;
     if( bs & 8 ) tflight->hpr[1]--;
 
-	//Left-right is [0].
-	//Up-down is [1].
+    //Left-right is [0].
+    //Up-down is [1].
 
     tflight->planeloc[0] -= tdSIN( tflight->hpr[0] )>>6;
     tflight->planeloc[2] -= tdCOS( tflight->hpr[0] )>>6;
