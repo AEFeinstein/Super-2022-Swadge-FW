@@ -593,7 +593,7 @@ void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
     td4Transform( tmppt, ProjectionMatrix, tmppt );
     if( tmppt[3] < -2 )
     {
-        int scx = ((256 * tmppt[0] / tmppt[3])/8+(OLED_WIDTH/2))/2;
+        int scx = ((256 * tmppt[0] / tmppt[3])/16+(OLED_WIDTH/2));
         int scy = ((256 * tmppt[1] / tmppt[3])/8+(OLED_HEIGHT/2));
         int scd = ((-256 * 2 * m->radius / tmppt[3])/8);
         scd += 3; //Slack
