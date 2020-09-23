@@ -50,6 +50,12 @@ typedef enum
 
 typedef struct
 {
+	int nr_segments;
+	int16_t indices_and_vertices[1];
+} tdModel;
+
+typedef struct
+{
     flightModeScreen mode;
 
     timer_t updateTimer;
@@ -59,6 +65,8 @@ typedef struct
 
     int16_t planeloc[3];
     int16_t hpr[3];
+
+	tdModel * isosphere;
 
     menu_t* menu;
 } flight_t;
@@ -76,9 +84,10 @@ static void ICACHE_FLASH_ATTR flightUpdate(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem);
 static void ICACHE_FLASH_ATTR flightStartGame(flGameType type);
 
-static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * flight );
+static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight );
 
-static int16_t pittsburg[];
+static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int nr_segments, const uint16_t * indices, const int16_t * vertices );
+void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m );
 
 /*============================================================================
  * Variables
@@ -109,6 +118,44 @@ static const char fl_quit[]   = "QUIT";
  * Functions
  *==========================================================================*/
 
+
+
+
+
+
+static const int16_t IsoSphereVertices[] ICACHE_RODATA_ATTR = { 
+           0, -256,    0,   
+         185, -114,  134,        -70, -114,  217,       -228, -114,    0,        -70, -114, -217,   
+         185, -114, -134,         70,  114,  217,       -185,  114,  134,       -185,  114, -134,   
+          70,  114, -217,        228,  114,    0,          0,  256,    0,        108, -217,   79,   
+         -41, -217,  127,         67, -134,  207,        108, -217,  -79,        217, -134,    0,   
+        -134, -217,    0,       -176, -134,  127,        -41, -217, -127,       -176, -134, -127,   
+          67, -134, -207,        243,    0,  -79,        243,    0,   79,        150,    0,  207,   
+           0,    0,  256,       -150,    0,  207,       -243,    0,   79,       -243,    0,  -79,   
+        -150,    0, -207,          0,    0, -256,        150,    0, -207,        176,  134,  127,   
+         -67,  134,  207,       -217,  134,    0,        -67,  134, -207,        176,  134, -127,   
+         134,  217,    0,         41,  217,  127,       -108,  217,   79,       -108,  217,  -79,   
+          41,  217, -127};
+static const uint16_t IsoSphereIndices[] ICACHE_RODATA_ATTR = { /* 120 line segments */
+          42,  36,     36,   3,      3,  42,     42,  39,     39,  36,      6,  39,     42,   6,     39,   0,   
+           0,  36,     48,   3,     36,  48,     36,  45,     45,  48,     15,  48,     45,  15,      0,  45,   
+          54,  39,      6,  54,     54,  51,     51,  39,      9,  51,     54,   9,     51,   0,     60,  51,   
+           9,  60,     60,  57,     57,  51,     12,  57,     60,  12,     57,   0,     63,  57,     12,  63,   
+          63,  45,     45,  57,     63,  15,     69,   3,     48,  69,     48,  66,     66,  69,     30,  69,   
+          66,  30,     15,  66,     75,   6,     42,  75,     42,  72,     72,  75,     18,  75,     72,  18,   
+           3,  72,     81,   9,     54,  81,     54,  78,     78,  81,     21,  81,     78,  21,      6,  78,   
+          87,  12,     60,  87,     60,  84,     84,  87,     24,  87,     84,  24,      9,  84,     93,  15,   
+          63,  93,     63,  90,     90,  93,     27,  93,     90,  27,     12,  90,     96,  69,     30,  96,   
+          96,  72,     72,  69,     96,  18,     99,  75,     18,  99,     99,  78,     78,  75,     99,  21,   
+         102,  81,     21, 102,    102,  84,     84,  81,    102,  24,    105,  87,     24, 105,    105,  90,   
+          90,  87,    105,  27,    108,  93,     27, 108,    108,  66,     66,  93,    108,  30,    114,  18,   
+          96, 114,     96, 111,    111, 114,     33, 114,    111,  33,     30, 111,    117,  21,     99, 117,   
+          99, 114,    114, 117,     33, 117,    120,  24,    102, 120,    102, 117,    117, 120,     33, 120,   
+         123,  27,    105, 123,    105, 120,    120, 123,     33, 123,    108, 111,    108, 123,    123, 111,   
+        };
+
+
+
 /**
  * Initializer for flight
  */
@@ -119,6 +166,7 @@ void ICACHE_FLASH_ATTR flightEnterMode(void)
     ets_memset(flight, 0, sizeof(flight_t));
 
     flight->mode = FLIGHT_MENU;
+	flight->isosphere = tdAllocateModel( sizeof(IsoSphereIndices)/sizeof(uint16_t)/2, IsoSphereIndices, IsoSphereVertices );
 
     flight->menu = initMenu(fl_title, flightMenuCb);
     addRowToMenu(flight->menu);
@@ -142,6 +190,7 @@ void ICACHE_FLASH_ATTR flightExitMode(void)
     timerDisarm(&(flight->updateTimer));
     timerFlush();
     deinitMenu(flight->menu);
+	os_free(flight->isosphere);
     os_free(flight);
 }
 
@@ -209,14 +258,26 @@ static void ICACHE_FLASH_ATTR flightUpdate(void* arg __attribute__((unused)))
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+int16_t ICACHE_FLASH_ATTR tdCOS( uint8_t iv );
+void ICACHE_FLASH_ATTR tdIdentity( int16_t * matrix );
+static int16_t ICACHE_FLASH_ATTR tdSIN( uint8_t iv );
+void ICACHE_FLASH_ATTR Perspective( int fovx, int aspect, int zNear, int zFar, int16_t * out );
+void ICACHE_FLASH_ATTR LocalToScreenspace( const int16_t * coords_3v, int16_t * o1, int16_t * o2 );
+void ICACHE_FLASH_ATTR SetupMatrix( void );
+void ICACHE_FLASH_ATTR tdMultiply( int16_t * fin1, int16_t * fin2, int16_t * fout );
+void ICACHE_FLASH_ATTR tdRotateEA( int16_t * f, int16_t x, int16_t y, int16_t z );
+void ICACHE_FLASH_ATTR td4Transform( int16_t * pin, int16_t * f, int16_t * pout );
+void ICACHE_FLASH_ATTR tdTranslate( int16_t * f, int16_t x, int16_t y, int16_t z );
+void ICACHE_FLASH_ATTR Draw3DSegment( const int16_t * c1, const int16_t * c2 );
+
 //From https://github.com/cnlohr/channel3/blob/master/user/3d.c
 
-const static uint8_t sintable[128] = { 0, 6, 12, 18, 25, 31, 37, 43, 49, 55, 62, 68, 74, 80, 86, 91, 97, 103, 109, 114, 120, 125, 131, 136, 141, 147, 152, 157, 162, 166, 171, 176, 180, 185, 189, 193, 197, 201, 205, 208, 212, 215, 219, 222, 225, 228, 230, 233, 236, 238, 240, 242, 244, 246, 247, 249, 250, 251, 252, 253, 254, 254, 255, 255, 255, 255, 255, 254, 254, 253, 252, 251, 250, 249, 247, 246, 244, 242, 240, 238, 236, 233, 230, 228, 225, 222, 219, 215, 212, 208, 205, 201, 197, 193, 189, 185, 180, 176, 171, 166, 162, 157, 152, 147, 141, 136, 131, 125, 120, 114, 109, 103, 97, 91, 86, 80, 74, 68, 62, 55, 49, 43, 37, 31, 25, 18, 12, 6, };
+static const uint8_t sintable[128] = { 0, 6, 12, 18, 25, 31, 37, 43, 49, 55, 62, 68, 74, 80, 86, 91, 97, 103, 109, 114, 120, 125, 131, 136, 141, 147, 152, 157, 162, 166, 171, 176, 180, 185, 189, 193, 197, 201, 205, 208, 212, 215, 219, 222, 225, 228, 230, 233, 236, 238, 240, 242, 244, 246, 247, 249, 250, 251, 252, 253, 254, 254, 255, 255, 255, 255, 255, 254, 254, 253, 252, 251, 250, 249, 247, 246, 244, 242, 240, 238, 236, 233, 230, 228, 225, 222, 219, 215, 212, 208, 205, 201, 197, 193, 189, 185, 180, 176, 171, 166, 162, 157, 152, 147, 141, 136, 131, 125, 120, 114, 109, 103, 97, 91, 86, 80, 74, 68, 62, 55, 49, 43, 37, 31, 25, 18, 12, 6, };
 
 int16_t ModelviewMatrix[16];
 int16_t ProjectionMatrix[16];
 
-static int16_t ICACHE_FLASH_ATTR ICACHE_FLASH_ATTR tdSIN( uint8_t iv )
+static int16_t ICACHE_FLASH_ATTR tdSIN( uint8_t iv )
 {
     if( iv > 127 )
     {
@@ -292,9 +353,8 @@ void ICACHE_FLASH_ATTR Perspective( int fovx, int aspect, int zNear, int zFar, i
 }
 
 
-void ICACHE_FLASH_ATTR SetupMatrix( )
+void ICACHE_FLASH_ATTR SetupMatrix( void )
 {
-    int16_t lmatrix[16];
     tdIdentity( ProjectionMatrix );
     tdIdentity( ModelviewMatrix );
 
@@ -389,7 +449,7 @@ void ICACHE_FLASH_ATTR td4Transform( int16_t * pin, int16_t * f, int16_t * pout 
 }
 
 
-void ICACHE_FLASH_ATTR LocalToScreenspace( int16_t * coords_3v, int16_t * o1, int16_t * o2 )
+void ICACHE_FLASH_ATTR LocalToScreenspace( const int16_t * coords_3v, int16_t * o1, int16_t * o2 )
 {
     int16_t tmppt[4] = { coords_3v[0], coords_3v[1], coords_3v[2], 256 };
     td4Transform( tmppt, ModelviewMatrix, tmppt );
@@ -401,7 +461,7 @@ void ICACHE_FLASH_ATTR LocalToScreenspace( int16_t * coords_3v, int16_t * o1, in
 }
 
 
-void ICACHE_FLASH_ATTR Draw3DSegment( int16_t * c1, int16_t * c2 )
+void ICACHE_FLASH_ATTR Draw3DSegment( const int16_t * c1, const int16_t * c2 )
 {
     int16_t sx0, sy0, sx1, sy1;
     LocalToScreenspace( c1, &sx0, &sy0 );
@@ -414,46 +474,32 @@ void ICACHE_FLASH_ATTR Draw3DSegment( int16_t * c1, int16_t * c2 )
     //plotLine( sx0, sy0, sx1, sy1, WHITE );
 }
 
+static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int nr_segments, const uint16_t * indices, const int16_t * vertices )
+{
+	int i;
+	int highest_v = 0;
+	for( i = 0; i < nr_segments*2; i++ )
+	{
+		if( indices[i] > highest_v ) highest_v = indices[i];
+	}
 
-int16_t verts[] = { 
-           0, -256,    0,   
-         185, -114,  134,        -70, -114,  217,       -228, -114,    0,        -70, -114, -217,   
-         185, -114, -134,         70,  114,  217,       -185,  114,  134,       -185,  114, -134,   
-          70,  114, -217,        228,  114,    0,          0,  256,    0,        108, -217,   79,   
-         -41, -217,  127,         67, -134,  207,        108, -217,  -79,        217, -134,    0,   
-        -134, -217,    0,       -176, -134,  127,        -41, -217, -127,       -176, -134, -127,   
-          67, -134, -207,        243,    0,  -79,        243,    0,   79,        150,    0,  207,   
-           0,    0,  256,       -150,    0,  207,       -243,    0,   79,       -243,    0,  -79,   
-        -150,    0, -207,          0,    0, -256,        150,    0, -207,        176,  134,  127,   
-         -67,  134,  207,       -217,  134,    0,        -67,  134, -207,        176,  134, -127,   
-         134,  217,    0,         41,  217,  127,       -108,  217,   79,       -108,  217,  -79,   
-          41,  217, -127};
-uint16_t indices[] = { /* 120 line segments */
-          42,  36,     36,   3,      3,  42,     42,  39,     39,  36,      6,  39,     42,   6,     39,   0,   
-           0,  36,     48,   3,     36,  48,     36,  45,     45,  48,     15,  48,     45,  15,      0,  45,   
-          54,  39,      6,  54,     54,  51,     51,  39,      9,  51,     54,   9,     51,   0,     60,  51,   
-           9,  60,     60,  57,     57,  51,     12,  57,     60,  12,     57,   0,     63,  57,     12,  63,   
-          63,  45,     45,  57,     63,  15,     69,   3,     48,  69,     48,  66,     66,  69,     30,  69,   
-          66,  30,     15,  66,     75,   6,     42,  75,     42,  72,     72,  75,     18,  75,     72,  18,   
-           3,  72,     81,   9,     54,  81,     54,  78,     78,  81,     21,  81,     78,  21,      6,  78,   
-          87,  12,     60,  87,     60,  84,     84,  87,     24,  87,     84,  24,      9,  84,     93,  15,   
-          63,  93,     63,  90,     90,  93,     27,  93,     90,  27,     12,  90,     96,  69,     30,  96,   
-          96,  72,     72,  69,     96,  18,     99,  75,     18,  99,     99,  78,     78,  75,     99,  21,   
-         102,  81,     21, 102,    102,  84,     84,  81,    102,  24,    105,  87,     24, 105,    105,  90,   
-          90,  87,    105,  27,    108,  93,     27, 108,    108,  66,     66,  93,    108,  30,    114,  18,   
-          96, 114,     96, 111,    111, 114,     33, 114,    111,  33,     30, 111,    117,  21,     99, 117,   
-          99, 114,    114, 117,     33, 117,    120,  24,    102, 120,    102, 117,    117, 120,     33, 120,   
-         123,  27,    105, 123,    105, 120,    120, 123,     33, 123,    108, 111,    108, 123,    123, 111,   
-        };
+	tdModel * ret = os_malloc( sizeof( tdModel ) + highest_v * sizeof(uint16_t) * 3 + nr_segments * sizeof(uint16_t) * 2  );
+	ret->nr_segments = nr_segments;
+	ets_memcpy( ret->indices_and_vertices, indices, nr_segments * sizeof(uint16_t) * 2 );
+	int16_t * voffset = &ret->indices_and_vertices[nr_segments * 2];
+	ets_memcpy( voffset, vertices, highest_v * sizeof(uint16_t) * 3 );
+	return ret;
+}
 
-void ICACHE_FLASH_ATTR DrawGeoSphere()
+void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
 {
     int i;
-    int nrv = sizeof(indices)/sizeof(uint16_t);
+    int nrv = m->nr_segments*2;
+	int16_t * verticesmark = (int16_t*)&m->indices_and_vertices[nrv];
     for( i = 0; i < nrv; i+=2 )
     {
-        int16_t * c1 = &verts[indices[i]];
-        int16_t * c2 = &verts[indices[i+1]];
+        const int16_t * c1 = &verticesmark[m->indices_and_vertices[i]];
+        const int16_t * c2 = &verticesmark[m->indices_and_vertices[i+1]];
         Draw3DSegment( c1, c2 );
     }
 }
@@ -464,20 +510,20 @@ void ICACHE_FLASH_ATTR DrawGeoSphere()
 
 
 
-static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * flight )
+static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
 {
-    uint8_t bs = flight->buttonState;
+    uint8_t bs = tflight->buttonState;
 
     // First clear the OLED
     clearDisplay();
 
 
     char framesStr[8] = {0};
-    ets_snprintf(framesStr, sizeof(framesStr), "%d", flight->buttonState);
+    ets_snprintf(framesStr, sizeof(framesStr), "%d", tflight->buttonState);
     plotText(0, 0, framesStr, TOM_THUMB, WHITE);
 
-    if( bs & 1 ) flight->hpr[0]++;
-    if( bs & 4 ) flight->hpr[0]--;
+    if( bs & 1 ) tflight->hpr[0]++;
+    if( bs & 4 ) tflight->hpr[0]--;
 
     static int ij;
     ij++;
@@ -487,10 +533,12 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * flight )
     tdRotateEA( ModelviewMatrix, ij, 0, 0 );
     //tdTranslate( ModelviewMatrix, 0, 0, 200 );
 
+#ifndef EMU
     PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.  
     GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
     OVERCLOCK_SECTION_ENABLE();
-//    ij = 0;    //Uncomment to prevent animation (for perf test)
+#endif
+    ij = 0;    //Uncomment to prevent animation (for perf test)
     int x = 0;
     int y = 0;
     for( x = -3; x < 4; x++ )
@@ -501,19 +549,19 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * flight )
             ModelviewMatrix[11] = 2400 + tdSIN( (x + y)*40 + ij*2 ) * 3;
             ModelviewMatrix[3] = 500*x-800;
             ModelviewMatrix[7] = 500*y+500;
-            DrawGeoSphere();
+            tdDrawModel( tflight->isosphere );
         }
     }
+#ifndef EMU
     OVERCLOCK_SECTION_DISABLE();
     GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
+#endif
 
 /*
-    flight->planeloc[0] += tdSIN( flight->hpr[0] )>>4;
-    flight->planeloc[1] += tdCOS( flight->hpr[0] )>>4;
-    flight->planeloc[2] += tdCOS( flight->hpr[1] )>>4;
-*/
-//        x -= flightsim->planeplaneloc[0];
-/*
+    tflight->planeloc[0] += tdSIN( tflight->hpr[0] )>>4;
+    tflight->planeloc[1] += tdCOS( tflight->hpr[0] )>>4;
+    tflight->planeloc[2] += tdCOS( tflight->hpr[1] )>>4;
+
     int i;
     int16_t xformlast[3];
     int newseg = 1;
@@ -521,7 +569,7 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * flight )
     {
         if( newseg )
         {
-            if( vTransform( flight, xformlast, pittsburg+i*3 ) == 0 )
+            if( vTransform( tflight, xformlast, pittsburg+i*3 ) == 0 )
             {
                 break;
             }
@@ -531,7 +579,7 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * flight )
         else
         {
             int16_t xformednow[3];
-            if( vTransform( flight, xformednow, pittsburg+i*3 ) == 0 ) { newseg = 1; continue; }
+            if( vTransform( tflight, xformednow, pittsburg+i*3 ) == 0 ) { newseg = 1; continue; }
             plotLine( xformlast[0], xformlast[1], xformednow[0], xformednow[1], WHITE );
             ets_memcpy( xformlast, xformednow, sizeof( xformednow) );
         }
@@ -712,7 +760,7 @@ void ICACHE_FLASH_ATTR flightButtonCallback( uint8_t state,
 }
 
 
-
+#if 0
 static int16_t pittsburg[] = {
 -4851,33852,0,-5301,32379,0,-5487,31325,0,-5115,30101,0,-4014,29062,0,
 -2573,28675,0,-1498,28633,0,-423,28592,0,651,28551,0,1790,27985,0,2929,
@@ -859,4 +907,4 @@ static int16_t pittsburg[] = {
 32581,-30,-4913,32472,-30,-4913,32472,-30,0,0,0,26365,31976,-30,24939,32302,
 -30,24986,32410,-30,26412,32069,-30,26365,31976,-30,26365,31976,-30,0,0,0,0,0,0
 };
-
+#endif
