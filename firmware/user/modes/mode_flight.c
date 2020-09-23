@@ -51,6 +51,7 @@ typedef enum
 typedef struct
 {
 	int nr_segments;
+	int nr_vertices;
 	int16_t indices_and_vertices[1];
 } tdModel;
 
@@ -483,24 +484,39 @@ static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int nr_segments, const uint1
 		if( indices[i] > highest_v ) highest_v = indices[i];
 	}
 
-	tdModel * ret = os_malloc( sizeof( tdModel ) + highest_v * sizeof(uint16_t) * 3 + nr_segments * sizeof(uint16_t) * 2  );
+	tdModel * ret = os_malloc( sizeof( tdModel ) + highest_v * sizeof(uint16_t) + nr_segments * sizeof(uint16_t) * 2  );
 	ret->nr_segments = nr_segments;
 	ets_memcpy( ret->indices_and_vertices, indices, nr_segments * sizeof(uint16_t) * 2 );
 	int16_t * voffset = &ret->indices_and_vertices[nr_segments * 2];
-	ets_memcpy( voffset, vertices, highest_v * sizeof(uint16_t) * 3 );
+	ets_memcpy( voffset, vertices, highest_v * sizeof(uint16_t) );
+	ret->nr_vertices = highest_v;
 	return ret;
 }
 
 void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
 {
     int i;
-    int nrv = m->nr_segments*2;
-	int16_t * verticesmark = (int16_t*)&m->indices_and_vertices[nrv];
-    for( i = 0; i < nrv; i+=2 )
+    int nri = m->nr_segments*2;
+	int nrv = m->nr_vertices;
+	int16_t * verticesmark = (int16_t*)&m->indices_and_vertices[nri];
+
+	//This looks a little odd, but what we're doing is caching our vertex computations
+	//so we don't have to re-compute every time round.
+	int16_t cached_verts[nrv*2];
+	memset( cached_verts, 0xff, sizeof(cached_verts) );
+    for( i = 0; i < nri; i+=2 )
     {
-        const int16_t * c1 = &verticesmark[m->indices_and_vertices[i]];
-        const int16_t * c2 = &verticesmark[m->indices_and_vertices[i+1]];
-        Draw3DSegment( c1, c2 );
+		int i1 = m->indices_and_vertices[i]/3;
+		int i2 = m->indices_and_vertices[i+1]/3;
+		if( ((uint16_t)cached_verts[i1*2]) == 0xffff )
+		{
+			LocalToScreenspace( &verticesmark[i1*3], &cached_verts[i1*2+0], &cached_verts[i1*2+1] );
+		}
+		if( ((uint16_t)cached_verts[i2*2]) == 0xffff )
+		{
+			LocalToScreenspace( &verticesmark[i2*3], &cached_verts[i2*2+0], &cached_verts[i2*2+1] );
+		}
+	    speedyWhiteLine( cached_verts[i1*2+0], cached_verts[i1*2+1], cached_verts[i2*2+0], cached_verts[i2*2+1] );
     }
 }
 
@@ -538,7 +554,7 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
     GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
     OVERCLOCK_SECTION_ENABLE();
 #endif
-    ij = 0;    //Uncomment to prevent animation (for perf test)
+    //ij = 0;    //Uncomment to prevent animation (for perf test)
     int x = 0;
     int y = 0;
     for( x = -3; x < 4; x++ )

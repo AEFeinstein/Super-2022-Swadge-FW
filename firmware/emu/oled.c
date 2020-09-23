@@ -14,14 +14,14 @@ bool fbOnline = false;
 
 bool initOLED(bool reset)
 {
-	int i;
-	for( i = 0; i < OLEDMEM; i++ )
-	{
-		priorFb[i] = currentFb[i] = rand() & 0xff;
-	}
-	fbChanges = 1;
-	updateOLED(0);
-	return true;
+    int i;
+    for( i = 0; i < OLEDMEM; i++ )
+    {
+        priorFb[i] = currentFb[i] = rand() & 0xff;
+    }
+    fbChanges = 1;
+    updateOLED(0);
+    return true;
 }
 
 void drawPixel(int16_t x, int16_t y, color c)
@@ -245,20 +245,20 @@ color getPixel(int16_t x, int16_t y)
 
 bool ICACHE_FLASH_ATTR setOLEDparams(bool turnOnOff)
 {
-	fbOnline = turnOnOff;
-	return true;
+    fbOnline = turnOnOff;
+    return true;
 }
 
 oledResult_t updateOLED(bool drawDifference)
 {
-	if( fbChanges )
-	{
-		emuSendOLEDData( 0, currentFb );
-		//For the emulator, we don't care about differences.
-    	ets_memcpy(priorFb, currentFb, sizeof(currentFb));
-		return FRAME_DRAWN;
-	}
-	return FRAME_NOT_DRAWN;
+    if( fbChanges )
+    {
+        emuSendOLEDData( 0, currentFb );
+        //For the emulator, we don't care about differences.
+        ets_memcpy(priorFb, currentFb, sizeof(currentFb));
+        return FRAME_DRAWN;
+    }
+    return FRAME_NOT_DRAWN;
 }
 
 void clearDisplay(void)
