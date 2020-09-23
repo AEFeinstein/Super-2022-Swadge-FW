@@ -95,9 +95,8 @@ void ICACHE_FLASH_ATTR flightButtonCallback(uint8_t state __attribute__((unused)
 static void ICACHE_FLASH_ATTR flightUpdate(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem);
 static void ICACHE_FLASH_ATTR flightStartGame(flGameType type);
-static int ICACHE_FLASH_ATTR flightRender();
+static bool ICACHE_FLASH_ATTR flightRender();
 static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight );
-
 static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int nr_segments, const uint16_t * indices, const int16_t * vertices );
 void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m );
 
@@ -641,9 +640,11 @@ void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-static int ICACHE_FLASH_ATTR flightRender()
+static bool ICACHE_FLASH_ATTR flightRender()
 {
     flight_t * tflight = flight;
+
+	if( tflight->mode != FLIGHT_GAME ) return false;
 
     // First clear the OLED
     clearDisplay();
@@ -706,6 +707,9 @@ static int ICACHE_FLASH_ATTR flightRender()
     OVERCLOCK_SECTION_DISABLE();
     GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
 #endif
+
+	//Don't force full-screen refresh
+	return false;
 }
 
 static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
@@ -718,138 +722,12 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
     if( bs & 2 ) tflight->hpr[1]++;
     if( bs & 8 ) tflight->hpr[1]--;
 
-    //Left-right is [0].
-    //Up-down is [1].
-
     tflight->planeloc[0] -= tdSIN( tflight->hpr[0] )>>6;
     tflight->planeloc[2] -= tdCOS( tflight->hpr[0] )>>6;
     tflight->planeloc[1] += tdSIN( tflight->hpr[1] )>>6;
-
-/*
-    tflight->planeloc[0] += tdSIN( tflight->hpr[0] )>>4;
-    tflight->planeloc[1] += tdCOS( tflight->hpr[0] )>>4;
-    tflight->planeloc[2] += tdCOS( tflight->hpr[1] )>>4;
-
-    int i;
-    int16_t xformlast[3];
-    int newseg = 1;
-    for( i = 0; ; i++ )
-    {
-        if( newseg )
-        {
-            if( vTransform( tflight, xformlast, pittsburg+i*3 ) == 0 )
-            {
-                break;
-            }
-            
-            newseg = 0;
-        }
-        else
-        {
-            int16_t xformednow[3];
-            if( vTransform( tflight, xformednow, pittsburg+i*3 ) == 0 ) { newseg = 1; continue; }
-            plotLine( xformlast[0], xformlast[1], xformednow[0], xformednow[1], WHITE );
-            ets_memcpy( xformlast, xformednow, sizeof( xformednow) );
-        }
-    }
-*/
-
-#if 0
-    // For each chunk coordinate
-    for(uint8_t w = 0; w < NUM_CHUNKS + 1; w++)
-    {
-        // Plot a floor segment line between chunk coordinates
-        plotLine(
-            (w * CHUNK_WIDTH) - flappy->xOffset,
-            flappy->floors[w],
-            ((w + 1) * CHUNK_WIDTH) - flappy->xOffset,
-            flappy->floors[w + 1],
-            WHITE);
-
-        // Plot a ceiling segment line between chunk coordinates
-        plotLine(
-            (w * CHUNK_WIDTH) - flappy->xOffset,
-            flappy->ceils[w],
-            ((w + 1) * CHUNK_WIDTH) - flappy->xOffset,
-            flappy->ceils[w + 1],
-            WHITE);
-    }
-
-    // For each obstacle
-    node_t* obs = flappy->obstacles.first;
-    while(obs != NULL)
-    {
-        // Shift the obstacle
-        obs->val = (void*)(((uintptr_t)obs->val) - 0x100);
-
-        // Extract X and Y coordinates
-        int8_t x = (((uintptr_t)obs->val) >> 8) & 0xFF;
-        int8_t y = (((uintptr_t)obs->val)     ) & 0xFF;
-
-        // If the obstacle is off the screen
-        if(x + 2 <= 0)
-        {
-            // Move to the next
-            obs = obs->next;
-            // Remove it from the linked list
-            removeEntry(&flappy->obstacles, obs->prev);
-        }
-        else
-        {
-            // Otherwise draw it
-            plotRect(x, y, x + 2, y + flappy->obsHeight, WHITE);
-            // Move to the next
-            obs = obs->next;
-        }
-    }
-
-    // Find the chopper's integer position
-    int16_t chopperPos = (int16_t)(flappy->chopperPos + 0.5f);
-
-    // Iterate over the chopper's sprite to see if it would be drawn over a wall
-    bool collision = false;
-    for(uint8_t x = 0; x < CHOPPER_HEIGHT; x++)
-    {
-        for(uint8_t y = 0; y < CHOPPER_HEIGHT; y++)
-        {
-            // The pixel is already white, so there's a collision!
-            if(WHITE == getPixel(x, chopperPos + y))
-            {
-                collision = true;
-                break;
-            }
-            else
-            {
-                drawPixel(x, chopperPos + y, WHITE);
-            }
-        }
-    }
-
-    // If there was a collision
-    if(true == collision)
-    {
-        // Immediately jump back to the menu
-        flappy->mode = FLAPPY_MENU;
-        os_f("Score: %d\n", flappy->frames / 8);
-    }
-
-    // Render the score as text
-    char framesStr[8] = {0};
-    ets_snf(framesStr, sizeof(framesStr), "%d", flappy->frames / 8);
-    int16_t framesStrWidth = textWidth(framesStr, IBM_VGA_8);
-    // Make sure the width is a multiple of 8 to keep it drawn consistently
-    while(framesStrWidth % 8 != 0)
-    {
-        framesStrWidth++;
-    }
-    // Draw the score in the upper right hand corner
-    fillDisplayArea(OLED_WIDTH - 1 - framesStrWidth, 0, OLED_WIDTH, FONT_HEIGHT_IBMVGA8 + 1, BLACK);
-    plotText(OLED_WIDTH - framesStrWidth, 0, framesStr, IBM_VGA_8, WHITE);
-#endif
 }
 
 /**
- * TODO
  *
  * @param state  A bitmask of all button states, unused
  * @param button The button which triggered this event
