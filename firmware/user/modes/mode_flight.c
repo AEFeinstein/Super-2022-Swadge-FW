@@ -507,7 +507,7 @@ int ICACHE_FLASH_ATTR LocalToScreenspace( const int16_t * coords_3v, int16_t * o
     td4Transform( tmppt, ModelviewMatrix, tmppt );
     td4Transform( tmppt, ProjectionMatrix, tmppt );
     if( tmppt[3] >= -4 ) { return -1; }
-    int calcx = ((256 * tmppt[0] / tmppt[3])/8+(FBW/2))/2;
+    int calcx = ((256 * tmppt[0] / tmppt[3])/16+(FBW/2));
     int calcy = ((256 * tmppt[1] / tmppt[3])/8+(FBH/2));
     if( calcx < -16000 || calcx > 16000 || calcy < -16000 || calcy > 16000 ) return -2;
     *o1 = calcx;
