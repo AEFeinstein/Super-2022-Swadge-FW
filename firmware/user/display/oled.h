@@ -2,7 +2,7 @@
  * oled.h
  *
  *  Created on: Mar 16, 2019
- *      Author: adam
+ *      Author: adam, CNLohr
  */
 
 #ifndef OLED_H_
