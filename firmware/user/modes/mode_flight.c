@@ -50,9 +50,11 @@ typedef enum
 
 typedef struct
 {
-	int nr_segments;
-	int nr_vertices;
-	int16_t indices_and_vertices[1];
+    int nr_segments;
+    int nr_vertices;
+    int16_t center[3];
+    int16_t radius;
+    int16_t indices_and_vertices[1];
 } tdModel;
 
 typedef struct
@@ -67,7 +69,7 @@ typedef struct
     int16_t planeloc[3];
     int16_t hpr[3];
 
-	tdModel * isosphere;
+    tdModel * isosphere;
 
     menu_t* menu;
 } flight_t;
@@ -167,7 +169,7 @@ void ICACHE_FLASH_ATTR flightEnterMode(void)
     ets_memset(flight, 0, sizeof(flight_t));
 
     flight->mode = FLIGHT_MENU;
-	flight->isosphere = tdAllocateModel( sizeof(IsoSphereIndices)/sizeof(uint16_t)/2, IsoSphereIndices, IsoSphereVertices );
+    flight->isosphere = tdAllocateModel( sizeof(IsoSphereIndices)/sizeof(uint16_t)/2, IsoSphereIndices, IsoSphereVertices );
 
     flight->menu = initMenu(fl_title, flightMenuCb);
     addRowToMenu(flight->menu);
@@ -191,7 +193,7 @@ void ICACHE_FLASH_ATTR flightExitMode(void)
     timerDisarm(&(flight->updateTimer));
     timerFlush();
     deinitMenu(flight->menu);
-	os_free(flight->isosphere);
+    os_free(flight->isosphere);
     os_free(flight);
 }
 
@@ -270,6 +272,7 @@ void ICACHE_FLASH_ATTR tdRotateEA( int16_t * f, int16_t x, int16_t y, int16_t z 
 void ICACHE_FLASH_ATTR td4Transform( int16_t * pin, int16_t * f, int16_t * pout );
 void ICACHE_FLASH_ATTR tdTranslate( int16_t * f, int16_t x, int16_t y, int16_t z );
 void ICACHE_FLASH_ATTR Draw3DSegment( const int16_t * c1, const int16_t * c2 );
+uint16_t ICACHE_FLASH_ATTR tdSQRT( uint32_t inval );
 
 //From https://github.com/cnlohr/channel3/blob/master/user/3d.c
 
@@ -295,6 +298,27 @@ int16_t ICACHE_FLASH_ATTR tdCOS( uint8_t iv )
     return tdSIN( iv + 64 );
 }
 
+uint16_t ICACHE_FLASH_ATTR tdSQRT( uint32_t inval )
+{
+    uint32_t res = 0;
+    uint32_t one = 1UL << 30;
+    while (one > inval)
+    {
+        one >>= 2;
+    }
+
+    while (one != 0)
+    {
+        if (inval >= res + one)
+        {
+            inval = inval - (res + one);
+            res = res +  (one<<1);
+        }
+        res >>= 1;
+        one >>= 2;
+    }
+    return res;
+}
 
 void ICACHE_FLASH_ATTR tdIdentity( int16_t * matrix )
 {
@@ -477,46 +501,91 @@ void ICACHE_FLASH_ATTR Draw3DSegment( const int16_t * c1, const int16_t * c2 )
 
 static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int nr_segments, const uint16_t * indices, const int16_t * vertices )
 {
-	int i;
-	int highest_v = 0;
-	for( i = 0; i < nr_segments*2; i++ )
-	{
-		if( indices[i] > highest_v ) highest_v = indices[i];
-	}
+    int i;
+    int highest_v = 0;
+    for( i = 0; i < nr_segments*2; i++ )
+    {
+        if( indices[i] > highest_v ) highest_v = indices[i];
+    }
 
-	tdModel * ret = os_malloc( sizeof( tdModel ) + highest_v * sizeof(uint16_t) + nr_segments * sizeof(uint16_t) * 2  );
-	ret->nr_segments = nr_segments;
-	ets_memcpy( ret->indices_and_vertices, indices, nr_segments * sizeof(uint16_t) * 2 );
-	int16_t * voffset = &ret->indices_and_vertices[nr_segments * 2];
-	ets_memcpy( voffset, vertices, highest_v * sizeof(uint16_t) );
-	ret->nr_vertices = highest_v;
-	return ret;
+    tdModel * ret = os_malloc( sizeof( tdModel ) + highest_v * sizeof(uint16_t) + nr_segments * sizeof(uint16_t) * 2  );
+    ret->nr_segments = nr_segments;
+    ets_memcpy( ret->indices_and_vertices, indices, nr_segments * sizeof(uint16_t) * 2 );
+    int16_t * voffset = &ret->indices_and_vertices[nr_segments * 2];
+
+    int16_t mins[3] = {  0x7fff,  0x7fff,  0x7fff };
+    int16_t maxs[3] = { -0x7fff, -0x7fff, -0x7fff };
+    for( i = 0; i < highest_v; i+=3 )
+    {
+        const int16_t * v = &vertices[i];
+        int k;
+        for( k = 0; k < 3; k++ )
+        {
+            int16_t vk = v[k];
+            if( vk < mins[k] ) mins[k] = vk;
+            if( vk > maxs[k] ) maxs[k] = vk;
+            voffset[i+k] = v[k];
+        }
+    }
+    ret->nr_vertices = highest_v;
+    for( i = 0; i < 3; i++ )
+    {
+        ret->center[i] = (maxs[i] + mins[i])/2;
+    }
+    uint32_t dSq = 0;
+    for( i = 0; i < highest_v; i+= 3 )
+    {
+        int k;
+        int32_t difftot = 0;
+        for( k = 0; k < 3; k++ )
+        {
+            int32_t ik = vertices[i+k] - ret->center[k];
+            difftot += ik*ik;
+        }
+        if( difftot > dSq ) dSq = difftot;
+    }
+    ret->radius = tdSQRT( dSq );
+
+    return ret;
 }
 
 void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
 {
     int i;
     int nri = m->nr_segments*2;
-	int nrv = m->nr_vertices;
-	int16_t * verticesmark = (int16_t*)&m->indices_and_vertices[nri];
+    int nrv = m->nr_vertices;
+    int16_t * verticesmark = (int16_t*)&m->indices_and_vertices[nri];
 
-	//This looks a little odd, but what we're doing is caching our vertex computations
-	//so we don't have to re-compute every time round.
-	int16_t cached_verts[nrv*2];
-	memset( cached_verts, 0xff, sizeof(cached_verts) );
+    //For computing visibility check
+    int16_t tmppt[4] = { m->center[0], m->center[1], m->center[2], 256 };
+    td4Transform( tmppt, ModelviewMatrix, tmppt );
+    td4Transform( tmppt, ProjectionMatrix, tmppt );
+    int scx = ((256 * tmppt[0] / tmppt[3])/8+(OLED_WIDTH/2))/2;
+    int scy = ((256 * tmppt[1] / tmppt[3])/8+(OLED_HEIGHT/2));
+    int scd = ((-256 * 2 * m->radius / tmppt[3])/8);
+    scd += 3; //Slack
+    if( scx < -scd || scy < -scd || scx >= OLED_WIDTH + scd || scy >= OLED_HEIGHT + scd )
+    {
+        return;
+    }
+
+    //This looks a little odd, but what we're doing is caching our vertex computations
+    //so we don't have to re-compute every time round.
+    int16_t cached_verts[nrv*2];
+    memset( cached_verts, 0xff, sizeof(cached_verts) );
     for( i = 0; i < nri; i+=2 )
     {
-		int i1 = m->indices_and_vertices[i]/3;
-		int i2 = m->indices_and_vertices[i+1]/3;
-		if( ((uint16_t)cached_verts[i1*2]) == 0xffff )
-		{
-			LocalToScreenspace( &verticesmark[i1*3], &cached_verts[i1*2+0], &cached_verts[i1*2+1] );
-		}
-		if( ((uint16_t)cached_verts[i2*2]) == 0xffff )
-		{
-			LocalToScreenspace( &verticesmark[i2*3], &cached_verts[i2*2+0], &cached_verts[i2*2+1] );
-		}
-	    speedyWhiteLine( cached_verts[i1*2+0], cached_verts[i1*2+1], cached_verts[i2*2+0], cached_verts[i2*2+1] );
+        int i1 = m->indices_and_vertices[i]/3;
+        int i2 = m->indices_and_vertices[i+1]/3;
+        if( ((uint16_t)cached_verts[i1*2]) == 0xffff )
+        {
+            LocalToScreenspace( &verticesmark[i1*3], &cached_verts[i1*2+0], &cached_verts[i1*2+1] );
+        }
+        if( ((uint16_t)cached_verts[i2*2]) == 0xffff )
+        {
+            LocalToScreenspace( &verticesmark[i2*3], &cached_verts[i2*2+0], &cached_verts[i2*2+1] );
+        }
+        speedyWhiteLine( cached_verts[i1*2+0], cached_verts[i1*2+1], cached_verts[i2*2+0], cached_verts[i2*2+1] );
     }
 }
 
@@ -554,20 +623,35 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
     GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
     OVERCLOCK_SECTION_ENABLE();
 #endif
-    //ij = 0;    //Uncomment to prevent animation (for perf test)
     int x = 0;
-    int y = 0;
+    int y = -1;
+#ifdef ORIG_TEST
+    ij = 0;    //Uncomment to prevent animation (for perf test)
     for( x = -3; x < 4; x++ )
     {
         for( y = 0; y < 4; y++ )
         {
             //7 * 4 * 120 = 3360 lines per frame.
-            ModelviewMatrix[11] = 2400 + tdSIN( (x + y)*40 + ij*2 ) * 3;
+            ModelviewMatrix[11] = 2400 + tdSIN( (x + y)*40 + ij*2 ) * 5;
             ModelviewMatrix[3] = 500*x-800;
             ModelviewMatrix[7] = 500*y+500;
             tdDrawModel( tflight->isosphere );
         }
     }
+#else
+    for( x = -6; x < 17; x++ )
+    {
+        for( y = -2; y < 10; y++ )
+        {
+            //7 * 4 * 120 = 3360 lines per frame.
+            ModelviewMatrix[11] = 1400 + tdSIN( (x + y)*40 + ij*2 ) * 4;
+            ModelviewMatrix[3] = 500*x-800;
+            ModelviewMatrix[7] = 500*y+500;
+            tdDrawModel( tflight->isosphere );
+        }
+    }
+#endif
+
 #ifndef EMU
     OVERCLOCK_SECTION_DISABLE();
     GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
