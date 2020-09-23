@@ -879,24 +879,23 @@ int ICACHE_FLASH_ATTR processDisplayCommands( const uint8_t * buffer, uint8_t fl
     int offset = 0;
     while( (flags & PCD_FLAGS_EXECUTE_ALL) || offset == 0 )
     {
-        uint8_t cmd;
-        switch( (cmd = buffer[offset++]) )
-        {
-        case PCD_COND0:
-        case PCD_COND1:
-        case PCD_COND2:
-        case PCD_COND3:
+        uint8_t cmd = buffer[offset++];
+		//Not setup as a switch statement to prevent excessive memory usage.
+		if( cmd == PCD_END )
+		{
+            return 0;
+		}
+		if( ( cmd & 0xfc ) == 0xf4 )
+		{
             if( ! (flags & PCD_FLAGS_EXECUTE_CONDITION ) )
             {
                 //If condition is false, don't execute commands.
                 offset += (cmd & 0x03) + 1;
-                break;
-        }
-        case PCD_CMD0:
-        case PCD_CMD1:
-        case PCD_CMD2:
-        case PCD_CMD3:
-        {
+                continue;
+			}
+		}
+		if( ( cmd & 0xf8 ) == 0xf0 )
+		{
             SendStart( OLED_HIGH_SPEED );
             if( SendByte( OLED_ADDRESS << 1, OLED_HIGH_SPEED ) ) return PCD_FAIL_DEVICE;
             SendByte( SSD1306_CMD, OLED_HIGH_SPEED );
@@ -906,13 +905,11 @@ int ICACHE_FLASH_ATTR processDisplayCommands( const uint8_t * buffer, uint8_t fl
             if( cmd > 1 ) SendByte( buffer[offset++], OLED_HIGH_SPEED );
             if( cmd > 2 ) SendByte( buffer[offset++], OLED_HIGH_SPEED );
             SendStop(OLED_HIGH_SPEED);
-            break;
-        }
-        case PCD_END:
-            return 0;
-        default:
-            return PCD_FAIL_COMMANDS;
-        }
+		}
+		else
+		{
+			return PCD_FAIL_COMMANDS;
+		}
     }
     return offset;
 }

@@ -10,6 +10,7 @@
    -> Vertex Caching
    -> Occlusion Testing
    -> Fast line-drawing algorithm
+   -> Switch Statement at end of OLED.c
  */
 
 #include "user_config.h"
