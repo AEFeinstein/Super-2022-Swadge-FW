@@ -269,6 +269,7 @@ void ICACHE_FLASH_ATTR LocalToScreenspace( const int16_t * coords_3v, int16_t * 
 void ICACHE_FLASH_ATTR SetupMatrix( void );
 void ICACHE_FLASH_ATTR tdMultiply( int16_t * fin1, int16_t * fin2, int16_t * fout );
 void ICACHE_FLASH_ATTR tdRotateEA( int16_t * f, int16_t x, int16_t y, int16_t z );
+void ICACHE_FLASH_ATTR tdScale( int16_t * f, int16_t x, int16_t y, int16_t z );
 void ICACHE_FLASH_ATTR td4Transform( int16_t * pin, int16_t * f, int16_t * pout );
 void ICACHE_FLASH_ATTR tdTranslate( int16_t * f, int16_t x, int16_t y, int16_t z );
 void ICACHE_FLASH_ATTR Draw3DSegment( const int16_t * c1, const int16_t * c2 );
@@ -461,6 +462,24 @@ void ICACHE_FLASH_ATTR tdRotateEA( int16_t * f, int16_t x, int16_t y, int16_t z 
     tdMultiply( f, ftmp, f );
 }
 
+void ICACHE_FLASH_ATTR tdScale( int16_t * f, int16_t x, int16_t y, int16_t z )
+{
+	f[m00] = (f[m00] * x)>>8;
+	f[m01] = (f[m01] * x)>>8;
+	f[m02] = (f[m02] * x)>>8;
+	f[m03] = (f[m03] * x)>>8;
+
+	f[m10] = (f[m10] * y)>>8;
+	f[m11] = (f[m11] * y)>>8;
+	f[m12] = (f[m12] * y)>>8;
+	f[m13] = (f[m13] * y)>>8;
+
+	f[m20] = (f[m20] * z)>>8;
+	f[m21] = (f[m21] * z)>>8;
+	f[m22] = (f[m22] * z)>>8;
+	f[m23] = (f[m23] * z)>>8;
+}
+
 void ICACHE_FLASH_ATTR td4Transform( int16_t * pin, int16_t * f, int16_t * pout )
 {
     int16_t ptmp[3];
@@ -614,18 +633,19 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
     ij++;
     SetupMatrix();
 
-    tdRotateEA( ProjectionMatrix, -20, 0, 0 );
-    tdRotateEA( ModelviewMatrix, ij, 0, 0 );
-    //tdTranslate( ModelviewMatrix, 0, 0, 200 );
 
 #ifndef EMU
     PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.  
     GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
     OVERCLOCK_SECTION_ENABLE();
 #endif
+
+//#define ORIG_TEST
+#ifdef ORIG_TEST
     int x = 0;
     int y = -1;
-#ifdef ORIG_TEST
+    tdRotateEA( ProjectionMatrix, -20, 0, 0 );
+    tdRotateEA( ModelviewMatrix, ij, 0, 0 );
     ij = 0;    //Uncomment to prevent animation (for perf test)
     for( x = -3; x < 4; x++ )
     {
@@ -639,6 +659,10 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
         }
     }
 #else
+    int x = 0;
+    int y = -1;
+    tdRotateEA( ProjectionMatrix, -20, 0, 0 );
+    tdRotateEA( ModelviewMatrix, ij, 0, 0 );
     for( x = -6; x < 17; x++ )
     {
         for( y = -2; y < 10; y++ )
