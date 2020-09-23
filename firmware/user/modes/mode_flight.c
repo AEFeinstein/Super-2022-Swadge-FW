@@ -135,7 +135,7 @@ static const char fl_quit[]   = "QUIT";
 
 
 
-static const int16_t IsoSphereVertices[] ICACHE_RODATA_ATTR = { 
+static const int16_t IsoSphereVertices[] RODATA_ATTR = { 
            0, -256,    0,   
          185, -114,  134,        -70, -114,  217,       -228, -114,    0,        -70, -114, -217,   
          185, -114, -134,         70,  114,  217,       -185,  114,  134,       -185,  114, -134,   
@@ -148,7 +148,7 @@ static const int16_t IsoSphereVertices[] ICACHE_RODATA_ATTR = {
          -67,  134,  207,       -217,  134,    0,        -67,  134, -207,        176,  134, -127,   
          134,  217,    0,         41,  217,  127,       -108,  217,   79,       -108,  217,  -79,   
           41,  217, -127};
-static const uint16_t IsoSphereIndices[] ICACHE_RODATA_ATTR = { /* 120 line segments */
+static const uint16_t IsoSphereIndices[] RODATA_ATTR = { /* 120 line segments */
           42,  36,     36,   3,      3,  42,     42,  39,     39,  36,      6,  39,     42,   6,     39,   0,   
            0,  36,     48,   3,     36,  48,     36,  45,     45,  48,     15,  48,     45,  15,      0,  45,   
           54,  39,      6,  54,     54,  51,     51,  39,      9,  51,     54,   9,     51,   0,     60,  51,   
