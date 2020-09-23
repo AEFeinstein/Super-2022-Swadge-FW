@@ -115,7 +115,7 @@ void ICACHE_FLASH_ATTR speedyWhiteLine( int16_t x0, int16_t y0, int16_t x1, int1
             yerrnumerator = (((dy * sdy)<<16) + yerrdiv/2) / yerrdiv;
             if( dxA )
             {
-                cy += (((yerrnumerator * dxA) + (1<<FIXEDPOINTD2)) * sdy) >> FIXEDPOINT; //This "feels" right
+                cy += (((yerrnumerator * dxA)) * sdy) >> FIXEDPOINT; //This "feels" right
                 //Weird situation - if we cal, and now, both ends are out on the same side abort.
                 if( cy < 0 && y1 < 0 ) return;
                 if( cy > BRESEN_H-1 && y1 > BRESEN_H-1 ) return;
@@ -141,7 +141,7 @@ void ICACHE_FLASH_ATTR speedyWhiteLine( int16_t x0, int16_t y0, int16_t x1, int1
             xerrnumerator = (((dx * sdx)<<16) + xerrdiv/2 ) / xerrdiv;
             if( dyA )
             {
-                cx += (((xerrnumerator*dyA) + (1<<FIXEDPOINTD2)) * sdx) >> FIXEDPOINT; //This "feels" right.
+                cx += (((xerrnumerator*dyA)) * sdx) >> FIXEDPOINT; //This "feels" right.
                 //If we've come to discover the line is actually out of bounds, abort.
                 if( cx < 0 && x1 < 0 ) return;
                 if( cx > BRESEN_W-1 && x1 > BRESEN_W-1 ) return;
