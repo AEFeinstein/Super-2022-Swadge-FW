@@ -61,7 +61,16 @@ void drawPixelUnsafe( int x, int y )
     *addy |= mask;
 }
 
-void speedyWhiteLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1 )
+
+/**
+ * @brief Optimized method to quickly draw a white line.
+ *
+ * @param x1, x0 Column of display, 0 is at the left
+ * @param y1, y0 Row of the display, 0 is at the top
+ *
+ */
+//This is fast, but broken :(
+void ICACHE_FLASH_ATTR speedyWhiteLine( int16_t x0, int16_t y0, int16_t x1, int16_t y1 )
 {
 //Tune this as a function of the size of your viewing window, line accuracy, and worst-case scenario incoming lines.
 #define BRESEN_W OLED_WIDTH
@@ -76,11 +85,13 @@ void speedyWhiteLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1 )
     int xerrdiv = ( dy * sdy );  //dx, but always positive.
     int yerrnumerator = 0;
     int xerrnumerator = 0;
+	int cx = x0;
+	int cy = y0;
 
-    if( x0 < 0 && x1 < 0 ) return;
-    if( y0 < 0 && y1 < 0 ) return;
-    if( x0 >= BRESEN_W && x1 >= BRESEN_W ) return;
-    if( y0 >= BRESEN_H && y1 >= BRESEN_H ) return;
+    if( cx < 0 && x1 < 0 ) return;
+    if( cy < 0 && y1 < 0 ) return;
+    if( cx >= BRESEN_W && x1 >= BRESEN_W ) return;
+    if( cy >= BRESEN_H && y1 >= BRESEN_H ) return;
 
     //We put the checks above to check this, in case we have a situation where
     // we have a 0-length line outside of the viewable area.  If that happened,
@@ -89,25 +100,25 @@ void speedyWhiteLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1 )
     if( yerrdiv > 0 )
     {
         int dxA = 0;
-        if( x0 < 0 )
+        if( cx < 0 )
         {
-            dxA = 0 - x0;
-            x0 = 0;
+            dxA = 0 - cx;
+            cx = 0;
         }
-        if( x0 > BRESEN_W-1 )
+        if( cx > BRESEN_W-1 )
         {
-            dxA = (x0 - (BRESEN_W-1));
-            x0 = BRESEN_W-1;
+            dxA = (cx - (BRESEN_W-1));
+            cx = BRESEN_W-1;
         }
         if( dxA || xerrdiv <= yerrdiv )
         {
             yerrnumerator = (((dy * sdy)<<16) + yerrdiv/2) / yerrdiv;
             if( dxA )
             {
-                y0 += (((yerrnumerator * dxA) + (1<<FIXEDPOINTD2)) * sdy) >> FIXEDPOINT; //This "feels" right
+                cy += (((yerrnumerator * dxA) + (1<<FIXEDPOINTD2)) * sdy) >> FIXEDPOINT; //This "feels" right
                 //Weird situation - if we cal, and now, both ends are out on the same side abort.
-                if( y0 < 0 && y1 < 0 ) return;
-                if( y0 > BRESEN_H-1 && y1 > BRESEN_H-1 ) return;
+                if( cy < 0 && y1 < 0 ) return;
+                if( cy > BRESEN_H-1 && y1 > BRESEN_H-1 ) return;
             }
         }
     }
@@ -115,32 +126,32 @@ void speedyWhiteLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1 )
     if( xerrdiv > 0 )
     {
         int dyA = 0;    
-        if( y0 < 0 )
+        if( cy < 0 )
         {
-            dyA = 0 - y0;
-            y0 = 0;
+            dyA = 0 - cy;
+            cy = 0;
         }
-        if( y0 > BRESEN_H-1 )
+        if( cy > BRESEN_H-1 )
         {
-            dyA = (y0 - (BRESEN_H-1));
-            y0 = BRESEN_H-1;
+            dyA = (cy - (BRESEN_H-1));
+            cy = BRESEN_H-1;
         }
         if( dyA || xerrdiv > yerrdiv )
         {
             xerrnumerator = (((dx * sdx)<<16) + xerrdiv/2 ) / xerrdiv;
             if( dyA )
             {
-                x0 += (((xerrnumerator*dyA) + (1<<FIXEDPOINTD2)) * sdx) >> FIXEDPOINT; //This "feels" right.
+                cx += (((xerrnumerator*dyA) + (1<<FIXEDPOINTD2)) * sdx) >> FIXEDPOINT; //This "feels" right.
                 //If we've come to discover the line is actually out of bounds, abort.
-                if( x0 < 0 && x1 < 0 ) return;
-                if( x0 > BRESEN_W-1 && x1 > BRESEN_W-1 ) return;
+                if( cx < 0 && x1 < 0 ) return;
+                if( cx > BRESEN_W-1 && x1 > BRESEN_W-1 ) return;
             }
         }
     }
 
-    if( x1 == x0 && y1 == y0 )
+    if( x1 == cx && y1 == cy )
     {
-        drawPixelUnsafe( x0, y0 );
+        drawPixelUnsafe( cx, cy );
         return;
     }
 
@@ -148,24 +159,24 @@ void speedyWhiteLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1 )
     //Also this checks for vertical/horizontal violations.
     if( dx > 0 )
     {
-        if( x0 > BRESEN_W-1 ) return;
-        if( x0 > x1 ) return;
+        if( cx > BRESEN_W-1 ) return;
+        if( cx > x1 ) return;
     }
     else if( dx < 0 )
     {
-        if( x0 < 0 ) return;
-        if( x0 < x1 ) return;
+        if( cx < 0 ) return;
+        if( cx < x1 ) return;
     }
 
     if( dy > 0 )
     {
-        if( y0 > BRESEN_H-1 ) return;
-        if( y0 > y1 ) return;
+        if( cy > BRESEN_H-1 ) return;
+        if( cy > y1 ) return;
     }
     else if( dy < 0 )
     {
-        if( y0 < 0 ) return;
-        if( y0 < y1 ) return;
+        if( cy < 0 ) return;
+        if( cy < y1 ) return;
     }
 
     //Force clip end coordinate.
@@ -185,19 +196,19 @@ void speedyWhiteLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1 )
         if( y1 < 0 ) y1 = 0;
         if( y1 > BRESEN_H-1 ) y1 = BRESEN_H-1;
 
-        for( ; y0 != y1; y0+=sdy )
+        for( ; cy != y1; cy+=sdy )
         {
-            drawPixelUnsafe( x0, y0 );
+            drawPixelUnsafe( cx, cy );
             xerr += xerrnumerator;
             while( xerr >= (1<<FIXEDPOINT) )
             {
-                x0 += sdx;
-                if( x0 == x1 ) return;
-                drawPixelUnsafe( x0, y0 );
+                cx += sdx;
+                if( cx == x1 ) return;
+                drawPixelUnsafe( cx, cy );
                 xerr -= 1<<FIXEDPOINT;
             }
         }
-        drawPixelUnsafe( x0, y0 );
+        drawPixelUnsafe( cx, cy );
     }
     else
     {
@@ -210,21 +221,22 @@ void speedyWhiteLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1 )
         if( x1 < 0 ) x1 = 0;
         if( x1 > BRESEN_W-1) x1 = BRESEN_W-1;
 
-        for( ; x0 != x1; x0+=sdx )
+        for( ; cx != x1; cx+=sdx )
         {
-            drawPixelUnsafe( x0, y0 );
+            drawPixelUnsafe( cx, cy );
             yerr += yerrnumerator;
             while( yerr >= 1<<FIXEDPOINT )
             {
-                y0 += sdy;
-                if( y0 == y1 ) return;
-                drawPixelUnsafe( x0, y0 );
+                cy += sdy;
+                if( cy == y1 ) return;
+                drawPixelUnsafe( cx, cy );
                 yerr -= 1<<FIXEDPOINT;
             }
         }
-        drawPixelUnsafe( x0, y0 );
+        drawPixelUnsafe( cx, cy );
     }
 }
+
 
 color getPixel(int16_t x, int16_t y)
 {

@@ -3,7 +3,15 @@
  *
  *  Created on: Sept 15, 2020
  *      Author: <>< CNLohr
+
+ * Consider doing an optimizing video discussing:
+   -> De-swizzling format
+   -> Faster I2C Transfer
+   -> Vertex Caching
+   -> Occlusion Testing
+   -> Fast line-drawing algorithm
  */
+
 #include "user_config.h"
 
 /*============================================================================
@@ -51,7 +59,7 @@ typedef enum
 typedef struct
 {
     int nr_segments;
-    int nr_vertices;
+    int nr_vertices_ints;
     int16_t center[3];
     int16_t radius;
     int16_t indices_and_vertices[1];
@@ -86,7 +94,7 @@ void ICACHE_FLASH_ATTR flightButtonCallback(uint8_t state __attribute__((unused)
 static void ICACHE_FLASH_ATTR flightUpdate(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem);
 static void ICACHE_FLASH_ATTR flightStartGame(flGameType type);
-
+static void ICACHE_FLASH_ATTR flightRender();
 static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight );
 
 static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int nr_segments, const uint16_t * indices, const int16_t * vertices );
@@ -105,6 +113,7 @@ swadgeMode flightMode =
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
+    .fnProcTask = flightRender,
     .fnAccelerometerCallback = NULL,
     .fnAudioCallback = NULL,
     .menuImg = "flight-menu.gif"
@@ -251,7 +260,6 @@ static void ICACHE_FLASH_ATTR flightUpdate(void* arg __attribute__((unused)))
         {
             // Increment the frame count
             flight->frames++;
-
             flightGameUpdate( flight );
         }
     }
@@ -265,7 +273,7 @@ int16_t ICACHE_FLASH_ATTR tdCOS( uint8_t iv );
 void ICACHE_FLASH_ATTR tdIdentity( int16_t * matrix );
 static int16_t ICACHE_FLASH_ATTR tdSIN( uint8_t iv );
 void ICACHE_FLASH_ATTR Perspective( int fovx, int aspect, int zNear, int zFar, int16_t * out );
-void ICACHE_FLASH_ATTR LocalToScreenspace( const int16_t * coords_3v, int16_t * o1, int16_t * o2 );
+int ICACHE_FLASH_ATTR LocalToScreenspace( const int16_t * coords_3v, int16_t * o1, int16_t * o2 );
 void ICACHE_FLASH_ATTR SetupMatrix( void );
 void ICACHE_FLASH_ATTR tdMultiply( int16_t * fin1, int16_t * fin2, int16_t * fout );
 void ICACHE_FLASH_ATTR tdRotateEA( int16_t * f, int16_t x, int16_t y, int16_t z );
@@ -464,20 +472,20 @@ void ICACHE_FLASH_ATTR tdRotateEA( int16_t * f, int16_t x, int16_t y, int16_t z 
 
 void ICACHE_FLASH_ATTR tdScale( int16_t * f, int16_t x, int16_t y, int16_t z )
 {
-	f[m00] = (f[m00] * x)>>8;
-	f[m01] = (f[m01] * x)>>8;
-	f[m02] = (f[m02] * x)>>8;
-	f[m03] = (f[m03] * x)>>8;
+    f[m00] = (f[m00] * x)>>8;
+    f[m01] = (f[m01] * x)>>8;
+    f[m02] = (f[m02] * x)>>8;
+//    f[m03] = (f[m03] * x)>>8;
 
-	f[m10] = (f[m10] * y)>>8;
-	f[m11] = (f[m11] * y)>>8;
-	f[m12] = (f[m12] * y)>>8;
-	f[m13] = (f[m13] * y)>>8;
+    f[m10] = (f[m10] * y)>>8;
+    f[m11] = (f[m11] * y)>>8;
+    f[m12] = (f[m12] * y)>>8;
+//    f[m13] = (f[m13] * y)>>8;
 
-	f[m20] = (f[m20] * z)>>8;
-	f[m21] = (f[m21] * z)>>8;
-	f[m22] = (f[m22] * z)>>8;
-	f[m23] = (f[m23] * z)>>8;
+    f[m20] = (f[m20] * z)>>8;
+    f[m21] = (f[m21] * z)>>8;
+    f[m22] = (f[m22] * z)>>8;
+//    f[m23] = (f[m23] * z)>>8;
 }
 
 void ICACHE_FLASH_ATTR td4Transform( int16_t * pin, int16_t * f, int16_t * pout )
@@ -493,23 +501,26 @@ void ICACHE_FLASH_ATTR td4Transform( int16_t * pin, int16_t * f, int16_t * pout 
 }
 
 
-void ICACHE_FLASH_ATTR LocalToScreenspace( const int16_t * coords_3v, int16_t * o1, int16_t * o2 )
+int ICACHE_FLASH_ATTR LocalToScreenspace( const int16_t * coords_3v, int16_t * o1, int16_t * o2 )
 {
     int16_t tmppt[4] = { coords_3v[0], coords_3v[1], coords_3v[2], 256 };
     td4Transform( tmppt, ModelviewMatrix, tmppt );
     td4Transform( tmppt, ProjectionMatrix, tmppt );
-    if( tmppt[3] >= 0 ) { *o1 = -1; *o2 = -1; return; }
-
-    *o1 = ((256 * tmppt[0] / tmppt[3])/8+(FBW/2))/2;
-    *o2 = ((256 * tmppt[1] / tmppt[3])/8+(FBH/2));
+    if( tmppt[3] >= -4 ) { return -1; }
+    int calcx = ((256 * tmppt[0] / tmppt[3])/8+(FBW/2))/2;
+    int calcy = ((256 * tmppt[1] / tmppt[3])/8+(FBH/2));
+    if( calcx < -16000 || calcx > 16000 || calcy < -16000 || calcy > 16000 ) return -2;
+    *o1 = calcx;
+    *o2 = calcy;
+    return 0;
 }
 
 
 void ICACHE_FLASH_ATTR Draw3DSegment( const int16_t * c1, const int16_t * c2 )
 {
     int16_t sx0, sy0, sx1, sy1;
-    LocalToScreenspace( c1, &sx0, &sy0 );
-    LocalToScreenspace( c2, &sx1, &sy1 );
+    if( LocalToScreenspace( c1, &sx0, &sy0 ) ||
+        LocalToScreenspace( c2, &sx1, &sy1 ) ) return;
 
     //GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
     speedyWhiteLine( sx0, sy0, sx1, sy1 );
@@ -526,6 +537,7 @@ static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int nr_segments, const uint1
     {
         if( indices[i] > highest_v ) highest_v = indices[i];
     }
+	highest_v += 3; //We only looked at indices.
 
     tdModel * ret = os_malloc( sizeof( tdModel ) + highest_v * sizeof(uint16_t) + nr_segments * sizeof(uint16_t) * 2  );
     ret->nr_segments = nr_segments;
@@ -546,7 +558,7 @@ static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int nr_segments, const uint1
             voffset[i+k] = v[k];
         }
     }
-    ret->nr_vertices = highest_v;
+    ret->nr_vertices_ints = highest_v;
     for( i = 0; i < 3; i++ )
     {
         ret->center[i] = (maxs[i] + mins[i])/2;
@@ -555,7 +567,7 @@ static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int nr_segments, const uint1
     for( i = 0; i < highest_v; i+= 3 )
     {
         int k;
-        int32_t difftot = 0;
+        uint32_t difftot = 0;
         for( k = 0; k < 3; k++ )
         {
             int32_t ik = vertices[i+k] - ret->center[k];
@@ -572,39 +584,54 @@ void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
 {
     int i;
     int nri = m->nr_segments*2;
-    int nrv = m->nr_vertices;
+    int nrv = m->nr_vertices_ints;
     int16_t * verticesmark = (int16_t*)&m->indices_and_vertices[nri];
 
     //For computing visibility check
     int16_t tmppt[4] = { m->center[0], m->center[1], m->center[2], 256 };
     td4Transform( tmppt, ModelviewMatrix, tmppt );
     td4Transform( tmppt, ProjectionMatrix, tmppt );
-    int scx = ((256 * tmppt[0] / tmppt[3])/8+(OLED_WIDTH/2))/2;
-    int scy = ((256 * tmppt[1] / tmppt[3])/8+(OLED_HEIGHT/2));
-    int scd = ((-256 * 2 * m->radius / tmppt[3])/8);
-    scd += 3; //Slack
-    if( scx < -scd || scy < -scd || scx >= OLED_WIDTH + scd || scy >= OLED_HEIGHT + scd )
+    if( tmppt[3] < -2 )
+    {
+        int scx = ((256 * tmppt[0] / tmppt[3])/8+(OLED_WIDTH/2))/2;
+        int scy = ((256 * tmppt[1] / tmppt[3])/8+(OLED_HEIGHT/2));
+        int scd = ((-256 * 2 * m->radius / tmppt[3])/8);
+        scd += 3; //Slack
+        if( scx < -scd || scy < -scd || scx >= OLED_WIDTH + scd || scy >= OLED_HEIGHT + scd )
+        {
+            return;
+        }
+    }
+    else
     {
         return;
     }
 
     //This looks a little odd, but what we're doing is caching our vertex computations
     //so we don't have to re-compute every time round.
-    int16_t cached_verts[nrv*2];
-    memset( cached_verts, 0xff, sizeof(cached_verts) );
+	//f( "%d\n", nrv );
+    int16_t cached_verts[nrv];
+    memset( cached_verts, 0x00, sizeof(cached_verts) );
+
     for( i = 0; i < nri; i+=2 )
     {
-        int i1 = m->indices_and_vertices[i]/3;
-        int i2 = m->indices_and_vertices[i+1]/3;
-        if( ((uint16_t)cached_verts[i1*2]) == 0xffff )
+        int i1 = m->indices_and_vertices[i];
+        int i2 = m->indices_and_vertices[i+1];
+        int16_t * cv1 = &cached_verts[i1];
+        int16_t * cv2 = &cached_verts[i2];
+
+        if( cv1[2] == 0 )
         {
-            LocalToScreenspace( &verticesmark[i1*3], &cached_verts[i1*2+0], &cached_verts[i1*2+1] );
+            if( LocalToScreenspace( &verticesmark[i1], cv1, cv1+1 ) ) cv1[2] = 2;
         }
-        if( ((uint16_t)cached_verts[i2*2]) == 0xffff )
+        if( cv2[2] == 0 )
         {
-            LocalToScreenspace( &verticesmark[i2*3], &cached_verts[i2*2+0], &cached_verts[i2*2+1] );
+            if( LocalToScreenspace( &verticesmark[i2], cv2, cv2+1 ) ) cv2[2] = 2;
         }
-        speedyWhiteLine( cached_verts[i1*2+0], cached_verts[i1*2+1], cached_verts[i2*2+0], cached_verts[i2*2+1] );
+        if( cv1[2] != 2 && cv2[2] != 2 )
+        {
+            speedyWhiteLine( cv1[0], cv1[1], cv2[0], cv2[1] );
+        }
     }
 }
 
@@ -613,24 +640,17 @@ void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-
-static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
+static void ICACHE_FLASH_ATTR flightRender()
 {
-    uint8_t bs = tflight->buttonState;
+    flight_t * tflight = flight;
 
     // First clear the OLED
     clearDisplay();
 
-
     char framesStr[8] = {0};
     ets_snprintf(framesStr, sizeof(framesStr), "%d", tflight->buttonState);
     plotText(0, 0, framesStr, TOM_THUMB, WHITE);
-
-    if( bs & 1 ) tflight->hpr[0]++;
-    if( bs & 4 ) tflight->hpr[0]--;
-
-    static int ij;
-    ij++;
+    int ij = tflight->frames;
     SetupMatrix();
 
 
@@ -652,7 +672,7 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
         for( y = 0; y < 4; y++ )
         {
             //7 * 4 * 120 = 3360 lines per frame.
-            ModelviewMatrix[11] = 2400 + tdSIN( (x + y)*40 + ij*2 ) * 5;
+            ModelviewMatrix[11] = 2400;
             ModelviewMatrix[3] = 500*x-800;
             ModelviewMatrix[7] = 500*y+500;
             tdDrawModel( tflight->isosphere );
@@ -661,17 +681,22 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
 #else
     int x = 0;
     int y = -1;
-    tdRotateEA( ProjectionMatrix, -20, 0, 0 );
-    tdRotateEA( ModelviewMatrix, ij, 0, 0 );
+    tdRotateEA( ProjectionMatrix, tflight->hpr[1], tflight->hpr[0], 0 );
+	tdTranslate( ModelviewMatrix, tflight->planeloc[0], tflight->planeloc[1], tflight->planeloc[2] );
+
+	int16_t BackupMatrix[16];
     for( x = -6; x < 17; x++ )
     {
         for( y = -2; y < 10; y++ )
         {
-            //7 * 4 * 120 = 3360 lines per frame.
-            ModelviewMatrix[11] = 1400 + tdSIN( (x + y)*40 + ij*2 ) * 4;
-            ModelviewMatrix[3] = 500*x-800;
-            ModelviewMatrix[7] = 500*y+500;
+            memcpy( BackupMatrix, ModelviewMatrix, sizeof( BackupMatrix ) );
+			tdTranslate( ModelviewMatrix, 
+				500*x-800,
+				140 + tdSIN( (x + y)*40 + ij*1 )>>2,
+  		        500*y+500 );
+			tdScale( ModelviewMatrix, 70, 70, 70 );
             tdDrawModel( tflight->isosphere );
+            memcpy( ModelviewMatrix, BackupMatrix, sizeof( BackupMatrix ) );
         }
     }
 #endif
@@ -680,6 +705,24 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
     OVERCLOCK_SECTION_DISABLE();
     GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
 #endif
+}
+
+static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
+{
+    uint8_t bs = tflight->buttonState;
+
+
+    if( bs & 1 ) tflight->hpr[0]++;
+    if( bs & 4 ) tflight->hpr[0]--;
+    if( bs & 2 ) tflight->hpr[1]++;
+    if( bs & 8 ) tflight->hpr[1]--;
+
+	//Left-right is [0].
+	//Up-down is [1].
+
+    tflight->planeloc[0] -= tdSIN( tflight->hpr[0] )>>6;
+    tflight->planeloc[2] -= tdCOS( tflight->hpr[0] )>>6;
+    tflight->planeloc[1] += tdSIN( tflight->hpr[1] )>>6;
 
 /*
     tflight->planeloc[0] += tdSIN( tflight->hpr[0] )>>4;
@@ -786,12 +829,12 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
     {
         // Immediately jump back to the menu
         flappy->mode = FLAPPY_MENU;
-        os_printf("Score: %d\n", flappy->frames / 8);
+        os_f("Score: %d\n", flappy->frames / 8);
     }
 
     // Render the score as text
     char framesStr[8] = {0};
-    ets_snprintf(framesStr, sizeof(framesStr), "%d", flappy->frames / 8);
+    ets_snf(framesStr, sizeof(framesStr), "%d", flappy->frames / 8);
     int16_t framesStrWidth = textWidth(framesStr, IBM_VGA_8);
     // Make sure the width is a multiple of 8 to keep it drawn consistently
     while(framesStrWidth % 8 != 0)
