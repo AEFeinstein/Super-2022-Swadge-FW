@@ -39,7 +39,7 @@ void drawPixelUnsafeC( int16_t x, int16_t y, color c );
 void ICACHE_FLASH_ATTR outlineTriangle( int16_t v0x, int16_t v0y, int16_t v1x, int16_t v1y,
 	int16_t v2x, int16_t v2y, color colorA, color colorB );
 
-void ICACHE_FLASH_ATTR speedyWhiteLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1 );
+void ICACHE_FLASH_ATTR speedyWhiteLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool thicc );
 color getPixel(int16_t x, int16_t y);
 bool ICACHE_FLASH_ATTR setOLEDparams(bool turnOnOff);
 int ICACHE_FLASH_ATTR updateOLEDScreenRange( uint8_t minX, uint8_t maxX, uint8_t minPage, uint8_t maxPage );

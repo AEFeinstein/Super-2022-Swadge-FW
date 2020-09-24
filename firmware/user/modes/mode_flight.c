@@ -537,7 +537,7 @@ void ICACHE_FLASH_ATTR Draw3DSegment( const int16_t * c1, const int16_t * c2 )
         LocalToScreenspace( c2, &sx1, &sy1 ) ) return;
 
     //GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
-    speedyWhiteLine( sx0, sy0, sx1, sy1 );
+    speedyWhiteLine( sx0, sy0, sx1, sy1, false );
     //GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
 
     //plotLine( sx0, sy0, sx1, sy1, WHITE );
@@ -643,7 +643,7 @@ void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
 
         if( cv1[2] != 2 && cv2[2] != 2 )
         {
-            speedyWhiteLine( cv1[0], cv1[1], cv2[0], cv2[1] );
+            speedyWhiteLine( cv1[0], cv1[1], cv2[0], cv2[1], false );
         }
     }
 }
@@ -660,16 +660,17 @@ static bool ICACHE_FLASH_ATTR flightRender()
 
     // First clear the OLED
 
-    char framesStr[8] = {0};
-    ets_snprintf(framesStr, sizeof(framesStr), "%d", tflight->buttonState);
-    plotText(0, 0, framesStr, TOM_THUMB, WHITE);
     int ij = tflight->frames;
     SetupMatrix();
 
-    tdRotateEA( ProjectionMatrix, -20, 0, 0 );
-    //tdRotateEA( ModelviewMatrix, ij, 0, 0 );
+#ifdef EMU
+	uint32_t start = 0;
+#else
+	uint32_t start = xthal_get_ccount();
+#endif
     if( tflight->type == FL_PERFTEST )
     {
+	    tdRotateEA( ProjectionMatrix, -20, 0, 0 );
 	    clearDisplay();
         int x = 0;
         int y = -1;
@@ -682,14 +683,21 @@ static bool ICACHE_FLASH_ATTR flightRender()
         //45 spheres x 42 vertices per = 1,890 vertices per frame
         //As of 2020-09-23 19:54, Render is: 20.89584ms + ~9.16ms for output.
 
-		if( !tflight->perfMotion ) ij = 0;    //Uncomment to prevent animation (for perf test)
+		if( !tflight->perfMotion )
+		{
+			ij = 0;
+		}
+		else
+		{
+			tdRotateEA( ModelviewMatrix, ij, 0, 0 );
+		}
 
         for( x = -4; x < 5; x++ )
         {
             for( y = 0; y < 5; y++ )
             {
                 //7 * 4 * 120 = 3360 lines per frame.
-                ModelviewMatrix[11] = 2600;
+                ModelviewMatrix[11] = 2600+(tflight->perfMotion?(tdSIN( (x + y)*40 + ij*1 ) )*5:0);
                 ModelviewMatrix[3] = 450*x;
                 ModelviewMatrix[7] = 500*y+500;
                 tdDrawModel( tflight->isosphere );
@@ -744,6 +752,14 @@ static bool ICACHE_FLASH_ATTR flightRender()
         //Normal game
         int x = 0;
         int y = -1;
+
+#ifndef EMU
+        PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.  
+        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
+        OVERCLOCK_SECTION_ENABLE();
+#endif
+
+	    clearDisplay();
         tdRotateEA( ProjectionMatrix, tflight->hpr[1], tflight->hpr[0], 0 );
         tdTranslate( ModelviewMatrix, tflight->planeloc[0], tflight->planeloc[1], tflight->planeloc[2] );
 
@@ -762,7 +778,23 @@ static bool ICACHE_FLASH_ATTR flightRender()
                 memcpy( ModelviewMatrix, BackupMatrix, sizeof( BackupMatrix ) );
             }
         }
+#ifndef EMU
+        OVERCLOCK_SECTION_DISABLE();
+        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
+#endif
     }
+#ifdef EMU
+	uint32_t stop = 0;
+#else
+	uint32_t stop = xthal_get_ccount();
+#endif
+
+	{
+		char framesStr[32] = {0};
+		ets_snprintf(framesStr, sizeof(framesStr), "%02x %dus", tflight->buttonState, (stop-start)/160);
+		fillDisplayArea( 0, 0, 50, 7, BLACK );
+		plotText(1, 1, framesStr, TOM_THUMB, WHITE);
+	}
 
     //If perf test, force full frame refresh
     //Otherwise, don't force full-screen refresh
