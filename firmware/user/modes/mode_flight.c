@@ -46,6 +46,7 @@
 
 typedef enum
 {
+    FL_PERFTEST,
     FL_EXPLORE,
     FL_TIMED
 } flGameType;
@@ -122,6 +123,7 @@ swadgeMode flightMode =
 flight_t* flight;
 
 static const char fl_title[]  = "Flightsim";
+static const char fl_flight_perf[] = "PERF";
 static const char fl_flight_exlore[] = "EXPLORE";
 static const char fl_flight_timed[] = "TIMED";
 static const char fl_quit[]   = "QUIT";
@@ -182,6 +184,7 @@ void ICACHE_FLASH_ATTR flightEnterMode(void)
 
     flight->menu = initMenu(fl_title, flightMenuCb);
     addRowToMenu(flight->menu);
+    addItemToRow(flight->menu, fl_flight_perf);
     addItemToRow(flight->menu, fl_flight_exlore);
     addItemToRow(flight->menu, fl_flight_timed);
     addRowToMenu(flight->menu);
@@ -216,6 +219,10 @@ static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem)
     if(fl_flight_exlore == menuItem)
     {
         flightStartGame(FL_EXPLORE);
+    }
+    else if( fl_flight_perf == menuItem )
+    {
+        flightStartGame(FL_PERFTEST);
     }
     else if (fl_flight_timed == menuItem)
     {
@@ -611,7 +618,14 @@ void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
     //so we don't have to re-compute every time round.
     //f( "%d\n", nrv );
     int16_t cached_verts[nrv];
-    memset( cached_verts, 0x00, sizeof(cached_verts) );
+    for( i = 0; i < nrv; i+=3 )
+    {
+        int16_t * cv1 = &cached_verts[i];
+        if( LocalToScreenspace( &verticesmark[i], cv1, cv1+1 ) )
+            cv1[2] = 2;
+        else
+            cv1[2] = 1;
+    }
 
     for( i = 0; i < nri; i+=2 )
     {
@@ -620,14 +634,6 @@ void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
         int16_t * cv1 = &cached_verts[i1];
         int16_t * cv2 = &cached_verts[i2];
 
-        if( cv1[2] == 0 )
-        {
-            if( LocalToScreenspace( &verticesmark[i1], cv1, cv1+1 ) ) cv1[2] = 2;
-        }
-        if( cv2[2] == 0 )
-        {
-            if( LocalToScreenspace( &verticesmark[i2], cv2, cv2+1 ) ) cv2[2] = 2;
-        }
         if( cv1[2] != 2 && cv2[2] != 2 )
         {
             speedyWhiteLine( cv1[0], cv1[1], cv2[0], cv2[1] );
@@ -639,12 +645,11 @@ void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
 static bool ICACHE_FLASH_ATTR flightRender()
 {
     flight_t * tflight = flight;
 
-	if( tflight->mode != FLIGHT_GAME ) return false;
+    if( tflight->mode != FLIGHT_GAME ) return false;
 
     // First clear the OLED
     clearDisplay();
@@ -655,61 +660,67 @@ static bool ICACHE_FLASH_ATTR flightRender()
     int ij = tflight->frames;
     SetupMatrix();
 
-
-#ifndef EMU
-    PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.  
-    GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
-    OVERCLOCK_SECTION_ENABLE();
-#endif
-
-//#define ORIG_TEST
-#ifdef ORIG_TEST
-    int x = 0;
-    int y = -1;
     tdRotateEA( ProjectionMatrix, -20, 0, 0 );
-    tdRotateEA( ModelviewMatrix, ij, 0, 0 );
-    ij = 0;    //Uncomment to prevent animation (for perf test)
-    for( x = -3; x < 4; x++ )
+    //tdRotateEA( ModelviewMatrix, ij, 0, 0 );
+    if( tflight->type == FL_PERFTEST )
     {
-        for( y = 0; y < 4; y++ )
-        {
-            //7 * 4 * 120 = 3360 lines per frame.
-            ModelviewMatrix[11] = 2400;
-            ModelviewMatrix[3] = 500*x-800;
-            ModelviewMatrix[7] = 500*y+500;
-            tdDrawModel( tflight->isosphere );
-        }
-    }
-#else
-    int x = 0;
-    int y = -1;
-    tdRotateEA( ProjectionMatrix, tflight->hpr[1], tflight->hpr[0], 0 );
-    tdTranslate( ModelviewMatrix, tflight->planeloc[0], tflight->planeloc[1], tflight->planeloc[2] );
-
-    int16_t BackupMatrix[16];
-    for( x = -6; x < 17; x++ )
-    {
-        for( y = -2; y < 10; y++ )
-        {
-            memcpy( BackupMatrix, ModelviewMatrix, sizeof( BackupMatrix ) );
-            tdTranslate( ModelviewMatrix, 
-                500*x-800,
-                140 + tdSIN( (x + y)*40 + ij*1 )>>2,
-                500*y+500 );
-            tdScale( ModelviewMatrix, 70, 70, 70 );
-            tdDrawModel( tflight->isosphere );
-            memcpy( ModelviewMatrix, BackupMatrix, sizeof( BackupMatrix ) );
-        }
-    }
-#endif
-
+        int x = 0;
+        int y = -1;
 #ifndef EMU
-    OVERCLOCK_SECTION_DISABLE();
-    GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
+        PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.  
+        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
+        OVERCLOCK_SECTION_ENABLE();
 #endif
+        //45 spheres x 120 line segments = 5,400 edges per frame
+        //45 spheres x 42 vertices per = 1,890 vertices per frame
+        //As of 2020-09-23 19:54, Render is: 20.89584ms + ~9.16ms for output.
 
-	//Don't force full-screen refresh
-	return false;
+        ij = 0;    //Uncomment to prevent animation (for perf test)
+
+        for( x = -4; x < 5; x++ )
+        {
+            for( y = 0; y < 5; y++ )
+            {
+                //7 * 4 * 120 = 3360 lines per frame.
+                ModelviewMatrix[11] = 2600;
+                ModelviewMatrix[3] = 450*x;
+                ModelviewMatrix[7] = 500*y+500;
+                tdDrawModel( tflight->isosphere );
+            }
+        }
+#ifndef EMU
+        OVERCLOCK_SECTION_DISABLE();
+        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
+#endif
+    }
+    else
+    {
+        //Normal game
+        int x = 0;
+        int y = -1;
+        tdRotateEA( ProjectionMatrix, tflight->hpr[1], tflight->hpr[0], 0 );
+        tdTranslate( ModelviewMatrix, tflight->planeloc[0], tflight->planeloc[1], tflight->planeloc[2] );
+
+        int16_t BackupMatrix[16];
+        for( x = -6; x < 17; x++ )
+        {
+            for( y = -2; y < 10; y++ )
+            {
+                memcpy( BackupMatrix, ModelviewMatrix, sizeof( BackupMatrix ) );
+                tdTranslate( ModelviewMatrix, 
+                    500*x-800,
+                    140 + (tdSIN( (x + y)*40 + ij*1 )>>2),
+                    500*y+500 );
+                tdScale( ModelviewMatrix, 70, 70, 70 );
+                tdDrawModel( tflight->isosphere );
+                memcpy( ModelviewMatrix, BackupMatrix, sizeof( BackupMatrix ) );
+            }
+        }
+    }
+
+    //If perf test, force full frame refresh
+    //Otherwise, don't force full-screen refresh
+    return tflight->type == FL_PERFTEST; 
 }
 
 static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
