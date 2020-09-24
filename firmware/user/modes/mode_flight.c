@@ -79,7 +79,7 @@ typedef struct
 
     int16_t planeloc[3];
     int16_t hpr[3];
-
+	bool perfMotion;
     tdModel * isosphere;
 
     menu_t* menu;
@@ -659,7 +659,6 @@ static bool ICACHE_FLASH_ATTR flightRender()
     if( tflight->mode != FLIGHT_GAME ) return false;
 
     // First clear the OLED
-    clearDisplay();
 
     char framesStr[8] = {0};
     ets_snprintf(framesStr, sizeof(framesStr), "%d", tflight->buttonState);
@@ -671,6 +670,7 @@ static bool ICACHE_FLASH_ATTR flightRender()
     //tdRotateEA( ModelviewMatrix, ij, 0, 0 );
     if( tflight->type == FL_PERFTEST )
     {
+	    clearDisplay();
         int x = 0;
         int y = -1;
 #ifndef EMU
@@ -682,7 +682,7 @@ static bool ICACHE_FLASH_ATTR flightRender()
         //45 spheres x 42 vertices per = 1,890 vertices per frame
         //As of 2020-09-23 19:54, Render is: 20.89584ms + ~9.16ms for output.
 
-        ij = 0;    //Uncomment to prevent animation (for perf test)
+		if( !tflight->perfMotion ) ij = 0;    //Uncomment to prevent animation (for perf test)
 
         for( x = -4; x < 5; x++ )
         {
@@ -710,17 +710,29 @@ static bool ICACHE_FLASH_ATTR flightRender()
 		int x,y;
 		int overlay = 0;
 		//1,000 triangles @ 28.3ms.
-		ij = 32;
-		for( overlay = 0; overlay < 10; overlay++ )
-		for( y = 0; y < 10; y++ )
-		for( x = 0; x < 10; x++ )
+		if( tflight->perfMotion )
 		{
-			int mx = x * 12;
-			int my = y * 6;
-			int mx1 = x*12+tdSIN( ij+x+y )/25;
-			int my1 = y*6+tdCOS( ij+x+y )/25;
-			outlineTriangle( mx, my, mx1, my, mx, my1, 0, 1 );
-			outlineTriangle( mx, my1, mx1, my1, mx1, my, 0, 1 );
+			for( overlay = 0; overlay < 100; overlay++ )
+			{
+				int col = os_random()%2;
+				outlineTriangle( (os_random()%256)-64, (os_random()%128)-32, (os_random()%256)-64, (os_random()%128)-32,
+					(os_random()%256)-64, (os_random()%128)-32, col, !col );
+			}
+		}
+		else
+		{
+			ij = 32;
+			for( overlay = 0; overlay < 10; overlay++ )
+			for( y = 0; y < 10; y++ )
+			for( x = 0; x < 10; x++ )
+			{
+				int mx = x * 12;
+				int my = y * 6;
+				int mx1 = x*12+tdSIN( ij+x+y )/25;
+				int my1 = y*6+tdCOS( ij+x+y )/25;
+				outlineTriangle( mx, my, mx1, my, mx, my1, 0, 1 );
+				outlineTriangle( mx, my1, mx1, my1, mx1, my, 0, 1 );
+			}
 		}
 #ifndef EMU
         OVERCLOCK_SECTION_DISABLE();
@@ -761,7 +773,6 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
 {
     uint8_t bs = tflight->buttonState;
 
-
     if( bs & 1 ) tflight->hpr[0]++;
     if( bs & 4 ) tflight->hpr[0]--;
     if( bs & 2 ) tflight->hpr[1]++;
@@ -779,7 +790,7 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
  * @param down   true if the button was pressed, false if it was released
  */
 void ICACHE_FLASH_ATTR flightButtonCallback( uint8_t state,
-        int button __attribute__((unused)), int down __attribute__((unused)))
+        int button, int down )
 {
     switch (flight->mode)
     {
@@ -840,10 +851,8 @@ void ICACHE_FLASH_ATTR flightButtonCallback( uint8_t state,
         }
         case FLIGHT_GAME:
         {
-            // if(down)
-            // {
-            //     flappy->chopperVel = FLAPPY_JUMP_VEL;
-            // }
+			if( (flight->mode == FL_TRIANGLES || flight->mode == FL_PERFTEST) && button == 4 && down ) flight->perfMotion = !flight->perfMotion;
+
             flight->buttonState = state;
             break;
         }
