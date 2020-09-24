@@ -47,6 +47,7 @@
 typedef enum
 {
     FL_PERFTEST,
+	FL_TRIANGLES,
     FL_EXPLORE,
     FL_TIMED
 } flGameType;
@@ -124,6 +125,7 @@ flight_t* flight;
 
 static const char fl_title[]  = "Flightsim";
 static const char fl_flight_perf[] = "PERF";
+static const char fl_flight_triangles[] = "TRIS";
 static const char fl_flight_exlore[] = "EXPLORE";
 static const char fl_flight_timed[] = "TIMED";
 static const char fl_quit[]   = "QUIT";
@@ -185,6 +187,7 @@ void ICACHE_FLASH_ATTR flightEnterMode(void)
     flight->menu = initMenu(fl_title, flightMenuCb);
     addRowToMenu(flight->menu);
     addItemToRow(flight->menu, fl_flight_perf);
+    addItemToRow(flight->menu, fl_flight_triangles);
     addItemToRow(flight->menu, fl_flight_exlore);
     addItemToRow(flight->menu, fl_flight_timed);
     addRowToMenu(flight->menu);
@@ -220,6 +223,10 @@ static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem)
     {
         flightStartGame(FL_EXPLORE);
     }
+	else if( fl_flight_triangles == menuItem )
+	{
+		flightStartGame(FL_TRIANGLES);
+	}
     else if( fl_flight_perf == menuItem )
     {
         flightStartGame(FL_PERFTEST);
@@ -693,6 +700,33 @@ static bool ICACHE_FLASH_ATTR flightRender()
         GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
 #endif
     }
+	else if( tflight->type == FL_TRIANGLES )
+	{
+#ifndef EMU
+        PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.  
+        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
+        OVERCLOCK_SECTION_ENABLE();
+#endif
+		int x,y;
+		int overlay = 0;
+		//1,000 triangles @ 28.3ms.
+		ij = 32;
+		for( overlay = 0; overlay < 10; overlay++ )
+		for( y = 0; y < 10; y++ )
+		for( x = 0; x < 10; x++ )
+		{
+			int mx = x * 12;
+			int my = y * 6;
+			int mx1 = x*12+tdSIN( ij+x+y )/25;
+			int my1 = y*6+tdCOS( ij+x+y )/25;
+			outlineTriangle( mx, my, mx1, my, mx, my1, 0, 1 );
+			outlineTriangle( mx, my1, mx1, my1, mx1, my, 0, 1 );
+		}
+#ifndef EMU
+        OVERCLOCK_SECTION_DISABLE();
+        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
+#endif
+	}
     else
     {
         //Normal game
