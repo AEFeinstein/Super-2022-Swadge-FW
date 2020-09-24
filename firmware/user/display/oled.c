@@ -478,16 +478,16 @@ void drawPixelUnsafeC( int x, int y, color c )
 	//Found by looking at image.lst.
     uint8_t* addy = currentFb;
 	addy = addy + (y + x * OLED_HEIGHT) / 8;
-
     uint8_t mask = 1 << (y & 7);
+	uint8_t reads = *addy;
     if( c <= WHITE )    //TIL this 'if' tree is slightly faster than a switch.
         if( c == WHITE )
-            *addy |= mask;
+            *addy = reads | mask;
         else
-            *addy &= ~mask;
+            *addy = reads &( ~mask );
     else
         if( c == INVERSE )
-            *addy ^= mask;
+            *addy = reads ^ mask;
 }
 
 /**
