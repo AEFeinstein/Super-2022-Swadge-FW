@@ -61,9 +61,14 @@ void drawPixelUnsafe( int x, int y )
     *addy |= mask;
 }
 
-void drawPixelUnsafeC( int16_t x, int16_t y, color c )
+void drawPixelUnsafeC( int x, int y, color c )
 {
-    uint8_t* addy = &currentFb[(y + x * OLED_HEIGHT) / 8];
+	//Ugh, I know this looks weird, but it's faster than saying
+	//addy = &currentFb[(y+x*OLED_HEIGHT)/8], and produces smaller code.
+	//Found by looking at image.lst.
+    uint8_t* addy = currentFb;
+	addy = addy + (y + x * OLED_HEIGHT) / 8;
+
     uint8_t mask = 1 << (y & 7);
     if( c <= WHITE )    //TIL this 'if' tree is slightly faster than a switch.
         if( c == WHITE )

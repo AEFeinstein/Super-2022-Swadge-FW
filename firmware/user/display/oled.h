@@ -34,7 +34,7 @@ typedef enum
 bool initOLED(bool reset);
 void drawPixel(int16_t x, int16_t y, color c);
 void drawPixelUnsafe( int x, int y );
-void drawPixelUnsafeC( int16_t x, int16_t y, color c );
+void drawPixelUnsafeC( int x, int y, color c );
 
 void ICACHE_FLASH_ATTR outlineTriangle( int16_t v0x, int16_t v0y, int16_t v1x, int16_t v1y,
 	int16_t v2x, int16_t v2y, color colorA, color colorB );

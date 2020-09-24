@@ -11,6 +11,7 @@
    -> Occlusion Testing
    -> Fast line-drawing algorithm
    -> Switch Statement at end of OLED.c
+   -> Weird code structure of drawPixelUnsafeC
  */
 
 #include "user_config.h"
