@@ -10,6 +10,8 @@
    -> Vertex Caching
    -> Occlusion Testing
    -> Fast line-drawing algorithm
+   -> Switch Statement at end of OLED.c
+   -> Weird code structure of drawPixelUnsafeC
  */
 
 #include "user_config.h"
@@ -45,6 +47,8 @@
 
 typedef enum
 {
+    FL_PERFTEST,
+	FL_TRIANGLES,
     FL_EXPLORE,
     FL_TIMED
 } flGameType;
@@ -76,7 +80,7 @@ typedef struct
 
     int16_t planeloc[3];
     int16_t hpr[3];
-
+	bool perfMotion;
     tdModel * isosphere;
 
     menu_t* menu;
@@ -94,9 +98,8 @@ void ICACHE_FLASH_ATTR flightButtonCallback(uint8_t state __attribute__((unused)
 static void ICACHE_FLASH_ATTR flightUpdate(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem);
 static void ICACHE_FLASH_ATTR flightStartGame(flGameType type);
-static int ICACHE_FLASH_ATTR flightRender();
+static bool ICACHE_FLASH_ATTR flightRender();
 static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight );
-
 static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int nr_segments, const uint16_t * indices, const int16_t * vertices );
 void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m );
 
@@ -122,6 +125,8 @@ swadgeMode flightMode =
 flight_t* flight;
 
 static const char fl_title[]  = "Flightsim";
+static const char fl_flight_perf[] = "PERF";
+static const char fl_flight_triangles[] = "TRIS";
 static const char fl_flight_exlore[] = "EXPLORE";
 static const char fl_flight_timed[] = "TIMED";
 static const char fl_quit[]   = "QUIT";
@@ -182,6 +187,8 @@ void ICACHE_FLASH_ATTR flightEnterMode(void)
 
     flight->menu = initMenu(fl_title, flightMenuCb);
     addRowToMenu(flight->menu);
+    addItemToRow(flight->menu, fl_flight_perf);
+    addItemToRow(flight->menu, fl_flight_triangles);
     addItemToRow(flight->menu, fl_flight_exlore);
     addItemToRow(flight->menu, fl_flight_timed);
     addRowToMenu(flight->menu);
@@ -216,6 +223,14 @@ static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem)
     if(fl_flight_exlore == menuItem)
     {
         flightStartGame(FL_EXPLORE);
+    }
+	else if( fl_flight_triangles == menuItem )
+	{
+		flightStartGame(FL_TRIANGLES);
+	}
+    else if( fl_flight_perf == menuItem )
+    {
+        flightStartGame(FL_PERFTEST);
     }
     else if (fl_flight_timed == menuItem)
     {
@@ -507,7 +522,7 @@ int ICACHE_FLASH_ATTR LocalToScreenspace( const int16_t * coords_3v, int16_t * o
     td4Transform( tmppt, ModelviewMatrix, tmppt );
     td4Transform( tmppt, ProjectionMatrix, tmppt );
     if( tmppt[3] >= -4 ) { return -1; }
-    int calcx = ((256 * tmppt[0] / tmppt[3])/8+(FBW/2))/2;
+    int calcx = ((256 * tmppt[0] / tmppt[3])/16+(FBW/2));
     int calcy = ((256 * tmppt[1] / tmppt[3])/8+(FBH/2));
     if( calcx < -16000 || calcx > 16000 || calcy < -16000 || calcy > 16000 ) return -2;
     *o1 = calcx;
@@ -523,7 +538,7 @@ void ICACHE_FLASH_ATTR Draw3DSegment( const int16_t * c1, const int16_t * c2 )
         LocalToScreenspace( c2, &sx1, &sy1 ) ) return;
 
     //GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
-    speedyWhiteLine( sx0, sy0, sx1, sy1 );
+    speedyWhiteLine( sx0, sy0, sx1, sy1, false );
     //GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
 
     //plotLine( sx0, sy0, sx1, sy1, WHITE );
@@ -593,7 +608,7 @@ void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
     td4Transform( tmppt, ProjectionMatrix, tmppt );
     if( tmppt[3] < -2 )
     {
-        int scx = ((256 * tmppt[0] / tmppt[3])/8+(OLED_WIDTH/2))/2;
+        int scx = ((256 * tmppt[0] / tmppt[3])/16+(OLED_WIDTH/2));
         int scy = ((256 * tmppt[1] / tmppt[3])/8+(OLED_HEIGHT/2));
         int scd = ((-256 * 2 * m->radius / tmppt[3])/8);
         scd += 3; //Slack
@@ -611,7 +626,14 @@ void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
     //so we don't have to re-compute every time round.
     //f( "%d\n", nrv );
     int16_t cached_verts[nrv];
-    memset( cached_verts, 0x00, sizeof(cached_verts) );
+    for( i = 0; i < nrv; i+=3 )
+    {
+        int16_t * cv1 = &cached_verts[i];
+        if( LocalToScreenspace( &verticesmark[i], cv1, cv1+1 ) )
+            cv1[2] = 2;
+        else
+            cv1[2] = 1;
+    }
 
     for( i = 0; i < nri; i+=2 )
     {
@@ -620,17 +642,9 @@ void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
         int16_t * cv1 = &cached_verts[i1];
         int16_t * cv2 = &cached_verts[i2];
 
-        if( cv1[2] == 0 )
-        {
-            if( LocalToScreenspace( &verticesmark[i1], cv1, cv1+1 ) ) cv1[2] = 2;
-        }
-        if( cv2[2] == 0 )
-        {
-            if( LocalToScreenspace( &verticesmark[i2], cv2, cv2+1 ) ) cv2[2] = 2;
-        }
         if( cv1[2] != 2 && cv2[2] != 2 )
         {
-            speedyWhiteLine( cv1[0], cv1[1], cv2[0], cv2[1] );
+            speedyWhiteLine( cv1[0], cv1[1], cv2[0], cv2[1], false );
         }
     }
 }
@@ -639,223 +653,177 @@ void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-static int ICACHE_FLASH_ATTR flightRender()
+static bool ICACHE_FLASH_ATTR flightRender()
 {
     flight_t * tflight = flight;
 
-    // First clear the OLED
-    clearDisplay();
+    if( tflight->mode != FLIGHT_GAME ) return false;
 
-    char framesStr[8] = {0};
-    ets_snprintf(framesStr, sizeof(framesStr), "%d", tflight->buttonState);
-    plotText(0, 0, framesStr, TOM_THUMB, WHITE);
+    // First clear the OLED
+
     int ij = tflight->frames;
     SetupMatrix();
 
-
-#ifndef EMU
-    PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.  
-    GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
-    OVERCLOCK_SECTION_ENABLE();
-#endif
-
-//#define ORIG_TEST
-#ifdef ORIG_TEST
-    int x = 0;
-    int y = -1;
-    tdRotateEA( ProjectionMatrix, -20, 0, 0 );
-    tdRotateEA( ModelviewMatrix, ij, 0, 0 );
-    ij = 0;    //Uncomment to prevent animation (for perf test)
-    for( x = -3; x < 4; x++ )
-    {
-        for( y = 0; y < 4; y++ )
-        {
-            //7 * 4 * 120 = 3360 lines per frame.
-            ModelviewMatrix[11] = 2400;
-            ModelviewMatrix[3] = 500*x-800;
-            ModelviewMatrix[7] = 500*y+500;
-            tdDrawModel( tflight->isosphere );
-        }
-    }
+#ifdef EMU
+	uint32_t start = 0;
 #else
-    int x = 0;
-    int y = -1;
-    tdRotateEA( ProjectionMatrix, tflight->hpr[1], tflight->hpr[0], 0 );
-    tdTranslate( ModelviewMatrix, tflight->planeloc[0], tflight->planeloc[1], tflight->planeloc[2] );
-
-    int16_t BackupMatrix[16];
-    for( x = -6; x < 17; x++ )
-    {
-        for( y = -2; y < 10; y++ )
-        {
-            memcpy( BackupMatrix, ModelviewMatrix, sizeof( BackupMatrix ) );
-            tdTranslate( ModelviewMatrix, 
-                500*x-800,
-                140 + tdSIN( (x + y)*40 + ij*1 )>>2,
-                500*y+500 );
-            tdScale( ModelviewMatrix, 70, 70, 70 );
-            tdDrawModel( tflight->isosphere );
-            memcpy( ModelviewMatrix, BackupMatrix, sizeof( BackupMatrix ) );
-        }
-    }
+	uint32_t start = xthal_get_ccount();
 #endif
+    if( tflight->type == FL_PERFTEST )
+    {
+	    tdRotateEA( ProjectionMatrix, -20, 0, 0 );
+	    clearDisplay();
+        int x = 0;
+        int y = -1;
+#ifndef EMU
+        PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.  
+        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
+        OVERCLOCK_SECTION_ENABLE();
+#endif
+        //45 spheres x 120 line segments = 5,400 edges per frame
+        //45 spheres x 42 vertices per = 1,890 vertices per frame
+        //As of 2020-09-23 19:54, Render is: 20.89584ms + ~9.16ms for output.
+
+		if( !tflight->perfMotion )
+		{
+			ij = 0;
+		}
+		else
+		{
+			tdRotateEA( ModelviewMatrix, ij, 0, 0 );
+		}
+
+        for( x = -4; x < 5; x++ )
+        {
+            for( y = 0; y < 5; y++ )
+            {
+                //7 * 4 * 120 = 3360 lines per frame.
+                ModelviewMatrix[11] = 2600+(tflight->perfMotion?(tdSIN( (x + y)*40 + ij*1 ) )*5:0);
+                ModelviewMatrix[3] = 450*x;
+                ModelviewMatrix[7] = 500*y+500;
+                tdDrawModel( tflight->isosphere );
+            }
+        }
+#ifndef EMU
+        OVERCLOCK_SECTION_DISABLE();
+        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
+#endif
+    }
+	else if( tflight->type == FL_TRIANGLES )
+	{
+#ifndef EMU
+        PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.  
+        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
+        OVERCLOCK_SECTION_ENABLE();
+#endif
+		int x,y;
+		int overlay = 0;
+		//1,000 triangles @ 28.3ms.
+		if( tflight->perfMotion )
+		{
+			for( overlay = 0; overlay < 100; overlay++ )
+			{
+				int col = os_random()%2;
+				outlineTriangle( (os_random()%256)-64, (os_random()%128)-32, (os_random()%256)-64, (os_random()%128)-32,
+					(os_random()%256)-64, (os_random()%128)-32, col, !col );
+			}
+		}
+		else
+		{
+			ij = 32;
+			for( overlay = 0; overlay < 10; overlay++ )
+			for( y = 0; y < 10; y++ )
+			for( x = 0; x < 10; x++ )
+			{
+				int mx = x * 12;
+				int my = y * 6;
+				int mx1 = x*12+tdSIN( ij+x+y )/25;
+				int my1 = y*6+tdCOS( ij+x+y )/25;
+				outlineTriangle( mx, my, mx1, my, mx, my1, 0, 1 );
+				outlineTriangle( mx, my1, mx1, my1, mx1, my, 0, 1 );
+			}
+		}
+#ifndef EMU
+        OVERCLOCK_SECTION_DISABLE();
+        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
+#endif
+	}
+    else
+    {
+        //Normal game
+        int x = 0;
+        int y = -1;
 
 #ifndef EMU
-    OVERCLOCK_SECTION_DISABLE();
-    GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
+        PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.  
+        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
+        OVERCLOCK_SECTION_ENABLE();
 #endif
+
+	    clearDisplay();
+        tdRotateEA( ProjectionMatrix, tflight->hpr[1], tflight->hpr[0], 0 );
+        tdTranslate( ModelviewMatrix, tflight->planeloc[0], tflight->planeloc[1], tflight->planeloc[2] );
+
+        int16_t BackupMatrix[16];
+        for( x = -6; x < 17; x++ )
+        {
+            for( y = -2; y < 10; y++ )
+            {
+                memcpy( BackupMatrix, ModelviewMatrix, sizeof( BackupMatrix ) );
+                tdTranslate( ModelviewMatrix, 
+                    500*x-800,
+                    140 + (tdSIN( (x + y)*40 + ij*1 )>>2),
+                    500*y+500 );
+                tdScale( ModelviewMatrix, 70, 70, 70 );
+                tdDrawModel( tflight->isosphere );
+                memcpy( ModelviewMatrix, BackupMatrix, sizeof( BackupMatrix ) );
+            }
+        }
+#ifndef EMU
+        OVERCLOCK_SECTION_DISABLE();
+        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
+#endif
+    }
+#ifdef EMU
+	uint32_t stop = 0;
+#else
+	uint32_t stop = xthal_get_ccount();
+#endif
+
+	{
+		char framesStr[32] = {0};
+		ets_snprintf(framesStr, sizeof(framesStr), "%02x %dus", tflight->buttonState, (stop-start)/160);
+		fillDisplayArea( 0, 0, 50, 7, BLACK );
+		plotText(1, 1, framesStr, TOM_THUMB, WHITE);
+	}
+
+    //If perf test, force full frame refresh
+    //Otherwise, don't force full-screen refresh
+    return tflight->type == FL_PERFTEST; 
 }
 
 static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
 {
     uint8_t bs = tflight->buttonState;
 
-
     if( bs & 1 ) tflight->hpr[0]++;
     if( bs & 4 ) tflight->hpr[0]--;
     if( bs & 2 ) tflight->hpr[1]++;
     if( bs & 8 ) tflight->hpr[1]--;
 
-    //Left-right is [0].
-    //Up-down is [1].
-
     tflight->planeloc[0] -= tdSIN( tflight->hpr[0] )>>6;
     tflight->planeloc[2] -= tdCOS( tflight->hpr[0] )>>6;
     tflight->planeloc[1] += tdSIN( tflight->hpr[1] )>>6;
-
-/*
-    tflight->planeloc[0] += tdSIN( tflight->hpr[0] )>>4;
-    tflight->planeloc[1] += tdCOS( tflight->hpr[0] )>>4;
-    tflight->planeloc[2] += tdCOS( tflight->hpr[1] )>>4;
-
-    int i;
-    int16_t xformlast[3];
-    int newseg = 1;
-    for( i = 0; ; i++ )
-    {
-        if( newseg )
-        {
-            if( vTransform( tflight, xformlast, pittsburg+i*3 ) == 0 )
-            {
-                break;
-            }
-            
-            newseg = 0;
-        }
-        else
-        {
-            int16_t xformednow[3];
-            if( vTransform( tflight, xformednow, pittsburg+i*3 ) == 0 ) { newseg = 1; continue; }
-            plotLine( xformlast[0], xformlast[1], xformednow[0], xformednow[1], WHITE );
-            ets_memcpy( xformlast, xformednow, sizeof( xformednow) );
-        }
-    }
-*/
-
-#if 0
-    // For each chunk coordinate
-    for(uint8_t w = 0; w < NUM_CHUNKS + 1; w++)
-    {
-        // Plot a floor segment line between chunk coordinates
-        plotLine(
-            (w * CHUNK_WIDTH) - flappy->xOffset,
-            flappy->floors[w],
-            ((w + 1) * CHUNK_WIDTH) - flappy->xOffset,
-            flappy->floors[w + 1],
-            WHITE);
-
-        // Plot a ceiling segment line between chunk coordinates
-        plotLine(
-            (w * CHUNK_WIDTH) - flappy->xOffset,
-            flappy->ceils[w],
-            ((w + 1) * CHUNK_WIDTH) - flappy->xOffset,
-            flappy->ceils[w + 1],
-            WHITE);
-    }
-
-    // For each obstacle
-    node_t* obs = flappy->obstacles.first;
-    while(obs != NULL)
-    {
-        // Shift the obstacle
-        obs->val = (void*)(((uintptr_t)obs->val) - 0x100);
-
-        // Extract X and Y coordinates
-        int8_t x = (((uintptr_t)obs->val) >> 8) & 0xFF;
-        int8_t y = (((uintptr_t)obs->val)     ) & 0xFF;
-
-        // If the obstacle is off the screen
-        if(x + 2 <= 0)
-        {
-            // Move to the next
-            obs = obs->next;
-            // Remove it from the linked list
-            removeEntry(&flappy->obstacles, obs->prev);
-        }
-        else
-        {
-            // Otherwise draw it
-            plotRect(x, y, x + 2, y + flappy->obsHeight, WHITE);
-            // Move to the next
-            obs = obs->next;
-        }
-    }
-
-    // Find the chopper's integer position
-    int16_t chopperPos = (int16_t)(flappy->chopperPos + 0.5f);
-
-    // Iterate over the chopper's sprite to see if it would be drawn over a wall
-    bool collision = false;
-    for(uint8_t x = 0; x < CHOPPER_HEIGHT; x++)
-    {
-        for(uint8_t y = 0; y < CHOPPER_HEIGHT; y++)
-        {
-            // The pixel is already white, so there's a collision!
-            if(WHITE == getPixel(x, chopperPos + y))
-            {
-                collision = true;
-                break;
-            }
-            else
-            {
-                drawPixel(x, chopperPos + y, WHITE);
-            }
-        }
-    }
-
-    // If there was a collision
-    if(true == collision)
-    {
-        // Immediately jump back to the menu
-        flappy->mode = FLAPPY_MENU;
-        os_f("Score: %d\n", flappy->frames / 8);
-    }
-
-    // Render the score as text
-    char framesStr[8] = {0};
-    ets_snf(framesStr, sizeof(framesStr), "%d", flappy->frames / 8);
-    int16_t framesStrWidth = textWidth(framesStr, IBM_VGA_8);
-    // Make sure the width is a multiple of 8 to keep it drawn consistently
-    while(framesStrWidth % 8 != 0)
-    {
-        framesStrWidth++;
-    }
-    // Draw the score in the upper right hand corner
-    fillDisplayArea(OLED_WIDTH - 1 - framesStrWidth, 0, OLED_WIDTH, FONT_HEIGHT_IBMVGA8 + 1, BLACK);
-    plotText(OLED_WIDTH - framesStrWidth, 0, framesStr, IBM_VGA_8, WHITE);
-#endif
 }
 
 /**
- * TODO
  *
  * @param state  A bitmask of all button states, unused
  * @param button The button which triggered this event
  * @param down   true if the button was pressed, false if it was released
  */
 void ICACHE_FLASH_ATTR flightButtonCallback( uint8_t state,
-        int button __attribute__((unused)), int down __attribute__((unused)))
+        int button, int down )
 {
     switch (flight->mode)
     {
@@ -916,10 +884,8 @@ void ICACHE_FLASH_ATTR flightButtonCallback( uint8_t state,
         }
         case FLIGHT_GAME:
         {
-            // if(down)
-            // {
-            //     flappy->chopperVel = FLAPPY_JUMP_VEL;
-            // }
+			if( (flight->mode == FL_TRIANGLES || flight->mode == FL_PERFTEST) && button == 4 && down ) flight->perfMotion = !flight->perfMotion;
+
             flight->buttonState = state;
             break;
         }

@@ -324,7 +324,7 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events __attribute__((unused)
     static uint32_t lastDrawTime = 0;
     if(system_get_time() - lastDrawTime > 33333)
     {
-        uint8_t forceFullUpdate = 0;
+        bool forceFullUpdate = false;
 
         lastDrawTime = system_get_time();
 
