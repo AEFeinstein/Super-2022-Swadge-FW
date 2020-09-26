@@ -35,8 +35,8 @@ typedef struct
     uint8_t mapX;
     uint8_t mapY;
     uint8_t side;
-    int16_t drawStart;
-    int16_t drawEnd;
+    int32_t drawStart;
+    int32_t drawEnd;
     float perpWallDist;
     float rayDirX;
     float rayDirY;
@@ -441,14 +441,13 @@ void ICACHE_FLASH_ATTR drawTextures(rayResult_t* rayResult)
             texPos += step;
 
             // Draw the pixel specified by the texture
-            // drawPixel(x, y, textures[texNum][texX][texY]);
             if(texNum)
             {
-                drawPixel(x, y, rc->stoneTex[(texX * texHeight) + texY ]);
+                drawPixelUnsafeC(x, y, rc->stoneTex[(texX * texHeight) + texY ]);
             }
             else
             {
-                drawPixel(x, y, rc->stripeTex[(texX * texHeight) + texY ]);
+                drawPixelUnsafeC(x, y, rc->stripeTex[(texX * texHeight) + texY ]);
             }
         }
     }
@@ -468,9 +467,16 @@ void ICACHE_FLASH_ATTR drawOutlines(rayResult_t* rayResult)
         {
             // This is corner or edge which is larger than the prior strip
             // Draw a vertical strip
-            for(int32_t y = rayResult[x].drawStart; y <= rayResult[x].drawEnd; y++)
+            int32_t ds = rayResult[x].drawStart;
+            int32_t de = rayResult[x].drawEnd;
+            if(ds < 0 || de > OLED_HEIGHT - 1)
             {
-                drawPixel(x, y, WHITE);
+                ds = 0;
+                de = OLED_HEIGHT - 1;
+            }
+            for(int32_t y = ds; y <= de; y++)
+            {
+                drawPixelUnsafeC(x, y, WHITE);
             }
             drawVertNext = false;
         }
@@ -482,25 +488,44 @@ void ICACHE_FLASH_ATTR drawOutlines(rayResult_t* rayResult)
             {
                 // This vertical strip is part of a continuous wall with the next strip
                 // Just draw top and bottom pixels
-                drawPixel(x, rayResult[x].drawStart, WHITE);
-                drawPixel(x, rayResult[x].drawEnd, WHITE);
+                if(rayResult[x].drawStart >= 0)
+                {
+                    drawPixelUnsafeC(x, rayResult[x].drawStart, WHITE);
+                }
+                if(rayResult[x].drawEnd < OLED_HEIGHT)
+                {
+                    drawPixelUnsafeC(x, rayResult[x].drawEnd, WHITE);
+                }
             }
             else if((rayResult[x].drawEnd - rayResult[x].drawStart) >
                     (rayResult[x + 1].drawEnd - rayResult[x + 1].drawStart))
             {
                 // This is a corner or edge, and this vertical strip is larger than the next one
                 // Draw a vertical strip
-                for(int32_t y = rayResult[x].drawStart; y <= rayResult[x].drawEnd; y++)
+                int32_t ds = rayResult[x].drawStart;
+                int32_t de = rayResult[x].drawEnd;
+                if(ds < 0 || de > OLED_HEIGHT - 1)
                 {
-                    drawPixel(x, y, WHITE);
+                    ds = 0;
+                    de = OLED_HEIGHT - 1;
+                }
+                for(int32_t y = ds; y <= de; y++)
+                {
+                    drawPixelUnsafeC(x, y, WHITE);
                 }
             }
             else
             {
                 // This is a corner or edge, and this vertical strip is smaller than the next one
                 // Just draw top and bottom pixels, but make sure to draw a vertical line next
-                drawPixel(x, rayResult[x].drawStart, WHITE);
-                drawPixel(x, rayResult[x].drawEnd, WHITE);
+                if(rayResult[x].drawStart >= 0)
+                {
+                    drawPixelUnsafeC(x, rayResult[x].drawStart, WHITE);
+                }
+                if(rayResult[x].drawEnd < OLED_HEIGHT)
+                {
+                    drawPixelUnsafeC(x, rayResult[x].drawEnd, WHITE);
+                }
                 // make sure to draw a vertical line next
                 drawVertNext = true;
             }
@@ -508,8 +533,14 @@ void ICACHE_FLASH_ATTR drawOutlines(rayResult_t* rayResult)
         else
         {
             // These are the very last pixels, nothing to compare to
-            drawPixel(x, rayResult[x].drawStart, WHITE);
-            drawPixel(x, rayResult[x].drawEnd, WHITE);
+            if(rayResult[x].drawStart >= 0)
+            {
+                drawPixelUnsafeC(x, rayResult[x].drawStart, WHITE);
+            }
+            if(rayResult[x].drawEnd < OLED_HEIGHT)
+            {
+                drawPixelUnsafeC(x, rayResult[x].drawEnd, WHITE);
+            }
         }
     }
 }
@@ -614,7 +645,7 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
                     int32_t d = (y) * 256 - OLED_HEIGHT * 128 + spriteHeight * 128;
                     int32_t texY = ((d * texHeight) / spriteHeight) / 256;
                     // get current color from the texture
-                    drawPixel(stripe, y, rc->enemySpriteTex[(texX * texHeight) + texY]);
+                    drawPixelUnsafeC(stripe, y, rc->enemySpriteTex[(texX * texHeight) + texY]);
                 }
             }
         }
