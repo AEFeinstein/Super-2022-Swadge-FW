@@ -374,6 +374,12 @@ void ICACHE_FLASH_ATTR menuButton(menu_t* menu, int btn)
         return;
     }
 
+    if(menu->numRows == 1 && (btn == 3 || btn == 1))
+    {
+        // If there is one row, ignore up & down buttons
+        return;
+    }
+
     switch(btn)
     {
         case 3:
