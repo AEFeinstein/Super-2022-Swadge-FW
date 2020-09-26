@@ -550,6 +550,12 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
         // this is actually the depth inside the screen, that what Z is in 3D
         float transformY = invDet * (-rc->planeY * spriteX + rc->planeX * spriteY);
 
+        // If this is negative, the texture isn't going to be drawn, so just stop here
+        if(transformY < 0)
+        {
+            continue;
+        }
+
         int32_t spriteScreenX = (int32_t)((OLED_WIDTH / 2) * (1 + transformX / transformY));
 
         // calculate height of the sprite on screen
@@ -568,9 +574,9 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
         }
 
         int32_t drawEndY = spriteHeight / 2 + OLED_HEIGHT / 2;
-        if(drawEndY >= OLED_HEIGHT)
+        if(drawEndY > OLED_HEIGHT)
         {
-            drawEndY = OLED_HEIGHT - 1;
+            drawEndY = OLED_HEIGHT;
         }
 
         // calculate width of the sprite
@@ -585,9 +591,9 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
             drawStartX = 0;
         }
         int32_t drawEndX = spriteWidth / 2 + spriteScreenX;
-        if(drawEndX >= OLED_WIDTH)
+        if(drawEndX > OLED_WIDTH)
         {
-            drawEndX = OLED_WIDTH - 1;
+            drawEndX = OLED_WIDTH;
         }
 
         // loop through every vertical stripe of the sprite on screen
@@ -599,7 +605,7 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
             // 2) it's on the screen (left)
             // 3) it's on the screen (right)
             // 4) ZBuffer, with perpendicular distance
-            if(transformY > 0 && stripe > 0 && stripe < OLED_WIDTH && transformY < rayResult[stripe].perpWallDist)
+            if(transformY < rayResult[stripe].perpWallDist)
             {
                 // for every pixel of the current stripe
                 for(int32_t y = drawStartY; y < drawEndY; y++)
