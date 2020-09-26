@@ -9,6 +9,7 @@
 #include "nvm_interface.h"
 #include "oled.h"
 #include "bresenham.h"
+#include "cndraw.h"
 #include "font.h"
 #include "buttons.h"
 

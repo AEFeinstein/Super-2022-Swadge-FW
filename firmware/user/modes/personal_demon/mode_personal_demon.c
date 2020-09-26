@@ -8,6 +8,7 @@
 #include "mode_personal_demon.h"
 #include "assets.h"
 #include "oled.h"
+#include "cndraw.h"
 #include "linked_list.h"
 #include "font.h"
 #include "logic_personal_demon.h"

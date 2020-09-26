@@ -27,6 +27,7 @@
 #include "user_main.h"
 #include "embeddednf.h"
 #include "oled.h"
+#include "cndraw.h"
 #include "bresenham.h"
 #include "assets.h"
 #include "buttons.h"
@@ -98,7 +99,7 @@ void ICACHE_FLASH_ATTR flightButtonCallback(uint8_t state __attribute__((unused)
 static void ICACHE_FLASH_ATTR flightUpdate(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem);
 static void ICACHE_FLASH_ATTR flightStartGame(flGameType type);
-static bool ICACHE_FLASH_ATTR flightRender();
+static bool ICACHE_FLASH_ATTR flightRender(void);
 static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight );
 static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int nr_segments, const uint16_t * indices, const int16_t * vertices );
 void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m );
@@ -653,7 +654,7 @@ void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static bool ICACHE_FLASH_ATTR flightRender()
+static bool ICACHE_FLASH_ATTR flightRender(void)
 {
     flight_t * tflight = flight;
 
@@ -884,7 +885,7 @@ void ICACHE_FLASH_ATTR flightButtonCallback( uint8_t state,
         }
         case FLIGHT_GAME:
         {
-			if( (flight->mode == FL_TRIANGLES || flight->mode == FL_PERFTEST) && button == 4 && down ) flight->perfMotion = !flight->perfMotion;
+			if( (flight->type == FL_TRIANGLES || flight->type == FL_PERFTEST) && button == 4 && down ) flight->perfMotion = !flight->perfMotion;
 
             flight->buttonState = state;
             break;

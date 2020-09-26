@@ -16,6 +16,7 @@
 #include "oled.h"
 #include "font.h"
 #include "bresenham.h"
+#include "cndraw.h"
 
 #if defined(FEATURE_OLED)
 
