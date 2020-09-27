@@ -55,6 +55,11 @@ void drawPixel(int16_t x, int16_t y, color c)
 
 void drawPixelUnsafe( int x, int y )
 {
+	if( x < 0 || x>= OLED_WIDTH || y < 0 || y >= OLED_HEIGHT )
+	{
+		fprintf( stderr, "ERROR: PIXEL OUT OF RANGE in drawPixelUnsafe %d %d\n", x, y );
+		return;
+	}
     uint8_t* addy = &currentFb[(y + x * OLED_HEIGHT) / 8];
     uint8_t mask = 1 << (y & 7);
     *addy |= mask;
@@ -62,6 +67,11 @@ void drawPixelUnsafe( int x, int y )
 
 void drawPixelUnsafeC( int x, int y, color c )
 {
+	if( x < 0 || x>= OLED_WIDTH || y < 0 || y >= OLED_HEIGHT )
+	{
+		fprintf( stderr, "ERROR: PIXEL OUT OF RANGE in drawPixelUnsafeC %d %d\n", x, y );
+		return;
+	}
 	//Ugh, I know this looks weird, but it's faster than saying
 	//addy = &currentFb[(y+x*OLED_HEIGHT)/8], and produces smaller code.
 	//Found by looking at image.lst.
