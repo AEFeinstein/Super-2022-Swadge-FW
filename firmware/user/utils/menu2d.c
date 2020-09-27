@@ -16,6 +16,7 @@
 #include "oled.h"
 #include "font.h"
 #include "bresenham.h"
+#include "cndraw.h"
 
 #if defined(FEATURE_OLED)
 
@@ -371,6 +372,12 @@ void ICACHE_FLASH_ATTR menuButton(menu_t* menu, int btn)
     // If the menu is in motion, ignore this button press
     if((menu->yOffset != 0) || (menu->rows->d.row.xOffset != 0))
     {
+        return;
+    }
+
+    if(menu->numRows == 1 && (btn == 3 || btn == 1))
+    {
+        // If there is one row, ignore up & down buttons
         return;
     }
 

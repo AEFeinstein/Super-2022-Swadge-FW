@@ -16,6 +16,7 @@
 #include "osapi.h"
 #include "assets.h"
 #include "oled.h"
+#include "cndraw.h"
 #include "embeddednf.h"
 #include "embeddedout.h"
 #include "font.h"
