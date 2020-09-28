@@ -1515,8 +1515,8 @@ void ICACHE_FLASH_ATTR initAnimPlaying(void)
     pd->ballX = -pd->ball.width;
     pd->ballY = (OLED_HEIGHT / 2) - ((pd->ball.width / 2) / 2);
 
-    pd->ballVelX = 20; // Pixels per second
-    pd->ballVelY = 30;
+    pd->ballVelX = 41; // Pixels per second
+    pd->ballVelY = 29;
     pd->handRot = 0;
 }
 
