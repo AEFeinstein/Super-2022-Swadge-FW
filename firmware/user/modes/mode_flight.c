@@ -193,7 +193,6 @@ void ICACHE_FLASH_ATTR flightEnterMode(void)
 	{
 		uint32_t retlen;
 		uint16_t * data = (int16_t*)getAsset( "3denv.obj", &retlen );
-		printf( "DATA: %p\n", data );
 		data+=2; //header
 		flight->enviromodels = *(data++);
 		flight->environment = os_malloc( sizeof(tdModel *) * flight->enviromodels );
@@ -201,7 +200,6 @@ void ICACHE_FLASH_ATTR flightEnterMode(void)
 		for( i = 0; i < flight->enviromodels; i++ )
 		{
 			tdModel * m = flight->environment[i] = (tdModel*)data;
-			printf( "ENV %d/%d: %d   (%d %d %d) %d\n", i, flight->enviromodels, m->indices_per_face, m->center[0], m->center[1], m->center[2], m->radius);
 			data += 7 + m->nrvertnums + m->nrfaces * m->indices_per_face;
 		}
 	}
@@ -623,42 +621,47 @@ static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int nrfaces, const uint16_t 
     return ret;
 }
 
-void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
+int tdModelVisibilitycheck( const tdModel * m )
 {
-    int i;
 
 	//For computing visibility check
-	printf( "CHECK: %d %d %d %d\n", m->center[0], m->center[1], m->center[2], m->radius );
-	printf( "%d %d %d %d\n", ModelviewMatrix[0] ,ModelviewMatrix[1], ModelviewMatrix[2], ModelviewMatrix[3] );
-	printf( "%d %d %d %d\n", ModelviewMatrix[4] ,ModelviewMatrix[5], ModelviewMatrix[6], ModelviewMatrix[7] );
-	printf( "%d %d %d %d\n", ModelviewMatrix[8] ,ModelviewMatrix[9], ModelviewMatrix[10], ModelviewMatrix[11] );
-	printf( "%d %d %d %d\n", ModelviewMatrix[12] ,ModelviewMatrix[13], ModelviewMatrix[14], ModelviewMatrix[15] );
-	int16_t tmppt[4] = { m->center[0]*64, m->center[1], m->center[2], 256 }; //No multiplier seems to work right here.
+	int16_t tmppt[4] = { m->center[0], m->center[1], m->center[2], 256 }; //No multiplier seems to work right here.
 	td4Transform( tmppt, ModelviewMatrix, tmppt );
-	printf( "TP2: %d %d %d %d\n", tmppt[0], tmppt[1], tmppt[2], tmppt[3] );
 	td4Transform( tmppt, ProjectionMatrix, tmppt );
 	if( tmppt[3] < -2 )
 	{
 	    int scx = ((256 * tmppt[0] / tmppt[3])/16+(OLED_WIDTH/2));
 	    int scy = ((256 * tmppt[1] / tmppt[3])/8+(OLED_HEIGHT/2));
+	   // int scz = ((65536 * tmppt[2] / tmppt[3]));
 	    int scd = ((-256 * 2 * m->radius / tmppt[3])/8);
 	    scd += 3; //Slack
-		printf( "%d %d %d\n", scd, scx, scy );
 	    if( scx < -scd || scy < -scd || scx >= OLED_WIDTH + scd || scy >= OLED_HEIGHT + scd )
 	    {
-	        return;
+	        return -1;
 	    }
+		else
+		{
+			return -tmppt[3];
+		}
 	}
 	else
 	{
-	    return;
+	    return -2;
 	}
+}
 
-	printf( "Ok\n" );
+void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
+{
+    int i;
 
 	int nrv = m->nrvertnums;
 	int nri = m->nrfaces*m->indices_per_face;
 	int16_t * verticesmark = (int16_t*)&m->indices_and_vertices[nri];
+
+	if( tdModelVisibilitycheck( m ) < 0 )
+	{
+		return;
+	}
 
 
 	//This looks a little odd, but what we're doing is caching our vertex computations
@@ -692,7 +695,6 @@ void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
 	}
 	else if( m->indices_per_face == 3 )
 	{
-		printf( "IF3: %d\n", nri );
 		for( i = 0; i < nri; i+=3 )
 		{
 		    int i1 = m->indices_and_vertices[i];
@@ -705,11 +707,33 @@ void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
 
 		    if( cv1[2] != 2 && cv2[2] != 2 && cv3[2] != 2 )
 		    {
-				outlineTriangle( cv1[0], cv1[1], cv2[0], cv2[1], cv3[0], cv3[1], BLACK, WHITE );
+
+				//Perform screen-space cross product to determine if we're looking at a backface.
+				int Ux = cv3[0] - cv1[0];
+				int Uy = cv3[1] - cv1[1];
+				int Vx = cv2[0] - cv1[0];
+				int Vy = cv2[1] - cv1[1];
+				if( Ux*Vy-Uy*Vx >= 0 )
+					outlineTriangle( cv1[0], cv1[1], cv2[0], cv2[1], cv3[0], cv3[1], BLACK, WHITE );
 		    }
 		}
 	}
 }
+
+
+struct ModelRangePair
+{
+	tdModel * model;
+	int       mrange;
+};
+
+int mdlctcmp( const void * va, const void * vb )
+{
+	struct ModelRangePair * a = (struct ModelRangePair *)va;
+	struct ModelRangePair * b = (struct ModelRangePair *)vb;
+	return b->mrange - a->mrange;
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -823,12 +847,26 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
         tdRotateEA( ProjectionMatrix, tflight->hpr[1], tflight->hpr[0], 0 );
         tdTranslate( ModelviewMatrix, tflight->planeloc[0], tflight->planeloc[1], tflight->planeloc[2] );
 
+
+		struct ModelRangePair mrp[300];
+		int mdlct = 0;
+
 		int i;
-		for( i = 0; i < tflight->enviromodels; i++ )
+		for( i = 0; i < tflight->enviromodels;i++ )
 		{
-            tdDrawModel( tflight->environment[i] );
+			tdModel * m = tflight->environment[i];
+			int r = tdModelVisibilitycheck( m );
+			if( r < 0 ) continue;
+			mrp[mdlct].model = m;
+			mrp[mdlct].mrange = r;
+			mdlct++;
 		}
-        tdDrawModel( tflight->isosphere );
+		qsort( mrp, mdlct, sizeof( struct ModelRangePair ), mdlctcmp );
+		for( i = 0; i < mdlct; i++ )
+		{
+            tdDrawModel( mrp[i].model );
+		}
+        //tdDrawModel( tflight->isosphere );
 
 
 #ifndef EMU
@@ -900,9 +938,9 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
     if( bs & 2 ) tflight->hpr[1]++;
     if( bs & 8 ) tflight->hpr[1]--;
 
-    tflight->planeloc[0] -= tdSIN( tflight->hpr[0] )>>6;
-    tflight->planeloc[2] -= tdCOS( tflight->hpr[0] )>>6;
-    tflight->planeloc[1] += tdSIN( tflight->hpr[1] )>>6;
+    tflight->planeloc[0] -= tdSIN( tflight->hpr[0] )>>5;
+    tflight->planeloc[2] -= tdCOS( tflight->hpr[0] )>>5;
+    tflight->planeloc[1] += tdSIN( tflight->hpr[1] )>>5;
 }
 
 /**
