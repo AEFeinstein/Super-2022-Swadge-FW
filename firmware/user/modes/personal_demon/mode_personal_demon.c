@@ -21,6 +21,7 @@
 
 #define ACT_STRLEN 128
 #define MAX_BOUNCES 2
+#define CLAMP(x,min,max) ( (x) < (min) ? (min) : ((x) > (max) ? (max) : (x)) )
 
 typedef struct
 {
@@ -93,8 +94,11 @@ typedef struct
     bool drawFat;
     bool drawSick;
     int16_t drawHealth;
+    int32_t ledHappy;
+    int32_t ledDiscipline;
 
     // Animation variables
+    timer_t ledTimer;
     pdAnimationState_t anim;
     list_t animationQueue;
     pdAnimation animTable[PDA_NUM_ANIMATIONS];
@@ -136,6 +140,7 @@ bool personalDemonAnimationRender(void);
 void personalDemonUpdateDisplay(void);
 void personalDemonResetAnimVars(void);
 
+void personalDemonLedTimer(void*);
 static void demonMenuCb(const char* menuItem);
 
 bool updtAnimWalk(uint32_t);
@@ -271,6 +276,8 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     pd->drawThin = isDemonThin(&(pd->demon));
     pd->drawHealth = pd->demon.health;
     pd->drawPoopCnt = pd->demon.poopCount;
+    pd->ledHappy = CLAMP(pd->demon.happy, -4, 4);
+    pd->ledDiscipline = CLAMP(pd->demon.discipline, -4, 4);
 
     // Set up the animation table
     pd->animTable[PDA_WALKING].initAnim = NULL;
@@ -381,6 +388,9 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
 
     pd->isDisplayingRecords = false;
 
+    timerSetFn(&(pd->ledTimer), personalDemonLedTimer, NULL);
+    timerArm(&(pd->ledTimer), 10, true);
+
     // Draw the initial display
     personalDemonAnimationRender();
     // Do it twice to draw after setting the time
@@ -401,6 +411,7 @@ uint8_t ICACHE_FLASH_ATTR getNumDemonSpecies(void)
 void ICACHE_FLASH_ATTR personalDemonExitMode(void)
 {
     // Stop the timers
+    timerDisarm(&(pd->ledTimer));
     timerFlush();
 
     // Clear the queues
@@ -511,6 +522,46 @@ static void ICACHE_FLASH_ATTR demonMenuCb(const char* menuItem)
 }
 
 /**
+ * @brief LED update function, called on a timer
+ *
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR personalDemonLedTimer(void* arg __attribute__((unused)))
+{
+    led_t leds[NUM_LIN_LEDS] = {{0}};
+
+    if(pd->drawSick)
+    {
+        leds[LED_3].r = 0xFF;
+        leds[LED_4].r = 0xFF;
+    }
+
+    // +/-4
+    leds[LED_1].r = 5 * (8 - (4 + pd->ledDiscipline));
+    leds[LED_1].g = 5 * (8 - (4 + pd->ledDiscipline));
+    leds[LED_6].r = 5 * (8 - (4 + pd->ledDiscipline));
+    leds[LED_6].g = 5 * (8 - (4 + pd->ledDiscipline));
+
+    leds[LED_1].g = 5 * (4 + pd->ledDiscipline);
+    leds[LED_1].b = 5 * (4 + pd->ledDiscipline);
+    leds[LED_6].g = 5 * (4 + pd->ledDiscipline);
+    leds[LED_6].b = 5 * (4 + pd->ledDiscipline);
+
+    // +/-4
+    leds[LED_2].r = 5 * (8 - (4 + pd->ledHappy));
+    leds[LED_2].b = 5 * (8 - (4 + pd->ledHappy));
+    leds[LED_5].r = 5 * (8 - (4 + pd->ledHappy));
+    leds[LED_5].b = 5 * (8 - (4 + pd->ledHappy));
+
+    leds[LED_2].g = 5 * (4 + pd->ledHappy);
+    leds[LED_2].b = 5 * (4 + pd->ledHappy);
+    leds[LED_5].g = 5 * (4 + pd->ledHappy);
+    leds[LED_5].b = 5 * (4 + pd->ledHappy);
+
+    setLeds(leds, sizeof(leds));
+}
+
+/**
  * Timer function for animation
  *
  * @param arg unused
@@ -592,6 +643,8 @@ bool ICACHE_FLASH_ATTR personalDemonAnimationRender(void)
                     pd->drawFat = isDemonObese(&(pd->demon));
                     pd->drawThin = isDemonThin(&(pd->demon));
                     pd->drawHealth = pd->demon.health;
+                    pd->ledHappy = CLAMP(pd->demon.happy, -4, 4);
+                    pd->ledDiscipline = CLAMP(pd->demon.discipline, -4, 4);
                 }
             }
 
@@ -1364,6 +1417,7 @@ bool ICACHE_FLASH_ATTR updtAnimPoop(uint32_t tElapsed)
     static bool drawnPoop = false;
     if(pd->animTimeUs >= 900000)
     {
+        drawnPoop = false;
         personalDemonResetAnimVars();
     }
     else if(pd->animTimeUs >= 450000)
@@ -1891,6 +1945,8 @@ bool ICACHE_FLASH_ATTR updtAnimDeath(uint32_t tElapsed)
                 pd->drawThin = isDemonThin(&(pd->demon));
                 pd->drawHealth = pd->demon.health;
                 pd->drawPoopCnt = pd->demon.poopCount;
+                pd->ledHappy = CLAMP(pd->demon.happy, -4, 4);
+                pd->ledDiscipline = CLAMP(pd->demon.discipline, -4, 4);
 
                 // Clear the queues
                 ets_memset(&(pd->demon.evQueue), EVT_NONE, sizeof(pd->demon.evQueue));
