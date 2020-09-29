@@ -11,6 +11,9 @@
 // For demon_t
 #include "personal_demon/logic_personal_demon.h"
 
+// For ddrHighScores_t
+#include "mode_ddr.h"
+
 #define NUM_DEMON_MEMORIALS 8
 
 typedef struct
@@ -32,6 +35,9 @@ void ICACHE_FLASH_ATTR setMenuPos(uint8_t pos);
 
 void ICACHE_FLASH_ATTR setSavedDemon(demon_t* demon);
 void ICACHE_FLASH_ATTR getSavedDemon(demon_t* demon);
+
+void ICACHE_FLASH_ATTR setDDRScores(ddrHighScores_t* highScores);
+void ICACHE_FLASH_ATTR getDDRScores(ddrHighScores_t* highScores);
 
 demonMemorial_t* ICACHE_FLASH_ATTR getDemonMemorials(void);
 void ICACHE_FLASH_ATTR addDemonMemorial(char* name, int32_t actionsTaken);
