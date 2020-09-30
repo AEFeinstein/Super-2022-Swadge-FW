@@ -592,7 +592,8 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void)
                     }
                 }
             }
-            else if (*curArrow > ARROW_PERFECT_HPOS)
+            //else if (*curArrow > ARROW_PERFECT_HPOS)
+            else if (*curArrow > OLED_WIDTH * 12 + 400)
             {
                 curRow->count--;
                 curRow->start = (curRow->start + 1) % ARROW_ROW_MAX_COUNT;
