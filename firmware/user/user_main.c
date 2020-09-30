@@ -155,6 +155,19 @@ void ICACHE_FLASH_ATTR user_init(void)
         INIT_PRINTF("zero rtc mem\n");
     }
 
+    // Load configurable parameters from SPI memory
+    LoadSettings();
+
+    // Compare the current git hash to the saved one
+    char gitHash[32] = {0};
+    getGitHash(gitHash);
+    if(0 != ets_strncmp(gitHash, GIT_HASH, strlen(GIT_HASH)))
+    {
+        // TODO self test
+        INIT_PRINTF("New flash to %s\n", GIT_HASH);
+        setGitHash(GIT_HASH);
+    }
+
     // Set the current WiFi mode based on what the swadge mode wants
     switch(swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
     {
@@ -182,9 +195,6 @@ void ICACHE_FLASH_ATTR user_init(void)
             break;
         }
     }
-
-    // Load configurable parameters from SPI memory
-    LoadSettings();
 
     if(SWADGE_PASS != swadgeModes[rtcMem.currentSwadgeMode]->wifiMode)
     {

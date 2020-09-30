@@ -7,15 +7,22 @@ INCDIRS  := $(shell find $(SWADGEMU)/../user/ -type d) \
 			$(SWADGEMU)/rawdraw \
 			$(SWADGEMU)/.
 
+# Create a variable with the git hash and branch name
+GIT_HASH  = $(shell git rev-parse --short HEAD)
+GIT_HASH := $(GIT_HASH)-
+GIT_HASH := $(GIT_HASH)$(shell git rev-parse --abbrev-ref HEAD)
+GIT_HASH := \"$(GIT_HASH)\"
+
 # Preprocessor defines
 DEFINES  := USER_SETTINGS_ADDR=0x6C000 \
 			USER_SETTINGS_SIZE=0x3000 \
 			ASSETS_ADDR=0x6F000 \
 			ASSETS_SIZE=0x51000 \
-			SWADGE_VERSION=3 \
+			SWADGE_VERSION=5 \
 			EMU \
 			NO_SOUND_PARAMETERS \
-			DFREQ=16000
+			DFREQ=16000 \
+			GIT_HASH=$(GIT_HASH)
 
 ifeq ($(OS),Windows_NT)	 # is Windows_NT on XP, 2000, 7, Vista, 10...
 	DEFINES	+= WINDOWS

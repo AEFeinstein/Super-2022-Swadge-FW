@@ -6,7 +6,7 @@
         {
             "label": "make all (emulator)",
             "type": "shell",
-            "command": "unset ESP_GDB && export SET_SWADGE_VERSION=2 && make -C emu -j$(nproc) all",
+            "command": "unset ESP_GDB && export SET_SWADGE_VERSION=5 && make -C emu -j$(nproc) all",
             "problemMatcher": [
                 "$gcc"
             ],

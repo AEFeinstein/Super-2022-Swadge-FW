@@ -42,4 +42,7 @@ void ICACHE_FLASH_ATTR getDDRScores(ddrHighScores_t* highScores);
 demonMemorial_t* ICACHE_FLASH_ATTR getDemonMemorials(void);
 void ICACHE_FLASH_ATTR addDemonMemorial(char* name, int32_t actionsTaken);
 
+void ICACHE_FLASH_ATTR setGitHash(char* hash);
+void ICACHE_FLASH_ATTR getGitHash(char* hash);
+
 #endif /* USER_CUSTOM_COMMANDS_H_ */
