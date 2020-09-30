@@ -22,6 +22,9 @@ jobs:
       label:
         type: string
         default: swadge-chainsaw-firmware
+    filters:
+      branches:
+        only: master
     steps:
       - run:
           name: Update packages
@@ -78,6 +81,9 @@ jobs:
       label:
         type: string
         default: swadge-chainsaw-windows
+    filters:
+      branches:
+        only: master
     steps:
       - run:
           name: Download Cygwin installer
