@@ -22,9 +22,6 @@ jobs:
       label:
         type: string
         default: swadge-chainsaw-firmware
-    filters:
-      branches:
-        only: master
     steps:
       - run:
           name: Update packages
@@ -81,9 +78,6 @@ jobs:
       label:
         type: string
         default: swadge-chainsaw-windows
-    filters:
-      branches:
-        only: master
     steps:
       - run:
           name: Download Cygwin installer
@@ -123,7 +117,13 @@ workflows:
   version: 2
   build-firmware-windows:
     jobs:
-      - build-windows
+      - build-windows:
+          filters:
+            branches:
+              only: master
       - build-firmware:
           requires:
             - build-windows
+          filters:
+            branches:
+              only: master
