@@ -17,7 +17,7 @@
  * Defines
  *==========================================================================*/
 
-#define SAVE_LOAD_KEY 0xB8
+#define SAVE_LOAD_KEY 0xB9
 
 /*============================================================================
  * Structs
@@ -30,6 +30,7 @@ typedef struct __attribute__((aligned(4)))
     bool isMuted;
     uint8_t menuPos;
     demon_t savedDemon;
+    ddrHighScores_t ddrHighScores;
     demonMemorial_t demonMemorials[NUM_DEMON_MEMORIALS];
 }
 settings_t;
@@ -51,6 +52,7 @@ settings_t settings =
     .isMuted = 0,
     .menuPos = 0,
     .savedDemon = {0},
+    .ddrHighScores = {{{0}}, {{0}}, {{0}}},
 };
 
 bool muteOverride = false;
@@ -146,6 +148,17 @@ void ICACHE_FLASH_ATTR getSavedDemon(demon_t* demon)
 void ICACHE_FLASH_ATTR setSavedDemon(demon_t* demon)
 {
     ets_memcpy(&(settings.savedDemon), demon, sizeof(demon_t));
+    SaveSettings();
+}
+
+void ICACHE_FLASH_ATTR getDDRScores(ddrHighScores_t* highScores)
+{
+    ets_memcpy(highScores, &(settings.ddrHighScores), sizeof(ddrHighScores_t));
+}
+
+void ICACHE_FLASH_ATTR setDDRScores(ddrHighScores_t* highScores)
+{
+    ets_memcpy(&(settings.ddrHighScores), highScores, sizeof(ddrHighScores_t));
     SaveSettings();
 }
 
