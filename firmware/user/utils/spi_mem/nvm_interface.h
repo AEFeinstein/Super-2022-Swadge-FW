@@ -45,4 +45,7 @@ void ICACHE_FLASH_ATTR addDemonMemorial(char* name, int32_t actionsTaken);
 void ICACHE_FLASH_ATTR setGitHash(char* hash);
 void ICACHE_FLASH_ATTR getGitHash(char* hash);
 
+void ICACHE_FLASH_ATTR setSelfTestPass(bool pass);
+bool ICACHE_FLASH_ATTR getSelfTestPass(void);
+
 #endif /* USER_CUSTOM_COMMANDS_H_ */

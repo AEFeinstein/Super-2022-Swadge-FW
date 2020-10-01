@@ -39,6 +39,7 @@
 #include "mode_flappy.h"
 #include "mode_flight.h"
 #include "mode_raycaster.h"
+#include "mode_selftest.h"
 
 #include "ccconfig.h"
 
@@ -81,6 +82,7 @@ swadgeMode* swadgeModes[] =
     &personalDemonMode,
     &colorchordMode,
     &ddrMode,
+    &selfTestMode, // must be last
 };
 
 bool swadgeModeInit = false;
@@ -163,9 +165,16 @@ void ICACHE_FLASH_ATTR user_init(void)
     getGitHash(gitHash);
     if(0 != ets_strncmp(gitHash, GIT_HASH, strlen(GIT_HASH)))
     {
-        // TODO self test
+        // If there's a difference, reset the self-test bool
         INIT_PRINTF("New flash to %s\n", GIT_HASH);
         setGitHash(GIT_HASH);
+        setSelfTestPass(false);
+    }
+
+    // If the self test hasn't been passed yet, enter that mode
+    if(false == getSelfTestPass())
+    {
+        rtcMem.currentSwadgeMode = (sizeof(swadgeModes) / sizeof(swadgeModes[0])) - 1;
     }
 
     // Set the current WiFi mode based on what the swadge mode wants
@@ -489,7 +498,8 @@ void ExitCritical(void)
 #if defined(FEATURE_OLED)
     rtcMem.currentSwadgeMode = newMode;
 #else
-    rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
+    // Make sure to never set this to the self test mode
+    rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % ((sizeof(swadgeModes) / sizeof(swadgeModes[0])) - 1);
 #endif
 
 #if defined(EMU)
@@ -577,7 +587,8 @@ void ICACHE_FLASH_ATTR enterDeepSleep(wifiMode_t wifiMode, uint32_t timeUs)
 uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr)
 {
     *modePtr = swadgeModes;
-    return (sizeof(swadgeModes) / sizeof(swadgeModes[0]));
+    // Don't count self test mode
+    return (sizeof(swadgeModes) / sizeof(swadgeModes[0])) - 1;
 }
 
 #if defined(FEATURE_ACCEL)
