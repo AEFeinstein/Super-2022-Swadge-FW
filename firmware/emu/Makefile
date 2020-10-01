@@ -13,12 +13,35 @@ GIT_HASH := $(GIT_HASH)-
 GIT_HASH := $(GIT_HASH)$(shell git rev-parse --abbrev-ref HEAD)
 GIT_HASH := \"$(GIT_HASH)\"
 
+# See these values in user_config.h
+# #define SWADGE_DEV_KIT  0
+# #define SWADGE_BBKIWI   1
+# #define SWADGE_BARREL   2
+# #define SWADGE_2019     3
+# #define BARREL_1_0_0    4
+# #define SWADGE_CHAINSAW 5
+ifeq ($(SET_SWADGE_VERSION),0)
+  swadgeversion = 0
+else ifeq ($(SET_SWADGE_VERSION),1)
+  swadgeversion = 1
+else ifeq ($(SET_SWADGE_VERSION),2)
+  swadgeversion = 2
+else ifeq ($(SET_SWADGE_VERSION),3)
+  swadgeversion = 3
+else ifeq ($(SET_SWADGE_VERSION),4)
+  swadgeversion = 4
+else ifeq ($(SET_SWADGE_VERSION),5)
+  swadgeversion = 5
+else
+  swadgeversion = 5 # default to SWADGE_CHAINSAW
+endif
+
 # Preprocessor defines
 DEFINES  := USER_SETTINGS_ADDR=0x6C000 \
 			USER_SETTINGS_SIZE=0x3000 \
 			ASSETS_ADDR=0x6F000 \
 			ASSETS_SIZE=0x51000 \
-			SWADGE_VERSION=5 \
+			SWADGE_VERSION=$(swadgeversion) \
 			EMU \
 			NO_SOUND_PARAMETERS \
 			DFREQ=16000 \
