@@ -24,7 +24,7 @@
 #define texWidth 48
 #define texHeight 48
 
-#define NUM_SPRITES 19
+#define NUM_SPRITES 20
 
 /*==============================================================================
  * Structs
@@ -44,8 +44,10 @@ typedef struct
 
 typedef struct
 {
-    float x;
-    float y;
+    float posX;
+    float posY;
+    float dirX;
+    float dirY;
     int32_t texture;
 } raySprite_t;
 
@@ -59,11 +61,14 @@ typedef struct
     float planeX;
     float planeY;
 
+    // The enemies
+    raySprite_t sprites[NUM_SPRITES];
+
     // arrays used to sort the sprites
     int32_t spriteOrder[NUM_SPRITES];
     float spriteDistance[NUM_SPRITES];
 
-    // Storage for the enemy sprite
+    // Storage for textures
     color enemySpriteTex[texWidth * texHeight];
     color stoneTex[texWidth * texHeight];
     color stripeTex[texWidth * texHeight];
@@ -83,7 +88,9 @@ void ICACHE_FLASH_ATTR castRays(rayResult_t* rayResult);
 void ICACHE_FLASH_ATTR drawTextures(rayResult_t* rayResult);
 void ICACHE_FLASH_ATTR drawOutlines(rayResult_t* rayResult);
 void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult);
-void ICACHE_FLASH_ATTR handleRayInput(void);
+void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsed);
+void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsed);
+float ICACHE_FLASH_ATTR Q_rsqrt( float number );
 
 /*==============================================================================
  * Variables
@@ -134,28 +141,28 @@ static const int32_t worldMap[mapWidth][mapHeight] =
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 };
 
-static const raySprite_t sprite[NUM_SPRITES] =
-{
-    {20.5, 11.5, 10},
-    {18.5, 4.5, 10},
-    {10.0, 4.5, 10},
-    {10.0, 12.5, 10},
-    {3.5, 6.5, 10},
-    {3.5, 20.5, 10},
-    {3.5, 14.5, 10},
-    {14.5, 20.5, 10},
-    {18.5, 10.5, 9},
-    {18.5, 11.5, 9},
-    {18.5, 12.5, 9},
-    {21.5, 1.5, 8},
-    {15.5, 1.5, 8},
-    {16.0, 1.8, 8},
-    {16.2, 1.2, 8},
-    {3.5,  2.5, 8},
-    {9.5, 15.5, 8},
-    {10.0, 15.1, 8},
-    {10.5, 15.8, 8},
-};
+// static const raySprite_t sprite[NUM_SPRITES] =
+// {
+//     {20.5, 11.5, 10},
+//     {18.5, 4.5, 10},
+//     {10.0, 4.5, 10},
+//     {10.0, 12.5, 10},
+//     {3.5, 6.5, 10},
+//     {3.5, 20.5, 10},
+//     {3.5, 14.5, 10},
+//     {14.5, 20.5, 10},
+//     {18.5, 10.5, 9},
+//     {18.5, 11.5, 9},
+//     {18.5, 12.5, 9},
+//     {21.5, 1.5, 8},
+//     {15.5, 1.5, 8},
+//     {16.0, 1.8, 8},
+//     {16.2, 1.2, 8},
+//     {3.5,  2.5, 8},
+//     {9.5, 15.5, 8},
+//     {10.0, 15.1, 8},
+//     {10.5, 15.8, 8},
+// };
 
 /*==============================================================================
  * Functions
@@ -181,6 +188,16 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
     // the 2d raycaster version of camera plane
     rc->planeX = 0;
     rc->planeY = 0.66;
+
+    for(uint8_t i = 0; i < NUM_SPRITES; i++)
+    {
+        rc->sprites[i].posX = -1;
+        rc->sprites[i].posY = -1;
+    }
+    rc->sprites[0].posX = 10;
+    rc->sprites[0].posY = 12.5;
+    rc->sprites[1].posX = 12.5;
+    rc->sprites[1].posY = 10;
 
     // Load the enemy texture to RAM
     pngHandle enemySprite;
@@ -237,7 +254,21 @@ void ICACHE_FLASH_ATTR raycasterProcess(void)
     drawTextures(rayResult);
     drawOutlines(rayResult);
     drawSprites(rayResult);
-    handleRayInput();
+
+    static uint32_t tLastUs = 0; // time of current frame
+    if(tLastUs == 0)
+    {
+        tLastUs = system_get_time();
+    }
+    else
+    {
+        uint32_t tNowUs = system_get_time();
+        uint32_t tElapsedUs = tNowUs - tLastUs;
+        tLastUs = tNowUs;
+
+        handleRayInput(tElapsedUs);
+        moveEnemies(tElapsedUs);
+    }
 }
 
 /**
@@ -553,21 +584,26 @@ void ICACHE_FLASH_ATTR drawOutlines(rayResult_t* rayResult)
 void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
 {
     // sort sprites from far to close
-    for(uint32_t i = 0; i < sizeof(sprite) / sizeof(sprite[0]); i++)
+    for(uint32_t i = 0; i < NUM_SPRITES; i++)
     {
         rc->spriteOrder[i] = i;
         // sqrt not taken, unneeded
-        rc->spriteDistance[i] = ((rc->posX - sprite[i].x) * (rc->posX - sprite[i].x) +
-                                 (rc->posY - sprite[i].y) * (rc->posY - sprite[i].y));
+        rc->spriteDistance[i] = ((rc->posX - rc->sprites[i].posX) * (rc->posX - rc->sprites[i].posX) +
+                                 (rc->posY - rc->sprites[i].posY) * (rc->posY - rc->sprites[i].posY));
     }
-    sortSprites(rc->spriteOrder, rc->spriteDistance, sizeof(sprite) / sizeof(sprite[0]));
+    sortSprites(rc->spriteOrder, rc->spriteDistance, NUM_SPRITES);
 
     // after sorting the sprites, do the projection and draw them
-    for(uint32_t i = 0; i < sizeof(sprite) / sizeof(sprite[0]); i++)
+    for(uint32_t i = 0; i < NUM_SPRITES; i++)
     {
+        // Skip over the sprite if posX is negative
+        if(rc->sprites[rc->spriteOrder[i]].posX < 0)
+        {
+            continue;
+        }
         // translate sprite position to relative to camera
-        float spriteX = sprite[rc->spriteOrder[i]].x - rc->posX;
-        float spriteY = sprite[rc->spriteOrder[i]].y - rc->posY;
+        float spriteX = rc->sprites[rc->spriteOrder[i]].posX - rc->posX;
+        float spriteY = rc->sprites[rc->spriteOrder[i]].posY - rc->posY;
 
         // transform sprite with the inverse camera matrix
         // [ planeX dirX ] -1                                  [ dirY     -dirX ]
@@ -683,16 +719,9 @@ void ICACHE_FLASH_ATTR sortSprites(int32_t* order, float* dist, int32_t amount)
 /**
  * Update the camera position based on the current button state
  */
-void ICACHE_FLASH_ATTR handleRayInput(void)
+void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
 {
-    static uint32_t time = 0; // time of current frame
-    static uint32_t oldTime = 0; // time of previous frame
-
-    // timing for input and FPS counter
-    oldTime = time;
-    time = system_get_time();
-    // frameTime is the time this frame has taken, in seconds
-    float frameTime = (time - oldTime) / 1000000.0;
+    float frameTime = (tElapsedUs) / 1000000.0;
 
     // speed modifiers
     float moveSpeed = frameTime * 5.0; // the constant value is in squares/second
@@ -746,5 +775,116 @@ void ICACHE_FLASH_ATTR handleRayInput(void)
         float oldPlaneX = rc->planeX;
         rc->planeX = rc->planeX * cos(rotSpeed) - rc->planeY * sin(rotSpeed);
         rc->planeY = oldPlaneX * sin(rotSpeed) + rc->planeY * cos(rotSpeed);
+    }
+}
+
+/**
+ * Fast inverse square root
+ * See: https://en.wikipedia.org/wiki/Fast_inverse_square_root
+ *
+ * @param number
+ * @return float
+ */
+float ICACHE_FLASH_ATTR Q_rsqrt( float number )
+{
+    long i;
+    float x2, y;
+    const float threehalfs = 1.5F;
+
+    x2 = number * 0.5F;
+    y  = number;
+    i  = * ( long* ) &y;                        // evil floating point bit level hacking
+    i  = 0x5f3759df - ( i >> 1 );               // what the fuck?
+    y  = * ( float* ) &i;
+    y  = y * ( threehalfs - ( x2 * y * y ) );   // 1st iteration
+    //  y  = y * ( threehalfs - ( x2 * y * y ) );   // 2nd iteration, this can be removed
+
+    return y;
+}
+
+/**
+ * @brief TODO
+ * 
+ * Move sprites around
+ *
+ * @param tElapsed
+ */
+void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
+{
+    float frameTime = (tElapsedUs) / 1000000.0;
+
+    // speed modifiers
+    float moveSpeed = frameTime * 1.0; // the constant value is in squares/second
+    // float rotSpeed = frameTime * 3.0; // the constant value is in radians/second
+
+    for(uint8_t i = 0; i < NUM_SPRITES; i++)
+    {
+        // Skip over sprites with negative position
+        if(rc->sprites[i].posX < 0)
+        {
+            continue;
+        }
+
+        // Move the sprite
+        float toPlayerX = rc->posX - rc->sprites[i].posX;
+        float toPlayerY = rc->posY - rc->sprites[i].posY;
+
+        // Find the 'magnitude' between the enemy
+        float mag = (toPlayerX * toPlayerX) + (toPlayerY * toPlayerY);
+        if(mag < 0.25f)
+        {
+            // Don't move if too close
+            continue;
+        }
+
+        // Normalize the vector
+        float invSqr = Q_rsqrt(mag);
+        toPlayerX *= invSqr;
+        toPlayerY *= invSqr;
+
+        // Find the new position
+        float newPosX = rc->sprites[i].posX + (toPlayerX * moveSpeed);
+        float newPosY = rc->sprites[i].posY + (toPlayerY * moveSpeed);
+        // Integer-ify it
+        int newPosXi = newPosX;
+        int newPosYi = newPosY;
+
+        // Make sure the new position is in bounds
+        bool moveIsValid = false;
+        if(     (0 <= newPosXi && newPosXi < mapWidth) &&
+                (0 <= newPosYi && newPosYi < mapHeight) &&
+                // And that it's not occupied by a wall
+                (worldMap[newPosXi][newPosYi] == 0))
+        {
+            // Make sure the new square is unoccupied
+            bool newSquareOccupied = false;
+            for(uint8_t oth = 0; oth < NUM_SPRITES; oth++)
+            {
+                if(oth != i && rc->sprites[oth].posX > 0)
+                {
+                    if(     (int)rc->sprites[oth].posX == newPosXi &&
+                            (int)rc->sprites[oth].posY == newPosYi )
+                    {
+                        newSquareOccupied = true;
+                        break;
+                    }
+                }
+            }
+            if(false == newSquareOccupied)
+            {
+                moveIsValid = true;
+            }
+        }
+
+        if(moveIsValid)
+        {
+            rc->sprites[i].posX = newPosX;
+            rc->sprites[i].posY = newPosY;
+        }
+
+        // while(false == moveIsValid)
+        // {
+        //     // Try a random direction
+        // }
     }
 }
