@@ -26,6 +26,15 @@
 
 #define NUM_SPRITES 20
 
+typedef enum
+{
+    E_IDLE,
+    E_PICK_DIR_PLAYER,
+    E_PICK_DIR_RAND,
+    E_WALKING,
+    E_SHOOTING
+} enemyState_t;
+
 /*==============================================================================
  * Structs
  *============================================================================*/
@@ -49,6 +58,8 @@ typedef struct
     float dirX;
     float dirY;
     int32_t texture;
+    enemyState_t state;
+    int32_t stateTimer;
 } raySprite_t;
 
 typedef struct
@@ -194,10 +205,25 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
         rc->sprites[i].posX = -1;
         rc->sprites[i].posY = -1;
     }
-    rc->sprites[0].posX = 10;
-    rc->sprites[0].posY = 12.5;
-    rc->sprites[1].posX = 12.5;
-    rc->sprites[1].posY = 10;
+
+    // rc->sprites[0].posX = 10;
+    // rc->sprites[0].posY = 12.5;
+    // rc->sprites[1].posX = 12.5;
+    // rc->sprites[1].posY = 10;
+
+    int8_t spritesPlaced = 0;
+    for(uint8_t x = 0; x < mapWidth; x++)
+    {
+        for(uint8_t y = 0; y < mapHeight; y++)
+        {
+            if(spritesPlaced < NUM_SPRITES && worldMap[x][y] == 0)
+            {
+                rc->sprites[spritesPlaced].posX = x;
+                rc->sprites[spritesPlaced].posY = y;
+                spritesPlaced++;
+            }
+        }
+    }
 
     // Load the enemy texture to RAM
     pngHandle enemySprite;
@@ -793,8 +819,8 @@ float ICACHE_FLASH_ATTR Q_rsqrt( float number )
 
     x2 = number * 0.5F;
     y  = number;
-    i  = * ( long* ) &y;                        // evil floating point bit level hacking
-    i  = 0x5f3759df - ( i >> 1 );               // what the fuck?
+    i  = * ( long* ) &y;          // evil floating point bit level hacking
+    i  = 0x5f3759df - ( i >> 1 ); // what the fuck?
     y  = * ( float* ) &i;
     y  = y * ( threehalfs - ( x2 * y * y ) );   // 1st iteration
     //  y  = y * ( threehalfs - ( x2 * y * y ) );   // 2nd iteration, this can be removed
@@ -804,7 +830,7 @@ float ICACHE_FLASH_ATTR Q_rsqrt( float number )
 
 /**
  * @brief TODO
- * 
+ *
  * Move sprites around
  *
  * @param tElapsed
@@ -812,10 +838,6 @@ float ICACHE_FLASH_ATTR Q_rsqrt( float number )
 void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
 {
     float frameTime = (tElapsedUs) / 1000000.0;
-
-    // speed modifiers
-    float moveSpeed = frameTime * 1.0; // the constant value is in squares/second
-    // float rotSpeed = frameTime * 3.0; // the constant value is in radians/second
 
     for(uint8_t i = 0; i < NUM_SPRITES; i++)
     {
@@ -825,66 +847,191 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
             continue;
         }
 
-        // Move the sprite
-        float toPlayerX = rc->posX - rc->sprites[i].posX;
-        float toPlayerY = rc->posY - rc->sprites[i].posY;
-
-        // Find the 'magnitude' between the enemy
-        float mag = (toPlayerX * toPlayerX) + (toPlayerY * toPlayerY);
-        if(mag < 0.25f)
+        switch (rc->sprites[i].state)
         {
-            // Don't move if too close
-            continue;
-        }
-
-        // Normalize the vector
-        float invSqr = Q_rsqrt(mag);
-        toPlayerX *= invSqr;
-        toPlayerY *= invSqr;
-
-        // Find the new position
-        float newPosX = rc->sprites[i].posX + (toPlayerX * moveSpeed);
-        float newPosY = rc->sprites[i].posY + (toPlayerY * moveSpeed);
-        // Integer-ify it
-        int newPosXi = newPosX;
-        int newPosYi = newPosY;
-
-        // Make sure the new position is in bounds
-        bool moveIsValid = false;
-        if(     (0 <= newPosXi && newPosXi < mapWidth) &&
-                (0 <= newPosYi && newPosYi < mapHeight) &&
-                // And that it's not occupied by a wall
-                (worldMap[newPosXi][newPosYi] == 0))
-        {
-            // Make sure the new square is unoccupied
-            bool newSquareOccupied = false;
-            for(uint8_t oth = 0; oth < NUM_SPRITES; oth++)
+            default:
+            case E_IDLE:
             {
-                if(oth != i && rc->sprites[oth].posX > 0)
+                // Check if player is close to move to E_PICK_DIR_PLAYER
+                float toPlayerX = rc->posX - rc->sprites[i].posX;
+                float toPlayerY = rc->posY - rc->sprites[i].posY;
+                float magSqr = (toPlayerX * toPlayerX) + (toPlayerY * toPlayerY);
+
+                // Less than 8 units away (avoid the sqrt!)
+                if(magSqr < 64)
                 {
-                    if(     (int)rc->sprites[oth].posX == newPosXi &&
-                            (int)rc->sprites[oth].posY == newPosYi )
+                    rc->sprites[i].state = E_PICK_DIR_PLAYER;
+                }
+                break;
+            }
+            case E_PICK_DIR_RAND:
+            {
+                // Get a random unit vector in the first quadrant
+                rc->sprites[i].dirX = (os_random() % 90) / 90.0f;
+                rc->sprites[i].dirY = 1 / Q_rsqrt(1 - (rc->sprites[i].dirX * rc->sprites[i].dirX));
+
+                // Randomize the unit vector quadrant
+                switch(os_random() % 4)
+                {
+                    default:
+                    case 0:
                     {
-                        newSquareOccupied = true;
+                        break;
+                    }
+                    case 1:
+                    {
+                        rc->sprites[i].dirX = -rc->sprites[i].dirX;
+                        break;
+                    }
+                    case 2:
+                    {
+                        rc->sprites[i].dirY = -rc->sprites[i].dirY;
+                        break;
+                    }
+                    case 3:
+                    {
+                        rc->sprites[i].dirX = -rc->sprites[i].dirX;
+                        rc->sprites[i].dirY = -rc->sprites[i].dirY;
                         break;
                     }
                 }
+
+                // And let the sprite walk for a bit
+                rc->sprites[i].state = E_WALKING;
+                rc->sprites[i].stateTimer = 1500000;
+                break;
             }
-            if(false == newSquareOccupied)
+            case E_PICK_DIR_PLAYER:
             {
-                moveIsValid = true;
+                // Find the vector from the enemy to the player
+                float toPlayerX = rc->posX - rc->sprites[i].posX;
+                float toPlayerY = rc->posY - rc->sprites[i].posY;
+                float magSqr = (toPlayerX * toPlayerX) + (toPlayerY * toPlayerY);
+
+                // Normalize the vector
+                float invSqr = Q_rsqrt(magSqr);
+                toPlayerX *= invSqr;
+                toPlayerY *= invSqr;
+
+                // Rotate the vector, maybe
+                switch(os_random() % 3)
+                {
+                    default:
+                    case 0:
+                    {
+                        // Straight ahead!
+                        break;
+                    }
+                    case 1:
+                    {
+                        // Rotate 45 degrees
+                        toPlayerX = toPlayerX * 0.70710678f - toPlayerY * 0.70710678f;
+                        toPlayerY = toPlayerY * 0.70710678f + toPlayerX * 0.70710678f;
+                        break;
+                    }
+                    case 2:
+                    {
+                        // Rotate -45 degrees
+                        toPlayerX = toPlayerX * 0.70710678f + toPlayerY * 0.70710678f;
+                        toPlayerY = toPlayerY * 0.70710678f - toPlayerX * 0.70710678f;
+                        break;
+                    }
+                }
+
+                // Set the sprite's direction
+                rc->sprites[i].dirX = toPlayerX;
+                rc->sprites[i].dirY = toPlayerY;
+
+                // And let the sprite walk for a bit
+                rc->sprites[i].state = E_WALKING;
+                rc->sprites[i].stateTimer = 500000;
+                break;
+            }
+            case E_WALKING:
+            {
+                // Find the vector from the enemy to the player
+                float toPlayerX = rc->posX - rc->sprites[i].posX;
+                float toPlayerY = rc->posY - rc->sprites[i].posY;
+                float magSqr = (toPlayerX * toPlayerX) + (toPlayerY * toPlayerY);
+
+                // See what the enemy should do next
+                rc->sprites[i].stateTimer -= tElapsedUs;
+                if (rc->sprites[i].stateTimer <= 0)
+                {
+                    // If the sprite is close enough, maybe shoot
+                    if (magSqr <= 25 && ((os_random() % 4) > 0))
+                    {
+                        rc->sprites[i].state = E_SHOOTING;
+                    }
+                    else
+                    {
+                        // Otherwise do some walking
+                        rc->sprites[i].state = E_PICK_DIR_PLAYER;
+                    }
+                    break;
+                }
+
+                // Don't move if too close
+                if(magSqr < 0.25f)
+                {
+                    break;
+                }
+
+                // Find the new position
+                float moveSpeed = frameTime * 1.0; // the constant value is in squares/second
+                float newPosX = rc->sprites[i].posX + (rc->sprites[i].dirX * moveSpeed);
+                float newPosY = rc->sprites[i].posY + (rc->sprites[i].dirY * moveSpeed);
+
+                // Integer-ify it
+                int newPosXi = newPosX;
+                int newPosYi = newPosY;
+
+                // Make sure the new position is in bounds
+                bool moveIsValid = false;
+                if(     (0 <= newPosXi && newPosXi < mapWidth) &&
+                        (0 <= newPosYi && newPosYi < mapHeight) &&
+                        // And that it's not occupied by a wall
+                        (worldMap[newPosXi][newPosYi] == 0))
+                {
+                    // Make sure the new square is unoccupied
+                    bool newSquareOccupied = false;
+                    for(uint8_t oth = 0; oth < NUM_SPRITES; oth++)
+                    {
+                        if(oth != i && rc->sprites[oth].posX > 0)
+                        {
+                            if(     (int)rc->sprites[oth].posX == newPosXi &&
+                                    (int)rc->sprites[oth].posY == newPosYi )
+                            {
+                                newSquareOccupied = true;
+                                break;
+                            }
+                        }
+                    }
+                    if(false == newSquareOccupied)
+                    {
+                        moveIsValid = true;
+                    }
+                }
+
+                // If the move is valid, move there
+                if(moveIsValid)
+                {
+                    rc->sprites[i].posX = newPosX;
+                    rc->sprites[i].posY = newPosY;
+                }
+                else
+                {
+                    // Else pick a new direction, totally random
+                    rc->sprites[i].state = E_PICK_DIR_RAND;
+                }
+                break;
+            }
+            case E_SHOOTING:
+            {
+                // TODO shooting animation, check if player is shot
+                rc->sprites[i].state = E_PICK_DIR_PLAYER;
+                break;
             }
         }
-
-        if(moveIsValid)
-        {
-            rc->sprites[i].posX = newPosX;
-            rc->sprites[i].posY = newPosY;
-        }
-
-        // while(false == moveIsValid)
-        // {
-        //     // Try a random direction
-        // }
     }
 }
