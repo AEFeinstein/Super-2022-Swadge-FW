@@ -37,6 +37,7 @@
 #include "mode_colorchord.h"
 #include "mode_personal_demon.h"
 #include "mode_flappy.h"
+#include "mode_flight.h"
 #include "mode_raycaster.h"
 #include "mode_tunernome.h"
 
@@ -77,6 +78,7 @@ swadgeMode* swadgeModes[] =
     &menuMode,
     &raycasterMode,
     &flappyMode,
+    &flightMode,
     &personalDemonMode,
     &ddrMode,
     &colorchordMode,
@@ -324,7 +326,14 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events __attribute__((unused)
     static uint32_t lastDrawTime = 0;
     if(system_get_time() - lastDrawTime > 33333)
     {
+        bool forceFullUpdate = false;
+
         lastDrawTime = system_get_time();
+
+        if(swadgeModeInit && NULL != swadgeModes[rtcMem.currentSwadgeMode]->fnRenderTask)
+        {
+            forceFullUpdate = swadgeModes[rtcMem.currentSwadgeMode]->fnRenderTask();
+        }
 
         // If we should draw the whole frame, reinit the OLED first
         if(false == shouldDrawDifference)
@@ -333,7 +342,7 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t* events __attribute__((unused)
         }
 
         // Draw either the whole frame, or just the difference
-        switch(updateOLED(shouldDrawDifference))
+        switch(updateOLED(shouldDrawDifference && !forceFullUpdate))
         {
             case FRAME_DRAWN:
             {

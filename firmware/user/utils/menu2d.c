@@ -10,10 +10,13 @@
  *============================================================================*/
 
 #include <mem.h>
+#include <user_interface.h>
+
 #include "menu2d.h"
 #include "oled.h"
 #include "font.h"
 #include "bresenham.h"
+#include "cndraw.h"
 
 #if defined(FEATURE_OLED)
 
@@ -27,12 +30,15 @@
 #define BLANK_SPACE_Y  37
 #define SELECTED_ROW_Y 46
 
+#define US_PER_PIXEL_X  5000
+#define US_PER_PIXEL_Y 10000
+
 /*==============================================================================
  * Prototypes
  *============================================================================*/
 
 void linkNewNode(cLinkedNode_t** root, uint8_t len, linkedInfo_t info);
-void drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDrawBox);
+void drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDrawBox, uint32_t tElapsedUs);
 
 /*==============================================================================
  * Functions
@@ -57,6 +63,8 @@ menu_t* ICACHE_FLASH_ATTR initMenu(const char* title, menuCb cbFunc)
     menu->numRows = 0;
     menu->cbFunc = cbFunc;
     menu->yOffset = 0;
+    menu->tLastCallUs = system_get_time();
+    menu->tAccumulatedUs = 0;
 
     // Return the pointer
     return menu;
@@ -153,6 +161,7 @@ void ICACHE_FLASH_ATTR addRowToMenu(menu_t* menu)
     newRow.row.items = NULL;
     newRow.row.numItems = 0;
     newRow.row.xOffset = 0;
+    newRow.row.tAccumulatedUs = 0;
 
     // Link the new row
     linkNewNode(&(menu->rows), menu->numRows, newRow);
@@ -192,8 +201,9 @@ void ICACHE_FLASH_ATTR addItemToRow(menu_t* menu, const char* name)
  * @param row The row to draw
  * @param yPos The Y position of the row to draw
  * @param shouldDrawBox True if this is the selected row, false otherwise
+ * @param tElapsedUs The time elapsed since this row was last drawn
  */
-void ICACHE_FLASH_ATTR drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDrawBox)
+void ICACHE_FLASH_ATTR drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDrawBox, uint32_t tElapsedUs)
 {
     // Get a pointer to the items for this row
     cLinkedNode_t* items = row->d.row.items;
@@ -201,6 +211,7 @@ void ICACHE_FLASH_ATTR drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDraw
     // If there are multiple items
     if(row->d.row.numItems > 1)
     {
+        row->d.row.tAccumulatedUs += tElapsedUs;
         // Get the X position for the selected item, centering it
         int16_t xPos = row->d.row.xOffset + ((OLED_WIDTH - textWidth((char*)items->d.item.name, IBM_VGA_8)) / 2);
 
@@ -239,19 +250,16 @@ void ICACHE_FLASH_ATTR drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDraw
         }
 
         // If the offset is nonzero, move it towards zero
-        if(0 != row->d.row.xOffset)
+        while(row->d.row.tAccumulatedUs > US_PER_PIXEL_X)
         {
-            if(row->d.row.xOffset < 1)
+            row->d.row.tAccumulatedUs -= US_PER_PIXEL_X;
+            if(row->d.row.xOffset < 0)
             {
-                row->d.row.xOffset += 2;
+                row->d.row.xOffset++;
             }
-            else if(row->d.row.xOffset > 1)
+            else if(row->d.row.xOffset > 0)
             {
-                row->d.row.xOffset -= 2;
-            }
-            else
-            {
-                row->d.row.xOffset = 0;
+                row->d.row.xOffset--;
             }
         }
     }
@@ -273,12 +281,17 @@ void ICACHE_FLASH_ATTR drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDraw
 
 /**
  * Draw the menu to the OLED. The menu has animations for smooth scrolling,
- * so it is recommended this function be called every 20ms
+ * so it is recommended this function be called at least every 20ms
  *
  * @param menu The menu to draw
  */
 void ICACHE_FLASH_ATTR drawMenu(menu_t* menu)
 {
+    uint32_t tNowUs = system_get_time();
+    uint32_t tElapsedUs = tNowUs - menu->tLastCallUs;
+    menu->tLastCallUs = tNowUs;
+    menu->tAccumulatedUs += tElapsedUs;
+
     // First clear the OLED
     if(1 == menu->numRows)
     {
@@ -312,7 +325,8 @@ void ICACHE_FLASH_ATTR drawMenu(menu_t* menu)
     {
         // Draw the row
         drawRow(row, yPos,
-                (row == menu->rows) && (menu->yOffset == 0) && (row->d.row.xOffset == 0));
+                (row == menu->rows) && (menu->yOffset == 0) && (row->d.row.xOffset == 0),
+                tElapsedUs);
 
         // Move to the next row
         row = row->next;
@@ -322,13 +336,17 @@ void ICACHE_FLASH_ATTR drawMenu(menu_t* menu)
     if(1 != menu->numRows)
     {
         // If the offset is nonzero, move it towards zero
-        if(menu->yOffset < 0)
+        while(menu->tAccumulatedUs > US_PER_PIXEL_Y)
         {
-            menu->yOffset++;
-        }
-        if(menu->yOffset > 0)
-        {
-            menu->yOffset--;
+            menu->tAccumulatedUs -= US_PER_PIXEL_Y;
+            if(menu->yOffset < 0)
+            {
+                menu->yOffset++;
+            }
+            if(menu->yOffset > 0)
+            {
+                menu->yOffset--;
+            }
         }
 
         // Clear the top 37 pixels of the OLED
@@ -354,6 +372,12 @@ void ICACHE_FLASH_ATTR menuButton(menu_t* menu, int btn)
     // If the menu is in motion, ignore this button press
     if((menu->yOffset != 0) || (menu->rows->d.row.xOffset != 0))
     {
+        return;
+    }
+
+    if(menu->numRows == 1 && (btn == 3 || btn == 1))
+    {
+        // If there is one row, ignore up & down buttons
         return;
     }
 
