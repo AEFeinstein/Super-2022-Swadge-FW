@@ -74,6 +74,9 @@ void CloseSoundPulse( void * v )
 		pa_context_disconnect(r->pa_ctx);
 		pa_context_unref(r->pa_ctx);
 
+		// Kill thread before freeing r->pa_ml
+		OGCancelThread( r->thread );
+
 		if(r->pa_ml)
 		{
 			pa_signal_done();
@@ -82,7 +85,6 @@ void CloseSoundPulse( void * v )
 		}
 
 		OGUSleep(2000);
-		OGCancelThread( r->thread );
 
 		if( r->sourceNamePlay ) free( r->sourceNamePlay );
 		if( r->sourceNameRec ) free( r->sourceNameRec );
@@ -97,6 +99,7 @@ static void * SoundThread( void * v )
 	{
 		if(NULL != r->pa_ml)
 		{
+			// Even though r->pa_ml is checked, this is *not* thread safe
 			pa_mainloop_iterate( r->pa_ml, 1, NULL );
 		}
 	}
@@ -305,6 +308,9 @@ fail:
 		}
 		pa_context_disconnect(r->pa_ctx);
 		pa_context_unref(r->pa_ctx);
+
+		// Kill thread before freeing r->pa_ml
+		OGCancelThread( r->thread );
 
 		if(r->pa_ml)
 		{
