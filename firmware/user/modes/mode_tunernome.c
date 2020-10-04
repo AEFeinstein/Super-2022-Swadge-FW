@@ -39,11 +39,10 @@
 #endif
 
 #define TUNERNOME_UPDATE_MS 20
-#define TUNERNOME_UPDATE_S (TUNERNOME_UPDATE_MS / 1000.0f)
 
 #define NUM_STRINGS            6
 #define GUITAR_OFFSET          0
-#define CHROMATIC_OFFSET       6 // adjust start point by quartertones   
+#define CHROMATIC_OFFSET       6 // adjust start point by quartertones
 #define SENSITIVITY            5
 
 #define METRONOME_CENTER_X OLED_WIDTH / 2
@@ -94,24 +93,11 @@ typedef struct
     uint32_t intensities_filt[NUM_STRINGS];
     int32_t diffs_filt[NUM_STRINGS];
 
-    int frame;
     bool pause;
-    int lastX, lastY;
     int bpm;
     uint32_t tLastUpdateUs;
     int32_t tAccumulatedUs;
     bool isClockwise;
-
-    //mostly temp values
-    float bps;
-    float periodS;
-    float periodMS;
-    float barHalfCycleFrames;
-    float barCycleFrames;
-    int tockFrame1;
-    int tockFrame2;
-    int finalBarCycleFrame;
-
     uint32_t usPerBeat;
 
     uint32_t semitone_intensitiy_filt;
@@ -229,10 +215,7 @@ void ICACHE_FLASH_ATTR switchToSubmode(tnMode newMode)
         {
             tunernome-> mode = newMode;
 
-            tunernome->frame = 0;
             tunernome->pause = false;
-            tunernome->lastX = 0;
-            tunernome->lastY = 0;
             tunernome->bpm = INITIAL_BPM;
             tunernome->isClockwise = true;
             tunernome->tLastUpdateUs = 0;
@@ -322,15 +305,6 @@ static inline int16_t getSemiDiffAround(uint16_t idx)
  * Recalculate the per-bpm values for the metronome
  */
 void ICACHE_FLASH_ATTR recalcMetronome() {
-    tunernome->bps = tunernome->bpm / 60.0f;
-    tunernome->periodS = 1.0f / tunernome->bps;
-    tunernome->periodMS = 1000.0f * tunernome->periodS;
-    tunernome->barHalfCycleFrames = tunernome->periodMS / TUNERNOME_UPDATE_MS;
-    tunernome->barCycleFrames = tunernome->barHalfCycleFrames * 2.0f;
-    tunernome->tockFrame1 = 0;
-    tunernome->tockFrame2 = round(tunernome->barCycleFrames * 0.5f);
-    tunernome->finalBarCycleFrame = round(tunernome->barCycleFrames);
-
     // Figure out how many microseconds are in one beat
     tunernome->usPerBeat = (60 * 1000000) / tunernome->bpm;
     
@@ -355,57 +329,93 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
         case TN_METRONOME:
         {
             clearDisplay();
-
-            if(!tunernome->pause)
-            {
-                // TODO: use ints, keep time better
-                // TODO: maybe make the metronome bar move faster at the middle and slower at the sides like a real one
-                // TODO: maybe make the metronome bar follow a shorter arc like a real one
-                
-                float intermedX = -1 * cosf(tunernome->frame * M_PI / tunernome->barHalfCycleFrames );
-                float intermedY = -1 * sinf(tunernome->frame * M_PI / tunernome->barHalfCycleFrames );
-
-                char tempStr[50] = {0};
-                ets_sprintf(tempStr, "%d.%d", (int)(tunernome->frame), (int)((tunernome->frame)*1000)%1000);
-                plotText(0, 0, tempStr, IBM_VGA_8, WHITE);
-                int x = round(METRONOME_CENTER_X - (intermedX * METRONOME_RADIUS));
-                int y = round(METRONOME_CENTER_Y - (ABS(intermedY) * METRONOME_RADIUS));
-
-                if(tunernome->frame == tunernome->tockFrame1 || tunernome->frame == tunernome->tockFrame2)
-                {
-                    led_t leds[NUM_LIN_LEDS] = {{0}};
-                    for(int i = 0; i < NUM_LIN_LEDS; i++)
-                    {
-                        leds[i].r = 0xFF;
-                        leds[i].g = 0xFF;
-                        leds[i].b = 0xFF;
-                    }
-                    setLeds(leds, sizeof(leds));
-
-                    timerDisarm(&(tunernome->ledTimer));
-                    timerArm(&(tunernome->ledTimer), METRONOME_FLASH_MS, false);
-                }
-
-                /*if(tunernome->lastX !=0) {
-                    plotLine(METRONOME_CENTER_X, METRONOME_CENTER_Y, tunernome->lastX, tunernome->lastY, BLACK);
-                }*/
-                plotLine(METRONOME_CENTER_X, METRONOME_CENTER_Y, x, y, WHITE);
-
-                tunernome-> lastX = x;
-                tunernome-> lastY = y;
-
-                if(++(tunernome->frame) >= tunernome->finalBarCycleFrame)
-                {
-                    tunernome->frame = 0;
-                }
-            } // if(!tunernome->pause)
-
+    
             char bpmStr[8];
             ets_sprintf(bpmStr, "%d bpm", tunernome->bpm);
 
             plotText((OLED_WIDTH - textWidth(bpmStr, IBM_VGA_8)) / 2, 0, bpmStr, IBM_VGA_8, WHITE);
             plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, leftStr, TOM_THUMB, WHITE);
             plotText(OLED_WIDTH - textWidth(rightStrTuner, TOM_THUMB), OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, rightStrTuner, TOM_THUMB, WHITE);
+            
+            // Don't do anything when paused
+            if(tunernome->pause)
+            {
+                return;
+            }
+            if(0 == tunernome->tLastUpdateUs)
+            {
+                // Initialize the last time this function was called
+                tunernome->tLastUpdateUs = system_get_time();
+            }
+            else
+            {
+                // Get the current time and the time elapsed since the last call
+                uint32_t tNowUs = system_get_time();
+                uint32_t tElapsedUs = tNowUs - tunernome->tLastUpdateUs;
+                // If the arm is sweeping clockwise
+                if(tunernome->isClockwise)
+                {
+                    // Add to tAccumulatedUs
+                    tunernome->tAccumulatedUs += tElapsedUs;
+                    // If it's crossed the threshold for one beat
+                    if(tunernome->tAccumulatedUs >= tunernome->usPerBeat)
+                    {
+                        // Debug
+                        os_printf("Tick\n");
+                        // Flip the metronome arm
+                        tunernome->isClockwise = false;
+                        // Start counting down by subtacting the excess time from tAccumulatedUs
+                        tunernome->tAccumulatedUs = tunernome->usPerBeat - (tunernome->tAccumulatedUs - tunernome->usPerBeat);
+                        // Blink LED Tick color
+                        led_t leds[NUM_LIN_LEDS] = {{0}};
+                            for(int i = 0; i < NUM_LIN_LEDS; i++)
+                            {
+                                leds[i].r = 0xFF;
+                                leds[i].g = 0xFF;
+                                leds[i].b = 0xFF;
+                            }
+                            setLeds(leds, sizeof(leds));
+
+                            timerDisarm(&(tunernome->ledTimer));
+                            timerArm(&(tunernome->ledTimer), METRONOME_FLASH_MS, false);
+                    } // if(tAccumulatedUs >= tunernome->usPerBeat)
+                } // if(tunernome->isClockwise)
+                else
+                {
+                    // Subtract from tAccumulatedUs
+                    tunernome->tAccumulatedUs -= tElapsedUs;
+                    // If it's crossed the threshold for one beat
+                    if(tunernome->tAccumulatedUs <= 0)
+                    {
+                        // Debug
+                        os_printf("Tock\n");
+                        // Flip the metronome arm
+                        tunernome->isClockwise = true;
+                        // Start counting up by flipping the excess time from negative to positive
+                        tunernome->tAccumulatedUs = -(tunernome->tAccumulatedUs);
+                        // Blink LED Tock color
+                        led_t leds[NUM_LIN_LEDS] = {{0}};
+                            for(int i = 0; i < NUM_LIN_LEDS; i++)
+                            {
+                                leds[i].r = 0xAA;
+                                leds[i].g = 0xAA;
+                                leds[i].b = 0x00;
+                            }
+                            setLeds(leds, sizeof(leds));
+
+                            timerDisarm(&(tunernome->ledTimer));
+                            timerArm(&(tunernome->ledTimer), METRONOME_FLASH_MS, false);
+                    } // if(tunernome->tAccumulatedUs <= 0)
+                } // if(!tunernome->isClockwise)
+                // Draw metronome arm based on the value of tAccumulatedUs, which is between (0, usPerBeat)
+                float intermedX = -1 * cosf(tunernome->tAccumulatedUs * M_PI / tunernome->usPerBeat );
+                float intermedY = -1 * sinf(tunernome->tAccumulatedUs * M_PI / tunernome->usPerBeat );
+                int x = round(METRONOME_CENTER_X - (intermedX * METRONOME_RADIUS));
+                int y = round(METRONOME_CENTER_Y - (ABS(intermedY) * METRONOME_RADIUS));
+                plotLine(METRONOME_CENTER_X, METRONOME_CENTER_Y, x, y, WHITE);
+                // Set the last update time to the current time for the next call
+                tunernome->tLastUpdateUs = tNowUs;
+            } // if(0 != tunernome->tLastUpdateUs)
             break;
         } // case TN_METRONOME:
     } // switch(tunernome->mode)
