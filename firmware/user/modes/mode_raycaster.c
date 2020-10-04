@@ -26,6 +26,8 @@
 
 #define NUM_SPRITES 20
 
+#define WALK_ANIM_TIME_US 250000
+
 typedef enum
 {
     E_IDLE,
@@ -57,7 +59,8 @@ typedef struct
     float posY;
     float dirX;
     float dirY;
-    int32_t texture;
+    color* texture;
+    int32_t texTimer;
     enemyState_t state;
     int32_t stateTimer;
 } raySprite_t;
@@ -80,9 +83,18 @@ typedef struct
     float spriteDistance[NUM_SPRITES];
 
     // Storage for textures
-    color enemySpriteTex[texWidth * texHeight];
     color stoneTex[texWidth * texHeight];
     color stripeTex[texWidth * texHeight];
+
+    color w1[texWidth * texHeight];
+    color w2[texWidth * texHeight];
+
+    color s1[texWidth * texHeight];
+    color s2[texWidth * texHeight];
+
+    color d1[texWidth * texHeight];
+    color d2[texWidth * texHeight];
+    color d3[texWidth * texHeight];
 } raycaster_t;
 
 /*==============================================================================
@@ -220,28 +232,54 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
             {
                 rc->sprites[spritesPlaced].posX = x;
                 rc->sprites[spritesPlaced].posY = y;
+                rc->sprites[spritesPlaced].state = E_IDLE;
+                rc->sprites[spritesPlaced].stateTimer = 0;
+                rc->sprites[spritesPlaced].texture = rc->w1;
+                rc->sprites[spritesPlaced].texTimer = WALK_ANIM_TIME_US;
                 spritesPlaced++;
             }
         }
     }
 
-    // Load the enemy texture to RAM
-    pngHandle enemySprite;
-    allocPngAsset("txbat.png", &enemySprite);
-    drawPngToBuffer(&enemySprite, rc->enemySpriteTex);
-    freePngAsset(&enemySprite);
+    pngHandle tmpPngHandle;
 
     // Load the enemy texture to RAM
-    pngHandle stoneTexture;
-    allocPngAsset("txstone.png", &stoneTexture);
-    drawPngToBuffer(&stoneTexture, rc->stoneTex);
-    freePngAsset(&stoneTexture);
+    allocPngAsset("w1.png", &tmpPngHandle);
+    drawPngToBuffer(&tmpPngHandle, rc->w1);
+    freePngAsset(&tmpPngHandle);
 
-    // Load the enemy texture to RAM
-    pngHandle stripeTexture;
-    allocPngAsset("txstripe.png", &stripeTexture);
-    drawPngToBuffer(&stripeTexture, rc->stripeTex);
-    freePngAsset(&stripeTexture);
+    allocPngAsset("w2.png", &tmpPngHandle);
+    drawPngToBuffer(&tmpPngHandle, rc->w2);
+    freePngAsset(&tmpPngHandle);
+
+    allocPngAsset("s1.png", &tmpPngHandle);
+    drawPngToBuffer(&tmpPngHandle, rc->s1);
+    freePngAsset(&tmpPngHandle);
+
+    allocPngAsset("s2.png", &tmpPngHandle);
+    drawPngToBuffer(&tmpPngHandle, rc->s2);
+    freePngAsset(&tmpPngHandle);
+
+    allocPngAsset("d1.png", &tmpPngHandle);
+    drawPngToBuffer(&tmpPngHandle, rc->d1);
+    freePngAsset(&tmpPngHandle);
+
+    allocPngAsset("d2.png", &tmpPngHandle);
+    drawPngToBuffer(&tmpPngHandle, rc->d2);
+    freePngAsset(&tmpPngHandle);
+
+    allocPngAsset("d3.png", &tmpPngHandle);
+    drawPngToBuffer(&tmpPngHandle, rc->d3);
+    freePngAsset(&tmpPngHandle);
+
+    // Load the wall textures to RAM
+    allocPngAsset("txstone.png", &tmpPngHandle);
+    drawPngToBuffer(&tmpPngHandle, rc->stoneTex);
+    freePngAsset(&tmpPngHandle);
+
+    allocPngAsset("txstripe.png", &tmpPngHandle);
+    drawPngToBuffer(&tmpPngHandle, rc->stripeTex);
+    freePngAsset(&tmpPngHandle);
 }
 
 /**
@@ -707,7 +745,7 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
                     int32_t d = (y) * 256 - OLED_HEIGHT * 128 + spriteHeight * 128;
                     int32_t texY = ((d * texHeight) / spriteHeight) / 256;
                     // get current color from the texture
-                    drawPixelUnsafeC(stripe, y, rc->enemySpriteTex[(texX * texHeight) + texY]);
+                    drawPixelUnsafeC(stripe, y, rc->sprites[rc->spriteOrder[i]].texture[(texX * texHeight) + texY]);
                 }
             }
         }
@@ -975,6 +1013,21 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                 if(magSqr < 0.25f)
                 {
                     break;
+                }
+
+                // Flip sprites for a walking animation
+                rc->sprites[i].texTimer -= tElapsedUs;
+                while(rc->sprites[i].texTimer <= 0)
+                {
+                    rc->sprites[i].texTimer += WALK_ANIM_TIME_US;
+                    if(rc->sprites[i].texture == rc->w1)
+                    {
+                        rc->sprites[i].texture = rc->w2;
+                    }
+                    else
+                    {
+                        rc->sprites[i].texture = rc->w1;
+                    }
                 }
 
                 // Find the new position
