@@ -95,9 +95,12 @@ typedef struct
     int32_t diffs_filt[NUM_STRINGS];
 
     int frame;
-    int pause;
+    bool pause;
     int lastX, lastY;
     int bpm;
+    uint32_t tLastUpdateUs;
+    int32_t tAccumulatedUs;
+    bool isClockwise;
 
     //mostly temp values
     float bps;
@@ -108,6 +111,8 @@ typedef struct
     int tockFrame1;
     int tockFrame2;
     int finalBarCycleFrame;
+
+    uint32_t usPerBeat;
 
     uint32_t semitone_intensitiy_filt;
     int32_t semitone_diff_filt;
@@ -224,10 +229,14 @@ void ICACHE_FLASH_ATTR switchToSubmode(tnMode newMode)
         {
             tunernome-> mode = newMode;
 
+            tunernome->frame = 0;
+            tunernome->pause = false;
             tunernome->lastX = 0;
             tunernome->lastY = 0;
-            tunernome->frame = 0;
             tunernome->bpm = INITIAL_BPM;
+            tunernome->isClockwise = true;
+            tunernome->tLastUpdateUs = 0;
+            tunernome->tAccumulatedUs = 0;
 
             recalcMetronome();
 
@@ -318,9 +327,13 @@ void ICACHE_FLASH_ATTR recalcMetronome() {
     tunernome->periodMS = 1000.0f * tunernome->periodS;
     tunernome->barHalfCycleFrames = tunernome->periodMS / TUNERNOME_UPDATE_MS;
     tunernome->barCycleFrames = tunernome->barHalfCycleFrames * 2.0f;
-    tunernome->tockFrame1 = round(tunernome->barCycleFrames * 0.25f);
-    tunernome->tockFrame2 = round(tunernome->barCycleFrames * 0.75f);
+    tunernome->tockFrame1 = 0;
+    tunernome->tockFrame2 = round(tunernome->barCycleFrames * 0.5f);
     tunernome->finalBarCycleFrame = round(tunernome->barCycleFrames);
+
+    // Figure out how many microseconds are in one beat
+    tunernome->usPerBeat = (60 * 1000000) / tunernome->bpm;
+    
 }
 
 /**
@@ -385,12 +398,12 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
                 {
                     tunernome->frame = 0;
                 }
-            } // if(!pause)
+            } // if(!tunernome->pause)
 
             char bpmStr[8];
             ets_sprintf(bpmStr, "%d bpm", tunernome->bpm);
 
-            plotText((OLED_WIDTH - textWidth(bpmStr, IBM_VGA_8)) / 2, (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2, bpmStr, IBM_VGA_8, WHITE);
+            plotText((OLED_WIDTH - textWidth(bpmStr, IBM_VGA_8)) / 2, 0, bpmStr, IBM_VGA_8, WHITE);
             plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, leftStr, TOM_THUMB, WHITE);
             plotText(OLED_WIDTH - textWidth(rightStrTuner, TOM_THUMB), OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, rightStrTuner, TOM_THUMB, WHITE);
             break;
