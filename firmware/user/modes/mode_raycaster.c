@@ -228,11 +228,6 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
         rc->sprites[i].posY = -1;
     }
 
-    // rc->sprites[0].posX = 10;
-    // rc->sprites[0].posY = 12.5;
-    // rc->sprites[1].posX = 12.5;
-    // rc->sprites[1].posY = 10;
-
     int8_t spritesPlaced = 0;
     for(uint8_t x = 0; x < mapWidth; x++)
     {
@@ -289,6 +284,8 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
     allocPngAsset("txstripe.png", &tmpPngHandle);
     drawPngToBuffer(&tmpPngHandle, rc->stripeTex);
     freePngAsset(&tmpPngHandle);
+
+    // TODO add a top level menu, difficulty, high scores
 }
 
 /**
@@ -342,6 +339,7 @@ void ICACHE_FLASH_ATTR raycasterProcess(void)
     drawTextures(rayResult);
     drawOutlines(rayResult);
     drawSprites(rayResult);
+    // TODO draw HUD
 }
 
 /**
@@ -849,6 +847,8 @@ void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
         rc->planeX = rc->planeX * cos(rotSpeed) - rc->planeY * sin(rotSpeed);
         rc->planeY = oldPlaneX * sin(rotSpeed) + rc->planeY * cos(rotSpeed);
     }
+
+    // TODO check shooting other sprites, sprite health
 }
 
 /**
@@ -1114,15 +1114,14 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                     // Check if the sprite can still see the player
                     if(checkLineToPlayer(&rc->sprites[i], rc->posX, rc->posY))
                     {
-                        // TODO RNG damage to player
-                        os_printf("%2d shot me at %d!\n", i, system_get_time());
+                        // TODO RNG damage to player, track health
                     }
                 }
                 break;
             }
             case E_DYING:
             {
-                // TODO
+                // TODO animate death
                 break;
             }
         }
@@ -1229,7 +1228,10 @@ bool ICACHE_FLASH_ATTR checkLineToPlayer(raySprite_t* sprite, float pX, float pY
 }
 
 /**
- * TODO
+ * Set the sprite state and associated timers and textures
+ *
+ * @param sprite The sprite to set state for
+ * @param state  The state to set
  */
 void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
 {
@@ -1271,7 +1273,7 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
         }
         case E_DYING:
         {
-            // TODO
+            // TODO Set timers for death animation
             sprite->stateTimer = 0;
             sprite->texture = rc->d1;
             sprite->texTimer = 0;
