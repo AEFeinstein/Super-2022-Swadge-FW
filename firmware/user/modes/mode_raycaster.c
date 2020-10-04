@@ -26,7 +26,13 @@
 
 #define NUM_SPRITES 20
 
-#define WALK_ANIM_TIME_US 250000
+#define SHOT_COOLDOWN       3000000
+
+#define SHOT_ANIM_TIME      1000000
+
+#define LONG_WALK_ANIM_TIME 3000000
+#define WALK_ANIM_TIME      1000000
+#define STEP_ANIM_TIME       250000
 
 typedef enum
 {
@@ -34,7 +40,8 @@ typedef enum
     E_PICK_DIR_PLAYER,
     E_PICK_DIR_RAND,
     E_WALKING,
-    E_SHOOTING
+    E_SHOOTING,
+    E_DYING
 } enemyState_t;
 
 /*==============================================================================
@@ -63,6 +70,7 @@ typedef struct
     int32_t texTimer;
     enemyState_t state;
     int32_t stateTimer;
+    int32_t shotCooldown;
 } raySprite_t;
 
 typedef struct
@@ -114,6 +122,8 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult);
 void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsed);
 void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsed);
 float ICACHE_FLASH_ATTR Q_rsqrt( float number );
+bool ICACHE_FLASH_ATTR checkLineToPlayer(raySprite_t* sprite, float pX, float pY);
+void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state);
 
 /*==============================================================================
  * Variables
@@ -232,10 +242,9 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
             {
                 rc->sprites[spritesPlaced].posX = x;
                 rc->sprites[spritesPlaced].posY = y;
-                rc->sprites[spritesPlaced].state = E_IDLE;
-                rc->sprites[spritesPlaced].stateTimer = 0;
-                rc->sprites[spritesPlaced].texture = rc->w1;
-                rc->sprites[spritesPlaced].texTimer = WALK_ANIM_TIME_US;
+                rc->sprites[spritesPlaced].dirX = 0;
+                rc->sprites[spritesPlaced].dirX = 0;
+                setSpriteState(&(rc->sprites[spritesPlaced]), E_IDLE);
                 spritesPlaced++;
             }
         }
@@ -311,14 +320,6 @@ void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state,
  */
 void ICACHE_FLASH_ATTR raycasterProcess(void)
 {
-    rayResult_t rayResult[OLED_WIDTH] = {{0}};
-
-    clearDisplay();
-    castRays(rayResult);
-    drawTextures(rayResult);
-    drawOutlines(rayResult);
-    drawSprites(rayResult);
-
     static uint32_t tLastUs = 0; // time of current frame
     if(tLastUs == 0)
     {
@@ -333,6 +334,14 @@ void ICACHE_FLASH_ATTR raycasterProcess(void)
         handleRayInput(tElapsedUs);
         moveEnemies(tElapsedUs);
     }
+
+    rayResult_t rayResult[OLED_WIDTH] = {{0}};
+
+    clearDisplay();
+    castRays(rayResult);
+    drawTextures(rayResult);
+    drawOutlines(rayResult);
+    drawSprites(rayResult);
 }
 
 /**
@@ -885,6 +894,12 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
             continue;
         }
 
+        // Always run down the shot cooldown, regardless of state
+        if(rc->sprites[i].shotCooldown > 0)
+        {
+            rc->sprites[i].shotCooldown -= tElapsedUs;
+        }
+
         switch (rc->sprites[i].state)
         {
             default:
@@ -898,7 +913,7 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                 // Less than 8 units away (avoid the sqrt!)
                 if(magSqr < 64)
                 {
-                    rc->sprites[i].state = E_PICK_DIR_PLAYER;
+                    setSpriteState(&(rc->sprites[i]), E_PICK_DIR_PLAYER);
                 }
                 break;
             }
@@ -935,8 +950,9 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                 }
 
                 // And let the sprite walk for a bit
-                rc->sprites[i].state = E_WALKING;
-                rc->sprites[i].stateTimer = 1500000;
+                setSpriteState(&(rc->sprites[i]), E_WALKING);
+                // Walk for a little extra in the random direction
+                rc->sprites[i].stateTimer = LONG_WALK_ANIM_TIME;
                 break;
             }
             case E_PICK_DIR_PLAYER:
@@ -946,43 +962,53 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                 float toPlayerY = rc->posY - rc->sprites[i].posY;
                 float magSqr = (toPlayerX * toPlayerX) + (toPlayerY * toPlayerY);
 
-                // Normalize the vector
-                float invSqr = Q_rsqrt(magSqr);
-                toPlayerX *= invSqr;
-                toPlayerY *= invSqr;
-
-                // Rotate the vector, maybe
-                switch(os_random() % 3)
+                // Randomly take a shot
+                if(rc->sprites[i].shotCooldown <= 0 &&           // If the sprite is not in cooldown
+                        (uint32_t)magSqr < 64 &&                 // If the player is no more than 8 units away
+                        ((os_random() % 64) > (uint32_t)magSqr)) // And distance-weighted RNG says so
                 {
-                    default:
-                    case 0:
-                    {
-                        // Straight ahead!
-                        break;
-                    }
-                    case 1:
-                    {
-                        // Rotate 45 degrees
-                        toPlayerX = toPlayerX * 0.70710678f - toPlayerY * 0.70710678f;
-                        toPlayerY = toPlayerY * 0.70710678f + toPlayerX * 0.70710678f;
-                        break;
-                    }
-                    case 2:
-                    {
-                        // Rotate -45 degrees
-                        toPlayerX = toPlayerX * 0.70710678f + toPlayerY * 0.70710678f;
-                        toPlayerY = toPlayerY * 0.70710678f - toPlayerX * 0.70710678f;
-                        break;
-                    }
+                    // Take the shot!
+                    setSpriteState(&(rc->sprites[i]), E_SHOOTING);
                 }
+                else // Pick a direction to walk in
+                {
+                    // Normalize the vector
+                    float invSqr = Q_rsqrt(magSqr);
+                    toPlayerX *= invSqr;
+                    toPlayerY *= invSqr;
 
-                // Set the sprite's direction
-                rc->sprites[i].dirX = toPlayerX;
-                rc->sprites[i].dirY = toPlayerY;
+                    // Rotate the vector, maybe
+                    switch(os_random() % 3)
+                    {
+                        default:
+                        case 0:
+                        {
+                            // Straight ahead!
+                            break;
+                        }
+                        case 1:
+                        {
+                            // Rotate 45 degrees
+                            toPlayerX = toPlayerX * 0.70710678f - toPlayerY * 0.70710678f;
+                            toPlayerY = toPlayerY * 0.70710678f + toPlayerX * 0.70710678f;
+                            break;
+                        }
+                        case 2:
+                        {
+                            // Rotate -45 degrees
+                            toPlayerX = toPlayerX * 0.70710678f + toPlayerY * 0.70710678f;
+                            toPlayerY = toPlayerY * 0.70710678f - toPlayerX * 0.70710678f;
+                            break;
+                        }
+                    }
 
-                // And let the sprite walk for a bit
-                rc->sprites[i].state = E_WALKING;
-                rc->sprites[i].stateTimer = 500000;
+                    // Set the sprite's direction
+                    rc->sprites[i].dirX = toPlayerX;
+                    rc->sprites[i].dirY = toPlayerY;
+
+                    // And let the sprite walk for a bit
+                    setSpriteState(&(rc->sprites[i]), E_WALKING);
+                }
                 break;
             }
             case E_WALKING:
@@ -992,20 +1018,11 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                 float toPlayerY = rc->posY - rc->sprites[i].posY;
                 float magSqr = (toPlayerX * toPlayerX) + (toPlayerY * toPlayerY);
 
-                // See what the enemy should do next
+                // See if we're done walking
                 rc->sprites[i].stateTimer -= tElapsedUs;
                 if (rc->sprites[i].stateTimer <= 0)
                 {
-                    // If the sprite is close enough, maybe shoot
-                    if (magSqr <= 25 && ((os_random() % 4) > 0))
-                    {
-                        rc->sprites[i].state = E_SHOOTING;
-                    }
-                    else
-                    {
-                        // Otherwise do some walking
-                        rc->sprites[i].state = E_PICK_DIR_PLAYER;
-                    }
+                    setSpriteState(&(rc->sprites[i]), E_PICK_DIR_PLAYER);
                     break;
                 }
 
@@ -1019,7 +1036,7 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                 rc->sprites[i].texTimer -= tElapsedUs;
                 while(rc->sprites[i].texTimer <= 0)
                 {
-                    rc->sprites[i].texTimer += WALK_ANIM_TIME_US;
+                    rc->sprites[i].texTimer += STEP_ANIM_TIME;
                     if(rc->sprites[i].texture == rc->w1)
                     {
                         rc->sprites[i].texture = rc->w2;
@@ -1075,16 +1092,190 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                 else
                 {
                     // Else pick a new direction, totally random
-                    rc->sprites[i].state = E_PICK_DIR_RAND;
+                    setSpriteState(&(rc->sprites[i]), E_PICK_DIR_RAND);
                 }
                 break;
             }
             case E_SHOOTING:
             {
-                // TODO shooting animation, check if player is shot
-                rc->sprites[i].state = E_PICK_DIR_PLAYER;
+                // Animate a shot
+                rc->sprites[i].texTimer -= tElapsedUs;
+                if(rc->sprites[i].texTimer <= 0)
+                {
+                    // After the shot, go to E_PICK_DIR_PLAYER
+                    setSpriteState(&(rc->sprites[i]), E_PICK_DIR_PLAYER);
+                }
+                else if(rc->sprites[i].texTimer < SHOT_ANIM_TIME / 2 &&
+                        rc->sprites[i].shotCooldown <= 0)
+                {
+                    rc->sprites[i].shotCooldown = SHOT_COOLDOWN;
+                    // After 0.5s switch to next texture
+                    rc->sprites[i].texture = rc->s2;
+                    // Check if the sprite can still see the player
+                    if(checkLineToPlayer(&rc->sprites[i], rc->posX, rc->posY))
+                    {
+                        // TODO RNG damage to player
+                        os_printf("%2d shot me at %d!\n", i, system_get_time());
+                    }
+                }
                 break;
             }
+            case E_DYING:
+            {
+                // TODO
+                break;
+            }
+        }
+    }
+}
+
+/**
+ * Use DDA to draw a line between the player and a sprite, and check if there
+ * are any walls between the two. This line drawing algorithm is the same one
+ * used to cast rays from the player to walls
+ */
+bool ICACHE_FLASH_ATTR checkLineToPlayer(raySprite_t* sprite, float pX, float pY)
+{
+    // If the sprite and the player are in the same cell
+    if(((int32_t)sprite->posX == (int32_t)pX) &&
+            ((int32_t)sprite->posY == (int32_t)pY))
+    {
+        // We can definitely draw a line between the two
+        return true;
+    }
+
+    // calculate ray position and direction
+    // x-coordinate in camera space
+    float rayDirX = sprite->posX - pX;
+    float rayDirY = sprite->posY - pY;
+
+    // which box of the map we're in
+    int32_t mapX = (int32_t)(pX);
+    int32_t mapY = (int32_t)(pY);
+
+    // length of ray from current position to next x or y-side
+    float sideDistX;
+    float sideDistY;
+
+    // length of ray from one x or y-side to next x or y-side
+    float deltaDistX = (1 / rayDirX);
+    if(deltaDistX < 0)
+    {
+        deltaDistX = -deltaDistX;
+    }
+
+    float deltaDistY = (1 / rayDirY);
+    if(deltaDistY < 0)
+    {
+        deltaDistY = -deltaDistY;
+    }
+
+    // what direction to step in x or y-direction (either +1 or -1)
+    int32_t stepX;
+    int32_t stepY;
+
+    // calculate step and initial sideDist
+    if(rayDirX < 0)
+    {
+        stepX = -1;
+        sideDistX = (pX - mapX) * deltaDistX;
+    }
+    else
+    {
+        stepX = 1;
+        sideDistX = (mapX + 1.0 - pX) * deltaDistX;
+    }
+
+    if(rayDirY < 0)
+    {
+        stepY = -1;
+        sideDistY = (pY - mapY) * deltaDistY;
+    }
+    else
+    {
+        stepY = 1;
+        sideDistY = (mapY + 1.0 - pY) * deltaDistY;
+    }
+
+    // perform DDA until a wall is hit or the ray reaches the sprite
+    while (true)
+    {
+        // jump to next map square, OR in x-direction, OR in y-direction
+        if(sideDistX < sideDistY)
+        {
+            sideDistX += deltaDistX;
+            mapX += stepX;
+        }
+        else
+        {
+            sideDistY += deltaDistY;
+            mapY += stepY;
+        }
+
+        // Check if ray has hit a wall
+        if(worldMap[mapX][mapY] > 0)
+        {
+            // There is a wall between the player and the sprite
+            return false;
+        }
+        else if(mapX == (int32_t)sprite->posX && mapY == (int32_t)sprite->posY)
+        {
+            // Ray reaches from the player to the sprite unobstructed
+            return true;
+        }
+    }
+    // Shouldn't reach here
+    return false;
+}
+
+/**
+ * TODO
+ */
+void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
+{
+    // Set the state
+    sprite->state = state;
+
+    // Set timers and textures
+    switch(state)
+    {
+        default:
+        case E_IDLE:
+        {
+            sprite->stateTimer = 0;
+            sprite->texture = rc->w1;
+            sprite->texTimer = 0;
+            break;
+        }
+        case E_PICK_DIR_PLAYER:
+        case E_PICK_DIR_RAND:
+        {
+            sprite->stateTimer = 0;
+            sprite->texture = rc->w1;
+            sprite->texTimer = 0;
+            break;
+        }
+        case E_WALKING:
+        {
+            sprite->stateTimer = WALK_ANIM_TIME;
+            sprite->texture = rc->w1;
+            sprite->texTimer = STEP_ANIM_TIME;
+            break;
+        }
+        case E_SHOOTING:
+        {
+            sprite->stateTimer = SHOT_ANIM_TIME;
+            sprite->texture = rc->s1;
+            sprite->texTimer = SHOT_ANIM_TIME;
+            break;
+        }
+        case E_DYING:
+        {
+            // TODO
+            sprite->stateTimer = 0;
+            sprite->texture = rc->d1;
+            sprite->texTimer = 0;
+            break;
         }
     }
 }
