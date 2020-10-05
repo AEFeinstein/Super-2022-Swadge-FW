@@ -38,7 +38,7 @@
 #define M_PI		3.14159265358979323846
 #endif
 
-#define TUNERNOME_UPDATE_MS 20
+#define TUNERNOME_UPDATE_MS 15
 
 #define NUM_STRINGS            6
 #define GUITAR_OFFSET          0
@@ -51,6 +51,8 @@
 #define INITIAL_BPM 60
 #define MAX_BPM 400
 #define METRONOME_FLASH_MS 35
+#define BPM_CHANGE_FIRST_MS 500
+#define BPM_CHANGE_REPEAT_MS 50
 
 /// Helper macro to return an integer clamped within a range (MIN to MAX)
 #define CLAMP(X, MIN, MAX) ( ((X) > (MAX)) ? (MAX) : ( ((X) < (MIN)) ? (MIN) : (X)) )
@@ -88,6 +90,7 @@ typedef struct
 
     timer_t updateTimer;
     timer_t ledTimer;
+    timer_t bpmButtonTimer;
 
     int audioSamplesProcessed;
     uint32_t intensities_filt[NUM_STRINGS];
@@ -99,6 +102,8 @@ typedef struct
     int32_t tAccumulatedUs;
     bool isClockwise;
     uint32_t usPerBeat;
+
+    int lastBpmButton;
 
     uint32_t semitone_intensitiy_filt;
     int32_t semitone_diff_filt;
@@ -113,10 +118,13 @@ void ICACHE_FLASH_ATTR tunernomeExitMode(void);
 void ICACHE_FLASH_ATTR switchToSubmode(tnMode);
 void ICACHE_FLASH_ATTR tunernomeButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down);
+void ICACHE_FLASH_ATTR increaseBpm(void* timer_arg __attribute__((unused)));
+void ICACHE_FLASH_ATTR decreaseBpm(void* timer_arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp);
 void ICACHE_FLASH_ATTR recalcMetronome();
 static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR ledReset(void* timer_arg __attribute__((unused)));
+void ICACHE_FLASH_ATTR fasterBpmChange(void* timer_arg __attribute__((unused)));
 
 static inline int16_t getMagnitude(uint16_t idx);
 static inline int16_t getDiffAround(uint16_t idx);
@@ -188,6 +196,9 @@ void ICACHE_FLASH_ATTR tunernomeEnterMode(void)
     timerDisarm(&(tunernome->ledTimer));
     timerSetFn(&(tunernome->ledTimer), ledReset, NULL);
 
+    timerDisarm(&(tunernome->bpmButtonTimer));
+    timerSetFn(&(tunernome->bpmButtonTimer), fasterBpmChange, NULL);
+
     enableDebounce(true);
 
     InitColorChord();
@@ -207,6 +218,8 @@ void ICACHE_FLASH_ATTR switchToSubmode(tnMode newMode)
             led_t leds[NUM_LIN_LEDS] = {{0}};
             setLeds(leds, sizeof(leds));
 
+            enableDebounce(true);
+
             clearDisplay();
             
             break;
@@ -221,10 +234,14 @@ void ICACHE_FLASH_ATTR switchToSubmode(tnMode newMode)
             tunernome->tLastUpdateUs = 0;
             tunernome->tAccumulatedUs = 0;
 
+            tunernome->lastBpmButton = 0;
+
             recalcMetronome();
 
             led_t leds[NUM_LIN_LEDS] = {{0}};
             setLeds(leds, sizeof(leds));
+
+            enableDebounce(false);
 
             clearDisplay();
             break;
@@ -243,6 +260,7 @@ void ICACHE_FLASH_ATTR tunernomeExitMode(void)
 {
     timerDisarm(&(tunernome->updateTimer));
     timerDisarm(&(tunernome->ledTimer));
+    timerDisarm(&(tunernome->bpmButtonTimer));
     timerFlush();
     os_free(tunernome);
 }
@@ -397,10 +415,16 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
                         led_t leds[NUM_LIN_LEDS] = {{0}};
                             for(int i = 0; i < NUM_LIN_LEDS; i++)
                             {
-                                leds[i].r = 0xAA;
-                                leds[i].g = 0xAA;
+                                leds[i].r = 0xDD;
+                                leds[i].g = 0xDD;
                                 leds[i].b = 0x00;
                             }
+                            leds[2].r = 0x00;
+                            leds[2].g = 0x00;
+                            leds[2].b = 0x00;
+                            leds[3].r = 0x00;
+                            leds[3].g = 0x00;
+                            leds[3].b = 0x00;
                             setLeds(leds, sizeof(leds));
 
                             timerDisarm(&(tunernome->ledTimer));
@@ -517,26 +541,34 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unu
                     }
                     setLeds(leds, sizeof(leds));
                     break;
-                }
-            }
+                } // if(button == UP || button == DOWN)
+            } // if(down)
             break;
-        }
+        } // case TN_TUNER:
         case TN_METRONOME:
         {
+            os_printf("state=%d, button=%d, down=%d\n", state, button, down);
+
             if(down)
             {
                 switch(button)
                 {
                     case UP:
                     {
-                        tunernome->bpm = CLAMP(tunernome->bpm + 1, 1, MAX_BPM);
-                        recalcMetronome();
+                        increaseBpm(NULL);
+                        tunernome->lastBpmButton = button;
+                        timerDisarm(&(tunernome->bpmButtonTimer));
+                        timerSetFn(&(tunernome->bpmButtonTimer), fasterBpmChange, NULL);
+                        timerArm(&(tunernome->bpmButtonTimer), BPM_CHANGE_FIRST_MS, true);
                         break;
                     }
                     case DOWN:
                     {
-                        tunernome->bpm = CLAMP(tunernome->bpm - 1, 1, MAX_BPM);
-                        recalcMetronome();
+                        decreaseBpm(NULL);
+                        tunernome->lastBpmButton = button;
+                        timerDisarm(&(tunernome->bpmButtonTimer));
+                        timerSetFn(&(tunernome->bpmButtonTimer), fasterBpmChange, NULL);
+                        timerArm(&(tunernome->bpmButtonTimer), BPM_CHANGE_FIRST_MS, true);
                         break;
                     }
                     case ACTION:
@@ -558,11 +590,53 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unu
                     {
                         break;
                     }
+                } // switch(button)
+            } // if(down)
+            else
+            {
+                switch(button)
+                {
+                    case UP:
+                    case DOWN:
+                    {
+                        if(button == tunernome->lastBpmButton)
+                        {
+                            tunernome->lastBpmButton = 0;
+                            timerDisarm(&(tunernome->bpmButtonTimer));
+                        }
+                        break;
+                    }
+                    default:
+                    {
+                        break;
+                    }
                 }
             }
             break;
-        }
+        } // case TN_METRONOME:
     }
+}
+
+/**
+ * Increases the bpm by 1
+ *
+ * @param timer_arg unused
+ */
+void ICACHE_FLASH_ATTR increaseBpm(void* timer_arg __attribute__((unused)))
+{
+    tunernome->bpm = CLAMP(tunernome->bpm + 1, 1, MAX_BPM);
+    recalcMetronome();
+}
+
+/**
+ * Decreases the bpm by 1
+ *
+ * @param timer_arg unused
+ */
+void ICACHE_FLASH_ATTR decreaseBpm(void* timer_arg __attribute__((unused)))
+{
+    tunernome->bpm = CLAMP(tunernome->bpm - 1, 1, MAX_BPM);
+    recalcMetronome();
 }
 
 /**
@@ -748,4 +822,34 @@ void ICACHE_FLASH_ATTR ledReset(void* timer_arg __attribute__((unused)))
 {
     led_t leds[NUM_LIN_LEDS] = {{0}};
     setLeds(leds, sizeof(leds));
+}
+
+/**
+ * This timer function is called after the up or down button is held long enough in metronome mode.
+ * It repeats the button press while the button is held.
+ *
+ * @param timer_arg unused
+ */
+void ICACHE_FLASH_ATTR fasterBpmChange(void* timer_arg __attribute__((unused)))
+{
+    timerDisarm(&(tunernome->bpmButtonTimer));
+    switch(tunernome->lastBpmButton)
+    {
+        case UP:
+        {
+            timerSetFn(&(tunernome->bpmButtonTimer), increaseBpm, NULL);
+            timerArm(&(tunernome->bpmButtonTimer), BPM_CHANGE_REPEAT_MS, true);
+            break;
+        }
+        case DOWN:
+        {
+            timerSetFn(&(tunernome->bpmButtonTimer), decreaseBpm, NULL);
+            timerArm(&(tunernome->bpmButtonTimer), BPM_CHANGE_REPEAT_MS, true);
+            break;
+        }
+        default:
+        {
+            break;
+        }
+    }
 }
