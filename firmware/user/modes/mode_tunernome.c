@@ -53,6 +53,9 @@
 #define METRONOME_FLASH_MS 35
 #define BPM_CHANGE_FIRST_MS 500
 #define BPM_CHANGE_REPEAT_MS 50
+#define PAUSE_WIDTH 3
+#define PAUSE_SPACE_WIDTH 3
+#define PAUSE_HEIGHT 10
 
 /// Helper macro to return an integer clamped within a range (MIN to MAX)
 #define CLAMP(X, MIN, MAX) ( ((X) > (MAX)) ? (MAX) : ( ((X) < (MIN)) ? (MIN) : (X)) )
@@ -358,6 +361,16 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
             // Don't do anything when paused
             if(tunernome->pause)
             {
+                plotRect((OLED_WIDTH - PAUSE_SPACE_WIDTH) / 2 - PAUSE_WIDTH,
+                         (OLED_HEIGHT - PAUSE_HEIGHT) / 2,
+                         (OLED_WIDTH - PAUSE_SPACE_WIDTH) / 2,
+                         (OLED_HEIGHT + PAUSE_HEIGHT) / 2,
+                         WHITE);
+                plotRect((OLED_WIDTH + PAUSE_SPACE_WIDTH) / 2,
+                         (OLED_HEIGHT - PAUSE_HEIGHT) / 2,
+                         (OLED_WIDTH + PAUSE_SPACE_WIDTH) / 2 + PAUSE_WIDTH,
+                         (OLED_HEIGHT + PAUSE_HEIGHT) / 2,
+                         WHITE);
                 return;
             }
             if(0 == tunernome->tLastUpdateUs)
@@ -574,6 +587,8 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unu
                     case ACTION:
                     {
                         tunernome->pause = !tunernome->pause;
+                        tunernome->tAccumulatedUs = 0;
+                        tunernome->tLastUpdateUs = 0;
                         break;
                     }
                     case RIGHT:
