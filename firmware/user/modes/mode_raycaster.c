@@ -71,6 +71,7 @@ typedef struct
     enemyState_t state;
     int32_t stateTimer;
     int32_t shotCooldown;
+    bool isBackwards;
 } raySprite_t;
 
 typedef struct
@@ -239,6 +240,7 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
                 rc->sprites[spritesPlaced].posY = y;
                 rc->sprites[spritesPlaced].dirX = 0;
                 rc->sprites[spritesPlaced].dirX = 0;
+                rc->sprites[spritesPlaced].isBackwards = false;
                 setSpriteState(&(rc->sprites[spritesPlaced]), E_IDLE);
                 spritesPlaced++;
             }
@@ -949,6 +951,8 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                     }
                 }
 
+                rc->sprites[i].isBackwards = false;
+
                 // And let the sprite walk for a bit
                 setSpriteState(&(rc->sprites[i]), E_WALKING);
                 // Walk for a little extra in the random direction
@@ -1005,6 +1009,7 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                     // Set the sprite's direction
                     rc->sprites[i].dirX = toPlayerX;
                     rc->sprites[i].dirY = toPlayerY;
+                    rc->sprites[i].isBackwards = false;
 
                     // And let the sprite walk for a bit
                     setSpriteState(&(rc->sprites[i]), E_WALKING);
@@ -1026,12 +1031,6 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                     break;
                 }
 
-                // Don't move if too close
-                if(magSqr < 0.25f)
-                {
-                    break;
-                }
-
                 // Flip sprites for a walking animation
                 rc->sprites[i].texTimer -= tElapsedUs;
                 while(rc->sprites[i].texTimer <= 0)
@@ -1049,6 +1048,21 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
 
                 // Find the new position
                 float moveSpeed = frameTime * 1.0; // the constant value is in squares/second
+
+                if(magSqr < 0.5f && false == rc->sprites[i].isBackwards)
+                {
+                    rc->sprites[i].dirX = -rc->sprites[i].dirX;
+                    rc->sprites[i].dirY = -rc->sprites[i].dirY;
+                    rc->sprites[i].isBackwards = true;
+                }
+                else if(magSqr > 1.5f && true == rc->sprites[i].isBackwards)
+                {
+                    rc->sprites[i].dirX = -rc->sprites[i].dirX;
+                    rc->sprites[i].dirY = -rc->sprites[i].dirY;
+                    rc->sprites[i].isBackwards = false;
+                }
+
+                // Move backwards if too close
                 float newPosX = rc->sprites[i].posX + (rc->sprites[i].dirX * moveSpeed);
                 float newPosY = rc->sprites[i].posY + (rc->sprites[i].dirY * moveSpeed);
 
