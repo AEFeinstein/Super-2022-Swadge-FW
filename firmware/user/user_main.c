@@ -83,7 +83,7 @@ swadgeMode* swadgeModes[] =
     &personalDemonMode,
     &ddrMode,
     &colorchordMode,
-    &tunernomeMode
+    &tunernomeMode,
     &selfTestMode, // must be last
 };
 
