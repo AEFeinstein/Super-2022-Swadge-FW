@@ -170,7 +170,8 @@ void ICACHE_FLASH_ATTR user_init(void)
         // If there's a difference, reset the self-test bool
         INIT_PRINTF("New flash to %s\n", GIT_HASH);
         setGitHash(GIT_HASH);
-        setSelfTestPass(false);
+        // Don't require a new self test every flash, but if you wanted to, uncomment this
+        // setSelfTestPass(false);
     }
 
     // If the self test hasn't been passed yet, enter that mode
