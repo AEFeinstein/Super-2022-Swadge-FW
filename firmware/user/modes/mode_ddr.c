@@ -314,10 +314,10 @@ static void ICACHE_FLASH_ATTR ddrStartGame(int tempo, float eighthNoteProbabilit
         ddr->arrowRows[i].start = 0;
     }
 
-    ddr->arrowRows[0].pressDirection = LEFT; // bottommost
-    ddr->arrowRows[1].pressDirection = RIGHT;
-    ddr->arrowRows[2].pressDirection = UP;
-    ddr->arrowRows[3].pressDirection = DOWN; // topmost
+    ddr->arrowRows[0].pressDirection = DOWN_MASK; // bottommost
+    ddr->arrowRows[1].pressDirection = RIGHT_MASK;
+    ddr->arrowRows[2].pressDirection = LEFT_MASK;
+    ddr->arrowRows[3].pressDirection = UP_MASK; // topmost
 
     ddr->tempo = tempo;
     ddr->eighthNoteProbabilityModifier = eighthNoteProbabilityModifier;
