@@ -9,30 +9,36 @@
 #include <mem.h>
 #include "user_main.h"
 #include "mode_raycaster.h"
+
 #include "oled.h"
-#include "bresenham.h"
-#include "buttons.h"
 #include "assets.h"
+#include "font.h"
+#include "cndraw.h"
+
+#include "buttons.h"
 
 /*==============================================================================
  * Defines
  *============================================================================*/
 
-#define mapWidth 24
+#define mapWidth  24
 #define mapHeight 24
 
-#define texWidth 48
+#define texWidth  48
 #define texHeight 48
 
 #define NUM_SPRITES 20
 
-#define SHOT_COOLDOWN       3000000
+#define ENEMY_SHOT_COOLDOWN  3000000
 
-#define SHOT_ANIM_TIME      1000000
+#define SHOT_ANIM_TIME       1000000
 
-#define LONG_WALK_ANIM_TIME 3000000
-#define WALK_ANIM_TIME      1000000
-#define STEP_ANIM_TIME       250000
+#define LONG_WALK_ANIM_TIME  3000000
+#define WALK_ANIM_TIME       1000000
+#define STEP_ANIM_TIME        250000
+
+#define PLAYER_SHOT_COOLDOWN  300000
+#define MUZZLE_TIME            50000
 
 typedef enum
 {
@@ -83,6 +89,8 @@ typedef struct
     float dirY;
     float planeX;
     float planeY;
+    int32_t shotCooldown;
+    bool checkShot;
 
     // The enemies
     raySprite_t sprites[NUM_SPRITES];
@@ -104,6 +112,11 @@ typedef struct
     color d1[texWidth * texHeight];
     color d2[texWidth * texHeight];
     color d3[texWidth * texHeight];
+
+    // Storage for HUD images
+    pngHandle heart;
+    pngHandle gun;
+    pngHandle muzzleFlash;
 } raycaster_t;
 
 /*==============================================================================
@@ -125,6 +138,7 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsed);
 float ICACHE_FLASH_ATTR Q_rsqrt( float number );
 bool ICACHE_FLASH_ATTR checkLineToPlayer(raySprite_t* sprite, float pX, float pY);
 void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state);
+void ICACHE_FLASH_ATTR drawHUD(void);
 
 /*==============================================================================
  * Variables
@@ -287,6 +301,10 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
     drawPngToBuffer(&tmpPngHandle, rc->stripeTex);
     freePngAsset(&tmpPngHandle);
 
+    allocPngAsset("heart.png", &(rc->heart));
+    allocPngAsset("gun.png", &(rc->gun));
+    allocPngAsset("muzzle.png", &(rc->muzzleFlash));
+
     // TODO add a top level menu, difficulty, high scores
 }
 
@@ -295,6 +313,9 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
  */
 void ICACHE_FLASH_ATTR raycasterExitMode(void)
 {
+    freePngAsset(&(rc->heart));
+    freePngAsset(&(rc->gun));
+    freePngAsset(&(rc->muzzleFlash));
     os_free(rc);
     rc = NULL;
 }
@@ -341,7 +362,7 @@ void ICACHE_FLASH_ATTR raycasterProcess(void)
     drawTextures(rayResult);
     drawOutlines(rayResult);
     drawSprites(rayResult);
-    // TODO draw HUD
+    drawHUD();
 }
 
 /**
@@ -656,6 +677,9 @@ void ICACHE_FLASH_ATTR drawOutlines(rayResult_t* rayResult)
  */
 void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
 {
+    // Track if any sprite was shot
+    int16_t spriteIdxShot = -1;
+
     // sort sprites from far to close
     for(uint32_t i = 0; i < NUM_SPRITES; i++)
     {
@@ -755,10 +779,27 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
                     int32_t texY = ((d * texHeight) / spriteHeight) / 256;
                     // get current color from the texture
                     drawPixelUnsafeC(stripe, y, rc->sprites[rc->spriteOrder[i]].texture[(texX * texHeight) + texY]);
+
+                    if(true == rc->checkShot && (stripe == 63 || stripe == 64))
+                    {
+                        spriteIdxShot = rc->spriteOrder[i];
+                    }
                 }
             }
         }
     }
+
+    if(spriteIdxShot >= 0)
+    {
+        float distSqr = ((rc->sprites[spriteIdxShot].posX - rc->posX) * (rc->sprites[spriteIdxShot].posX - rc->posX)) +
+                        ((rc->sprites[spriteIdxShot].posY - rc->posY) * (rc->sprites[spriteIdxShot].posY - rc->posY));
+        if(distSqr < 36.0f)
+        {
+            // TODO track enemy health
+            os_printf("You shot %d! (%d)\n", spriteIdxShot, (int)distSqr);
+        }
+    }
+    rc->checkShot = false;
 }
 
 /**
@@ -850,7 +891,20 @@ void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
         rc->planeY = oldPlaneX * sin(rotSpeed) + rc->planeY * cos(rotSpeed);
     }
 
-    // TODO check shooting other sprites, sprite health
+    if(rc->shotCooldown > 0)
+    {
+        rc->shotCooldown -= tElapsedUs;
+    }
+    else
+    {
+        rc->shotCooldown = 0;
+    }
+
+    if(rc->rButtonState & 0x10 && 0 == rc->shotCooldown)
+    {
+        rc->shotCooldown = PLAYER_SHOT_COOLDOWN;
+        rc->checkShot = true;
+    }
 }
 
 /**
@@ -1122,13 +1176,13 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                 else if(rc->sprites[i].texTimer < SHOT_ANIM_TIME / 2 &&
                         rc->sprites[i].shotCooldown <= 0)
                 {
-                    rc->sprites[i].shotCooldown = SHOT_COOLDOWN;
+                    rc->sprites[i].shotCooldown = ENEMY_SHOT_COOLDOWN;
                     // After 0.5s switch to next texture
                     rc->sprites[i].texture = rc->s2;
                     // Check if the sprite can still see the player
                     if(checkLineToPlayer(&rc->sprites[i], rc->posX, rc->posY))
                     {
-                        // TODO RNG damage to player, track health
+                        // TODO track player health (maybe RNG damage)
                     }
                 }
                 break;
@@ -1293,5 +1347,43 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
             sprite->texTimer = 0;
             break;
         }
+    }
+}
+
+/**
+ * Draw the HUD, including the weapon and health
+ */
+void ICACHE_FLASH_ATTR drawHUD(void)
+{
+    char health[8] = {0};
+    ets_snprintf(health, sizeof(health) - 1, "%d", 99);
+    int16_t healthWidth = textWidth(health, IBM_VGA_8);
+    int16_t healthDrawX = OLED_WIDTH - rc->heart.width - 1 - healthWidth;
+
+    // Clear area behind health display
+    fillDisplayArea(healthDrawX - 1, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, OLED_WIDTH, OLED_HEIGHT, BLACK);
+
+    // Draw health display
+    drawPng(&(rc->heart),
+            OLED_WIDTH - rc->heart.width,
+            OLED_HEIGHT - rc->heart.height,
+            false, false, 0);
+    plotText(healthDrawX,
+             OLED_HEIGHT - FONT_HEIGHT_IBMVGA8,
+             health, IBM_VGA_8, WHITE);
+
+    // Draw gun
+    drawPng(&(rc->gun),
+            (OLED_WIDTH - rc->gun.width) / 2,
+            OLED_HEIGHT - rc->gun.height + (((rc->gun.height / 2) * rc->shotCooldown) / PLAYER_SHOT_COOLDOWN),
+            0, 0, false);
+
+    // Draw a muzzle flash, after a shot
+    if(rc->shotCooldown > MUZZLE_TIME)
+    {
+        drawPng(&(rc->muzzleFlash),
+                (OLED_WIDTH - rc->muzzleFlash.width) / 2,
+                OLED_HEIGHT - rc->muzzleFlash.height - (rc->gun.height / 2) - 6,
+                0, 0, false);
     }
 }
