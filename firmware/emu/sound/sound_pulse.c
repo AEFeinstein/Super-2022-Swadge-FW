@@ -75,8 +75,11 @@ void CloseSoundPulse( void * v )
 		pa_context_unref(r->pa_ctx);
 
 		// Kill thread before freeing r->pa_ml
-		OGCancelThread( r->thread );
-
+		if(r->thread)
+		{
+			OGCancelThread( r->thread );
+		}
+		
 		if(r->pa_ml)
 		{
 			pa_signal_done();
@@ -310,7 +313,10 @@ fail:
 		pa_context_unref(r->pa_ctx);
 
 		// Kill thread before freeing r->pa_ml
-		OGCancelThread( r->thread );
+		if(r->thread)
+		{
+			OGCancelThread( r->thread );
+		}
 
 		if(r->pa_ml)
 		{

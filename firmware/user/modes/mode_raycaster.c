@@ -91,6 +91,7 @@ typedef struct
     float planeY;
     int32_t shotCooldown;
     bool checkShot;
+    bool muzzleFlip;
 
     // The enemies
     raySprite_t sprites[NUM_SPRITES];
@@ -511,18 +512,18 @@ void ICACHE_FLASH_ATTR drawTextures(rayResult_t* rayResult)
         {
             drawStart = 0;
         }
-        else if(drawStart >= OLED_HEIGHT)
+        else if(drawStart > OLED_HEIGHT)
         {
-            drawStart = OLED_HEIGHT - 1;
+            drawStart = OLED_HEIGHT;
         }
 
         if(drawEnd < 0)
         {
             drawEnd = 0;
         }
-        else if(drawEnd >= OLED_HEIGHT)
+        else if(drawEnd > OLED_HEIGHT)
         {
-            drawEnd = OLED_HEIGHT - 1;
+            drawEnd = OLED_HEIGHT;
         }
 
         // Pick a texture
@@ -903,6 +904,7 @@ void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
     if(rc->rButtonState & 0x10 && 0 == rc->shotCooldown)
     {
         rc->shotCooldown = PLAYER_SHOT_COOLDOWN;
+        rc->muzzleFlip = !rc->muzzleFlip;
         rc->checkShot = true;
     }
 }
@@ -1384,6 +1386,6 @@ void ICACHE_FLASH_ATTR drawHUD(void)
         drawPng(&(rc->muzzleFlash),
                 (OLED_WIDTH - rc->muzzleFlash.width) / 2,
                 OLED_HEIGHT - rc->muzzleFlash.height - (rc->gun.height / 2) - 6,
-                0, 0, false);
+                rc->muzzleFlip, 0, false);
     }
 }
