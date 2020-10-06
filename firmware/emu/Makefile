@@ -7,6 +7,12 @@ INCDIRS  := $(shell find $(SWADGEMU)/../user/ -type d) \
 			$(SWADGEMU)/rawdraw \
 			$(SWADGEMU)/.
 
+# Create a variable with the git hash and branch name
+GIT_HASH  = $(shell git rev-parse --short HEAD)
+GIT_HASH := $(GIT_HASH)-
+GIT_HASH := $(GIT_HASH)$(shell git rev-parse --abbrev-ref HEAD)
+GIT_HASH := \"$(GIT_HASH)\"
+
 # See these values in user_config.h
 # #define SWADGE_DEV_KIT  0
 # #define SWADGE_BBKIWI   1
@@ -27,7 +33,7 @@ else ifeq ($(SET_SWADGE_VERSION),4)
 else ifeq ($(SET_SWADGE_VERSION),5)
   swadgeversion = 5
 else
-  swadgeversion = 5 #TODO: CHANGE THIS DEFAULT WHEN MAKING THE SUPER 2022 SWADGE
+  swadgeversion = 5 # default to SWADGE_CHAINSAW
 endif
 
 # Preprocessor defines
@@ -38,7 +44,8 @@ DEFINES  := USER_SETTINGS_ADDR=0x6C000 \
 			SWADGE_VERSION=$(swadgeversion) \
 			EMU \
 			NO_SOUND_PARAMETERS \
-			DFREQ=16000
+			DFREQ=16000 \
+			GIT_HASH=$(GIT_HASH)
 
 ifeq ($(OS),Windows_NT)	 # is Windows_NT on XP, 2000, 7, Vista, 10...
 	DEFINES	+= WINDOWS

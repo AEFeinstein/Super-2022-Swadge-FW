@@ -68,8 +68,8 @@
 //#define DEBUG
 
 #ifdef DEBUG
-#define DEBUG_QUARTER_NOTES
-#define DEBUG_EVERY_PERFECT
+    #define DEBUG_QUARTER_NOTES
+    #define DEBUG_EVERY_PERFECT
 #endif
 
 /*============================================================================
@@ -300,7 +300,8 @@ static void ICACHE_FLASH_ATTR ddrGoToScores()
     ddr->currentDifficultyType = DDR_HARD;
 }
 
-static void ICACHE_FLASH_ATTR ddrStartGame(int tempo, float eighthNoteProbabilityModifier, int restAvoidanceProbability, ddrDifficultyType diffType)
+static void ICACHE_FLASH_ATTR ddrStartGame(int tempo, float eighthNoteProbabilityModifier, int restAvoidanceProbability,
+        ddrDifficultyType diffType)
 {
 
     // Draw a gif
@@ -499,11 +500,11 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void)
         ddr->sixteenthNoteCounter = MAX_SIXTEENTH_TIMER - ddr->tempo + ddr->sixteenthNoteCounter;
         ddr->sixteenths = (ddr->sixteenths + 1 ) % 16;
 
-        #ifdef DEBUG_QUARTER_NOTES
+#ifdef DEBUG_QUARTER_NOTES
         // 100 percent chance on each beat
-        percentChanceSpawn = 100; 
+        percentChanceSpawn = 100;
         canSpawnArrow = 0 == ddr->sixteenths % 4;
-        #else
+#else
         canSpawnArrow = true;
 
         if (0 == ddr->sixteenths)
@@ -526,7 +527,7 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void)
         {
             percentChanceSpawn = 0; // 0 percent chance on other 16th beats
         }
-        #endif
+#endif
 
     }
     else
@@ -558,11 +559,11 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void)
 
             if (arrowDist <= ARROW_PERFECT_RADIUS)
             {
-            #ifdef DEBUG_EVERY_PERFECT
+#ifdef DEBUG_EVERY_PERFECT
                 if(true)
-            #else
+#else
                 if(ddr->ButtonDownState & curRow->pressDirection)
-            #endif
+#endif
                 {
                     curRow->count--;
                     curRow->start = (curRow->start + 1) % ARROW_ROW_MAX_COUNT;
@@ -634,9 +635,9 @@ static void ICACHE_FLASH_ATTR ddrAnimateNotes(void* arg __attribute__((unused)))
 
 static void ICACHE_FLASH_ATTR ddrMakeScoreString(ddrWinResult_t curWin, char* scoreText, unsigned int size)
 {
-    if (curWin.score==0) 
+    if (curWin.score == 0)
     {
-        *scoreText='\0';
+        *scoreText = '\0';
         return;
     }
 
@@ -658,7 +659,7 @@ static void ICACHE_FLASH_ATTR ddrMakeScoreString(ddrWinResult_t curWin, char* sc
             break;
         case DDR_ALL_PERFECT:
             typeText = "AAA";
-            break;                
+            break;
     }
 
     if (ddr->isNewHighScore)
@@ -695,7 +696,7 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
                 case DDR_HARD:
                     currentDiffScores = ddr->highScores.hardWins;
                     diffName = "HARD";
-                    break;        
+                    break;
                 case DDR_MEDIUM:
                     currentDiffScores = ddr->highScores.mediumWins;
                     diffName = "MEDIUM";
@@ -708,21 +709,21 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
 
             char scoresTitle[16];
             ets_snprintf(scoresTitle, sizeof(scoresTitle),   "%s RECORDS", diffName);
-            int titleXPos = (OLED_WIDTH-textWidth(scoresTitle, IBM_VGA_8)) /2;
+            int titleXPos = (OLED_WIDTH - textWidth(scoresTitle, IBM_VGA_8)) / 2;
             plotText(titleXPos, 5, scoresTitle, IBM_VGA_8, WHITE);
-            
-            for (int i= 0; i < DDR_HIGHSCORE_LEN && i < 8; i++)
+
+            for (int i = 0; i < DDR_HIGHSCORE_LEN && i < 8; i++)
             {
                 ddrWinResult_t curWin = currentDiffScores[i];
-                int yPos = 26 + (i%4)*10;
-                int xPos = 5 + (i/4)*60;
+                int yPos = 26 + (i % 4) * 10;
+                int xPos = 5 + (i / 4) * 60;
                 char scoreText[24];
                 ddrMakeScoreString(curWin, scoreText, sizeof(scoreText));
                 plotText(xPos, yPos, scoreText, TOM_THUMB, WHITE);
             }
 
-            plotText(0,56,"<", TOM_THUMB, WHITE);
-            plotText(125, 56,">", TOM_THUMB, WHITE);
+            plotText(0, 56, "<", TOM_THUMB, WHITE);
+            plotText(125, 56, ">", TOM_THUMB, WHITE);
 
             break;
         }
@@ -845,7 +846,7 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
             {
                 char comboText[24];
                 ets_snprintf(comboText, sizeof(comboText),   "Combo!!  %04d", ddr->currentCombo);
-                plotText(15, 30, comboText, TOM_THUMB, INVERSE); 
+                plotText(15, 30, comboText, TOM_THUMB, INVERSE);
             }
 
             ddr->ButtonDownState = 0;
@@ -859,7 +860,7 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
 static void ICACHE_FLASH_ATTR ddrHandleHitEarly(void)
 {
     ddr->okays += 1;
-    ddr->currentCombo +=1;
+    ddr->currentCombo += 1;
 
     ddr->feedbackTimer = MAX_FEEDBACK_TIMER;
     ddr->currentFeedback = FEEDBACK_HIT_EARLY;
@@ -879,7 +880,7 @@ static void ICACHE_FLASH_ATTR ddrHandleHitEarly(void)
 static void ICACHE_FLASH_ATTR ddrHandleHitLate(void)
 {
     ddr->okays += 1;
-    ddr->currentCombo +=1;
+    ddr->currentCombo += 1;
 
     ddr->feedbackTimer = MAX_FEEDBACK_TIMER;
     ddr->currentFeedback = FEEDBACK_HIT_LATE;
@@ -899,7 +900,7 @@ static void ICACHE_FLASH_ATTR ddrHandleHitLate(void)
 static void ICACHE_FLASH_ATTR ddrHandlePerfect(void)
 {
     ddr->perfects += 1;
-    ddr->currentCombo +=1;
+    ddr->currentCombo += 1;
 
     ddr->feedbackTimer = MAX_FEEDBACK_TIMER;
     ddr->currentFeedback = FEEDBACK_PERFECT;
@@ -955,7 +956,7 @@ static void ICACHE_FLASH_ATTR ddrCheckSongEnd()
             && ddr->arrowRows[2].count == 0
             && ddr->arrowRows[3].count == 0 )
     {
-        if (!ddr->didLose) 
+        if (!ddr->didLose)
         {
             ddrCheckAndSubmitScore();
         }
@@ -965,7 +966,7 @@ static void ICACHE_FLASH_ATTR ddrCheckSongEnd()
 
 static void ICACHE_FLASH_ATTR ddrCheckAndSubmitScore()
 {
-    
+
     int noteTotal = ddr->perfects + ddr->okays + ddr->misses;
     if (ddr->misses == 0)
     {
@@ -973,11 +974,11 @@ static void ICACHE_FLASH_ATTR ddrCheckAndSubmitScore()
         {
             ddr->winResult.winType = DDR_ALL_PERFECT;
         }
-        else 
+        else
         {
             ddr->winResult.winType = DDR_ALL_HIT;
         }
-    } 
+    }
     else
     {
         if (ddr->perfects > MANY_PERFECT_THRESHOLD * noteTotal)
@@ -1014,14 +1015,14 @@ static void ICACHE_FLASH_ATTR ddrCheckAndSubmitScore()
 
     ddr->isNewHighScore = false;
     int insertIndex;
-    for (insertIndex=0;insertIndex<DDR_HIGHSCORE_LEN;insertIndex++)
+    for (insertIndex = 0; insertIndex < DDR_HIGHSCORE_LEN; insertIndex++)
     {
         ddrWinResult_t curCompareRes = currentDiffScores[insertIndex];
-        if (curCompareRes.winType< ddr->winResult.winType) 
+        if (curCompareRes.winType < ddr->winResult.winType)
         {
             ddr->isNewHighScore = true;
             break;
-        } 
+        }
         if (curCompareRes.winType > ddr->winResult.winType)
         {
             continue;
@@ -1036,9 +1037,9 @@ static void ICACHE_FLASH_ATTR ddrCheckAndSubmitScore()
 
     if (ddr->isNewHighScore)
     {
-        for (int i=DDR_HIGHSCORE_LEN-1; i>insertIndex; i--)
+        for (int i = DDR_HIGHSCORE_LEN - 1; i > insertIndex; i--)
         {
-            currentDiffScores[i] = currentDiffScores[i-1];
+            currentDiffScores[i] = currentDiffScores[i - 1];
         }
         currentDiffScores[insertIndex] = ddr->winResult;
         setDDRScores(&ddr->highScores);
@@ -1085,7 +1086,7 @@ static void ICACHE_FLASH_ATTR ddrButtonCallback( uint8_t state,
             if (state & 0x10)
             {
                 ddr->mode = DDR_MENU;
-            } 
+            }
             break;
         }
         case DDR_HIGHSCORE:
@@ -1099,23 +1100,41 @@ static void ICACHE_FLASH_ATTR ddrButtonCallback( uint8_t state,
             if (state & 0x10)
             {
                 ddr->mode = DDR_MENU;
-            } 
-            else 
+            }
+            else
             {
                 switch(ddr->currentDifficultyType)
                 {
                     default:
                     case DDR_HARD:
-                        if (isLeft) ddr->currentDifficultyType = DDR_MEDIUM;
-                        if (isRight) ddr->currentDifficultyType = DDR_EASY;
+                        if (isLeft)
+                        {
+                            ddr->currentDifficultyType = DDR_MEDIUM;
+                        }
+                        if (isRight)
+                        {
+                            ddr->currentDifficultyType = DDR_EASY;
+                        }
                         break;
                     case DDR_MEDIUM:
-                        if (isLeft) ddr->currentDifficultyType = DDR_EASY;
-                        if (isRight) ddr->currentDifficultyType = DDR_HARD;
+                        if (isLeft)
+                        {
+                            ddr->currentDifficultyType = DDR_EASY;
+                        }
+                        if (isRight)
+                        {
+                            ddr->currentDifficultyType = DDR_HARD;
+                        }
                         break;
                     case DDR_EASY:
-                        if (isLeft) ddr->currentDifficultyType = DDR_HARD;
-                        if (isRight) ddr->currentDifficultyType = DDR_MEDIUM;
+                        if (isLeft)
+                        {
+                            ddr->currentDifficultyType = DDR_HARD;
+                        }
+                        if (isRight)
+                        {
+                            ddr->currentDifficultyType = DDR_MEDIUM;
+                        }
                 }
             }
             break;
