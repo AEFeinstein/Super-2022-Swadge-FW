@@ -116,6 +116,7 @@ typedef struct
 
     // Storage for HUD images
     pngHandle heart;
+    pngHandle mnote;
     pngHandle gun;
     pngHandle muzzleFlash;
 } raycaster_t;
@@ -303,6 +304,7 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
     freePngAsset(&tmpPngHandle);
 
     allocPngAsset("heart.png", &(rc->heart));
+    allocPngAsset("mnote.png", &(rc->mnote));
     allocPngAsset("gun.png", &(rc->gun));
     allocPngAsset("muzzle.png", &(rc->muzzleFlash));
 
@@ -315,6 +317,7 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
 void ICACHE_FLASH_ATTR raycasterExitMode(void)
 {
     freePngAsset(&(rc->heart));
+    freePngAsset(&(rc->mnote));
     freePngAsset(&(rc->gun));
     freePngAsset(&(rc->muzzleFlash));
     os_free(rc);
@@ -1357,13 +1360,35 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
  */
 void ICACHE_FLASH_ATTR drawHUD(void)
 {
+    // Figure out widths for note display
+    char notes[8] = {0};
+    ets_snprintf(notes, sizeof(notes) - 1, "%d", 88);
+    int16_t noteWidth = textWidth(notes, IBM_VGA_8);
+
+    // Clear area behind note display
+    fillDisplayArea(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1,
+                    noteWidth + rc->mnote.width + 1, OLED_HEIGHT,
+                    BLACK);
+
+    // Draw note display
+    drawPng(&(rc->mnote),
+            0,
+            OLED_HEIGHT - rc->mnote.height,
+            false, false, 0);
+    plotText(rc->mnote.width + 2,
+             OLED_HEIGHT - FONT_HEIGHT_IBMVGA8,
+             notes, IBM_VGA_8, WHITE);
+
+    // Figure out widths for health display
     char health[8] = {0};
     ets_snprintf(health, sizeof(health) - 1, "%d", 99);
     int16_t healthWidth = textWidth(health, IBM_VGA_8);
     int16_t healthDrawX = OLED_WIDTH - rc->heart.width - 1 - healthWidth;
 
     // Clear area behind health display
-    fillDisplayArea(healthDrawX - 1, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, OLED_WIDTH, OLED_HEIGHT, BLACK);
+    fillDisplayArea(healthDrawX - 1, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1,
+                    OLED_WIDTH, OLED_HEIGHT,
+                    BLACK);
 
     // Draw health display
     drawPng(&(rc->heart),
