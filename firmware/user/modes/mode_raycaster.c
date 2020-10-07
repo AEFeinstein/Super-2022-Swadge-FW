@@ -17,6 +17,8 @@
 
 #include "buttons.h"
 
+#include "menu2d.h"
+
 /*==============================================================================
  * Defines
  *============================================================================*/
@@ -56,6 +58,12 @@ typedef enum
     E_DEAD
 } enemyState_t;
 
+typedef enum
+{
+    RC_MENU,
+    RC_GAME
+} raycasterMode_t;
+
 /*==============================================================================
  * Structs
  *============================================================================*/
@@ -89,6 +97,9 @@ typedef struct
 
 typedef struct
 {
+    raycasterMode_t mode;
+    menu_t* menu;
+
     uint8_t rButtonState;
     float posX;
     float posY;
@@ -135,19 +146,24 @@ typedef struct
 void ICACHE_FLASH_ATTR raycasterEnterMode(void);
 void ICACHE_FLASH_ATTR raycasterExitMode(void);
 void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state, int32_t button, int32_t down);
-void ICACHE_FLASH_ATTR raycasterProcess(void);
-void ICACHE_FLASH_ATTR sortSprites(int32_t* order, float* dist, int32_t amount);
+void ICACHE_FLASH_ATTR raycasterMenuButtonCallback(const char* selected);
+bool ICACHE_FLASH_ATTR raycasterRenderTask(void);
+void ICACHE_FLASH_ATTR raycasterGameRenderer(void);
+
+void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsed);
+void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsed);
 
 void ICACHE_FLASH_ATTR castRays(rayResult_t* rayResult);
 void ICACHE_FLASH_ATTR drawTextures(rayResult_t* rayResult);
 void ICACHE_FLASH_ATTR drawOutlines(rayResult_t* rayResult);
 void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult);
-void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsed);
-void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsed);
+void ICACHE_FLASH_ATTR drawHUD(void);
+
+void ICACHE_FLASH_ATTR raycasterInitGame(void);
+void ICACHE_FLASH_ATTR sortSprites(int32_t* order, float* dist, int32_t amount);
 float ICACHE_FLASH_ATTR Q_rsqrt( float number );
 bool ICACHE_FLASH_ATTR checkLineToPlayer(raySprite_t* sprite, float pX, float pY);
 void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state);
-void ICACHE_FLASH_ATTR drawHUD(void);
 
 /*==============================================================================
  * Variables
@@ -158,7 +174,7 @@ swadgeMode raycasterMode =
     .modeName = "raycaster",
     .fnEnterMode = raycasterEnterMode,
     .fnExitMode = raycasterExitMode,
-    .fnProcTask = raycasterProcess,
+    .fnRenderTask = raycasterRenderTask,
     .fnButtonCallback = raycasterButtonCallback,
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
@@ -170,7 +186,7 @@ swadgeMode raycasterMode =
 
 raycaster_t* rc;
 
-static const int32_t worldMap[mapWidth][mapHeight] =
+static const uint8_t worldMap[mapWidth][mapHeight] =
 {
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
@@ -198,28 +214,9 @@ static const int32_t worldMap[mapWidth][mapHeight] =
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 };
 
-// static const raySprite_t sprite[NUM_SPRITES] =
-// {
-//     {20.5, 11.5, 10},
-//     {18.5, 4.5, 10},
-//     {10.0, 4.5, 10},
-//     {10.0, 12.5, 10},
-//     {3.5, 6.5, 10},
-//     {3.5, 20.5, 10},
-//     {3.5, 14.5, 10},
-//     {14.5, 20.5, 10},
-//     {18.5, 10.5, 9},
-//     {18.5, 11.5, 9},
-//     {18.5, 12.5, 9},
-//     {21.5, 1.5, 8},
-//     {15.5, 1.5, 8},
-//     {16.0, 1.8, 8},
-//     {16.2, 1.2, 8},
-//     {3.5,  2.5, 8},
-//     {9.5, 15.5, 8},
-//     {10.0, 15.1, 8},
-//     {10.5, 15.8, 8},
-// };
+static const char rc_title[] = "RAYCAST FPS";
+static const char rc_start[] = "START";
+static const char rc_quit[] = "QUIT";
 
 /*==============================================================================
  * Functions
@@ -231,49 +228,17 @@ static const int32_t worldMap[mapWidth][mapHeight] =
  */
 void ICACHE_FLASH_ATTR raycasterEnterMode(void)
 {
-    enableDebounce(false);
-
     rc = os_malloc(sizeof(raycaster_t));
+    rc->mode = RC_MENU;
 
-    rc->rButtonState = 0;
-    // x and y start position
-    rc->posX = 22;
-    rc->posY = 12;
-    // initial direction vector
-    rc->dirX = -1;
-    rc->dirY = 0;
-    // the 2d raycaster version of camera plane
-    rc->planeX = 0;
-    rc->planeY = 0.66;
+    rc->menu = initMenu(rc_title, raycasterMenuButtonCallback);
+    addRowToMenu(rc->menu);
+    addItemToRow(rc->menu, rc_start);
+    addRowToMenu(rc->menu);
+    addItemToRow(rc->menu, rc_quit);
+    // TODO add difficulty, high scores
 
-    for(uint8_t i = 0; i < NUM_SPRITES; i++)
-    {
-        rc->sprites[i].posX = -1;
-        rc->sprites[i].posY = -1;
-    }
-
-    // Set initial health
-    rc->health = PLAYER_HEALTH;
-
-    int8_t spritesPlaced = 0;
-    for(uint8_t x = 0; x < mapWidth; x++)
-    {
-        for(uint8_t y = 0; y < mapHeight; y++)
-        {
-            if(spritesPlaced < NUM_SPRITES && worldMap[x][y] == 0)
-            {
-                rc->sprites[spritesPlaced].posX = x;
-                rc->sprites[spritesPlaced].posY = y;
-                rc->sprites[spritesPlaced].dirX = 0;
-                rc->sprites[spritesPlaced].dirX = 0;
-                rc->sprites[spritesPlaced].shotCooldown = 0;
-                rc->sprites[spritesPlaced].isBackwards = false;
-                rc->sprites[spritesPlaced].health = ENEMY_HEALTH;
-                setSpriteState(&(rc->sprites[spritesPlaced]), E_IDLE);
-                spritesPlaced++;
-            }
-        }
-    }
+    enableDebounce(false);
 
     pngHandle tmpPngHandle;
 
@@ -315,6 +280,7 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
     drawPngToBuffer(&tmpPngHandle, rc->stripeTex);
     freePngAsset(&tmpPngHandle);
 
+    // Load the HUD assets
     allocPngAsset("heart.png", &(rc->heart));
     allocPngAsset("mnote.png", &(rc->mnote));
     allocPngSequence(&(rc->gtr), 5,
@@ -324,7 +290,8 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
                      "gtr4.png",
                      "gtr5.png");
 
-    // TODO add a top level menu, difficulty, high scores
+    // Initialize game state
+    raycasterInitGame();
 }
 
 /**
@@ -332,11 +299,58 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
  */
 void ICACHE_FLASH_ATTR raycasterExitMode(void)
 {
+    deinitMenu(rc->menu);
     freePngAsset(&(rc->heart));
     freePngAsset(&(rc->mnote));
     freePngSequence(&(rc->gtr));
     os_free(rc);
     rc = NULL;
+}
+
+/**
+ * Initialize the game state
+ */
+void ICACHE_FLASH_ATTR raycasterInitGame(void)
+{
+    rc->rButtonState = 0;
+    // x and y start position
+    rc->posX = 22;
+    rc->posY = 12;
+    // initial direction vector
+    rc->dirX = -1;
+    rc->dirY = 0;
+    // the 2d raycaster version of camera plane
+    rc->planeX = 0;
+    rc->planeY = 0.66;
+
+    for(uint8_t i = 0; i < NUM_SPRITES; i++)
+    {
+        rc->sprites[i].posX = -1;
+        rc->sprites[i].posY = -1;
+    }
+
+    // Set initial health
+    rc->health = PLAYER_HEALTH;
+
+    int8_t spritesPlaced = 0;
+    for(uint8_t x = 0; x < mapWidth; x++)
+    {
+        for(uint8_t y = 0; y < mapHeight; y++)
+        {
+            if(spritesPlaced < NUM_SPRITES && worldMap[x][y] == 0)
+            {
+                rc->sprites[spritesPlaced].posX = x;
+                rc->sprites[spritesPlaced].posY = y;
+                rc->sprites[spritesPlaced].dirX = 0;
+                rc->sprites[spritesPlaced].dirX = 0;
+                rc->sprites[spritesPlaced].shotCooldown = 0;
+                rc->sprites[spritesPlaced].isBackwards = false;
+                rc->sprites[spritesPlaced].health = ENEMY_HEALTH;
+                setSpriteState(&(rc->sprites[spritesPlaced]), E_IDLE);
+                spritesPlaced++;
+            }
+        }
+    }
 }
 
 /**
@@ -346,18 +360,76 @@ void ICACHE_FLASH_ATTR raycasterExitMode(void)
  * @param button The button that caused this interrupt
  * @param down   true if the button was pushed, false if it was released
  */
-void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state,
-        int32_t button __attribute__((unused)),
-        int32_t down __attribute__((unused)))
+void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state, int32_t button, int32_t down)
 {
-    rc->rButtonState = state;
+    switch(rc->mode)
+    {
+        default:
+        case RC_MENU:
+        {
+            if(down)
+            {
+                menuButton(rc->menu, button);
+            }
+            break;
+        }
+        case RC_GAME:
+        {
+            rc->rButtonState = state;
+            break;
+        }
+    }
+}
+
+/**
+ * Button callback from the top level menu when an item is selected
+ *
+ * @param selected The string that was selected
+ */
+void ICACHE_FLASH_ATTR raycasterMenuButtonCallback(const char* selected)
+{
+    if(rc_quit == selected)
+    {
+        switchToSwadgeMode(0);
+    }
+    else if (rc_start == selected)
+    {
+        // Start the game!
+        raycasterInitGame();
+        rc->mode = RC_GAME;
+    }
+}
+
+/**
+ * This is called whenever there is a screen to render
+ * Draw either the menu or the game
+ *
+ * @return true to always draw the screen
+ */
+bool ICACHE_FLASH_ATTR raycasterRenderTask(void)
+{
+    switch(rc->mode)
+    {
+        default:
+        case RC_MENU:
+        {
+            drawMenu(rc->menu);
+            break;
+        }
+        case RC_GAME:
+        {
+            raycasterGameRenderer();
+            break;
+        }
+    }
+    return true;
 }
 
 /**
  * This function renders the scene and handles input. It is called as fast as
  * possible by user_main.c's procTask.
  */
-void ICACHE_FLASH_ATTR raycasterProcess(void)
+void ICACHE_FLASH_ATTR raycasterGameRenderer(void)
 {
     static uint32_t tLastUs = 0; // time of current frame
     if(tLastUs == 0)
@@ -1222,8 +1294,8 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                         rc->hurtOutlineTimer = HURT_OUTLINE_TIME;
                         if(rc->health == 0)
                         {
-                            // TODO return to menu
-                            rc->health = PLAYER_HEALTH;
+                            // TODO display game over
+                            rc->mode = RC_MENU;
                         }
                     }
                 }
