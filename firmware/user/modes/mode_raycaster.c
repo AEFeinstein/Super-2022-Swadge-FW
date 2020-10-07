@@ -38,7 +38,6 @@
 #define STEP_ANIM_TIME        250000
 
 #define PLAYER_SHOT_COOLDOWN  300000
-#define MUZZLE_TIME            50000
 
 typedef enum
 {
@@ -91,7 +90,6 @@ typedef struct
     float planeY;
     int32_t shotCooldown;
     bool checkShot;
-    bool muzzleFlip;
 
     // The enemies
     raySprite_t sprites[NUM_SPRITES];
@@ -117,8 +115,7 @@ typedef struct
     // Storage for HUD images
     pngHandle heart;
     pngHandle mnote;
-    pngHandle gun;
-    pngHandle muzzleFlash;
+    pngSequenceHandle gtr;
 } raycaster_t;
 
 /*==============================================================================
@@ -305,8 +302,12 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
 
     allocPngAsset("heart.png", &(rc->heart));
     allocPngAsset("mnote.png", &(rc->mnote));
-    allocPngAsset("gun.png", &(rc->gun));
-    allocPngAsset("muzzle.png", &(rc->muzzleFlash));
+    allocPngSequence(&(rc->gtr), 5,
+                     "gtr1.png",
+                     "gtr2.png",
+                     "gtr3.png",
+                     "gtr4.png",
+                     "gtr5.png");
 
     // TODO add a top level menu, difficulty, high scores
 }
@@ -318,8 +319,7 @@ void ICACHE_FLASH_ATTR raycasterExitMode(void)
 {
     freePngAsset(&(rc->heart));
     freePngAsset(&(rc->mnote));
-    freePngAsset(&(rc->gun));
-    freePngAsset(&(rc->muzzleFlash));
+    freePngSequence(&(rc->gtr));
     os_free(rc);
     rc = NULL;
 }
@@ -907,7 +907,6 @@ void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
     if(rc->rButtonState & 0x10 && 0 == rc->shotCooldown)
     {
         rc->shotCooldown = PLAYER_SHOT_COOLDOWN;
-        rc->muzzleFlip = !rc->muzzleFlip;
         rc->checkShot = true;
     }
 }
@@ -1399,18 +1398,24 @@ void ICACHE_FLASH_ATTR drawHUD(void)
              OLED_HEIGHT - FONT_HEIGHT_IBMVGA8,
              health, IBM_VGA_8, WHITE);
 
-    // Draw gun
-    drawPng(&(rc->gun),
-            (OLED_WIDTH - rc->gun.width) / 2,
-            OLED_HEIGHT - rc->gun.height + (((rc->gun.height / 2) * rc->shotCooldown) / PLAYER_SHOT_COOLDOWN),
-            0, 0, false);
-
-    // Draw a muzzle flash, after a shot
-    if(rc->shotCooldown > MUZZLE_TIME)
+    // Draw Guitar
+    if(0 == rc->shotCooldown)
     {
-        drawPng(&(rc->muzzleFlash),
-                (OLED_WIDTH - rc->muzzleFlash.width) / 2,
-                OLED_HEIGHT - rc->muzzleFlash.height - (rc->gun.height / 2) - 6,
-                rc->muzzleFlip, 0, false);
+        drawPngSequence(&(rc->gtr),
+                        (OLED_WIDTH - rc->gtr.handles->width) / 2,
+                        (OLED_HEIGHT - rc->gtr.handles->height),
+                        false, false, 0, 0);
+    }
+    else
+    {
+        int8_t idx = (rc->gtr.count * (PLAYER_SHOT_COOLDOWN - rc->shotCooldown)) / PLAYER_SHOT_COOLDOWN;
+        if(idx >= rc->gtr.count)
+        {
+            idx = rc->gtr.count - 1;
+        }
+        drawPngSequence(&(rc->gtr),
+                        (OLED_WIDTH - rc->gtr.handles->width) / 2,
+                        (OLED_HEIGHT - rc->gtr.handles->height),
+                        false, false, 0, idx);
     }
 }
