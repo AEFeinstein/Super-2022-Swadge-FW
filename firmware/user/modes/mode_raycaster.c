@@ -31,13 +31,19 @@
 
 #define ENEMY_SHOT_COOLDOWN  3000000
 
-#define SHOT_ANIM_TIME       1000000
+#define SHOOTING_ANIM_TIME   1000000
+#define GOT_SHOT_ANIM_TIME   1000000
 
 #define LONG_WALK_ANIM_TIME  3000000
 #define WALK_ANIM_TIME       1000000
 #define STEP_ANIM_TIME        250000
 
 #define PLAYER_SHOT_COOLDOWN  300000
+
+#define HURT_OUTLINE_TIME     100000
+
+#define ENEMY_HEALTH   2
+#define PLAYER_HEALTH 99
 
 typedef enum
 {
@@ -46,7 +52,8 @@ typedef enum
     E_PICK_DIR_RAND,
     E_WALKING,
     E_SHOOTING,
-    E_DYING
+    E_GOT_SHOT,
+    E_DEAD
 } enemyState_t;
 
 /*==============================================================================
@@ -77,6 +84,7 @@ typedef struct
     int32_t stateTimer;
     int32_t shotCooldown;
     bool isBackwards;
+    int32_t health;
 } raySprite_t;
 
 typedef struct
@@ -90,6 +98,8 @@ typedef struct
     float planeY;
     int32_t shotCooldown;
     bool checkShot;
+    int32_t health;
+    int32_t hurtOutlineTimer;
 
     // The enemies
     raySprite_t sprites[NUM_SPRITES];
@@ -242,6 +252,9 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
         rc->sprites[i].posY = -1;
     }
 
+    // Set initial health
+    rc->health = PLAYER_HEALTH;
+
     int8_t spritesPlaced = 0;
     for(uint8_t x = 0; x < mapWidth; x++)
     {
@@ -253,7 +266,9 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
                 rc->sprites[spritesPlaced].posY = y;
                 rc->sprites[spritesPlaced].dirX = 0;
                 rc->sprites[spritesPlaced].dirX = 0;
+                rc->sprites[spritesPlaced].shotCooldown = 0;
                 rc->sprites[spritesPlaced].isBackwards = false;
+                rc->sprites[spritesPlaced].health = ENEMY_HEALTH;
                 setSpriteState(&(rc->sprites[spritesPlaced]), E_IDLE);
                 spritesPlaced++;
             }
@@ -357,6 +372,13 @@ void ICACHE_FLASH_ATTR raycasterProcess(void)
 
         handleRayInput(tElapsedUs);
         moveEnemies(tElapsedUs);
+
+        // Tick down the timer to display the hurt outline.
+        // This is drawn in drawHUD()
+        if(rc->hurtOutlineTimer > 0)
+        {
+            rc->hurtOutlineTimer -= tElapsedUs;
+        }
     }
 
     rayResult_t rayResult[OLED_WIDTH] = {{0}};
@@ -793,14 +815,23 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
         }
     }
 
+    // If you shot something
     if(spriteIdxShot >= 0)
     {
+        // And it's fewer than six units away
         float distSqr = ((rc->sprites[spriteIdxShot].posX - rc->posX) * (rc->sprites[spriteIdxShot].posX - rc->posX)) +
                         ((rc->sprites[spriteIdxShot].posY - rc->posY) * (rc->sprites[spriteIdxShot].posY - rc->posY));
         if(distSqr < 36.0f)
         {
-            // TODO track enemy health
-            os_printf("You shot %d! (%d)\n", spriteIdxShot, (int)distSqr);
+            // And it's not already getting shot or dead
+            if(rc->sprites[spriteIdxShot].state != E_GOT_SHOT &&
+                    rc->sprites[spriteIdxShot].state != E_DEAD)
+            {
+                // decrement health by one
+                rc->sprites[spriteIdxShot].health -= 1;
+                // Animate getting shot
+                setSpriteState(&(rc->sprites[spriteIdxShot]), E_GOT_SHOT);
+            }
         }
     }
     rc->checkShot = false;
@@ -1177,7 +1208,7 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                     // After the shot, go to E_PICK_DIR_PLAYER
                     setSpriteState(&(rc->sprites[i]), E_PICK_DIR_PLAYER);
                 }
-                else if(rc->sprites[i].texTimer < SHOT_ANIM_TIME / 2 &&
+                else if(rc->sprites[i].texTimer < SHOOTING_ANIM_TIME / 2 &&
                         rc->sprites[i].shotCooldown <= 0)
                 {
                     rc->sprites[i].shotCooldown = ENEMY_SHOT_COOLDOWN;
@@ -1186,14 +1217,46 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                     // Check if the sprite can still see the player
                     if(checkLineToPlayer(&rc->sprites[i], rc->posX, rc->posY))
                     {
-                        // TODO track player health (maybe RNG damage)
+                        // TODO RNG if damage actually lands?
+                        rc->health--;
+                        rc->hurtOutlineTimer = HURT_OUTLINE_TIME;
+                        if(rc->health == 0)
+                        {
+                            // TODO return to menu
+                            rc->health = PLAYER_HEALTH;
+                        }
                     }
                 }
                 break;
             }
-            case E_DYING:
+            case E_GOT_SHOT:
             {
-                // TODO animate death
+                // Animate getting shot
+                rc->sprites[i].texTimer -= tElapsedUs;
+                if(rc->sprites[i].texTimer <= 0)
+                {
+                    // If the enemy has any health
+                    if(rc->sprites[i].health > 0)
+                    {
+                        // Go back to E_PICK_DIR_PLAYER
+                        setSpriteState(&(rc->sprites[i]), E_PICK_DIR_PLAYER);
+                    }
+                    else
+                    {
+                        // If there is no health, go to E_DEAD
+                        setSpriteState(&(rc->sprites[i]), E_DEAD);
+                    }
+                }
+                else if(rc->sprites[i].texTimer < GOT_SHOT_ANIM_TIME / 2)
+                {
+                    // After 0.5s switch to next texture
+                    rc->sprites[i].texture = rc->d2;
+                }
+                break;
+            }
+            case E_DEAD:
+            {
+                // Do nothing, ya dead
                 break;
             }
         }
@@ -1338,18 +1401,23 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
         }
         case E_SHOOTING:
         {
-            sprite->stateTimer = SHOT_ANIM_TIME;
+            sprite->stateTimer = SHOOTING_ANIM_TIME;
             sprite->texture = rc->s1;
-            sprite->texTimer = SHOT_ANIM_TIME;
+            sprite->texTimer = SHOOTING_ANIM_TIME;
             break;
         }
-        case E_DYING:
+        case E_GOT_SHOT:
         {
-            // TODO Set timers for death animation
-            sprite->stateTimer = 0;
+            sprite->stateTimer = GOT_SHOT_ANIM_TIME;
             sprite->texture = rc->d1;
-            sprite->texTimer = 0;
+            sprite->texTimer = GOT_SHOT_ANIM_TIME;
             break;
+        }
+        case E_DEAD:
+        {
+            sprite->stateTimer = 0;
+            sprite->texture = rc->d3;
+            sprite->texTimer = 0;
         }
     }
 }
@@ -1380,7 +1448,7 @@ void ICACHE_FLASH_ATTR drawHUD(void)
 
     // Figure out widths for health display
     char health[8] = {0};
-    ets_snprintf(health, sizeof(health) - 1, "%d", 99);
+    ets_snprintf(health, sizeof(health) - 1, "%d", rc->health);
     int16_t healthWidth = textWidth(health, IBM_VGA_8);
     int16_t healthDrawX = OLED_WIDTH - rc->heart.width - 1 - healthWidth;
 
@@ -1417,5 +1485,20 @@ void ICACHE_FLASH_ATTR drawHUD(void)
                         (OLED_WIDTH - rc->gtr.handles->width) / 2,
                         (OLED_HEIGHT - rc->gtr.handles->height),
                         false, false, 0, idx);
+    }
+
+    // Draw a white border if you got shot
+    if(rc->hurtOutlineTimer > 0)
+    {
+        for(uint8_t x = 0; x < OLED_WIDTH; x++)
+        {
+            drawPixelUnsafeC(x, 0, WHITE);
+            drawPixelUnsafeC(x, OLED_HEIGHT - 1, WHITE);
+        }
+        for(uint8_t y = 1; y < OLED_HEIGHT - 1; y++)
+        {
+            drawPixelUnsafeC(0, y, WHITE);
+            drawPixelUnsafeC(OLED_WIDTH - 1, y, WHITE);
+        }
     }
 }
