@@ -47,6 +47,8 @@
 #define ENEMY_HEALTH   2
 #define PLAYER_HEALTH 99
 
+#define NUM_IMP_WALK_FRAMES 6
+
 typedef enum
 {
     E_IDLE,
@@ -88,6 +90,7 @@ typedef struct
     float dirY;
     color* texture;
     int32_t texTimer;
+    int8_t texFrame;
     enemyState_t state;
     int32_t stateTimer;
     int32_t shotCooldown;
@@ -123,8 +126,7 @@ typedef struct
     color stoneTex[texWidth * texHeight];
     color stripeTex[texWidth * texHeight];
 
-    color w1[texWidth * texHeight];
-    color w2[texWidth * texHeight];
+    color impWalk[NUM_IMP_WALK_FRAMES][texWidth * texHeight];
 
     color s1[texWidth * texHeight];
     color s2[texWidth * texHeight];
@@ -243,12 +245,28 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
     pngHandle tmpPngHandle;
 
     // Load the enemy texture to RAM
-    allocPngAsset("w1.png", &tmpPngHandle);
-    drawPngToBuffer(&tmpPngHandle, rc->w1);
+    allocPngAsset("imp0.png", &tmpPngHandle);
+    drawPngToBuffer(&tmpPngHandle, rc->impWalk[0]);
     freePngAsset(&tmpPngHandle);
 
-    allocPngAsset("w2.png", &tmpPngHandle);
-    drawPngToBuffer(&tmpPngHandle, rc->w2);
+    allocPngAsset("imp1.png", &tmpPngHandle);
+    drawPngToBuffer(&tmpPngHandle, rc->impWalk[1]);
+    freePngAsset(&tmpPngHandle);
+
+    allocPngAsset("imp2.png", &tmpPngHandle);
+    drawPngToBuffer(&tmpPngHandle, rc->impWalk[2]);
+    freePngAsset(&tmpPngHandle);
+
+    allocPngAsset("imp3.png", &tmpPngHandle);
+    drawPngToBuffer(&tmpPngHandle, rc->impWalk[3]);
+    freePngAsset(&tmpPngHandle);
+
+    allocPngAsset("imp4.png", &tmpPngHandle);
+    drawPngToBuffer(&tmpPngHandle, rc->impWalk[4]);
+    freePngAsset(&tmpPngHandle);
+
+    allocPngAsset("imp5.png", &tmpPngHandle);
+    drawPngToBuffer(&tmpPngHandle, rc->impWalk[5]);
     freePngAsset(&tmpPngHandle);
 
     allocPngAsset("s1.png", &tmpPngHandle);
@@ -1197,14 +1215,8 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                 while(rc->sprites[i].texTimer <= 0)
                 {
                     rc->sprites[i].texTimer += STEP_ANIM_TIME;
-                    if(rc->sprites[i].texture == rc->w1)
-                    {
-                        rc->sprites[i].texture = rc->w2;
-                    }
-                    else
-                    {
-                        rc->sprites[i].texture = rc->w1;
-                    }
+                    rc->sprites[i].texFrame = (rc->sprites[i].texFrame + 1) % NUM_IMP_WALK_FRAMES;
+                    rc->sprites[i].texture = rc->impWalk[rc->sprites[i].texFrame];
                 }
 
                 // Find the new position
@@ -1444,6 +1456,7 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
 {
     // Set the state
     sprite->state = state;
+    sprite->texFrame = 0;
 
     // Set timers and textures
     switch(state)
@@ -1452,7 +1465,7 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
         case E_IDLE:
         {
             sprite->stateTimer = 0;
-            sprite->texture = rc->w1;
+            sprite->texture = rc->impWalk[0];
             sprite->texTimer = 0;
             break;
         }
@@ -1460,14 +1473,14 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
         case E_PICK_DIR_RAND:
         {
             sprite->stateTimer = 0;
-            sprite->texture = rc->w1;
+            sprite->texture = rc->impWalk[0];
             sprite->texTimer = 0;
             break;
         }
         case E_WALKING:
         {
             sprite->stateTimer = WALK_ANIM_TIME;
-            sprite->texture = rc->w1;
+            sprite->texture = rc->impWalk[0];
             sprite->texTimer = STEP_ANIM_TIME;
             break;
         }
