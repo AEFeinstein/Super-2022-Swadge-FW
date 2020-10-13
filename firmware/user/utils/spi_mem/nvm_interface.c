@@ -17,7 +17,7 @@
  * Defines
  *==========================================================================*/
 
-#define SAVE_LOAD_KEY 0xBB
+#define SAVE_LOAD_KEY 0xBC
 
 /*============================================================================
  * Structs
@@ -54,7 +54,7 @@ settings_t settings =
     .isMuted = 0,
     .menuPos = 0,
     .savedDemon = {0},
-    .ddrHighScores = {{{0}}, {{0}}, {{0}}},
+    .ddrHighScores = {{{0}}, {{0}}, {{0}}, {{0}}},
     .gitHash = {0},
     .selfTestPassed = false,
 };
