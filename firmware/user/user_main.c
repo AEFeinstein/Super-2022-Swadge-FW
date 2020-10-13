@@ -41,6 +41,7 @@
 #include "mode_raycaster.h"
 #include "mode_tunernome.h"
 #include "mode_selftest.h"
+#include "mode_mtype.h"
 
 #include "ccconfig.h"
 
@@ -84,6 +85,7 @@ swadgeMode* swadgeModes[] =
     &ddrMode,
     &colorchordMode,
     &tunernomeMode,
+    &mTypeMode,
     &selfTestMode, // must be last
 };
 
