@@ -7,5 +7,6 @@
 extern swadgeMode personalDemonMode;
 
 void animateEvent(event_t evt);
+uint8_t getNumDemonSpecies(void);
 
 #endif

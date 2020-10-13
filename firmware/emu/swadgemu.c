@@ -179,18 +179,7 @@ void emuSendOLEDData( int disp, uint8_t* currentFb )
             uint32_t pxcol;
             if( disp == 0 )
             {
-                int memx = (OLED_WIDTH - 1) - x;
-                int memy = (OLED_HEIGHT - 1) - y;
-                if (memy % 2 == 0)
-                {
-                    memy = (memy >> 1);
-                }
-                else
-                {
-                    memy = (memy >> 1) + (OLED_HEIGHT >> 1);
-                }
-
-                uint8_t col = currentFb[(memx + (memy / 8) * OLED_WIDTH)] & (1 << (memy & 7));
+                uint8_t col = currentFb[(y + x * OLED_HEIGHT)/8] & (1 << (y & 7));
                 pxcol = col ? (disp ? 0xffffffff : OLED_ON_COLOR) : BACKGROUND_COLOR;
             }
             else
@@ -322,9 +311,12 @@ void emuCheckResize()
         CNFGHandleInput();
 #ifdef LINUX
         //Handle input from SHM.
-        for( i = 0; i < 5; i++ )
+        if( swadgeshm_input_data[6] )
         {
-            HandleButtonStatus( i, swadgeshm_input_data[i] );
+            for( i = 0; i < 5; i++ )
+            {
+                HandleButtonStatus( i, swadgeshm_input_data[i] );
+            }
         }
 #endif
 
@@ -398,6 +390,10 @@ int ets_strcmp (const char* str1, const char* str2)
 char* ets_strcat(char* dest, const char* src)
 {
     return strcat(dest, src);
+}
+int ets_strncmp(const char *s1, const char *s2, int len)
+{
+    return strncmp(s1, s2, len);
 }
 
 bool canPrint = true;

@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <osapi.h>
 #include <user_interface.h>
+#include <mem.h>
 #include "user_main.h"
 #include "mode_raycaster.h"
 #include "oled.h"
@@ -23,6 +24,8 @@
 #define texWidth 48
 #define texHeight 48
 
+#define NUM_SPRITES 19
+
 /*==============================================================================
  * Structs
  *============================================================================*/
@@ -32,8 +35,8 @@ typedef struct
     uint8_t mapX;
     uint8_t mapY;
     uint8_t side;
-    int16_t drawStart;
-    int16_t drawEnd;
+    int32_t drawStart;
+    int32_t drawEnd;
     float perpWallDist;
     float rayDirX;
     float rayDirY;
@@ -45,6 +48,26 @@ typedef struct
     float y;
     int32_t texture;
 } raySprite_t;
+
+typedef struct
+{
+    uint8_t rButtonState;
+    float posX;
+    float posY;
+    float dirX;
+    float dirY;
+    float planeX;
+    float planeY;
+
+    // arrays used to sort the sprites
+    int32_t spriteOrder[NUM_SPRITES];
+    float spriteDistance[NUM_SPRITES];
+
+    // Storage for the enemy sprite
+    color enemySpriteTex[texWidth * texHeight];
+    color stoneTex[texWidth * texHeight];
+    color stripeTex[texWidth * texHeight];
+} raycaster_t;
 
 /*==============================================================================
  * Prototypes
@@ -81,8 +104,9 @@ swadgeMode raycasterMode =
     .menuImg = "ray-menu.gif"
 };
 
-uint8_t rButtonState = 0;
-int32_t worldMap[mapWidth][mapHeight] =
+raycaster_t* rc;
+
+static const int32_t worldMap[mapWidth][mapHeight] =
 {
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
@@ -110,13 +134,7 @@ int32_t worldMap[mapWidth][mapHeight] =
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 };
 
-// uint8_t textures[2][texWidth][texHeight];
-
-float posX = 22, posY = 12;  // x and y start position
-float dirX = -1, dirY = 0; // initial direction vector
-float planeX = 0, planeY = 0.66; // the 2d raycaster version of camera plane
-
-raySprite_t sprite[] =
+static const raySprite_t sprite[NUM_SPRITES] =
 {
     {20.5, 11.5, 10},
     {18.5, 4.5, 10},
@@ -139,15 +157,6 @@ raySprite_t sprite[] =
     {10.5, 15.8, 8},
 };
 
-// arrays used to sort the sprites
-int32_t spriteOrder[sizeof(sprite) / sizeof(sprite[0])];
-float spriteDistance[sizeof(sprite) / sizeof(sprite[0])];
-
-// Storage for the enemy sprite
-color enemySpriteTex[texWidth * texHeight];
-color stoneTex[texWidth * texHeight];
-color stripeTex[texWidth * texHeight];
-
 /*==============================================================================
  * Functions
  *============================================================================*/
@@ -160,41 +169,35 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
 {
     enableDebounce(false);
 
-    // Create simple textures
-    // for(uint8_t h = 0; h < texHeight; h++)
-    // {
-    //     for(uint8_t w = 0; w < texWidth; w++)
-    //     {
-    //         // This draws an X
-    //         if(w == h || w + 1 == h || w == (texWidth - h - 1) || w == (texWidth - h - 2))
-    //         {
-    //             textures[0][w][h] = 1;
-    //         }
+    rc = os_malloc(sizeof(raycaster_t));
 
-    //         // This draws a horizontal stripe
-    //         if(texHeight / 2 - 4 < h && h < texHeight / 2 + 4)
-    //         {
-    //             textures[1][w][h] = 1;
-    //         }
-    //     }
-    // }
+    rc->rButtonState = 0;
+    // x and y start position
+    rc->posX = 22;
+    rc->posY = 12;
+    // initial direction vector
+    rc->dirX = -1;
+    rc->dirY = 0;
+    // the 2d raycaster version of camera plane
+    rc->planeX = 0;
+    rc->planeY = 0.66;
 
     // Load the enemy texture to RAM
     pngHandle enemySprite;
     allocPngAsset("txbat.png", &enemySprite);
-    drawPngToBuffer(&enemySprite, enemySpriteTex);
+    drawPngToBuffer(&enemySprite, rc->enemySpriteTex);
     freePngAsset(&enemySprite);
 
     // Load the enemy texture to RAM
     pngHandle stoneTexture;
     allocPngAsset("txstone.png", &stoneTexture);
-    drawPngToBuffer(&stoneTexture, stoneTex);
+    drawPngToBuffer(&stoneTexture, rc->stoneTex);
     freePngAsset(&stoneTexture);
 
     // Load the enemy texture to RAM
     pngHandle stripeTexture;
     allocPngAsset("txstripe.png", &stripeTexture);
-    drawPngToBuffer(&stripeTexture, stripeTex);
+    drawPngToBuffer(&stripeTexture, rc->stripeTex);
     freePngAsset(&stripeTexture);
 }
 
@@ -203,6 +206,8 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
  */
 void ICACHE_FLASH_ATTR raycasterExitMode(void)
 {
+    os_free(rc);
+    rc = NULL;
 }
 
 /**
@@ -216,7 +221,7 @@ void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state,
         int32_t button __attribute__((unused)),
         int32_t down __attribute__((unused)))
 {
-    rButtonState = state;
+    rc->rButtonState = state;
 }
 
 /**
@@ -249,12 +254,12 @@ void ICACHE_FLASH_ATTR castRays(rayResult_t* rayResult)
         // calculate ray position and direction
         // x-coordinate in camera space
         float cameraX = 2 * x / (float)OLED_WIDTH - 1;
-        float rayDirX = dirX + planeX * cameraX;
-        float rayDirY = dirY + planeY * cameraX;
+        float rayDirX = rc->dirX + rc->planeX * cameraX;
+        float rayDirY = rc->dirY + rc->planeY * cameraX;
 
         // which box of the map we're in
-        int32_t mapX = (int32_t)(posX);
-        int32_t mapY = (int32_t)(posY);
+        int32_t mapX = (int32_t)(rc->posX);
+        int32_t mapY = (int32_t)(rc->posY);
 
         // length of ray from current position to next x or y-side
         float sideDistX;
@@ -283,23 +288,23 @@ void ICACHE_FLASH_ATTR castRays(rayResult_t* rayResult)
         if(rayDirX < 0)
         {
             stepX = -1;
-            sideDistX = (posX - mapX) * deltaDistX;
+            sideDistX = (rc->posX - mapX) * deltaDistX;
         }
         else
         {
             stepX = 1;
-            sideDistX = (mapX + 1.0 - posX) * deltaDistX;
+            sideDistX = (mapX + 1.0 - rc->posX) * deltaDistX;
         }
 
         if(rayDirY < 0)
         {
             stepY = -1;
-            sideDistY = (posY - mapY) * deltaDistY;
+            sideDistY = (rc->posY - mapY) * deltaDistY;
         }
         else
         {
             stepY = 1;
-            sideDistY = (mapY + 1.0 - posY) * deltaDistY;
+            sideDistY = (mapY + 1.0 - rc->posY) * deltaDistY;
         }
 
         // perform DDA
@@ -331,11 +336,11 @@ void ICACHE_FLASH_ATTR castRays(rayResult_t* rayResult)
         float perpWallDist;
         if(side == 0)
         {
-            perpWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX;
+            perpWallDist = (mapX - rc->posX + (1 - stepX) / 2) / rayDirX;
         }
         else
         {
-            perpWallDist = (mapY - posY + (1 - stepY) / 2) / rayDirY;
+            perpWallDist = (mapY - rc->posY + (1 - stepY) / 2) / rayDirY;
         }
 
         // Calculate height of line to draw on screen
@@ -402,11 +407,11 @@ void ICACHE_FLASH_ATTR drawTextures(rayResult_t* rayResult)
         float wallX;
         if(side == 0)
         {
-            wallX = posY + rayResult[x].perpWallDist * rayResult[x].rayDirY;
+            wallX = rc->posY + rayResult[x].perpWallDist * rayResult[x].rayDirY;
         }
         else
         {
-            wallX = posX + rayResult[x].perpWallDist * rayResult[x].rayDirX;
+            wallX = rc->posX + rayResult[x].perpWallDist * rayResult[x].rayDirX;
         }
         wallX -= (int32_t)(wallX);
 
@@ -436,14 +441,13 @@ void ICACHE_FLASH_ATTR drawTextures(rayResult_t* rayResult)
             texPos += step;
 
             // Draw the pixel specified by the texture
-            // drawPixel(x, y, textures[texNum][texX][texY]);
             if(texNum)
             {
-                drawPixel(x, y, stoneTex[(texX * texHeight) + texY ]);
+                drawPixelUnsafeC(x, y, rc->stoneTex[(texX * texHeight) + texY ]);
             }
             else
             {
-                drawPixel(x, y, stripeTex[(texX * texHeight) + texY ]);
+                drawPixelUnsafeC(x, y, rc->stripeTex[(texX * texHeight) + texY ]);
             }
         }
     }
@@ -463,9 +467,16 @@ void ICACHE_FLASH_ATTR drawOutlines(rayResult_t* rayResult)
         {
             // This is corner or edge which is larger than the prior strip
             // Draw a vertical strip
-            for(int32_t y = rayResult[x].drawStart; y <= rayResult[x].drawEnd; y++)
+            int32_t ds = rayResult[x].drawStart;
+            int32_t de = rayResult[x].drawEnd;
+            if(ds < 0 || de > OLED_HEIGHT - 1)
             {
-                drawPixel(x, y, WHITE);
+                ds = 0;
+                de = OLED_HEIGHT - 1;
+            }
+            for(int32_t y = ds; y <= de; y++)
+            {
+                drawPixelUnsafeC(x, y, WHITE);
             }
             drawVertNext = false;
         }
@@ -477,25 +488,44 @@ void ICACHE_FLASH_ATTR drawOutlines(rayResult_t* rayResult)
             {
                 // This vertical strip is part of a continuous wall with the next strip
                 // Just draw top and bottom pixels
-                drawPixel(x, rayResult[x].drawStart, WHITE);
-                drawPixel(x, rayResult[x].drawEnd, WHITE);
+                if(rayResult[x].drawStart >= 0)
+                {
+                    drawPixelUnsafeC(x, rayResult[x].drawStart, WHITE);
+                }
+                if(rayResult[x].drawEnd < OLED_HEIGHT)
+                {
+                    drawPixelUnsafeC(x, rayResult[x].drawEnd, WHITE);
+                }
             }
             else if((rayResult[x].drawEnd - rayResult[x].drawStart) >
                     (rayResult[x + 1].drawEnd - rayResult[x + 1].drawStart))
             {
                 // This is a corner or edge, and this vertical strip is larger than the next one
                 // Draw a vertical strip
-                for(int32_t y = rayResult[x].drawStart; y <= rayResult[x].drawEnd; y++)
+                int32_t ds = rayResult[x].drawStart;
+                int32_t de = rayResult[x].drawEnd;
+                if(ds < 0 || de > OLED_HEIGHT - 1)
                 {
-                    drawPixel(x, y, WHITE);
+                    ds = 0;
+                    de = OLED_HEIGHT - 1;
+                }
+                for(int32_t y = ds; y <= de; y++)
+                {
+                    drawPixelUnsafeC(x, y, WHITE);
                 }
             }
             else
             {
                 // This is a corner or edge, and this vertical strip is smaller than the next one
                 // Just draw top and bottom pixels, but make sure to draw a vertical line next
-                drawPixel(x, rayResult[x].drawStart, WHITE);
-                drawPixel(x, rayResult[x].drawEnd, WHITE);
+                if(rayResult[x].drawStart >= 0)
+                {
+                    drawPixelUnsafeC(x, rayResult[x].drawStart, WHITE);
+                }
+                if(rayResult[x].drawEnd < OLED_HEIGHT)
+                {
+                    drawPixelUnsafeC(x, rayResult[x].drawEnd, WHITE);
+                }
                 // make sure to draw a vertical line next
                 drawVertNext = true;
             }
@@ -503,8 +533,14 @@ void ICACHE_FLASH_ATTR drawOutlines(rayResult_t* rayResult)
         else
         {
             // These are the very last pixels, nothing to compare to
-            drawPixel(x, rayResult[x].drawStart, WHITE);
-            drawPixel(x, rayResult[x].drawEnd, WHITE);
+            if(rayResult[x].drawStart >= 0)
+            {
+                drawPixelUnsafeC(x, rayResult[x].drawStart, WHITE);
+            }
+            if(rayResult[x].drawEnd < OLED_HEIGHT)
+            {
+                drawPixelUnsafeC(x, rayResult[x].drawEnd, WHITE);
+            }
         }
     }
 }
@@ -519,19 +555,19 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
     // sort sprites from far to close
     for(uint32_t i = 0; i < sizeof(sprite) / sizeof(sprite[0]); i++)
     {
-        spriteOrder[i] = i;
+        rc->spriteOrder[i] = i;
         // sqrt not taken, unneeded
-        spriteDistance[i] = ((posX - sprite[i].x) * (posX - sprite[i].x) +
-                             (posY - sprite[i].y) * (posY - sprite[i].y));
+        rc->spriteDistance[i] = ((rc->posX - sprite[i].x) * (rc->posX - sprite[i].x) +
+                                 (rc->posY - sprite[i].y) * (rc->posY - sprite[i].y));
     }
-    sortSprites(spriteOrder, spriteDistance, sizeof(sprite) / sizeof(sprite[0]));
+    sortSprites(rc->spriteOrder, rc->spriteDistance, sizeof(sprite) / sizeof(sprite[0]));
 
     // after sorting the sprites, do the projection and draw them
     for(uint32_t i = 0; i < sizeof(sprite) / sizeof(sprite[0]); i++)
     {
         // translate sprite position to relative to camera
-        float spriteX = sprite[spriteOrder[i]].x - posX;
-        float spriteY = sprite[spriteOrder[i]].y - posY;
+        float spriteX = sprite[rc->spriteOrder[i]].x - rc->posX;
+        float spriteY = sprite[rc->spriteOrder[i]].y - rc->posY;
 
         // transform sprite with the inverse camera matrix
         // [ planeX dirX ] -1                                  [ dirY     -dirX ]
@@ -539,11 +575,17 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
         // [ planeY dirY ]                                     [ -planeY planeX ]
 
         // required for correct matrix multiplication
-        float invDet = 1.0 / (planeX * dirY - dirX * planeY);
+        float invDet = 1.0 / (rc->planeX * rc->dirY - rc->dirX * rc->planeY);
 
-        float transformX = invDet * (dirY * spriteX - dirX * spriteY);
+        float transformX = invDet * (rc->dirY * spriteX - rc->dirX * spriteY);
         // this is actually the depth inside the screen, that what Z is in 3D
-        float transformY = invDet * (-planeY * spriteX + planeX * spriteY);
+        float transformY = invDet * (-rc->planeY * spriteX + rc->planeX * spriteY);
+
+        // If this is negative, the texture isn't going to be drawn, so just stop here
+        if(transformY < 0)
+        {
+            continue;
+        }
 
         int32_t spriteScreenX = (int32_t)((OLED_WIDTH / 2) * (1 + transformX / transformY));
 
@@ -563,9 +605,9 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
         }
 
         int32_t drawEndY = spriteHeight / 2 + OLED_HEIGHT / 2;
-        if(drawEndY >= OLED_HEIGHT)
+        if(drawEndY > OLED_HEIGHT)
         {
-            drawEndY = OLED_HEIGHT - 1;
+            drawEndY = OLED_HEIGHT;
         }
 
         // calculate width of the sprite
@@ -580,9 +622,9 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
             drawStartX = 0;
         }
         int32_t drawEndX = spriteWidth / 2 + spriteScreenX;
-        if(drawEndX >= OLED_WIDTH)
+        if(drawEndX > OLED_WIDTH)
         {
-            drawEndX = OLED_WIDTH - 1;
+            drawEndX = OLED_WIDTH;
         }
 
         // loop through every vertical stripe of the sprite on screen
@@ -594,7 +636,7 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
             // 2) it's on the screen (left)
             // 3) it's on the screen (right)
             // 4) ZBuffer, with perpendicular distance
-            if(transformY > 0 && stripe > 0 && stripe < OLED_WIDTH && transformY < rayResult[stripe].perpWallDist)
+            if(transformY < rayResult[stripe].perpWallDist)
             {
                 // for every pixel of the current stripe
                 for(int32_t y = drawStartY; y < drawEndY; y++)
@@ -603,7 +645,7 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
                     int32_t d = (y) * 256 - OLED_HEIGHT * 128 + spriteHeight * 128;
                     int32_t texY = ((d * texHeight) / spriteHeight) / 256;
                     // get current color from the texture
-                    drawPixel(stripe, y, enemySpriteTex[(texX * texHeight) + texY]);
+                    drawPixelUnsafeC(stripe, y, rc->enemySpriteTex[(texX * texHeight) + texY]);
                 }
             }
         }
@@ -657,52 +699,52 @@ void ICACHE_FLASH_ATTR handleRayInput(void)
     float rotSpeed = frameTime * 3.0; // the constant value is in radians/second
 
     // move forward if no wall in front of you
-    if(rButtonState & 0x08)
+    if(rc->rButtonState & 0x08)
     {
-        if(worldMap[(int32_t)(posX + dirX * moveSpeed)][(int32_t)(posY)] == false)
+        if(worldMap[(int32_t)(rc->posX + rc->dirX * moveSpeed)][(int32_t)(rc->posY)] == false)
         {
-            posX += dirX * moveSpeed;
+            rc->posX += rc->dirX * moveSpeed;
         }
-        if(worldMap[(int32_t)(posX)][(int32_t)(posY + dirY * moveSpeed)] == false)
+        if(worldMap[(int32_t)(rc->posX)][(int32_t)(rc->posY + rc->dirY * moveSpeed)] == false)
         {
-            posY += dirY * moveSpeed;
+            rc->posY += rc->dirY * moveSpeed;
         }
     }
 
     // move backwards if no wall behind you
-    if(rButtonState & 0x02)
+    if(rc->rButtonState & 0x02)
     {
-        if(worldMap[(int32_t)(posX - dirX * moveSpeed)][(int32_t)(posY)] == false)
+        if(worldMap[(int32_t)(rc->posX - rc->dirX * moveSpeed)][(int32_t)(rc->posY)] == false)
         {
-            posX -= dirX * moveSpeed;
+            rc->posX -= rc->dirX * moveSpeed;
         }
-        if(worldMap[(int32_t)(posX)][(int32_t)(posY - dirY * moveSpeed)] == false)
+        if(worldMap[(int32_t)(rc->posX)][(int32_t)(rc->posY - rc->dirY * moveSpeed)] == false)
         {
-            posY -= dirY * moveSpeed;
+            rc->posY -= rc->dirY * moveSpeed;
         }
     }
 
     // rotate to the right
-    if(rButtonState & 0x04)
+    if(rc->rButtonState & 0x04)
     {
         // both camera direction and camera plane must be rotated
-        float oldDirX = dirX;
-        dirX = dirX * cos(-rotSpeed) - dirY * sin(-rotSpeed);
-        dirY = oldDirX * sin(-rotSpeed) + dirY * cos(-rotSpeed);
-        float oldPlaneX = planeX;
-        planeX = planeX * cos(-rotSpeed) - planeY * sin(-rotSpeed);
-        planeY = oldPlaneX * sin(-rotSpeed) + planeY * cos(-rotSpeed);
+        float oldDirX = rc->dirX;
+        rc->dirX = rc->dirX * cos(-rotSpeed) - rc->dirY * sin(-rotSpeed);
+        rc->dirY = oldDirX * sin(-rotSpeed) + rc->dirY * cos(-rotSpeed);
+        float oldPlaneX = rc->planeX;
+        rc->planeX = rc->planeX * cos(-rotSpeed) - rc->planeY * sin(-rotSpeed);
+        rc->planeY = oldPlaneX * sin(-rotSpeed) + rc->planeY * cos(-rotSpeed);
     }
 
     // rotate to the left
-    if(rButtonState & 0x01)
+    if(rc->rButtonState & 0x01)
     {
         // both camera direction and camera plane must be rotated
-        float oldDirX = dirX;
-        dirX = dirX * cos(rotSpeed) - dirY * sin(rotSpeed);
-        dirY = oldDirX * sin(rotSpeed) + dirY * cos(rotSpeed);
-        float oldPlaneX = planeX;
-        planeX = planeX * cos(rotSpeed) - planeY * sin(rotSpeed);
-        planeY = oldPlaneX * sin(rotSpeed) + planeY * cos(rotSpeed);
+        float oldDirX = rc->dirX;
+        rc->dirX = rc->dirX * cos(rotSpeed) - rc->dirY * sin(rotSpeed);
+        rc->dirY = oldDirX * sin(rotSpeed) + rc->dirY * cos(rotSpeed);
+        float oldPlaneX = rc->planeX;
+        rc->planeX = rc->planeX * cos(rotSpeed) - rc->planeY * sin(rotSpeed);
+        rc->planeY = oldPlaneX * sin(rotSpeed) + rc->planeY * cos(rotSpeed);
     }
 }

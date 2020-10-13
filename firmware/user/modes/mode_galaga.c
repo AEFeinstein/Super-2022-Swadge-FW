@@ -219,7 +219,7 @@ bool ICACHE_FLASH_ATTR updateHighScores(uint32_t newScore);*/
 
 uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font);
 
-bool AABBCollision (int ax0, int ay0, int ax1, int ay1, int bx0, int by0, int bx1, int by1);
+bool ICACHE_FLASH_ATTR AABBCollision (int ax0, int ay0, int ax1, int ay1, int bx0, int by0, int bx1, int by1);
 
 /*============================================================================
  * Variables

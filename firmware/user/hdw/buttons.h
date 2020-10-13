@@ -5,14 +5,27 @@
  * Enums
  *==========================================================================*/
 
+#define NUM_BUTTONS 5
+
 typedef enum
 {
-    LEFT    = 0x01,
-    DOWN    = 0x02,
-    RIGHT   = 0x04,
-    UP      = 0x08,
-    ACTION  = 0x10,
+    LEFT   = 0,
+    DOWN   = 1,
+    RIGHT  = 2,
+    UP     = 3,
+    ACTION = 4
+} button_num;
+
+typedef enum
+{
+    LEFT_MASK   = 1 << LEFT,
+    DOWN_MASK   = 1 << DOWN,
+    RIGHT_MASK  = 1 << RIGHT,
+    UP_MASK     = 1 << UP,
+    ACTION_MASK = 1 << ACTION
 } button_mask;
+
+
 
 /*============================================================================
  * Function Prototypes

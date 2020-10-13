@@ -3,7 +3,7 @@
 // The accelerometer has two arrows marked x and y and dot in circle marking up
 // can specify how these relate to the landscape view of OLED. In .bashrc put
 // export SET_SWADGE_VERSION=1
-// makefile has been changed to create -DSWADGE_VERSION=0,1,2 or 3
+// makefile has been changed to create -DSWADGE_VERSION=0,1,2,3,4, or 5
 
 //The 2019 SWADGE can be used for testing - Its left button becomes mode change
 //    its white buttom becomes left, and the right button remains right

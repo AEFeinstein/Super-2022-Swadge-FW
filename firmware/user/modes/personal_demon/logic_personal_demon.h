@@ -92,6 +92,7 @@ typedef struct
     age_t age;
     event_t evQueue[32];
     uint8_t evQueueIdx;
+    uint8_t species;
 } demon_t;
 
 /*******************************************************************************
