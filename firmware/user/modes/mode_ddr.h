@@ -14,6 +14,7 @@ extern swadgeMode ddrMode;
 
 typedef enum
 {
+    DDR_VERY_EASY,
     DDR_EASY,
     DDR_MEDIUM,
     DDR_HARD
@@ -37,6 +38,7 @@ typedef struct
 
 typedef struct
 {
+    ddrWinResult_t veryEasyWins[DDR_HIGHSCORE_LEN];
     ddrWinResult_t easyWins[DDR_HIGHSCORE_LEN];
     ddrWinResult_t mediumWins[DDR_HIGHSCORE_LEN];
     ddrWinResult_t hardWins[DDR_HIGHSCORE_LEN];
