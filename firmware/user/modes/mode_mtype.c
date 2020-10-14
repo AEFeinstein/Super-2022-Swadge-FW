@@ -75,53 +75,91 @@ polish
 #define NUM_LEDS NUM_LIN_LEDS // This pulls from user_config that should be the right amount for the current swadge.
 #define MODE_LED_BRIGHTNESS 0.125 // Factor that decreases overall brightness of LEDs since they are a little distracting at full brightness.
 
+// gameplay consts.
+
 #define OWNER_PLAYER 0
 #define OWNER_ENEMY 1
+
+#define TYPE_BOLT 0
+
 #define MAX_PROJECTILES 100
 #define MAX_ENEMIES 100
 
+#define PLAYER_SPEED 1
+
 #define PLAYER_SHOT_COOLDOWN (0.1875 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
 #define PLAYER_REFLECT_CHARGE_MAX (2.5 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
-
 #define PLAYER_REFLECT_TIME (1 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
 
+#define PLAYER_REFLECT_COLLISION 3
+
+#define PLAYER_HALF_WIDTH 3
+#define PLAYER_HALF_HEIGHT 3
+#define PLAYER_START_X 10
+#define PLAYER_START_Y OLED_HALF_HEIGHT
+
+#define PLAYER_PROJECTILE_SPEED 3
+#define PLAYER_PROJECTILE_DAMAGE 1
+
+#define ENEMY_PROJECTILE_SPEED 1
+#define ENEMY_PROJECTILE_DAMAGE 2
+
+#define ENEMY_SHOT_COOLDOWN (7 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
+
+// floor terrain consts.
 #define CHUNK_WIDTH 8
 #define NUM_CHUNKS ((OLED_WIDTH/CHUNK_WIDTH)+1)
 #define RAND_WALLS_HEIGHT 4
 
+// vector struct specifically for use with screen coordinates.
 typedef struct
 {
     int16_t x;
     int16_t y;
 } vec_t;
 
+// precise positions for things like movement of the player.
+typedef struct
+{
+    double x;
+    double y;
+} vecdouble_t;
+
 typedef struct 
 {
-    vec_t position;
-    uint32_t shotCooldown;
-    uint32_t reflectCounter;
-    int reflectCountdown;
+    vecdouble_t position; // position in screen coords. (double for precise movement)
+    vec_t bbHalf;   // half of bounding box width / height.
+    uint8_t speed;  // speed of the player.
+    uint8_t shotLevel;  // weapon level, controls the amount of bullets fired.
+    uint32_t shotCooldown;  // cooldown between firing shots.
+    uint32_t abilityChargeCounter;    // counter for ability charge.
+    int abilityCountdown;   // counter for how long ability will last once active.
 } player_t;
 
 typedef struct 
 {
-    uint8_t active;
-    vec_t position;
-    vec_t spawn;
-    uint32_t frameOffsetX;
-    uint32_t frameOffsetY;
-    uint8_t health;
-} enemy_t;
+    uint8_t active; // is the projectile in-use on screen.
+    uint8_t type; // the type of the projectile.
+    uint8_t owner;  // is the projectile owned by players or enemies.
+    vec_t position; // the current position of the projectile.
+    vec_t bbHalf; // half of bounding box width / height.
+    vec_t direction;    // the direction the projectile will move on update.
+    uint8_t speed;  // speed of the projectile.
+    uint8_t damage; // the amount of damage the projectile will deal on hit.
+} projectile_t;
 
 typedef struct 
 {
-    uint8_t active; // is the projectile active / in-use.
-    uint8_t owner; // is the projectile owned by players or enemies.
-    vec_t position; // the current position of the projectile.
-    vec_t direction; // the direction the projectile will move on update.
-    uint8_t speed; // speed of the projectile.
-    uint8_t damage; // the amount of damage the projectile will deal on hit.
-} projectile_t;
+    uint8_t active; // is enemy in-use on screen.
+    uint8_t type; // the type of the enemy.
+    vec_t position; // position in screen coords.
+    vec_t bbHalf;   // half of bounding box width / height.
+    vec_t spawn;    // position that the enemy was spawned at in screen coords.
+    uint32_t frameOffsetX;  // how much time in frames the X movement is offset.
+    uint32_t frameOffsetY;  // how much time in frame the Y movement is offset.
+    uint32_t shotCooldown;  // cooldown between firing shots.
+    uint8_t health; // the health of the enemy.
+} enemy_t;
 
 typedef enum
 {
@@ -156,9 +194,6 @@ typedef struct
 
     uint8_t buttonState;
     uint8_t lastButtonState;
-
-    accel_t accel;
-    accel_t lastAccel;
 
     timer_t updateTimer;
 
@@ -217,8 +252,9 @@ bool ICACHE_FLASH_ATTR updateHighScores(uint32_t newScore);*/
 
 
 uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font);
-
 bool ICACHE_FLASH_ATTR AABBCollision (int ax0, int ay0, int ax1, int ay1, int bx0, int by0, int bx1, int by1);
+void normalize (vecdouble_t * vec);
+bool fireProjectile (uint8_t owner, uint8_t type, vec_t position, vec_t bbHalf, vec_t direction, uint8_t speed, uint8_t damage);
 
 /*============================================================================
  * Variables
@@ -269,10 +305,6 @@ void ICACHE_FLASH_ATTR mtEnterMode(void)
     // Reset input tracking.
     mType->buttonState = 0;
     mType->lastButtonState = 0;
-
-    // TODO: is this the correct way to initialize this?
-    ets_memset(&(mType->accel), 0, sizeof(accel_t));
-    ets_memset(&(mType->lastAccel), 0, sizeof(accel_t));
 
     // Reset mode state.
     mType->state = MT_TITLE;
@@ -369,7 +401,6 @@ static void ICACHE_FLASH_ATTR mtUpdate(void* arg __attribute__((unused)))
 
     // Mark what our inputs were the last time we acted on them.
     mType->lastButtonState = mType->buttonState;
-    mType->lastAccel = mType->accel;
 
     // Handle State Logic
     switch( mType->state )
@@ -423,13 +454,13 @@ static void ICACHE_FLASH_ATTR mtUpdate(void* arg __attribute__((unused)))
         }
     };
 
-    int projectiles = 0;
+    /*int projectiles = 0;
 
     for (int i = 0; i < MAX_PROJECTILES; i++) {
         if (mType->projectiles[i].active) {
             projectiles++;
         }
-    }
+    }*/
 
     // Draw debug FPS counter.
     /*char uiStr[32] = {0};
@@ -455,33 +486,47 @@ void ICACHE_FLASH_ATTR mtSetState(mTypeState_t newState)
         case MT_TITLE:
             break;
         case MT_GAME:
-            mType->player.position.x = 10;
-            mType->player.position.y = OLED_HALF_HEIGHT;
+            // initialize player.
+            mType->player.position.x = PLAYER_START_X;
+            mType->player.position.y = PLAYER_START_Y;
+            mType->player.bbHalf.x = PLAYER_HALF_WIDTH;
+            mType->player.bbHalf.y = PLAYER_HALF_HEIGHT;
+            mType->player.speed = PLAYER_SPEED;
+            mType->player.shotLevel = 0;
             mType->player.shotCooldown = 0;
-            mType->player.reflectCounter = 0;
-            mType->player.reflectCountdown = 0;
+            mType->player.abilityChargeCounter = 0;
+            mType->player.abilityCountdown = 0;
             mType->score = 0;
+
+            // initialize projectiles with default values.
             for (int i = 0; i < MAX_PROJECTILES; i++) {
                 mType->projectiles[i].active = 0;
+                mType->projectiles[i].type = 0;
                 mType->projectiles[i].owner = OWNER_PLAYER;
                 mType->projectiles[i].position.x = 0;
                 mType->projectiles[i].position.y = 0;
+                mType->projectiles[i].bbHalf.x = 1;
+                mType->projectiles[i].bbHalf.y = 1;
                 mType->projectiles[i].direction.x = 0;
                 mType->projectiles[i].direction.y = 0;
                 mType->projectiles[i].speed = 1;
                 mType->projectiles[i].damage = 1;
             }
 
+            // initialize enemies. TODO: this needs some sort of spawning behavior for waves, etc.
             int enemyCounter = 0;
             for (int i = 0; i < 4; i++) {
                 mType->enemies[enemyCounter].active = 1;
                 mType->enemies[enemyCounter].health = 2;
                 mType->enemies[enemyCounter].position.x = OLED_WIDTH - (10 * i);
                 mType->enemies[enemyCounter].position.y = OLED_HEIGHT - 20;
+                mType->enemies[enemyCounter].bbHalf.x = 3;
+                mType->enemies[enemyCounter].bbHalf.y = 3;
                 mType->enemies[enemyCounter].spawn.x = mType->enemies[enemyCounter].position.x;
                 mType->enemies[enemyCounter].spawn.y = mType->enemies[enemyCounter].position.y;
                 mType->enemies[enemyCounter].frameOffsetX = 0;
                 mType->enemies[enemyCounter].frameOffsetY = i * 10;
+                mType->enemies[enemyCounter].shotCooldown = 0;
                 enemyCounter++;
             }
 
@@ -490,13 +535,17 @@ void ICACHE_FLASH_ATTR mtSetState(mTypeState_t newState)
                 mType->enemies[enemyCounter].health = 2;
                 mType->enemies[enemyCounter].position.x = OLED_WIDTH - (10 * i);
                 mType->enemies[enemyCounter].position.y = OLED_HEIGHT - 50;
+                mType->enemies[enemyCounter].bbHalf.x = 3;
+                mType->enemies[enemyCounter].bbHalf.y = 3;
                 mType->enemies[enemyCounter].spawn.x = mType->enemies[enemyCounter].position.x;
                 mType->enemies[enemyCounter].spawn.y = mType->enemies[enemyCounter].position.y;
                 mType->enemies[enemyCounter].frameOffsetX = 0;
                 mType->enemies[enemyCounter].frameOffsetY = i * 10;
+                mType->enemies[enemyCounter].shotCooldown = 0;
                 enemyCounter++;
             }
 
+            // initialize the floor / terrain display.
             mType->floor = OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 3;//OLED_HEIGHT - 1;
             ets_memset(mType->floors, mType->floor, (NUM_CHUNKS + 1) * sizeof(uint8_t));
             mType->xOffset = 0;
@@ -546,72 +595,95 @@ void ICACHE_FLASH_ATTR mtTitleDisplay(void)
 
 void ICACHE_FLASH_ATTR mtGameInput(void)
 {
-    //TODO: account for good movement if multiple axis of movement are in play.
+    // account for good movement if multiple axis of movement are in play.
+    vecdouble_t moveDir;
+    moveDir.x = 0;
+    moveDir.y = 0;
+
     if (mtIsButtonDown(BTN_GAME_UP)) {
-        mType->player.position.y--;
+        moveDir.y--;
     }
     if (mtIsButtonDown(BTN_GAME_DOWN)) {
-        mType->player.position.y++;
+        moveDir.y++;
     }
     if (mtIsButtonDown(BTN_GAME_LEFT)) {
-        mType->player.position.x--;
+        moveDir.x--;
     }
     if (mtIsButtonDown(BTN_GAME_RIGHT)) {
-        mType->player.position.x++;
+        moveDir.x++;
     }
 
-    // clamp position of player to within the bounds of the screen.
-    if (mType->player.position.x < 0) {
-        mType->player.position.x = 0;
+    normalize(&moveDir);
+    moveDir.x *= mType->player.speed;
+    moveDir.y *= mType->player.speed;
+
+    mType->player.position.x += moveDir.x;
+    mType->player.position.y += moveDir.y;
+
+    // clamp position of player to within the bounds of the screen and terrain.
+    if (mType->player.position.x - mType->player.bbHalf.x < 0) {
+        mType->player.position.x = mType->player.bbHalf.x;
     }
-    else if (mType->player.position.x >= OLED_WIDTH) {
-        mType->player.position.x = OLED_WIDTH - 1;
-    }
-    if (mType->player.position.y < 0) {
-        mType->player.position.y = 0;
-    }
-    else if (mType->player.position.y >= OLED_HEIGHT) {
-        mType->player.position.y = OLED_HEIGHT - 1;
+    else if (mType->player.position.x + mType->player.bbHalf.x >= OLED_WIDTH) {
+        mType->player.position.x = OLED_WIDTH - 1 - mType->player.bbHalf.x;
     }
 
-    mType->player.shotCooldown += mType->deltaTime;
+    if (mType->player.position.y - mType->player.bbHalf.y < 0) {
+        mType->player.position.y = mType->player.bbHalf.y;
+    }
+    // this bouncing effect at the lower y bound is intentional, feels like bouncing off the ground.
+    else if (mType->player.position.y >= (mType->floor - RAND_WALLS_HEIGHT)) {
+        mType->player.position.y = (mType->floor - RAND_WALLS_HEIGHT) - mType->player.bbHalf.y;
+    }
 
-    if (mtIsButtonPressed(BTN_GAME_ACTION) && mType->player.reflectCounter >= PLAYER_REFLECT_CHARGE_MAX) {
-        //TODO: dodge roll or charge beam or reflect shield?
-        mType->player.reflectCounter = 0;
-        mType->player.reflectCountdown = PLAYER_REFLECT_TIME;
+    //TODO: dodge roll or charge beam or reflect shield? different ability update logic needs to go here.
+
+    // activate the reflect shield if the ability is charged and the fire button is pressed.
+    if (mtIsButtonPressed(BTN_GAME_ACTION) && mType->player.abilityChargeCounter >= PLAYER_REFLECT_CHARGE_MAX) {
+        mType->player.abilityChargeCounter = 0;
+        mType->player.abilityCountdown = PLAYER_REFLECT_TIME;
     }   
 
-    if (mtIsButtonDown(BTN_GAME_ACTION) && mType->player.shotCooldown >= PLAYER_SHOT_COOLDOWN) {
+    // update the shot cd.
+    mType->player.shotCooldown += mType->deltaTime;
 
-        //mType->player.reflectCounter = 0;
-        for (int i = 0; i < MAX_PROJECTILES; i++) {
-            if (!mType->projectiles[i].active) {
-                mType->player.shotCooldown = 0;
-                mType->projectiles[i].active = 1;
-                mType->projectiles[i].owner = OWNER_PLAYER;
-                mType->projectiles[i].position.x = mType->player.position.x;
-                mType->projectiles[i].position.y = mType->player.position.y;
-                mType->projectiles[i].direction.x = 1;
-                mType->projectiles[i].direction.y = 0;
-                mType->projectiles[i].speed = 4;
-                mType->projectiles[i].damage = 1;
-                break;
-            }
+    // fire a shot if the fire button is being held down and shot is off cd.
+    if (mtIsButtonDown(BTN_GAME_ACTION) && mType->player.shotCooldown >= PLAYER_SHOT_COOLDOWN && mType->player.abilityCountdown <= 0) {
+        //mType->player.abilityChargeCounter = 0; // uncomment if firing should reset ability cd.
+        vec_t firePos;
+        firePos.x = mType->player.position.x;
+        firePos.y = mType->player.position.y;
+
+        vec_t bbHalf;
+        bbHalf.x = 2;
+        bbHalf.y = 0;
+
+        vec_t dir;
+        dir.x = 1;
+        dir.y = 0;
+
+        mType->player.shotLevel = 2; // TODO test, remove when done testing firing levels.
+
+        if (mType->player.shotLevel != 1) {
+            fireProjectile(OWNER_PLAYER, TYPE_BOLT, firePos, bbHalf, dir, PLAYER_PROJECTILE_SPEED, PLAYER_PROJECTILE_DAMAGE);
         }
+        if (mType->player.shotLevel > 0) {
+            firePos.y = mType->player.position.y - mType->player.bbHalf.y;
+            fireProjectile(OWNER_PLAYER, TYPE_BOLT, firePos, bbHalf, dir, PLAYER_PROJECTILE_SPEED, PLAYER_PROJECTILE_DAMAGE);
+            firePos.y = mType->player.position.y + mType->player.bbHalf.y;
+            fireProjectile(OWNER_PLAYER, TYPE_BOLT, firePos, bbHalf, dir, PLAYER_PROJECTILE_SPEED, PLAYER_PROJECTILE_DAMAGE);
+        }
+        mType->player.shotCooldown = 0;
     }
 
     if (mtIsButtonUp(BTN_GAME_ACTION)) {
-        mType->player.reflectCounter += mType->deltaTime;
-        if (mType->player.reflectCounter > PLAYER_REFLECT_CHARGE_MAX) {
-            mType->player.reflectCounter = PLAYER_REFLECT_CHARGE_MAX;
+        mType->player.abilityChargeCounter += mType->deltaTime;
+        if (mType->player.abilityChargeCounter > PLAYER_REFLECT_CHARGE_MAX) {
+            mType->player.abilityChargeCounter = PLAYER_REFLECT_CHARGE_MAX;
         }
     }
 
-    mType->score++;
-    // determine player move direction
-    // determine if a projectile should be spawned
-    // determine if the reflect shield should come up
+    //mType->score++; TODO this was a test for increasing score, remove when score implemented.
 }
 
 void ICACHE_FLASH_ATTR mtGameLogic(void)
@@ -625,27 +697,61 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                 mType->enemies[i].spawn.x = OLED_WIDTH + 10;
             }
             mType->enemies[i].position.y = mType->enemies[i].spawn.y + (7 * sin(((mType->stateFrames + mType->enemies[i].frameOffsetY) / 25.0)));
+
+            // update enemy shot cooldown.
+            mType->enemies[i].shotCooldown += mType->deltaTime;
+            if (mType->enemies[i].shotCooldown >= ENEMY_SHOT_COOLDOWN) {
+                mType->enemies[i].shotCooldown = 0;
+
+                vec_t bbHalf;
+                bbHalf.x = 0;
+                bbHalf.y = 0;
+
+                vec_t dir;
+                dir.x = -1;
+                dir.y = 0;
+                fireProjectile(OWNER_ENEMY, TYPE_BOLT, mType->enemies[i].position, bbHalf, dir, ENEMY_PROJECTILE_SPEED, ENEMY_PROJECTILE_DAMAGE);
+            }
+
+            // TODO: check collision with enemies to damage player?
         }
     }
     
     // projectile movement and collision
     for (int i = 0; i < MAX_PROJECTILES; i++) {
         if (mType->projectiles[i].active) {
-            mType->projectiles[i].position.x += (mType->projectiles[i].direction.x * mType->projectiles[i].speed);
-            mType->projectiles[i].position.y += (mType->projectiles[i].direction.y * mType->projectiles[i].speed);
 
-            //TODO: check collision with players / enemies
+            // check projectile collisions as a bounding box that is defined by the projectiles current position and its projected position.
+            int px0, px1, py0, py1;
+
+            px0 = mType->projectiles[i].position.x - mType->projectiles[i].bbHalf.x;
+            px1 = mType->projectiles[i].position.x + mType->projectiles[i].bbHalf.x;
+
+            if (mType->projectiles[i].direction.x < 0) {
+                px0 -= mType->projectiles[i].speed;
+            }
+            else if (mType->projectiles[i].direction.x > 0) {
+                px1 += mType->projectiles[i].speed;
+            }
+
+            py0 = mType->projectiles[i].position.y - mType->projectiles[i].bbHalf.y;
+            py1 = mType->projectiles[i].position.y + mType->projectiles[i].bbHalf.y;
+
+            if (mType->projectiles[i].direction.y < 0) {
+                py0 -= mType->projectiles[i].speed;
+            }
+            else if (mType->projectiles[i].direction.y > 0) {
+                py1 += mType->projectiles[i].speed;
+            }
+
             if (mType->projectiles[i].owner == OWNER_PLAYER) {
                 for (int j = 0; j < MAX_ENEMIES; j++) {
                     if (mType->enemies[j].active) {
-                        if (AABBCollision(mType->projectiles[i].position.x, 
-                            mType->projectiles[i].position.y, 
-                            mType->projectiles[i].position.x, 
-                            mType->projectiles[i].position.y, 
-                            mType->enemies[j].position.x - 3, 
-                            mType->enemies[j].position.y - 3, 
-                            mType->enemies[j].position.x + 3, 
-                            mType->enemies[j].position.y + 3)) {
+                        if (AABBCollision(px0, py0, px1, py1, 
+                            mType->enemies[j].position.x - mType->enemies[j].bbHalf.x, 
+                            mType->enemies[j].position.y - mType->enemies[j].bbHalf.y, 
+                            mType->enemies[j].position.x + mType->enemies[j].bbHalf.x, 
+                            mType->enemies[j].position.y + mType->enemies[j].bbHalf.y)) {
                             mType->projectiles[i].active = 0;
                             mType->enemies[j].health -= mType->projectiles[i].damage;
                             if (mType->enemies[j].health <= 0) {
@@ -656,23 +762,59 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                 }
             }
 
-            if (mType->projectiles[i].owner == OWNER_PLAYER) {
+            if (mType->projectiles[i].owner == OWNER_ENEMY) {
+                // if player reflect shield is up then the range to check for collisions is larger.
+                int plx0, plx1, ply0, ply1;
+                plx0 = mType->player.position.x - mType->player.bbHalf.x;
+                plx1 = mType->player.position.x + mType->player.bbHalf.x;
 
+                ply0 = mType->player.position.y - mType->player.bbHalf.y;
+                ply1 = mType->player.position.y + mType->player.bbHalf.y;
+
+                if (mType->player.abilityCountdown > 0) {
+                    plx0 -= PLAYER_REFLECT_COLLISION;
+                    plx1 += PLAYER_REFLECT_COLLISION;
+                    ply0 -= PLAYER_REFLECT_COLLISION;
+                    ply1 += PLAYER_REFLECT_COLLISION;
+                }
+
+                if (AABBCollision(px0, py0, px1, py1, 
+                    plx0, ply0, plx1, ply1)) {
+                    
+                    // reflect projectiles if reflect is up.
+                    if (mType->player.abilityCountdown > 0) {
+                        mType->projectiles[i].owner = OWNER_PLAYER;
+                        mType->projectiles[i].direction.x *= -1;
+                        mType->projectiles[i].direction.y *= -1;
+                        mType->projectiles[i].speed *= 2;
+                    }
+                    else {
+                        //TODO: game over anim and fx.
+                        mtSetState(MT_GAMEOVER);
+                    }
+                }
             }
 
-            if (mType->projectiles[i].position.x >= OLED_WIDTH ||
-                mType->projectiles[i].position.x < 0 ||
-                mType->projectiles[i].position.y >= OLED_HEIGHT ||
-                mType->projectiles[i].position.y < 0) {
+            // deactivate projectile if it is entirely out of bounds.
+            if (mType->projectiles[i].position.x - mType->projectiles[i].bbHalf.x >= OLED_WIDTH ||
+                mType->projectiles[i].position.x + mType->projectiles[i].bbHalf.x < 0 ||
+                mType->projectiles[i].position.y - mType->projectiles[i].bbHalf.y >= OLED_HEIGHT ||
+                mType->projectiles[i].position.y + mType->projectiles[i].bbHalf.y < 0) {
                 mType->projectiles[i].active = 0;
+            }
+
+            // if we didn't hit anything or go out of bounds then move.
+            if (mType->projectiles[i].active) {
+                mType->projectiles[i].position.x += (mType->projectiles[i].direction.x * mType->projectiles[i].speed);
+                mType->projectiles[i].position.y += (mType->projectiles[i].direction.y * mType->projectiles[i].speed);
             }
         }   
     }
 
-    if (mType->player.reflectCountdown > 0) {
-        mType->player.reflectCountdown -= mType->deltaTime;
-        if (mType->player.reflectCountdown < 0) {
-            mType->player.reflectCountdown = 0;
+    if (mType->player.abilityCountdown > 0) {
+        mType->player.abilityCountdown -= mType->deltaTime;
+        if (mType->player.abilityCountdown < 0) {
+            mType->player.abilityCountdown = 0;
         }
     }
 
@@ -705,22 +847,30 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
     action button is restarting game bug
     */
 
-    //clear the frame.
+    // clear the frame.
     fillDisplayArea(0, 0, OLED_WIDTH - 1, OLED_HEIGHT - 1, BLACK);
 
-    // draw background
-    // draw projectiles
+    //TODO draw background.
+
+    // score text.
+    char uiStr[32] = {0};
+    ets_snprintf(uiStr, sizeof(uiStr), "%06d", mType->score);
+    int scoreTextX = 52;
+    int scoreTextY = 1;
+    fillDisplayArea(scoreTextX, 0, scoreTextX + 23, FONT_HEIGHT_TOMTHUMB + 1, BLACK);
+    plotText(scoreTextX, scoreTextY, uiStr, TOM_THUMB, WHITE);
+
+    // draw projectiles.
     for (int i = 0; i < MAX_PROJECTILES; i++) {
         if (mType->projectiles[i].active) {
-            if (mType->projectiles[i].owner == OWNER_PLAYER) {
-                plotLine(mType->projectiles[i].position.x, mType->projectiles[i].position.y, mType->projectiles[i].position.x - 5, mType->projectiles[i].position.y, WHITE);
-            }
-            else {
-                plotLine(mType->projectiles[i].position.x, mType->projectiles[i].position.y, mType->projectiles[i].position.x, mType->projectiles[i].position.y, WHITE);
-            }
+            plotLine(mType->projectiles[i].position.x - mType->projectiles[i].bbHalf.x, 
+                    mType->projectiles[i].position.y - mType->projectiles[i].bbHalf.y, 
+                    mType->projectiles[i].position.x + mType->projectiles[i].bbHalf.x, 
+                    mType->projectiles[i].position.y + mType->projectiles[i].bbHalf.y, WHITE);
         }   
     }
-    // draw enemies
+
+    // draw enemies.
     for (int i = 0; i < MAX_ENEMIES; i++) {
         if (mType->enemies[i].active) {
             plotCircle(mType->enemies[i].position.x, mType->enemies[i].position.y, 4, WHITE);
@@ -728,10 +878,9 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
         }
     }
     // draw player
-    #define PLAYER_HALF_WIDTH 3
-    fillDisplayArea(mType->player.position.x - PLAYER_HALF_WIDTH, mType->player.position.y - PLAYER_HALF_WIDTH, mType->player.position.x + PLAYER_HALF_WIDTH, mType->player.position.y + PLAYER_HALF_WIDTH, BLACK);
-    plotRect(mType->player.position.x - PLAYER_HALF_WIDTH, mType->player.position.y - PLAYER_HALF_WIDTH, mType->player.position.x + PLAYER_HALF_WIDTH, mType->player.position.y + PLAYER_HALF_WIDTH, WHITE);
-    if (mType->player.reflectCountdown > 0) {
+    fillDisplayArea((int16_t)mType->player.position.x - mType->player.bbHalf.x, (int16_t)mType->player.position.y - mType->player.bbHalf.y, (int16_t)mType->player.position.x + mType->player.bbHalf.x, (int16_t)mType->player.position.y + mType->player.bbHalf.y, BLACK);
+    plotRect((int16_t)mType->player.position.x - mType->player.bbHalf.x, (int16_t)mType->player.position.y - mType->player.bbHalf.y, (int16_t)mType->player.position.x + mType->player.bbHalf.x, (int16_t)mType->player.position.y + mType->player.bbHalf.y, WHITE);
+    if (mType->player.abilityCountdown > 0) {
         plotCircle(mType->player.position.x, mType->player.position.y, ((mType->stateFrames / 2) % 3) + 4, WHITE);//mType->stateFrames % 3 ? WHITE : BLACK);
     }
     //plotCircle(mType->player.position.x, mType->player.position.y, 5, WHITE);
@@ -742,16 +891,6 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
     reflect line bar fill
     score #
     */
-
-    char uiStr[32] = {0};
-
-    // score text
-    ets_snprintf(uiStr, sizeof(uiStr), "%06d", mType->score);
-    int scoreTextX = 52;
-    int scoreTextY = 1;
-
-    fillDisplayArea(scoreTextX, 0, scoreTextX + 23, FONT_HEIGHT_TOMTHUMB + 1, BLACK);
-    plotText(scoreTextX, scoreTextY, uiStr, TOM_THUMB, WHITE);
 
     int reflectTextX = 30;
     int reflectTextY = OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1));
@@ -775,8 +914,10 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
     int reflectBarY1 = reflectBarY0 + 2;
     plotRect(reflectBarX0, reflectBarY0, reflectBarX1, reflectBarY1, WHITE);
 
-    //reflect bar fill
-    double charge = (double)mType->player.reflectCounter / PLAYER_REFLECT_CHARGE_MAX;
+    // reflect bar fill
+    // TODO: this should deplete from full while the reflect is winding down.
+    double charge = mType->player.abilityCountdown > 0 ? (double)mType->player.abilityCountdown / PLAYER_REFLECT_TIME : (double)mType->player.abilityChargeCounter / PLAYER_REFLECT_CHARGE_MAX;
+
     int reflectBarFillX1 = reflectBarX0 + (charge * ((reflectBarX1 - 1) - reflectBarX0));
     plotLine(reflectBarX0, reflectBarY0 + 1, reflectBarFillX1, reflectBarY0 + 1, WHITE);
 
@@ -879,4 +1020,34 @@ bool AABBCollision (int ax0, int ay0, int ax1, int ay1, int bx0, int by0, int bx
             ax1 > bx0 &&
             ay0 < by1 &&
             ay1 > by0);
+}
+
+void normalize (vecdouble_t * vec)
+{
+    if (vec->x != 0 || vec->y != 0) {
+        double mag = sqrt(pow(vec->x, 2) + pow(vec->y, 2));
+        vec->x /= mag;
+        vec->y /= mag;
+    }
+}
+
+bool fireProjectile (uint8_t owner, uint8_t type, vec_t position, vec_t bbHalf, vec_t direction, uint8_t speed, uint8_t damage)
+{
+    for (int i = 0; i < MAX_PROJECTILES; i++) {
+        if (!mType->projectiles[i].active) {
+            mType->projectiles[i].active = 1;
+            mType->projectiles[i].type = type;
+            mType->projectiles[i].owner = owner;
+            mType->projectiles[i].position.x = position.x;
+            mType->projectiles[i].position.y = position.y;
+            mType->projectiles[i].bbHalf.x = bbHalf.x;
+            mType->projectiles[i].bbHalf.y = bbHalf.y;
+            mType->projectiles[i].direction.x = direction.x;
+            mType->projectiles[i].direction.y = direction.y;
+            mType->projectiles[i].speed = speed;
+            mType->projectiles[i].damage = damage;
+            return true;
+        }
+    }
+    return false;
 }
