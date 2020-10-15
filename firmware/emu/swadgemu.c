@@ -1158,6 +1158,12 @@ void system_os_check_tasks(void)
     }
 }
 
+/** Prints heap size for ESP, does nothing for EMU */
+uint32 system_get_free_heap_size(void)
+{
+    return 0;
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 void espNowInit(void)
