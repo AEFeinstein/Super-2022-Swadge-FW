@@ -19,6 +19,7 @@ int main (void)
     if(NULL != data)
     {
         printf("%d by %d (%d)\n", w, h, n);
+        int spawns = 0;
 
         int dataIdx = 0;
         for (int y = 0; y < h; y++)
@@ -36,6 +37,7 @@ int main (void)
                 }
                 else if(r == 0x80 && g == 0x80 && b == 0x80)
                 {
+                    spawns++;
                     printf("%d, ", WMT_S); // Spawn
                 }
                 else if(r == 0xFF)
@@ -58,6 +60,7 @@ int main (void)
             printf("},\n");
         }
         printf("\n");
+        printf("%d spawns\n", spawns);
         // ... process data if not NULL ...
         // ... x = width, y = height, n = # 8-bit components per pixel ...
         // ... replace "0" with "1".."4" to force that many components per pixel
