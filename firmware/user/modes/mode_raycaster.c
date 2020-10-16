@@ -125,6 +125,7 @@ typedef struct
     // Storage for textures
     color stoneTex[texWidth * texHeight];
     color stripeTex[texWidth * texHeight];
+    color brickTex[texWidth * texHeight];
 
     color impWalk[NUM_IMP_WALK_FRAMES][texWidth * texHeight];
 
@@ -332,6 +333,10 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
 
     allocPngAsset("txstripe.png", &tmpPngHandle);
     drawPngToBuffer(&tmpPngHandle, rc->stripeTex);
+    freePngAsset(&tmpPngHandle);
+
+    allocPngAsset("txbrick.png", &tmpPngHandle);
+    drawPngToBuffer(&tmpPngHandle, rc->brickTex);
     freePngAsset(&tmpPngHandle);
 
     // Load the HUD assets
@@ -695,6 +700,10 @@ void ICACHE_FLASH_ATTR drawTextures(rayResult_t* rayResult)
             switch(worldMap[mapX][mapY])
             {
                 case WMT_W1:
+                {
+                    wallTex = rc->brickTex;
+                    break;
+                }
                 case WMT_W2:
                 case WMT_W3:
                 {
