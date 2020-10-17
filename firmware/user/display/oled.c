@@ -325,7 +325,11 @@ typedef enum
 // Script of commands which get executed at system start
 //==============================================================================
 
-static const uint8_t displayInitStartCommands[] RODATA_ATTR =
+static const uint8_t displayInitStartCommands[]
+#ifndef USE_ESP_GDB // GDB catches SIGSEV b/c this is read out of ROM and not 32 bit aligned
+    RODATA_ATTR
+#endif
+=
 {
     PCD_COND0, SSD1306_DISPLAYOFF, //Conditionally execute!
     PCD_CMD1, SSD1306_SETMULTIPLEX, OLED_HEIGHT - 1,

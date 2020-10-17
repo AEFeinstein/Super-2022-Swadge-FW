@@ -6,7 +6,11 @@
 uint8_t ICACHE_FLASH_ATTR GAMMA_CORRECT(uint8_t val)
 {
     // using gamma = 2.2
-    static const uint32_t gamma_correction_table[256] RODATA_ATTR =
+    const uint32_t gamma_correction_table[256]
+#ifndef USE_ESP_GDB // GDB catches SIGSEV b/c this is read out of ROM and not 32 bit aligned
+    RODATA_ATTR
+#endif
+    =
     {
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2,
