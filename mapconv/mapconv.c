@@ -1,6 +1,8 @@
 #include "math.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 
 typedef enum
 {
@@ -14,6 +16,21 @@ typedef enum
 
 int main (void)
 {
+    // Generate a texture with a sin wave
+    // uint8_t bmp[48 * 48] = {0};
+    // for(int i = 0; i < 48; i++)
+    // {
+    //     int sval = round(24 + (21 * sin((2 * M_PI * i)/48.0f)));
+
+    //     bmp[i + 48*(sval-3)] = 0xFF;
+    //     bmp[i + 48*(sval-2)] = 0xFF;
+    //     bmp[i + 48*(sval-1)] = 0xFF;
+    //     bmp[i + 48*(sval-0)] = 0xFF;
+    //     bmp[i + 48*(sval+1)] = 0xFF;
+    //     bmp[i + 48*(sval+2)] = 0xFF;
+    // }
+    // stbi_write_bmp("sin.bmp", 48, 48, 1, bmp);
+
     int w, h, n;
     unsigned char* data = stbi_load("map.png", &w, &h, &n, 0);
     if(NULL != data)
