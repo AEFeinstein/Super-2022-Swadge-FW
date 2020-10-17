@@ -42,7 +42,7 @@
 
 #define PLAYER_SHOT_COOLDOWN  300000
 
-#define HURT_OUTLINE_TIME     100000
+#define LED_ON_TIME           500000
 
 #define ENEMY_HEALTH   2
 #define PLAYER_HEALTH 99
@@ -119,7 +119,6 @@ typedef struct
     int32_t shotCooldown;
     bool checkShot;
     int32_t health;
-    int32_t hurtOutlineTimer;
 
     // The enemies
     raySprite_t sprites[NUM_SPRITES];
@@ -147,6 +146,12 @@ typedef struct
     pngHandle heart;
     pngHandle mnote;
     pngSequenceHandle gtr;
+
+    // For LEDs
+    timer_t ledTimer;
+    uint32_t closestDist;
+    int32_t gotShotTimer;
+    int32_t shotSomethingTimer;
 } raycaster_t;
 
 typedef enum
@@ -169,6 +174,7 @@ void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state, int32_t button, in
 void ICACHE_FLASH_ATTR raycasterMenuButtonCallback(const char* selected);
 bool ICACHE_FLASH_ATTR raycasterRenderTask(void);
 void ICACHE_FLASH_ATTR raycasterGameRenderer(void);
+void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg);
 
 void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsed);
 void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsed);
@@ -346,6 +352,9 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
                      "gtr4.png",
                      "gtr5.png");
 
+    timerSetFn(&(rc->ledTimer), raycasterLedTimer, NULL);
+    timerArm(&(rc->ledTimer), 10, true);
+
     // Initialize game state
     raycasterInitGame();
     os_printf("system_get_free_heap_size %d\n", system_get_free_heap_size());
@@ -504,9 +513,13 @@ void ICACHE_FLASH_ATTR raycasterGameRenderer(void)
 
         // Tick down the timer to display the hurt outline.
         // This is drawn in drawHUD()
-        if(rc->hurtOutlineTimer > 0)
+        if(rc->gotShotTimer > 0)
         {
-            rc->hurtOutlineTimer -= tElapsedUs;
+            rc->gotShotTimer -= tElapsedUs;
+        }
+        if(rc->shotSomethingTimer > 0)
+        {
+            rc->shotSomethingTimer -= tElapsedUs;
         }
     }
 
@@ -1008,9 +1021,11 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
                     rc->sprites[spriteIdxShot].state != E_DEAD)
             {
                 // decrement health by one
-                rc->sprites[spriteIdxShot].health -= 1;
+                rc->sprites[spriteIdxShot].health--;
                 // Animate getting shot
                 setSpriteState(&(rc->sprites[spriteIdxShot]), E_GOT_SHOT);
+                // Flash LEDs that we shot something
+                rc->shotSomethingTimer = LED_ON_TIME;
             }
         }
     }
@@ -1157,6 +1172,9 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
 {
     float frameTime = (tElapsedUs) / 1000000.0;
 
+    // Keep track of the closest live sprite
+    rc->closestDist = 0xFFFFFFFF;
+
     for(uint8_t i = 0; i < NUM_SPRITES; i++)
     {
         // Skip over sprites with negative position
@@ -1171,15 +1189,22 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
             rc->sprites[i].shotCooldown -= tElapsedUs;
         }
 
+        // Find the distance between this sprite and the player
+        float toPlayerX = rc->posX - rc->sprites[i].posX;
+        float toPlayerY = rc->posY - rc->sprites[i].posY;
+        float magSqr = (toPlayerX * toPlayerX) + (toPlayerY * toPlayerY);
+
+        // Keep track of the closest live sprite
+        if(rc->sprites[i].health > 0 && (uint32_t)magSqr < rc->closestDist)
+        {
+            rc->closestDist = (uint32_t)magSqr;
+        }
+
         switch (rc->sprites[i].state)
         {
             default:
             case E_IDLE:
             {
-                // Check if player is close to move to E_PICK_DIR_PLAYER
-                float toPlayerX = rc->posX - rc->sprites[i].posX;
-                float toPlayerY = rc->posY - rc->sprites[i].posY;
-                float magSqr = (toPlayerX * toPlayerX) + (toPlayerY * toPlayerY);
 
                 // Less than 8 units away (avoid the sqrt!)
                 if(magSqr < 64)
@@ -1230,11 +1255,6 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
             }
             case E_PICK_DIR_PLAYER:
             {
-                // Find the vector from the enemy to the player
-                float toPlayerX = rc->posX - rc->sprites[i].posX;
-                float toPlayerY = rc->posY - rc->sprites[i].posY;
-                float magSqr = (toPlayerX * toPlayerX) + (toPlayerY * toPlayerY);
-
                 // Randomly take a shot
                 if(rc->sprites[i].shotCooldown <= 0 &&           // If the sprite is not in cooldown
                         (uint32_t)magSqr < 64 &&                 // If the player is no more than 8 units away
@@ -1287,11 +1307,6 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
             }
             case E_WALKING:
             {
-                // Find the vector from the enemy to the player
-                float toPlayerX = rc->posX - rc->sprites[i].posX;
-                float toPlayerY = rc->posY - rc->sprites[i].posY;
-                float magSqr = (toPlayerX * toPlayerX) + (toPlayerY * toPlayerY);
-
                 // See if we're done walking
                 rc->sprites[i].stateTimer -= tElapsedUs;
                 if (rc->sprites[i].stateTimer <= 0)
@@ -1397,7 +1412,7 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                     {
                         // TODO RNG if damage actually lands?
                         rc->health--;
-                        rc->hurtOutlineTimer = HURT_OUTLINE_TIME;
+                        rc->gotShotTimer = LED_ON_TIME;
                         if(rc->health == 0)
                         {
                             // TODO display game over
@@ -1688,19 +1703,42 @@ void ICACHE_FLASH_ATTR drawHUD(void)
                         (OLED_HEIGHT - rc->gtr.handles->height),
                         false, false, 0, idx);
     }
+}
 
-    // Draw a white border if you got shot
-    if(rc->hurtOutlineTimer > 0)
+/**
+ * @brief Drive LEDs based on game state
+ *
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg __attribute__((unused)))
+{
+    led_t leds[NUM_LIN_LEDS] = {{0}};
+
+    // If we were shot, flash red
+    if(rc->gotShotTimer > 0)
     {
-        for(uint8_t x = 0; x < OLED_WIDTH; x++)
+        for(uint8_t i = 0; i < NUM_LIN_LEDS; i++)
         {
-            drawPixelUnsafeC(x, 0, WHITE);
-            drawPixelUnsafeC(x, OLED_HEIGHT - 1, WHITE);
-        }
-        for(uint8_t y = 1; y < OLED_HEIGHT - 1; y++)
-        {
-            drawPixelUnsafeC(0, y, WHITE);
-            drawPixelUnsafeC(OLED_WIDTH - 1, y, WHITE);
+            leds[i].r = (rc->gotShotTimer * 0x40) / LED_ON_TIME;
         }
     }
+    // Otherwise if we shot somethhing, flash green
+    else if(rc->shotSomethingTimer > 0)
+    {
+        for(uint8_t i = 0; i < NUM_LIN_LEDS; i++)
+        {
+            leds[i].g = (rc->shotSomethingTimer * 0x40) / LED_ON_TIME;
+        }
+    }
+    // Otherwise use the LEDs like a radar
+    else if(rc->closestDist < 64) // This is the squared dist, so check for radius 8
+    {
+        for(uint8_t i = 0; i < NUM_LIN_LEDS; i++)
+        {
+            leds[i].b = 3 * (64 - rc->closestDist);
+        }
+    }
+
+    // Push out the LEDs
+    setLeds(leds, sizeof(leds));
 }
