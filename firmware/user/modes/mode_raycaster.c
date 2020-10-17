@@ -122,6 +122,7 @@ typedef struct
 
     // The enemies
     raySprite_t sprites[NUM_SPRITES];
+    uint8_t liveSprites;
 
     // arrays used to sort the sprites
     int32_t spriteOrder[NUM_SPRITES];
@@ -352,6 +353,7 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
                      "gtr4.png",
                      "gtr5.png");
 
+    rc->closestDist = 0xFFFFFFFF;
     timerSetFn(&(rc->ledTimer), raycasterLedTimer, NULL);
     timerArm(&(rc->ledTimer), 10, true);
 
@@ -398,22 +400,22 @@ void ICACHE_FLASH_ATTR raycasterInitGame(void)
     // Set initial health
     rc->health = PLAYER_HEALTH;
 
-    int8_t spritesPlaced = 0;
+    rc->liveSprites = 0;
     for(uint8_t x = 0; x < mapWidth; x++)
     {
         for(uint8_t y = 0; y < mapHeight; y++)
         {
-            if(spritesPlaced < NUM_SPRITES && worldMap[x][y] == WMT_S)
+            if(rc->liveSprites < NUM_SPRITES && worldMap[x][y] == WMT_S)
             {
-                rc->sprites[spritesPlaced].posX = x;
-                rc->sprites[spritesPlaced].posY = y;
-                rc->sprites[spritesPlaced].dirX = 0;
-                rc->sprites[spritesPlaced].dirX = 0;
-                rc->sprites[spritesPlaced].shotCooldown = 0;
-                rc->sprites[spritesPlaced].isBackwards = false;
-                rc->sprites[spritesPlaced].health = ENEMY_HEALTH;
-                setSpriteState(&(rc->sprites[spritesPlaced]), E_IDLE);
-                spritesPlaced++;
+                rc->sprites[rc->liveSprites].posX = x;
+                rc->sprites[rc->liveSprites].posY = y;
+                rc->sprites[rc->liveSprites].dirX = 0;
+                rc->sprites[rc->liveSprites].dirX = 0;
+                rc->sprites[rc->liveSprites].shotCooldown = 0;
+                rc->sprites[rc->liveSprites].isBackwards = false;
+                rc->sprites[rc->liveSprites].health = ENEMY_HEALTH;
+                setSpriteState(&(rc->sprites[rc->liveSprites]), E_IDLE);
+                rc->liveSprites++;
             }
         }
     }
@@ -1417,6 +1419,8 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                         {
                             // TODO display game over
                             rc->mode = RC_MENU;
+                            // Disable radar
+                            rc->closestDist = 0xFFFFFFFF;
                         }
                     }
                 }
@@ -1632,6 +1636,14 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
         }
         case E_DEAD:
         {
+            rc->liveSprites--;
+            if(0 == rc->liveSprites)
+            {
+                // All dead, go back to the menu
+                rc->mode = RC_MENU;
+                // Disable radar
+                rc->closestDist = 0xFFFFFFFF;
+            }
             sprite->stateTimer = 0;
             sprite->texture = rc->d3;
             sprite->texTimer = 0;
@@ -1646,7 +1658,7 @@ void ICACHE_FLASH_ATTR drawHUD(void)
 {
     // Figure out widths for note display
     char notes[8] = {0};
-    ets_snprintf(notes, sizeof(notes) - 1, "%d", 88);
+    ets_snprintf(notes, sizeof(notes) - 1, "%d", rc->liveSprites);
     int16_t noteWidth = textWidth(notes, IBM_VGA_8);
 
     // Clear area behind note display
