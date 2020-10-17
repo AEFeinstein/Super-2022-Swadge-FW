@@ -275,6 +275,8 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
     os_printf("malloc %d\n", sizeof(raycaster_t));
     os_printf("system_get_free_heap_size %d\n", system_get_free_heap_size());
     rc = os_malloc(sizeof(raycaster_t));
+    memset(rc, 0, sizeof(raycaster_t));
+
     rc->mode = RC_MENU;
 
     rc->menu = initMenu(rc_title, raycasterMenuButtonCallback);
