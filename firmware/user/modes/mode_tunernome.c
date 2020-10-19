@@ -41,7 +41,6 @@
 
 #define TUNERNOME_UPDATE_MS   15
 
-#define USE_ARROW_PNG         0 // otherwise, draw arrows with text (ugly)
 #define NUM_GUITAR_STRINGS    6
 #define NUM_UKELELE_STRINGS   4
 #define GUITAR_OFFSET         0
@@ -117,9 +116,7 @@ typedef struct
     uint32_t semitone_intensitiy_filt;
     int32_t semitone_diff_filt;
 
-#if USE_ARROW_PNG
     pngHandle upArrowPng;
-#endif
 } tunernome_t;
 
 /*============================================================================
@@ -242,10 +239,6 @@ static const char theWordUkelele[] = "Ukelele";
 static const char leftStr[] = "< Exit";
 static const char rightStrTuner[] = "Tuner >";
 static const char rightStrMetronome[] = "Metronome >";
-#if !USE_ARROW_PNG
-static const char upArrowStr[] = "/\\";
-static const char downArrowStr[] = "\\/";
-#endif
 
 /*============================================================================
  * Functions
@@ -260,9 +253,7 @@ void ICACHE_FLASH_ATTR tunernomeEnterMode(void)
     tunernome = os_malloc(sizeof(tunernome_t));
     ets_memset(tunernome, 0, sizeof(tunernome_t));
 
-#if USE_ARROW_PNG
     allocPngAsset("uparrow.png", &(tunernome->upArrowPng));
-#endif
 
     switchToSubmode(TN_TUNER);
 
@@ -335,9 +326,7 @@ void ICACHE_FLASH_ATTR switchToSubmode(tnMode newMode)
  */
 void ICACHE_FLASH_ATTR tunernomeExitMode(void)
 {
-#if USE_ARROW_PNG
     freePngAsset(&(tunernome->upArrowPng));
-#endif
 
     timerDisarm(&(tunernome->updateTimer));
     timerDisarm(&(tunernome->ledTimer));
@@ -432,7 +421,6 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
             plotText(OLED_WIDTH - textWidth(rightStrMetronome, TOM_THUMB), OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, rightStrMetronome, TOM_THUMB, WHITE);
 
             // Up/Down arrows in middle of display around current note/mode
-#if USE_ARROW_PNG
             drawPng(&(tunernome->upArrowPng),
                     (OLED_WIDTH - tunernome->upArrowPng.width) / 2,
                     (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2 - tunernome->upArrowPng.height - 10,
@@ -440,15 +428,7 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
             drawPng(&(tunernome->upArrowPng),
                     (OLED_WIDTH - tunernome->upArrowPng.width) / 2,
                     (OLED_HEIGHT + FONT_HEIGHT_IBMVGA8) / 2 + 10,
-                    true, false, 0);
-#else
-            plotText((OLED_WIDTH - textWidth(upArrowStr, TOM_THUMB)) / 2,
-                     (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2 - FONT_HEIGHT_TOMTHUMB - 10,
-                     upArrowStr, TOM_THUMB, WHITE);
-            plotText((OLED_WIDTH - textWidth(downArrowStr, TOM_THUMB)) / 2,
-                     (OLED_HEIGHT + FONT_HEIGHT_IBMVGA8) / 2 + 10,
-                     downArrowStr, TOM_THUMB, WHITE);
-#endif
+                    true, false, 180);
 
             // Current note/mode in middle of display
             switch(tunernome->curTunerMode)
