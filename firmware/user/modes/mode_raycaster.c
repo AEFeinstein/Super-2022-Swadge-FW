@@ -63,7 +63,8 @@ typedef enum
 typedef enum
 {
     RC_MENU,
-    RC_GAME
+    RC_GAME,
+    RC_SCORES
 } raycasterMode_t;
 
 /*==============================================================================
@@ -176,6 +177,7 @@ void ICACHE_FLASH_ATTR raycasterMenuButtonCallback(const char* selected);
 bool ICACHE_FLASH_ATTR raycasterRenderTask(void);
 void ICACHE_FLASH_ATTR raycasterGameRenderer(void);
 void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg);
+void ICACHE_FLASH_ATTR raycasterDrawScores(void);
 
 void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsed);
 void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsed);
@@ -186,7 +188,7 @@ void ICACHE_FLASH_ATTR drawOutlines(rayResult_t* rayResult);
 void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult);
 void ICACHE_FLASH_ATTR drawHUD(void);
 
-void ICACHE_FLASH_ATTR raycasterInitGame(void);
+void ICACHE_FLASH_ATTR raycasterInitGame(const char* difficulty);
 void ICACHE_FLASH_ATTR sortSprites(int32_t* order, float* dist, int32_t amount);
 float ICACHE_FLASH_ATTR Q_rsqrt( float number );
 bool ICACHE_FLASH_ATTR checkLineToPlayer(raySprite_t* sprite, float pX, float pY);
@@ -265,9 +267,12 @@ static const WorldMapTile_t worldMap[mapWidth][mapHeight] =
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, },
 };
 
-static const char rc_title[] = "RAYCAST FPS";
-static const char rc_start[] = "START";
-static const char rc_quit[] = "QUIT";
+static const char rc_title[]  = "RAYCAST FPS";
+static const char rc_easy[]   = "EASY";
+static const char rc_med[]    = "MEDIUM";
+static const char rc_hard[]   = "HARD";
+static const char rc_scores[] = "SCORES";
+static const char rc_quit[]   = "QUIT";
 
 /*==============================================================================
  * Functions
@@ -288,10 +293,13 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
 
     rc->menu = initMenu(rc_title, raycasterMenuButtonCallback);
     addRowToMenu(rc->menu);
-    addItemToRow(rc->menu, rc_start);
+    addItemToRow(rc->menu, rc_easy);
+    addItemToRow(rc->menu, rc_med);
+    addItemToRow(rc->menu, rc_hard);
+    addRowToMenu(rc->menu);
+    addItemToRow(rc->menu, rc_scores);
     addRowToMenu(rc->menu);
     addItemToRow(rc->menu, rc_quit);
-    // TODO add difficulty, high scores
 
     enableDebounce(false);
 
@@ -357,8 +365,6 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
     timerSetFn(&(rc->ledTimer), raycasterLedTimer, NULL);
     timerArm(&(rc->ledTimer), 10, true);
 
-    // Initialize game state
-    raycasterInitGame();
     os_printf("system_get_free_heap_size %d\n", system_get_free_heap_size());
 }
 
@@ -371,6 +377,8 @@ void ICACHE_FLASH_ATTR raycasterExitMode(void)
     freePngAsset(&(rc->heart));
     freePngAsset(&(rc->mnote));
     freePngSequence(&(rc->gtr));
+    timerDisarm(&(rc->ledTimer));
+    timerFlush();
     os_free(rc);
     rc = NULL;
 }
@@ -378,7 +386,7 @@ void ICACHE_FLASH_ATTR raycasterExitMode(void)
 /**
  * Initialize the game state
  */
-void ICACHE_FLASH_ATTR raycasterInitGame(void)
+void ICACHE_FLASH_ATTR raycasterInitGame(const char* difficulty)
 {
     rc->rButtonState = 0;
     // x and y start position
@@ -397,25 +405,49 @@ void ICACHE_FLASH_ATTR raycasterInitGame(void)
         rc->sprites[i].posY = -1;
     }
 
-    // Set initial health
-    rc->health = PLAYER_HEALTH;
+    // Set health and number of enemies based on the difficulty
+    uint16_t spritesToPlace = 1;
+    uint16_t diffMod;
+    if(rc_easy == difficulty)
+    {
+        spritesToPlace = NUM_SPRITES / 2;
+        rc->health = PLAYER_HEALTH;
+        diffMod = 2;
+    }
+    else if(rc_med == difficulty)
+    {
+        spritesToPlace = (2 * NUM_SPRITES) / 3;
+        rc->health = (2 * PLAYER_HEALTH) / 3;
+        diffMod = 3;
+    }
+    else if(rc_hard == difficulty)
+    {
+        spritesToPlace = NUM_SPRITES;
+        rc->health = PLAYER_HEALTH / 2;
+        diffMod = 1;
+    }
 
     rc->liveSprites = 0;
+    uint16_t spawnIdx = 0;
     for(uint8_t x = 0; x < mapWidth; x++)
     {
         for(uint8_t y = 0; y < mapHeight; y++)
         {
-            if(rc->liveSprites < NUM_SPRITES && worldMap[x][y] == WMT_S)
+            if(worldMap[x][y] == WMT_S)
             {
-                rc->sprites[rc->liveSprites].posX = x;
-                rc->sprites[rc->liveSprites].posY = y;
-                rc->sprites[rc->liveSprites].dirX = 0;
-                rc->sprites[rc->liveSprites].dirX = 0;
-                rc->sprites[rc->liveSprites].shotCooldown = 0;
-                rc->sprites[rc->liveSprites].isBackwards = false;
-                rc->sprites[rc->liveSprites].health = ENEMY_HEALTH;
-                setSpriteState(&(rc->sprites[rc->liveSprites]), E_IDLE);
-                rc->liveSprites++;
+                if(rc->liveSprites < NUM_SPRITES && (((spawnIdx % diffMod) > 0) || (rc_hard == difficulty)))
+                {
+                    rc->sprites[rc->liveSprites].posX = x;
+                    rc->sprites[rc->liveSprites].posY = y;
+                    rc->sprites[rc->liveSprites].dirX = 0;
+                    rc->sprites[rc->liveSprites].dirX = 0;
+                    rc->sprites[rc->liveSprites].shotCooldown = 0;
+                    rc->sprites[rc->liveSprites].isBackwards = false;
+                    rc->sprites[rc->liveSprites].health = ENEMY_HEALTH;
+                    setSpriteState(&(rc->sprites[rc->liveSprites]), E_IDLE);
+                    rc->liveSprites++;
+                }
+                spawnIdx++;
             }
         }
     }
@@ -446,6 +478,13 @@ void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state, int32_t button, in
             rc->rButtonState = state;
             break;
         }
+        case RC_SCORES:
+        {
+            if(down)
+            {
+                rc->mode = RC_MENU;
+            }
+        }
     }
 }
 
@@ -460,11 +499,16 @@ void ICACHE_FLASH_ATTR raycasterMenuButtonCallback(const char* selected)
     {
         switchToSwadgeMode(0);
     }
-    else if (rc_start == selected)
+    else if ((rc_easy == selected) || (rc_med == selected) || (rc_hard == selected))
     {
         // Start the game!
-        raycasterInitGame();
+        raycasterInitGame(selected);
         rc->mode = RC_GAME;
+    }
+    else if (rc_scores == selected)
+    {
+        // Show some scores
+        rc->mode = RC_SCORES;
     }
 }
 
@@ -487,6 +531,11 @@ bool ICACHE_FLASH_ATTR raycasterRenderTask(void)
         case RC_GAME:
         {
             raycasterGameRenderer();
+            break;
+        }
+        case RC_SCORES:
+        {
+            raycasterDrawScores();
             break;
         }
     }
@@ -1417,7 +1466,7 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                         rc->gotShotTimer = LED_ON_TIME;
                         if(rc->health == 0)
                         {
-                            // TODO display game over
+                            // TODO display game over, save score
                             rc->mode = RC_MENU;
                             // Disable radar
                             rc->closestDist = 0xFFFFFFFF;
@@ -1639,7 +1688,7 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
             rc->liveSprites--;
             if(0 == rc->liveSprites)
             {
-                // All dead, go back to the menu
+                // TODO display game over, save score
                 rc->mode = RC_MENU;
                 // Disable radar
                 rc->closestDist = 0xFFFFFFFF;
@@ -1753,4 +1802,13 @@ void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg __attribute__((unused)))
 
     // Push out the LEDs
     setLeds(leds, sizeof(leds));
+}
+
+/**
+ * TODO draw some scores
+ */
+void ICACHE_FLASH_ATTR raycasterDrawScores(void)
+{
+    clearDisplay();
+    plotText(0, 0, "Scores", IBM_VGA_8, WHITE);
 }
