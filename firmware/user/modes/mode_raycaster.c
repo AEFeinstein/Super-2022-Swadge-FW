@@ -64,6 +64,7 @@ typedef enum
 {
     RC_MENU,
     RC_GAME,
+    RC_GAME_OVER,
     RC_SCORES
 } raycasterMode_t;
 
@@ -120,10 +121,13 @@ typedef struct
     int32_t shotCooldown;
     bool checkShot;
     int32_t health;
+    uint32_t tRoundStartedUs;
+    uint32_t tRoundElapsed;
 
     // The enemies
     raySprite_t sprites[NUM_SPRITES];
     uint8_t liveSprites;
+    uint8_t kills;
 
     // arrays used to sort the sprites
     int32_t spriteOrder[NUM_SPRITES];
@@ -178,6 +182,8 @@ bool ICACHE_FLASH_ATTR raycasterRenderTask(void);
 void ICACHE_FLASH_ATTR raycasterGameRenderer(void);
 void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg);
 void ICACHE_FLASH_ATTR raycasterDrawScores(void);
+void ICACHE_FLASH_ATTR raycasterEndRound(void);
+void ICACHE_FLASH_ATTR raycasterDrawRoundOver(void);
 
 void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsed);
 void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsed);
@@ -406,29 +412,26 @@ void ICACHE_FLASH_ATTR raycasterInitGame(const char* difficulty)
     }
 
     // Set health and number of enemies based on the difficulty
-    uint16_t spritesToPlace = 1;
-    uint16_t diffMod;
+    uint16_t diffMod = 0;
     if(rc_easy == difficulty)
     {
-        spritesToPlace = NUM_SPRITES / 2;
         rc->health = PLAYER_HEALTH;
         diffMod = 2;
     }
     else if(rc_med == difficulty)
     {
-        spritesToPlace = (2 * NUM_SPRITES) / 3;
         rc->health = (2 * PLAYER_HEALTH) / 3;
         diffMod = 3;
     }
     else if(rc_hard == difficulty)
     {
-        spritesToPlace = NUM_SPRITES;
         rc->health = PLAYER_HEALTH / 2;
         diffMod = 1;
     }
 
     rc->liveSprites = 0;
     uint16_t spawnIdx = 0;
+#ifndef TEST_GAME_OVER
     for(uint8_t x = 0; x < mapWidth; x++)
     {
         for(uint8_t y = 0; y < mapHeight; y++)
@@ -451,6 +454,19 @@ void ICACHE_FLASH_ATTR raycasterInitGame(const char* difficulty)
             }
         }
     }
+#else
+    rc->sprites[rc->liveSprites].posX = 45;
+    rc->sprites[rc->liveSprites].posY = 2 ;
+    rc->sprites[rc->liveSprites].dirX = 0;
+    rc->sprites[rc->liveSprites].dirX = 0;
+    rc->sprites[rc->liveSprites].shotCooldown = 0;
+    rc->sprites[rc->liveSprites].isBackwards = false;
+    rc->sprites[rc->liveSprites].health = ENEMY_HEALTH;
+    setSpriteState(&(rc->sprites[rc->liveSprites]), E_IDLE);
+    rc->liveSprites++;
+#endif
+
+    rc->tRoundStartedUs = system_get_time();
 }
 
 /**
@@ -478,12 +494,21 @@ void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state, int32_t button, in
             rc->rButtonState = state;
             break;
         }
+        case RC_GAME_OVER:
+        {
+            if(down)
+            {
+                rc->mode = RC_MENU;
+            }
+            break;
+        }
         case RC_SCORES:
         {
             if(down)
             {
                 rc->mode = RC_MENU;
             }
+            break;
         }
     }
 }
@@ -531,6 +556,11 @@ bool ICACHE_FLASH_ATTR raycasterRenderTask(void)
         case RC_GAME:
         {
             raycasterGameRenderer();
+            break;
+        }
+        case RC_GAME_OVER:
+        {
+            raycasterDrawRoundOver();
             break;
         }
         case RC_SCORES:
@@ -1466,10 +1496,7 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                         rc->gotShotTimer = LED_ON_TIME;
                         if(rc->health == 0)
                         {
-                            // TODO display game over, save score
-                            rc->mode = RC_MENU;
-                            // Disable radar
-                            rc->closestDist = 0xFFFFFFFF;
+                            raycasterEndRound();
                         }
                     }
                 }
@@ -1686,12 +1713,10 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
         case E_DEAD:
         {
             rc->liveSprites--;
+            rc->kills++;
             if(0 == rc->liveSprites)
             {
-                // TODO display game over, save score
-                rc->mode = RC_MENU;
-                // Disable radar
-                rc->closestDist = 0xFFFFFFFF;
+                raycasterEndRound();
             }
             sprite->stateTimer = 0;
             sprite->texture = rc->d3;
@@ -1767,6 +1792,49 @@ void ICACHE_FLASH_ATTR drawHUD(void)
 }
 
 /**
+ * Called when the round ends
+ */
+void ICACHE_FLASH_ATTR raycasterEndRound(void)
+{
+    rc->tRoundElapsed = system_get_time() - rc->tRoundStartedUs;
+
+    // TODO save score
+    rc->mode = RC_GAME_OVER;
+    // Disable radar
+    rc->closestDist = 0xFFFFFFFF;
+}
+
+/**
+ * Display the time elapsed and number of kills
+ * TODO make this pretty
+ */
+void ICACHE_FLASH_ATTR raycasterDrawRoundOver(void)
+{
+    uint32_t dSec = (rc->tRoundStartedUs / 100000) % 10;
+    uint32_t sec  = (rc->tRoundStartedUs / 1000000) % 60;
+    uint32_t min  = (rc->tRoundStartedUs / (1000000 * 60));
+
+    char timestr[64] = {0};
+    ets_snprintf(timestr, sizeof(timestr), "Time : %02d:%02d.%d", min, sec, dSec);
+    char killstr[64] = {0};
+    ets_snprintf(killstr, sizeof(killstr), "Kills: %d", rc->kills);
+
+    clearDisplay();
+
+    if(rc->liveSprites > 0)
+    {
+        plotText(0, 0, "Game Over", IBM_VGA_8, WHITE);
+    }
+    else
+    {
+        plotText(0, 0, "You win!", IBM_VGA_8, WHITE);
+    }
+
+    plotText(0, FONT_HEIGHT_IBMVGA8 + 2, timestr, IBM_VGA_8, WHITE);
+    plotText(0, 2 * (FONT_HEIGHT_IBMVGA8 + 2), killstr, IBM_VGA_8, WHITE);
+}
+
+/**
  * @brief Drive LEDs based on game state
  *
  * @param arg unused
@@ -1805,10 +1873,11 @@ void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg __attribute__((unused)))
 }
 
 /**
- * TODO draw some scores
+ * Display the high scores
  */
 void ICACHE_FLASH_ATTR raycasterDrawScores(void)
 {
     clearDisplay();
     plotText(0, 0, "Scores", IBM_VGA_8, WHITE);
+    // TODO display scores
 }
