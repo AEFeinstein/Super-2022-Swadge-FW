@@ -191,6 +191,7 @@ void * InitSoundPulse( SoundCBType cb, int reqSPS, int reqChannelsRec, int reqCh
 	r->CloseFn = CloseSoundPulse;
 	r->SoundStateFn = SoundStatePulse;
 	r->callback = cb;
+	r->thread = NULL;
 
 	r->sps = reqSPS;
 	r->channelsPlay = reqChannelsPlay;
