@@ -47,7 +47,7 @@ int16_t ICACHE_FLASH_ATTR plotChar(int16_t x, int16_t y,
  * @param col WHITE, BLACK or INVERSE
  * @return The x position of the end of the string drawn
  */
-int16_t ICACHE_FLASH_ATTR plotText(int16_t x, int16_t y, char* text, fonts font, color col)
+int16_t ICACHE_FLASH_ATTR plotText(int16_t x, int16_t y, const char* text, fonts font, color col)
 {
     while (0 != *text)
     {
@@ -105,7 +105,7 @@ int16_t ICACHE_FLASH_ATTR charWidth(char character, const sprite_t* table)
  * @param font
  * @return int16_t
  */
-int16_t ICACHE_FLASH_ATTR textWidth(char* text, fonts font)
+int16_t ICACHE_FLASH_ATTR textWidth(const char* text, fonts font)
 {
     int16_t width = 0;
     while (0 != *text)
