@@ -391,6 +391,10 @@ char* ets_strcat(char* dest, const char* src)
 {
     return strcat(dest, src);
 }
+int ets_strncmp(const char *s1, const char *s2, int len)
+{
+    return strncmp(s1, s2, len);
+}
 
 bool canPrint = true;
 void system_set_os_print( uint8 onoff )

@@ -470,7 +470,7 @@ void ICACHE_FLASH_ATTR stopScreensaver(void)
 #if SWADGE_VERSION != SWADGE_BBKIWI
     // Start a timer to start the screensaver if there's no input
     timerDisarm(&mnu->timerScreensaverStart);
-    timerArm(&mnu->timerScreensaverStart, 1000, false);
+    timerArm(&mnu->timerScreensaverStart, 3000, false);
 #endif
     // Stop this timer too
     timerDisarm(&mnu->timerScreensaverBright);
