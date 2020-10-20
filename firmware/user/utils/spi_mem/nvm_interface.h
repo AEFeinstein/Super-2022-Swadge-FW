@@ -14,6 +14,9 @@
 // For ddrHighScores_t
 #include "mode_ddr.h"
 
+// For raycasterScore_t
+#include "mode_raycaster.h"
+
 #define NUM_DEMON_MEMORIALS 8
 
 typedef struct
@@ -41,5 +44,8 @@ void ICACHE_FLASH_ATTR getDDRScores(ddrHighScores_t* highScores);
 
 demonMemorial_t* ICACHE_FLASH_ATTR getDemonMemorials(void);
 void ICACHE_FLASH_ATTR addDemonMemorial(char* name, int32_t actionsTaken);
+
+raycasterScores_t* ICACHE_FLASH_ATTR getRaycasterScores(void);
+void ICACHE_FLASH_ATTR addRaycasterScore(raycasterDifficulty_t difficulty, uint16_t kills, uint32_t tElapsed);
 
 #endif /* USER_CUSTOM_COMMANDS_H_ */

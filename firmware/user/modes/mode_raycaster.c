@@ -8,6 +8,7 @@
 #include <user_interface.h>
 #include <mem.h>
 #include "user_main.h"
+#include "nvm_interface.h"
 #include "mode_raycaster.h"
 
 #include "oled.h"
@@ -123,15 +124,12 @@ typedef struct
     int32_t health;
     uint32_t tRoundStartedUs;
     uint32_t tRoundElapsed;
+    raycasterDifficulty_t difficulty;
 
     // The enemies
     raySprite_t sprites[NUM_SPRITES];
     uint8_t liveSprites;
     uint8_t kills;
-
-    // arrays used to sort the sprites
-    int32_t spriteOrder[NUM_SPRITES];
-    float spriteDistance[NUM_SPRITES];
 
     // Storage for textures
     color stoneTex[texWidth * texHeight];
@@ -194,7 +192,7 @@ void ICACHE_FLASH_ATTR drawOutlines(rayResult_t* rayResult);
 void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult);
 void ICACHE_FLASH_ATTR drawHUD(void);
 
-void ICACHE_FLASH_ATTR raycasterInitGame(const char* difficulty);
+void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty);
 void ICACHE_FLASH_ATTR sortSprites(int32_t* order, float* dist, int32_t amount);
 float ICACHE_FLASH_ATTR Q_rsqrt( float number );
 bool ICACHE_FLASH_ATTR checkLineToPlayer(raySprite_t* sprite, float pX, float pY);
@@ -392,8 +390,12 @@ void ICACHE_FLASH_ATTR raycasterExitMode(void)
 /**
  * Initialize the game state
  */
-void ICACHE_FLASH_ATTR raycasterInitGame(const char* difficulty)
+void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
 {
+    rc->mode = RC_GAME;
+    rc->rButtonState = 0;
+    rc->difficulty = difficulty;
+
     rc->rButtonState = 0;
     // x and y start position
     rc->posY = 10.5;
@@ -413,23 +415,24 @@ void ICACHE_FLASH_ATTR raycasterInitGame(const char* difficulty)
 
     // Set health and number of enemies based on the difficulty
     uint16_t diffMod = 0;
-    if(rc_easy == difficulty)
+    if(RC_EASY == difficulty)
     {
         rc->health = PLAYER_HEALTH;
         diffMod = 2;
     }
-    else if(rc_med == difficulty)
+    else if(RC_MED == difficulty)
     {
         rc->health = (2 * PLAYER_HEALTH) / 3;
         diffMod = 3;
     }
-    else if(rc_hard == difficulty)
+    else if(RC_HARD == difficulty)
     {
         rc->health = PLAYER_HEALTH / 2;
         diffMod = 1;
     }
 
     rc->liveSprites = 0;
+    rc->kills = 0;
     uint16_t spawnIdx = 0;
 #ifndef TEST_GAME_OVER
     for(uint8_t x = 0; x < mapWidth; x++)
@@ -438,7 +441,7 @@ void ICACHE_FLASH_ATTR raycasterInitGame(const char* difficulty)
         {
             if(worldMap[x][y] == WMT_S)
             {
-                if(rc->liveSprites < NUM_SPRITES && (((spawnIdx % diffMod) > 0) || (rc_hard == difficulty)))
+                if(rc->liveSprites < NUM_SPRITES && (((spawnIdx % diffMod) > 0) || (RC_HARD == difficulty)))
                 {
                     rc->sprites[rc->liveSprites].posX = x;
                     rc->sprites[rc->liveSprites].posY = y;
@@ -466,6 +469,14 @@ void ICACHE_FLASH_ATTR raycasterInitGame(const char* difficulty)
     rc->liveSprites++;
 #endif
 
+    rc->shotCooldown = 0;
+    rc->checkShot = false;
+
+    rc->closestDist = 0xFFFFFFFF;
+    rc->gotShotTimer = 0;
+    rc->shotSomethingTimer = 0;
+
+    rc->tRoundElapsed = 0;
     rc->tRoundStartedUs = system_get_time();
 }
 
@@ -506,7 +517,38 @@ void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state, int32_t button, in
         {
             if(down)
             {
-                rc->mode = RC_MENU;
+                switch (button)
+                {
+                    case 2:
+                    {
+                        // Left
+                        rc->difficulty = (rc->difficulty + 1) % RC_NUM_DIFFICULTIES;
+                        break;
+                    }
+                    case 0:
+                    {
+                        // Right
+                        if(0 == rc->difficulty)
+                        {
+                            rc->difficulty = RC_NUM_DIFFICULTIES - 1;
+                        }
+                        else
+                        {
+                            rc->difficulty--;
+                        }
+                        break;
+                    }
+                    case 4:
+                    {
+                        rc->mode = RC_MENU;
+                        break;
+                    }
+                    default:
+                    {
+                        // Do nothing
+                        break;
+                    }
+                }
             }
             break;
         }
@@ -524,16 +566,23 @@ void ICACHE_FLASH_ATTR raycasterMenuButtonCallback(const char* selected)
     {
         switchToSwadgeMode(0);
     }
-    else if ((rc_easy == selected) || (rc_med == selected) || (rc_hard == selected))
+    else if(rc_easy == selected)
     {
-        // Start the game!
-        raycasterInitGame(selected);
-        rc->mode = RC_GAME;
+        raycasterInitGame(RC_EASY);
+    }
+    else if(rc_med == selected)
+    {
+        raycasterInitGame(RC_MED);
+    }
+    else if(rc_hard == selected)
+    {
+        raycasterInitGame(RC_HARD);
     }
     else if (rc_scores == selected)
     {
         // Show some scores
         rc->mode = RC_SCORES;
+        rc->difficulty = RC_EASY;
     }
 }
 
@@ -967,30 +1016,33 @@ void ICACHE_FLASH_ATTR drawOutlines(rayResult_t* rayResult)
  */
 void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
 {
+    int32_t spriteOrder[NUM_SPRITES];
+    float spriteDistance[NUM_SPRITES];
+
     // Track if any sprite was shot
     int16_t spriteIdxShot = -1;
 
     // sort sprites from far to close
     for(uint32_t i = 0; i < NUM_SPRITES; i++)
     {
-        rc->spriteOrder[i] = i;
+        spriteOrder[i] = i;
         // sqrt not taken, unneeded
-        rc->spriteDistance[i] = ((rc->posX - rc->sprites[i].posX) * (rc->posX - rc->sprites[i].posX) +
-                                 (rc->posY - rc->sprites[i].posY) * (rc->posY - rc->sprites[i].posY));
+        spriteDistance[i] = ((rc->posX - rc->sprites[i].posX) * (rc->posX - rc->sprites[i].posX) +
+                             (rc->posY - rc->sprites[i].posY) * (rc->posY - rc->sprites[i].posY));
     }
-    sortSprites(rc->spriteOrder, rc->spriteDistance, NUM_SPRITES);
+    sortSprites(spriteOrder, spriteDistance, NUM_SPRITES);
 
     // after sorting the sprites, do the projection and draw them
     for(uint32_t i = 0; i < NUM_SPRITES; i++)
     {
         // Skip over the sprite if posX is negative
-        if(rc->sprites[rc->spriteOrder[i]].posX < 0)
+        if(rc->sprites[spriteOrder[i]].posX < 0)
         {
             continue;
         }
         // translate sprite position to relative to camera
-        float spriteX = rc->sprites[rc->spriteOrder[i]].posX - rc->posX;
-        float spriteY = rc->sprites[rc->spriteOrder[i]].posY - rc->posY;
+        float spriteX = rc->sprites[spriteOrder[i]].posX - rc->posX;
+        float spriteY = rc->sprites[spriteOrder[i]].posY - rc->posY;
 
         // transform sprite with the inverse camera matrix
         // [ planeX dirX ] -1                                  [ dirY     -dirX ]
@@ -1069,7 +1121,7 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
                     int32_t texY = ((d * texHeight) / spriteHeight) / 256;
                     // get current color from the texture
                     uint16_t texIdx = 0;
-                    if(rc->sprites[rc->spriteOrder[i]].mirror)
+                    if(rc->sprites[spriteOrder[i]].mirror)
                     {
                         texIdx = ((texWidth - texX - 1) * texHeight) + texY;
                     }
@@ -1078,11 +1130,11 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
                         texIdx = (texX * texHeight) + texY;
                     }
 
-                    drawPixelUnsafeC(stripe, y, rc->sprites[rc->spriteOrder[i]].texture[texIdx]);
+                    drawPixelUnsafeC(stripe, y, rc->sprites[spriteOrder[i]].texture[texIdx]);
 
                     if(true == rc->checkShot && (stripe == 63 || stripe == 64))
                     {
-                        spriteIdxShot = rc->spriteOrder[i];
+                        spriteIdxShot = spriteOrder[i];
                     }
                 }
             }
@@ -1796,11 +1848,14 @@ void ICACHE_FLASH_ATTR drawHUD(void)
  */
 void ICACHE_FLASH_ATTR raycasterEndRound(void)
 {
+    // See how long this round took
     rc->tRoundElapsed = system_get_time() - rc->tRoundStartedUs;
 
-    // TODO save score
+    // Save the score
+    addRaycasterScore(rc->difficulty, rc->kills, rc->tRoundElapsed);
+
+    // Show game over screen, disable radar
     rc->mode = RC_GAME_OVER;
-    // Disable radar
     rc->closestDist = 0xFFFFFFFF;
 }
 
@@ -1810,9 +1865,9 @@ void ICACHE_FLASH_ATTR raycasterEndRound(void)
  */
 void ICACHE_FLASH_ATTR raycasterDrawRoundOver(void)
 {
-    uint32_t dSec = (rc->tRoundStartedUs / 100000) % 10;
-    uint32_t sec  = (rc->tRoundStartedUs / 1000000) % 60;
-    uint32_t min  = (rc->tRoundStartedUs / (1000000 * 60));
+    uint32_t dSec = (rc->tRoundElapsed / 100000) % 10;
+    uint32_t sec  = (rc->tRoundElapsed / 1000000) % 60;
+    uint32_t min  = (rc->tRoundElapsed / (1000000 * 60));
 
     char timestr[64] = {0};
     ets_snprintf(timestr, sizeof(timestr), "Time : %02d:%02d.%d", min, sec, dSec);
@@ -1878,6 +1933,53 @@ void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg __attribute__((unused)))
 void ICACHE_FLASH_ATTR raycasterDrawScores(void)
 {
     clearDisplay();
-    plotText(0, 0, "Scores", IBM_VGA_8, WHITE);
-    // TODO display scores
+
+    // Plot title
+    switch(rc->difficulty)
+    {
+        case RC_EASY:
+        {
+            plotText(0, 0, "Easy", RADIOSTARS, WHITE);
+            break;
+        }
+        case RC_MED:
+        {
+            plotText(0, 0, "Medium", RADIOSTARS, WHITE);
+            break;
+        }
+        case RC_HARD:
+        {
+            plotText(0, 0, "Hard", RADIOSTARS, WHITE);
+            break;
+        }
+        case RC_NUM_DIFFICULTIES:
+        default:
+        {
+            return;
+        }
+    }
+
+    // Display scores
+    raycasterScores_t* s = getRaycasterScores();
+    for(uint8_t i = 0; i < RC_NUM_SCORES; i++)
+    {
+        // If this is a valid score
+        if(s->scores[rc->difficulty][i].kills > 0)
+        {
+            // Make the time human readable
+            uint32_t dSec = (s->scores[rc->difficulty][i].tElapsedUs / 100000) % 10;
+            uint32_t sec  = (s->scores[rc->difficulty][i].tElapsedUs / 1000000) % 60;
+            uint32_t min  = (s->scores[rc->difficulty][i].tElapsedUs / (1000000 * 60));
+
+            // Print the string to an array
+            char scoreStr[64] = {0};
+            ets_snprintf(scoreStr, sizeof(scoreStr), "%2d in %02d:%02d.%d",
+                         s->scores[rc->difficulty][i].kills,
+                         min, sec, dSec);
+
+            // Plot the string
+            plotText(0, FONT_HEIGHT_RADIOSTARS + 2 + (i * (FONT_HEIGHT_IBMVGA8 + 2)),
+                     scoreStr, IBM_VGA_8, WHITE);
+        }
+    }
 }
