@@ -1263,10 +1263,16 @@ void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
         rc->shotCooldown = 0;
     }
 
-    if(rc->rButtonState & 0x10 && 0 == rc->shotCooldown)
+    static bool triggerPulled = false;
+    if(!triggerPulled && rc->rButtonState & 0x10 && 0 == rc->shotCooldown)
     {
         rc->shotCooldown = PLAYER_SHOT_COOLDOWN;
         rc->checkShot = true;
+        triggerPulled = true;
+    }
+    else if(triggerPulled && (rc->rButtonState & 0x10) == 0)
+    {
+        triggerPulled = false;
     }
 }
 
