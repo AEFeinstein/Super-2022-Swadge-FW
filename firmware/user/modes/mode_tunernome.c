@@ -39,7 +39,8 @@
 #define M_PI		          3.14159265358979323846
 #endif
 
-#define TUNERNOME_UPDATE_MS   15
+#define TUNER_UPDATE_MS       20
+#define METRONOME_UPDATE_MS   15
 
 #define USE_ARROW_PNG         0 // otherwise, draw arrows with text (ugly)
 #define NUM_GUITAR_STRINGS    6
@@ -266,10 +267,6 @@ void ICACHE_FLASH_ATTR tunernomeEnterMode(void)
 
     switchToSubmode(TN_TUNER);
 
-    timerDisarm(&(tunernome->updateTimer));
-    timerSetFn(&(tunernome->updateTimer), tunernomeUpdate, NULL);
-    timerArm(&(tunernome->updateTimer), TUNERNOME_UPDATE_MS, true);
-
     timerDisarm(&(tunernome->ledTimer));
     timerSetFn(&(tunernome->ledTimer), ledReset, NULL);
 
@@ -295,6 +292,10 @@ void ICACHE_FLASH_ATTR switchToSubmode(tnMode newMode)
             led_t leds[NUM_LIN_LEDS] = {{0}};
             setLeds(leds, sizeof(leds));
 
+            timerDisarm(&(tunernome->updateTimer));
+            timerSetFn(&(tunernome->updateTimer), tunernomeUpdate, NULL);
+            timerArm(&(tunernome->updateTimer), TUNER_UPDATE_MS, true);
+
             enableDebounce(true);
 
             clearDisplay();
@@ -317,6 +318,10 @@ void ICACHE_FLASH_ATTR switchToSubmode(tnMode newMode)
 
             led_t leds[NUM_LIN_LEDS] = {{0}};
             setLeds(leds, sizeof(leds));
+
+            timerDisarm(&(tunernome->updateTimer));
+            timerSetFn(&(tunernome->updateTimer), tunernomeUpdate, NULL);
+            timerArm(&(tunernome->updateTimer), METRONOME_UPDATE_MS, true);
 
             enableDebounce(false);
 
@@ -487,13 +492,13 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
                     for(int i = 0; i < NUM_UKELELE_STRINGS / 2; i++)
                     {
                         plotText((OLED_WIDTH - textWidth(theWordUkelele, IBM_VGA_8)) / 2 - textWidth("G4 ", IBM_VGA_8),
-                                 OLED_HEIGHT / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (- i),
+                                 OLED_HEIGHT / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (- i) + 2,
                                  ukeleleNoteNames[i], IBM_VGA_8, WHITE);
                     }
                     for(int i = NUM_UKELELE_STRINGS / 2; i < NUM_UKELELE_STRINGS; i++)
                     {
                         plotText((OLED_WIDTH + textWidth(theWordUkelele, IBM_VGA_8)) / 2 + textWidth(" ", IBM_VGA_8),
-                                 OLED_HEIGHT / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (i - (NUM_UKELELE_STRINGS / 2) - 1),
+                                 OLED_HEIGHT / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (i - (NUM_UKELELE_STRINGS / 2) - 1) + 2,
                                  ukeleleNoteNames[i], IBM_VGA_8, WHITE);
                     }
 
