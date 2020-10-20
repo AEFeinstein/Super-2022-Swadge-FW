@@ -44,6 +44,7 @@
 
 #define USE_ARROW_PNG         0 // otherwise, draw arrows with text (ugly)
 #define NUM_GUITAR_STRINGS    6
+#define NUM_VIOLIN_STRINGS    4
 #define NUM_UKELELE_STRINGS   4
 #define GUITAR_OFFSET         0
 #define CHROMATIC_OFFSET      6 // adjust start point by quartertones
@@ -77,6 +78,7 @@ typedef enum
 typedef enum
 {
     GUITAR_TUNER = 0,
+    VIOLIN_TUNER,
     UKELELE_TUNER,
     SEMITONE_0,
     SEMITONE_1,
@@ -103,8 +105,8 @@ typedef struct
     timer_t bpmButtonTimer;
 
     int audioSamplesProcessed;
-    uint32_t intensities_filt[MAX(NUM_GUITAR_STRINGS, NUM_UKELELE_STRINGS)];
-    int32_t diffs_filt[MAX(NUM_GUITAR_STRINGS, NUM_UKELELE_STRINGS)];
+    uint32_t intensities_filt[NUM_LIN_LEDS];
+    int32_t diffs_filt[NUM_LIN_LEDS];
 
     bool pause;
     int bpm;
@@ -189,6 +191,18 @@ const uint16_t freqBinIdxsGuitar[NUM_GUITAR_STRINGS] =
  * Indicies into fuzzed_bins[], a realtime DFT of sorts
  * fuzzed_bins[0] = A ... 1/2 steps are every 2.
  */
+const uint16_t freqBinIdxsViolin[NUM_VIOLIN_STRINGS] =
+{
+    44, // G
+    58, // D
+    72, // A
+    86  // E
+};
+
+/**
+ * Indicies into fuzzed_bins[], a realtime DFT of sorts
+ * fuzzed_bins[0] = A ... 1/2 steps are every 2.
+ */
 const uint16_t freqBinIdxsUkelele[NUM_UKELELE_STRINGS] =
 {
     68, // G
@@ -197,7 +211,7 @@ const uint16_t freqBinIdxsUkelele[NUM_UKELELE_STRINGS] =
     72  // A
 };
 
-const uint16_t ukeleleStringIdxToLedIdx[NUM_UKELELE_STRINGS] =
+const uint16_t fourNoteStringIdxToLedIdx[4] =
 {
     0,
     1,
@@ -205,7 +219,7 @@ const uint16_t ukeleleStringIdxToLedIdx[NUM_UKELELE_STRINGS] =
     5
 };
 
-const char* guitarNoteNames[12] =
+const char* guitarNoteNames[6] =
 {
     "E2",
     "A2",
@@ -215,7 +229,15 @@ const char* guitarNoteNames[12] =
     "E4"
 };
 
-const char* ukeleleNoteNames[12] =
+const char* violinNoteNames[4] =
+{
+    "G3",
+    "D4",
+    "A4",
+    "E5"
+};
+
+const char* ukeleleNoteNames[4] =
 {
     "G4",
     "C4",
@@ -241,6 +263,7 @@ const char* semitoneNoteNames[12] =
 
 static const char tn_title[]  = "Tunernome";
 static const char theWordGuitar[] = "Guitar";
+static const char theWordViolin[] = "Violin";
 static const char theWordUkelele[] = "Ukelele";
 static const char leftStr[] = "< Exit";
 static const char rightStrTuner[] = "Tuner >";
@@ -583,6 +606,11 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
                     plotInstrumentNameAndNotes(theWordGuitar, guitarNoteNames, NUM_GUITAR_STRINGS);
                     break;
                 }
+                case VIOLIN_TUNER:
+                {
+                    plotInstrumentNameAndNotes(theWordViolin, violinNoteNames, NUM_VIOLIN_STRINGS);
+                    break;
+                }
                 case UKELELE_TUNER:
                 {
                     plotInstrumentNameAndNotes(theWordUkelele, ukeleleNoteNames, NUM_UKELELE_STRINGS);
@@ -916,12 +944,17 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
                 {
                     instrumentTunerMagic(freqBinIdxsGuitar, NUM_GUITAR_STRINGS, colors, NULL);
                     break;
-                } // case GUITAR_TUNER:
+                }
+                case VIOLIN_TUNER:
+                {
+                    instrumentTunerMagic(freqBinIdxsViolin, NUM_VIOLIN_STRINGS, colors, fourNoteStringIdxToLedIdx);
+                    break;
+                }
                 case UKELELE_TUNER:
                 {
-                    instrumentTunerMagic(freqBinIdxsUkelele, NUM_UKELELE_STRINGS, colors, ukeleleStringIdxToLedIdx);
+                    instrumentTunerMagic(freqBinIdxsUkelele, NUM_UKELELE_STRINGS, colors, fourNoteStringIdxToLedIdx);
                     break;
-                } // case UKELELE_TUNER:
+                }
                 case MAX_GUITAR_MODES:
                     break;
                 case SEMITONE_0:
