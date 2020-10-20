@@ -39,7 +39,7 @@
 #define M_PI		          3.14159265358979323846
 #endif
 
-#define TUNER_UPDATE_MS       20
+#define TUNER_UPDATE_MS       20 // less frequent screen updates to allow more processing time for colorchord magic
 #define METRONOME_UPDATE_MS   15
 
 #define USE_ARROW_PNG         0 // otherwise, draw arrows with text (ugly)
@@ -136,6 +136,8 @@ void ICACHE_FLASH_ATTR increaseBpm(void* timer_arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR decreaseBpm(void* timer_arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp);
 void ICACHE_FLASH_ATTR recalcMetronome(void);
+void ICACHE_FLASH_ATTR plotInstrumentNameAndNotes(const char* instrumentName, const char** instrumentNotes, uint16_t numNotes);
+void ICACHE_FLASH_ATTR instrumentTunerMagic(const uint16_t freqBinIdxs[], uint16_t numStrings, led_t colors[], const uint16_t stringIdxToLedIdx[]);
 static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR ledReset(void* timer_arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR fasterBpmChange(void* timer_arg __attribute__((unused)));
@@ -415,6 +417,124 @@ void ICACHE_FLASH_ATTR recalcMetronome(void) {
     
 }
 
+// TODO: make this compatible with instruments with an odd number of notes
+/**
+ * Plot instrument name and the note names of strings, arranged to match LED positions, in middle of display
+ * @param instrumentName The name of the instrument to plot to the display
+ * @param instrumentNotes The note names of the strings of the instrument to plot to the display
+ * @param numNotes The number of notes in instrumentsNotes
+ */
+void ICACHE_FLASH_ATTR plotInstrumentNameAndNotes(const char* instrumentName, const char** instrumentNotes, uint16_t numNotes)
+{
+    // Mode name
+    plotText((OLED_WIDTH - textWidth(instrumentName, IBM_VGA_8)) / 2,
+                (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2,
+                instrumentName, IBM_VGA_8, WHITE);
+
+    // Note names of strings, arranged to match LED positions
+    bool oddNumLedRows = (numNotes / 2) % 2;
+    for(int i = 0; i < numNotes / 2; i++)
+    {
+        int y;
+        if(oddNumLedRows)
+        {
+            y = (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (1 - i);
+        } else
+        {
+            y = OLED_HEIGHT / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (- i) + 2;
+        }
+
+        plotText((OLED_WIDTH - textWidth(instrumentName, IBM_VGA_8)) / 2 - textWidth(/*placeholder for widest note name + ' '*/ "G4 ", IBM_VGA_8),
+                 y,
+                 instrumentNotes[i], IBM_VGA_8, WHITE);
+    }
+    for(int i = numNotes / 2; i < numNotes; i++)
+    {
+        int y;
+        if(oddNumLedRows)
+        {
+            y = (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (i - (numNotes / 2) - 1);
+        } else
+        {
+            y = OLED_HEIGHT / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (i - (numNotes / 2) - 1) + 2;
+        }
+
+        plotText((OLED_WIDTH + textWidth(instrumentName, IBM_VGA_8)) / 2 + textWidth(" ", IBM_VGA_8),
+                 y,
+                 instrumentNotes[i], IBM_VGA_8, WHITE);
+    }
+}
+
+/**
+ * Instrument-agnostic tuner magic. Updates LEDs
+ * @param freqBinIdxs An array of the indices of notes for the instrument's strings. See freqBinIdxsGuitar for an example.
+ * @param numStrings The number of strings on the instrument, also the number of elements in freqBinIdxs and stringIdxToLedIdx, if applicable
+ * @param colors The RGB colors of the LEDs to set
+ * @param stringIdxToLedIdx A remapping from each index into freqBinIdxs (same index into stringIdxToLedIdx), to the index of an LED to map that string/freqBinIdx to. Set to NULL to skip remapping.
+ */
+void ICACHE_FLASH_ATTR instrumentTunerMagic(const uint16_t freqBinIdxs[], uint16_t numStrings, led_t colors[], const uint16_t stringIdxToLedIdx[])
+{
+    uint32_t i;
+    for( i = 0; i < numStrings; i++ )
+    {
+        // Pick out the current magnitude and filter it
+        tunernome->intensities_filt[i] = (getMagnitude(freqBinIdxs[i] + GUITAR_OFFSET)  + tunernome->intensities_filt[i]) -
+                            (tunernome->intensities_filt[i] >> 5);
+
+        // Pick out the difference around current magnitude and filter it too
+        tunernome->diffs_filt[i] =       (getDiffAround(freqBinIdxs[i] + GUITAR_OFFSET) + tunernome->diffs_filt[i]) -
+                            (tunernome->diffs_filt[i] >> 5);
+
+        // This is the magnitude of the target frequency bin, cleaned up
+        int16_t intensity = (tunernome->intensities_filt[i] >> SENSITIVITY) - 40; // drop a baseline.
+        intensity = CLAMP(intensity, 0, 255);
+
+        // This is the tonal difference.  You "calibrate" out the intensity.
+        int16_t tonalDiff = (tunernome->diffs_filt[i] >> SENSITIVITY) * 200 / (intensity + 1);
+
+        int32_t red, grn, blu;
+        // Is the note in tune, i.e. is the magnitude difference in surrounding bins small?
+        if( (ABS(tonalDiff) < 10) )
+        {
+            // Note is in tune, make it white
+            red = 255;
+            grn = 255;
+            blu = 255;
+        }
+        else
+        {
+            // Check if the note is sharp or flat
+            if( tonalDiff > 0 )
+            {
+                // Note too sharp, make it red
+                red = 255;
+                grn = blu = 255 - (tonalDiff) * 15;
+            }
+            else
+            {
+                // Note too flat, make it blue
+                blu = 255;
+                grn = red = 255 - (-tonalDiff) * 15;
+            }
+
+            // Make sure LED output isn't more than 255
+            red = CLAMP(red, INT_MIN, 255);
+            grn = CLAMP(grn, INT_MIN, 255);
+            blu = CLAMP(blu, INT_MIN, 255);
+        }
+
+        // Scale each LED's brightness by the filtered intensity for that bin
+        red = (red >> 3 ) * ( intensity >> 3);
+        grn = (grn >> 3 ) * ( intensity >> 3);
+        blu = (blu >> 3 ) * ( intensity >> 3);
+
+        // Set the LED, ensure each channel is between 0 and 255
+        colors[(stringIdxToLedIdx != NULL) ? stringIdxToLedIdx[i] : i].r = CLAMP(red, 0, 255);
+        colors[(stringIdxToLedIdx != NULL) ? stringIdxToLedIdx[i] : i].g = CLAMP(grn, 0, 255);
+        colors[(stringIdxToLedIdx != NULL) ? stringIdxToLedIdx[i] : i].b = CLAMP(blu, 0, 255);
+    }
+}
+
 /**
  * @brief called on a timer, updates the game state
  *
@@ -460,48 +580,12 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
             {
                 case GUITAR_TUNER:
                 {
-                    // Mode name
-                    plotText((OLED_WIDTH - textWidth(theWordGuitar, IBM_VGA_8)) / 2,
-                             (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2,
-                             theWordGuitar, IBM_VGA_8, WHITE);
-
-                    // Note names of strings, arranged to match LED positions
-                    for(int i = 0; i < NUM_GUITAR_STRINGS / 2; i++)
-                    {
-                        plotText((OLED_WIDTH - textWidth(theWordGuitar, IBM_VGA_8)) / 2 - textWidth("G4 ", IBM_VGA_8),
-                                 (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (1 - i),
-                                 guitarNoteNames[i], IBM_VGA_8, WHITE);
-                    }
-                    for(int i = NUM_GUITAR_STRINGS / 2; i < NUM_GUITAR_STRINGS; i++)
-                    {
-                        plotText((OLED_WIDTH + textWidth(theWordGuitar, IBM_VGA_8)) / 2 + textWidth(" ", IBM_VGA_8),
-                                 (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (i - (NUM_GUITAR_STRINGS / 2) - 1),
-                                 guitarNoteNames[i], IBM_VGA_8, WHITE);
-                    }
-
+                    plotInstrumentNameAndNotes(theWordGuitar, guitarNoteNames, NUM_GUITAR_STRINGS);
                     break;
                 }
                 case UKELELE_TUNER:
                 {
-                    // Mode name
-                    plotText((OLED_WIDTH - textWidth(theWordUkelele, IBM_VGA_8)) / 2,
-                             (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2,
-                             theWordUkelele, IBM_VGA_8, WHITE);
-
-                    // Note names of strings, arranged to match LED positions
-                    for(int i = 0; i < NUM_UKELELE_STRINGS / 2; i++)
-                    {
-                        plotText((OLED_WIDTH - textWidth(theWordUkelele, IBM_VGA_8)) / 2 - textWidth("G4 ", IBM_VGA_8),
-                                 OLED_HEIGHT / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (- i) + 2,
-                                 ukeleleNoteNames[i], IBM_VGA_8, WHITE);
-                    }
-                    for(int i = NUM_UKELELE_STRINGS / 2; i < NUM_UKELELE_STRINGS; i++)
-                    {
-                        plotText((OLED_WIDTH + textWidth(theWordUkelele, IBM_VGA_8)) / 2 + textWidth(" ", IBM_VGA_8),
-                                 OLED_HEIGHT / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (i - (NUM_UKELELE_STRINGS / 2) - 1) + 2,
-                                 ukeleleNoteNames[i], IBM_VGA_8, WHITE);
-                    }
-
+                    plotInstrumentNameAndNotes(theWordUkelele, ukeleleNoteNames, NUM_UKELELE_STRINGS);
                     break;
                 }
                 case MAX_GUITAR_MODES:
@@ -824,136 +908,18 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
             // Colorchord magic
             HandleFrameInfo();
 
-            led_t colors[NUM_GUITAR_STRINGS] = {{0}};
+            led_t colors[NUM_LIN_LEDS] = {{0}};
 
             switch(tunernome->curTunerMode)
             {
                 case GUITAR_TUNER:
                 {
-                    // Guitar tuner magic
-                    uint32_t i;
-                    for( i = 0; i < NUM_GUITAR_STRINGS; i++ )
-                    {
-                        // Pick out the current magnitude and filter it
-                        tunernome->intensities_filt[i] = (getMagnitude(freqBinIdxsGuitar[i] + GUITAR_OFFSET)  + tunernome->intensities_filt[i]) -
-                                            (tunernome->intensities_filt[i] >> 5);
-
-                        // Pick out the difference around current magnitude and filter it too
-                        tunernome->diffs_filt[i] =       (getDiffAround(freqBinIdxsGuitar[i] + GUITAR_OFFSET) + tunernome->diffs_filt[i]) -
-                                            (tunernome->diffs_filt[i] >> 5);
-
-                        // This is the magnitude of the target frequency bin, cleaned up
-                        int16_t intensity = (tunernome->intensities_filt[i] >> SENSITIVITY) - 40; // drop a baseline.
-                        intensity = CLAMP(intensity, 0, 255);
-
-                        // This is the tonal difference.  You "calibrate" out the intensity.
-                        int16_t tonalDiff = (tunernome->diffs_filt[i] >> SENSITIVITY) * 200 / (intensity + 1);
-
-                        int32_t red, grn, blu;
-                        // Is the note in tune, i.e. is the magnitude difference in surrounding bins small?
-                        if( (ABS(tonalDiff) < 10) )
-                        {
-                            // Note is in tune, make it white
-                            red = 255;
-                            grn = 255;
-                            blu = 255;
-                        }
-                        else
-                        {
-                            // Check if the note is sharp or flat
-                            if( tonalDiff > 0 )
-                            {
-                                // Note too sharp, make it red
-                                red = 255;
-                                grn = blu = 255 - (tonalDiff) * 15;
-                            }
-                            else
-                            {
-                                // Note too flat, make it blue
-                                blu = 255;
-                                grn = red = 255 - (-tonalDiff) * 15;
-                            }
-
-                            // Make sure LED output isn't more than 255
-                            red = CLAMP(red, INT_MIN, 255);
-                            grn = CLAMP(grn, INT_MIN, 255);
-                            blu = CLAMP(blu, INT_MIN, 255);
-                        }
-
-                        // Scale each LED's brightness by the filtered intensity for that bin
-                        red = (red >> 3 ) * ( intensity >> 3);
-                        grn = (grn >> 3 ) * ( intensity >> 3);
-                        blu = (blu >> 3 ) * ( intensity >> 3);
-
-                        // Set the LED, ensure each channel is between 0 and 255
-                        colors[i].r = CLAMP(red, 0, 255);
-                        colors[i].g = CLAMP(grn, 0, 255);
-                        colors[i].b = CLAMP(blu, 0, 255);
-                    }
+                    instrumentTunerMagic(freqBinIdxsGuitar, NUM_GUITAR_STRINGS, colors, NULL);
                     break;
                 } // case GUITAR_TUNER:
                 case UKELELE_TUNER:
                 {
-                    // Guitar tuner magic, but ukelele
-                    uint32_t i;
-                    for( i = 0; i < NUM_UKELELE_STRINGS; i++ )
-                    {
-                        // Pick out the current magnitude and filter it
-                        tunernome->intensities_filt[i] = (getMagnitude(freqBinIdxsUkelele[i] + GUITAR_OFFSET)  + tunernome->intensities_filt[i]) -
-                                            (tunernome->intensities_filt[i] >> 5);
-
-                        // Pick out the difference around current magnitude and filter it too
-                        tunernome->diffs_filt[i] =       (getDiffAround(freqBinIdxsUkelele[i] + GUITAR_OFFSET) + tunernome->diffs_filt[i]) -
-                                            (tunernome->diffs_filt[i] >> 5);
-
-                        // This is the magnitude of the target frequency bin, cleaned up
-                        int16_t intensity = (tunernome->intensities_filt[i] >> SENSITIVITY) - 40; // drop a baseline.
-                        intensity = CLAMP(intensity, 0, 255);
-
-                        // This is the tonal difference.  You "calibrate" out the intensity.
-                        int16_t tonalDiff = (tunernome->diffs_filt[i] >> SENSITIVITY) * 200 / (intensity + 1);
-
-                        int32_t red, grn, blu;
-                        // Is the note in tune, i.e. is the magnitude difference in surrounding bins small?
-                        if( (ABS(tonalDiff) < 10) )
-                        {
-                            // Note is in tune, make it white
-                            red = 255;
-                            grn = 255;
-                            blu = 255;
-                        }
-                        else
-                        {
-                            // Check if the note is sharp or flat
-                            if( tonalDiff > 0 )
-                            {
-                                // Note too sharp, make it red
-                                red = 255;
-                                grn = blu = 255 - (tonalDiff) * 15;
-                            }
-                            else
-                            {
-                                // Note too flat, make it blue
-                                blu = 255;
-                                grn = red = 255 - (-tonalDiff) * 15;
-                            }
-
-                            // Make sure LED output isn't more than 255
-                            red = CLAMP(red, INT_MIN, 255);
-                            grn = CLAMP(grn, INT_MIN, 255);
-                            blu = CLAMP(blu, INT_MIN, 255);
-                        }
-
-                        // Scale each LED's brightness by the filtered intensity for that bin
-                        red = (red >> 3 ) * ( intensity >> 3);
-                        grn = (grn >> 3 ) * ( intensity >> 3);
-                        blu = (blu >> 3 ) * ( intensity >> 3);
-
-                        // Set the LED, ensure each channel is between 0 and 255
-                        colors[ukeleleStringIdxToLedIdx[i]].r = CLAMP(red, 0, 255);
-                        colors[ukeleleStringIdxToLedIdx[i]].g = CLAMP(grn, 0, 255);
-                        colors[ukeleleStringIdxToLedIdx[i]].b = CLAMP(blu, 0, 255);
-                    }
+                    instrumentTunerMagic(freqBinIdxsUkelele, NUM_UKELELE_STRINGS, colors, ukeleleStringIdxToLedIdx);
                     break;
                 } // case UKELELE_TUNER:
                 case MAX_GUITAR_MODES:
@@ -1038,7 +1004,7 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
 
                     break;
                 } // default:
-            }
+            } // switch(tunernome->curTunerMode)
 
             // Draw the LEDs
             setLeds( colors, sizeof(colors) );
