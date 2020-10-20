@@ -226,16 +226,16 @@ const char* ukeleleNoteNames[12] =
 const char* semitoneNoteNames[12] =
 {
     "C",
-    "C#",
+    "C#/D flat",
     "D",
-    "D#",
+    "D#/E flat",
     "E",
     "F",
-    "F#",
+    "F#/G flat",
     "G",
-    "G#",
+    "G#/A flat",
     "A",
-    "A#",
+    "A#/B flat",
     "B"
 };
 
