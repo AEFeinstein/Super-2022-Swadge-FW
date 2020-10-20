@@ -153,7 +153,7 @@ else ifeq ($(SET_SWADGE_VERSION),4)
 else ifeq ($(SET_SWADGE_VERSION),5)
   swadgeversion = 5
 else
-  swadgeversion = 5 #TODO: CHANGE THIS DEFAULT WHEN MAKING THE SUPER 2022 SWADGE
+  swadgeversion = 5 # default to SWADGE_CHAINSAW
 endif
 
 # Used by the ESP SDK
@@ -166,6 +166,12 @@ DEFINES_LIST += \
 	SOFTAP_CHANNEL=11 \
 	WS2812_FOUR_SAMPLE=1 \
 	SWADGE_VERSION=$(swadgeversion)
+
+# Create a variable with the git hash and branch name
+GIT_HASH  = $(shell git rev-parse --short HEAD)
+GIT_HASH := $(GIT_HASH)-
+GIT_HASH := $(GIT_HASH)$(shell git rev-parse --abbrev-ref HEAD)
+GIT_HASH := \"$(GIT_HASH)\"
 
 # Export the flash addresses and sizes to the source code
 DEFINES_LIST += \
@@ -182,7 +188,8 @@ DEFINES_LIST += \
 	PHY_DATA_ADDR=$(PHY_DATA_ADDR) \
 	PHY_DATA_SIZE=$(PHY_DATA_SIZE) \
 	SYS_PARAM_ADDR=$(SYS_PARAM_ADDR) \
-	SYS_PARAM_SIZE=$(SYS_PARAM_SIZE)
+	SYS_PARAM_SIZE=$(SYS_PARAM_SIZE) \
+	GIT_HASH=$(GIT_HASH)
 
 ifneq ($(ESP_GDB),)
   DEFINES_LIST += USE_ESP_GDB
