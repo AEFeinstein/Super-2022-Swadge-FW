@@ -13,6 +13,9 @@
 
 #if defined(FEATURE_OLED)
 
+int16_t plotChar(int16_t x, int16_t y, char character, const sprite_t* table, color col);
+int16_t charWidth(char character, const sprite_t* table);
+
 /**
  * @brief Draw a single character to the OLED display
  *        Special characters (< ' ') not drawn

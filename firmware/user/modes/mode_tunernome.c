@@ -109,7 +109,7 @@ typedef struct
     uint32_t tLastUpdateUs;
     int32_t tAccumulatedUs;
     bool isClockwise;
-    uint32_t usPerBeat;
+    int32_t usPerBeat;
 
     int lastBpmButton;
 
