@@ -15,6 +15,7 @@
 #include <stdint.h>
 #include <limits.h>
 #include <math.h>
+#include <user_interface.h>
 
 #include "buttons.h"
 #include "user_main.h"
@@ -35,29 +36,35 @@
  *==========================================================================*/
 
 #ifndef M_PI
-#define M_PI		3.14159265358979323846
+#define M_PI		          3.14159265358979323846
 #endif
 
-#define TUNERNOME_UPDATE_MS 15
+#define TUNERNOME_UPDATE_MS   15
 
-#define NUM_STRINGS            6
-#define GUITAR_OFFSET          0
-#define CHROMATIC_OFFSET       6 // adjust start point by quartertones
-#define SENSITIVITY            5
+#define NUM_GUITAR_STRINGS    6
+#define NUM_UKELELE_STRINGS   4
+#define GUITAR_OFFSET         0
+#define CHROMATIC_OFFSET      6 // adjust start point by quartertones
+#define SENSITIVITY           5
 
-#define METRONOME_CENTER_X OLED_WIDTH / 2
-#define METRONOME_CENTER_Y OLED_HEIGHT - 10
-#define METRONOME_RADIUS 35
-#define INITIAL_BPM 60
-#define MAX_BPM 400
-#define METRONOME_FLASH_MS 35
-#define BPM_CHANGE_FIRST_MS 500
-#define BPM_CHANGE_REPEAT_MS 50
+#define METRONOME_CENTER_X    OLED_WIDTH / 2
+#define METRONOME_CENTER_Y    OLED_HEIGHT - 10
+#define METRONOME_RADIUS      35
+#define INITIAL_BPM           60
+#define MAX_BPM               400
+#define METRONOME_FLASH_MS    35
+#define BPM_CHANGE_FIRST_MS   500
+#define BPM_CHANGE_REPEAT_MS  50
+#define PAUSE_WIDTH           3
+#define PAUSE_SPACE_WIDTH     3
+#define PAUSE_HEIGHT          10
 
 /// Helper macro to return an integer clamped within a range (MIN to MAX)
 #define CLAMP(X, MIN, MAX) ( ((X) > (MAX)) ? (MAX) : ( ((X) < (MIN)) ? (MIN) : (X)) )
 /// Helper macro to return the absolute value of an integer
 #define ABS(X) (((X) < 0) ? -(X) : (X))
+/// Helper macro to return the highest of two integers
+#define MAX(X, Y) ( ((X) > (Y)) ? (X) : (Y) )
 
 typedef enum
 {
@@ -68,6 +75,7 @@ typedef enum
 typedef enum
 {
     GUITAR_TUNER = 0,
+    UKELELE_TUNER,
     SEMITONE_0,
     SEMITONE_1,
     SEMITONE_2,
@@ -86,27 +94,29 @@ typedef enum
 typedef struct
 {
     tnMode mode;
-    tuner_mode_t currentMode;
+    tuner_mode_t curTunerMode;
 
     timer_t updateTimer;
     timer_t ledTimer;
     timer_t bpmButtonTimer;
 
     int audioSamplesProcessed;
-    uint32_t intensities_filt[NUM_STRINGS];
-    int32_t diffs_filt[NUM_STRINGS];
+    uint32_t intensities_filt[MAX(NUM_GUITAR_STRINGS, NUM_UKELELE_STRINGS)];
+    int32_t diffs_filt[MAX(NUM_GUITAR_STRINGS, NUM_UKELELE_STRINGS)];
 
     bool pause;
     int bpm;
     uint32_t tLastUpdateUs;
     int32_t tAccumulatedUs;
     bool isClockwise;
-    uint32_t usPerBeat;
+    int32_t usPerBeat;
 
     int lastBpmButton;
 
     uint32_t semitone_intensitiy_filt;
     int32_t semitone_diff_filt;
+
+    pngHandle upArrowPng;
 } tunernome_t;
 
 /*============================================================================
@@ -121,7 +131,7 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback(uint8_t state __attribute__((unus
 void ICACHE_FLASH_ATTR increaseBpm(void* timer_arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR decreaseBpm(void* timer_arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp);
-void ICACHE_FLASH_ATTR recalcMetronome();
+void ICACHE_FLASH_ATTR recalcMetronome(void);
 static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR ledReset(void* timer_arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR fasterBpmChange(void* timer_arg __attribute__((unused)));
@@ -159,17 +169,73 @@ tunernome_t* tunernome;
  * Indicies into fuzzed_bins[], a realtime DFT of sorts
  * fuzzed_bins[0] = A ... 1/2 steps are every 2.
  */
-const uint16_t freqBinIdxs[NUM_STRINGS] =
+const uint16_t freqBinIdxsGuitar[NUM_GUITAR_STRINGS] =
 {
     38, // E string needs to skip an octave... Can't read sounds this low.
-    62, // e
-    52, // B
-    44, // G
+    24, // A string is exactly at note #24
     34, // D = A + 5 half steps = 34
-    24  // A string is exactly at note #24
+    44, // G
+    52, // B
+    62  // e
+};
+
+/**
+ * Indicies into fuzzed_bins[], a realtime DFT of sorts
+ * fuzzed_bins[0] = A ... 1/2 steps are every 2.
+ */
+const uint16_t freqBinIdxsUkelele[NUM_UKELELE_STRINGS] =
+{
+    68, // G
+    54, // C
+    62, // E
+    72  // A
+};
+
+const uint16_t ukeleleStringIdxToLedIdx[NUM_UKELELE_STRINGS] =
+{
+    0,
+    1,
+    4,
+    5
+};
+
+const char* guitarNoteNames[12] =
+{
+    "E2",
+    "A2",
+    "D3",
+    "G3",
+    "B3",
+    "E4"
+};
+
+const char* ukeleleNoteNames[12] =
+{
+    "G4",
+    "C4",
+    "E4",
+    "A4"
+};
+
+const char* semitoneNoteNames[12] =
+{
+    "C",
+    "C#",
+    "D",
+    "D#",
+    "E",
+    "F",
+    "F#",
+    "G",
+    "G#",
+    "A",
+    "A#",
+    "B"
 };
 
 static const char tn_title[]  = "Tunernome";
+static const char theWordGuitar[] = "Guitar";
+static const char theWordUkelele[] = "Ukelele";
 static const char leftStr[] = "< Exit";
 static const char rightStrTuner[] = "Tuner >";
 static const char rightStrMetronome[] = "Metronome >";
@@ -186,6 +252,8 @@ void ICACHE_FLASH_ATTR tunernomeEnterMode(void)
     // Alloc and clear everything
     tunernome = os_malloc(sizeof(tunernome_t));
     ets_memset(tunernome, 0, sizeof(tunernome_t));
+
+    allocPngAsset("uparrow.png", &(tunernome->upArrowPng));
 
     switchToSubmode(TN_TUNER);
 
@@ -258,10 +326,13 @@ void ICACHE_FLASH_ATTR switchToSubmode(tnMode newMode)
  */
 void ICACHE_FLASH_ATTR tunernomeExitMode(void)
 {
+    freePngAsset(&(tunernome->upArrowPng));
+
     timerDisarm(&(tunernome->updateTimer));
     timerDisarm(&(tunernome->ledTimer));
     timerDisarm(&(tunernome->bpmButtonTimer));
     timerFlush();
+
     os_free(tunernome);
 }
 
@@ -322,7 +393,7 @@ static inline int16_t getSemiDiffAround(uint16_t idx)
 /**
  * Recalculate the per-bpm values for the metronome
  */
-void ICACHE_FLASH_ATTR recalcMetronome() {
+void ICACHE_FLASH_ATTR recalcMetronome(void) {
     // Figure out how many microseconds are in one beat
     tunernome->usPerBeat = (60 * 1000000) / tunernome->bpm;
     
@@ -340,8 +411,99 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
         default:
         case TN_TUNER:
         {
+            clearDisplay();
+
+            // Instructions at top of display
+            plotText(0, 0, "Blu= Flat   Wht= OK   Red= Sharp", TOM_THUMB, WHITE);
+
+            // Left/Right button functions at bottom of display
             plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, leftStr, TOM_THUMB, WHITE);
             plotText(OLED_WIDTH - textWidth(rightStrMetronome, TOM_THUMB), OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, rightStrMetronome, TOM_THUMB, WHITE);
+
+            // Up/Down arrows in middle of display around current note/mode
+            drawPng(&(tunernome->upArrowPng),
+                    (OLED_WIDTH - tunernome->upArrowPng.width) / 2,
+                    (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2 - tunernome->upArrowPng.height - 10,
+                    false, false, 0);
+            drawPng(&(tunernome->upArrowPng),
+                    (OLED_WIDTH - tunernome->upArrowPng.width) / 2,
+                    (OLED_HEIGHT + FONT_HEIGHT_IBMVGA8) / 2 + 10,
+                    true, false, 180);
+
+            // Current note/mode in middle of display
+            switch(tunernome->curTunerMode)
+            {
+                case GUITAR_TUNER:
+                {
+                    // Mode name
+                    plotText((OLED_WIDTH - textWidth(theWordGuitar, IBM_VGA_8)) / 2,
+                             (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2,
+                             theWordGuitar, IBM_VGA_8, WHITE);
+
+                    // Note names of strings, arranged to match LED positions
+                    for(int i = 0; i < NUM_GUITAR_STRINGS / 2; i++)
+                    {
+                        plotText((OLED_WIDTH - textWidth(theWordGuitar, IBM_VGA_8)) / 2 - textWidth("G4 ", IBM_VGA_8),
+                                 (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (1 - i),
+                                 guitarNoteNames[i], IBM_VGA_8, WHITE);
+                    }
+                    for(int i = NUM_GUITAR_STRINGS / 2; i < NUM_GUITAR_STRINGS; i++)
+                    {
+                        plotText((OLED_WIDTH + textWidth(theWordGuitar, IBM_VGA_8)) / 2 + textWidth(" ", IBM_VGA_8),
+                                 (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (i - (NUM_GUITAR_STRINGS / 2) - 1),
+                                 guitarNoteNames[i], IBM_VGA_8, WHITE);
+                    }
+
+                    break;
+                }
+                case UKELELE_TUNER:
+                {
+                    // Mode name
+                    plotText((OLED_WIDTH - textWidth(theWordUkelele, IBM_VGA_8)) / 2,
+                             (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2,
+                             theWordUkelele, IBM_VGA_8, WHITE);
+
+                    // Note names of strings, arranged to match LED positions
+                    for(int i = 0; i < NUM_UKELELE_STRINGS / 2; i++)
+                    {
+                        plotText((OLED_WIDTH - textWidth(theWordUkelele, IBM_VGA_8)) / 2 - textWidth("G4 ", IBM_VGA_8),
+                                 OLED_HEIGHT / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (- i),
+                                 ukeleleNoteNames[i], IBM_VGA_8, WHITE);
+                    }
+                    for(int i = NUM_UKELELE_STRINGS / 2; i < NUM_UKELELE_STRINGS; i++)
+                    {
+                        plotText((OLED_WIDTH + textWidth(theWordUkelele, IBM_VGA_8)) / 2 + textWidth(" ", IBM_VGA_8),
+                                 OLED_HEIGHT / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (i - (NUM_UKELELE_STRINGS / 2) - 1),
+                                 ukeleleNoteNames[i], IBM_VGA_8, WHITE);
+                    }
+
+                    break;
+                }
+                case MAX_GUITAR_MODES:
+                    break;
+                case SEMITONE_0:
+                case SEMITONE_1:
+                case SEMITONE_2:
+                case SEMITONE_3:
+                case SEMITONE_4:
+                case SEMITONE_5:
+                case SEMITONE_6:
+                case SEMITONE_7:
+                case SEMITONE_8:
+                case SEMITONE_9:
+                case SEMITONE_10:
+                case SEMITONE_11:
+                default:
+                {
+                    uint8_t semitoneNum = (tunernome->curTunerMode - SEMITONE_0);
+                    plotText((OLED_WIDTH - textWidth(semitoneNoteNames[semitoneNum], IBM_VGA_8)) / 2,
+                             (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2,
+                             semitoneNoteNames[semitoneNum], IBM_VGA_8, WHITE);
+                    
+                    break;
+                }
+            }
+
             break;
         }
         case TN_METRONOME:
@@ -358,6 +520,16 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
             // Don't do anything when paused
             if(tunernome->pause)
             {
+                plotRect((OLED_WIDTH - PAUSE_SPACE_WIDTH) / 2 - PAUSE_WIDTH,
+                         (OLED_HEIGHT - PAUSE_HEIGHT) / 2,
+                         (OLED_WIDTH - PAUSE_SPACE_WIDTH) / 2,
+                         (OLED_HEIGHT + PAUSE_HEIGHT) / 2,
+                         WHITE);
+                plotRect((OLED_WIDTH + PAUSE_SPACE_WIDTH) / 2,
+                         (OLED_HEIGHT - PAUSE_HEIGHT) / 2,
+                         (OLED_WIDTH + PAUSE_SPACE_WIDTH) / 2 + PAUSE_WIDTH,
+                         (OLED_HEIGHT + PAUSE_HEIGHT) / 2,
+                         WHITE);
                 return;
             }
             if(0 == tunernome->tLastUpdateUs)
@@ -466,18 +638,18 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unu
                 {
                     case UP:
                     {
-                        tunernome->currentMode = (tunernome->currentMode + 1) % MAX_GUITAR_MODES;
+                        tunernome->curTunerMode = (tunernome->curTunerMode + 1) % MAX_GUITAR_MODES;
                         break;
                     }
                     case DOWN:
                     {
-                        if(0 == tunernome->currentMode)
+                        if(0 == tunernome->curTunerMode)
                         {
-                            tunernome->currentMode = MAX_GUITAR_MODES - 1;
+                            tunernome->curTunerMode = MAX_GUITAR_MODES - 1;
                         }
                         else
                         {
-                            tunernome->currentMode--;
+                            tunernome->curTunerMode--;
                         }
                         break;
                     }
@@ -501,47 +673,6 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unu
                         break;
                     }
                 } // switch(button)
-
-                if(button == UP || button == DOWN)
-                {
-                    led_t leds[NUM_STRINGS] = {{0}};
-                    if (tunernome->currentMode == 0)
-                    {
-                        // for guitar mode we flash all LEDs
-                        uint8_t i;
-                        for(i = 0; i < NUM_STRINGS; i++)
-                        {
-                            // yellow
-                            leds[i].r = 255;
-                            leds[i].g = 255;
-                            leds[i].b = 0;
-                        }
-                    }
-                    else
-                    {
-                        int32_t red, grn, blu, loc;
-                        if (tunernome->currentMode < 7)
-                        {
-                            // cyan
-                            red = 0;
-                            grn = 255;
-                            blu = 255;
-                        }
-                        else
-                        {
-                            // magenta
-                            red = 255;
-                            grn = 0;
-                            blu = 255;
-                        }
-                        loc = (NUM_STRINGS + 1 - (tunernome->currentMode % 6)) % 6;
-                        leds[loc].r = red;
-                        leds[loc].g = grn;
-                        leds[loc].b = blu;
-                    }
-                    setLeds(leds, sizeof(leds));
-                    break;
-                } // if(button == UP || button == DOWN)
             } // if(down)
             break;
         } // case TN_TUNER:
@@ -574,6 +705,8 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unu
                     case ACTION:
                     {
                         tunernome->pause = !tunernome->pause;
+                        tunernome->tAccumulatedUs = 0;
+                        tunernome->tLastUpdateUs = 0;
                         break;
                     }
                     case RIGHT:
@@ -666,22 +799,22 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
             // Colorchord magic
             HandleFrameInfo();
 
-            led_t colors[NUM_STRINGS] = {{0}};
+            led_t colors[NUM_GUITAR_STRINGS] = {{0}};
 
-            switch(tunernome->currentMode)
+            switch(tunernome->curTunerMode)
             {
                 case GUITAR_TUNER:
                 {
                     // Guitar tuner magic
                     uint32_t i;
-                    for( i = 0; i < NUM_STRINGS; i++ )
+                    for( i = 0; i < NUM_GUITAR_STRINGS; i++ )
                     {
                         // Pick out the current magnitude and filter it
-                        tunernome->intensities_filt[i] = (getMagnitude(freqBinIdxs[i] + GUITAR_OFFSET)  + tunernome->intensities_filt[i]) -
+                        tunernome->intensities_filt[i] = (getMagnitude(freqBinIdxsGuitar[i] + GUITAR_OFFSET)  + tunernome->intensities_filt[i]) -
                                             (tunernome->intensities_filt[i] >> 5);
 
                         // Pick out the difference around current magnitude and filter it too
-                        tunernome->diffs_filt[i] =       (getDiffAround(freqBinIdxs[i] + GUITAR_OFFSET) + tunernome->diffs_filt[i]) -
+                        tunernome->diffs_filt[i] =       (getDiffAround(freqBinIdxsGuitar[i] + GUITAR_OFFSET) + tunernome->diffs_filt[i]) -
                                             (tunernome->diffs_filt[i] >> 5);
 
                         // This is the magnitude of the target frequency bin, cleaned up
@@ -734,9 +867,87 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
                     }
                     break;
                 } // case GUITAR_TUNER:
+                case UKELELE_TUNER:
+                {
+                    // Guitar tuner magic, but ukelele
+                    uint32_t i;
+                    for( i = 0; i < NUM_UKELELE_STRINGS; i++ )
+                    {
+                        // Pick out the current magnitude and filter it
+                        tunernome->intensities_filt[i] = (getMagnitude(freqBinIdxsUkelele[i] + GUITAR_OFFSET)  + tunernome->intensities_filt[i]) -
+                                            (tunernome->intensities_filt[i] >> 5);
+
+                        // Pick out the difference around current magnitude and filter it too
+                        tunernome->diffs_filt[i] =       (getDiffAround(freqBinIdxsUkelele[i] + GUITAR_OFFSET) + tunernome->diffs_filt[i]) -
+                                            (tunernome->diffs_filt[i] >> 5);
+
+                        // This is the magnitude of the target frequency bin, cleaned up
+                        int16_t intensity = (tunernome->intensities_filt[i] >> SENSITIVITY) - 40; // drop a baseline.
+                        intensity = CLAMP(intensity, 0, 255);
+
+                        // This is the tonal difference.  You "calibrate" out the intensity.
+                        int16_t tonalDiff = (tunernome->diffs_filt[i] >> SENSITIVITY) * 200 / (intensity + 1);
+
+                        int32_t red, grn, blu;
+                        // Is the note in tune, i.e. is the magnitude difference in surrounding bins small?
+                        if( (ABS(tonalDiff) < 10) )
+                        {
+                            // Note is in tune, make it white
+                            red = 255;
+                            grn = 255;
+                            blu = 255;
+                        }
+                        else
+                        {
+                            // Check if the note is sharp or flat
+                            if( tonalDiff > 0 )
+                            {
+                                // Note too sharp, make it red
+                                red = 255;
+                                grn = blu = 255 - (tonalDiff) * 15;
+                            }
+                            else
+                            {
+                                // Note too flat, make it blue
+                                blu = 255;
+                                grn = red = 255 - (-tonalDiff) * 15;
+                            }
+
+                            // Make sure LED output isn't more than 255
+                            red = CLAMP(red, INT_MIN, 255);
+                            grn = CLAMP(grn, INT_MIN, 255);
+                            blu = CLAMP(blu, INT_MIN, 255);
+                        }
+
+                        // Scale each LED's brightness by the filtered intensity for that bin
+                        red = (red >> 3 ) * ( intensity >> 3);
+                        grn = (grn >> 3 ) * ( intensity >> 3);
+                        blu = (blu >> 3 ) * ( intensity >> 3);
+
+                        // Set the LED, ensure each channel is between 0 and 255
+                        colors[ukeleleStringIdxToLedIdx[i]].r = CLAMP(red, 0, 255);
+                        colors[ukeleleStringIdxToLedIdx[i]].g = CLAMP(grn, 0, 255);
+                        colors[ukeleleStringIdxToLedIdx[i]].b = CLAMP(blu, 0, 255);
+                    }
+                    break;
+                } // case UKELELE_TUNER:
+                case MAX_GUITAR_MODES:
+                    break;
+                case SEMITONE_0:
+                case SEMITONE_1:
+                case SEMITONE_2:
+                case SEMITONE_3:
+                case SEMITONE_4:
+                case SEMITONE_5:
+                case SEMITONE_6:
+                case SEMITONE_7:
+                case SEMITONE_8:
+                case SEMITONE_9:
+                case SEMITONE_10:
+                case SEMITONE_11:
                 default:
                 {
-                    uint8_t semitoneIdx = (tunernome->currentMode - SEMITONE_0) * 2;
+                    uint8_t semitoneIdx = (tunernome->curTunerMode - SEMITONE_0) * 2;
                     // Pick out the current magnitude and filter it
                     tunernome->semitone_intensitiy_filt = (getSemiMagnitude(semitoneIdx + CHROMATIC_OFFSET)  + tunernome->semitone_intensitiy_filt) -
                                             (tunernome->semitone_intensitiy_filt >> 5);
@@ -754,7 +965,7 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
 
                     // tonal diff is -32768 to 32767. if its within -10 to 10, it's in tune. positive means too sharp, negative means too flat
                     // intensity is how 'loud' that frequency is, 0 to 255. you'll have to play around with values
-                    //os_printf("thaeli, semitone %2d, tonal diff %6d, intensity %3d\r\n", currentMode, tonalDiff, intensity);
+                    //os_printf("thaeli, semitone %2d, tonal diff %6d, intensity %3d\r\n", tunernome->curTunerMode, tonalDiff, intensity);
                     int32_t red, grn, blu;
                     // Is the note in tune, i.e. is the magnitude difference in surrounding bins small?
                     if( (ABS(tonalDiff) < 10) )
@@ -793,7 +1004,7 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
 
                     // Set the LED, ensure each channel is between 0 and 255
                     uint32_t i;
-                    for (i = 0; i < NUM_STRINGS; i++)
+                    for (i = 0; i < NUM_GUITAR_STRINGS; i++)
                     {
                         colors[i].r = CLAMP(red, 0, 255);
                         colors[i].g = CLAMP(grn, 0, 255);
