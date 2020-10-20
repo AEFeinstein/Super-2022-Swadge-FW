@@ -3,14 +3,13 @@
 The Swadge is compiled from a Linux environment. If you have one of those already, great, skip to part two. If you don't, here's how to set up Window Subsystem for Linux.
 
 1. Install Windows Subsystem for Linux (WSL) by following this guide: https://docs.microsoft.com/en-us/windows/wsl/install-win10
-1. Install Ubuntu 18.04 LTS from the Microsoft Store: https://www.microsoft.com/store/apps/9N9TNGVNDL3Q
-1. Initialize Ubuntu 18.04 LTS by following the guide here: https://docs.microsoft.com/en-us/windows/wsl/initialize-distro
+1. Install Ubuntu 20.04 LTS from the Microsoft Store: https://www.microsoft.com/en-us/p/ubuntu-2004-lts/9n6svws3rx71
+1. Initialize Ubuntu 20.04 LTS by following the guide here, and **DO NOT UPDATE TO WSL2**: https://docs.microsoft.com/en-us/windows/wsl/initialize-distro
 
 You can also set up a Linux virtual machine, like [Xubuntu](https://xubuntu.org/download/) running in [VirtualBox](https://www.virtualbox.org/wiki/Downloads). Google for a guide if you need one.
 
 It is also possible to set up a Mac environment using a fork of pfalcon's esp-open-sdk (see below). See the following which outlines the procedure. https://github.com/pfalcon/esp-open-sdk/issues/342
 especially the comments made on March 15 2019 by phibo23. 
-
 
 # 2. Compiling and Flashing a Swadge
 
@@ -44,13 +43,12 @@ especially the comments made on March 15 2019 by phibo23.
     
     Append this, after verifying the location of your esp-open-sdk:
     
-    export PATH=$HOME/esp-open-sdk/xtensa-lx106-elf/bin:$PATH
     export ESP_ROOT=$HOME/esp-open-sdk
     ```
 1. Restart your Linux environment so the environment variables are actually set.
-1. Check out this repository, move to the ```firmware``` folder, and build it. 
+1. Clone out this repository, move to the ```firmware``` folder, and build it. 
     ```
-    $ git clone --recursive https://github.com/AEFeinstein/Super-2021-Swadge-FW-Sandbox.git
+    $ git clone https://github.com/AEFeinstein/Super-2021-Swadge-FW-Sandbox.git --recurse-submodules
     $ cd Super-2021-Swadge-FW-Sandbox/firmware/
     $ unset ESP_GDB && export SET_SWADGE_VERSION=5 && make -j$(nproc)
     ```
@@ -96,7 +94,7 @@ The UART is used for both programming and printing debug statements, so any seri
 
 # 5. Programming with the Programmer
 
-The Swadge programmer is a breakout for all the ESP8266 pins, a USB-UART chip, and some useful buttons and switches. It can be used in conjunction with [pyFlashGui](/pyFlashGui) to program lots of Swadges quickly. To program a Swadge with the programmer:
+The Swadge programmer is a breakout for all the ESP8266 pins, a USB-UART chip, and some useful buttons and switches. It can be used in conjunction with `[pyFlashGui](/pyFlashGui)` to program lots of Swadges quickly. To program a Swadge with the programmer:
 1. Connect the programmer to your computer and note what serial port is created.
 1. Set the Swadge to USB power
 2. Set the programmer to "OFF" and "5V"
@@ -104,3 +102,17 @@ The Swadge programmer is a breakout for all the ESP8266 pins, a USB-UART chip, a
 4. Either hold the `GPIO0` button or put a jumper between `GND` and `SCL` breakout pins
 5. Set the programmer to "ON"
 6. Program your Swadge with the serial port noted in step 6 of [Compiling and Flashing a Swadge](#2-compiling-and-flashing-a-swadge).
+
+# 6. Programming with the Programmer on a Mac
+
+So you have a mac and want to flash some swadges. You download the [pyFlashGui](/pyFlashGui) folder and follow all of the instructions, but alas, no dice. Follow these handy troubleshooting tips, attempting to flash a swadge after each step:
+
+1. Double check the instructions on the [pyFlashGui](/pyFlashGui) page. Make sure you have Python 3 (mac comes with Python 2 as default). Make sure you properly install `tkinter` and `pyserial`.
+2. If the programmer is plugged in, but you see this, it means that either the CP2102n driver isn't installed, or you don't have permissions to access the programmer.
+
+![No programmers detected](https://user-images.githubusercontent.com/11276131/94190388-06192d80-fe7a-11ea-9663-ed11ad73ac27.png)
+
+3. As a sanity check, open a terminal and run `ioreg -p IOUSB -l -w 0`. If you see the text `CP2102N USB to UART Bridge Controller`, you know the programmer is plugged in. If you don't see that text, try plugging in the programmer again.
+4. Install the driver from SiLabs: https://www.silabs.com/products/development-tools/software/usb-to-uart-bridge-vcp-drivers. You may have to do some shenaniganry with your system privacy settings (as per download instructions) in order to install the driver. This is safe.
+5. Add read and write permissions to the serial device with the terminal command `sudo chmod 666 /dev/ttys000`. Note that `/dev/ttyS000` may not be your serial device. You can run `ls -la /dev/tty*` to get a list of all serial devices. Pick the one with your username next to it.
+6. If you run pyFlashGUI, and it connects to the programmer, but you get an `esptool failed becausemodule ‘esptool’ has no attribute ‘main’` error when flashing, then you need to check what version of `esptool` came with your pyFlashGUI folder. `cd` into your pyFlashGUI folder and run `python esptool/esptool.py -h`. `esptool` SHOULD be version 3.0-dev. If you have any other version, you need to remove it and start over. Run `find / -iname "esptool.py" 2>/dev/null` to find all `esptool.py` files on your hard drive, and delete all but the one you're currently using. You may need to uninstall it with `pip` if you had installed it with `pip`, like so: `python2 -m pip uninstall esptool` and `python3 -m pip uninstall esptool`

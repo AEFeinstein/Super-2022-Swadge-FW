@@ -156,15 +156,15 @@ void ICACHE_FLASH_ATTR espNowRecvCb(uint8_t* mac_addr, uint8_t* data, uint8_t le
         ets_strcat(dbg, tmp);
     }
     ENOW_PRINTF("%s, MAC [%02X:%02X:%02X:%02X:%02X:%02X], RSSI [%d], Bytes [%s]\r\n",
-              __func__,
-              mac_addr[0],
-              mac_addr[1],
-              mac_addr[2],
-              mac_addr[3],
-              mac_addr[4],
-              mac_addr[5],
-              rssi,
-              dbg);
+                __func__,
+                mac_addr[0],
+                mac_addr[1],
+                mac_addr[2],
+                mac_addr[3],
+                mac_addr[4],
+                mac_addr[5],
+                rssi,
+                dbg);
 #endif
 
     swadgeModeEspNowRecvCb(mac_addr, data, len, rssi);
@@ -199,12 +199,12 @@ void ICACHE_FLASH_ATTR espNowSendCb(uint8_t* mac_addr, uint8_t status)
 {
 #ifdef EXTRA_ESPNOW_DEBUG
     ENOW_PRINTF("SEND MAC %02X:%02X:%02X:%02X:%02X:%02X\r\n",
-              mac_addr[0],
-              mac_addr[1],
-              mac_addr[2],
-              mac_addr[3],
-              mac_addr[4],
-              mac_addr[5]);
+                mac_addr[0],
+                mac_addr[1],
+                mac_addr[2],
+                mac_addr[3],
+                mac_addr[4],
+                mac_addr[5]);
 #endif
 
     switch((mt_tx_status)status)

@@ -49,7 +49,7 @@ const uint32_t sin1024[] RODATA_ATTR =
     -107, -89, -71, -54, -36, -18
 };
 
-const uint32_t tan1024[] =
+const uint32_t tan1024[] RODATA_ATTR =
 {
     0, 18, 36, 54, 72, 90, 108, 126, 144, 162, 181, 199, 218, 236, 255, 274, 294,
     313, 333, 353, 373, 393, 414, 435, 456, 477, 499, 522, 544, 568, 591, 615,
@@ -458,7 +458,7 @@ void ICACHE_FLASH_ATTR drawPngToBuffer(pngHandle* handle, color* buf)
                 if(chunk & (0x80000000 >> (bitIdx++)))
                 {
                     // zero-one means transparent
-                    buf[(x * handle->height) + y] = TRANSPARENT;
+                    buf[(x * handle->height) + y] = TRANSPARENT_COLOR;
                 }
                 else
                 {

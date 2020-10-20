@@ -14,43 +14,37 @@ bool fbOnline = false;
 
 bool initOLED(bool reset)
 {
-	int i;
-	for( i = 0; i < OLEDMEM; i++ )
-	{
-		priorFb[i] = currentFb[i] = rand() & 0xff;
-	}
-	fbChanges = 1;
-	updateOLED(0);
-	return true;
+    int i;
+    for( i = 0; i < OLEDMEM; i++ )
+    {
+        priorFb[i] = currentFb[i] = rand() & 0xff;
+    }
+    fbChanges = 1;
+    updateOLED(0);
+    return true;
 }
 
 void drawPixel(int16_t x, int16_t y, color c)
 {
-    if ((0 <= x) && (x < OLED_WIDTH) &&
+    if (c != TRANSPARENT_COLOR &&
+            (0 <= x) && (x < OLED_WIDTH) &&
             (0 <= y) && (y < OLED_HEIGHT))
     {
         fbChanges = true;
-        x = (OLED_WIDTH - 1) - x;
-        y = (OLED_HEIGHT - 1) - y;
-        if (y % 2 == 0)
-        {
-            y = (y >> 1);
-        }
-        else
-        {
-            y = (y >> 1) + (OLED_HEIGHT >> 1);
-        }
+        uint8_t * addy = &currentFb[(y + x * OLED_HEIGHT)/8];
+        uint8_t mask = 1<<(y&7);
         switch (c)
         {
             case WHITE:
-                currentFb[(x + (y / 8) * OLED_WIDTH)] |= (1 << (y & 7));
+                *addy |= mask;
                 break;
             case BLACK:
-                currentFb[(x + (y / 8) * OLED_WIDTH)] &= ~(1 << (y & 7));
+                *addy &= ~mask;
                 break;
             case INVERSE:
-                currentFb[(x + (y / 8) * OLED_WIDTH)] ^= (1 << (y & 7));
+                *addy ^= mask;
                 break;
+            case TRANSPARENT_COLOR:
             default:
             {
                 break;
@@ -59,23 +53,48 @@ void drawPixel(int16_t x, int16_t y, color c)
     }
 }
 
+void drawPixelUnsafe( int x, int y )
+{
+	if( x < 0 || x>= OLED_WIDTH || y < 0 || y >= OLED_HEIGHT )
+	{
+		fprintf( stderr, "ERROR: PIXEL OUT OF RANGE in drawPixelUnsafe %d %d\n", x, y );
+		return;
+	}
+    uint8_t* addy = &currentFb[(y + x * OLED_HEIGHT) / 8];
+    uint8_t mask = 1 << (y & 7);
+    *addy |= mask;
+}
+
+void drawPixelUnsafeC( int x, int y, color c )
+{
+	if( x < 0 || x>= OLED_WIDTH || y < 0 || y >= OLED_HEIGHT )
+	{
+		fprintf( stderr, "ERROR: PIXEL OUT OF RANGE in drawPixelUnsafeC %d %d\n", x, y );
+		return;
+	}
+	//Ugh, I know this looks weird, but it's faster than saying
+	//addy = &currentFb[(y+x*OLED_HEIGHT)/8], and produces smaller code.
+	//Found by looking at image.lst.
+    uint8_t* addy = currentFb;
+	addy = addy + (y + x * OLED_HEIGHT) / 8;
+
+    uint8_t mask = 1 << (y & 7);
+    if( c <= WHITE )    //TIL this 'if' tree is slightly faster than a switch.
+        if( c == WHITE )
+            *addy |= mask;
+        else
+            *addy &= ~mask;
+    else
+        if( c == INVERSE )
+            *addy ^= mask;
+}
+
 color getPixel(int16_t x, int16_t y)
 {
     if ((0 <= x) && (x < OLED_WIDTH) &&
             (0 <= y) && (y < OLED_HEIGHT))
     {
-        x = (OLED_WIDTH - 1) - x;
-        y = (OLED_HEIGHT - 1) - y;
-        if (y % 2 == 0)
-        {
-            y = (y >> 1);
-        }
-        else
-        {
-            y = (y >> 1) + (OLED_HEIGHT >> 1);
-        }
-
-        if(currentFb[(x + (y / 8) * OLED_WIDTH)] & (1 << (y & 7)))
+        if(currentFb[(y + x * OLED_HEIGHT)/8] & (1 << (y & 7)))
         {
             return WHITE;
         }
@@ -89,20 +108,20 @@ color getPixel(int16_t x, int16_t y)
 
 bool ICACHE_FLASH_ATTR setOLEDparams(bool turnOnOff)
 {
-	fbOnline = turnOnOff;
-	return true;
+    fbOnline = turnOnOff;
+    return true;
 }
 
 oledResult_t updateOLED(bool drawDifference)
 {
-	if( fbChanges )
-	{
-		emuSendOLEDData( 0, currentFb );
-		//For the emulator, we don't care about differences.
-    	ets_memcpy(priorFb, currentFb, sizeof(currentFb));
-		return FRAME_DRAWN;
-	}
-	return FRAME_NOT_DRAWN;
+    if( fbChanges )
+    {
+        emuSendOLEDData( 0, currentFb );
+        //For the emulator, we don't care about differences.
+        ets_memcpy(priorFb, currentFb, sizeof(currentFb));
+        return FRAME_DRAWN;
+    }
+    return FRAME_NOT_DRAWN;
 }
 
 void clearDisplay(void)
@@ -110,29 +129,3 @@ void clearDisplay(void)
     ets_memset(currentFb, 0, sizeof(currentFb));
     fbChanges = true;
 }
-
-void fillDisplayArea(int16_t x1, int16_t y1, int16_t x2, int16_t y2, color c)
-{
-    int16_t x, y;
-    for (x = x1; x <= x2; x++)
-    {
-        for (y = y1; y <= y2; y++)
-        {
-            drawPixel(x, y, c);
-        }
-    }
-}
-
-void zeroMenuBar(void)
-{
-    fbChanges = true;
-    mBarLen = 0;
-}
-
-uint8_t incrementMenuBar(void)
-{
-    fbChanges = true;
-    return ++mBarLen;
-}
-
-

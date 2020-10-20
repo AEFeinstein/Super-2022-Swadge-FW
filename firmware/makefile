@@ -5,7 +5,7 @@
 ################################################################################
 
 GCC_FOLDER = $(ESP_ROOT)/xtensa-lx106-elf
-ESPTOOL_PY = $(ESP_ROOT)/esptool/esptool.py
+ESPTOOL_PY = python2 $(ESP_ROOT)/esptool/esptool.py
 SDK        = ./ESP8266_NONOS_SDK
 
 XTGCCLIB     = $(GCC_FOLDER)/lib/gcc/xtensa-lx106-elf/4.8.5/libgcc.a
@@ -140,7 +140,9 @@ CFLAGS_WARNINGS_EXTRA = \
 # #define SWADGE_2019     3
 # #define BARREL_1_0_0    4
 # #define SWADGE_CHAINSAW 5
-ifeq ($(SET_SWADGE_VERSION),1)
+ifeq ($(SET_SWADGE_VERSION),0)
+  swadgeversion = 0
+else ifeq ($(SET_SWADGE_VERSION),1)
   swadgeversion = 1
 else ifeq ($(SET_SWADGE_VERSION),2)
   swadgeversion = 2
@@ -151,7 +153,7 @@ else ifeq ($(SET_SWADGE_VERSION),4)
 else ifeq ($(SET_SWADGE_VERSION),5)
   swadgeversion = 5
 else
-  swadgeversion = 0
+  swadgeversion = 5 # default to SWADGE_CHAINSAW
 endif
 
 # Used by the ESP SDK
@@ -164,6 +166,12 @@ DEFINES_LIST += \
 	SOFTAP_CHANNEL=11 \
 	WS2812_FOUR_SAMPLE=1 \
 	SWADGE_VERSION=$(swadgeversion)
+
+# Create a variable with the git hash and branch name
+GIT_HASH  = $(shell git rev-parse --short HEAD)
+GIT_HASH := $(GIT_HASH)-
+GIT_HASH := $(GIT_HASH)$(shell git rev-parse --abbrev-ref HEAD)
+GIT_HASH := \"$(GIT_HASH)\"
 
 # Export the flash addresses and sizes to the source code
 DEFINES_LIST += \
@@ -180,7 +188,8 @@ DEFINES_LIST += \
 	PHY_DATA_ADDR=$(PHY_DATA_ADDR) \
 	PHY_DATA_SIZE=$(PHY_DATA_SIZE) \
 	SYS_PARAM_ADDR=$(SYS_PARAM_ADDR) \
-	SYS_PARAM_SIZE=$(SYS_PARAM_SIZE)
+	SYS_PARAM_SIZE=$(SYS_PARAM_SIZE) \
+	GIT_HASH=$(GIT_HASH)
 
 ifneq ($(ESP_GDB),)
   DEFINES_LIST += USE_ESP_GDB
@@ -265,7 +274,7 @@ all: $(FW_FILE1) $(FW_FILE2) $(ASSETS_FILE)
 
 # To build the two firmware files for flashing, you have to build the main file
 $(FW_FILE1) $(FW_FILE2) : $(FW_FILE0)
-	$(ESP_ROOT)/esptool/esptool.py elf2image $(FW_FILE0)
+	PATH="$(PATH)":$(GCC_FOLDER)/bin $(ESPTOOL_PY) elf2image $(FW_FILE0)
 
 # To build the main file, you have to compile the objects and create the stripped libgcc
 $(FW_FILE0): $(OBJECTS) $(LIBGCC_STRIPPED)
