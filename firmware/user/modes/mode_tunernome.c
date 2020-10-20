@@ -435,16 +435,48 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
             {
                 case GUITAR_TUNER:
                 {
+                    // Mode name
                     plotText((OLED_WIDTH - textWidth(theWordGuitar, IBM_VGA_8)) / 2,
                              (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2,
                              theWordGuitar, IBM_VGA_8, WHITE);
+
+                    // Note names of strings, arranged to match LED positions
+                    for(int i = 0; i < NUM_GUITAR_STRINGS / 2; i++)
+                    {
+                        plotText((OLED_WIDTH - textWidth(theWordGuitar, IBM_VGA_8)) / 2 - textWidth("G4 ", IBM_VGA_8),
+                                 (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (1 - i),
+                                 guitarNoteNames[i], IBM_VGA_8, WHITE);
+                    }
+                    for(int i = NUM_GUITAR_STRINGS / 2; i < NUM_GUITAR_STRINGS; i++)
+                    {
+                        plotText((OLED_WIDTH + textWidth(theWordGuitar, IBM_VGA_8)) / 2 + textWidth(" ", IBM_VGA_8),
+                                 (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (i - (NUM_GUITAR_STRINGS / 2) - 1),
+                                 guitarNoteNames[i], IBM_VGA_8, WHITE);
+                    }
+
                     break;
                 }
                 case UKELELE_TUNER:
                 {
+                    // Mode name
                     plotText((OLED_WIDTH - textWidth(theWordUkelele, IBM_VGA_8)) / 2,
                              (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2,
                              theWordUkelele, IBM_VGA_8, WHITE);
+
+                    // Note names of strings, arranged to match LED positions
+                    for(int i = 0; i < NUM_UKELELE_STRINGS / 2; i++)
+                    {
+                        plotText((OLED_WIDTH - textWidth(theWordUkelele, IBM_VGA_8)) / 2 - textWidth("G4 ", IBM_VGA_8),
+                                 OLED_HEIGHT / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (- i),
+                                 ukeleleNoteNames[i], IBM_VGA_8, WHITE);
+                    }
+                    for(int i = NUM_UKELELE_STRINGS / 2; i < NUM_UKELELE_STRINGS; i++)
+                    {
+                        plotText((OLED_WIDTH + textWidth(theWordUkelele, IBM_VGA_8)) / 2 + textWidth(" ", IBM_VGA_8),
+                                 OLED_HEIGHT / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (i - (NUM_UKELELE_STRINGS / 2) - 1),
+                                 ukeleleNoteNames[i], IBM_VGA_8, WHITE);
+                    }
+
                     break;
                 }
                 case MAX_GUITAR_MODES:
