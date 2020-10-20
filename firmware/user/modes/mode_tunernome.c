@@ -108,7 +108,7 @@ typedef struct
     bool pause;
     int bpm;
     uint32_t tLastUpdateUs;
-    uint32_t tAccumulatedUs;
+    int32_t tAccumulatedUs;
     bool isClockwise;
     uint32_t usPerBeat;
 
