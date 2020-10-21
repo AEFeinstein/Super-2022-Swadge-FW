@@ -82,8 +82,20 @@ polish
 
 #define TYPE_BOLT 0
 
+#define PWRUP_FP 0
+#define PWRUP_REFLECT 1
+#define PWRUP_CHARGE 2
+//TODO: other powerups?
+
+#define ENEMY_SNAKE 0
+#define ENEMY_BOMBER 1
+#define ENEMY_WALKER 2
+#define ENEMY_DARTER 3
+//TODO: other enemies?
+
 #define MAX_PROJECTILES 100
 #define MAX_ENEMIES 100
+#define MAX_POWERUPS 10
 
 #define PLAYER_SPEED 1
 
@@ -104,7 +116,7 @@ polish
 #define ENEMY_PROJECTILE_SPEED 1
 #define ENEMY_PROJECTILE_DAMAGE 2
 
-#define ENEMY_SHOT_COOLDOWN (7 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
+#define ENEMY_SNAKE_SHOT_COOLDOWN (7 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
 
 // floor terrain consts.
 #define CHUNK_WIDTH 8
@@ -148,6 +160,14 @@ typedef struct
     uint8_t damage; // the amount of damage the projectile will deal on hit.
 } projectile_t;
 
+typedef struct
+{
+    uint8_t active;
+    uint8_t type;
+    vec_t position;
+    vec_t bbHalf;
+} powerup_t;
+
 typedef struct 
 {
     uint8_t active; // is enemy in-use on screen.
@@ -187,6 +207,7 @@ typedef struct
 
     enemy_t enemies[MAX_ENEMIES];
     projectile_t projectiles[MAX_PROJECTILES];
+    powerup_t powerups[MAX_POWERUPS];
 
     uint8_t floors[NUM_CHUNKS + 1];
     uint8_t xOffset;
@@ -255,6 +276,10 @@ uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font);
 bool ICACHE_FLASH_ATTR AABBCollision (int ax0, int ay0, int ax1, int ay1, int bx0, int by0, int bx1, int by1);
 void normalize (vecdouble_t * vec);
 bool fireProjectile (uint8_t owner, uint8_t type, vec_t position, vec_t bbHalf, vec_t direction, uint8_t speed, uint8_t damage);
+bool spawnEnemy (uint8_t type, vec_t spawn, uint8_t health, vec_t bbHalf, uint32_t frameOffsetX, uint32_t frameOffsetY);
+bool spawnEnemyFormation (uint8_t type, vec_t spawn, uint8_t health, vec_t bbHalf, uint32_t frameOffsetX, uint32_t frameOffsetY, uint8_t numEnemies, int16_t xSpacing, int16_t ySpacing);
+void enemyDeath (uint8_t index);
+
 
 /*============================================================================
  * Variables
@@ -513,43 +538,50 @@ void ICACHE_FLASH_ATTR mtSetState(mTypeState_t newState)
                 mType->projectiles[i].damage = 1;
             }
 
-            // initialize enemies. TODO: this needs some sort of spawning behavior for waves, etc.
-            int enemyCounter = 0;
-            for (int i = 0; i < 4; i++) {
-                mType->enemies[enemyCounter].active = 1;
-                mType->enemies[enemyCounter].health = 2;
-                mType->enemies[enemyCounter].position.x = OLED_WIDTH - (10 * i);
-                mType->enemies[enemyCounter].position.y = OLED_HEIGHT - 20;
-                mType->enemies[enemyCounter].bbHalf.x = 3;
-                mType->enemies[enemyCounter].bbHalf.y = 3;
-                mType->enemies[enemyCounter].spawn.x = mType->enemies[enemyCounter].position.x;
-                mType->enemies[enemyCounter].spawn.y = mType->enemies[enemyCounter].position.y;
-                mType->enemies[enemyCounter].frameOffsetX = 0;
-                mType->enemies[enemyCounter].frameOffsetY = i * 10;
-                mType->enemies[enemyCounter].shotCooldown = 0;
-                enemyCounter++;
+            // initialize powerups with default values.
+            for (int i = 0; i < MAX_POWERUPS; i++) {
+                mType->powerups[i].active = 0;
+                mType->powerups[i].type = 0;
+                mType->projectiles[i].position.x = 0;
+                mType->projectiles[i].position.y = 0;
+                mType->projectiles[i].bbHalf.x = 1;
+                mType->projectiles[i].bbHalf.y = 1;
             }
 
-            for (int i = 0; i < 4; i++) {
-                mType->enemies[enemyCounter].active = 1;
-                mType->enemies[enemyCounter].health = 2;
-                mType->enemies[enemyCounter].position.x = OLED_WIDTH - (10 * i);
-                mType->enemies[enemyCounter].position.y = OLED_HEIGHT - 50;
-                mType->enemies[enemyCounter].bbHalf.x = 3;
-                mType->enemies[enemyCounter].bbHalf.y = 3;
-                mType->enemies[enemyCounter].spawn.x = mType->enemies[enemyCounter].position.x;
-                mType->enemies[enemyCounter].spawn.y = mType->enemies[enemyCounter].position.y;
-                mType->enemies[enemyCounter].frameOffsetX = 0;
-                mType->enemies[enemyCounter].frameOffsetY = i * 10;
-                mType->enemies[enemyCounter].shotCooldown = 0;
-                enemyCounter++;
+            // initialize enemies deactivated with default values.
+            for (int i = 0; i < MAX_ENEMIES; i++) {
+                mType->enemies[i].active = 0;
+                mType->enemies[i].type = 0;
+                mType->enemies[i].health = 0;
+                mType->enemies[i].position.x = 0;
+                mType->enemies[i].position.y = 0;
+                mType->enemies[i].bbHalf.x = 0;
+                mType->enemies[i].bbHalf.y = 0;
+                mType->enemies[i].spawn.x = 0;
+                mType->enemies[i].spawn.y = 0;
+                mType->enemies[i].frameOffsetX = 0;
+                mType->enemies[i].frameOffsetY = 0;
+                mType->enemies[i].shotCooldown = 0;
             }
 
             // initialize the floor / terrain display.
-            mType->floor = OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 3;//OLED_HEIGHT - 1;
+            mType->floor = OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 3;
             ets_memset(mType->floors, mType->floor, (NUM_CHUNKS + 1) * sizeof(uint8_t));
             mType->xOffset = 0;
             
+            // spawn starting enemy formations.
+            vec_t bbHalf;
+            bbHalf.x = 3;
+            bbHalf.y = 3;
+
+            vec_t initialSpawn;
+            initialSpawn.x = OLED_WIDTH - 5;
+            initialSpawn.y = OLED_HEIGHT - 20;
+            spawnEnemyFormation(ENEMY_SNAKE, initialSpawn, 1, bbHalf, 0, 10, 4, -10, 0);
+
+            initialSpawn.y = OLED_HEIGHT - 50;
+            spawnEnemyFormation(ENEMY_SNAKE, initialSpawn, 1, bbHalf, 0, 10, 4, -10, 0);
+
             break;
         case MT_SCORES:
             break;
@@ -662,7 +694,7 @@ void ICACHE_FLASH_ATTR mtGameInput(void)
         dir.x = 1;
         dir.y = 0;
 
-        mType->player.shotLevel = 2; // TODO test, remove when done testing firing levels.
+        //mType->player.shotLevel = 2; // TODO test, remove when done testing firing levels.
 
         if (mType->player.shotLevel != 1) {
             fireProjectile(OWNER_PLAYER, TYPE_BOLT, firePos, bbHalf, dir, PLAYER_PROJECTILE_SPEED, PLAYER_PROJECTILE_DAMAGE);
@@ -676,7 +708,7 @@ void ICACHE_FLASH_ATTR mtGameInput(void)
         mType->player.shotCooldown = 0;
     }
 
-    if (mtIsButtonUp(BTN_GAME_ACTION)) {
+    if (mtIsButtonUp(BTN_GAME_ACTION) && mType->player.abilityCountdown <= 0) {
         mType->player.abilityChargeCounter += mType->deltaTime;
         if (mType->player.abilityChargeCounter > PLAYER_REFLECT_CHARGE_MAX) {
             mType->player.abilityChargeCounter = PLAYER_REFLECT_CHARGE_MAX;
@@ -689,32 +721,89 @@ void ICACHE_FLASH_ATTR mtGameInput(void)
 void ICACHE_FLASH_ATTR mtGameLogic(void)
 {
     // enemy movement and projectile spawning
+    uint8_t numEnemies = 0;
+
     for (int i = 0; i < MAX_ENEMIES; i++) {
         if (mType->enemies[i].active) {
-            mType->enemies[i].position.x = mType->enemies[i].spawn.x - ((mType->stateFrames - mType->enemies[i].frameOffsetX) / 3);
-            if (mType->enemies[i].position.x < -10) {
-                mType->enemies[i].frameOffsetX = mType->stateFrames;
-                mType->enemies[i].spawn.x = OLED_WIDTH + 10;
+            numEnemies++;
+            if (mType->enemies[i].type == ENEMY_SNAKE) {
+                mType->enemies[i].position.x = mType->enemies[i].spawn.x - ((mType->stateFrames - mType->enemies[i].frameOffsetX) / 3);
+                if (mType->enemies[i].position.x < -10) {
+                    mType->enemies[i].frameOffsetX = mType->stateFrames;
+                    mType->enemies[i].spawn.x = OLED_WIDTH + 10;
+                }
+                mType->enemies[i].position.y = mType->enemies[i].spawn.y + (7 * sin(((mType->stateFrames + mType->enemies[i].frameOffsetY) / 25.0)));
+
+                // update enemy shot cooldown.
+                mType->enemies[i].shotCooldown += mType->deltaTime;
+                if (mType->enemies[i].shotCooldown >= ENEMY_SNAKE_SHOT_COOLDOWN) {
+                    mType->enemies[i].shotCooldown = 0;
+
+                    vec_t bbHalf;
+                    bbHalf.x = 0;
+                    bbHalf.y = 0;
+
+                    vec_t dir;
+                    dir.x = -1;
+                    dir.y = 0;
+                    fireProjectile(OWNER_ENEMY, TYPE_BOLT, mType->enemies[i].position, bbHalf, dir, ENEMY_PROJECTILE_SPEED, ENEMY_PROJECTILE_DAMAGE);
+                }
             }
-            mType->enemies[i].position.y = mType->enemies[i].spawn.y + (7 * sin(((mType->stateFrames + mType->enemies[i].frameOffsetY) / 25.0)));
+            else if (mType->enemies[i].type == ENEMY_BOMBER) {
 
-            // update enemy shot cooldown.
-            mType->enemies[i].shotCooldown += mType->deltaTime;
-            if (mType->enemies[i].shotCooldown >= ENEMY_SHOT_COOLDOWN) {
-                mType->enemies[i].shotCooldown = 0;
+            }
+            else if (mType->enemies[i].type == ENEMY_WALKER) {
 
-                vec_t bbHalf;
-                bbHalf.x = 0;
-                bbHalf.y = 0;
+            }
+            else if (mType->enemies[i].type == ENEMY_DARTER) {
 
-                vec_t dir;
-                dir.x = -1;
-                dir.y = 0;
-                fireProjectile(OWNER_ENEMY, TYPE_BOLT, mType->enemies[i].position, bbHalf, dir, ENEMY_PROJECTILE_SPEED, ENEMY_PROJECTILE_DAMAGE);
+            }
+
+            int plx0, plx1, ply0, ply1;
+            plx0 = mType->player.position.x - mType->player.bbHalf.x;
+            plx1 = mType->player.position.x + mType->player.bbHalf.x;
+
+            ply0 = mType->player.position.y - mType->player.bbHalf.y;
+            ply1 = mType->player.position.y + mType->player.bbHalf.y;
+
+            if (mType->player.abilityCountdown > 0) {
+                plx0 -= PLAYER_REFLECT_COLLISION;
+                plx1 += PLAYER_REFLECT_COLLISION;
+                ply0 -= PLAYER_REFLECT_COLLISION;
+                ply1 += PLAYER_REFLECT_COLLISION;
             }
 
             // TODO: check collision with enemies to damage player?
+            if (AABBCollision(plx0, ply0, plx1, ply1,
+                mType->enemies[i].position.x - mType->enemies[i].bbHalf.x, 
+                mType->enemies[i].position.y - mType->enemies[i].bbHalf.y, 
+                mType->enemies[i].position.x + mType->enemies[i].bbHalf.x, 
+                mType->enemies[i].position.y + mType->enemies[i].bbHalf.y)) {
+                    if (mType->player.abilityCountdown <= 0) {
+                        //TODO: game over anim and fx.
+                        mtSetState(MT_GAMEOVER);
+                    }
+                    else {
+                        //TODO: should this damage an enemy or kill it? or bounce an enemy back?
+                        enemyDeath(i);
+                    }
+            }
         }
+    }
+
+    if (numEnemies == 0) {
+
+        /*vec_t bbHalf;
+        bbHalf.x = 3;
+        bbHalf.y = 3;
+
+        vec_t initialSpawn;
+        initialSpawn.x = OLED_WIDTH - 5;
+        initialSpawn.y = OLED_HEIGHT - 20;
+        spawnEnemyFormation(ENEMY_SNAKE, initialSpawn, 1, bbHalf, 0, 10, 4, -10, 0);
+
+        initialSpawn.y = OLED_HEIGHT - 50;
+        spawnEnemyFormation(ENEMY_SNAKE, initialSpawn, 1, bbHalf, 0, 10, 4, -10, 0);*/
     }
     
     // projectile movement and collision
@@ -755,7 +844,7 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                             mType->projectiles[i].active = 0;
                             mType->enemies[j].health -= mType->projectiles[i].damage;
                             if (mType->enemies[j].health <= 0) {
-                                mType->enemies[j].active = 0;
+                                enemyDeath(j);
                             }
                         }
                     }
@@ -811,6 +900,25 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
         }   
     }
 
+    // powerup movement and collision
+    for (int i = 0; i < MAX_POWERUPS; i++) {
+        if (mType->powerups[i].active) {
+            if (AABBCollision(mType->player.position.x - mType->player.bbHalf.x, 
+                    mType->player.position.y - mType->player.bbHalf.y, 
+                    mType->player.position.x + mType->player.bbHalf.x, 
+                    mType->player.position.y + mType->player.bbHalf.y, 
+                    mType->powerups[i].position.x - mType->powerups[i].bbHalf.x, 
+                    mType->powerups[i].position.y - mType->powerups[i].bbHalf.y, 
+                    mType->powerups[i].position.x + mType->powerups[i].bbHalf.x, 
+                    mType->powerups[i].position.y + mType->powerups[i].bbHalf.y)) {
+                        mType->powerups[i].active = 0;
+                        if (mType->powerups[i].type == PWRUP_FP) {
+                            mType->player.shotLevel++;
+                        }
+            }
+        }
+    }
+
     if (mType->player.abilityCountdown > 0) {
         mType->player.abilityCountdown -= mType->deltaTime;
         if (mType->player.abilityCountdown < 0) {
@@ -859,6 +967,16 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
     int scoreTextY = 1;
     fillDisplayArea(scoreTextX, 0, scoreTextX + 23, FONT_HEIGHT_TOMTHUMB + 1, BLACK);
     plotText(scoreTextX, scoreTextY, uiStr, TOM_THUMB, WHITE);
+
+    // draw powerups.
+    for (int i = 0; i < MAX_POWERUPS; i++) {
+        if (mType->powerups[i].active) {
+            plotRect(mType->powerups[i].position.x - mType->powerups[i].bbHalf.x,
+                    mType->powerups[i].position.y - mType->powerups[i].bbHalf.y,
+                    mType->powerups[i].position.x + mType->powerups[i].bbHalf.x,
+                    mType->powerups[i].position.y + mType->powerups[i].bbHalf.y, mType->stateFrames % 2 ? WHITE : BLACK);
+        }
+    }
 
     // draw projectiles.
     for (int i = 0; i < MAX_PROJECTILES; i++) {
@@ -1050,4 +1168,60 @@ bool fireProjectile (uint8_t owner, uint8_t type, vec_t position, vec_t bbHalf, 
         }
     }
     return false;
+}
+
+bool spawnEnemy (uint8_t type, vec_t spawn, uint8_t health, vec_t bbHalf, uint32_t frameOffsetX, uint32_t frameOffsetY) {
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        if (!mType->enemies[i].active) {
+            mType->enemies[i].active = 1;
+            mType->enemies[i].type = type;
+            mType->enemies[i].health = health;
+            mType->enemies[i].position.x = spawn.x;
+            mType->enemies[i].position.y = spawn.y;
+            mType->enemies[i].bbHalf.x = bbHalf.x;
+            mType->enemies[i].bbHalf.y = bbHalf.y;
+            mType->enemies[i].spawn.x = spawn.x;
+            mType->enemies[i].spawn.y = spawn.y;
+            mType->enemies[i].frameOffsetX = frameOffsetX;
+            mType->enemies[i].frameOffsetY = frameOffsetY;
+            mType->enemies[i].shotCooldown = 0;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool spawnEnemyFormation (uint8_t type, vec_t spawn, uint8_t health, vec_t bbHalf, uint32_t unitFrameOffsetX, uint32_t unitFrameOffsetY, uint8_t numEnemies, int16_t xSpacing, int16_t ySpacing) {
+    bool spawnSuccess = true;
+    for (int i = 0; i < numEnemies; i++) {
+        vec_t currentSpawn;
+        currentSpawn.x = spawn.x + i * xSpacing;
+        currentSpawn.y = spawn.y + i * ySpacing;
+        uint8_t currentFrameOffsetX = unitFrameOffsetX * i;
+        uint8_t currentFrameOffsetY = unitFrameOffsetY * i;
+        spawnSuccess = spawnSuccess && spawnEnemy(type, currentSpawn, health, bbHalf, currentFrameOffsetX, currentFrameOffsetY);
+    }
+    return spawnSuccess;
+}
+
+void enemyDeath (uint8_t index) {
+    // TODO: explosion / anim sequence.
+    mType->enemies[index].active = 0;
+
+    //TODO: should powerup spawn be determined by more than chance?
+    if (os_random() % 100 >= 80) {
+        for (int k = 0; k < MAX_POWERUPS; k++) {
+            if (!mType->powerups[k].active) {
+                mType->powerups[k].active = 1;
+                // TODO: spawn other powerup types?
+                mType->powerups[k].type = PWRUP_FP;
+                mType->powerups[k].position.x = mType->enemies[index].position.x;
+                mType->powerups[k].position.y = mType->enemies[index].position.y;
+                // TODO: set dimensions of the powerup.
+                mType->powerups[k].bbHalf.x = 2;
+                mType->powerups[k].bbHalf.y = 2;
+                break;
+            }
+        }
+    }
 }
