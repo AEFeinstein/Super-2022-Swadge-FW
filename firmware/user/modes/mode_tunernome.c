@@ -281,6 +281,10 @@ void ICACHE_FLASH_ATTR tunernomeEnterMode(void)
 
     allocPngAsset("uparrow.png", &(tunernome->upArrowPng));
 
+    tunernome->pause = false;
+    tunernome->bpm = INITIAL_BPM;
+    tunernome->curTunerMode = GUITAR_TUNER;
+
     switchToSubmode(TN_TUNER);
 
     timerDisarm(&(tunernome->ledTimer));
@@ -322,8 +326,6 @@ void ICACHE_FLASH_ATTR switchToSubmode(tnMode newMode)
         {
             tunernome-> mode = newMode;
 
-            tunernome->pause = false;
-            tunernome->bpm = INITIAL_BPM;
             tunernome->isClockwise = true;
             tunernome->tLastUpdateUs = 0;
             tunernome->tAccumulatedUs = 0;
@@ -576,7 +578,7 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
             drawPng(&(tunernome->upArrowPng),
                     (OLED_WIDTH - tunernome->upArrowPng.width) / 2,
                     (OLED_HEIGHT + FONT_HEIGHT_IBMVGA8) / 2 + 10,
-                    true, false, 180);
+                    false, true, 0);
 
             // Current note/mode in middle of display
             switch(tunernome->curTunerMode)
