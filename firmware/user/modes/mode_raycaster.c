@@ -310,11 +310,11 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
     pngHandle tmpPngHandle;
 
     // Load the enemy texture to RAM
-    allocPngAsset("impw0.png", &tmpPngHandle);
+    allocPngAsset("w1.png", &tmpPngHandle);
     drawPngToBuffer(&tmpPngHandle, rc->impWalk[0]);
     freePngAsset(&tmpPngHandle);
 
-    allocPngAsset("impw1.png", &tmpPngHandle);
+    allocPngAsset("w2.png", &tmpPngHandle);
     drawPngToBuffer(&tmpPngHandle, rc->impWalk[1]);
     freePngAsset(&tmpPngHandle);
 
