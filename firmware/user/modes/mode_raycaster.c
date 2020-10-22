@@ -177,11 +177,11 @@ void ICACHE_FLASH_ATTR raycasterExitMode(void);
 void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state, int32_t button, int32_t down);
 void ICACHE_FLASH_ATTR raycasterMenuButtonCallback(const char* selected);
 bool ICACHE_FLASH_ATTR raycasterRenderTask(void);
-void ICACHE_FLASH_ATTR raycasterGameRenderer(void);
+void ICACHE_FLASH_ATTR raycasterGameRenderer(uint32_t tElapsedUs);
 void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg);
 void ICACHE_FLASH_ATTR raycasterDrawScores(void);
 void ICACHE_FLASH_ATTR raycasterEndRound(void);
-void ICACHE_FLASH_ATTR raycasterDrawRoundOver(void);
+void ICACHE_FLASH_ATTR raycasterDrawRoundOver(uint32_t tElapsedUs);
 
 void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsed);
 void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsed);
@@ -594,39 +594,6 @@ void ICACHE_FLASH_ATTR raycasterMenuButtonCallback(const char* selected)
  */
 bool ICACHE_FLASH_ATTR raycasterRenderTask(void)
 {
-    switch(rc->mode)
-    {
-        default:
-        case RC_MENU:
-        {
-            drawMenu(rc->menu);
-            break;
-        }
-        case RC_GAME:
-        {
-            raycasterGameRenderer();
-            break;
-        }
-        case RC_GAME_OVER:
-        {
-            raycasterDrawRoundOver();
-            break;
-        }
-        case RC_SCORES:
-        {
-            raycasterDrawScores();
-            break;
-        }
-    }
-    return true;
-}
-
-/**
- * This function renders the scene and handles input. It is called as fast as
- * possible by user_main.c's procTask.
- */
-void ICACHE_FLASH_ATTR raycasterGameRenderer(void)
-{
     static uint32_t tLastUs = 0; // time of current frame
     if(tLastUs == 0)
     {
@@ -638,19 +605,54 @@ void ICACHE_FLASH_ATTR raycasterGameRenderer(void)
         uint32_t tElapsedUs = tNowUs - tLastUs;
         tLastUs = tNowUs;
 
-        handleRayInput(tElapsedUs);
-        moveEnemies(tElapsedUs);
+        switch(rc->mode)
+        {
+            default:
+            case RC_MENU:
+            {
+                drawMenu(rc->menu);
+                break;
+            }
+            case RC_GAME:
+            {
+                raycasterGameRenderer(tElapsedUs);
+                break;
+            }
+            case RC_GAME_OVER:
+            {
+                raycasterDrawRoundOver(tElapsedUs);
+                break;
+            }
+            case RC_SCORES:
+            {
+                raycasterDrawScores();
+                break;
+            }
+        }
+        return true;
+    }
+    return false;
+}
 
-        // Tick down the timer to display the hurt outline.
-        // This is drawn in drawHUD()
-        if(rc->gotShotTimer > 0)
-        {
-            rc->gotShotTimer -= tElapsedUs;
-        }
-        if(rc->shotSomethingTimer > 0)
-        {
-            rc->shotSomethingTimer -= tElapsedUs;
-        }
+/**
+ * This function renders the scene and handles input. It is called as fast as
+ * possible by user_main.c's procTask.
+ */
+void ICACHE_FLASH_ATTR raycasterGameRenderer(uint32_t tElapsedUs)
+{
+
+    handleRayInput(tElapsedUs);
+    moveEnemies(tElapsedUs);
+
+    // Tick down the timer to display the hurt outline.
+    // This is drawn in drawHUD()
+    if(rc->gotShotTimer > 0)
+    {
+        rc->gotShotTimer -= tElapsedUs;
+    }
+    if(rc->shotSomethingTimer > 0)
+    {
+        rc->shotSomethingTimer -= tElapsedUs;
     }
 
     rayResult_t rayResult[OLED_WIDTH] = {{0}};
@@ -1549,7 +1551,6 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                     // Check if the sprite can still see the player
                     if(checkLineToPlayer(&rc->sprites[i], rc->posX, rc->posY))
                     {
-                        // TODO RNG if damage actually lands?
                         rc->health--;
                         rc->gotShotTimer = LED_ON_TIME;
                         if(rc->health == 0)
@@ -1867,32 +1868,54 @@ void ICACHE_FLASH_ATTR raycasterEndRound(void)
 
 /**
  * Display the time elapsed and number of kills
- * TODO make this pretty
  */
-void ICACHE_FLASH_ATTR raycasterDrawRoundOver(void)
+void ICACHE_FLASH_ATTR raycasterDrawRoundOver(uint32_t tElapsedUs)
 {
     uint32_t dSec = (rc->tRoundElapsed / 100000) % 10;
     uint32_t sec  = (rc->tRoundElapsed / 1000000) % 60;
     uint32_t min  = (rc->tRoundElapsed / (1000000 * 60));
 
     char timestr[64] = {0};
-    ets_snprintf(timestr, sizeof(timestr), "Time : %02d:%02d.%d", min, sec, dSec);
+    ets_snprintf(timestr, sizeof(timestr), "Time: %02d:%02d.%d", min, sec, dSec);
     char killstr[64] = {0};
     ets_snprintf(killstr, sizeof(killstr), "Kills: %d", rc->kills);
 
     clearDisplay();
 
+    // Plot a title
+    uint16_t width;
     if(rc->liveSprites > 0)
     {
-        plotText(0, 0, "Game Over", IBM_VGA_8, WHITE);
+        width = textWidth("YOU LOSE", RADIOSTARS);
+        plotText((OLED_WIDTH - width) / 2, 0, "YOU LOSE", RADIOSTARS, WHITE);
     }
     else
     {
-        plotText(0, 0, "You win!", IBM_VGA_8, WHITE);
+        width = textWidth("YOU WIN!", RADIOSTARS);
+        plotText((OLED_WIDTH - width) / 2, 0, "YOU WIN!", RADIOSTARS, WHITE);
     }
 
-    plotText(0, FONT_HEIGHT_IBMVGA8 + 2, timestr, IBM_VGA_8, WHITE);
-    plotText(0, 2 * (FONT_HEIGHT_IBMVGA8 + 2), killstr, IBM_VGA_8, WHITE);
+    // Plot the round stats
+    width = textWidth(killstr, IBM_VGA_8);
+    plotText((OLED_WIDTH - width) / 2, (FONT_HEIGHT_RADIOSTARS + 5), killstr, IBM_VGA_8, WHITE);
+    width = textWidth(timestr, IBM_VGA_8);
+    plotText((OLED_WIDTH - width) / 2, (FONT_HEIGHT_RADIOSTARS + 5) + (FONT_HEIGHT_IBMVGA8 + 3), timestr, IBM_VGA_8, WHITE);
+
+    // Draw the HUD, with animation!
+    if(0 == rc->shotCooldown)
+    {
+        rc->shotCooldown = PLAYER_SHOT_COOLDOWN;
+    }
+    else if(rc->shotCooldown > 0)
+    {
+        rc->shotCooldown -= tElapsedUs;
+    }
+    else
+    {
+        rc->shotCooldown = 0;
+    }
+
+    drawHUD();
 }
 
 /**
