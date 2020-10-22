@@ -49,6 +49,9 @@
 #define ENEMY_HEALTH               2
 #define PLAYER_HEALTH             99
 
+// Helper macro to return the absolute value of an integer
+#define ABS(X) (((X) < 0) ? -(X) : (X))
+
 /*==============================================================================
  * Enums
  *============================================================================*/
@@ -970,89 +973,47 @@ void ICACHE_FLASH_ATTR drawTextures(rayResult_t* rayResult)
  */
 void ICACHE_FLASH_ATTR drawOutlines(rayResult_t* rayResult)
 {
-    bool drawVertNext = false;
-    for(int32_t x = 0; x < OLED_WIDTH; x++)
+    // Set starting points
+    int16_t tLineStartX = 0;
+    int16_t tLineStartY = rayResult[0].drawStart;
+    int16_t bLineStartX = 0;
+    int16_t bLineStartY = rayResult[0].drawEnd;
+
+    // Iterate over all but the first and last strips of pixels
+    for(int32_t x = 1; x < OLED_WIDTH - 1; x++)
     {
-        if(drawVertNext)
+        // See if this strip is part of the previous or next strip's wall
+        bool sameWallAsPrev = (rayResult[x].side == rayResult[x - 1].side) &&
+                              (ABS(rayResult[x].mapX - rayResult[x - 1].mapX) + ABS(rayResult[x].mapY - rayResult[x - 1].mapY) < 2);
+        bool sameWallAsNext = (rayResult[x].side == rayResult[x + 1].side) &&
+                              (ABS(rayResult[x].mapX - rayResult[x + 1].mapX) + ABS(rayResult[x].mapY - rayResult[x + 1].mapY) < 2);
+
+        // If this is a boundary
+        if(!(sameWallAsNext && sameWallAsPrev))
         {
-            // This is corner or edge which is larger than the prior strip
-            // Draw a vertical strip
-            int32_t ds = rayResult[x].drawStart;
-            int32_t de = rayResult[x].drawEnd;
-            if(ds < 0 || de > OLED_HEIGHT - 1)
+            // Always draw a vertical stripe
+            speedyWhiteLine(x, rayResult[x].drawStart, x, rayResult[x].drawEnd, false);
+
+            // If we didn't draw a vertical stripe in the previous x index
+            // Or if we are drawing in the first two pixels
+            if(tLineStartX != x - 1 || (0 == tLineStartX && 1 == x))
             {
-                ds = 0;
-                de = OLED_HEIGHT - 1;
+                // Connect the top and bottom wall lines too
+                speedyWhiteLine(tLineStartX, tLineStartY, x, rayResult[x].drawStart, false);
+                speedyWhiteLine(bLineStartX, bLineStartY, x, rayResult[x].drawEnd, false);
             }
-            for(int32_t y = ds; y <= de; y++)
-            {
-                drawPixelUnsafeC(x, y, WHITE);
-            }
-            drawVertNext = false;
-        }
-        else if(x < OLED_WIDTH - 1)
-        {
-            if(((rayResult[x].mapX == rayResult[x + 1].mapX) ||
-                    (rayResult[x].mapY == rayResult[x + 1].mapY)) &&
-                    (rayResult[x].side == rayResult[x + 1].side))
-            {
-                // This vertical strip is part of a continuous wall with the next strip
-                // Just draw top and bottom pixels
-                if(rayResult[x].drawStart >= 0)
-                {
-                    drawPixelUnsafeC(x, rayResult[x].drawStart, WHITE);
-                }
-                if(rayResult[x].drawEnd < OLED_HEIGHT)
-                {
-                    drawPixelUnsafeC(x, rayResult[x].drawEnd, WHITE);
-                }
-            }
-            else if((rayResult[x].drawEnd - rayResult[x].drawStart) >
-                    (rayResult[x + 1].drawEnd - rayResult[x + 1].drawStart))
-            {
-                // This is a corner or edge, and this vertical strip is larger than the next one
-                // Draw a vertical strip
-                int32_t ds = rayResult[x].drawStart;
-                int32_t de = rayResult[x].drawEnd;
-                if(ds < 0 || de > OLED_HEIGHT - 1)
-                {
-                    ds = 0;
-                    de = OLED_HEIGHT - 1;
-                }
-                for(int32_t y = ds; y <= de; y++)
-                {
-                    drawPixelUnsafeC(x, y, WHITE);
-                }
-            }
-            else
-            {
-                // This is a corner or edge, and this vertical strip is smaller than the next one
-                // Just draw top and bottom pixels, but make sure to draw a vertical line next
-                if(rayResult[x].drawStart >= 0)
-                {
-                    drawPixelUnsafeC(x, rayResult[x].drawStart, WHITE);
-                }
-                if(rayResult[x].drawEnd < OLED_HEIGHT)
-                {
-                    drawPixelUnsafeC(x, rayResult[x].drawEnd, WHITE);
-                }
-                // make sure to draw a vertical line next
-                drawVertNext = true;
-            }
-        }
-        else
-        {
-            // These are the very last pixels, nothing to compare to
-            if(rayResult[x].drawStart >= 0)
-            {
-                drawPixelUnsafeC(x, rayResult[x].drawStart, WHITE);
-            }
-            if(rayResult[x].drawEnd < OLED_HEIGHT)
-            {
-                drawPixelUnsafeC(x, rayResult[x].drawEnd, WHITE);
-            }
+
+            // Save points for the next lines
+            tLineStartX = x;
+            tLineStartY = rayResult[x].drawStart;
+            bLineStartX = x;
+            bLineStartY = rayResult[x].drawEnd;
         }
     }
+
+    // Draw the final top and bottom wall lines
+    speedyWhiteLine(tLineStartX, tLineStartY, OLED_WIDTH - 1, rayResult[OLED_WIDTH - 1].drawStart, false);
+    speedyWhiteLine(bLineStartX, bLineStartY, OLED_WIDTH - 1, rayResult[OLED_WIDTH - 1].drawEnd, false);
 }
 
 /**
