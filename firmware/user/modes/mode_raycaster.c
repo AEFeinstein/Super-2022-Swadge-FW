@@ -1968,17 +1968,20 @@ void ICACHE_FLASH_ATTR raycasterDrawScores(void)
     {
         case RC_EASY:
         {
-            plotText(0, 0, "Easy", RADIOSTARS, WHITE);
+            uint16_t width = textWidth("Easy", RADIOSTARS);
+            plotText((OLED_WIDTH - width) / 2, 0, "Easy", RADIOSTARS, WHITE);
             break;
         }
         case RC_MED:
         {
-            plotText(0, 0, "Medium", RADIOSTARS, WHITE);
+            uint16_t width = textWidth("Medium", RADIOSTARS);
+            plotText((OLED_WIDTH - width) / 2, 0, "Medium", RADIOSTARS, WHITE);
             break;
         }
         case RC_HARD:
         {
-            plotText(0, 0, "Hard", RADIOSTARS, WHITE);
+            uint16_t width = textWidth("Hard", RADIOSTARS);
+            plotText((OLED_WIDTH - width) / 2, 0, "Hard", RADIOSTARS, WHITE);
             break;
         }
         case RC_NUM_DIFFICULTIES:
@@ -2007,7 +2010,7 @@ void ICACHE_FLASH_ATTR raycasterDrawScores(void)
                          min, sec, dSec);
 
             // Plot the string
-            plotText(0, FONT_HEIGHT_RADIOSTARS + 2 + (i * (FONT_HEIGHT_IBMVGA8 + 2)),
+            plotText(0, FONT_HEIGHT_RADIOSTARS + 3 + (i * (FONT_HEIGHT_IBMVGA8 + 3)),
                      scoreStr, IBM_VGA_8, WHITE);
         }
     }
