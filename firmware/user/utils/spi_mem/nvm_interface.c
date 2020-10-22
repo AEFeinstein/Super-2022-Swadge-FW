@@ -17,7 +17,7 @@
  * Defines
  *==========================================================================*/
 
-#define SAVE_LOAD_KEY 0xBC
+#define SAVE_LOAD_KEY 0xBD
 
 /*============================================================================
  * Structs
@@ -34,6 +34,7 @@ typedef struct __attribute__((aligned(4)))
     demonMemorial_t demonMemorials[NUM_DEMON_MEMORIALS];
     char gitHash[32];
     bool selfTestPassed;
+    raycasterScores_t raycasterScores;
 }
 settings_t;
 
@@ -245,4 +246,38 @@ void ICACHE_FLASH_ATTR setSelfTestPass(bool pass)
 {
     settings.selfTestPassed = pass;
     SaveSettings();
+}
+
+
+raycasterScores_t* ICACHE_FLASH_ATTR getRaycasterScores(void)
+{
+    return &(settings.raycasterScores);
+}
+
+void ICACHE_FLASH_ATTR addRaycasterScore(raycasterDifficulty_t difficulty, uint16_t kills, uint32_t tElapsed)
+{
+    // Look through the table for a spot tto insert
+    for(uint8_t i = 0; i < RC_NUM_SCORES; i++)
+    {
+        // More kills, insert before this index
+        if((settings.raycasterScores.scores[difficulty][i].kills < kills) ||
+                // Same kills but faster, insert before this index
+                (settings.raycasterScores.scores[difficulty][i].kills == kills &&
+                 settings.raycasterScores.scores[difficulty][i].tElapsedUs > tElapsed))
+        {
+            // Make room for this element
+            ets_memmove(&settings.raycasterScores.scores[difficulty][i + 1],
+                        &settings.raycasterScores.scores[difficulty][i],
+                        sizeof(raycasterScore_t ) * (RC_NUM_SCORES - 1 - i));
+
+            // Write the new data
+            settings.raycasterScores.scores[difficulty][i].kills = kills;
+            settings.raycasterScores.scores[difficulty][i].tElapsedUs = tElapsed;
+
+            // Save the settings
+            SaveSettings();
+
+            return;
+        }
+    }
 }

@@ -96,7 +96,13 @@ int16_t ICACHE_FLASH_ATTR charWidth(char character, const sprite_t* table)
         {
             character = (char) (character - 'a' + 'A');
         }
+#ifdef USE_ESP_GDB // If we use GDB, read these to RAM first to avoid SIGSEV
+        sprite_t sprite_ram;
+        ets_memcpy ( &sprite_ram, &(table[character - ' ']), sizeof(sprite_t) );
+        return sprite_ram.width + 1;
+#else
         return table[character - ' '].width + 1;
+#endif
     }
     return 0;
 }

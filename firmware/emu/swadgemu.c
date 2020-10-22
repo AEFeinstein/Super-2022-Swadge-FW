@@ -179,7 +179,7 @@ void emuSendOLEDData( int disp, uint8_t* currentFb )
             uint32_t pxcol;
             if( disp == 0 )
             {
-                uint8_t col = currentFb[(y + x * OLED_HEIGHT)/8] & (1 << (y & 7));
+                uint8_t col = currentFb[(y + x * OLED_HEIGHT) / 8] & (1 << (y & 7));
                 pxcol = col ? (disp ? 0xffffffff : OLED_ON_COLOR) : BACKGROUND_COLOR;
             }
             else
@@ -564,7 +564,18 @@ void ws2812_push( uint8_t* buffer, uint16_t buffersize )
 
 void* os_malloc( int x )
 {
-    return malloc( x );
+    // Allocate some space
+    void* ptr = malloc( x );
+    // Fill the pointer with garbage, ESP-style
+    if(NULL != ptr)
+    {
+        for( int i = 0; i < x; i++ )
+        {
+            ((uint8_t*)ptr)[i] = rand() & 0xff;
+        }
+    }
+    // Return the space
+    return ptr;
 }
 void* os_zalloc( int x )
 {
@@ -1160,6 +1171,12 @@ void system_os_check_tasks(void)
             os_tasks[i].task(&evt);
         }
     }
+}
+
+/** Prints heap size for ESP, does nothing for EMU */
+uint32 system_get_free_heap_size(void)
+{
+    return 0;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
