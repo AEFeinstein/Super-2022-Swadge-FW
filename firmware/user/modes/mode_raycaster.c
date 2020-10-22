@@ -24,31 +24,34 @@
  * Defines
  *============================================================================*/
 
-#define mapWidth  48
-#define mapHeight 48
+#define MAP_WIDTH  48
+#define MAP_HEIGHT 48
 
-#define texWidth  48
-#define texHeight 48
+#define TEX_WIDTH  48
+#define TEX_HEIGHT 48
 
 #define NUM_SPRITES 57
 
-#define ENEMY_SHOT_COOLDOWN  3000000
+// For the player
+#define PLAYER_SHOT_COOLDOWN  300000
+#define LED_ON_TIME           500000
 
+// For enemy textures
+#define ENEMY_SHOT_COOLDOWN  3000000
 #define SHOOTING_ANIM_TIME   1000000
 #define GOT_SHOT_ANIM_TIME   1000000
-
 #define LONG_WALK_ANIM_TIME  3000000
 #define WALK_ANIM_TIME       1000000
 #define STEP_ANIM_TIME        250000
 
-#define PLAYER_SHOT_COOLDOWN  300000
+#define NUM_WALK_FRAMES            2
 
-#define LED_ON_TIME           500000
+#define ENEMY_HEALTH               2
+#define PLAYER_HEALTH             99
 
-#define ENEMY_HEALTH   2
-#define PLAYER_HEALTH 99
-
-#define NUM_IMP_WALK_FRAMES 2
+/*==============================================================================
+ * Enums
+ *============================================================================*/
 
 typedef enum
 {
@@ -68,6 +71,16 @@ typedef enum
     RC_GAME_OVER,
     RC_SCORES
 } raycasterMode_t;
+
+typedef enum
+{
+    WMT_W1 = 0, ///< Wall 1
+    WMT_W2 = 1, ///< Wall 2
+    WMT_W3 = 2, ///< Wall 2
+    WMT_C  = 3, ///< Column
+    WMT_E  = 4, ///< Empty
+    WMT_S  = 5, ///< Spawn point
+} WorldMapTile_t;
 
 /*==============================================================================
  * Structs
@@ -132,19 +145,19 @@ typedef struct
     uint8_t kills;
 
     // Storage for textures
-    color stoneTex[texWidth * texHeight];
-    color stripeTex[texWidth * texHeight];
-    color brickTex[texWidth * texHeight];
-    color sinTex[texWidth * texHeight];
+    color stoneTex[TEX_WIDTH * TEX_HEIGHT];
+    color stripeTex[TEX_WIDTH * TEX_HEIGHT];
+    color brickTex[TEX_WIDTH * TEX_HEIGHT];
+    color sinTex[TEX_WIDTH * TEX_HEIGHT];
 
-    color impWalk[NUM_IMP_WALK_FRAMES][texWidth * texHeight];
+    color walk[NUM_WALK_FRAMES][TEX_WIDTH * TEX_HEIGHT];
 
-    color s1[texWidth * texHeight];
-    color s2[texWidth * texHeight];
+    color s1[TEX_WIDTH * TEX_HEIGHT];
+    color s2[TEX_WIDTH * TEX_HEIGHT];
 
-    color d1[texWidth * texHeight];
-    color d2[texWidth * texHeight];
-    color d3[texWidth * texHeight];
+    color d1[TEX_WIDTH * TEX_HEIGHT];
+    color d2[TEX_WIDTH * TEX_HEIGHT];
+    color d3[TEX_WIDTH * TEX_HEIGHT];
 
     // Storage for HUD images
     pngHandle heart;
@@ -158,16 +171,6 @@ typedef struct
     int32_t shotSomethingTimer;
 } raycaster_t;
 
-typedef enum
-{
-    WMT_W1 = 0,
-    WMT_W2 = 1,
-    WMT_W3 = 2,
-    WMT_C  = 3,
-    WMT_E  = 4,
-    WMT_S  = 5,
-} WorldMapTile_t;
-
 /*==============================================================================
  * Prototypes
  *============================================================================*/
@@ -178,7 +181,7 @@ void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state, int32_t button, in
 void ICACHE_FLASH_ATTR raycasterMenuButtonCallback(const char* selected);
 bool ICACHE_FLASH_ATTR raycasterRenderTask(void);
 void ICACHE_FLASH_ATTR raycasterGameRenderer(uint32_t tElapsedUs);
-void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg);
+void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR raycasterDrawScores(void);
 void ICACHE_FLASH_ATTR raycasterEndRound(void);
 void ICACHE_FLASH_ATTR raycasterDrawRoundOver(uint32_t tElapsedUs);
@@ -219,7 +222,7 @@ swadgeMode raycasterMode =
 
 raycaster_t* rc;
 
-static const WorldMapTile_t worldMap[mapWidth][mapHeight] =
+static const WorldMapTile_t worldMap[MAP_WIDTH][MAP_HEIGHT] =
 {
     {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, },
     {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, },
@@ -283,18 +286,19 @@ static const char rc_quit[]   = "QUIT";
  *============================================================================*/
 
 /**
- * Set up the raycaster by creating some simple textures and loading other
- * textures from assets
+ * Initialize the raycaster mode and allocate all assets
  */
 void ICACHE_FLASH_ATTR raycasterEnterMode(void)
 {
     os_printf("malloc %d\n", sizeof(raycaster_t));
     os_printf("system_get_free_heap_size %d\n", system_get_free_heap_size());
+
+    // Allocate and zero out everything
     rc = os_malloc(sizeof(raycaster_t));
     ets_memset(rc, 0, sizeof(raycaster_t));
 
+    // Initialize and start at the menu
     rc->mode = RC_MENU;
-
     rc->menu = initMenu(rc_title, raycasterMenuButtonCallback);
     addRowToMenu(rc->menu);
     addItemToRow(rc->menu, rc_easy);
@@ -305,17 +309,17 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
     addRowToMenu(rc->menu);
     addItemToRow(rc->menu, rc_quit);
 
+    // Turn off debounce
     enableDebounce(false);
 
-    pngHandle tmpPngHandle;
-
     // Load the enemy texture to RAM
+    pngHandle tmpPngHandle;
     allocPngAsset("w1.png", &tmpPngHandle);
-    drawPngToBuffer(&tmpPngHandle, rc->impWalk[0]);
+    drawPngToBuffer(&tmpPngHandle, rc->walk[0]);
     freePngAsset(&tmpPngHandle);
 
     allocPngAsset("w2.png", &tmpPngHandle);
-    drawPngToBuffer(&tmpPngHandle, rc->impWalk[1]);
+    drawPngToBuffer(&tmpPngHandle, rc->walk[1]);
     freePngAsset(&tmpPngHandle);
 
     allocPngAsset("s1.png", &tmpPngHandle);
@@ -365,6 +369,7 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
                      "gtr4.png",
                      "gtr5.png");
 
+    // Set up the LED timer
     rc->closestDist = 0xFFFFFFFF;
     timerSetFn(&(rc->ledTimer), raycasterLedTimer, NULL);
     timerArm(&(rc->ledTimer), 10, true);
@@ -377,26 +382,37 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
  */
 void ICACHE_FLASH_ATTR raycasterExitMode(void)
 {
+    // Free menu
     deinitMenu(rc->menu);
+
+    // Free HUD assets (textures dont need freeing)
     freePngAsset(&(rc->heart));
     freePngAsset(&(rc->mnote));
     freePngSequence(&(rc->gtr));
+
+    // stop the LED timer
     timerDisarm(&(rc->ledTimer));
     timerFlush();
+
+    // Free everything else
     os_free(rc);
     rc = NULL;
 }
 
 /**
- * Initialize the game state
+ * Initialize the game state and start it
+ *
+ * @param difficulty This round's difficulty
  */
 void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
 {
+    // Set the mode and difficulty
     rc->mode = RC_GAME;
-    rc->rButtonState = 0;
     rc->difficulty = difficulty;
 
+    // Clear the button state
     rc->rButtonState = 0;
+
     // x and y start position
     rc->posY = 10.5;
     rc->posX = 40;
@@ -407,6 +423,7 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
     rc->planeX = 0;
     rc->planeY = -0.66;
 
+    // Make sure all sprites are intially out of bounds
     for(uint8_t i = 0; i < NUM_SPRITES; i++)
     {
         rc->sprites[i].posX = -1;
@@ -431,18 +448,23 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
         diffMod = 1;
     }
 
+    // Start spawning sprites
     rc->liveSprites = 0;
     rc->kills = 0;
     uint16_t spawnIdx = 0;
 #ifndef TEST_GAME_OVER
-    for(uint8_t x = 0; x < mapWidth; x++)
+    // Look over the whole map
+    for(uint8_t x = 0; x < MAP_WIDTH; x++)
     {
-        for(uint8_t y = 0; y < mapHeight; y++)
+        for(uint8_t y = 0; y < MAP_HEIGHT; y++)
         {
+            // If this is a spawn point
             if(worldMap[x][y] == WMT_S)
             {
+                // And a sprite should be spawned
                 if(rc->liveSprites < NUM_SPRITES && (((spawnIdx % diffMod) > 0) || (RC_HARD == difficulty)))
                 {
+                    // Spawn it here
                     rc->sprites[rc->liveSprites].posX = x;
                     rc->sprites[rc->liveSprites].posY = y;
                     rc->sprites[rc->liveSprites].dirX = 0;
@@ -458,8 +480,9 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
         }
     }
 #else
+    // For testing, just spawn one sprite
     rc->sprites[rc->liveSprites].posX = 45;
-    rc->sprites[rc->liveSprites].posY = 2 ;
+    rc->sprites[rc->liveSprites].posY = 2;
     rc->sprites[rc->liveSprites].dirX = 0;
     rc->sprites[rc->liveSprites].dirX = 0;
     rc->sprites[rc->liveSprites].shotCooldown = 0;
@@ -469,19 +492,22 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
     rc->liveSprites++;
 #endif
 
+    // Clear player shot variables
     rc->shotCooldown = 0;
     rc->checkShot = false;
-
-    rc->closestDist = 0xFFFFFFFF;
     rc->gotShotTimer = 0;
     rc->shotSomethingTimer = 0;
 
+    // Reset the closest distance to not shine LEDs
+    rc->closestDist = 0xFFFFFFFF;
+
+    // Start the round clock
     rc->tRoundElapsed = 0;
     rc->tRoundStartedUs = system_get_time();
 }
 
 /**
- * Simple button callback which saves the state of all buttons
+ * The button callback. Handle the buttons differently per-mode
  *
  * @param state  A bitmask with all the current button states
  * @param button The button that caused this interrupt
@@ -496,17 +522,20 @@ void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state, int32_t button, in
         {
             if(down)
             {
+                // Just pass the button along to the menu button handler
                 menuButton(rc->menu, button);
             }
             break;
         }
         case RC_GAME:
         {
+            // Save the button state for the game to process later
             rc->rButtonState = state;
             break;
         }
         case RC_GAME_OVER:
         {
+            // If any button is pressed on game over, just return to the menu
             if(down)
             {
                 rc->mode = RC_MENU;
@@ -515,19 +544,20 @@ void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state, int32_t button, in
         }
         case RC_SCORES:
         {
+            // If the button is pressed on the score screen
             if(down)
             {
                 switch (button)
                 {
                     case 2:
                     {
-                        // Left
+                        // Left, cycle left
                         rc->difficulty = (rc->difficulty + 1) % RC_NUM_DIFFICULTIES;
                         break;
                     }
                     case 0:
                     {
-                        // Right
+                        // Right, cycle right
                         if(0 == rc->difficulty)
                         {
                             rc->difficulty = RC_NUM_DIFFICULTIES - 1;
@@ -540,6 +570,7 @@ void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state, int32_t button, in
                     }
                     case 4:
                     {
+                        // Action, return to the menu
                         rc->mode = RC_MENU;
                         break;
                     }
@@ -564,18 +595,22 @@ void ICACHE_FLASH_ATTR raycasterMenuButtonCallback(const char* selected)
 {
     if(rc_quit == selected)
     {
+        // Quit to the Swadge menu
         switchToSwadgeMode(0);
     }
     else if(rc_easy == selected)
     {
+        // Start the game
         raycasterInitGame(RC_EASY);
     }
     else if(rc_med == selected)
     {
+        // Start the game
         raycasterInitGame(RC_MED);
     }
     else if(rc_hard == selected)
     {
+        // Start the game
         raycasterInitGame(RC_HARD);
     }
     else if (rc_scores == selected)
@@ -588,23 +623,26 @@ void ICACHE_FLASH_ATTR raycasterMenuButtonCallback(const char* selected)
 
 /**
  * This is called whenever there is a screen to render
- * Draw either the menu or the game
+ * Draw the menu, game, game over, or high scores
  *
- * @return true to always draw the screen
+ * @return true if the screen should be drawn, false otherwise
  */
 bool ICACHE_FLASH_ATTR raycasterRenderTask(void)
 {
     static uint32_t tLastUs = 0; // time of current frame
     if(tLastUs == 0)
     {
+        // Initialize the last call time
         tLastUs = system_get_time();
     }
     else
     {
+        // Figure out how much time elapsed between the prior call and now
         uint32_t tNowUs = system_get_time();
         uint32_t tElapsedUs = tNowUs - tLastUs;
         tLastUs = tNowUs;
 
+        // Draw something based on the mode
         switch(rc->mode)
         {
             default:
@@ -635,17 +673,20 @@ bool ICACHE_FLASH_ATTR raycasterRenderTask(void)
 }
 
 /**
- * This function renders the scene and handles input. It is called as fast as
- * possible by user_main.c's procTask.
+ * This function renders the scene and handles input. It is called whenever
+ * the system is ready to render a new frame
+ *
+ * @param tElapsedUs The time since the last call
  */
 void ICACHE_FLASH_ATTR raycasterGameRenderer(uint32_t tElapsedUs)
 {
-
+    // First handle button input
     handleRayInput(tElapsedUs);
+
+    // Then move enemies around
     moveEnemies(tElapsedUs);
 
-    // Tick down the timer to display the hurt outline.
-    // This is drawn in drawHUD()
+    // Tick down the timer to flash LEDs when shot or shooting
     if(rc->gotShotTimer > 0)
     {
         rc->gotShotTimer -= tElapsedUs;
@@ -655,10 +696,12 @@ void ICACHE_FLASH_ATTR raycasterGameRenderer(uint32_t tElapsedUs)
         rc->shotSomethingTimer -= tElapsedUs;
     }
 
+    // Cast all the rays for the scene and save the result
     rayResult_t rayResult[OLED_WIDTH] = {{0}};
-
-    clearDisplay();
     castRays(rayResult);
+
+    // Clear the display, then draw all the layers
+    clearDisplay();
     drawTextures(rayResult);
     drawOutlines(rayResult);
     drawSprites(rayResult);
@@ -870,6 +913,7 @@ void ICACHE_FLASH_ATTR drawTextures(rayResult_t* rayResult)
                 }
             }
 
+            // If there's no texture to draw, continue looping
             if(NULL == wallTex)
             {
                 continue;
@@ -888,32 +932,32 @@ void ICACHE_FLASH_ATTR drawTextures(rayResult_t* rayResult)
             wallX -= (int32_t)(wallX);
 
             // X coordinate on the texture. Make sure it's in bounds
-            int32_t texX = (int32_t)(wallX * texWidth);
-            if(texX >= texWidth)
+            int32_t texX = (int32_t)(wallX * TEX_WIDTH);
+            if(texX >= TEX_WIDTH)
             {
-                texX = texWidth - 1;
+                texX = TEX_WIDTH - 1;
             }
 
             // Draw this texture's vertical stripe
             // Calculate how much to increase the texture coordinate per screen pixel
             int32_t lineHeight = rayResult[x].drawEnd - rayResult[x].drawStart;
-            float step = texHeight / (float)lineHeight;
+            float step = TEX_HEIGHT / (float)lineHeight;
             // Starting texture coordinate
             float texPos = (drawStart - OLED_HEIGHT / 2 + lineHeight / 2) * step;
             for(int32_t y = drawStart; y < drawEnd; y++)
             {
                 // Y coordinate on the texture. Round it, make sure it's in bounds
                 int32_t texY = (int32_t)(texPos);
-                if(texY >= texHeight)
+                if(texY >= TEX_HEIGHT)
                 {
-                    texY = texHeight - 1;
+                    texY = TEX_HEIGHT - 1;
                 }
 
                 // Increment the texture position by the step size
                 texPos += step;
 
                 // Draw the pixel specified by the texture
-                drawPixelUnsafeC(x, y, wallTex[(texX * texHeight) + texY ]);
+                drawPixelUnsafeC(x, y, wallTex[(texX * TEX_HEIGHT) + texY ]);
             }
         }
     }
@@ -1018,6 +1062,7 @@ void ICACHE_FLASH_ATTR drawOutlines(rayResult_t* rayResult)
  */
 void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
 {
+    // Local memory for figuring out the draw order
     int32_t spriteOrder[NUM_SPRITES];
     float spriteDistance[NUM_SPRITES];
 
@@ -1107,7 +1152,7 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
         // loop through every vertical stripe of the sprite on screen
         for(int32_t stripe = drawStartX; stripe < drawEndX; stripe++)
         {
-            int32_t texX = (int32_t)(256 * (stripe - (-spriteWidth / 2 + spriteScreenX)) * texWidth / spriteWidth) / 256;
+            int32_t texX = (int32_t)(256 * (stripe - (-spriteWidth / 2 + spriteScreenX)) * TEX_WIDTH / spriteWidth) / 256;
             // the conditions in the if are:
             // 1) it's in front of camera plane so you don't see things behind you
             // 2) it's on the screen (left)
@@ -1120,22 +1165,27 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
                 {
                     // 256 and 128 factors to avoid floats
                     int32_t d = (y) * 256 - OLED_HEIGHT * 128 + spriteHeight * 128;
-                    int32_t texY = ((d * texHeight) / spriteHeight) / 256;
+                    int32_t texY = ((d * TEX_HEIGHT) / spriteHeight) / 256;
                     // get current color from the texture
                     uint16_t texIdx = 0;
+
+                    // If the sprite is mirrored, get the mirrored idx
                     if(rc->sprites[spriteOrder[i]].mirror)
                     {
-                        texIdx = ((texWidth - texX - 1) * texHeight) + texY;
+                        texIdx = ((TEX_WIDTH - texX - 1) * TEX_HEIGHT) + texY;
                     }
                     else
                     {
-                        texIdx = (texX * texHeight) + texY;
+                        texIdx = (texX * TEX_HEIGHT) + texY;
                     }
 
+                    // draw the pixel for the texture
                     drawPixelUnsafeC(stripe, y, rc->sprites[spriteOrder[i]].texture[texIdx]);
 
+                    // If we should check a shot, and a sprite is centered
                     if(true == rc->checkShot && (stripe == 63 || stripe == 64))
                     {
+                        // Mark that sprite as shot
                         spriteIdxShot = spriteOrder[i];
                     }
                 }
@@ -1164,6 +1214,8 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
             }
         }
     }
+
+    // Shot was checked, so clear the boolean
     rc->checkShot = false;
 }
 
@@ -1176,17 +1228,21 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
  */
 void ICACHE_FLASH_ATTR sortSprites(int32_t* order, float* dist, int32_t amount)
 {
+    // Iterate over everything
     for (int32_t i = 0; i < amount - 1; i++)
     {
         // Last i elements are already in place
         for (int32_t j = 0; j < amount - i - 1; j++)
         {
+            // If the smaller distance is first
             if (dist[j] < dist[j + 1])
             {
+                // Swap the dist[] elements
                 float tmp = dist[j];
                 dist[j] = dist[j + 1];
                 dist[j + 1] = tmp;
 
+                // And also swap the order[] elements
                 int32_t tmp2 = order[j];
                 order[j] = order[j + 1];
                 order[j + 1] = tmp2;
@@ -1197,6 +1253,9 @@ void ICACHE_FLASH_ATTR sortSprites(int32_t* order, float* dist, int32_t amount)
 
 /**
  * Update the camera position based on the current button state
+ * Also handle firing the gun
+ *
+ * @param tElapsedUs The time elapsed since the last call
  */
 void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
 {
@@ -1256,6 +1315,7 @@ void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
         rc->planeY = oldPlaneX * sin(rotSpeed) + rc->planeY * cos(rotSpeed);
     }
 
+    // Decrement the shot cooldown
     if(rc->shotCooldown > 0)
     {
         rc->shotCooldown -= tElapsedUs;
@@ -1265,25 +1325,31 @@ void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
         rc->shotCooldown = 0;
     }
 
+    // Static bool keeps track of trigger state to require button releases to shoot
     static bool triggerPulled = false;
-    if(!triggerPulled && rc->rButtonState & 0x10 && 0 == rc->shotCooldown)
+
+    // If the trigger hasn't been pulled, and the button was pressed, and cooldown isn't active
+    if(!triggerPulled && (rc->rButtonState & 0x10) && 0 == rc->shotCooldown)
     {
+        // Set the cooldown, tell drawSprites() to check the shot, and pull the trigger
         rc->shotCooldown = PLAYER_SHOT_COOLDOWN;
         rc->checkShot = true;
         triggerPulled = true;
     }
     else if(triggerPulled && (rc->rButtonState & 0x10) == 0)
     {
+        // If the button was released, release the trigger
         triggerPulled = false;
     }
 }
 
 /**
- * Fast inverse square root
+ * Fast inverse square root. Works like magic. Ignore the warning
+ *
  * See: https://en.wikipedia.org/wiki/Fast_inverse_square_root
  *
- * @param number
- * @return float
+ * @param number The number to find 1/sqrt(x) for
+ * @return 1/sqrt(x), or close enough
  */
 float ICACHE_FLASH_ATTR Q_rsqrt( float number )
 {
@@ -1296,41 +1362,40 @@ float ICACHE_FLASH_ATTR Q_rsqrt( float number )
     i  = * ( long* ) &y;          // evil floating point bit level hacking
     i  = 0x5f3759df - ( i >> 1 ); // what the fuck?
     y  = * ( float* ) &i;
-    y  = y * ( threehalfs - ( x2 * y * y ) );   // 1st iteration
-    //  y  = y * ( threehalfs - ( x2 * y * y ) );   // 2nd iteration, this can be removed
+    y  = y * ( threehalfs - ( x2 * y * y ) );    // 1st iteration
+    // y  = y * ( threehalfs - ( x2 * y * y ) ); // 2nd iteration, not really necessary
 
     return y;
 }
 
 /**
- * @brief TODO
+ * Move all sprites around and govern enemy behavior
  *
- * Move sprites around
- *
- * @param tElapsed
+ * @param tElapsed The time elapsed since this was last called
  */
 void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
 {
-    float frameTime = (tElapsedUs) / 1000000.0;
+    float frameTimeSec = (tElapsedUs) / 1000000.0;
 
     // Keep track of the closest live sprite
     rc->closestDist = 0xFFFFFFFF;
 
+    // For each sprite
     for(uint8_t i = 0; i < NUM_SPRITES; i++)
     {
-        // Skip over sprites with negative position
+        // Skip over sprites with negative position, these weren't spawned
         if(rc->sprites[i].posX < 0)
         {
             continue;
         }
 
-        // Always run down the shot cooldown, regardless of state
+        // Always run down the sprite's shot cooldown, regardless of state
         if(rc->sprites[i].shotCooldown > 0)
         {
             rc->sprites[i].shotCooldown -= tElapsedUs;
         }
 
-        // Find the distance between this sprite and the player
+        // Find the distance between this sprite and the player, generally useful
         float toPlayerX = rc->posX - rc->sprites[i].posX;
         float toPlayerY = rc->posY - rc->sprites[i].posY;
         float magSqr = (toPlayerX * toPlayerX) + (toPlayerY * toPlayerY);
@@ -1346,16 +1411,17 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
             default:
             case E_IDLE:
             {
-
-                // Less than 8 units away (avoid the sqrt!)
+                // If the sprite iss less than 8 units away (avoid the sqrt!)
                 if(magSqr < 64)
                 {
+                    // Wake it up and have it hunt the player
                     setSpriteState(&(rc->sprites[i]), E_PICK_DIR_PLAYER);
                 }
                 break;
             }
             case E_PICK_DIR_RAND:
             {
+                // Walking randomly is good if the sprite can't make a valid move
                 // Get a random unit vector in the first quadrant
                 rc->sprites[i].dirX = (os_random() % 90) / 90.0f;
                 rc->sprites[i].dirY = 1 / Q_rsqrt(1 - (rc->sprites[i].dirX * rc->sprites[i].dirX));
@@ -1386,6 +1452,7 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                     }
                 }
 
+                // Have the sprite move foward
                 rc->sprites[i].isBackwards = false;
 
                 // And let the sprite walk for a bit
@@ -1396,6 +1463,8 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
             }
             case E_PICK_DIR_PLAYER:
             {
+                // Either pick a directon to walk towards the player, or take a shot
+
                 // Randomly take a shot
                 if(rc->sprites[i].shotCooldown <= 0 &&           // If the sprite is not in cooldown
                         (uint32_t)magSqr < 64 &&                 // If the player is no more than 8 units away
@@ -1448,21 +1517,27 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
             }
             case E_WALKING:
             {
+                // This is just when the sprite is walking in a straight line
+
                 // See if we're done walking
                 rc->sprites[i].stateTimer -= tElapsedUs;
                 if (rc->sprites[i].stateTimer <= 0)
                 {
+                    // When done walking, pick a new direction
                     setSpriteState(&(rc->sprites[i]), E_PICK_DIR_PLAYER);
                     break;
                 }
 
-                // Flip sprites for a walking animation
+                // Mirror sprites for a walking animation
                 rc->sprites[i].texTimer -= tElapsedUs;
                 while(rc->sprites[i].texTimer <= 0)
                 {
+                    // Animate a 'step'
                     rc->sprites[i].texTimer += STEP_ANIM_TIME;
-                    rc->sprites[i].texFrame = (rc->sprites[i].texFrame + 1) % NUM_IMP_WALK_FRAMES;
-                    rc->sprites[i].texture = rc->impWalk[rc->sprites[i].texFrame];
+                    // Pick the next texture
+                    rc->sprites[i].texFrame = (rc->sprites[i].texFrame + 1) % NUM_WALK_FRAMES;
+                    rc->sprites[i].texture = rc->walk[rc->sprites[i].texFrame];
+                    // Mirror the texture if we're back to 0
                     if(0 == rc->sprites[i].texFrame)
                     {
                         rc->sprites[i].mirror = !rc->sprites[i].mirror;
@@ -1470,22 +1545,26 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                 }
 
                 // Find the new position
-                float moveSpeed = frameTime * 1.0; // the constant value is in squares/second
+                float moveSpeed = frameTimeSec * 1.0; // the constant value is in squares/second
 
+                // If the sprite is really close and not walking backwards
                 if(magSqr < 0.5f && false == rc->sprites[i].isBackwards)
                 {
+                    // walk backwards instead
                     rc->sprites[i].dirX = -rc->sprites[i].dirX;
                     rc->sprites[i].dirY = -rc->sprites[i].dirY;
                     rc->sprites[i].isBackwards = true;
                 }
+                // If the sprite is far enough away and walking backwards
                 else if(magSqr > 1.5f && true == rc->sprites[i].isBackwards)
                 {
+                    // Walk forwards again
                     rc->sprites[i].dirX = -rc->sprites[i].dirX;
                     rc->sprites[i].dirY = -rc->sprites[i].dirY;
                     rc->sprites[i].isBackwards = false;
                 }
 
-                // Move backwards if too close
+                // Find the new position
                 float newPosX = rc->sprites[i].posX + (rc->sprites[i].dirX * moveSpeed);
                 float newPosY = rc->sprites[i].posY + (rc->sprites[i].dirY * moveSpeed);
 
@@ -1493,30 +1572,28 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                 int newPosXi = newPosX;
                 int newPosYi = newPosY;
 
-                // Make sure the new position is in bounds
+                // Make sure the new position is in bounds, assume invalid
                 bool moveIsValid = false;
-                if(     (0 <= newPosXi && newPosXi < mapWidth) &&
-                        (0 <= newPosYi && newPosYi < mapHeight) &&
-                        // And that it's not occupied by a wall
+                if(     (0 <= newPosXi && newPosXi < MAP_WIDTH) &&
+                        (0 <= newPosYi && newPosYi < MAP_HEIGHT) &&
+                        // And that it's not occupied by a wall or column
                         (worldMap[newPosXi][newPosYi] > WMT_C))
                 {
+                    // In bounds, so it's valid so far
+                    moveIsValid = true;
+
                     // Make sure the new square is unoccupied
-                    bool newSquareOccupied = false;
                     for(uint8_t oth = 0; oth < NUM_SPRITES; oth++)
                     {
-                        if(oth != i && rc->sprites[oth].posX > 0)
+                        // If some other sprite is in the new square
+                        if((oth != i) &&
+                                (int)rc->sprites[oth].posX == newPosXi &&
+                                (int)rc->sprites[oth].posY == newPosYi )
                         {
-                            if(     (int)rc->sprites[oth].posX == newPosXi &&
-                                    (int)rc->sprites[oth].posY == newPosYi )
-                            {
-                                newSquareOccupied = true;
-                                break;
-                            }
+                            // Occupied, so this move is invalid
+                            moveIsValid = false;
+                            break;
                         }
-                    }
-                    if(false == newSquareOccupied)
-                    {
-                        moveIsValid = true;
                     }
                 }
 
@@ -1551,10 +1628,14 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                     // Check if the sprite can still see the player
                     if(checkLineToPlayer(&rc->sprites[i], rc->posX, rc->posY))
                     {
+                        // If it can, the player got shot
                         rc->health--;
                         rc->gotShotTimer = LED_ON_TIME;
+
+                        // If the player is out of health
                         if(rc->health == 0)
                         {
+                            // End the round
                             raycasterEndRound();
                         }
                     }
@@ -1599,6 +1680,12 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
  * Use DDA to draw a line between the player and a sprite, and check if there
  * are any walls between the two. This line drawing algorithm is the same one
  * used to cast rays from the player to walls
+ *
+ * @param sprite The sprite to draw a line from
+ * @param pX     The player's X position
+ * @param pY     The player's Y position
+ * @return true  if there is a clear line between the player and sprite,
+ *         false if there is an obstruction
  */
 bool ICACHE_FLASH_ATTR checkLineToPlayer(raySprite_t* sprite, float pX, float pY)
 {
@@ -1703,6 +1790,7 @@ bool ICACHE_FLASH_ATTR checkLineToPlayer(raySprite_t* sprite, float pX, float pY
 void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
 {
     // See if the sprite had been in a walking state
+    // When transitioning between 'walking' states, don't reset texture indices
     bool wasWalking;
     switch(sprite->state)
     {
@@ -1723,7 +1811,7 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
         }
     }
 
-    // Set the state
+    // Set the state, reset the texture frame
     sprite->state = state;
     sprite->texFrame = 0;
 
@@ -1735,10 +1823,13 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
         case E_PICK_DIR_PLAYER:
         case E_PICK_DIR_RAND:
         {
+            // These state are transient, so the timer is 0
             sprite->stateTimer = 0;
+            // If the sprite wasn't walking before, or isn't initialized
             if(!wasWalking || NULL == sprite->texture)
             {
-                sprite->texture = rc->impWalk[0];
+                // Set up the walking texture
+                sprite->texture = rc->walk[0];
                 sprite->mirror = false;
                 sprite->texTimer = 0;
             }
@@ -1746,10 +1837,13 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
         }
         case E_WALKING:
         {
+            // Walk for WALK_ANIM_TIME
             sprite->stateTimer = WALK_ANIM_TIME;
+            // If the sprite wasn't walking before, or isn't initialized
             if(!wasWalking || NULL == sprite->texture)
             {
-                sprite->texture = rc->impWalk[0];
+                // Set up the walking texture
+                sprite->texture = rc->walk[0];
                 sprite->mirror = false;
                 sprite->texTimer = STEP_ANIM_TIME;
             }
@@ -1757,6 +1851,7 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
         }
         case E_SHOOTING:
         {
+            // Set up the shooting texture
             sprite->stateTimer = SHOOTING_ANIM_TIME;
             sprite->texture = rc->s1;
             sprite->texTimer = SHOOTING_ANIM_TIME;
@@ -1764,6 +1859,7 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
         }
         case E_GOT_SHOT:
         {
+            // Set up the got shot texture
             sprite->stateTimer = GOT_SHOT_ANIM_TIME;
             sprite->texture = rc->d1;
             sprite->texTimer = GOT_SHOT_ANIM_TIME;
@@ -1771,12 +1867,17 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
         }
         case E_DEAD:
         {
+            // If the sprite is dead, decrement live sprite and increment kills
             rc->liveSprites--;
             rc->kills++;
+            // If there are no sprites left
             if(0 == rc->liveSprites)
             {
+                // End the round
                 raycasterEndRound();
             }
+
+            // ALso set up the corpse texture
             sprite->stateTimer = 0;
             sprite->texture = rc->d3;
             sprite->texTimer = 0;
@@ -1789,7 +1890,7 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
  */
 void ICACHE_FLASH_ATTR drawHUD(void)
 {
-    // Figure out widths for note display
+    // Figure out width for note display
     char notes[8] = {0};
     ets_snprintf(notes, sizeof(notes) - 1, "%d", rc->liveSprites);
     int16_t noteWidth = textWidth(notes, IBM_VGA_8);
@@ -1808,7 +1909,7 @@ void ICACHE_FLASH_ATTR drawHUD(void)
              OLED_HEIGHT - FONT_HEIGHT_IBMVGA8,
              notes, IBM_VGA_8, WHITE);
 
-    // Figure out widths for health display
+    // Figure out width for health display
     char health[8] = {0};
     ets_snprintf(health, sizeof(health) - 1, "%d", rc->health);
     int16_t healthWidth = textWidth(health, IBM_VGA_8);
@@ -1831,6 +1932,7 @@ void ICACHE_FLASH_ATTR drawHUD(void)
     // Draw Guitar
     if(0 == rc->shotCooldown)
     {
+        // This is just the 0th frame, not shooting
         drawPngSequence(&(rc->gtr),
                         (OLED_WIDTH - rc->gtr.handles->width) / 2,
                         (OLED_HEIGHT - rc->gtr.handles->height),
@@ -1838,11 +1940,14 @@ void ICACHE_FLASH_ATTR drawHUD(void)
     }
     else
     {
+        // Get the frame index from the shotCooldown count
         int8_t idx = (rc->gtr.count * (PLAYER_SHOT_COOLDOWN - rc->shotCooldown)) / PLAYER_SHOT_COOLDOWN;
+        // Make sure this is in bounds
         if(idx >= rc->gtr.count)
         {
             idx = rc->gtr.count - 1;
         }
+        // Draw the guitar frame
         drawPngSequence(&(rc->gtr),
                         (OLED_WIDTH - rc->gtr.handles->width) / 2,
                         (OLED_HEIGHT - rc->gtr.handles->height),
@@ -1868,13 +1973,17 @@ void ICACHE_FLASH_ATTR raycasterEndRound(void)
 
 /**
  * Display the time elapsed and number of kills
+ *
+ * @param tElapsedUs Time elapsed since the last call
  */
 void ICACHE_FLASH_ATTR raycasterDrawRoundOver(uint32_t tElapsedUs)
 {
+    // Break down the elapsed time in microseconds to human readable numbers
     uint32_t dSec = (rc->tRoundElapsed / 100000) % 10;
     uint32_t sec  = (rc->tRoundElapsed / 1000000) % 60;
     uint32_t min  = (rc->tRoundElapsed / (1000000 * 60));
 
+    // Create the time and kills string
     char timestr[64] = {0};
     ets_snprintf(timestr, sizeof(timestr), "Time: %02d:%02d.%d", min, sec, dSec);
     char killstr[64] = {0};
@@ -1882,7 +1991,7 @@ void ICACHE_FLASH_ATTR raycasterDrawRoundOver(uint32_t tElapsedUs)
 
     clearDisplay();
 
-    // Plot a title
+    // Plot a title depending on if all enemies were killed or not
     uint16_t width;
     if(rc->liveSprites > 0)
     {
@@ -1914,7 +2023,6 @@ void ICACHE_FLASH_ATTR raycasterDrawRoundOver(uint32_t tElapsedUs)
     {
         rc->shotCooldown = 0;
     }
-
     drawHUD();
 }
 
@@ -1968,20 +2076,20 @@ void ICACHE_FLASH_ATTR raycasterDrawScores(void)
     {
         case RC_EASY:
         {
-            uint16_t width = textWidth("Easy", RADIOSTARS);
-            plotText((OLED_WIDTH - width) / 2, 0, "Easy", RADIOSTARS, WHITE);
+            uint16_t width = textWidth(rc_easy, RADIOSTARS);
+            plotText((OLED_WIDTH - width) / 2, 0, rc_easy, RADIOSTARS, WHITE);
             break;
         }
         case RC_MED:
         {
-            uint16_t width = textWidth("Medium", RADIOSTARS);
-            plotText((OLED_WIDTH - width) / 2, 0, "Medium", RADIOSTARS, WHITE);
+            uint16_t width = textWidth(rc_med, RADIOSTARS);
+            plotText((OLED_WIDTH - width) / 2, 0, rc_med, RADIOSTARS, WHITE);
             break;
         }
         case RC_HARD:
         {
-            uint16_t width = textWidth("Hard", RADIOSTARS);
-            plotText((OLED_WIDTH - width) / 2, 0, "Hard", RADIOSTARS, WHITE);
+            uint16_t width = textWidth(rc_hard, RADIOSTARS);
+            plotText((OLED_WIDTH - width) / 2, 0, rc_hard, RADIOSTARS, WHITE);
             break;
         }
         case RC_NUM_DIFFICULTIES:
