@@ -3,9 +3,16 @@
 #include "bresenham.h"
 #include "font.h"
 
+typedef enum
+{
+    UPPERCASE,
+    LOWERCASE,
+    DONECASE
+} letterCase_t;
+
 static int telen;
 static char* testring;
-static uint8_t uppercase;
+static letterCase_t uppercase;
 static int8_t selx;
 static int8_t sely;
 static char selchar;
@@ -21,7 +28,7 @@ void ICACHE_FLASH_ATTR textEntryStart( int max_len, char* buffer )
 {
     telen = max_len;
     testring = buffer;
-    uppercase = 0;
+    uppercase = LOWERCASE;
     testring[0] = 0;
     showCursor = true;
     timerSetFn(&cursorTimer, blinkCursor, NULL);
@@ -35,11 +42,9 @@ void ICACHE_FLASH_ATTR textEntryEnd( void )
 
 #define KB_LINES 5
 
-//WARNING: NO TILDE OR {}
-
 static const char* keyboard_upper = "\
-`!@#$%^&*()_+\x03\x05\
-\x09QWERTYUIOP[]|\x05\
+~!@#$%^&*()_+\x03\x05\
+\x09QWERTYUIOP{}|\x05\
 \002ASDFGHJKL:\"\x0a\x05\
 \x01ZXCVBNM<>?\x01\x05\x04";
 
@@ -74,15 +79,37 @@ bool ICACHE_FLASH_ATTR textEntryDraw()
         plotLine(endPos + 1, 2, endPos + 1, 2 + FONT_HEIGHT_IBMVGA8 - 1, WHITE);
     }
 
-    if( uppercase == 3 )
+    if( uppercase == DONECASE )
     {
         return false;
+    }
+
+    switch(uppercase)
+    {
+        case UPPERCASE:
+        {
+            int8_t width = textWidth("Upper", TOM_THUMB);
+            plotText(OLED_WIDTH - width, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 2, "Upper", TOM_THUMB, WHITE);
+            break;
+        }
+        case LOWERCASE:
+        {
+            int8_t width = textWidth("Lower", TOM_THUMB);
+            plotText(OLED_WIDTH - width, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 2, "Lower", TOM_THUMB, WHITE);
+            plotLine(OLED_WIDTH - width, OLED_HEIGHT - 1, OLED_WIDTH - 1, OLED_HEIGHT - 1, WHITE);
+            break;
+        }
+        default:
+        case DONECASE:
+        {
+            break;
+        }
     }
 
     int x = 0;
     int y = 0;
     char c;
-    const char* s = uppercase ? keyboard_upper : keyboard_lower;
+    const char* s = (uppercase == UPPERCASE) ? keyboard_upper : keyboard_lower;
     while( (c = *s) )
     {
         if( c == 5 )
@@ -101,40 +128,54 @@ bool ICACHE_FLASH_ATTR textEntryDraw()
             switch( c )
             {
                 case 1: //Shift
+                {
                     plotLine( posx, posy + 4, posx + 2, posy + 4, WHITE );
                     plotLine( posx + 1, posy + 4, posx + 1, posy, WHITE );
                     plotLine( posx + 1, posy, posx + 3, posy + 2, WHITE );
                     plotLine( posx + 1, posy, posx - 1, posy + 2, WHITE );
                     break;
+                }
                 case 2: //Capslock
+                {
                     plotLine( posx, posy + 4, posx + 2, posy + 4, WHITE );
                     plotLine( posx + 1, posy + 4, posx + 1, posy, WHITE );
                     plotLine( posx + 1, posy, posx + 3, posy + 2, WHITE );
                     plotLine( posx + 1, posy, posx - 1, posy + 2, WHITE );
                     break;
+                }
                 case 3: //Backspace
+                {
                     plotLine( posx, posy + 3, posx + 4, posy + 3, WHITE );
                     plotLine( posx, posy + 3, posx + 2, posy + 1, WHITE );
                     plotLine( posx, posy + 3, posx + 2, posy + 5, WHITE );
                     break;
+                }
                 case 4:
+                {
                     plotLine( posx + 1, posy + 5, posx + 36, posy + 5, WHITE );
                     width = 40;
                     break;
+                }
                 case 9:
+                {
                     plotLine( posx, posy + 3, posx + 4, posy + 3, WHITE );
                     plotLine( posx + 4, posy + 3, posx + 2, posy + 1, WHITE );
                     plotLine( posx + 4, posy + 3, posx + 2, posy + 5, WHITE );
                     plotLine( posx, posy + 1, posx, posy + 5, WHITE );
                     break;
+                }
                 case 10:
+                {
                     //plotLine( posx, posy, posx+1, posy+5, WHITE );
                     //plotLine( posx+1, posy+5, posx+3, posy+3, WHITE );
                     plotText( posx, posy, "OK", TOM_THUMB, WHITE);
                     width = 9;
                     break;
+                }
                 default:
+                {
                     plotText( posx, posy, sts, TOM_THUMB, WHITE);
+                }
             }
             if( x == selx && y == sely )
             {
@@ -155,7 +196,7 @@ bool ICACHE_FLASH_ATTR textEntryInput( uint8_t down, uint8_t button )
     {
         return true;
     }
-    if( uppercase == 3 )
+    if( uppercase == DONECASE )
     {
         return false;
     }
@@ -165,49 +206,75 @@ bool ICACHE_FLASH_ATTR textEntryInput( uint8_t down, uint8_t button )
         switch( selchar )
         {
             case 10:    //Done.
-                uppercase = 3;
+            {
+                uppercase = DONECASE;
                 return false;
+            }
             case 1:
             case 2: //Shift or caps
-                uppercase = uppercase ? 0 : selchar;
+            {
+                if(LOWERCASE == uppercase)
+                {
+                    uppercase = UPPERCASE;
+                }
+                else
+                {
+                    uppercase = LOWERCASE;
+                }
                 break;
+            }
             case 3: //backspace.
+            {
                 if(sl > 0)
                 {
                     testring[sl - 1] = 0;
+                    sl--;
                 }
                 break;
+            }
             default:
+            {
                 if( sl < telen - 1 )
                 {
                     testring[sl + 1] = 0;
                     testring[sl] = selchar;
 
-                    if( uppercase == 1 )
+                    if( uppercase == UPPERCASE )
                     {
-                        uppercase = 0;
+                        uppercase = LOWERCASE;
                     }
                 }
                 break;
+            }
         }
     }
 
     switch( button )
     {
         case 0: //Left?
+        {
             selx--;
             break;
+        }
         case 1: //Down
+        {
             sely++;
             break;
+        }
         case 2: //Right?
+        {
             selx++;
             break;
+        }
         case 3: //Up
+        {
             sely--;
             break;
+        }
         default:
+        {
             break;
+        }
     }
     if( sely < 0 )
     {
