@@ -5,14 +5,15 @@
 
 typedef enum
 {
-    UPPERCASE,
-    LOWERCASE,
-    DONECASE
-} letterCase_t;
+    NO_SHIFT,
+    SHIFT,
+    CAPS_LOCK,
+    SPECIAL_DONE
+} keyModifier_t;
 
 static int telen;
 static char* testring;
-static letterCase_t uppercase;
+static keyModifier_t keymod;
 static int8_t selx;
 static int8_t sely;
 static char selchar;
@@ -28,7 +29,7 @@ void ICACHE_FLASH_ATTR textEntryStart( int max_len, char* buffer )
 {
     telen = max_len;
     testring = buffer;
-    uppercase = LOWERCASE;
+    keymod = NO_SHIFT;
     testring[0] = 0;
     showCursor = true;
     timerSetFn(&cursorTimer, blinkCursor, NULL);
@@ -68,7 +69,7 @@ bool ICACHE_FLASH_ATTR textEntryDraw()
         cs[0] = c;
         cs[1] = 0;
         endPos = plotText( 3 + i * 8, 2, cs, IBM_VGA_8, WHITE);
-        if( c >= 'a' && c <= 'z' )
+        if( c >= 'A' && c <= 'Z' )
         {
             plotLine( 2 + i * 8, 13, 10 + i * 8, 13, WHITE );
         }
@@ -79,28 +80,35 @@ bool ICACHE_FLASH_ATTR textEntryDraw()
         plotLine(endPos + 1, 2, endPos + 1, 2 + FONT_HEIGHT_IBMVGA8 - 1, WHITE);
     }
 
-    if( uppercase == DONECASE )
+    if( keymod == SPECIAL_DONE )
     {
         return false;
     }
 
-    switch(uppercase)
+    switch(keymod)
     {
-        case UPPERCASE:
+        case SHIFT:
         {
             int8_t width = textWidth("Upper", TOM_THUMB);
             plotText(OLED_WIDTH - width, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 2, "Upper", TOM_THUMB, WHITE);
+            plotLine(OLED_WIDTH - width, OLED_HEIGHT - 1, OLED_WIDTH - 1, OLED_HEIGHT - 1, WHITE);
             break;
         }
-        case LOWERCASE:
+        case NO_SHIFT:
         {
             int8_t width = textWidth("Lower", TOM_THUMB);
             plotText(OLED_WIDTH - width, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 2, "Lower", TOM_THUMB, WHITE);
+            break;
+        }
+        case CAPS_LOCK:
+        {
+            int8_t width = textWidth("CAPS LOCK", TOM_THUMB);
+            plotText(OLED_WIDTH - width, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 2, "CAPS LOCK", TOM_THUMB, WHITE);
             plotLine(OLED_WIDTH - width, OLED_HEIGHT - 1, OLED_WIDTH - 1, OLED_HEIGHT - 1, WHITE);
             break;
         }
         default:
-        case DONECASE:
+        case SPECIAL_DONE:
         {
             break;
         }
@@ -109,7 +117,7 @@ bool ICACHE_FLASH_ATTR textEntryDraw()
     int x = 0;
     int y = 0;
     char c;
-    const char* s = (uppercase == UPPERCASE) ? keyboard_upper : keyboard_lower;
+    const char* s = (keymod == NO_SHIFT) ? keyboard_lower : keyboard_upper;
     while( (c = *s) )
     {
         if( c == 5 )
@@ -196,7 +204,7 @@ bool ICACHE_FLASH_ATTR textEntryInput( uint8_t down, uint8_t button )
     {
         return true;
     }
-    if( uppercase == DONECASE )
+    if( keymod == SPECIAL_DONE )
     {
         return false;
     }
@@ -207,19 +215,23 @@ bool ICACHE_FLASH_ATTR textEntryInput( uint8_t down, uint8_t button )
         {
             case 10:    //Done.
             {
-                uppercase = DONECASE;
+                keymod = SPECIAL_DONE;
                 return false;
             }
             case 1:
             case 2: //Shift or caps
             {
-                if(LOWERCASE == uppercase)
+                if(NO_SHIFT == keymod)
                 {
-                    uppercase = UPPERCASE;
+                    keymod = SHIFT;
+                }
+                else if(SHIFT == keymod)
+                {
+                    keymod = CAPS_LOCK;
                 }
                 else
                 {
-                    uppercase = LOWERCASE;
+                    keymod = NO_SHIFT;
                 }
                 break;
             }
@@ -239,9 +251,9 @@ bool ICACHE_FLASH_ATTR textEntryInput( uint8_t down, uint8_t button )
                     testring[sl + 1] = 0;
                     testring[sl] = selchar;
 
-                    if( uppercase == UPPERCASE )
+                    if( keymod == SHIFT )
                     {
-                        uppercase = LOWERCASE;
+                        keymod = NO_SHIFT;
                     }
                 }
                 break;
