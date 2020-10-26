@@ -185,9 +185,13 @@ static void ICACHE_FLASH_ATTR rssi_scan_done_cb(void *bss_struct, STATUS status)
 		struct bss_info *bss = (struct bss_info *) bss_struct;
 		int i = 0;
 		while (bss != 0 && i < MAX_SCAN){
-			ets_sprintf( rssi->scanssids[i], "%2d%c%d ", bss->channel, (bss->authmode==AUTH_OPEN)?'S':'*', bss->rssi );
-			ets_memcpy( rssi->scanssids[i]+7, bss->ssid, bss->ssid_len );
-			rssi->scanssids[i][bss->ssid_len+7] = 0;
+			ets_sprintf( rssi->scanssids[i], "%2d%c%d ",
+				bss->channel,
+				(bss->authmode==AUTH_OPEN)?'S':'*',
+				bss->rssi );
+			uint8_t prefixLen = strlen(rssi->scanssids[i]);
+			ets_memcpy( &(rssi->scanssids[i][prefixLen]), bss->ssid, bss->ssid_len );
+			rssi->scanssids[i][bss->ssid_len + prefixLen] = 0;
 			bss = STAILQ_NEXT(bss, next);
 			i++;
 		}
@@ -256,7 +260,7 @@ static void ICACHE_FLASH_ATTR rssiMenuCb(const char* menuItem)
 			ets_strcpy( rssi->connectssid, menuItem + 7 );
 			rssi->mode = RSSI_PASSWORD_ENTER;
 		}
-		if( menuItem[2] == ' ' )
+		if( menuItem[2] == '*' )
 		{
 			os_printf( "Connect to SSID %s\n", menuItem+4 );
 	        rssi->mode = RSSI_STATION;

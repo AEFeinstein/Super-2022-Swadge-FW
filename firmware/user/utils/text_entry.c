@@ -60,7 +60,6 @@ bool ICACHE_FLASH_ATTR textEntryDraw()
 	int y = 0;
 	char c;
 	const char * s = uppercase?keyboard_upper:keyboard_lower;
-	os_printf( "%d %c\n", uppercase, s[0] );
 	while( (c = *s) )
 	{
 		if( c == 5 )

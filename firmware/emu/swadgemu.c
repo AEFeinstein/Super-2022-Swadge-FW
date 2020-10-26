@@ -1431,6 +1431,13 @@ sint8 wifi_station_get_rssi(void)
 bool wifi_station_scan(struct scan_config *config, scan_done_cb_t cb)
 {
     fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    struct bss_info bss = {0};
+    bss.channel = 11;
+    bss.authmode = AUTH_OPEN;
+    bss.rssi = 0;
+    ets_strcpy((char*)(&bss.ssid[0]), "DUMMY_SSID");
+    bss.ssid_len = strlen("DUMMY_SSID");
+    cb(&bss, OK);
     return true;
 }
 
