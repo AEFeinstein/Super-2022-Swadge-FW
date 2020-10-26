@@ -35,6 +35,11 @@ int16_t ICACHE_FLASH_ATTR plotChar(int16_t x, int16_t y,
         {
             character = (char) (character - 'a' + 'A');
         }
+        else if(character >= '{')
+        {
+            // These usually come after lowercase, but lowercase doesn't exist
+            character = '`' + 1 + (character - '{');
+        }
         return plotSprite(x, y, &table[character - ' '], col);
     }
     return x;
