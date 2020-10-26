@@ -39,6 +39,7 @@
 #include "mode_flappy.h"
 #include "mode_flight.h"
 #include "mode_raycaster.h"
+#include "mode_rssi.h"
 #include "mode_tunernome.h"
 #include "mode_selftest.h"
 
@@ -79,6 +80,7 @@ swadgeMode* swadgeModes[] =
     &menuMode,
     &raycasterMode,
     &flappyMode,
+    &rssiMode,
     &flightMode,
     &personalDemonMode,
     &ddrMode,
@@ -197,6 +199,9 @@ void ICACHE_FLASH_ATTR user_init(void)
             INIT_PRINTF( "Booting in ESP-NOW\n" );
             break;
         }
+        case WIFI_REGULAR:
+            //App will control mode.
+            break;
         default:
         case NO_WIFI:
         {
@@ -490,6 +495,11 @@ void ExitCritical(void)
                 espNowDeinit();
                 break;
             }
+            case WIFI_REGULAR:
+            {
+                wifi_set_opmode( NULL_MODE );
+                break;
+            }
             default:
             case NO_WIFI:
             {
@@ -560,6 +570,7 @@ void ICACHE_FLASH_ATTR enterDeepSleep(wifiMode_t wifiMode, uint32_t timeUs)
             system_deep_sleep_instant(timeUs);
             break;
         }
+        case WIFI_REGULAR:
         case ESP_NOW:
         {
             // Radio calibration is done after deep-sleep wake up; this increases

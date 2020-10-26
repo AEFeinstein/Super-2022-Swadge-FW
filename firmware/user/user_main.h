@@ -42,7 +42,8 @@ typedef enum
 {
     NO_WIFI,
     ESP_NOW,
-    SWADGE_PASS
+    SWADGE_PASS,
+    WIFI_REGULAR,
 } wifiMode_t;
 
 typedef enum
