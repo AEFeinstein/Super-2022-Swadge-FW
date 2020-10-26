@@ -145,9 +145,9 @@ bool ICACHE_FLASH_ATTR textEntryDraw()
                 }
                 case 3: //Backspace
                 {
-                    plotLine( posx, posy + 3, posx + 4, posy + 3, WHITE );
-                    plotLine( posx, posy + 3, posx + 2, posy + 1, WHITE );
-                    plotLine( posx, posy + 3, posx + 2, posy + 5, WHITE );
+                    plotLine( posx - 1, posy + 2, posx + 3, posy + 2, WHITE );
+                    plotLine( posx - 1, posy + 2, posx + 1, posy + 0, WHITE );
+                    plotLine( posx - 1, posy + 2, posx + 1, posy + 4, WHITE );
                     break;
                 }
                 case 4:
@@ -156,12 +156,12 @@ bool ICACHE_FLASH_ATTR textEntryDraw()
                     width = 40;
                     break;
                 }
-                case 9:
+                case 9: // tab
                 {
-                    plotLine( posx, posy + 3, posx + 4, posy + 3, WHITE );
-                    plotLine( posx + 4, posy + 3, posx + 2, posy + 1, WHITE );
-                    plotLine( posx + 4, posy + 3, posx + 2, posy + 5, WHITE );
-                    plotLine( posx, posy + 1, posx, posy + 5, WHITE );
+                    plotLine( posx - 1, posy + 2, posx + 3, posy + 2, WHITE );
+                    plotLine( posx + 3, posy + 2, posx + 1, posy + 0, WHITE );
+                    plotLine( posx + 3, posy + 2, posx + 1, posy + 4, WHITE );
+                    plotLine( posx - 1, posy + 0, posx - 1, posy + 4, WHITE );
                     break;
                 }
                 case 10:
