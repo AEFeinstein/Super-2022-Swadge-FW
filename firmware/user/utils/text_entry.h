@@ -8,7 +8,7 @@ void ICACHE_FLASH_ATTR textEntryStart( int max_len, char * buffer );
 void ICACHE_FLASH_ATTR textEntryEnd( void );
 
 //Returns false if text entry complete.
-bool ICACHE_FLASH_ATTR textEntryDraw();
+bool ICACHE_FLASH_ATTR textEntryDraw(void);
 bool ICACHE_FLASH_ATTR textEntryInput( uint8_t down, uint8_t button );
 
 #endif

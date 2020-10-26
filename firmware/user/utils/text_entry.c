@@ -20,7 +20,9 @@ static char selchar;
 timer_t cursorTimer;
 bool showCursor;
 
-void ICACHE_FLASH_ATTR blinkCursor(void* arg)
+void ICACHE_FLASH_ATTR blinkCursor(void* arg);
+
+void ICACHE_FLASH_ATTR blinkCursor(void* arg __attribute__((unused)))
 {
     showCursor = !showCursor;
 }
@@ -57,7 +59,7 @@ static const char* keyboard_lower = "\
 
 static const uint8_t lengthperline[] RODATA_ATTR = { 14, 14, 13, 12, 1 };
 
-bool ICACHE_FLASH_ATTR textEntryDraw()
+bool ICACHE_FLASH_ATTR textEntryDraw(void)
 {
     clearDisplay();
 
