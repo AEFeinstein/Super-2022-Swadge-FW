@@ -189,7 +189,7 @@ static void ICACHE_FLASH_ATTR rssi_scan_done_cb(void *bss_struct, STATUS status)
 				bss->channel,
 				(bss->authmode==AUTH_OPEN)?'S':'*',
 				bss->rssi );
-			uint8_t prefixLen = strlen(rssi->scanssids[i]);
+			uint8_t prefixLen = ets_strlen(rssi->scanssids[i]);
 			ets_memcpy( &(rssi->scanssids[i][prefixLen]), bss->ssid, bss->ssid_len );
 			rssi->scanssids[i][bss->ssid_len + prefixLen] = 0;
 			bss = STAILQ_NEXT(bss, next);
@@ -440,10 +440,11 @@ void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
 		case RSSI_PASSWORD_ENTER:
 			if( !textEntryInput( down, button ) )
 			{
+				textEntryEnd();
 			    rssi->mode = RSSI_STATION;
 				wifi_set_opmode_current( STATION_MODE );
 				struct station_config sc;
-				os_printf( "Connectiong to \"%s\" password \"%s\"\n", rssi->connectssid, rssi->password );
+				os_printf( "Connecting to \"%s\" password \"%s\"\n", rssi->connectssid, rssi->password );
 				ets_memset( (char*)&sc, 0, sizeof(sc) );
 				ets_strcpy( (char*)sc.password, rssi->password );
 				ets_strcpy( (char*)sc.ssid, rssi->connectssid);

@@ -9,6 +9,13 @@ static uint8_t uppercase;
 static int8_t selx;
 static int8_t sely;
 static char selchar;
+timer_t cursorTimer;
+bool showCursor;
+
+void ICACHE_FLASH_ATTR blinkCursor(void* arg)
+{
+    showCursor = !showCursor;
+}
 
 void ICACHE_FLASH_ATTR textEntryStart( int max_len, char* buffer )
 {
@@ -16,6 +23,14 @@ void ICACHE_FLASH_ATTR textEntryStart( int max_len, char* buffer )
     testring = buffer;
     uppercase = 0;
     testring[0] = 0;
+    showCursor = true;
+    timerSetFn(&cursorTimer, blinkCursor, NULL);
+    timerArm(&cursorTimer, 500, true);
+}
+
+void ICACHE_FLASH_ATTR textEntryEnd( void )
+{
+    timerDisarm(&cursorTimer);
 }
 
 #define KB_LINES 5
@@ -40,20 +55,23 @@ bool ICACHE_FLASH_ATTR textEntryDraw()
 {
     clearDisplay();
 
+    int16_t endPos = 0;
+    for(int i = 0; testring[i]; i++ )
     {
-        int i;
-        for( i = 0; testring[i]; i++ )
+        char c = testring[i];
+        char cs[2];
+        cs[0] = c;
+        cs[1] = 0;
+        endPos = plotText( 3 + i * 8, 2, cs, IBM_VGA_8, WHITE);
+        if( c >= 'a' && c <= 'z' )
         {
-            char c = testring[i];
-            char cs[2];
-            cs[0] = c;
-            cs[1] = 0;
-            plotText( 3 + i * 8, 2, cs, IBM_VGA_8, WHITE);
-            if( c >= 'a' && c <= 'z' )
-            {
-                plotLine( 2 + i * 8, 13, 10 + i * 8, 13, WHITE );
-            }
+            plotLine( 2 + i * 8, 13, 10 + i * 8, 13, WHITE );
         }
+    }
+
+    if(showCursor)
+    {
+        plotLine(endPos + 1, 2, endPos + 1, 2 + FONT_HEIGHT_IBMVGA8 - 1, WHITE);
     }
 
     if( uppercase == 3 )
@@ -70,7 +88,7 @@ bool ICACHE_FLASH_ATTR textEntryDraw()
         if( c == 5 )
         {
             x = 0;
-            y ++;
+            y++;
         }
         else
         {
@@ -209,5 +227,3 @@ bool ICACHE_FLASH_ATTR textEntryInput( uint8_t down, uint8_t button )
     }
     return true;
 }
-
-

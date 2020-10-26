@@ -5,6 +5,7 @@
 
 
 void ICACHE_FLASH_ATTR textEntryStart( int max_len, char * buffer );
+void ICACHE_FLASH_ATTR textEntryEnd( void );
 
 //Returns false if text entry complete.
 bool ICACHE_FLASH_ATTR textEntryDraw();
