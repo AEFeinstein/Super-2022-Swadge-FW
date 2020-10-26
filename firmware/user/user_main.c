@@ -168,7 +168,7 @@ void ICACHE_FLASH_ATTR user_init(void)
     // Compare the current git hash to the saved one
     char gitHash[32] = {0};
     getGitHash(gitHash);
-    if(0 != ets_strncmp(gitHash, GIT_HASH, strlen(GIT_HASH)))
+    if(0 != ets_strncmp(gitHash, GIT_HASH, ets_strlen(GIT_HASH)))
     {
         // If there's a difference, reset the self-test bool
         INIT_PRINTF("New flash to %s\n", GIT_HASH);

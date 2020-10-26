@@ -133,7 +133,7 @@ bool ICACHE_FLASH_ATTR textEntryInput( uint8_t down, uint8_t button )
 	if( uppercase == 3 ) return false;
 	if( button == 4 )
 	{
-		int sl = strlen(testring);
+		int sl = ets_strlen(testring);
 		switch( selchar )
 		{
 			case 10:	//Done.

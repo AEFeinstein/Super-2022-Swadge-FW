@@ -186,7 +186,7 @@ static void ICACHE_FLASH_ATTR rssi_scan_done_cb(void *bss_struct, STATUS status)
 		int i = 0;
 		while (bss != 0 && i < MAX_SCAN){
 			ets_sprintf( rssi->scanssids[i], "%2d%c%d ", bss->channel, (bss->authmode==AUTH_OPEN)?'S':'*', bss->rssi );
-			memcpy( rssi->scanssids[i]+7, bss->ssid, bss->ssid_len );
+			ets_memcpy( rssi->scanssids[i]+7, bss->ssid, bss->ssid_len );
 			rssi->scanssids[i][bss->ssid_len+7] = 0;
 			bss = STAILQ_NEXT(bss, next);
 			i++;
@@ -253,7 +253,7 @@ static void ICACHE_FLASH_ATTR rssiMenuCb(const char* menuItem)
 		if( menuItem[2] == 'S' )
 		{
 			textEntryStart( 32, rssi->password );
-			strcpy( rssi->connectssid, menuItem + 7 );
+			ets_strcpy( rssi->connectssid, menuItem + 7 );
 			rssi->mode = RSSI_PASSWORD_ENTER;
 		}
 		if( menuItem[2] == ' ' )
@@ -262,8 +262,8 @@ static void ICACHE_FLASH_ATTR rssiMenuCb(const char* menuItem)
 	        rssi->mode = RSSI_STATION;
 		    wifi_set_opmode_current( STATION_MODE );
 		    struct station_config sc;
-		    memset( (char*)&sc, 0, sizeof(sc) );
-		    os_memcpy( (char*)sc.ssid, menuItem+7, strlen(menuItem+7) );
+		    ets_memset( (char*)&sc, 0, sizeof(sc) );
+		    os_memcpy( (char*)sc.ssid, menuItem+7, ets_strlen(menuItem+7) );
 		    sc.all_channel_scan = 1;
 		    wifi_station_set_config( &sc );
 		    wifi_station_connect();
@@ -440,9 +440,9 @@ void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
 				wifi_set_opmode_current( STATION_MODE );
 				struct station_config sc;
 				os_printf( "Connectiong to \"%s\" password \"%s\"\n", rssi->connectssid, rssi->password );
-				memset( (char*)&sc, 0, sizeof(sc) );
-				strcpy( (char*)sc.password, rssi->password );
-				strcpy( (char*)sc.ssid, rssi->connectssid);
+				ets_memset( (char*)&sc, 0, sizeof(sc) );
+				ets_strcpy( (char*)sc.password, rssi->password );
+				ets_strcpy( (char*)sc.ssid, rssi->connectssid);
 				sc.all_channel_scan = 1;
 				wifi_station_set_config( &sc );
 				wifi_station_connect();
