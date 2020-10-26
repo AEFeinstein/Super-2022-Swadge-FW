@@ -379,6 +379,10 @@ int ets_strlen( const char* s )
 {
     return strlen( s );
 }
+char *ets_strcpy(char *dest, const char *src)
+{
+    return strcpy(dest, src);
+}
 char* ets_strncpy ( char* destination, const char* source, size_t num )
 {
     return strncpy( destination, source, num );
@@ -506,21 +510,6 @@ bool system_rtc_mem_read(uint8 src_addr, void* des_addr, uint16 load_size)
     fclose( f );
     return true;
 }
-
-uint8 wifi_opmode;
-
-bool wifi_set_opmode_current(uint8 opmode)
-{
-    wifi_opmode = opmode;
-    return true;
-}
-
-bool wifi_set_opmode(uint8 opmode )
-{
-    fprintf( stderr, "EMU Warning: TODO: wifi_set_opmode does not save wireless state\n" );
-    return true;
-}
-
 
 void ws2812_init()
 {
@@ -1196,12 +1185,6 @@ void ICACHE_FLASH_ATTR espNowSend(const uint8_t* data, uint8_t len)
 }
 
 
-bool wifi_get_macaddr(uint8 if_index, uint8* macaddr)
-{
-    fprintf( stderr, "EMU Warning: TODO: need to implement wifi_get_macaddr\n" );
-    return true;
-}
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //Deep sleep.  How do we want to handle it?
 
@@ -1400,3 +1383,65 @@ void HandleDestroy()
 }
 
 #endif
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+// Wifi Stubs
+
+bool wifi_get_macaddr(uint8 if_index, uint8* macaddr)
+{
+    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    return true;
+}
+
+bool wifi_set_opmode_current(uint8 opmode)
+{
+    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    return true;
+}
+
+bool wifi_set_opmode(uint8 opmode )
+{
+    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    return true;
+}
+
+bool wifi_station_set_config(struct station_config *config)
+{
+    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    return true;
+}
+
+bool wifi_station_connect(void)
+{
+    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    return true;
+}
+
+void wifi_enable_signaling_measurement(void)
+{
+    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+}
+
+sint8 wifi_station_get_rssi(void)
+{
+    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    return 0;
+}
+
+bool wifi_station_scan(struct scan_config *config, scan_done_cb_t cb)
+{
+    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    return true;
+}
+
+bool wifi_get_ip_info(uint8 if_index, struct ip_info *info)
+{
+    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    return true;
+}
+
+bool wifi_set_sleep_type(enum sleep_type type)
+{
+    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    return true;
+}
