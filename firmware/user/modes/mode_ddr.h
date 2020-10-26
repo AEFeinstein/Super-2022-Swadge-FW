@@ -12,8 +12,9 @@
 #include "user_main.h"
 extern swadgeMode ddrMode;
 
-typedef enum 
+typedef enum
 {
+    DDR_VERY_EASY,
     DDR_EASY,
     DDR_MEDIUM,
     DDR_HARD
@@ -28,15 +29,16 @@ typedef enum
     DDR_ALL_PERFECT
 } ddrWinType;
 
-typedef struct 
+typedef struct
 {
     ddrWinType winType;
     uint32_t score;
 } ddrWinResult_t;
 
 
-typedef struct 
+typedef struct
 {
+    ddrWinResult_t veryEasyWins[DDR_HIGHSCORE_LEN];
     ddrWinResult_t easyWins[DDR_HIGHSCORE_LEN];
     ddrWinResult_t mediumWins[DDR_HIGHSCORE_LEN];
     ddrWinResult_t hardWins[DDR_HIGHSCORE_LEN];

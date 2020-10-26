@@ -35,7 +35,7 @@ typedef struct
 volatile buttonEvt buttonQueue[NUM_BUTTON_EVTS] = {{0}};
 volatile uint8_t buttonEvtHead = 0;
 volatile uint8_t buttonEvtTail = 0;
-uint32_t lastButtonPress[5] = {0};
+uint32_t lastButtonPress[NUM_BUTTONS] = {0};
 bool debounceEnabled = true;
 
 /*============================================================================

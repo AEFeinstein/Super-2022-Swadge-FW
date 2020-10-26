@@ -52,7 +52,7 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
 static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR menuAnimateScreensaverLEDs(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__((unused)));
-void ICACHE_FLASH_ATTR stopScreensaver(void);
+bool ICACHE_FLASH_ATTR stopScreensaver(void);
 
 void ICACHE_FLASH_ATTR startPanning(bool pLeft);
 static void ICACHE_FLASH_ATTR menuPanImages(void* arg __attribute__((unused)));
@@ -86,6 +86,8 @@ typedef struct
     bool menuIsPanning;
     bool panningLeft;
     int16_t panIdx;
+
+    bool screensaverIsRunning;
 } mnu_t;
 
 /*============================================================================
@@ -192,7 +194,13 @@ void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down)
 {
     // Stop the screensaver
-    stopScreensaver();
+    if(stopScreensaver())
+    {
+        // Draw what's under the screensaver
+        drawGifFromAsset(mnu->curImg, 0, 0, false, false, 0, false);
+        // But don't process the button otherwise
+        return;
+    }
 
     // Don't accept button input if the menu is panning
     if(mnu->menuIsPanning)
@@ -232,6 +240,16 @@ void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
                 }
 
                 startPanning(false);
+                break;
+            }
+            case 1:
+            {
+                // TODO cycle dances
+                break;
+            }
+            case 3:
+            {
+                // TODO cycle dances
                 break;
             }
             default:
@@ -398,6 +416,8 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
 
     // Start a timer to turn the screensaver brighter
     timerArm(&mnu->timerScreensaverBright, 1000, false);
+
+    mnu->screensaverIsRunning = true;
 }
 
 /**
@@ -458,9 +478,9 @@ static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__
 
 /**
  * @brief Stop the screensaver and set it up to run again if idle
- *
+ * @return true if the screensaver had been running
  */
-void ICACHE_FLASH_ATTR stopScreensaver(void)
+bool ICACHE_FLASH_ATTR stopScreensaver(void)
 {
     // Stop the current screensaver
     timerDisarm(&mnu->timerScreensaverLEDAnimation);
@@ -472,10 +492,14 @@ void ICACHE_FLASH_ATTR stopScreensaver(void)
 #if SWADGE_VERSION != SWADGE_BBKIWI
     // Start a timer to start the screensaver if there's no input
     timerDisarm(&mnu->timerScreensaverStart);
-    timerArm(&mnu->timerScreensaverStart, 1000, false);
+    timerArm(&mnu->timerScreensaverStart, 3000, false);
 #endif
     // Stop this timer too
     timerDisarm(&mnu->timerScreensaverBright);
+
+    bool retVal = mnu->screensaverIsRunning;
+    mnu->screensaverIsRunning = false;
+    return retVal;
 }
 
 /**
