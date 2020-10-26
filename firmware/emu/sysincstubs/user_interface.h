@@ -198,7 +198,7 @@ uint8 wifi_get_opmode_default(void);
 bool wifi_set_opmode(uint8 opmode);
 bool wifi_set_opmode_current(uint8 opmode);
 uint8 wifi_get_broadcast_if(void);
-bool wifi_set_broadcast_if(uint8 interface);
+bool wifi_set_broadcast_if(uint8 _interface);
 
 struct bss_info {
     STAILQ_ENTRY(bss_info)     next;
@@ -462,7 +462,9 @@ enum {
     EVENT_SOFTAPMODE_PROBEREQRECVED,
     EVENT_OPMODE_CHANGED,
     EVENT_SOFTAPMODE_DISTRIBUTE_STA_IP,
+#if !defined(WINDOWS)
     EVENT_MAX
+#endif
 };
 
 enum {
