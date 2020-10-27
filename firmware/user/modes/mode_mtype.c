@@ -218,7 +218,8 @@ typedef struct
 
     timer_t updateTimer;
 
-    menu_t* menu;
+    menu_t* titleMenu;
+    menu_t* gameoverMenu;
 
     //TODO: every game related variable should be contained within this.
 } mType_t;
@@ -254,7 +255,9 @@ void ICACHE_FLASH_ATTR mtGameoverDisplay(void);
 // mode state management.
 void ICACHE_FLASH_ATTR mtSetState(mTypeState_t newState);
 
-static void ICACHE_FLASH_ATTR mtMenuCallback(const char* menuItem);
+// menu callbacks.
+static void ICACHE_FLASH_ATTR mtTitleMenuCallback(const char* menuItem);
+static void ICACHE_FLASH_ATTR mtGameoverMenuCallback(const char* menuItem);
 
 // input checking.
 bool ICACHE_FLASH_ATTR mtIsButtonPressed(uint8_t button);
@@ -305,6 +308,8 @@ static const char mt_title[]  = "M-TYPE";
 static const char mt_start[]  = "START";
 static const char mt_scores[] = "HIGH SCORES";
 static const char mt_quit[]   = "QUIT";
+static const char mt_gameover[] = "GAME OVER";
+static const char mt_restart[]  = "RESTART";
 
 /*============================================================================
  * Functions
@@ -335,15 +340,20 @@ void ICACHE_FLASH_ATTR mtEnterMode(void)
     mType->state = MT_TITLE;
     mtSetState(MT_TITLE);
 
-    // Init menu system.
-    mType->menu = initMenu(mt_title, mtMenuCallback); //TODO: input handler for menu?
-    addRowToMenu(mType->menu);
-    addItemToRow(mType->menu, mt_start);
-    addRowToMenu(mType->menu);
-    addItemToRow(mType->menu, mt_scores);
-    addRowToMenu(mType->menu);
-    addItemToRow(mType->menu, mt_quit);
-    drawMenu(mType->menu);
+    // Init title menu system.
+    mType->titleMenu = initMenu(mt_title, mtTitleMenuCallback);
+    addRowToMenu(mType->titleMenu);
+    addItemToRow(mType->titleMenu, mt_start);
+    addRowToMenu(mType->titleMenu);
+    addItemToRow(mType->titleMenu, mt_scores);
+    addRowToMenu(mType->titleMenu);
+    addItemToRow(mType->titleMenu, mt_quit);
+
+    mType->gameoverMenu = initMenu(mt_gameover, mtGameoverMenuCallback);
+    addRowToMenu(mType->gameoverMenu);
+    addItemToRow(mType->gameoverMenu, mt_restart);
+    addRowToMenu(mType->gameoverMenu);
+    addItemToRow(mType->gameoverMenu, mt_quit);
 
     // Start the update loop.
     timerDisarm(&(mType->updateTimer));
@@ -360,7 +370,8 @@ void ICACHE_FLASH_ATTR mtExitMode(void)
 {
     timerDisarm(&(mType->updateTimer));
     timerFlush();
-    deinitMenu(mType->menu);
+    deinitMenu(mType->titleMenu);
+    deinitMenu(mType->gameoverMenu);
     //clear(&mType->obstacles);
     // TODO: free and clear everything.
     os_free(mType);
@@ -376,7 +387,8 @@ void ICACHE_FLASH_ATTR mtExitMode(void)
 void ICACHE_FLASH_ATTR mtButtonCallback( uint8_t state, int button, int down )
 {
     mType->buttonState = state; // Set the state of all buttons
-    if (mType->state == MT_TITLE && down) menuButton(mType->menu, button); // Pass input to menu if appropriate.
+    if (mType->state == MT_TITLE && down) menuButton(mType->titleMenu, button); // Pass input to menu if appropriate.
+    if (mType->state == MT_GAMEOVER && down) menuButton(mType->gameoverMenu, button); // Pass input to menu if appropriate.
 }
 
 /**
@@ -622,7 +634,7 @@ void ICACHE_FLASH_ATTR mtTitleLogic(void)
 
 void ICACHE_FLASH_ATTR mtTitleDisplay(void)
 {
-    drawMenu(mType->menu);
+    drawMenu(mType->titleMenu);
 }
 
 void ICACHE_FLASH_ATTR mtGameInput(void)
@@ -1085,7 +1097,8 @@ void ICACHE_FLASH_ATTR mtGameoverLogic(void)
 
 void ICACHE_FLASH_ATTR mtGameoverDisplay(void)
 {
-
+    drawMenu(mType->gameoverMenu);
+    //mtGameDisplay();
 }
 
 /**
@@ -1093,7 +1106,7 @@ void ICACHE_FLASH_ATTR mtGameoverDisplay(void)
  *
  * @param menuItem
  */
-static void ICACHE_FLASH_ATTR mtMenuCallback(const char* menuItem)
+static void ICACHE_FLASH_ATTR mtTitleMenuCallback(const char* menuItem)
 {
     if (mt_start == menuItem)
     {
@@ -1104,6 +1117,20 @@ static void ICACHE_FLASH_ATTR mtMenuCallback(const char* menuItem)
     {
         // Change state to score screen.
         mtSetState(MT_SCORES);
+    }
+    else if (mt_quit == menuItem)
+    {
+        // Exit this swadge mode.
+        switchToSwadgeMode(0);
+    }
+}
+
+static void ICACHE_FLASH_ATTR mtGameoverMenuCallback(const char* menuItem)
+{
+    if (mt_restart == menuItem)
+    {
+        // Change state to start game.
+        mtSetState(MT_GAME);
     }
     else if (mt_quit == menuItem)
     {
