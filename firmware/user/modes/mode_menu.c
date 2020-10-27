@@ -16,6 +16,8 @@
 #include "mode_menu.h"
 #include "mode_dance.h"
 
+#include "printControl.h"
+
 /*============================================================================
  * Defines
  *==========================================================================*/
@@ -23,6 +25,8 @@
 #define MENU_PAN_PERIOD_MS 20
 #define MENU_PX_PER_PAN     8
 #define SQ_WAVE_LINE_LEN   16
+
+#define MNU_BUTTON_HIST_SIZE 8
 
 /*============================================================================
  * Enums
@@ -50,7 +54,7 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
 static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR menuAnimateScreensaverLEDs(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__((unused)));
-void ICACHE_FLASH_ATTR stopScreensaver(void);
+bool ICACHE_FLASH_ATTR stopScreensaver(void);
 
 void ICACHE_FLASH_ATTR startPanning(bool pLeft);
 static void ICACHE_FLASH_ATTR menuPanImages(void* arg __attribute__((unused)));
@@ -84,6 +88,10 @@ typedef struct
     bool menuIsPanning;
     bool panningLeft;
     int16_t panIdx;
+
+    bool screensaverIsRunning;
+
+    button_num buttonHist[MNU_BUTTON_HIST_SIZE];
 } mnu_t;
 
 /*============================================================================
@@ -102,6 +110,8 @@ swadgeMode menuMode =
 };
 
 mnu_t* mnu;
+
+static const button_num konami[MNU_BUTTON_HIST_SIZE] = {UP, UP, DOWN, DOWN, LEFT, RIGHT, LEFT, RIGHT};
 
 /*============================================================================
  * Swadge Mode Functions
@@ -189,8 +199,26 @@ void ICACHE_FLASH_ATTR menuExit(void)
 void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down)
 {
+    // Save in button history
+    if(down)
+    {
+        ets_memmove(&mnu->buttonHist[0], &mnu->buttonHist[1], sizeof(button_num) * (MNU_BUTTON_HIST_SIZE - 1));
+        mnu->buttonHist[MNU_BUTTON_HIST_SIZE - 1] = button;
+        if(0 == ets_memcmp(mnu->buttonHist, konami, sizeof(konami)))
+        {
+            switchToSwadgeMode(mnu->numModes + 1);
+            return;
+        }
+    }
+
     // Stop the screensaver
-    stopScreensaver();
+    if(stopScreensaver())
+    {
+        // Draw what's under the screensaver
+        drawGifFromAsset(mnu->curImg, 0, 0, false, false, 0, false);
+        // But don't process the button otherwise
+        return;
+    }
 
     // Don't accept button input if the menu is panning
     if(mnu->menuIsPanning)
@@ -230,6 +258,16 @@ void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
                 }
 
                 startPanning(false);
+                break;
+            }
+            case 1:
+            {
+                // TODO cycle dances
+                break;
+            }
+            case 3:
+            {
+                // TODO cycle dances
                 break;
             }
             default:
@@ -396,6 +434,8 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
 
     // Start a timer to turn the screensaver brighter
     timerArm(&mnu->timerScreensaverBright, 1000, false);
+
+    mnu->screensaverIsRunning = true;
 }
 
 /**
@@ -456,9 +496,9 @@ static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__
 
 /**
  * @brief Stop the screensaver and set it up to run again if idle
- *
+ * @return true if the screensaver had been running
  */
-void ICACHE_FLASH_ATTR stopScreensaver(void)
+bool ICACHE_FLASH_ATTR stopScreensaver(void)
 {
     // Stop the current screensaver
     timerDisarm(&mnu->timerScreensaverLEDAnimation);
@@ -474,6 +514,10 @@ void ICACHE_FLASH_ATTR stopScreensaver(void)
 #endif
     // Stop this timer too
     timerDisarm(&mnu->timerScreensaverBright);
+
+    bool retVal = mnu->screensaverIsRunning;
+    mnu->screensaverIsRunning = false;
+    return retVal;
 }
 
 /**

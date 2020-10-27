@@ -179,7 +179,7 @@ void emuSendOLEDData( int disp, uint8_t* currentFb )
             uint32_t pxcol;
             if( disp == 0 )
             {
-                uint8_t col = currentFb[(y + x * OLED_HEIGHT)/8] & (1 << (y & 7));
+                uint8_t col = currentFb[(y + x * OLED_HEIGHT) / 8] & (1 << (y & 7));
                 pxcol = col ? (disp ? 0xffffffff : OLED_ON_COLOR) : BACKGROUND_COLOR;
             }
             else
@@ -379,6 +379,10 @@ int ets_strlen( const char* s )
 {
     return strlen( s );
 }
+char *ets_strcpy(char *dest, const char *src)
+{
+    return strcpy(dest, src);
+}
 char* ets_strncpy ( char* destination, const char* source, size_t num )
 {
     return strncpy( destination, source, num );
@@ -507,21 +511,6 @@ bool system_rtc_mem_read(uint8 src_addr, void* des_addr, uint16 load_size)
     return true;
 }
 
-uint8 wifi_opmode;
-
-bool wifi_set_opmode_current(uint8 opmode)
-{
-    wifi_opmode = opmode;
-    return true;
-}
-
-bool wifi_set_opmode(uint8 opmode )
-{
-    fprintf( stderr, "EMU Warning: TODO: wifi_set_opmode does not save wireless state\n" );
-    return true;
-}
-
-
 void ws2812_init()
 {
 }
@@ -564,7 +553,18 @@ void ws2812_push( uint8_t* buffer, uint16_t buffersize )
 
 void* os_malloc( int x )
 {
-    return malloc( x );
+    // Allocate some space
+    void* ptr = malloc( x );
+    // Fill the pointer with garbage, ESP-style
+    if(NULL != ptr)
+    {
+        for( int i = 0; i < x; i++ )
+        {
+            ((uint8_t*)ptr)[i] = rand() & 0xff;
+        }
+    }
+    // Return the space
+    return ptr;
 }
 void* os_zalloc( int x )
 {
@@ -1162,6 +1162,12 @@ void system_os_check_tasks(void)
     }
 }
 
+/** Prints heap size for ESP, does nothing for EMU */
+uint32 system_get_free_heap_size(void)
+{
+    return 0;
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 void espNowInit(void)
@@ -1178,12 +1184,6 @@ void ICACHE_FLASH_ATTR espNowSend(const uint8_t* data, uint8_t len)
     fprintf( stderr, "EMU Warning: TODO: need to implement espNow as a broadcast UDP system\n" );
 }
 
-
-bool wifi_get_macaddr(uint8 if_index, uint8* macaddr)
-{
-    fprintf( stderr, "EMU Warning: TODO: need to implement wifi_get_macaddr\n" );
-    return true;
-}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //Deep sleep.  How do we want to handle it?
@@ -1383,3 +1383,72 @@ void HandleDestroy()
 }
 
 #endif
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+// Wifi Stubs
+
+bool wifi_get_macaddr(uint8 if_index, uint8* macaddr)
+{
+    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    return true;
+}
+
+bool wifi_set_opmode_current(uint8 opmode)
+{
+    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    return true;
+}
+
+bool wifi_set_opmode(uint8 opmode )
+{
+    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    return true;
+}
+
+bool wifi_station_set_config(struct station_config *config)
+{
+    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    return true;
+}
+
+bool wifi_station_connect(void)
+{
+    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    return true;
+}
+
+void wifi_enable_signaling_measurement(void)
+{
+    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+}
+
+sint8 wifi_station_get_rssi(void)
+{
+    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    return 0;
+}
+
+bool wifi_station_scan(struct scan_config *config, scan_done_cb_t cb)
+{
+    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    struct bss_info bss = {0};
+    bss.channel = 11;
+    bss.authmode = AUTH_OPEN;
+    bss.rssi = 0;
+    ets_strcpy((char*)(&bss.ssid[0]), "DUMMY_SSID");
+    bss.ssid_len = strlen("DUMMY_SSID");
+    cb(&bss, OK);
+    return true;
+}
+
+bool wifi_get_ip_info(uint8 if_index, struct ip_info *info)
+{
+    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    return true;
+}
+
+bool wifi_set_sleep_type(enum sleep_type type)
+{
+    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    return true;
+}
