@@ -214,7 +214,7 @@ bool ICACHE_FLASH_ATTR textEntryDraw(void)
                 case KEY_SPACE:
                 {
                     // Draw spacebar
-                    plotLine( posx + 1, posy + 5, posx + 36, posy + 5, WHITE );
+                    plotRect( posx + 1, posy + 1, posx + 37, posy + 3, WHITE);
                     width = 40;
                     break;
                 }
