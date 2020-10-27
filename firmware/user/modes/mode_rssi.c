@@ -294,17 +294,17 @@ static void ICACHE_FLASH_ATTR rssiMenuCb(const char* menuItem)
                 // if(rssi->aps[i].auth != AUTH_OPEN)
                 // {
                 textEntryStart( 32, rssi->password );
-                ets_strcpy( rssi->connectssid, menuItem + 7 );
+                ets_strcpy( rssi->connectssid, menuItem);
                 rssi->mode = RSSI_PASSWORD_ENTER;
                 // }
                 // else
                 // {
-                //  os_printf( "Connect to SSID %s\n", menuItem + 4 );
+                //  os_printf( "Connect to SSID %s\n", menuItem );
                 //  rssi->mode = RSSI_STATION;
                 //  wifi_set_opmode_current( STATION_MODE );
                 //  struct station_config sc;
                 //  ets_memset( (char*)&sc, 0, sizeof(sc) );
-                //  os_memcpy( (char*)sc.ssid, menuItem + 7, ets_strlen(menuItem + 7) );
+                //  os_memcpy( (char*)sc.ssid, menuItem, ets_strlen(menuItem) );
                 //  sc.all_channel_scan = 1;
                 //  wifi_station_set_config( &sc );
                 //  wifi_station_connect();
@@ -396,7 +396,7 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                             uint32_t rcolor = EHSVtoHEX(selcol, 0xFF, 0xFF);
                             led_t leds[NUM_LIN_LEDS] = {{0}};
                             int i;
-                            for( i = 3; i < NUM_LIN_LEDS; i++ )
+                            for( i = 0; i < NUM_LIN_LEDS; i++ )
                             {
                                 leds[i].r = rcolor & 0xff;
                                 leds[i].g = (rcolor >> 8) & 0xff;
