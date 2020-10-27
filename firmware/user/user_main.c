@@ -39,6 +39,7 @@
 #include "mode_flappy.h"
 #include "mode_flight.h"
 #include "mode_raycaster.h"
+#include "mode_rssi.h"
 #include "mode_tunernome.h"
 #include "mode_selftest.h"
 
@@ -84,6 +85,7 @@ swadgeMode* swadgeModes[] =
     &ddrMode,
     &colorchordMode,
     &tunernomeMode,
+    &rssiMode,     // must be second to last
     &selfTestMode, // must be last
 };
 
@@ -166,7 +168,7 @@ void ICACHE_FLASH_ATTR user_init(void)
     // Compare the current git hash to the saved one
     char gitHash[32] = {0};
     getGitHash(gitHash);
-    if(0 != ets_strncmp(gitHash, GIT_HASH, strlen(GIT_HASH)))
+    if(0 != ets_strncmp(gitHash, GIT_HASH, ets_strlen(GIT_HASH)))
     {
         // If there's a difference, reset the self-test bool
         INIT_PRINTF("New flash to %s\n", GIT_HASH);
@@ -197,6 +199,9 @@ void ICACHE_FLASH_ATTR user_init(void)
             INIT_PRINTF( "Booting in ESP-NOW\n" );
             break;
         }
+        case WIFI_REGULAR:
+            //App will control mode.
+            break;
         default:
         case NO_WIFI:
         {
@@ -490,6 +495,11 @@ void ExitCritical(void)
                 espNowDeinit();
                 break;
             }
+            case WIFI_REGULAR:
+            {
+                wifi_set_opmode( NULL_MODE );
+                break;
+            }
             default:
             case NO_WIFI:
             {
@@ -560,6 +570,7 @@ void ICACHE_FLASH_ATTR enterDeepSleep(wifiMode_t wifiMode, uint32_t timeUs)
             system_deep_sleep_instant(timeUs);
             break;
         }
+        case WIFI_REGULAR:
         case ESP_NOW:
         {
             // Radio calibration is done after deep-sleep wake up; this increases
@@ -592,8 +603,8 @@ void ICACHE_FLASH_ATTR enterDeepSleep(wifiMode_t wifiMode, uint32_t timeUs)
 uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr)
 {
     *modePtr = swadgeModes;
-    // Don't count self test mode
-    return (sizeof(swadgeModes) / sizeof(swadgeModes[0])) - 1;
+    // Don't count self test or RSSI modes
+    return (sizeof(swadgeModes) / sizeof(swadgeModes[0])) - 2;
 }
 
 #if defined(FEATURE_ACCEL)

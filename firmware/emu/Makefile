@@ -96,10 +96,12 @@ all : swadgemu assets.bin
 swadgemu : $(RAWDRAWC) $(SWADGEC) $(EMUC)
 	gcc $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-assets.bin :
-	make -C .. assets.bin
+assets.bin : ../assets.bin
 	cp ../assets.bin .
+
+../assets.bin :
+	make -C .. assets.bin
 
 # Clean everything
 clean :
-	rm -rf *.o *~ swadgemu
+	rm -rf *.o *~ swadgemu ../assets.bin assets.bin
