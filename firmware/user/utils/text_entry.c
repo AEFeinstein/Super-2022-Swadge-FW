@@ -127,11 +127,12 @@ bool ICACHE_FLASH_ATTR textEntryDraw(void)
         }
         // Draw the char
         char cs[] = {c, 0x00};
-        endPos = plotText( endPos + 1, 2, cs, IBM_VGA_8, WHITE);
+        int16_t startPos = endPos + 1;
+        endPos = plotText( startPos, 2, cs, IBM_VGA_8, WHITE);
         // Underline capital chars
         if( c >= 'A' && c <= 'Z' )
         {
-            plotLine( 2 + i * 8, 13, 10 + i * 8, 13, WHITE );
+            plotLine( startPos, 13, endPos - 2, 13, WHITE );
         }
     }
 
