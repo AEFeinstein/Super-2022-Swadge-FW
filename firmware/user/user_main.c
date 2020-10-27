@@ -80,12 +80,12 @@ swadgeMode* swadgeModes[] =
     &menuMode,
     &raycasterMode,
     &flappyMode,
-    &rssiMode,
     &flightMode,
     &personalDemonMode,
     &ddrMode,
     &colorchordMode,
     &tunernomeMode,
+    &rssiMode,     // must be second to last
     &selfTestMode, // must be last
 };
 
@@ -603,8 +603,8 @@ void ICACHE_FLASH_ATTR enterDeepSleep(wifiMode_t wifiMode, uint32_t timeUs)
 uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr)
 {
     *modePtr = swadgeModes;
-    // Don't count self test mode
-    return (sizeof(swadgeModes) / sizeof(swadgeModes[0])) - 1;
+    // Don't count self test or RSSI modes
+    return (sizeof(swadgeModes) / sizeof(swadgeModes[0])) - 2;
 }
 
 #if defined(FEATURE_ACCEL)

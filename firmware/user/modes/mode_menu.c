@@ -26,6 +26,8 @@
 #define MENU_PX_PER_PAN     8
 #define SQ_WAVE_LINE_LEN   16
 
+#define MNU_BUTTON_HIST_SIZE 8
+
 /*============================================================================
  * Enums
  *==========================================================================*/
@@ -88,6 +90,8 @@ typedef struct
     int16_t panIdx;
 
     bool screensaverIsRunning;
+
+    button_num buttonHist[MNU_BUTTON_HIST_SIZE];
 } mnu_t;
 
 /*============================================================================
@@ -106,6 +110,8 @@ swadgeMode menuMode =
 };
 
 mnu_t* mnu;
+
+static const button_num konami[MNU_BUTTON_HIST_SIZE] = {UP, UP, DOWN, DOWN, LEFT, RIGHT, LEFT, RIGHT};
 
 /*============================================================================
  * Swadge Mode Functions
@@ -193,6 +199,18 @@ void ICACHE_FLASH_ATTR menuExit(void)
 void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down)
 {
+    // Save in button history
+    if(down)
+    {
+        ets_memmove(&mnu->buttonHist[0], &mnu->buttonHist[1], sizeof(button_num) * (MNU_BUTTON_HIST_SIZE - 1));
+        mnu->buttonHist[MNU_BUTTON_HIST_SIZE - 1] = button;
+        if(0 == ets_memcmp(mnu->buttonHist, konami, sizeof(konami)))
+        {
+            switchToSwadgeMode(mnu->numModes + 1);
+            return;
+        }
+    }
+
     // Stop the screensaver
     if(stopScreensaver())
     {
