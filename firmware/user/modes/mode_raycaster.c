@@ -1144,7 +1144,8 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
                     drawPixelUnsafeC(stripe, y, rc->sprites[spriteOrder[i]].texture[texIdx]);
 
                     // If we should check a shot, and a sprite is centered
-                    if(true == rc->checkShot && (stripe == 63 || stripe == 64))
+                    if(true == rc->checkShot && (stripe == 63 || stripe == 64) &&
+                            rc->sprites[spriteOrder[i]].health > 0)
                     {
                         // Mark that sprite as shot
                         spriteIdxShot = spriteOrder[i];
