@@ -38,13 +38,15 @@
 
 // For enemy textures
 #define ENEMY_SHOT_COOLDOWN  3000000
-#define SHOOTING_ANIM_TIME   1000000
-#define GOT_SHOT_ANIM_TIME   1000000
+#define SHOOTING_ANIM_TIME    500000
+#define GOT_SHOT_ANIM_TIME    500000
 #define LONG_WALK_ANIM_TIME  3000000
 #define WALK_ANIM_TIME       1000000
 #define STEP_ANIM_TIME        250000
 
 #define NUM_WALK_FRAMES            2
+#define NUM_SHOT_FRAMES            2
+#define NUM_HURT_FRAMES            2
 
 #define ENEMY_HEALTH               2
 #define PLAYER_HEALTH             99
@@ -148,19 +150,15 @@ typedef struct
     uint8_t kills;
 
     // Storage for textures
-    color stoneTex[TEX_WIDTH * TEX_HEIGHT];
+    color stoneTex [TEX_WIDTH * TEX_HEIGHT];
     color stripeTex[TEX_WIDTH * TEX_HEIGHT];
-    color brickTex[TEX_WIDTH * TEX_HEIGHT];
-    color sinTex[TEX_WIDTH * TEX_HEIGHT];
+    color brickTex [TEX_WIDTH * TEX_HEIGHT];
+    color sinTex   [TEX_WIDTH * TEX_HEIGHT];
 
-    color walk[NUM_WALK_FRAMES][TEX_WIDTH * TEX_HEIGHT];
-
-    color s1[TEX_WIDTH * TEX_HEIGHT];
-    color s2[TEX_WIDTH * TEX_HEIGHT];
-
-    color d1[TEX_WIDTH * TEX_HEIGHT];
-    color d2[TEX_WIDTH * TEX_HEIGHT];
-    color d3[TEX_WIDTH * TEX_HEIGHT];
+    color walk    [NUM_WALK_FRAMES][TEX_WIDTH * TEX_HEIGHT];
+    color shooting[NUM_SHOT_FRAMES][TEX_WIDTH * TEX_HEIGHT];
+    color hurt    [NUM_HURT_FRAMES][TEX_WIDTH * TEX_HEIGHT];
+    color dead                     [TEX_WIDTH * TEX_HEIGHT];
 
     // Storage for HUD images
     pngHandle heart;
@@ -326,23 +324,23 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
     freePngAsset(&tmpPngHandle);
 
     allocPngAsset("s1.png", &tmpPngHandle);
-    drawPngToBuffer(&tmpPngHandle, rc->s1);
+    drawPngToBuffer(&tmpPngHandle, rc->shooting[0]);
     freePngAsset(&tmpPngHandle);
 
     allocPngAsset("s2.png", &tmpPngHandle);
-    drawPngToBuffer(&tmpPngHandle, rc->s2);
+    drawPngToBuffer(&tmpPngHandle, rc->shooting[1]);
     freePngAsset(&tmpPngHandle);
 
     allocPngAsset("d1.png", &tmpPngHandle);
-    drawPngToBuffer(&tmpPngHandle, rc->d1);
+    drawPngToBuffer(&tmpPngHandle, rc->hurt[0]);
     freePngAsset(&tmpPngHandle);
 
     allocPngAsset("d2.png", &tmpPngHandle);
-    drawPngToBuffer(&tmpPngHandle, rc->d2);
+    drawPngToBuffer(&tmpPngHandle, rc->hurt[1]);
     freePngAsset(&tmpPngHandle);
 
     allocPngAsset("d3.png", &tmpPngHandle);
-    drawPngToBuffer(&tmpPngHandle, rc->d3);
+    drawPngToBuffer(&tmpPngHandle, rc->dead);
     freePngAsset(&tmpPngHandle);
 
     // Load the wall textures to RAM
@@ -1490,7 +1488,7 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
 
                 // Mirror sprites for a walking animation
                 rc->sprites[i].texTimer -= tElapsedUs;
-                while(rc->sprites[i].texTimer <= 0)
+                while(rc->sprites[i].texTimer < 0)
                 {
                     // Animate a 'step'
                     rc->sprites[i].texTimer += STEP_ANIM_TIME;
@@ -1574,29 +1572,39 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
             {
                 // Animate a shot
                 rc->sprites[i].texTimer -= tElapsedUs;
-                if(rc->sprites[i].texTimer <= 0)
+                while(rc->sprites[i].texTimer < 0)
                 {
-                    // After the shot, go to E_PICK_DIR_PLAYER
-                    setSpriteState(&(rc->sprites[i]), E_PICK_DIR_PLAYER);
-                }
-                else if(rc->sprites[i].texTimer < SHOOTING_ANIM_TIME / 2 &&
-                        rc->sprites[i].shotCooldown <= 0)
-                {
-                    rc->sprites[i].shotCooldown = ENEMY_SHOT_COOLDOWN;
-                    // After 0.5s switch to next texture
-                    rc->sprites[i].texture = rc->s2;
-                    // Check if the sprite can still see the player
-                    if(checkLineToPlayer(&rc->sprites[i], rc->posX, rc->posY))
-                    {
-                        // If it can, the player got shot
-                        rc->health--;
-                        rc->gotShotTimer = LED_ON_TIME;
+                    rc->sprites[i].texTimer += SHOOTING_ANIM_TIME;
 
-                        // If the player is out of health
-                        if(rc->health == 0)
+                    // Pick the next texture
+                    rc->sprites[i].texFrame = (rc->sprites[i].texFrame + 1) % NUM_SHOT_FRAMES;
+                    rc->sprites[i].texture = rc->shooting[rc->sprites[i].texFrame];
+
+                    // Reset if we're back to zero
+                    if(0 == rc->sprites[i].texFrame)
+                    {
+                        // After the shot, go to E_PICK_DIR_PLAYER
+                        setSpriteState(&(rc->sprites[i]), E_PICK_DIR_PLAYER);
+                    }
+                    // If we're halfway through the animation
+                    else if (NUM_SHOT_FRAMES / 2 == rc->sprites[i].texFrame)
+                    {
+                        // Actually take the shot
+                        rc->sprites[i].shotCooldown = ENEMY_SHOT_COOLDOWN;
+
+                        // Check if the sprite can still see the player
+                        if(checkLineToPlayer(&rc->sprites[i], rc->posX, rc->posY))
                         {
-                            // End the round
-                            raycasterEndRound();
+                            // If it can, the player got shot
+                            rc->health--;
+                            rc->gotShotTimer = LED_ON_TIME;
+
+                            // If the player is out of health
+                            if(rc->health == 0)
+                            {
+                                // End the round
+                                raycasterEndRound();
+                            }
                         }
                     }
                 }
@@ -1606,24 +1614,29 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
             {
                 // Animate getting shot
                 rc->sprites[i].texTimer -= tElapsedUs;
-                if(rc->sprites[i].texTimer <= 0)
+                while(rc->sprites[i].texTimer < 0)
                 {
-                    // If the enemy has any health
-                    if(rc->sprites[i].health > 0)
+                    rc->sprites[i].texTimer += GOT_SHOT_ANIM_TIME;
+
+                    // Pick the next texture
+                    rc->sprites[i].texFrame = (rc->sprites[i].texFrame + 1) % NUM_HURT_FRAMES;
+                    rc->sprites[i].texture = rc->hurt[rc->sprites[i].texFrame];
+
+                    // Reset if we're back to zero
+                    if(0 == rc->sprites[i].texFrame)
                     {
-                        // Go back to E_PICK_DIR_PLAYER
-                        setSpriteState(&(rc->sprites[i]), E_PICK_DIR_PLAYER);
+                        // If the enemy has any health
+                        if(rc->sprites[i].health > 0)
+                        {
+                            // Go back to E_PICK_DIR_PLAYER
+                            setSpriteState(&(rc->sprites[i]), E_PICK_DIR_PLAYER);
+                        }
+                        else
+                        {
+                            // If there is no health, go to E_DEAD
+                            setSpriteState(&(rc->sprites[i]), E_DEAD);
+                        }
                     }
-                    else
-                    {
-                        // If there is no health, go to E_DEAD
-                        setSpriteState(&(rc->sprites[i]), E_DEAD);
-                    }
-                }
-                else if(rc->sprites[i].texTimer < GOT_SHOT_ANIM_TIME / 2)
-                {
-                    // After 0.5s switch to next texture
-                    rc->sprites[i].texture = rc->d2;
                 }
                 break;
             }
@@ -1813,7 +1826,7 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
         {
             // Set up the shooting texture
             sprite->stateTimer = SHOOTING_ANIM_TIME;
-            sprite->texture = rc->s1;
+            sprite->texture = rc->shooting[0];
             sprite->texTimer = SHOOTING_ANIM_TIME;
             break;
         }
@@ -1821,7 +1834,7 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
         {
             // Set up the got shot texture
             sprite->stateTimer = GOT_SHOT_ANIM_TIME;
-            sprite->texture = rc->d1;
+            sprite->texture = rc->hurt[0];
             sprite->texTimer = GOT_SHOT_ANIM_TIME;
             break;
         }
@@ -1839,7 +1852,7 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
 
             // ALso set up the corpse texture
             sprite->stateTimer = 0;
-            sprite->texture = rc->d3;
+            sprite->texture = rc->dead;
             sprite->texTimer = 0;
         }
     }
