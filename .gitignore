@@ -22,3 +22,4 @@ firmware/emu/android/makecapk/lib/arm64-v8a/libswadgemu.so
 firmware/emu/android/makecapk/AndroidManifest.xml
 firmware/emu/swadgemu.exe
 mapconv/mapconv
+firmware/ProcOBJ.obj
