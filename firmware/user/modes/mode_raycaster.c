@@ -170,6 +170,7 @@ typedef struct
     uint32_t closestDist;
     int32_t gotShotTimer;
     int32_t shotSomethingTimer;
+    int32_t killedSpriteTimer;
 } raycaster_t;
 
 /*==============================================================================
@@ -695,6 +696,10 @@ void ICACHE_FLASH_ATTR raycasterGameRenderer(uint32_t tElapsedUs)
     if(rc->shotSomethingTimer > 0)
     {
         rc->shotSomethingTimer -= tElapsedUs;
+    }
+    if(rc->killedSpriteTimer > 0)
+    {
+        rc->killedSpriteTimer -= tElapsedUs;
     }
 
     // Cast all the rays for the scene and save the result
@@ -1842,6 +1847,7 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
         {
             // If the sprite is dead, decrement live sprite and increment kills
             rc->liveSprites--;
+            rc->killedSpriteTimer = LED_ON_TIME;
             rc->kills++;
             // If there are no sprites left
             if(0 == rc->liveSprites)
@@ -1874,10 +1880,14 @@ void ICACHE_FLASH_ATTR drawHUD(void)
                     BLACK);
 
     // Draw note display
-    drawPng(&(rc->mnote),
-            0,
-            OLED_HEIGHT - rc->mnote.height,
-            false, false, 0);
+    if(rc->killedSpriteTimer <= 0)
+    {
+        // Blink the note when an enemy is defeated
+        drawPng(&(rc->mnote),
+                0,
+                OLED_HEIGHT - rc->mnote.height,
+                false, false, 0);
+    }
     plotText(rc->mnote.width + 2,
              OLED_HEIGHT - FONT_HEIGHT_IBMVGA8,
              notes, IBM_VGA_8, WHITE);
@@ -1894,10 +1904,14 @@ void ICACHE_FLASH_ATTR drawHUD(void)
                     BLACK);
 
     // Draw health display
-    drawPng(&(rc->heart),
-            OLED_WIDTH - rc->heart.width,
-            OLED_HEIGHT - rc->heart.height,
-            false, false, 0);
+    if(rc->gotShotTimer <= 0)
+    {
+        // Blink the heart when getting shot, same as the red LED
+        drawPng(&(rc->heart),
+                OLED_WIDTH - rc->heart.width,
+                OLED_HEIGHT - rc->heart.height,
+                false, false, 0);
+    }
     plotText(healthDrawX,
              OLED_HEIGHT - FONT_HEIGHT_IBMVGA8,
              health, IBM_VGA_8, WHITE);
