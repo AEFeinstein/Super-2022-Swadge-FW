@@ -533,18 +533,27 @@ void ICACHE_FLASH_ATTR outlineTriangle( int16_t v0x, int16_t v0y, int16_t v1x, i
 
 
 
-		if( xerrnumeratorA > 1000000 || xerrnumeratorB > 1000000 )
-		{
-			if( x0A < x0B ) { sdxA = 1; sdxB = -1; }
-			if( x0A > x0B ) { sdxA = -1; sdxB = 1; }
-			if( x0A == x0B ) {
-	            if( x0A >= 0 && x0A <= (BRESEN_W - 1) && y >= 0 && y <= (BRESEN_H-1) )
-	            {
-	                drawPixelUnsafeC( x0A, y, colorB );
-	            }
-				return;
-			}
-		}
+        if( xerrnumeratorA > 1000000 || xerrnumeratorB > 1000000 )
+        {
+            if( x0A < x0B )
+            {
+                sdxA = 1;
+                sdxB = -1;
+            }
+            if( x0A > x0B )
+            {
+                sdxA = -1;
+                sdxB = 1;
+            }
+            if( x0A == x0B )
+            {
+                if( x0A >= 0 && x0A <= (BRESEN_W - 1) && y >= 0 && y <= (BRESEN_H - 1) )
+                {
+                    drawPixelUnsafeC( x0A, y, colorB );
+                }
+                return;
+            }
+        }
 
         for( ; y <= yend; y++ )
         {
