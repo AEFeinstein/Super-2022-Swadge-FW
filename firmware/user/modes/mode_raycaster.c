@@ -139,6 +139,7 @@ typedef struct
     float planeY;
     int32_t shotCooldown;
     bool checkShot;
+    int32_t initialHealth;
     int32_t health;
     uint32_t tRoundStartedUs;
     uint32_t tRoundElapsed;
@@ -171,6 +172,8 @@ typedef struct
     int32_t gotShotTimer;
     int32_t shotSomethingTimer;
     int32_t killedSpriteTimer;
+    int32_t healthWarningTimer;
+    bool healthWarningInc;
 } raycaster_t;
 
 /*==============================================================================
@@ -436,19 +439,20 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
     uint16_t diffMod = 0;
     if(RC_EASY == difficulty)
     {
-        rc->health = PLAYER_HEALTH;
+        rc->initialHealth = PLAYER_HEALTH;
         diffMod = 2;
     }
     else if(RC_MED == difficulty)
     {
-        rc->health = (2 * PLAYER_HEALTH) / 3;
+        rc->initialHealth = (2 * PLAYER_HEALTH) / 3;
         diffMod = 3;
     }
     else if(RC_HARD == difficulty)
     {
-        rc->health = PLAYER_HEALTH / 2;
+        rc->initialHealth = PLAYER_HEALTH / 2;
         diffMod = 1;
     }
+    rc->health = rc->initialHealth;
 
     // Start spawning sprites
     rc->liveSprites = 0;
@@ -499,6 +503,10 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
     rc->checkShot = false;
     rc->gotShotTimer = 0;
     rc->shotSomethingTimer = 0;
+
+    rc->killedSpriteTimer = 0;
+    rc->healthWarningTimer = 0;
+    rc->healthWarningInc = true;
 
     // Reset the closest distance to not shine LEDs
     rc->closestDist = 0xFFFFFFFF;
@@ -2045,6 +2053,36 @@ void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg __attribute__((unused)))
         {
             leds[i].b = 3 * (64 - rc->closestDist);
         }
+    }
+
+    // If we're at a quarter health or less
+    if(rc->mode == RC_GAME && rc->health <= rc->initialHealth / 4)
+    {
+        // Increment or decrement the red warning LED
+        if(true == rc->healthWarningInc)
+        {
+            rc->healthWarningTimer++;
+            if(rc->healthWarningTimer == 0x80)
+            {
+                rc->healthWarningInc = false;
+            }
+        }
+        else
+        {
+            rc->healthWarningTimer--;
+            if(rc->healthWarningTimer == 0)
+            {
+                rc->healthWarningInc = true;
+            }
+        }
+
+        // Pulse two LEDs red as a warning, reduce G and B
+        leds[0].r = rc->healthWarningTimer;
+        leds[0].g /= 4;
+        leds[0].b /= 4;
+        leds[NUM_LIN_LEDS - 1].r = rc->healthWarningTimer;
+        leds[NUM_LIN_LEDS - 1].g /= 4;
+        leds[NUM_LIN_LEDS - 1].b /= 4;
     }
 
     // Push out the LEDs
