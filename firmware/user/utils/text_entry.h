@@ -5,7 +5,7 @@
 #include "buttons.h"
 
 
-void ICACHE_FLASH_ATTR textEntryStart( int max_len, char * buffer );
+void ICACHE_FLASH_ATTR textEntryStart( int max_len, char* buffer );
 void ICACHE_FLASH_ATTR textEntryEnd( void );
 
 bool ICACHE_FLASH_ATTR textEntryDraw(void);
