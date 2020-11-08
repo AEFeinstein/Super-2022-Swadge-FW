@@ -315,31 +315,31 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
 
     // Load the enemy texture to RAM
     pngHandle tmpPngHandle;
-    allocPngAsset("w1.png", &tmpPngHandle);
+    allocPngAsset("h8_wlk1.png", &tmpPngHandle);
     drawPngToBuffer(&tmpPngHandle, rc->walk[0]);
     freePngAsset(&tmpPngHandle);
 
-    allocPngAsset("w2.png", &tmpPngHandle);
+    allocPngAsset("h8_wlk2.png", &tmpPngHandle);
     drawPngToBuffer(&tmpPngHandle, rc->walk[1]);
     freePngAsset(&tmpPngHandle);
 
-    allocPngAsset("s1.png", &tmpPngHandle);
+    allocPngAsset("h8_atk1.png", &tmpPngHandle);
     drawPngToBuffer(&tmpPngHandle, rc->shooting[0]);
     freePngAsset(&tmpPngHandle);
 
-    allocPngAsset("s2.png", &tmpPngHandle);
+    allocPngAsset("h8_atk2.png", &tmpPngHandle);
     drawPngToBuffer(&tmpPngHandle, rc->shooting[1]);
     freePngAsset(&tmpPngHandle);
 
-    allocPngAsset("d1.png", &tmpPngHandle);
+    allocPngAsset("h8_hrt1.png", &tmpPngHandle);
     drawPngToBuffer(&tmpPngHandle, rc->hurt[0]);
     freePngAsset(&tmpPngHandle);
 
-    allocPngAsset("d2.png", &tmpPngHandle);
+    allocPngAsset("h8_hrt2.png", &tmpPngHandle);
     drawPngToBuffer(&tmpPngHandle, rc->hurt[1]);
     freePngAsset(&tmpPngHandle);
 
-    allocPngAsset("d3.png", &tmpPngHandle);
+    allocPngAsset("h8_ded.png", &tmpPngHandle);
     drawPngToBuffer(&tmpPngHandle, rc->dead);
     freePngAsset(&tmpPngHandle);
 
