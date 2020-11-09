@@ -13,6 +13,9 @@
 
 #if defined(FEATURE_OLED)
 
+int16_t plotChar(int16_t x, int16_t y, char character, const sprite_t* table, color col);
+int16_t charWidth(char character, const sprite_t* table);
+
 /**
  * @brief Draw a single character to the OLED display
  *        Special characters (< ' ') not drawn
@@ -32,6 +35,11 @@ int16_t ICACHE_FLASH_ATTR plotChar(int16_t x, int16_t y,
         {
             character = (char) (character - 'a' + 'A');
         }
+        else if(character >= '{')
+        {
+            // These usually come after lowercase, but lowercase doesn't exist
+            character = '`' + 1 + (character - '{');
+        }
         return plotSprite(x, y, &table[character - ' '], col);
     }
     return x;
@@ -47,7 +55,7 @@ int16_t ICACHE_FLASH_ATTR plotChar(int16_t x, int16_t y,
  * @param col WHITE, BLACK or INVERSE
  * @return The x position of the end of the string drawn
  */
-int16_t ICACHE_FLASH_ATTR plotText(int16_t x, int16_t y, char* text, fonts font, color col)
+int16_t ICACHE_FLASH_ATTR plotText(int16_t x, int16_t y, const char* text, fonts font, color col)
 {
     while (0 != *text)
     {
@@ -93,7 +101,13 @@ int16_t ICACHE_FLASH_ATTR charWidth(char character, const sprite_t* table)
         {
             character = (char) (character - 'a' + 'A');
         }
+#ifdef USE_ESP_GDB // If we use GDB, read these to RAM first to avoid SIGSEV
+        sprite_t sprite_ram;
+        ets_memcpy ( &sprite_ram, &(table[character - ' ']), sizeof(sprite_t) );
+        return sprite_ram.width + 1;
+#else
         return table[character - ' '].width + 1;
+#endif
     }
     return 0;
 }
@@ -105,7 +119,7 @@ int16_t ICACHE_FLASH_ATTR charWidth(char character, const sprite_t* table)
  * @param font
  * @return int16_t
  */
-int16_t ICACHE_FLASH_ATTR textWidth(char* text, fonts font)
+int16_t ICACHE_FLASH_ATTR textWidth(const char* text, fonts font)
 {
     int16_t width = 0;
     while (0 != *text)

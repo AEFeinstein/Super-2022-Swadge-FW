@@ -2,13 +2,14 @@
 #define _TEXTENTRY_H
 
 #include "user_main.h"
+#include "buttons.h"
 
 
 void ICACHE_FLASH_ATTR textEntryStart( int max_len, char * buffer );
+void ICACHE_FLASH_ATTR textEntryEnd( void );
 
-//Returns false if text entry complete.
-bool ICACHE_FLASH_ATTR textEntryDraw();
-bool ICACHE_FLASH_ATTR textEntryInput( uint8_t down, uint8_t button );
+bool ICACHE_FLASH_ATTR textEntryDraw(void);
+bool ICACHE_FLASH_ATTR textEntryInput( uint8_t down, button_num button );
 
 #endif
 

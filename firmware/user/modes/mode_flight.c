@@ -896,14 +896,14 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
         {
             for( y = -2; y < 10; y++ )
             {
-                memcpy( BackupMatrix, ModelviewMatrix, sizeof( BackupMatrix ) );
+                ets_memcpy( BackupMatrix, ModelviewMatrix, sizeof( BackupMatrix ) );
                 tdTranslate( ModelviewMatrix, 
                     500*x-800,
                     140 + (tdSIN( (x + y)*40 + ij*1 )>>2),
                     500*y+500 );
                 tdScale( ModelviewMatrix, 70, 70, 70 );
                 tdDrawModel( tflight->isosphere );
-                memcpy( ModelviewMatrix, BackupMatrix, sizeof( BackupMatrix ) );
+                ets_memcpy( ModelviewMatrix, BackupMatrix, sizeof( BackupMatrix ) );
             }
         }
 #ifndef EMU

@@ -26,6 +26,8 @@
 #define MENU_PX_PER_PAN     8
 #define SQ_WAVE_LINE_LEN   16
 
+#define MNU_BUTTON_HIST_SIZE 8
+
 /*============================================================================
  * Enums
  *==========================================================================*/
@@ -52,7 +54,7 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
 static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR menuAnimateScreensaverLEDs(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__((unused)));
-void ICACHE_FLASH_ATTR stopScreensaver(void);
+bool ICACHE_FLASH_ATTR stopScreensaver(void);
 
 void ICACHE_FLASH_ATTR startPanning(bool pLeft);
 static void ICACHE_FLASH_ATTR menuPanImages(void* arg __attribute__((unused)));
@@ -86,7 +88,13 @@ typedef struct
     bool menuIsPanning;
     bool panningLeft;
     int16_t panIdx;
+
+    bool screensaverIsRunning;
+
+    button_num buttonHist[MNU_BUTTON_HIST_SIZE];
 } mnu_t;
+
+static const uint8_t acceptableDances[] = {17, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16};
 
 /*============================================================================
  * Variables
@@ -104,6 +112,8 @@ swadgeMode menuMode =
 };
 
 mnu_t* mnu;
+
+static const button_num konami[MNU_BUTTON_HIST_SIZE] = {UP, UP, DOWN, DOWN, LEFT, RIGHT, LEFT, RIGHT};
 
 /*============================================================================
  * Swadge Mode Functions
@@ -191,35 +201,50 @@ void ICACHE_FLASH_ATTR menuExit(void)
 void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down)
 {
-    // Stop the screensaver
-    stopScreensaver();
-
-    // Don't accept button input if the menu is panning
-    if(mnu->menuIsPanning)
-    {
-        return;
-    }
-
-    // Menu is not panning
     if(down)
     {
+        // Save in button history
+        ets_memmove(&mnu->buttonHist[0], &mnu->buttonHist[1], sizeof(button_num) * (MNU_BUTTON_HIST_SIZE - 1));
+        mnu->buttonHist[MNU_BUTTON_HIST_SIZE - 1] = button;
+        if(0 == ets_memcmp(mnu->buttonHist, konami, sizeof(konami)))
+        {
+            switchToSwadgeMode(mnu->numModes + 1);
+            return;
+        }
+
+        // Stop the screensaver, unless it's UP or DOWN
+        if((button != UP) && (button != DOWN) && stopScreensaver())
+        {
+            // Draw what's under the screensaver
+            drawGifFromAsset(mnu->curImg, 0, 0, false, false, 0, false);
+            // But don't process the button otherwise
+            return;
+        }
+
+        // Don't accept button input if the menu is panning
+        if(mnu->menuIsPanning)
+        {
+            return;
+        }
+
+        // Menu is not panning
         switch(button)
         {
-            case 4:
+            case ACTION:
             {
                 // Select the mode
                 setMenuPos(mnu->selectedMode);
                 switchToSwadgeMode(1 + mnu->selectedMode);
                 break;
             }
-            case 2:
+            case RIGHT:
             {
                 // Cycle the currently selected mode
                 mnu->selectedMode = (mnu->selectedMode + 1) % mnu->numModes;
                 startPanning(true);
                 break;
             }
-            case 0:
+            case LEFT:
             {
                 // Cycle the currently selected mode
                 if(0 == mnu->selectedMode)
@@ -232,6 +257,35 @@ void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
                 }
 
                 startPanning(false);
+                break;
+            }
+            case UP:
+            {
+                mnu->menuScreensaverIdx = (mnu->menuScreensaverIdx + 1) % (sizeof(acceptableDances) / sizeof(acceptableDances[0]));
+
+                // Start screensaver immediately
+                if(!mnu->screensaverIsRunning)
+                {
+                    menuStartScreensaver(NULL);
+                }
+                break;
+            }
+            case DOWN:
+            {
+                if(mnu->menuScreensaverIdx > 0)
+                {
+                    mnu->menuScreensaverIdx--;
+                }
+                else
+                {
+                    mnu->menuScreensaverIdx = (sizeof(acceptableDances) / sizeof(acceptableDances[0])) - 1;
+                }
+
+                // Start screensaver immediately
+                if(!mnu->screensaverIsRunning)
+                {
+                    menuStartScreensaver(NULL);
+                }
                 break;
             }
             default:
@@ -380,11 +434,6 @@ void ICACHE_FLASH_ATTR plotSquareWave (int16_t x, int16_t y)
  */
 static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unused)))
 {
-    // Pick a random screensaver from a reduced list of dances (missing 12, 13, 18, 19)
-    // static const uint8_t acceptableDances[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 17};
-    static const uint8_t acceptableDances[] = {17};
-    mnu->menuScreensaverIdx = acceptableDances[os_random() % sizeof(acceptableDances)];
-
     // Set the brightness to low
     setDanceBrightness(1);
 
@@ -398,6 +447,8 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
 
     // Start a timer to turn the screensaver brighter
     timerArm(&mnu->timerScreensaverBright, 1000, false);
+
+    mnu->screensaverIsRunning = true;
 }
 
 /**
@@ -458,9 +509,9 @@ static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__
 
 /**
  * @brief Stop the screensaver and set it up to run again if idle
- *
+ * @return true if the screensaver had been running
  */
-void ICACHE_FLASH_ATTR stopScreensaver(void)
+bool ICACHE_FLASH_ATTR stopScreensaver(void)
 {
     // Stop the current screensaver
     timerDisarm(&mnu->timerScreensaverLEDAnimation);
@@ -472,10 +523,14 @@ void ICACHE_FLASH_ATTR stopScreensaver(void)
 #if SWADGE_VERSION != SWADGE_BBKIWI
     // Start a timer to start the screensaver if there's no input
     timerDisarm(&mnu->timerScreensaverStart);
-    timerArm(&mnu->timerScreensaverStart, 1000, false);
+    timerArm(&mnu->timerScreensaverStart, 3000, false);
 #endif
     // Stop this timer too
     timerDisarm(&mnu->timerScreensaverBright);
+
+    bool retVal = mnu->screensaverIsRunning;
+    mnu->screensaverIsRunning = false;
+    return retVal;
 }
 
 /**

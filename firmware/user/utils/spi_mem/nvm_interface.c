@@ -17,7 +17,7 @@
  * Defines
  *==========================================================================*/
 
-#define SAVE_LOAD_KEY 0xB9
+#define SAVE_LOAD_KEY 0xBD
 
 /*============================================================================
  * Structs
@@ -32,6 +32,9 @@ typedef struct __attribute__((aligned(4)))
     demon_t savedDemon;
     ddrHighScores_t ddrHighScores;
     demonMemorial_t demonMemorials[NUM_DEMON_MEMORIALS];
+    char gitHash[32];
+    bool selfTestPassed;
+    raycasterScores_t raycasterScores;
 }
 settings_t;
 
@@ -52,7 +55,9 @@ settings_t settings =
     .isMuted = 0,
     .menuPos = 0,
     .savedDemon = {0},
-    .ddrHighScores = {{{0}}, {{0}}, {{0}}},
+    .ddrHighScores = {{{0}}, {{0}}, {{0}}, {{0}}},
+    .gitHash = {0},
+    .selfTestPassed = false,
 };
 
 bool muteOverride = false;
@@ -90,6 +95,7 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
         // Load in default values
         settings.isMuted = false;
         ets_memset(&(settings.savedDemon), 0, sizeof(demon_t));
+        settings.selfTestPassed = false;
         // Save the values
         SaveSettings();
     }
@@ -201,4 +207,77 @@ void ICACHE_FLASH_ATTR addDemonMemorial(char* name, int32_t actionsTaken)
 demonMemorial_t* ICACHE_FLASH_ATTR getDemonMemorials(void)
 {
     return settings.demonMemorials;
+}
+
+/**
+ * Copy the git hash string from NVM to a pointer
+ *
+ * @param hash A pointer to copy the git hash to. MUST BE AT LEAST 32 BYTES LONG
+ */
+void ICACHE_FLASH_ATTR getGitHash(char* hash)
+{
+    ets_memcpy(hash, &(settings.gitHash), ets_strlen(settings.gitHash) + 1);
+}
+
+/**
+ * Write the git has string to NVM, clipping it to 31 chars at most
+ *
+ * @param hash A pointer to the git hash to write
+ */
+void ICACHE_FLASH_ATTR setGitHash(char* hash)
+{
+    // Make sure we save a valid string by clipping it if it's too long
+    uint16_t len = ets_strlen(hash);
+    if(len > sizeof(settings.gitHash) - 1)
+    {
+        len = sizeof(settings.gitHash) - 1;
+        hash[sizeof(settings.gitHash) - 1] = 0;
+    }
+    ets_memcpy(&(settings.gitHash), hash, len + 1);
+    SaveSettings();
+}
+
+bool ICACHE_FLASH_ATTR getSelfTestPass(void)
+{
+    return settings.selfTestPassed;
+}
+
+void ICACHE_FLASH_ATTR setSelfTestPass(bool pass)
+{
+    settings.selfTestPassed = pass;
+    SaveSettings();
+}
+
+
+raycasterScores_t* ICACHE_FLASH_ATTR getRaycasterScores(void)
+{
+    return &(settings.raycasterScores);
+}
+
+void ICACHE_FLASH_ATTR addRaycasterScore(raycasterDifficulty_t difficulty, uint16_t kills, uint32_t tElapsed)
+{
+    // Look through the table for a spot tto insert
+    for(uint8_t i = 0; i < RC_NUM_SCORES; i++)
+    {
+        // More kills, insert before this index
+        if((settings.raycasterScores.scores[difficulty][i].kills < kills) ||
+                // Same kills but faster, insert before this index
+                (settings.raycasterScores.scores[difficulty][i].kills == kills &&
+                 settings.raycasterScores.scores[difficulty][i].tElapsedUs > tElapsed))
+        {
+            // Make room for this element
+            ets_memmove(&settings.raycasterScores.scores[difficulty][i + 1],
+                        &settings.raycasterScores.scores[difficulty][i],
+                        sizeof(raycasterScore_t ) * (RC_NUM_SCORES - 1 - i));
+
+            // Write the new data
+            settings.raycasterScores.scores[difficulty][i].kills = kills;
+            settings.raycasterScores.scores[difficulty][i].tElapsedUs = tElapsed;
+
+            // Save the settings
+            SaveSettings();
+
+            return;
+        }
+    }
 }
