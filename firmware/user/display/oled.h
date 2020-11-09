@@ -34,6 +34,7 @@ typedef enum
 bool initOLED(bool reset);
 void drawPixel(int16_t x, int16_t y, color c);
 void drawPixelUnsafe( int x, int y );
+void drawPixelUnsafeBlack( int x, int y );
 void drawPixelUnsafeC( int x, int y, color c );
 
 color getPixel(int16_t x, int16_t y);

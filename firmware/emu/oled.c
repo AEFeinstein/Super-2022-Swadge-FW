@@ -65,6 +65,18 @@ void drawPixelUnsafe( int x, int y )
     *addy |= mask;
 }
 
+void drawPixelUnsafeBlack( int x, int y )
+{
+	if( x < 0 || x>= OLED_WIDTH || y < 0 || y >= OLED_HEIGHT )
+	{
+		fprintf( stderr, "ERROR: PIXEL OUT OF RANGE in drawPixelUnsafe %d %d\n", x, y );
+		return;
+	}
+    uint8_t* addy = &currentFb[(y + x * OLED_HEIGHT) / 8];
+    uint8_t mask = ~(1 << (y & 7));
+    *addy &= mask;
+}
+
 void drawPixelUnsafeC( int x, int y, color c )
 {
 	if( x < 0 || x>= OLED_WIDTH || y < 0 || y >= OLED_HEIGHT )

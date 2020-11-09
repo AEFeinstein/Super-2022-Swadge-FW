@@ -82,6 +82,7 @@ typedef struct
 
     int16_t planeloc[3];
     int16_t hpr[3];
+	int speed;
 	bool perfMotion;
     tdModel * isosphere;
 
@@ -90,6 +91,8 @@ typedef struct
 
     menu_t* menu;
 } flight_t;
+
+int renderlinecolor = WHITE;
 
 /*============================================================================
  * Prototypes
@@ -680,17 +683,35 @@ void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
 
 	if( m->indices_per_face == 2 )
 	{
-		for( i = 0; i < nri; i+=2 )
+		if( renderlinecolor == BLACK )
 		{
-		    int i1 = m->indices_and_vertices[i];
-		    int i2 = m->indices_and_vertices[i+1];
-		    int16_t * cv1 = &cached_verts[i1];
-		    int16_t * cv2 = &cached_verts[i2];
+			for( i = 0; i < nri; i+=2 )
+			{
+				int i1 = m->indices_and_vertices[i];
+				int i2 = m->indices_and_vertices[i+1];
+				int16_t * cv1 = &cached_verts[i1];
+				int16_t * cv2 = &cached_verts[i2];
 
-		    if( cv1[2] != 2 && cv2[2] != 2 )
-		    {
-		        speedyWhiteLine( cv1[0], cv1[1], cv2[0], cv2[1], false );
-		    }
+				if( cv1[2] != 2 && cv2[2] != 2 )
+				{
+				    speedyBlackLine( cv1[0], cv1[1], cv2[0], cv2[1], false );
+				}
+			}
+		}
+		else
+		{
+			for( i = 0; i < nri; i+=2 )
+			{
+				int i1 = m->indices_and_vertices[i];
+				int i2 = m->indices_and_vertices[i+1];
+				int16_t * cv1 = &cached_verts[i1];
+				int16_t * cv2 = &cached_verts[i2];
+
+				if( cv1[2] != 2 && cv2[2] != 2 )
+				{
+				    speedyWhiteLine( cv1[0], cv1[1], cv2[0], cv2[1], false );
+				}
+			}
 		}
 	}
 	else if( m->indices_per_face == 3 )
@@ -848,7 +869,7 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
         tdTranslate( ModelviewMatrix, tflight->planeloc[0], tflight->planeloc[1], tflight->planeloc[2] );
 
 
-		struct ModelRangePair mrp[300];
+		struct ModelRangePair mrp[tflight->enviromodels];
 		int mdlct = 0;
 
 		int i;
@@ -861,6 +882,7 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 			mrp[mdlct].mrange = r;
 			mdlct++;
 		}
+
 		qsort( mrp, mdlct, sizeof( struct ModelRangePair ), mdlctcmp );
 		for( i = 0; i < mdlct; i++ )
 		{
@@ -868,6 +890,15 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 		}
         //tdDrawModel( tflight->isosphere );
 
+
+        tdTranslate( ModelviewMatrix, 
+            1000,
+            100,
+            100 );
+        tdScale( ModelviewMatrix, 70, 70, 70 );
+		renderlinecolor = (tflight->frames&1)?WHITE:BLACK;
+        tdDrawModel( tflight->isosphere );
+		renderlinecolor = WHITE;
 
 #ifndef EMU
         OVERCLOCK_SECTION_DISABLE();
@@ -937,10 +968,14 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
     if( bs & 4 ) tflight->hpr[0]--;
     if( bs & 2 ) tflight->hpr[1]++;
     if( bs & 8 ) tflight->hpr[1]--;
+	if( bs & 16 ) tflight->speed++;
+	else if( tflight->speed > 0 ) tflight->speed--;
 
-    tflight->planeloc[0] -= tdSIN( tflight->hpr[0] )>>5;
-    tflight->planeloc[2] -= tdCOS( tflight->hpr[0] )>>5;
-    tflight->planeloc[1] += tdSIN( tflight->hpr[1] )>>5;
+	if( tflight->speed > 30 ) tflight->speed = 30;
+
+    tflight->planeloc[0] -= (tflight->speed * tdSIN( tflight->hpr[0] ) )>>8;
+    tflight->planeloc[2] -= (tflight->speed * tdCOS( tflight->hpr[0] ) )>>8;
+    tflight->planeloc[1] += (tflight->speed * tdSIN( tflight->hpr[1] ) )>>8;
 }
 
 /**
