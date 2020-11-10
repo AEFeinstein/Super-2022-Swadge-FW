@@ -445,6 +445,22 @@ void drawPixelUnsafe( int x, int y )
     *addy |= mask;
 }
 
+
+/**
+ * Set a single black pixel unsafely but quickly.
+ *
+ * This intentionally does not have ICACHE_FLASH_ATTR because it may be called often
+ *
+ * @param x Column of display, 0 is at the left
+ * @param y Row of the display, 0 is at the top
+ */
+void drawPixelUnsafeBlack( int x, int y )
+{
+    uint8_t* addy = &currentFb[(y + x * OLED_HEIGHT) / 8];
+    uint8_t mask = ~(1 << (y & 7));
+    *addy &= mask;
+}
+
 /**
  * Draw a single pixel unsafely but quickly.
  *

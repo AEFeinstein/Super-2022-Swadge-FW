@@ -13,5 +13,6 @@ void ICACHE_FLASH_ATTR outlineTriangle( int16_t v0x, int16_t v0y, int16_t v1x, i
                                         int16_t v2x, int16_t v2y, color colorA, color colorB );
 
 void ICACHE_FLASH_ATTR speedyWhiteLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool thicc );
+void ICACHE_FLASH_ATTR speedyBlackLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool thicc );
 
 #endif

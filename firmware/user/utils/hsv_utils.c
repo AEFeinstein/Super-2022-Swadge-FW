@@ -113,3 +113,18 @@ uint32_t ICACHE_FLASH_ATTR EHSVtoHEXhelper( uint8_t hue, uint8_t sat, uint8_t va
     return or | (og << 8) | ((uint32_t)ob << 16);
     //return og | ( or << 8) | ((uint32_t)ob << 16); //grb
 }
+
+led_t ICACHE_FLASH_ATTR SafeEHSVtoHEXhelper( int16_t hue, int16_t sat, int16_t val, bool applyGamma )
+{
+	//Don't clamp hue.
+	if( sat > 255 ) sat = 255;
+	if( sat < 0 ) sat = 0;
+	if( val > 255 ) val = 255;
+	if( val < 0 ) val = 0;
+	uint32_t r = EHSVtoHEXhelper( (uint8_t)hue, sat, val, applyGamma );
+	led_t ret;
+	ret.g = (r>>8)&0xff;
+	ret.r = r&0xff;
+	ret.b = (r>>16)&0xff;
+	return ret;
+}
