@@ -1194,7 +1194,10 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
     const int flight_max_speed = 30;
 
     //If we're at the ending screen and the user presses a button end game.
-    if( tflight->mode == FLIGHT_GAME_OVER && ( bs & 16 ) && flight->frames > 199 ) flightEndGame();
+    if( tflight->mode == FLIGHT_GAME_OVER && ( bs & 16 ) && flight->frames > 199 )
+	{
+		flightEndGame();
+	}
 
     if( tflight->mode == FLIGHT_GAME )
     {
@@ -1263,12 +1266,12 @@ void ICACHE_FLASH_ATTR flightButtonCallback( uint8_t state,
         {
             if(down)
             {
-                printf( "Animate\n" );
                 flightLEDAnimate( FLIGHT_LED_MENU_TICK ); 
                 menuButton(flight->menu, button);
             }
             break;
         }
+        case FLIGHT_GAME_OVER:
         case FLIGHT_GAME:
         {
             if( (flight->type == FL_TRIANGLES || flight->type == FL_PERFTEST) && button == 4 && down ) flight->perfMotion = !flight->perfMotion;
