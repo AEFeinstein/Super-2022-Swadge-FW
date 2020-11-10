@@ -51,7 +51,6 @@ typedef enum
 {
     FL_PERFTEST,
 	FL_TRIANGLES,
-    FL_EXPLORE,
     FL_ENV,
 } flGameType;
 
@@ -141,6 +140,12 @@ static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int faces, const uint16_t * 
 int ICACHE_FLASH_ATTR tdModelVisibilitycheck( const tdModel * m );
 void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m );
 
+//Forward libc declarations.
+void qsort(void *base, size_t nmemb, size_t size,
+          int (*compar)(const void *, const void *));
+int abs(int j);
+
+
 /*============================================================================
  * Variables
  *==========================================================================*/
@@ -165,7 +170,6 @@ flight_t* flight;
 static const char fl_title[]  = "Flightsim";
 static const char fl_flight_perf[] = "PERF";
 static const char fl_flight_triangles[] = "TRIS";
-static const char fl_flight_exlore[] = "EXPLORE";
 static const char fl_flight_env[] = "ENV";
 static const char fl_quit[]   = "QUIT";
 
@@ -241,7 +245,6 @@ void ICACHE_FLASH_ATTR flightEnterMode(void)
     addRowToMenu(flight->menu);
     addItemToRow(flight->menu, fl_flight_perf);
     addItemToRow(flight->menu, fl_flight_triangles);
-    addItemToRow(flight->menu, fl_flight_exlore);
     addItemToRow(flight->menu, fl_flight_env);
     addRowToMenu(flight->menu);
     addItemToRow(flight->menu, fl_quit);
@@ -273,11 +276,7 @@ void ICACHE_FLASH_ATTR flightExitMode(void)
  */
 static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem)
 {
-    if(fl_flight_exlore == menuItem)
-    {
-        flightStartGame(FL_EXPLORE);
-    }
-	else if( fl_flight_triangles == menuItem )
+	if( fl_flight_triangles == menuItem )
 	{
 		flightStartGame(FL_TRIANGLES);
 	}
@@ -373,6 +372,13 @@ static void ICACHE_FLASH_ATTR flightStartGame(flGameType type)
 	flight->beans = 0;
 	flight->timer = 0;
 	flight->wintime = 0;
+	flight->speed = 0;
+	flight->hpr[0] = 0;
+	flight->hpr[1] = 0;
+	flight->hpr[2] = 0;
+	flight->pitchmoment = 0;
+	flight->yawmoment = 0;
+
 
 	memset(flight->beangotmask, 0, sizeof( flight->beangotmask) );
 
@@ -405,7 +411,7 @@ static void ICACHE_FLASH_ATTR flightUpdate(void* arg __attribute__((unused)))
         {
             flight->frames++;
             flightGameUpdate( flight );
-			if( flight->frames == 200 ) flightEndGame();
+			if( flight->frames > 200 ) flight->frames = 200; //Keep it at 200, so we can click any button to continue.
 			break;
         }
     }
@@ -867,8 +873,6 @@ struct ModelRangePair
 
 //Do not put this in icache.
 int mdlctcmp( const void * va, const void * vb );
-void qsort(void *base, size_t nmemb, size_t size,
-          int (*compar)(const void *, const void *));
 int mdlctcmp( const void * va, const void * vb )
 {
 	struct ModelRangePair * a = (struct ModelRangePair *)va;
@@ -992,6 +996,9 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 		struct ModelRangePair mrp[tflight->enviromodels];
 		int mdlct = 0;
 
+/////////////////////////////////////////////////////////////////////////////////////////
+////GAME LOGIC GOES HERE (FOR COLLISIONS/////////////////////////////////////////////////
+
 		int i;
 		for( i = 0; i < tflight->enviromodels;i++ )
 		{
@@ -1012,17 +1019,18 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 					}
 				}
 				//bean? 1000... groupings of 8.
-				int beansec = ((label-1000)/8);
+				int beansec = ((label-1000)/10);
+
 				if( label >= 1000 && ( beansec == tflight->ondonut || beansec == (tflight->ondonut-1) || beansec == (tflight->ondonut+1)) )
 				{
-					if( ! (tflight->beangotmask[beansec] & (1<<((label-1000)&7))) )
+					if( ! (tflight->beangotmask[beansec] & (1<<((label-1000)%10))) )
 					{
 						draw = 1;
 
 						if( tdDist( tflight->planeloc, m->center ) < 100 )
 						{
 							tflight->beans++;
-							tflight->beangotmask[beansec] |= (1<<((label-1000)&7));
+							tflight->beangotmask[beansec] |= (1<<((label-1000)%10));
 							flightLEDAnimate( FLIGHT_LED_BEAN );
 						}
 
@@ -1050,13 +1058,9 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 			mdlct++;
 		}
 
+		//Painter's algorithm
 		qsort( mrp, mdlct, sizeof( struct ModelRangePair ), mdlctcmp );
 
-/////////////////////////////////////////////////////////////////////////////////////////
-////GAME LOGIC GOES HERE (FOR COLLISIONS/////////////////////////////////////////////////
-
-// XXX TODO: Optimization: Don't sort everything, only sort models we think we'll be using.
-//
 		for( i = 0; i < mdlct; i++ )
 		{
 			tdModel * m = mrp[i].model;
@@ -1067,15 +1071,15 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 				draw = 0;
 				if( label >= 100 && label < 999 )
 				{
-					draw = 2;
+					draw = 2; //All donuts flash on.
 				}
 				if( label >= 1000 )
 				{
-					draw = 3;
+					draw = 3; //All beans flash-invert
 				}
 				if( label == 999 ) //gazebo
 				{
-					draw = (tflight->ondonut==14)?2:1; //flash on last
+					draw = (tflight->ondonut==14)?2:1; //flash on last donut.
 				}
 			}
 
@@ -1188,6 +1192,9 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
 	const int thruster_decay = 8;
 	const int FLIGHT_SPEED_DEC = 9;
 	const int flight_max_speed = 30;
+
+	//If we're at the ending screen and the user presses a button end game.
+	if( tflight->mode == FLIGHT_GAME_OVER && bs && flight->frames > 199 ) flightEndGame();
 
 	if( tflight->mode == FLIGHT_GAME )
 	{
