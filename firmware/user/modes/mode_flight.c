@@ -1187,11 +1187,12 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
     int dpitch = 0;
     int dyaw = 0;
 
-    const int thruster_accel = 8;
-    const int thruster_max = 40;
-    const int thruster_decay = 8;
-    const int FLIGHT_SPEED_DEC = 9;
-    const int flight_max_speed = 30;
+    const int thruster_accel = 4;
+    const int thruster_max = 40; //NOTE: thruster_max must be divisble by thruster_accel
+    const int thruster_decay = 4;
+    const int FLIGHT_SPEED_DEC = 10;
+    const int flight_max_speed = 50;
+    const int flight_min_speed = 10;
 
     //If we're at the ending screen and the user presses a button end game.
     if( tflight->mode == FLIGHT_GAME_OVER && ( bs & 16 ) && flight->frames > 199 )
@@ -1235,13 +1236,12 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
 
 
         if( bs & 16 ) tflight->speed++;
-        else if( tflight->speed > 0 ) tflight->speed--;
+        else tflight->speed--;
+		if( tflight->speed < flight_min_speed ) tflight->speed = flight_min_speed;
+	    if( tflight->speed > flight_max_speed ) tflight->speed = flight_max_speed;
     }
 
     //If game over, just keep status quo.
-
-
-    if( tflight->speed > flight_max_speed ) tflight->speed = flight_max_speed;
 
     tflight->planeloc[0] += (tflight->speed * tdSIN( tflight->hpr[0]/16 ) )>>FLIGHT_SPEED_DEC;
     tflight->planeloc[2] += (tflight->speed * tdCOS( tflight->hpr[0]/16 ) )>>FLIGHT_SPEED_DEC;
