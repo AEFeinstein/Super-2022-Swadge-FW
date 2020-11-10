@@ -50,7 +50,7 @@
 typedef enum
 {
     FL_PERFTEST,
-	FL_TRIANGLES,
+    FL_TRIANGLES,
     FL_ENV,
 } flGameType;
 
@@ -59,17 +59,17 @@ typedef enum
 {
     FLIGHT_MENU,
     FLIGHT_GAME,
-	FLIGHT_GAME_OVER,
+    FLIGHT_GAME_OVER,
 } flightModeScreen;
 
 typedef struct
 {
-	uint16_t nrvertnums;
-	uint16_t nrfaces;
-	uint16_t indices_per_face;
+    uint16_t nrvertnums;
+    uint16_t nrfaces;
+    uint16_t indices_per_face;
     int16_t center[3];
     int16_t radius;
-	uint16_t label;
+    uint16_t label;
     int16_t indices_and_vertices[1];
 } tdModel;
 
@@ -77,12 +77,12 @@ typedef struct
 
 typedef enum
 {
-	FLIGHT_LED_NONE,
-	FLIGHT_LED_MENU_TICK,
-	FLIGHT_LED_GAME_START,
-	FLIGHT_LED_BEAN,
-	FLIGHT_LED_DONUT,
-	FLIGHT_LED_ENDING,
+    FLIGHT_LED_NONE,
+    FLIGHT_LED_MENU_TICK,
+    FLIGHT_LED_GAME_START,
+    FLIGHT_LED_BEAN,
+    FLIGHT_LED_DONUT,
+    FLIGHT_LED_ENDING,
 } flLEDAnimation;
 
 typedef struct
@@ -96,26 +96,26 @@ typedef struct
 
     int16_t planeloc[3];
     int16_t hpr[3];
-	int16_t speed;
-	int16_t pitchmoment;
-	int16_t yawmoment;
-	bool perfMotion;
+    int16_t speed;
+    int16_t pitchmoment;
+    int16_t yawmoment;
+    bool perfMotion;
     tdModel * isosphere;
 
-	int enviromodels;
-	tdModel ** environment;
+    int enviromodels;
+    tdModel ** environment;
 
     menu_t* menu;
 
-	int beans;
-	int ondonut;
-	int timer;
-	int wintime;
+    int beans;
+    int ondonut;
+    int timer;
+    int wintime;
 
-	flLEDAnimation ledAnimation;
-	uint8_t        ledAnimationTime;
+    flLEDAnimation ledAnimation;
+    uint8_t        ledAnimationTime;
 
-	uint8_t beangotmask[MAXRINGS];
+    uint8_t beangotmask[MAXRINGS];
 } flight_t;
 
 int renderlinecolor = WHITE;
@@ -227,19 +227,19 @@ void ICACHE_FLASH_ATTR flightEnterMode(void)
     flight->mode = FLIGHT_MENU;
     flight->isosphere = tdAllocateModel( sizeof(IsoSphereIndices)/sizeof(uint16_t)/2, IsoSphereIndices, IsoSphereVertices, 2 );
 
-	{
-		uint32_t retlen;
-		uint16_t * data = (uint16_t*)getAsset( "3denv.obj", &retlen );
-		data+=2; //header
-		flight->enviromodels = *(data++);
-		flight->environment = os_malloc( sizeof(tdModel *) * flight->enviromodels );
-		int i;
-		for( i = 0; i < flight->enviromodels; i++ )
-		{
-			tdModel * m = flight->environment[i] = (tdModel*)data;
-			data += 8 + m->nrvertnums + m->nrfaces * m->indices_per_face;
-		}
-	}
+    {
+        uint32_t retlen;
+        uint16_t * data = (uint16_t*)getAsset( "3denv.obj", &retlen );
+        data+=2; //header
+        flight->enviromodels = *(data++);
+        flight->environment = os_malloc( sizeof(tdModel *) * flight->enviromodels );
+        int i;
+        for( i = 0; i < flight->enviromodels; i++ )
+        {
+            tdModel * m = flight->environment[i] = (tdModel*)data;
+            data += 8 + m->nrvertnums + m->nrfaces * m->indices_per_face;
+        }
+    }
 
     flight->menu = initMenu(fl_title, flightMenuCb);
     addRowToMenu(flight->menu);
@@ -276,10 +276,10 @@ void ICACHE_FLASH_ATTR flightExitMode(void)
  */
 static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem)
 {
-	if( fl_flight_triangles == menuItem )
-	{
-		flightStartGame(FL_TRIANGLES);
-	}
+    if( fl_flight_triangles == menuItem )
+    {
+        flightStartGame(FL_TRIANGLES);
+    }
     else if( fl_flight_perf == menuItem )
     {
         flightStartGame(FL_PERFTEST);
@@ -296,57 +296,57 @@ static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem)
 
 static void ICACHE_FLASH_ATTR flightEndGame()
 {
-	flight->mode = FLIGHT_MENU;
-	//called when ending animation complete.
+    flight->mode = FLIGHT_MENU;
+    //called when ending animation complete.
 }
 
 static void ICACHE_FLASH_ATTR flightLEDAnimate( flLEDAnimation anim )
 {
-	flight->ledAnimation = anim;
-	flight->ledAnimationTime = 0;
+    flight->ledAnimation = anim;
+    flight->ledAnimationTime = 0;
 }
 
 static void ICACHE_FLASH_ATTR flightUpdateLEDs(flight_t * tflight)
-{	
+{    
     led_t leds[NUM_LIN_LEDS] = {{0}};
 
-	uint8_t        ledAnimationTime = tflight->ledAnimationTime++;
+    uint8_t        ledAnimationTime = tflight->ledAnimationTime++;
 
-	switch( tflight->ledAnimation )
-	{
-	default:
-	case FLIGHT_LED_NONE:
-		tflight->ledAnimationTime = 0;
-		break;
-	case FLIGHT_LED_ENDING:
-		leds[0] = SafeEHSVtoHEXhelper(ledAnimationTime*4+0, 255, 2200-10*ledAnimationTime, 1 );
-		leds[1] = SafeEHSVtoHEXhelper(ledAnimationTime*4+50, 255, 2200-10*ledAnimationTime, 1 );
-		leds[2] = SafeEHSVtoHEXhelper(ledAnimationTime*4+100, 255, 2200-10*ledAnimationTime, 1 );
-		leds[3] = SafeEHSVtoHEXhelper(ledAnimationTime*4+150, 255, 2200-10*ledAnimationTime, 1 );
-		leds[4] = SafeEHSVtoHEXhelper(ledAnimationTime*4+200, 255, 2200-10*ledAnimationTime, 1 );
-		leds[5] = SafeEHSVtoHEXhelper(ledAnimationTime*4+250, 255, 2200-10*ledAnimationTime, 1 );
-		if( ledAnimationTime == 255 ) flightLEDAnimate( FLIGHT_LED_NONE );
-		break;
-	case FLIGHT_LED_GAME_START:
-	case FLIGHT_LED_DONUT:
-		leds[0] = leds[5] = SafeEHSVtoHEXhelper(ledAnimationTime*8+0, 255, 200-10*ledAnimationTime, 1 );
-		leds[1] = leds[4] = SafeEHSVtoHEXhelper(ledAnimationTime*8+90, 255, 200-10*ledAnimationTime, 1 );
-		leds[2] = leds[3] = SafeEHSVtoHEXhelper(ledAnimationTime*8+180, 255, 200-10*ledAnimationTime, 1 );
-		if( ledAnimationTime == 30 ) flightLEDAnimate( FLIGHT_LED_NONE );
-		break;
-	case FLIGHT_LED_MENU_TICK:
-		leds[0] = leds[5] = SafeEHSVtoHEXhelper(0, 0, 60 - 40*abs(ledAnimationTime-2), 1 );
-		leds[1] = leds[4] = SafeEHSVtoHEXhelper(0, 0, 60 - 40*abs(ledAnimationTime-6), 1 );
-		leds[2] = leds[3] = SafeEHSVtoHEXhelper(0, 0, 60 - 40*abs(ledAnimationTime-10), 1 );
-		if( ledAnimationTime == 50 ) flightLEDAnimate( FLIGHT_LED_NONE );
-		break;
-	case FLIGHT_LED_BEAN:	
-		leds[0] = leds[5] = SafeEHSVtoHEXhelper(ledAnimationTime*16, 128, 150 - 40*abs(ledAnimationTime-2), 1 );
-		leds[1] = leds[4] = SafeEHSVtoHEXhelper(ledAnimationTime*16, 128, 150 - 40*abs(ledAnimationTime-6), 1 );
-		leds[2] = leds[3] = SafeEHSVtoHEXhelper(ledAnimationTime*16, 128, 150 - 40*abs(ledAnimationTime-10), 1 );		
-		if( ledAnimationTime == 30 ) flightLEDAnimate( FLIGHT_LED_NONE );
-		break;
-	}
+    switch( tflight->ledAnimation )
+    {
+    default:
+    case FLIGHT_LED_NONE:
+        tflight->ledAnimationTime = 0;
+        break;
+    case FLIGHT_LED_ENDING:
+        leds[0] = SafeEHSVtoHEXhelper(ledAnimationTime*4+0, 255, 2200-10*ledAnimationTime, 1 );
+        leds[1] = SafeEHSVtoHEXhelper(ledAnimationTime*4+50, 255, 2200-10*ledAnimationTime, 1 );
+        leds[2] = SafeEHSVtoHEXhelper(ledAnimationTime*4+100, 255, 2200-10*ledAnimationTime, 1 );
+        leds[3] = SafeEHSVtoHEXhelper(ledAnimationTime*4+150, 255, 2200-10*ledAnimationTime, 1 );
+        leds[4] = SafeEHSVtoHEXhelper(ledAnimationTime*4+200, 255, 2200-10*ledAnimationTime, 1 );
+        leds[5] = SafeEHSVtoHEXhelper(ledAnimationTime*4+250, 255, 2200-10*ledAnimationTime, 1 );
+        if( ledAnimationTime == 255 ) flightLEDAnimate( FLIGHT_LED_NONE );
+        break;
+    case FLIGHT_LED_GAME_START:
+    case FLIGHT_LED_DONUT:
+        leds[0] = leds[5] = SafeEHSVtoHEXhelper(ledAnimationTime*8+0, 255, 200-10*ledAnimationTime, 1 );
+        leds[1] = leds[4] = SafeEHSVtoHEXhelper(ledAnimationTime*8+90, 255, 200-10*ledAnimationTime, 1 );
+        leds[2] = leds[3] = SafeEHSVtoHEXhelper(ledAnimationTime*8+180, 255, 200-10*ledAnimationTime, 1 );
+        if( ledAnimationTime == 30 ) flightLEDAnimate( FLIGHT_LED_NONE );
+        break;
+    case FLIGHT_LED_MENU_TICK:
+        leds[0] = leds[5] = SafeEHSVtoHEXhelper(0, 0, 60 - 40*abs(ledAnimationTime-2), 1 );
+        leds[1] = leds[4] = SafeEHSVtoHEXhelper(0, 0, 60 - 40*abs(ledAnimationTime-6), 1 );
+        leds[2] = leds[3] = SafeEHSVtoHEXhelper(0, 0, 60 - 40*abs(ledAnimationTime-10), 1 );
+        if( ledAnimationTime == 50 ) flightLEDAnimate( FLIGHT_LED_NONE );
+        break;
+    case FLIGHT_LED_BEAN:    
+        leds[0] = leds[5] = SafeEHSVtoHEXhelper(ledAnimationTime*16, 128, 150 - 40*abs(ledAnimationTime-2), 1 );
+        leds[1] = leds[4] = SafeEHSVtoHEXhelper(ledAnimationTime*16, 128, 150 - 40*abs(ledAnimationTime-6), 1 );
+        leds[2] = leds[3] = SafeEHSVtoHEXhelper(ledAnimationTime*16, 128, 150 - 40*abs(ledAnimationTime-10), 1 );        
+        if( ledAnimationTime == 30 ) flightLEDAnimate( FLIGHT_LED_NONE );
+        break;
+    }
 
     setLeds(leds, sizeof(leds));
 }
@@ -365,24 +365,24 @@ static void ICACHE_FLASH_ATTR flightStartGame(flGameType type)
     flight->frames = 0;
 
 
-	flight->planeloc[0] = 800;
-	flight->planeloc[1] = 400;
-	flight->planeloc[2] = -500;
-	flight->ondonut = 0; //SEt to 14 to b-line it to the end 
-	flight->beans = 0;
-	flight->timer = 0;
-	flight->wintime = 0;
-	flight->speed = 0;
-	flight->hpr[0] = 0;
-	flight->hpr[1] = 0;
-	flight->hpr[2] = 0;
-	flight->pitchmoment = 0;
-	flight->yawmoment = 0;
+    flight->planeloc[0] = 800;
+    flight->planeloc[1] = 400;
+    flight->planeloc[2] = -500;
+    flight->ondonut = 0; //SEt to 14 to b-line it to the end 
+    flight->beans = 0;
+    flight->timer = 0;
+    flight->wintime = 0;
+    flight->speed = 0;
+    flight->hpr[0] = 0;
+    flight->hpr[1] = 0;
+    flight->hpr[2] = 0;
+    flight->pitchmoment = 0;
+    flight->yawmoment = 0;
 
 
-	memset(flight->beangotmask, 0, sizeof( flight->beangotmask) );
+    memset(flight->beangotmask, 0, sizeof( flight->beangotmask) );
 
-	flightLEDAnimate( FLIGHT_LED_GAME_START );
+    flightLEDAnimate( FLIGHT_LED_GAME_START );
 }
 
 /**
@@ -405,18 +405,18 @@ static void ICACHE_FLASH_ATTR flightUpdate(void* arg __attribute__((unused)))
             // Increment the frame count
             flight->frames++;
             flightGameUpdate( flight );
-			break;
+            break;
         }
         case FLIGHT_GAME_OVER:
         {
             flight->frames++;
             flightGameUpdate( flight );
-			if( flight->frames > 200 ) flight->frames = 200; //Keep it at 200, so we can click any button to continue.
-			break;
+            if( flight->frames > 200 ) flight->frames = 200; //Keep it at 200, so we can click any button to continue.
+            break;
         }
     }
 
-	flightUpdateLEDs( flight );
+    flightUpdateLEDs( flight );
 
 }
 
@@ -488,10 +488,10 @@ uint16_t ICACHE_FLASH_ATTR tdSQRT( uint32_t inval )
 
 int16_t ICACHE_FLASH_ATTR tdDist( int16_t * a, int16_t * b )
 {
-	int32_t dx = a[0] - b[0];
-	int32_t dy = a[1] - b[1];
-	int32_t dz = a[2] - b[2];
-	return tdSQRT( dx*dx+dy*dy+dz*dz );
+    int32_t dx = a[0] - b[0];
+    int32_t dy = a[1] - b[1];
+    int32_t dz = a[2] - b[2];
+    return tdSQRT( dx*dx+dy*dy+dz*dz );
 }
 
 void ICACHE_FLASH_ATTR tdIdentity( int16_t * matrix )
@@ -706,7 +706,7 @@ static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int nrfaces, const uint16_t 
 
     tdModel * ret = os_malloc( sizeof( tdModel ) + highest_v * sizeof(uint16_t) + nrfaces * sizeof(uint16_t) * 2  );
     ret->nrfaces = nrfaces;
-	ret->indices_per_face = indices_per_face;
+    ret->indices_per_face = indices_per_face;
 
     ets_memcpy( ret->indices_and_vertices, indices, nrfaces * sizeof(uint16_t) * 2 );
     int16_t * voffset = &ret->indices_and_vertices[nrfaces * 2];
@@ -750,134 +750,134 @@ static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int nrfaces, const uint16_t 
 int ICACHE_FLASH_ATTR tdModelVisibilitycheck( const tdModel * m )
 {
 
-	//For computing visibility check
-	int16_t tmppt[4] = { m->center[0], m->center[1], m->center[2], 256 }; //No multiplier seems to work right here.
-	td4Transform( tmppt, ModelviewMatrix, tmppt );
-	td4Transform( tmppt, ProjectionMatrix, tmppt );
-	if( tmppt[3] < -2 )
-	{
-	    int scx = ((256 * tmppt[0] / tmppt[3])/16+(OLED_WIDTH/2));
-	    int scy = ((256 * tmppt[1] / tmppt[3])/8+(OLED_HEIGHT/2));
-	   // int scz = ((65536 * tmppt[2] / tmppt[3]));
-	    int scd = ((-256 * 2 * m->radius / tmppt[3])/8);
-	    scd += 3; //Slack
-	    if( scx < -scd || scy < -scd || scx >= OLED_WIDTH + scd || scy >= OLED_HEIGHT + scd )
-	    {
-	        return -1;
-	    }
-		else
-		{
-			return -tmppt[3];
-		}
-	}
-	else
-	{
-	    return -2;
-	}
+    //For computing visibility check
+    int16_t tmppt[4] = { m->center[0], m->center[1], m->center[2], 256 }; //No multiplier seems to work right here.
+    td4Transform( tmppt, ModelviewMatrix, tmppt );
+    td4Transform( tmppt, ProjectionMatrix, tmppt );
+    if( tmppt[3] < -2 )
+    {
+        int scx = ((256 * tmppt[0] / tmppt[3])/16+(OLED_WIDTH/2));
+        int scy = ((256 * tmppt[1] / tmppt[3])/8+(OLED_HEIGHT/2));
+       // int scz = ((65536 * tmppt[2] / tmppt[3]));
+        int scd = ((-256 * 2 * m->radius / tmppt[3])/8);
+        scd += 3; //Slack
+        if( scx < -scd || scy < -scd || scx >= OLED_WIDTH + scd || scy >= OLED_HEIGHT + scd )
+        {
+            return -1;
+        }
+        else
+        {
+            return -tmppt[3];
+        }
+    }
+    else
+    {
+        return -2;
+    }
 }
 
 void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m )
 {
     int i;
 
-	int nrv = m->nrvertnums;
-	int nri = m->nrfaces*m->indices_per_face;
-	int16_t * verticesmark = (int16_t*)&m->indices_and_vertices[nri];
+    int nrv = m->nrvertnums;
+    int nri = m->nrfaces*m->indices_per_face;
+    int16_t * verticesmark = (int16_t*)&m->indices_and_vertices[nri];
 
-	if( tdModelVisibilitycheck( m ) < 0 )
-	{
-		return;
-	}
+    if( tdModelVisibilitycheck( m ) < 0 )
+    {
+        return;
+    }
 
 
-	//This looks a little odd, but what we're doing is caching our vertex computations
-	//so we don't have to re-compute every time round.
-	//f( "%d\n", nrv );
-	int16_t cached_verts[nrv];
+    //This looks a little odd, but what we're doing is caching our vertex computations
+    //so we don't have to re-compute every time round.
+    //f( "%d\n", nrv );
+    int16_t cached_verts[nrv];
 
-	for( i = 0; i < nrv; i+=3 )
-	{
-	    int16_t * cv1 = &cached_verts[i];
-	    if( LocalToScreenspace( &verticesmark[i], cv1, cv1+1 ) )
-	        cv1[2] = 2;
-	    else
-	        cv1[2] = 1;
-	}
+    for( i = 0; i < nrv; i+=3 )
+    {
+        int16_t * cv1 = &cached_verts[i];
+        if( LocalToScreenspace( &verticesmark[i], cv1, cv1+1 ) )
+            cv1[2] = 2;
+        else
+            cv1[2] = 1;
+    }
 
-	if( m->indices_per_face == 2 )
-	{
-		if( renderlinecolor == BLACK )
-		{
-			for( i = 0; i < nri; i+=2 )
-			{
-				int i1 = m->indices_and_vertices[i];
-				int i2 = m->indices_and_vertices[i+1];
-				int16_t * cv1 = &cached_verts[i1];
-				int16_t * cv2 = &cached_verts[i2];
+    if( m->indices_per_face == 2 )
+    {
+        if( renderlinecolor == BLACK )
+        {
+            for( i = 0; i < nri; i+=2 )
+            {
+                int i1 = m->indices_and_vertices[i];
+                int i2 = m->indices_and_vertices[i+1];
+                int16_t * cv1 = &cached_verts[i1];
+                int16_t * cv2 = &cached_verts[i2];
 
-				if( cv1[2] != 2 && cv2[2] != 2 )
-				{
-				    speedyBlackLine( cv1[0], cv1[1], cv2[0], cv2[1], false );
-				}
-			}
-		}
-		else
-		{
-			for( i = 0; i < nri; i+=2 )
-			{
-				int i1 = m->indices_and_vertices[i];
-				int i2 = m->indices_and_vertices[i+1];
-				int16_t * cv1 = &cached_verts[i1];
-				int16_t * cv2 = &cached_verts[i2];
+                if( cv1[2] != 2 && cv2[2] != 2 )
+                {
+                    speedyBlackLine( cv1[0], cv1[1], cv2[0], cv2[1], false );
+                }
+            }
+        }
+        else
+        {
+            for( i = 0; i < nri; i+=2 )
+            {
+                int i1 = m->indices_and_vertices[i];
+                int i2 = m->indices_and_vertices[i+1];
+                int16_t * cv1 = &cached_verts[i1];
+                int16_t * cv2 = &cached_verts[i2];
 
-				if( cv1[2] != 2 && cv2[2] != 2 )
-				{
-				    speedyWhiteLine( cv1[0], cv1[1], cv2[0], cv2[1], false );
-				}
-			}
-		}
-	}
-	else if( m->indices_per_face == 3 )
-	{
-		for( i = 0; i < nri; i+=3 )
-		{
-		    int i1 = m->indices_and_vertices[i];
-		    int i2 = m->indices_and_vertices[i+1];
-		    int i3 = m->indices_and_vertices[i+2];
-		    int16_t * cv1 = &cached_verts[i1];
-		    int16_t * cv2 = &cached_verts[i2];
-		    int16_t * cv3 = &cached_verts[i3];
-			//printf( "%d/%d/%d  %d %d %d\n", i1, i2, i3, cv1[2], cv2[2], cv3[2] );
+                if( cv1[2] != 2 && cv2[2] != 2 )
+                {
+                    speedyWhiteLine( cv1[0], cv1[1], cv2[0], cv2[1], false );
+                }
+            }
+        }
+    }
+    else if( m->indices_per_face == 3 )
+    {
+        for( i = 0; i < nri; i+=3 )
+        {
+            int i1 = m->indices_and_vertices[i];
+            int i2 = m->indices_and_vertices[i+1];
+            int i3 = m->indices_and_vertices[i+2];
+            int16_t * cv1 = &cached_verts[i1];
+            int16_t * cv2 = &cached_verts[i2];
+            int16_t * cv3 = &cached_verts[i3];
+            //printf( "%d/%d/%d  %d %d %d\n", i1, i2, i3, cv1[2], cv2[2], cv3[2] );
 
-		    if( cv1[2] != 2 && cv2[2] != 2 && cv3[2] != 2 )
-		    {
+            if( cv1[2] != 2 && cv2[2] != 2 && cv3[2] != 2 )
+            {
 
-				//Perform screen-space cross product to determine if we're looking at a backface.
-				int Ux = cv3[0] - cv1[0];
-				int Uy = cv3[1] - cv1[1];
-				int Vx = cv2[0] - cv1[0];
-				int Vy = cv2[1] - cv1[1];
-				if( Ux*Vy-Uy*Vx >= 0 )
-					outlineTriangle( cv1[0], cv1[1], cv2[0], cv2[1], cv3[0], cv3[1], BLACK, WHITE );
-		    }
-		}
-	}
+                //Perform screen-space cross product to determine if we're looking at a backface.
+                int Ux = cv3[0] - cv1[0];
+                int Uy = cv3[1] - cv1[1];
+                int Vx = cv2[0] - cv1[0];
+                int Vy = cv2[1] - cv1[1];
+                if( Ux*Vy-Uy*Vx >= 0 )
+                    outlineTriangle( cv1[0], cv1[1], cv2[0], cv2[1], cv3[0], cv3[1], BLACK, WHITE );
+            }
+        }
+    }
 }
 
 
 struct ModelRangePair
 {
-	tdModel * model;
-	int       mrange;
+    tdModel * model;
+    int       mrange;
 };
 
 //Do not put this in icache.
 int mdlctcmp( const void * va, const void * vb );
 int mdlctcmp( const void * va, const void * vb )
 {
-	struct ModelRangePair * a = (struct ModelRangePair *)va;
-	struct ModelRangePair * b = (struct ModelRangePair *)vb;
-	return b->mrange - a->mrange;
+    struct ModelRangePair * a = (struct ModelRangePair *)va;
+    struct ModelRangePair * b = (struct ModelRangePair *)vb;
+    return b->mrange - a->mrange;
 }
 
 
@@ -896,14 +896,14 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
     SetupMatrix();
 
 #ifdef EMU
-	uint32_t start = 0;
+    uint32_t start = 0;
 #else
-	uint32_t start = xthal_get_ccount();
+    uint32_t start = xthal_get_ccount();
 #endif
     if( tflight->type == FL_PERFTEST )
     {
-	    tdRotateEA( ProjectionMatrix, -20, 0, 0 );
-	    clearDisplay();
+        tdRotateEA( ProjectionMatrix, -20, 0, 0 );
+        clearDisplay();
         int x = 0;
         int y = -1;
 #ifndef EMU
@@ -915,14 +915,14 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
         //45 spheres x 42 vertices per = 1,890 vertices per frame
         //As of 2020-09-23 19:54, Render is: 20.89584ms + ~9.16ms for output.
 
-		if( !tflight->perfMotion )
-		{
-			ij = 0;
-		}
-		else
-		{
-			tdRotateEA( ModelviewMatrix, ij, 0, 0 );
-		}
+        if( !tflight->perfMotion )
+        {
+            ij = 0;
+        }
+        else
+        {
+            tdRotateEA( ModelviewMatrix, ij, 0, 0 );
+        }
 
         for( x = -4; x < 5; x++ )
         {
@@ -940,47 +940,47 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
         GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
 #endif
     }
-	else if( tflight->type == FL_TRIANGLES )
-	{
+    else if( tflight->type == FL_TRIANGLES )
+    {
 #ifndef EMU
         PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.  
         GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
         OVERCLOCK_SECTION_ENABLE();
 #endif
-		int x,y;
-		int overlay = 0;
-		//1,000 triangles @ 28.3ms.
-		if( tflight->perfMotion )
-		{
-			for( overlay = 0; overlay < 100; overlay++ )
-			{
-				int col = os_random()%2;
-				outlineTriangle( (os_random()%256)-64, (os_random()%128)-32, (os_random()%256)-64, (os_random()%128)-32,
-					(os_random()%256)-64, (os_random()%128)-32, col, !col );
-			}
-		}
-		else
-		{
-			ij = 32;
-			for( overlay = 0; overlay < 10; overlay++ )
-			for( y = 0; y < 10; y++ )
-			for( x = 0; x < 10; x++ )
-			{
-				int mx = x * 12;
-				int my = y * 6;
-				int mx1 = x*12+tdSIN( ij+x+y )/25;
-				int my1 = y*6+tdCOS( ij+x+y )/25;
-				outlineTriangle( mx, my, mx1, my, mx, my1, 0, 1 );
-				outlineTriangle( mx, my1, mx1, my1, mx1, my, 0, 1 );
-			}
-		}
+        int x,y;
+        int overlay = 0;
+        //1,000 triangles @ 28.3ms.
+        if( tflight->perfMotion )
+        {
+            for( overlay = 0; overlay < 100; overlay++ )
+            {
+                int col = os_random()%2;
+                outlineTriangle( (os_random()%256)-64, (os_random()%128)-32, (os_random()%256)-64, (os_random()%128)-32,
+                    (os_random()%256)-64, (os_random()%128)-32, col, !col );
+            }
+        }
+        else
+        {
+            ij = 32;
+            for( overlay = 0; overlay < 10; overlay++ )
+            for( y = 0; y < 10; y++ )
+            for( x = 0; x < 10; x++ )
+            {
+                int mx = x * 12;
+                int my = y * 6;
+                int mx1 = x*12+tdSIN( ij+x+y )/25;
+                int my1 = y*6+tdCOS( ij+x+y )/25;
+                outlineTriangle( mx, my, mx1, my, mx, my1, 0, 1 );
+                outlineTriangle( mx, my1, mx1, my1, mx1, my, 0, 1 );
+            }
+        }
 #ifndef EMU
         OVERCLOCK_SECTION_DISABLE();
         GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
 #endif
-	}
-	else if( tflight->type == FL_ENV )
-	{
+    }
+    else if( tflight->type == FL_ENV )
+    {
 
 #ifndef EMU
         PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.  
@@ -988,122 +988,122 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
         OVERCLOCK_SECTION_ENABLE();
 #endif
 
-	    clearDisplay();
+        clearDisplay();
         tdRotateEA( ProjectionMatrix, tflight->hpr[1]/16, tflight->hpr[0]/16, 0 );
         tdTranslate( ModelviewMatrix, -tflight->planeloc[0], -tflight->planeloc[1], -tflight->planeloc[2] );
 
 
-		struct ModelRangePair mrp[tflight->enviromodels];
-		int mdlct = 0;
+        struct ModelRangePair mrp[tflight->enviromodels];
+        int mdlct = 0;
 
 /////////////////////////////////////////////////////////////////////////////////////////
 ////GAME LOGIC GOES HERE (FOR COLLISIONS/////////////////////////////////////////////////
 
-		int i;
-		for( i = 0; i < tflight->enviromodels;i++ )
-		{
-			tdModel * m = tflight->environment[i];
+        int i;
+        for( i = 0; i < tflight->enviromodels;i++ )
+        {
+            tdModel * m = tflight->environment[i];
 
-			int label = m->label;
-			int draw = 1;
-			if( label )
-			{
-				draw = 0;
-				if( label >= 100 && (label - 100) == tflight->ondonut )
-				{
-					draw = 1;
-					if( tdDist( tflight->planeloc, m->center ) < 130 )
-					{
-						flightLEDAnimate( FLIGHT_LED_DONUT );
-						tflight->ondonut++;
-					}
-				}
-				//bean? 1000... groupings of 8.
-				int beansec = ((label-1000)/10);
+            int label = m->label;
+            int draw = 1;
+            if( label )
+            {
+                draw = 0;
+                if( label >= 100 && (label - 100) == tflight->ondonut )
+                {
+                    draw = 1;
+                    if( tdDist( tflight->planeloc, m->center ) < 130 )
+                    {
+                        flightLEDAnimate( FLIGHT_LED_DONUT );
+                        tflight->ondonut++;
+                    }
+                }
+                //bean? 1000... groupings of 8.
+                int beansec = ((label-1000)/10);
 
-				if( label >= 1000 && ( beansec == tflight->ondonut || beansec == (tflight->ondonut-1) || beansec == (tflight->ondonut+1)) )
-				{
-					if( ! (tflight->beangotmask[beansec] & (1<<((label-1000)%10))) )
-					{
-						draw = 1;
+                if( label >= 1000 && ( beansec == tflight->ondonut || beansec == (tflight->ondonut-1) || beansec == (tflight->ondonut+1)) )
+                {
+                    if( ! (tflight->beangotmask[beansec] & (1<<((label-1000)%10))) )
+                    {
+                        draw = 1;
 
-						if( tdDist( tflight->planeloc, m->center ) < 100 )
-						{
-							tflight->beans++;
-							tflight->beangotmask[beansec] |= (1<<((label-1000)%10));
-							flightLEDAnimate( FLIGHT_LED_BEAN );
-						}
+                        if( tdDist( tflight->planeloc, m->center ) < 100 )
+                        {
+                            tflight->beans++;
+                            tflight->beangotmask[beansec] |= (1<<((label-1000)%10));
+                            flightLEDAnimate( FLIGHT_LED_BEAN );
+                        }
 
-					}
-				}
-				if( label == 999 ) //gazebo
-				{
-					draw = 1;
-					if( flight->mode != FLIGHT_GAME_OVER && tdDist( tflight->planeloc, m->center ) < 200 && tflight->ondonut == 14)
-					{
-						flightLEDAnimate( FLIGHT_LED_ENDING );
-						tflight->frames = 0;
-						tflight->wintime = tflight->timer;
-						tflight->mode = FLIGHT_GAME_OVER;
-					}
-				}
-			}
+                    }
+                }
+                if( label == 999 ) //gazebo
+                {
+                    draw = 1;
+                    if( flight->mode != FLIGHT_GAME_OVER && tdDist( tflight->planeloc, m->center ) < 200 && tflight->ondonut == 14)
+                    {
+                        flightLEDAnimate( FLIGHT_LED_ENDING );
+                        tflight->frames = 0;
+                        tflight->wintime = tflight->timer;
+                        tflight->mode = FLIGHT_GAME_OVER;
+                    }
+                }
+            }
 
-			if( draw == 0 ) continue;
+            if( draw == 0 ) continue;
 
-			int r = tdModelVisibilitycheck( m );
-			if( r < 0 ) continue;
-			mrp[mdlct].model = m;
-			mrp[mdlct].mrange = r;
-			mdlct++;
-		}
+            int r = tdModelVisibilitycheck( m );
+            if( r < 0 ) continue;
+            mrp[mdlct].model = m;
+            mrp[mdlct].mrange = r;
+            mdlct++;
+        }
 
-		//Painter's algorithm
-		qsort( mrp, mdlct, sizeof( struct ModelRangePair ), mdlctcmp );
+        //Painter's algorithm
+        qsort( mrp, mdlct, sizeof( struct ModelRangePair ), mdlctcmp );
 
-		for( i = 0; i < mdlct; i++ )
-		{
-			tdModel * m = mrp[i].model;
-			int label = m->label;
-			int draw = 1;
-			if( label )
-			{
-				draw = 0;
-				if( label >= 100 && label < 999 )
-				{
-					draw = 2; //All donuts flash on.
-				}
-				if( label >= 1000 )
-				{
-					draw = 3; //All beans flash-invert
-				}
-				if( label == 999 ) //gazebo
-				{
-					draw = (tflight->ondonut==14)?2:1; //flash on last donut.
-				}
-			}
+        for( i = 0; i < mdlct; i++ )
+        {
+            tdModel * m = mrp[i].model;
+            int label = m->label;
+            int draw = 1;
+            if( label )
+            {
+                draw = 0;
+                if( label >= 100 && label < 999 )
+                {
+                    draw = 2; //All donuts flash on.
+                }
+                if( label >= 1000 )
+                {
+                    draw = 3; //All beans flash-invert
+                }
+                if( label == 999 ) //gazebo
+                {
+                    draw = (tflight->ondonut==14)?2:1; //flash on last donut.
+                }
+            }
 
-			//XXX TODO:
-			// Flash light when you get a bean or a ring.
-			// Do laptiming per ring for fastest time.
-			// Fix time counting and presentation
+            //XXX TODO:
+            // Flash light when you get a bean or a ring.
+            // Do laptiming per ring for fastest time.
+            // Fix time counting and presentation
 
-			//draw = 0 = invisible
-			//draw = 1 = regular
-			//draw = 2 = flashing
-			//draw = 3 = other flashing
-			if( draw == 1 )
-		        tdDrawModel( m );
-			else if( draw == 2 || draw == 3 )
-			{
-				if( draw == 2 )
-					renderlinecolor = (tflight->frames&1)?WHITE:BLACK;
-				if( draw == 3 ) 
-					renderlinecolor = (tflight->frames&1)?BLACK:WHITE;
-				tdDrawModel( m );
-				renderlinecolor = WHITE;
-			}
-		}
+            //draw = 0 = invisible
+            //draw = 1 = regular
+            //draw = 2 = flashing
+            //draw = 3 = other flashing
+            if( draw == 1 )
+                tdDrawModel( m );
+            else if( draw == 2 || draw == 3 )
+            {
+                if( draw == 2 )
+                    renderlinecolor = (tflight->frames&1)?WHITE:BLACK;
+                if( draw == 3 ) 
+                    renderlinecolor = (tflight->frames&1)?BLACK:WHITE;
+                tdDrawModel( m );
+                renderlinecolor = WHITE;
+            }
+        }
 
 
 #ifndef EMU
@@ -1111,7 +1111,7 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
         GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
 #endif
 
-	}
+    }
     else
     {
         //Normal game
@@ -1124,7 +1124,7 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
         OVERCLOCK_SECTION_ENABLE();
 #endif
 
-	    clearDisplay();
+        clearDisplay();
         tdRotateEA( ProjectionMatrix, tflight->hpr[1], tflight->hpr[0], 0 );
         tdTranslate( ModelviewMatrix, -tflight->planeloc[0], -tflight->planeloc[1], -tflight->planeloc[2] );
 
@@ -1149,31 +1149,31 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 #endif
     }
 #ifdef EMU
-	uint32_t stop = 0;
+    uint32_t stop = 0;
 #else
-	uint32_t stop = xthal_get_ccount();
+    uint32_t stop = xthal_get_ccount();
 #endif
 
 
-	if( flight->mode == FLIGHT_GAME )
-	{
-		char framesStr[32] = {0};
-		//ets_snprintf(framesStr, sizeof(framesStr), "%02x %dus", tflight->buttonState, (stop-start)/160);
-		ets_snprintf(framesStr, sizeof(framesStr), "%d %d %d", tflight->ondonut, tflight->beans, tflight->timer );
+    if( flight->mode == FLIGHT_GAME )
+    {
+        char framesStr[32] = {0};
+        //ets_snprintf(framesStr, sizeof(framesStr), "%02x %dus", tflight->buttonState, (stop-start)/160);
+        ets_snprintf(framesStr, sizeof(framesStr), "%d %d %d", tflight->ondonut, tflight->beans, tflight->timer );
 
-		plotText(1, 1, framesStr, TOM_THUMB, WHITE);
-	}
-	else
-	{
-		char framesStr[32] = {0};
-		//ets_snprintf(framesStr, sizeof(framesStr), "%02x %dus", tflight->buttonState, (stop-start)/160);
-		ets_snprintf(framesStr, sizeof(framesStr), "YOU  WIN:" );
-		plotText(20, 0, framesStr, RADIOSTARS, WHITE);
-		ets_snprintf(framesStr, sizeof(framesStr), "TIME:%5d", tflight->wintime );
-		plotText(20, 20, framesStr, RADIOSTARS, WHITE);
-		ets_snprintf(framesStr, sizeof(framesStr), "BEANS:%3d",tflight->beans );
-		plotText(20, 40, framesStr, RADIOSTARS, WHITE);
-	}
+        plotText(1, 1, framesStr, TOM_THUMB, WHITE);
+    }
+    else
+    {
+        char framesStr[32] = {0};
+        //ets_snprintf(framesStr, sizeof(framesStr), "%02x %dus", tflight->buttonState, (stop-start)/160);
+        ets_snprintf(framesStr, sizeof(framesStr), "YOU  WIN:" );
+        plotText(20, 0, framesStr, RADIOSTARS, WHITE);
+        ets_snprintf(framesStr, sizeof(framesStr), "TIME:%5d", tflight->wintime );
+        plotText(20, 20, framesStr, RADIOSTARS, WHITE);
+        ets_snprintf(framesStr, sizeof(framesStr), "BEANS:%3d",tflight->beans );
+        plotText(20, 40, framesStr, RADIOSTARS, WHITE);
+    }
 
     //If perf test, force full frame refresh
     //Otherwise, don't force full-screen refresh
@@ -1184,67 +1184,67 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
 {
     uint8_t bs = tflight->buttonState;
 
-	int dpitch = 0;
-	int dyaw = 0;
+    int dpitch = 0;
+    int dyaw = 0;
 
-	const int thruster_accel = 8;
-	const int thruster_max = 40;
-	const int thruster_decay = 8;
-	const int FLIGHT_SPEED_DEC = 9;
-	const int flight_max_speed = 30;
+    const int thruster_accel = 8;
+    const int thruster_max = 40;
+    const int thruster_decay = 8;
+    const int FLIGHT_SPEED_DEC = 9;
+    const int flight_max_speed = 30;
 
-	//If we're at the ending screen and the user presses a button end game.
-	if( tflight->mode == FLIGHT_GAME_OVER && bs && flight->frames > 199 ) flightEndGame();
+    //If we're at the ending screen and the user presses a button end game.
+    if( tflight->mode == FLIGHT_GAME_OVER && ( bs & 16 ) && flight->frames > 199 ) flightEndGame();
 
-	if( tflight->mode == FLIGHT_GAME )
-	{
-		if( bs & 1 ) dpitch += thruster_accel;
-		if( bs & 4 ) dpitch -= thruster_accel;
-		if( bs & 2 ) dyaw += thruster_accel;
-		if( bs & 8 ) dyaw -= thruster_accel;
+    if( tflight->mode == FLIGHT_GAME )
+    {
+        if( bs & 1 ) dpitch += thruster_accel;
+        if( bs & 4 ) dpitch -= thruster_accel;
+        if( bs & 2 ) dyaw += thruster_accel;
+        if( bs & 8 ) dyaw -= thruster_accel;
 
-		if( dpitch )
-		{
-			tflight->pitchmoment += dpitch;
-			if( tflight->pitchmoment > thruster_max ) tflight->pitchmoment = thruster_max;
-			if( tflight->pitchmoment < -thruster_max ) tflight->pitchmoment = -thruster_max;
-		}
-		else
-		{
-			if( tflight->pitchmoment > 0 ) tflight->pitchmoment-=thruster_decay;
-			if( tflight->pitchmoment < 0 ) tflight->pitchmoment+=thruster_decay;
-		}
+        if( dpitch )
+        {
+            tflight->pitchmoment += dpitch;
+            if( tflight->pitchmoment > thruster_max ) tflight->pitchmoment = thruster_max;
+            if( tflight->pitchmoment < -thruster_max ) tflight->pitchmoment = -thruster_max;
+        }
+        else
+        {
+            if( tflight->pitchmoment > 0 ) tflight->pitchmoment-=thruster_decay;
+            if( tflight->pitchmoment < 0 ) tflight->pitchmoment+=thruster_decay;
+        }
 
-		if( dyaw )
-		{
-			tflight->yawmoment += dyaw;
-			if( tflight->yawmoment > thruster_max ) tflight->yawmoment = thruster_max;
-			if( tflight->yawmoment < -thruster_max ) tflight->yawmoment = -thruster_max;
-		}
-		else
-		{
-			if( tflight->yawmoment > 0 ) tflight->yawmoment-=thruster_decay;
-			if( tflight->yawmoment < 0 ) tflight->yawmoment+=thruster_decay;
-		}
+        if( dyaw )
+        {
+            tflight->yawmoment += dyaw;
+            if( tflight->yawmoment > thruster_max ) tflight->yawmoment = thruster_max;
+            if( tflight->yawmoment < -thruster_max ) tflight->yawmoment = -thruster_max;
+        }
+        else
+        {
+            if( tflight->yawmoment > 0 ) tflight->yawmoment-=thruster_decay;
+            if( tflight->yawmoment < 0 ) tflight->yawmoment+=thruster_decay;
+        }
 
-		tflight->hpr[0] += tflight->pitchmoment;
-		tflight->hpr[1] += tflight->yawmoment;
-
-
-		if( bs & 16 ) tflight->speed++;
-		else if( tflight->speed > 0 ) tflight->speed--;
-	}
-
-	//If game over, just keep status quo.
+        tflight->hpr[0] += tflight->pitchmoment;
+        tflight->hpr[1] += tflight->yawmoment;
 
 
-	if( tflight->speed > flight_max_speed ) tflight->speed = flight_max_speed;
+        if( bs & 16 ) tflight->speed++;
+        else if( tflight->speed > 0 ) tflight->speed--;
+    }
+
+    //If game over, just keep status quo.
+
+
+    if( tflight->speed > flight_max_speed ) tflight->speed = flight_max_speed;
 
     tflight->planeloc[0] += (tflight->speed * tdSIN( tflight->hpr[0]/16 ) )>>FLIGHT_SPEED_DEC;
     tflight->planeloc[2] += (tflight->speed * tdCOS( tflight->hpr[0]/16 ) )>>FLIGHT_SPEED_DEC;
     tflight->planeloc[1] -= (tflight->speed * tdSIN( tflight->hpr[1]/16 ) )>>FLIGHT_SPEED_DEC;
 
-	flight->timer++;
+    flight->timer++;
 }
 
 /**
@@ -1263,15 +1263,15 @@ void ICACHE_FLASH_ATTR flightButtonCallback( uint8_t state,
         {
             if(down)
             {
-				printf( "Animate\n" );
-				flightLEDAnimate( FLIGHT_LED_MENU_TICK ); 
+                printf( "Animate\n" );
+                flightLEDAnimate( FLIGHT_LED_MENU_TICK ); 
                 menuButton(flight->menu, button);
             }
             break;
         }
         case FLIGHT_GAME:
         {
-			if( (flight->type == FL_TRIANGLES || flight->type == FL_PERFTEST) && button == 4 && down ) flight->perfMotion = !flight->perfMotion;
+            if( (flight->type == FL_TRIANGLES || flight->type == FL_PERFTEST) && button == 4 && down ) flight->perfMotion = !flight->perfMotion;
 
             flight->buttonState = state;
             break;
