@@ -164,6 +164,8 @@ void ICACHE_FLASH_ATTR user_init(void)
     // Load configurable parameters from SPI memory
     LoadSettings();
 
+#if 0
+
 #if !defined(EMU)
     // Compare the current git hash to the saved one
     char gitHash[32] = {0};
@@ -182,6 +184,8 @@ void ICACHE_FLASH_ATTR user_init(void)
     {
         rtcMem.currentSwadgeMode = (sizeof(swadgeModes) / sizeof(swadgeModes[0])) - 1;
     }
+#endif
+
 #endif
 
     // Set the current WiFi mode based on what the swadge mode wants

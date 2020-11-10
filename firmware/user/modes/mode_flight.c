@@ -36,6 +36,7 @@
 #include "font.h"
 #include "gpio.h"
 #include "esp_niceness.h"
+#include "hsv_utils.h"
 
 #include "embeddednf.h"
 #include "embeddedout.h"
@@ -58,7 +59,8 @@ typedef enum
 typedef enum
 {
     FLIGHT_MENU,
-    FLIGHT_GAME
+    FLIGHT_GAME,
+	FLIGHT_GAME_OVER,
 } flightModeScreen;
 
 typedef struct
@@ -73,6 +75,16 @@ typedef struct
 } tdModel;
 
 #define MAXRINGS 30
+
+typedef enum
+{
+	FLIGHT_LED_NONE,
+	FLIGHT_LED_MENU_TICK,
+	FLIGHT_LED_GAME_START,
+	FLIGHT_LED_BEAN,
+	FLIGHT_LED_DONUT,
+	FLIGHT_LED_ENDING,
+} flLEDAnimation;
 
 typedef struct
 {
@@ -99,6 +111,10 @@ typedef struct
 	int beans;
 	int ondonut;
 	int timer;
+	int wintime;
+
+	flLEDAnimation ledAnimation;
+	uint8_t        ledAnimationTime;
 
 	uint8_t beangotmask[MAXRINGS];
 } flight_t;
@@ -119,7 +135,10 @@ static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem);
 static void ICACHE_FLASH_ATTR flightStartGame(flGameType type);
 static bool ICACHE_FLASH_ATTR flightRender(void);
 static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight );
+static void ICACHE_FLASH_ATTR flightUpdateLEDs(flight_t * tflight);
+static void ICACHE_FLASH_ATTR flightLEDAnimate( flLEDAnimation anim );
 static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int faces, const uint16_t * indices, const int16_t * vertices, int indices_per_face /* 2= lines 3= tris */ );
+int ICACHE_FLASH_ATTR tdModelVisibilitycheck( const tdModel * m );
 void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m );
 
 /*============================================================================
@@ -206,7 +225,7 @@ void ICACHE_FLASH_ATTR flightEnterMode(void)
 
 	{
 		uint32_t retlen;
-		uint16_t * data = (int16_t*)getAsset( "3denv.obj", &retlen );
+		uint16_t * data = (uint16_t*)getAsset( "3denv.obj", &retlen );
 		data+=2; //header
 		flight->enviromodels = *(data++);
 		flight->environment = os_malloc( sizeof(tdModel *) * flight->enviromodels );
@@ -217,14 +236,6 @@ void ICACHE_FLASH_ATTR flightEnterMode(void)
 			data += 8 + m->nrvertnums + m->nrfaces * m->indices_per_face;
 		}
 	}
-
-	flight->planeloc[0] = 800;
-	flight->planeloc[1] = 400;
-	flight->planeloc[2] = -500;
-	flight->ondonut = 0;
-	flight->beans = 0;
-	flight->timer = 0;
-	memset(flight->beangotmask, 0, sizeof( flight->beangotmask) );
 
     flight->menu = initMenu(fl_title, flightMenuCb);
     addRowToMenu(flight->menu);
@@ -284,6 +295,63 @@ static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem)
     }
 }
 
+static void ICACHE_FLASH_ATTR flightEndGame()
+{
+	flight->mode = FLIGHT_MENU;
+	//called when ending animation complete.
+}
+
+static void ICACHE_FLASH_ATTR flightLEDAnimate( flLEDAnimation anim )
+{
+	flight->ledAnimation = anim;
+	flight->ledAnimationTime = 0;
+}
+
+static void ICACHE_FLASH_ATTR flightUpdateLEDs(flight_t * tflight)
+{	
+    led_t leds[NUM_LIN_LEDS] = {{0}};
+
+	uint8_t        ledAnimationTime = tflight->ledAnimationTime++;
+
+	switch( tflight->ledAnimation )
+	{
+	default:
+	case FLIGHT_LED_NONE:
+		tflight->ledAnimationTime = 0;
+		break;
+	case FLIGHT_LED_ENDING:
+		leds[0] = SafeEHSVtoHEXhelper(ledAnimationTime*4+0, 255, 2200-10*ledAnimationTime, 1 );
+		leds[1] = SafeEHSVtoHEXhelper(ledAnimationTime*4+50, 255, 2200-10*ledAnimationTime, 1 );
+		leds[2] = SafeEHSVtoHEXhelper(ledAnimationTime*4+100, 255, 2200-10*ledAnimationTime, 1 );
+		leds[3] = SafeEHSVtoHEXhelper(ledAnimationTime*4+150, 255, 2200-10*ledAnimationTime, 1 );
+		leds[4] = SafeEHSVtoHEXhelper(ledAnimationTime*4+200, 255, 2200-10*ledAnimationTime, 1 );
+		leds[5] = SafeEHSVtoHEXhelper(ledAnimationTime*4+250, 255, 2200-10*ledAnimationTime, 1 );
+		if( ledAnimationTime == 255 ) flightLEDAnimate( FLIGHT_LED_NONE );
+		break;
+	case FLIGHT_LED_GAME_START:
+	case FLIGHT_LED_DONUT:
+		leds[0] = leds[5] = SafeEHSVtoHEXhelper(ledAnimationTime*8+0, 255, 200-10*ledAnimationTime, 1 );
+		leds[1] = leds[4] = SafeEHSVtoHEXhelper(ledAnimationTime*8+90, 255, 200-10*ledAnimationTime, 1 );
+		leds[2] = leds[3] = SafeEHSVtoHEXhelper(ledAnimationTime*8+180, 255, 200-10*ledAnimationTime, 1 );
+		if( ledAnimationTime == 30 ) flightLEDAnimate( FLIGHT_LED_NONE );
+		break;
+	case FLIGHT_LED_MENU_TICK:
+		leds[0] = leds[5] = SafeEHSVtoHEXhelper(0, 0, 60 - 40*abs(ledAnimationTime-2), 1 );
+		leds[1] = leds[4] = SafeEHSVtoHEXhelper(0, 0, 60 - 40*abs(ledAnimationTime-6), 1 );
+		leds[2] = leds[3] = SafeEHSVtoHEXhelper(0, 0, 60 - 40*abs(ledAnimationTime-10), 1 );
+		if( ledAnimationTime == 50 ) flightLEDAnimate( FLIGHT_LED_NONE );
+		break;
+	case FLIGHT_LED_BEAN:	
+		leds[0] = leds[5] = SafeEHSVtoHEXhelper(ledAnimationTime*16, 128, 150 - 40*abs(ledAnimationTime-2), 1 );
+		leds[1] = leds[4] = SafeEHSVtoHEXhelper(ledAnimationTime*16, 128, 150 - 40*abs(ledAnimationTime-6), 1 );
+		leds[2] = leds[3] = SafeEHSVtoHEXhelper(ledAnimationTime*16, 128, 150 - 40*abs(ledAnimationTime-10), 1 );		
+		if( ledAnimationTime == 30 ) flightLEDAnimate( FLIGHT_LED_NONE );
+		break;
+	}
+
+    setLeds(leds, sizeof(leds));
+}
+
 /**
  * TODO
  *
@@ -296,6 +364,19 @@ static void ICACHE_FLASH_ATTR flightStartGame(flGameType type)
     flight->mode = FLIGHT_GAME;
     flight->type = type;
     flight->frames = 0;
+
+
+	flight->planeloc[0] = 800;
+	flight->planeloc[1] = 400;
+	flight->planeloc[2] = -500;
+	flight->ondonut = 0; //SEt to 14 to b-line it to the end 
+	flight->beans = 0;
+	flight->timer = 0;
+	flight->wintime = 0;
+
+	memset(flight->beangotmask, 0, sizeof( flight->beangotmask) );
+
+	flightLEDAnimate( FLIGHT_LED_GAME_START );
 }
 
 /**
@@ -318,8 +399,19 @@ static void ICACHE_FLASH_ATTR flightUpdate(void* arg __attribute__((unused)))
             // Increment the frame count
             flight->frames++;
             flightGameUpdate( flight );
+			break;
+        }
+        case FLIGHT_GAME_OVER:
+        {
+            flight->frames++;
+            flightGameUpdate( flight );
+			if( flight->frames == 200 ) flightEndGame();
+			break;
         }
     }
+
+	flightUpdateLEDs( flight );
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -649,7 +741,7 @@ static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int nrfaces, const uint16_t 
     return ret;
 }
 
-int tdModelVisibilitycheck( const tdModel * m )
+int ICACHE_FLASH_ATTR tdModelVisibilitycheck( const tdModel * m )
 {
 
 	//For computing visibility check
@@ -773,6 +865,10 @@ struct ModelRangePair
 	int       mrange;
 };
 
+//Do not put this in icache.
+int mdlctcmp( const void * va, const void * vb );
+void qsort(void *base, size_t nmemb, size_t size,
+          int (*compar)(const void *, const void *));
 int mdlctcmp( const void * va, const void * vb )
 {
 	struct ModelRangePair * a = (struct ModelRangePair *)va;
@@ -788,8 +884,7 @@ int mdlctcmp( const void * va, const void * vb )
 static bool ICACHE_FLASH_ATTR flightRender(void)
 {
     flight_t * tflight = flight;
-
-    if( tflight->mode != FLIGHT_GAME ) return false;
+    if( tflight->mode != FLIGHT_GAME && tflight->mode != FLIGHT_GAME_OVER ) return false;
 
     // First clear the OLED
 
@@ -901,6 +996,53 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 		for( i = 0; i < tflight->enviromodels;i++ )
 		{
 			tdModel * m = tflight->environment[i];
+
+			int label = m->label;
+			int draw = 1;
+			if( label )
+			{
+				draw = 0;
+				if( label >= 100 && (label - 100) == tflight->ondonut )
+				{
+					draw = 1;
+					if( tdDist( tflight->planeloc, m->center ) < 130 )
+					{
+						flightLEDAnimate( FLIGHT_LED_DONUT );
+						tflight->ondonut++;
+					}
+				}
+				//bean? 1000... groupings of 8.
+				int beansec = ((label-1000)/8);
+				if( label >= 1000 && ( beansec == tflight->ondonut || beansec == (tflight->ondonut-1) || beansec == (tflight->ondonut+1)) )
+				{
+					if( ! (tflight->beangotmask[beansec] & (1<<((label-1000)&7))) )
+					{
+						draw = 1;
+
+						if( tdDist( tflight->planeloc, m->center ) < 100 )
+						{
+							tflight->beans++;
+							tflight->beangotmask[beansec] |= (1<<((label-1000)&7));
+							flightLEDAnimate( FLIGHT_LED_BEAN );
+						}
+
+					}
+				}
+				if( label == 999 ) //gazebo
+				{
+					draw = 1;
+					if( flight->mode != FLIGHT_GAME_OVER && tdDist( tflight->planeloc, m->center ) < 200 && tflight->ondonut == 14)
+					{
+						flightLEDAnimate( FLIGHT_LED_ENDING );
+						tflight->frames = 0;
+						tflight->wintime = tflight->timer;
+						tflight->mode = FLIGHT_GAME_OVER;
+					}
+				}
+			}
+
+			if( draw == 0 ) continue;
+
 			int r = tdModelVisibilitycheck( m );
 			if( r < 0 ) continue;
 			mrp[mdlct].model = m;
@@ -913,7 +1055,8 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 /////////////////////////////////////////////////////////////////////////////////////////
 ////GAME LOGIC GOES HERE (FOR COLLISIONS/////////////////////////////////////////////////
 
-
+// XXX TODO: Optimization: Don't sort everything, only sort models we think we'll be using.
+//
 		for( i = 0; i < mdlct; i++ )
 		{
 			tdModel * m = mrp[i].model;
@@ -922,38 +1065,17 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 			if( label )
 			{
 				draw = 0;
-				if( label >= 100 && (label - 100) == tflight->ondonut )
+				if( label >= 100 && label < 999 )
 				{
 					draw = 2;
-					//printf( "%d\n", tdDist( tflight->planeloc, m->center ) );
-					if( tdDist( tflight->planeloc, m->center ) < 130 )
-					{
-						tflight->ondonut++;
-					}
 				}
-				//bean? 1000... groupings of 8.
-				int beansec = ((label-1000)/8);
-				if( label >= 1000 && ( beansec == tflight->ondonut || beansec == (tflight->ondonut-1) || beansec == (tflight->ondonut+1)) )
+				if( label >= 1000 )
 				{
-					if( ! (tflight->beangotmask[beansec] & (1<<((label-1000)&7))) )
-					{
-						draw = 3;
-
-						if( tdDist( tflight->planeloc, m->center ) < 100 )
-						{
-							tflight->beans++;
-							tflight->beangotmask[beansec] |= (1<<((label-1000)&7));
-						}
-
-					}
+					draw = 3;
 				}
 				if( label == 999 ) //gazebo
 				{
 					draw = (tflight->ondonut==14)?2:1; //flash on last
-					if( tdDist( tflight->planeloc, m->center ) < 200 && tflight->ondonut == 14)
-					{
-						flightExitMode();
-					}
 				}
 			}
 
@@ -967,7 +1089,7 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 			//draw = 2 = flashing
 			//draw = 3 = other flashing
 			if( draw == 1 )
-	            tdDrawModel( m );
+		        tdDrawModel( m );
 			else if( draw == 2 || draw == 3 )
 			{
 				if( draw == 2 )
@@ -1028,12 +1150,25 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 	uint32_t stop = xthal_get_ccount();
 #endif
 
+
+	if( flight->mode == FLIGHT_GAME )
 	{
 		char framesStr[32] = {0};
 		//ets_snprintf(framesStr, sizeof(framesStr), "%02x %dus", tflight->buttonState, (stop-start)/160);
 		ets_snprintf(framesStr, sizeof(framesStr), "%d %d %d", tflight->ondonut, tflight->beans, tflight->timer );
 
 		plotText(1, 1, framesStr, TOM_THUMB, WHITE);
+	}
+	else
+	{
+		char framesStr[32] = {0};
+		//ets_snprintf(framesStr, sizeof(framesStr), "%02x %dus", tflight->buttonState, (stop-start)/160);
+		ets_snprintf(framesStr, sizeof(framesStr), "YOU  WIN:" );
+		plotText(20, 0, framesStr, RADIOSTARS, WHITE);
+		ets_snprintf(framesStr, sizeof(framesStr), "TIME:%5d", tflight->wintime );
+		plotText(20, 20, framesStr, RADIOSTARS, WHITE);
+		ets_snprintf(framesStr, sizeof(framesStr), "BEANS:%3d",tflight->beans );
+		plotText(20, 40, framesStr, RADIOSTARS, WHITE);
 	}
 
     //If perf test, force full frame refresh
@@ -1054,41 +1189,46 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
 	const int FLIGHT_SPEED_DEC = 9;
 	const int flight_max_speed = 30;
 
-    if( bs & 1 ) dpitch += thruster_accel;
-    if( bs & 4 ) dpitch -= thruster_accel;
-    if( bs & 2 ) dyaw += thruster_accel;
-    if( bs & 8 ) dyaw -= thruster_accel;
-
-	if( dpitch )
+	if( tflight->mode == FLIGHT_GAME )
 	{
-		tflight->pitchmoment += dpitch;
-		if( tflight->pitchmoment > thruster_max ) tflight->pitchmoment = thruster_max;
-		if( tflight->pitchmoment < -thruster_max ) tflight->pitchmoment = -thruster_max;
-	}
-	else
-	{
-		if( tflight->pitchmoment > 0 ) tflight->pitchmoment-=thruster_decay;
-		if( tflight->pitchmoment < 0 ) tflight->pitchmoment+=thruster_decay;
+		if( bs & 1 ) dpitch += thruster_accel;
+		if( bs & 4 ) dpitch -= thruster_accel;
+		if( bs & 2 ) dyaw += thruster_accel;
+		if( bs & 8 ) dyaw -= thruster_accel;
+
+		if( dpitch )
+		{
+			tflight->pitchmoment += dpitch;
+			if( tflight->pitchmoment > thruster_max ) tflight->pitchmoment = thruster_max;
+			if( tflight->pitchmoment < -thruster_max ) tflight->pitchmoment = -thruster_max;
+		}
+		else
+		{
+			if( tflight->pitchmoment > 0 ) tflight->pitchmoment-=thruster_decay;
+			if( tflight->pitchmoment < 0 ) tflight->pitchmoment+=thruster_decay;
+		}
+
+		if( dyaw )
+		{
+			tflight->yawmoment += dyaw;
+			if( tflight->yawmoment > thruster_max ) tflight->yawmoment = thruster_max;
+			if( tflight->yawmoment < -thruster_max ) tflight->yawmoment = -thruster_max;
+		}
+		else
+		{
+			if( tflight->yawmoment > 0 ) tflight->yawmoment-=thruster_decay;
+			if( tflight->yawmoment < 0 ) tflight->yawmoment+=thruster_decay;
+		}
+
+		tflight->hpr[0] += tflight->pitchmoment;
+		tflight->hpr[1] += tflight->yawmoment;
+
+
+		if( bs & 16 ) tflight->speed++;
+		else if( tflight->speed > 0 ) tflight->speed--;
 	}
 
-	if( dyaw )
-	{
-		tflight->yawmoment += dyaw;
-		if( tflight->yawmoment > thruster_max ) tflight->yawmoment = thruster_max;
-		if( tflight->yawmoment < -thruster_max ) tflight->yawmoment = -thruster_max;
-	}
-	else
-	{
-		if( tflight->yawmoment > 0 ) tflight->yawmoment-=thruster_decay;
-		if( tflight->yawmoment < 0 ) tflight->yawmoment+=thruster_decay;
-	}
-
-	tflight->hpr[0] += tflight->pitchmoment;
-	tflight->hpr[1] += tflight->yawmoment;
-
-
-	if( bs & 16 ) tflight->speed++;
-	else if( tflight->speed > 0 ) tflight->speed--;
+	//If game over, just keep status quo.
 
 
 	if( tflight->speed > flight_max_speed ) tflight->speed = flight_max_speed;
@@ -1116,53 +1256,9 @@ void ICACHE_FLASH_ATTR flightButtonCallback( uint8_t state,
         {
             if(down)
             {
+				printf( "Animate\n" );
+				flightLEDAnimate( FLIGHT_LED_MENU_TICK ); 
                 menuButton(flight->menu, button);
-
-                static uint8_t shift = 0;
-                static uint8_t mode = 0;
-                led_t leds[NUM_LIN_LEDS] = {{0}};
-                switch(mode)
-                {
-                    default:
-                    case 0:
-                    {
-                        leds[0].r = 0xFF >> shift;
-                        leds[1].g = 0xFF >> shift;
-                        leds[2].b = 0xFF >> shift;
-                        leds[3].b = 0xFF >> shift;
-                        leds[4].g = 0xFF >> shift;
-                        leds[5].r = 0xFF >> shift;
-                        break;
-                    }
-                    case 1:
-                    {
-                        leds[0].r = 0xFF >> shift;
-                        leds[0].g = 0xFF >> shift;
-                        leds[1].g = 0xFF >> shift;
-                        leds[1].b = 0xFF >> shift;
-                        leds[2].b = 0xFF >> shift;
-                        leds[2].r = 0xFF >> shift;
-                        leds[3].b = 0xFF >> shift;
-                        leds[3].r = 0xFF >> shift;
-                        leds[4].g = 0xFF >> shift;
-                        leds[4].b = 0xFF >> shift;
-                        leds[5].r = 0xFF >> shift;
-                        leds[5].g = 0xFF >> shift;
-                        break;
-                    }
-                    case 2:
-                    {
-                        ets_memset(leds, 0xFF >> shift, sizeof(leds));
-                        break;
-                    }
-                }
-                shift = (shift + 1) % 8;
-                if(0 == shift)
-                {
-                    mode = (mode + 1) % 3;
-                }
-                setLeds(leds, sizeof(leds));
-
             }
             break;
         }
