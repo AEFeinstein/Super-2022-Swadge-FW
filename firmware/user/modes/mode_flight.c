@@ -68,8 +68,11 @@ typedef struct
 	uint16_t indices_per_face;
     int16_t center[3];
     int16_t radius;
+	uint16_t label;
     int16_t indices_and_vertices[1];
 } tdModel;
+
+#define MAXRINGS 30
 
 typedef struct
 {
@@ -82,7 +85,9 @@ typedef struct
 
     int16_t planeloc[3];
     int16_t hpr[3];
-	int speed;
+	int16_t speed;
+	int16_t pitchmoment;
+	int16_t yawmoment;
 	bool perfMotion;
     tdModel * isosphere;
 
@@ -90,6 +95,12 @@ typedef struct
 	tdModel ** environment;
 
     menu_t* menu;
+
+	int beans;
+	int ondonut;
+	int timer;
+
+	uint8_t beangotmask[MAXRINGS];
 } flight_t;
 
 int renderlinecolor = WHITE;
@@ -203,13 +214,17 @@ void ICACHE_FLASH_ATTR flightEnterMode(void)
 		for( i = 0; i < flight->enviromodels; i++ )
 		{
 			tdModel * m = flight->environment[i] = (tdModel*)data;
-			data += 7 + m->nrvertnums + m->nrfaces * m->indices_per_face;
+			data += 8 + m->nrvertnums + m->nrfaces * m->indices_per_face;
 		}
 	}
 
-	flight->planeloc[0] = 0;
-	flight->planeloc[1] = 0;
-	flight->planeloc[2] = 1000;
+	flight->planeloc[0] = 800;
+	flight->planeloc[1] = 400;
+	flight->planeloc[2] = -500;
+	flight->ondonut = 0;
+	flight->beans = 0;
+	flight->timer = 0;
+	memset(flight->beangotmask, 0, sizeof( flight->beangotmask) );
 
     flight->menu = initMenu(fl_title, flightMenuCb);
     addRowToMenu(flight->menu);
@@ -324,6 +339,8 @@ void ICACHE_FLASH_ATTR td4Transform( int16_t * pin, int16_t * f, int16_t * pout 
 void ICACHE_FLASH_ATTR tdTranslate( int16_t * f, int16_t x, int16_t y, int16_t z );
 void ICACHE_FLASH_ATTR Draw3DSegment( const int16_t * c1, const int16_t * c2 );
 uint16_t ICACHE_FLASH_ATTR tdSQRT( uint32_t inval );
+int16_t ICACHE_FLASH_ATTR tdDist( int16_t * a, int16_t * b );
+
 
 //From https://github.com/cnlohr/channel3/blob/master/user/3d.c
 
@@ -369,6 +386,14 @@ uint16_t ICACHE_FLASH_ATTR tdSQRT( uint32_t inval )
         one >>= 2;
     }
     return res;
+}
+
+int16_t ICACHE_FLASH_ATTR tdDist( int16_t * a, int16_t * b )
+{
+	int32_t dx = a[0] - b[0];
+	int32_t dy = a[1] - b[1];
+	int32_t dz = a[2] - b[2];
+	return tdSQRT( dx*dx+dy*dy+dz*dz );
 }
 
 void ICACHE_FLASH_ATTR tdIdentity( int16_t * matrix )
@@ -865,8 +890,8 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 #endif
 
 	    clearDisplay();
-        tdRotateEA( ProjectionMatrix, tflight->hpr[1], tflight->hpr[0], 0 );
-        tdTranslate( ModelviewMatrix, tflight->planeloc[0], tflight->planeloc[1], tflight->planeloc[2] );
+        tdRotateEA( ProjectionMatrix, tflight->hpr[1]/16, tflight->hpr[0]/16, 0 );
+        tdTranslate( ModelviewMatrix, -tflight->planeloc[0], -tflight->planeloc[1], -tflight->planeloc[2] );
 
 
 		struct ModelRangePair mrp[tflight->enviromodels];
@@ -884,21 +909,76 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 		}
 
 		qsort( mrp, mdlct, sizeof( struct ModelRangePair ), mdlctcmp );
+
+/////////////////////////////////////////////////////////////////////////////////////////
+////GAME LOGIC GOES HERE (FOR COLLISIONS/////////////////////////////////////////////////
+
+
 		for( i = 0; i < mdlct; i++ )
 		{
-            tdDrawModel( mrp[i].model );
+			tdModel * m = mrp[i].model;
+			int label = m->label;
+			int draw = 1;
+			if( label )
+			{
+				draw = 0;
+				if( label >= 100 && (label - 100) == tflight->ondonut )
+				{
+					draw = 2;
+					//printf( "%d\n", tdDist( tflight->planeloc, m->center ) );
+					if( tdDist( tflight->planeloc, m->center ) < 130 )
+					{
+						tflight->ondonut++;
+					}
+				}
+				//bean? 1000... groupings of 8.
+				int beansec = ((label-1000)/8);
+				if( label >= 1000 && ( beansec == tflight->ondonut || beansec == (tflight->ondonut-1) || beansec == (tflight->ondonut+1)) )
+				{
+					if( ! (tflight->beangotmask[beansec] & (1<<((label-1000)&7))) )
+					{
+						draw = 3;
+
+						if( tdDist( tflight->planeloc, m->center ) < 100 )
+						{
+							tflight->beans++;
+							tflight->beangotmask[beansec] |= (1<<((label-1000)&7));
+						}
+
+					}
+				}
+				if( label == 999 ) //gazebo
+				{
+					draw = (tflight->ondonut==14)?2:1; //flash on last
+					if( tdDist( tflight->planeloc, m->center ) < 200 && tflight->ondonut == 14)
+					{
+						flightExitMode();
+					}
+				}
+			}
+
+			//XXX TODO:
+			// Flash light when you get a bean or a ring.
+			// Do laptiming per ring for fastest time.
+			// Fix time counting and presentation
+
+			//draw = 0 = invisible
+			//draw = 1 = regular
+			//draw = 2 = flashing
+			//draw = 3 = other flashing
+			if( draw == 1 )
+	            tdDrawModel( m );
+			else if( draw == 2 || draw == 3 )
+			{
+				if( draw == 2 )
+					renderlinecolor = (tflight->frames&1)?WHITE:BLACK;
+				if( draw == 3 ) 
+					renderlinecolor = (tflight->frames&1)?BLACK:WHITE;
+				tdDrawModel( m );
+				renderlinecolor = WHITE;
+			}
 		}
-        //tdDrawModel( tflight->isosphere );
 
-
-        tdTranslate( ModelviewMatrix, 
-            1000,
-            100,
-            100 );
-        tdScale( ModelviewMatrix, 70, 70, 70 );
-		renderlinecolor = (tflight->frames&1)?WHITE:BLACK;
-        tdDrawModel( tflight->isosphere );
-		renderlinecolor = WHITE;
 
 #ifndef EMU
         OVERCLOCK_SECTION_DISABLE();
@@ -920,7 +1000,7 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 
 	    clearDisplay();
         tdRotateEA( ProjectionMatrix, tflight->hpr[1], tflight->hpr[0], 0 );
-        tdTranslate( ModelviewMatrix, tflight->planeloc[0], tflight->planeloc[1], tflight->planeloc[2] );
+        tdTranslate( ModelviewMatrix, -tflight->planeloc[0], -tflight->planeloc[1], -tflight->planeloc[2] );
 
         int16_t BackupMatrix[16];
         for( x = -6; x < 17; x++ )
@@ -950,8 +1030,9 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 
 	{
 		char framesStr[32] = {0};
-		ets_snprintf(framesStr, sizeof(framesStr), "%02x %dus", tflight->buttonState, (stop-start)/160);
-		fillDisplayArea( 0, 0, 50, 7, BLACK );
+		//ets_snprintf(framesStr, sizeof(framesStr), "%02x %dus", tflight->buttonState, (stop-start)/160);
+		ets_snprintf(framesStr, sizeof(framesStr), "%d %d %d", tflight->ondonut, tflight->beans, tflight->timer );
+
 		plotText(1, 1, framesStr, TOM_THUMB, WHITE);
 	}
 
@@ -964,18 +1045,59 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
 {
     uint8_t bs = tflight->buttonState;
 
-    if( bs & 1 ) tflight->hpr[0]++;
-    if( bs & 4 ) tflight->hpr[0]--;
-    if( bs & 2 ) tflight->hpr[1]++;
-    if( bs & 8 ) tflight->hpr[1]--;
+	int dpitch = 0;
+	int dyaw = 0;
+
+	const int thruster_accel = 8;
+	const int thruster_max = 40;
+	const int thruster_decay = 8;
+	const int FLIGHT_SPEED_DEC = 9;
+	const int flight_max_speed = 30;
+
+    if( bs & 1 ) dpitch += thruster_accel;
+    if( bs & 4 ) dpitch -= thruster_accel;
+    if( bs & 2 ) dyaw += thruster_accel;
+    if( bs & 8 ) dyaw -= thruster_accel;
+
+	if( dpitch )
+	{
+		tflight->pitchmoment += dpitch;
+		if( tflight->pitchmoment > thruster_max ) tflight->pitchmoment = thruster_max;
+		if( tflight->pitchmoment < -thruster_max ) tflight->pitchmoment = -thruster_max;
+	}
+	else
+	{
+		if( tflight->pitchmoment > 0 ) tflight->pitchmoment-=thruster_decay;
+		if( tflight->pitchmoment < 0 ) tflight->pitchmoment+=thruster_decay;
+	}
+
+	if( dyaw )
+	{
+		tflight->yawmoment += dyaw;
+		if( tflight->yawmoment > thruster_max ) tflight->yawmoment = thruster_max;
+		if( tflight->yawmoment < -thruster_max ) tflight->yawmoment = -thruster_max;
+	}
+	else
+	{
+		if( tflight->yawmoment > 0 ) tflight->yawmoment-=thruster_decay;
+		if( tflight->yawmoment < 0 ) tflight->yawmoment+=thruster_decay;
+	}
+
+	tflight->hpr[0] += tflight->pitchmoment;
+	tflight->hpr[1] += tflight->yawmoment;
+
+
 	if( bs & 16 ) tflight->speed++;
 	else if( tflight->speed > 0 ) tflight->speed--;
 
-	if( tflight->speed > 30 ) tflight->speed = 30;
 
-    tflight->planeloc[0] -= (tflight->speed * tdSIN( tflight->hpr[0] ) )>>8;
-    tflight->planeloc[2] -= (tflight->speed * tdCOS( tflight->hpr[0] ) )>>8;
-    tflight->planeloc[1] += (tflight->speed * tdSIN( tflight->hpr[1] ) )>>8;
+	if( tflight->speed > flight_max_speed ) tflight->speed = flight_max_speed;
+
+    tflight->planeloc[0] += (tflight->speed * tdSIN( tflight->hpr[0]/16 ) )>>FLIGHT_SPEED_DEC;
+    tflight->planeloc[2] += (tflight->speed * tdCOS( tflight->hpr[0]/16 ) )>>FLIGHT_SPEED_DEC;
+    tflight->planeloc[1] -= (tflight->speed * tdSIN( tflight->hpr[1]/16 ) )>>FLIGHT_SPEED_DEC;
+
+	flight->timer++;
 }
 
 /**
