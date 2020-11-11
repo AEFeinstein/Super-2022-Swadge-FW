@@ -58,6 +58,56 @@ void ICACHE_FLASH_ATTR plotLine(int x0, int y0, int x1, int y1, color col)
     }
 }
 
+void ICACHE_FLASH_ATTR plotDashedLine(int x0, int y0, int x1, int y1, int dashLen, int spaceLen, color col)
+{
+    int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+    int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+    int err = dx + dy, e2; /* error value e_xy */
+
+    int curLen = 1;
+    bool draw = true;
+
+    for (;;)   /* loop */
+    {
+        if(draw)
+        {
+            if(curLen <= (draw ? dashLen : spaceLen))
+            {
+                if(draw)
+                {
+                    drawPixel(x0, y0, col);
+                }
+                curLen++;
+            }
+            else
+            {
+                curLen = 1;
+                draw = !draw;
+            }
+        }
+        
+        e2 = 2 * err;
+        if (e2 >= dy)   /* e_xy+e_x > 0 */
+        {
+            if (x0 == x1)
+            {
+                break;
+            }
+            err += dy;
+            x0 += sx;
+        }
+        if (e2 <= dx)   /* e_xy+e_y < 0 */
+        {
+            if (y0 == y1)
+            {
+                break;
+            }
+            err += dx;
+            y0 += sy;
+        }
+    }
+}
+
 void ICACHE_FLASH_ATTR plotRect(int x0, int y0, int x1, int y1, color col)
 {
     // Vertical lines

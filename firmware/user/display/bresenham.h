@@ -12,6 +12,7 @@
 #if defined(FEATURE_OLED)
 
     void plotLine(int x0, int y0, int x1, int y1, color col);
+    void plotDashedLine(int x0, int y0, int x1, int y1, int dashLen, int spaceLen, color col);
     void plotRect(int x0, int y0, int x1, int y1, color col);
     void plotEllipse(int xm, int ym, int a, int b, color col);
     void plotOptimizedEllipse(int xm, int ym, int a, int b, color col);
