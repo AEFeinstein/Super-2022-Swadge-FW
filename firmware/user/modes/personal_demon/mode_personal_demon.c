@@ -649,49 +649,36 @@ bool ICACHE_FLASH_ATTR personalDemonAnimationRender(void)
             }
 
             // Draw anything else for this scene
-            bool sceneDrawn = false;
-            if(pd->animTable[pd->anim].updtAnim(tElapsed))
-            {
-                personalDemonUpdateDisplay();
-                sceneDrawn = true;
-            }
+            pd->animTable[pd->anim].updtAnim(tElapsed);
+            personalDemonUpdateDisplay();
 
             // Draw the menu text for this scene
-            static bool shouldDrawMenu = true;
-            if(shouldDrawMenu || sceneDrawn)
-            {
-                shouldDrawMenu = false;
-                drawMenu(pd->menu);
+            drawMenu(pd->menu);
 
-                // Only draw health if the demon is alive
-                if(pd->demon.health)
+            // Only draw health if the demon is alive
+            if(pd->demon.health)
+            {
+                int16_t healthPxCovered = 40 - (pd->drawHealth * 40) / STARTING_HEALTH;
+                if(healthPxCovered > 40)
                 {
-                    int16_t healthPxCovered = 40 - (pd->drawHealth * 40) / STARTING_HEALTH;
-                    if(healthPxCovered > 40)
-                    {
-                        healthPxCovered = 40;
-                    }
-
-                    // Always draw the health counter
-                    for(uint8_t i = 0; i < 4; i++)
-                    {
-                        drawPng(&(pd->heart),
-                                OLED_WIDTH - pd->heart.width,
-                                FONT_HEIGHT_IBMVGA8 + 1 + i * (pd->heart.height),
-                                false, false, 0);
-                    }
-
-                    if(healthPxCovered)
-                    {
-                        fillDisplayArea(OLED_WIDTH - pd->heart.width, FONT_HEIGHT_IBMVGA8 + 1,
-                                        OLED_WIDTH, FONT_HEIGHT_IBMVGA8 + healthPxCovered,
-                                        BLACK);
-                    }
+                    healthPxCovered = 40;
                 }
-            }
-            else
-            {
-                shouldDrawMenu = true;
+
+                // Always draw the health counter
+                for(uint8_t i = 0; i < 4; i++)
+                {
+                    drawPng(&(pd->heart),
+                            OLED_WIDTH - pd->heart.width,
+                            FONT_HEIGHT_IBMVGA8 + 1 + i * (pd->heart.height),
+                            false, false, 0);
+                }
+
+                if(healthPxCovered)
+                {
+                    fillDisplayArea(OLED_WIDTH - pd->heart.width, FONT_HEIGHT_IBMVGA8 + 1,
+                                    OLED_WIDTH, FONT_HEIGHT_IBMVGA8 + healthPxCovered,
+                                    BLACK);
+                }
             }
 
             // Draw the menu text for this screen
