@@ -437,24 +437,20 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
         rc->sprites[i].posY = -1;
     }
 
-    // Set health and number of enemies based on the difficulty
+    // Set the number of enemies based on the difficulty
     uint16_t diffMod = 0;
     if(RC_EASY == difficulty)
     {
-        rc->initialHealth = PLAYER_HEALTH;
         diffMod = 2;
     }
     else if(RC_MED == difficulty)
     {
-        rc->initialHealth = (2 * PLAYER_HEALTH) / 3;
         diffMod = 3;
     }
     else if(RC_HARD == difficulty)
     {
-        rc->initialHealth = PLAYER_HEALTH / 2;
         diffMod = 1;
     }
-    rc->health = rc->initialHealth;
 
     // Start spawning sprites
     rc->liveSprites = 0;
@@ -499,6 +495,21 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
     setSpriteState(&(rc->sprites[rc->liveSprites]), E_IDLE);
     rc->liveSprites++;
 #endif
+
+    // Set health based on the number of enemies and difficulty
+    if(RC_EASY == difficulty)
+    {
+        rc->initialHealth = rc->liveSprites * 2;
+    }
+    else if(RC_MED == difficulty)
+    {
+        rc->initialHealth = (rc->liveSprites * 3) / 2;
+    }
+    else if(RC_HARD == difficulty)
+    {
+        rc->initialHealth = rc->liveSprites;
+    }
+    rc->health = rc->initialHealth;
 
     // Clear player shot variables
     rc->shotCooldown = 0;
@@ -1355,6 +1366,28 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
     rc->closestDist = 0xFFFFFFFF;
     rc->closestAngle = 0;
 
+    // Figure out the movement speed for this frame
+    float moveSpeed;
+    switch(rc->difficulty)
+    {
+        default:
+        case RC_EASY:
+        {
+            moveSpeed = frameTimeSec * 0.7f; // the constant value is in squares/second
+            break;
+        }
+        case RC_MED:
+        {
+            moveSpeed = frameTimeSec * 1.0f;
+            break;
+        }
+        case RC_HARD:
+        {
+            moveSpeed = frameTimeSec * 1.3f;
+            break;
+        }
+    }
+
     // For each sprite
     int16_t closestIdx = -1;
     for(uint8_t i = 0; i < NUM_SPRITES; i++)
@@ -1522,8 +1555,6 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                 }
 
                 // Find the new position
-                float moveSpeed = frameTimeSec * 1.0; // the constant value is in squares/second
-
                 // If the sprite is really close and not walking backwards
                 if(magSqr < 0.5f && false == rc->sprites[i].isBackwards)
                 {
@@ -1680,7 +1711,7 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
         rc->closestAngle = acosf(
                                ((rc->dirX * xClosest) + (rc->dirY * yClosest)) *        // Dot Product
                                Q_rsqrt((xClosest * xClosest) + (yClosest * yClosest))); // (1 / distance to sprite)
-                                                        // The magnitude of the 'straight ahead' vector is always 1
+        // The magnitude of the 'straight ahead' vector is always 1, so it's left out of the denominator
 
         // Check if the sprite is to the left or right of us
         if(((rc->dirX) * (yClosest) - (rc->dirY) * (xClosest)) > 0)
