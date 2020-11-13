@@ -179,6 +179,7 @@ void emuFooter()
         lx += OLED_WIDTH / NR_BUTTONS;
     }
 
+    // Fill extra space with BACKGROUND_COLOR
     for( y = BTN_HEIGHT; y < FOOTER_PIXELS; y++ )
     {
         for( x = 0; x < OLED_WIDTH; x++ )
@@ -187,6 +188,11 @@ void emuFooter()
         }
     }
 
+    // Draw bar between OLED and buttons
+    for( x = 0; x < OLED_WIDTH; x++ )
+    {
+        footerpix[x] = BACKGROUND_COLOR2;
+    }
     emuSendOLEDData( 2, (uint8_t*)footerpix );
 }
 

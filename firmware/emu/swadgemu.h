@@ -10,7 +10,7 @@
 #define BTN_HEIGHT 30
 
 #define INIT_PX_SCALE 4
-#define HEADER_PIXELS (3 * WS_HEIGHT)
+#define HEADER_PIXELS ((3 * WS_HEIGHT) + 1)
 #define FOOTER_PIXELS BTN_HEIGHT
 #define NR_WS2812 6
 
