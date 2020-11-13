@@ -169,6 +169,7 @@ typedef struct
     // For LEDs
     timer_t ledTimer;
     uint32_t closestDist;
+    float closestAngle;
     int32_t gotShotTimer;
     int32_t shotSomethingTimer;
     int32_t killedSpriteTimer;
@@ -376,6 +377,7 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
 
     // Set up the LED timer
     rc->closestDist = 0xFFFFFFFF;
+    rc->closestAngle = 0;
     timerSetFn(&(rc->ledTimer), raycasterLedTimer, NULL);
     timerArm(&(rc->ledTimer), 10, true);
 
@@ -510,6 +512,7 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
 
     // Reset the closest distance to not shine LEDs
     rc->closestDist = 0xFFFFFFFF;
+    rc->closestAngle = 0;
 
     // Start the round clock
     rc->tRoundElapsed = 0;
@@ -1350,8 +1353,10 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
 
     // Keep track of the closest live sprite
     rc->closestDist = 0xFFFFFFFF;
+    rc->closestAngle = 0;
 
     // For each sprite
+    int16_t closestIdx = -1;
     for(uint8_t i = 0; i < NUM_SPRITES; i++)
     {
         // Skip over sprites with negative position, these weren't spawned
@@ -1375,6 +1380,7 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
         if(rc->sprites[i].health > 0 && (uint32_t)magSqr < rc->closestDist)
         {
             rc->closestDist = (uint32_t)magSqr;
+            closestIdx = i;
         }
 
         switch (rc->sprites[i].state)
@@ -1658,6 +1664,29 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                 // Do nothing, ya dead
                 break;
             }
+        }
+    }
+
+    // If there is a nearby sprite
+    if(closestIdx >= 0)
+    {
+        // Find the angle between the 'straight ahead' vector and the nearest sprite
+        // Use rc->dirX, rc->dirY as vector straight ahead
+        // This is the vector to the closest sprite
+        float xClosest = (rc->sprites[closestIdx].posX - rc->posX);
+        float yClosest = (rc->sprites[closestIdx].posY - rc->posY);
+
+        // Find the angle between the two vectors
+        rc->closestAngle = acosf(
+                               ((rc->dirX * xClosest) + (rc->dirY * yClosest)) *        // Dot Product
+                               Q_rsqrt((xClosest * xClosest) + (yClosest * yClosest))); // (1 / distance to sprite)
+                                                        // The magnitude of the 'straight ahead' vector is always 1
+
+        // Check if the sprite is to the left or right of us
+        if(((rc->dirX) * (yClosest) - (rc->dirY) * (xClosest)) > 0)
+        {
+            // If it's to the left, rotate the angle to the pi->2*pi range
+            rc->closestAngle = (2 * M_PI) - rc->closestAngle;
         }
     }
 }
@@ -1964,6 +1993,7 @@ void ICACHE_FLASH_ATTR raycasterEndRound(void)
     // Show game over screen, disable radar
     rc->mode = RC_GAME_OVER;
     rc->closestDist = 0xFFFFFFFF;
+    rc->closestAngle = 0;
 }
 
 /**
@@ -2049,9 +2079,34 @@ void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg __attribute__((unused)))
     // Otherwise use the LEDs like a radar
     else if(rc->closestDist < 64) // This is the squared dist, so check for radius 8
     {
+        // Associate each LED with a radian angle around the circle
+        float ledAngles[NUM_LIN_LEDS] =
+        {
+            3.665191f,
+            4.712389f,
+            5.759587f,
+            0.523599f,
+            1.570796f,
+            2.617994f,
+        };
+
+        // For each LED
         for(uint8_t i = 0; i < NUM_LIN_LEDS; i++)
         {
-            leds[i].b = 3 * (64 - rc->closestDist);
+            // Find the distance between this LED's angle and the angle to the nearest enemy
+            float dist = ABS(rc->closestAngle - ledAngles[i]);
+            if(dist > M_PI)
+            {
+                dist = (2 * M_PI) - dist;
+            }
+
+            // If the distance is small enough
+            if(dist < 1)
+            {
+                // Light this LED proportional to the player distance to the sprite
+                // and the LED distance to the angle
+                leds[i].b = (4 * (64 - rc->closestDist)) * (1 - dist);
+            }
         }
     }
 
