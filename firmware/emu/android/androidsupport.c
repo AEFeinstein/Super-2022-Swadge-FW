@@ -182,7 +182,7 @@ int main()
 	CNFGBGColor = 0x000000;
 	CNFGDialogColor = 0x444444;
 	CNFGSetupFullscreen( "Test Bench", 0 );
-	rawvidmem = malloc( px_scale * OLED_WIDTH*px_scale * (OLED_HEIGHT+FOOTER_PIXELS)*px_scale * 4 );
+	rawvidmem = malloc( px_scale * OLED_WIDTH*px_scale * (HEADER_PIXELS + OLED_HEIGHT+FOOTER_PIXELS)*px_scale * 4 );
 
 
 	const char * assettext = "Not Found";
@@ -220,11 +220,12 @@ int main()
 		CNFGColor( 0xFFFFFF );
 		emuCheckResize();
 
+		emuHeader();
 		emuFooter();
 
 		UpdateScreenWithBitmapOffsetY = 50;
 		UpdateScreenWithBitmapOffsetX = (screenx - OLED_WIDTH*px_scale)/2;
-		CNFGUpdateScreenWithBitmap( rawvidmem, OLED_WIDTH*px_scale, (OLED_HEIGHT+FOOTER_PIXELS)*px_scale  );
+		CNFGUpdateScreenWithBitmap( rawvidmem, OLED_WIDTH*px_scale, (HEADER_PIXELS + OLED_HEIGHT+FOOTER_PIXELS)*px_scale  );
 
 		frames++;
 		CNFGSwapBuffers();

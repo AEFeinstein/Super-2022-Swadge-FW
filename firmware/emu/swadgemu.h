@@ -6,9 +6,13 @@
 #include "display/oled.h"
 
 //Configuration
+#define WS_HEIGHT 10
+#define BTN_HEIGHT 30
+
 #define INIT_PX_SCALE 4
-#define FOOTER_PIXELS 40
-#define NR_WS2812 8
+#define HEADER_PIXELS (3 * WS_HEIGHT)
+#define FOOTER_PIXELS BTN_HEIGHT
+#define NR_WS2812 6
 
 extern int px_scale;
 extern uint32_t * rawvidmem;
@@ -24,6 +28,7 @@ extern uint8_t gpio_status;
 //which_display = 0 -> mainscreen, = 1 -> footer
 void emuCheckFooterMouse( int x, int y, int finger, int bDown );
 void emuSendOLEDData( int which_display, uint8_t * currentFb );
+void emuHeader();
 void emuFooter();
 void emuCheckResize();
 

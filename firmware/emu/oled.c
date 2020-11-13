@@ -116,7 +116,7 @@ oledResult_t updateOLED(bool drawDifference)
 {
     if( fbChanges )
     {
-        emuSendOLEDData( 0, currentFb );
+        emuSendOLEDData( 1, currentFb );
         //For the emulator, we don't care about differences.
         ets_memcpy(priorFb, currentFb, sizeof(currentFb));
         return FRAME_DRAWN;
