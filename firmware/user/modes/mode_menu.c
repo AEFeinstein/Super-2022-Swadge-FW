@@ -77,7 +77,7 @@ typedef struct
     uint8_t menuScreensaverIdx;
     int16_t squareWaveScrollOffset;
     int16_t squareWaveScrollSpeed;
-    uint8_t drawOLEDScreensaver;
+    bool drawOLEDScreensaver;
 
     gifHandle img1;
     gifHandle img2;
@@ -443,7 +443,7 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
     // Animate the OLED at the given period
     timerArm(&mnu->timerScreensaverOLEDAnimation, MENU_PAN_PERIOD_MS, true);
 
-    mnu->drawOLEDScreensaver = 0;
+    mnu->drawOLEDScreensaver = false;
 
     // Start a timer to turn the screensaver brighter
     timerArm(&mnu->timerScreensaverBright, 1000, false);
@@ -468,7 +468,7 @@ static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unu
     // Plot some tiny corner text
     plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Swadge 2021", TOM_THUMB, WHITE);
 
-    mnu->drawOLEDScreensaver = 1;
+    mnu->drawOLEDScreensaver = true;
 
     // Set the brightness to medium
     setDanceBrightness(0);
@@ -518,7 +518,8 @@ bool ICACHE_FLASH_ATTR stopScreensaver(void)
     timerDisarm(&mnu->timerScreensaverOLEDAnimation);
     led_t leds[NUM_LIN_LEDS] = {{0}};
     setLeds(leds, sizeof(leds));
-    mnu->drawOLEDScreensaver = 0;
+    bool retVal = mnu->drawOLEDScreensaver;
+    mnu->drawOLEDScreensaver = false;
 
 #if SWADGE_VERSION != SWADGE_BBKIWI
     // Start a timer to start the screensaver if there's no input
@@ -528,7 +529,6 @@ bool ICACHE_FLASH_ATTR stopScreensaver(void)
     // Stop this timer too
     timerDisarm(&mnu->timerScreensaverBright);
 
-    bool retVal = mnu->screensaverIsRunning;
     mnu->screensaverIsRunning = false;
     return retVal;
 }
