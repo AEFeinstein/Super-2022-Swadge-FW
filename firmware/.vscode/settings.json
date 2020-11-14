@@ -77,5 +77,6 @@
         "embeddedout.h": "c",
         "mode_swadgepass.h": "c",
         "printcontrol.h": "c"
-    }
+    },
+    "cmake.configureOnOpen": false
 }
