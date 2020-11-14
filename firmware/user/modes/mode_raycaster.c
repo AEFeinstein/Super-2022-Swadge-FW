@@ -280,7 +280,7 @@ static const WorldMapTile_t worldMap[MAP_WIDTH][MAP_HEIGHT] =
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, },
 };
 
-static const char rc_title[]  = "RAYCAST FPS";
+static const char rc_title[]  = "SHREDDER";
 static const char rc_easy[]   = "EASY";
 static const char rc_med[]    = "MEDIUM";
 static const char rc_hard[]   = "HARD";
