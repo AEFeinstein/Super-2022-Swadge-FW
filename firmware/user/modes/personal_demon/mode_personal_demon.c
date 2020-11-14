@@ -537,26 +537,28 @@ void ICACHE_FLASH_ATTR personalDemonLedTimer(void* arg __attribute__((unused)))
     }
 
     // +/-4
-    leds[LED_1].r = 5 * (8 - (4 + pd->ledDiscipline));
-    leds[LED_1].g = 5 * (8 - (4 + pd->ledDiscipline));
-    leds[LED_6].r = 5 * (8 - (4 + pd->ledDiscipline));
-    leds[LED_6].g = 5 * (8 - (4 + pd->ledDiscipline));
-
-    leds[LED_1].g = 5 * (4 + pd->ledDiscipline);
-    leds[LED_1].b = 5 * (4 + pd->ledDiscipline);
-    leds[LED_6].g = 5 * (4 + pd->ledDiscipline);
-    leds[LED_6].b = 5 * (4 + pd->ledDiscipline);
+    leds[LED_1].r = CLAMP((255 * (4 - pd->ledDiscipline)) / 9, 0, 255);
+    leds[LED_1].g = CLAMP((255 * (4 + pd->ledDiscipline)) / 9, 0, 255);
+    leds[LED_1].b = 0;
+    leds[LED_6].r = leds[LED_1].r;
+    leds[LED_6].g = leds[LED_1].g;
+    leds[LED_6].b = leds[LED_1].b;
 
     // +/-4
-    leds[LED_2].r = 5 * (8 - (4 + pd->ledHappy));
-    leds[LED_2].b = 5 * (8 - (4 + pd->ledHappy));
-    leds[LED_5].r = 5 * (8 - (4 + pd->ledHappy));
-    leds[LED_5].b = 5 * (8 - (4 + pd->ledHappy));
+    leds[LED_2].r = CLAMP((255 * (4 - pd->ledHappy)) / 9, 0, 255);
+    leds[LED_2].g = 0;
+    leds[LED_2].b = CLAMP((255 * (4 + pd->ledHappy)) / 9, 0, 255);
+    leds[LED_5].r = leds[LED_2].r;
+    leds[LED_5].g = leds[LED_2].g;
+    leds[LED_5].b = leds[LED_2].b;
 
-    leds[LED_2].g = 5 * (4 + pd->ledHappy);
-    leds[LED_2].b = 5 * (4 + pd->ledHappy);
-    leds[LED_5].g = 5 * (4 + pd->ledHappy);
-    leds[LED_5].b = 5 * (4 + pd->ledHappy);
+    // Dim everything a bit
+    for(uint8_t i = 0; i < NUM_LIN_LEDS; i++)
+    {
+        leds[i].r >>= 2;
+        leds[i].g >>= 2;
+        leds[i].b >>= 2;
+    }
 
     setLeds(leds, sizeof(leds));
 }
