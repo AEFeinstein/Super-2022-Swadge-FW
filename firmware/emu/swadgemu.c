@@ -23,9 +23,6 @@
 #define OLED_ON_COLOR    0x4094FF
 #define FOREGROUND_COLOR 0xD00000
 
-#define WS_HEIGHT 10
-#define BTN_HEIGHT 30
-
 #define NR_BUTTONS 5
 
 #ifdef ANDROID
@@ -54,6 +51,7 @@
 int px_scale = INIT_PX_SCALE;
 uint32_t* rawvidmem;
 short screenx, screeny;
+uint32_t headerpix[HEADER_PIXELS * OLED_WIDTH];
 uint32_t footerpix[FOOTER_PIXELS * OLED_WIDTH];
 uint32_t ws2812s[NR_WS2812];
 double boottime;
@@ -115,29 +113,62 @@ void emuCheckFooterMouse( int x, int y, int finger, int bDown )
     }
 }
 
+void emuHeader()
+{
+    // Draw background color first
+    for(int i = 0; i < HEADER_PIXELS * OLED_WIDTH; i++)
+    {
+        headerpix[i] = BACKGROUND_COLOR2;
+    }
+
+    // Then draw LEDs
+    int x, y, xS, yS;
+    for( int ledno = 0; ledno < NR_WS2812; ledno++ )
+    {
+        if(ledno < NR_WS2812 / 2)
+        {
+            xS = 0;
+        }
+        else
+        {
+            xS = OLED_WIDTH / 2;
+        }
+
+        if(ledno == 0 || ledno == 5)
+        {
+            yS = WS_HEIGHT * 2;
+        }
+        else if (ledno == 1 || ledno == 4)
+        {
+            yS = WS_HEIGHT;
+        }
+        else
+        {
+            yS = 0;
+        }
+        
+        for( y = 0; y < WS_HEIGHT; y++ )
+        {
+            for( x = 0; x < OLED_WIDTH / 2; x++ )
+            {
+                headerpix[(xS + x) + ((yS + y) * OLED_WIDTH)] = ws2812s[ledno];
+            }
+        }
+    }
+
+    emuSendOLEDData( 0, (uint8_t*)headerpix );
+}
+
 void emuFooter()
 {
-    int x, y, lx = 0;
-    int ledno, btn;
-    for( ledno = 0; ledno < NR_WS2812; ledno++ )
-    {
-        uint32_t wscol = ws2812s[ledno];
-        for( y = 0; y < 10; y++ )
-        {
-            for( x = 0; x < OLED_WIDTH / NR_WS2812 - 1; x++ )
-            {
-                footerpix[lx + x + y * OLED_WIDTH] = wscol;
-            }
-            footerpix[lx + x + y * OLED_WIDTH] = BACKGROUND_COLOR2;
-        }
-        lx += OLED_WIDTH / NR_WS2812;
-    }
+    int x, y, lx;
+    int btn;
 
     lx = 0;
     for( btn = 0; btn < NR_BUTTONS; btn++ )
     {
         uint32_t btncol = (gpio_status & (1 << btn)) ? FOREGROUND_COLOR : BACKGROUND_COLOR;
-        for( y = WS_HEIGHT; y < WS_HEIGHT + BTN_HEIGHT; y++ )
+        for( y = 0; y < BTN_HEIGHT; y++ )
         {
             for( x = 0; x < OLED_WIDTH / NR_BUTTONS - 1; x++ )
             {
@@ -148,9 +179,8 @@ void emuFooter()
         lx += OLED_WIDTH / NR_BUTTONS;
     }
 
-
-
-    for( y = WS_HEIGHT + BTN_HEIGHT; y < FOOTER_PIXELS; y++ )
+    // Fill extra space with BACKGROUND_COLOR
+    for( y = BTN_HEIGHT; y < FOOTER_PIXELS; y++ )
     {
         for( x = 0; x < OLED_WIDTH; x++ )
         {
@@ -158,29 +188,58 @@ void emuFooter()
         }
     }
 
-
-    int i;
-    for( i = 0; i < NR_WS2812; i++ )
+    // Draw bar between OLED and buttons
+    for( x = 0; x < OLED_WIDTH; x++ )
     {
-        //TODO: Iterate over ws2812s and display them here.
+        footerpix[x] = BACKGROUND_COLOR2;
     }
-    emuSendOLEDData( 1, (uint8_t*)footerpix );
+    emuSendOLEDData( 2, (uint8_t*)footerpix );
 }
 
 
 void emuSendOLEDData( int disp, uint8_t* currentFb )
 {
     int x, y;
-    for( y = 0; y < (disp ? FOOTER_PIXELS : OLED_HEIGHT); y++ )
+    int yStart, yHeight;
+    switch(disp)
+    {
+        case 0:
+        {
+            // Header
+            yStart = 0;
+            yHeight = HEADER_PIXELS;
+            break;
+        }
+        case 1:
+        {
+            // OLED
+            yStart = HEADER_PIXELS;
+            yHeight = OLED_HEIGHT;
+            break;
+        }
+        case 2:
+        {
+            // Footer
+            yStart = HEADER_PIXELS + OLED_HEIGHT;
+            yHeight = FOOTER_PIXELS;
+            break;
+        }
+        default:
+        {
+            return;
+        }
+    }
+
+    for( y = 0; y < yHeight; y++ )
     {
         for( x = 0; x < OLED_WIDTH; x++ )
         {
 
             uint32_t pxcol;
-            if( disp == 0 )
+            if( disp == 1 )
             {
                 uint8_t col = currentFb[(y + x * OLED_HEIGHT) / 8] & (1 << (y & 7));
-                pxcol = col ? (disp ? 0xffffffff : OLED_ON_COLOR) : BACKGROUND_COLOR;
+                pxcol = col ? OLED_ON_COLOR : BACKGROUND_COLOR;
             }
             else
             {
@@ -190,7 +249,7 @@ void emuSendOLEDData( int disp, uint8_t* currentFb )
             pxcol = 0xff000000 | ( (pxcol & 0xff) << 16 ) | ( pxcol & 0xff00 ) | ( (pxcol & 0xff0000) >> 16 );
 #endif
             int lx, ly;
-            uint32_t* pxloc = rawvidmem + ( x +  ( ( y + (disp ? OLED_HEIGHT : 0) ) ) * OLED_WIDTH * px_scale ) * px_scale;
+            uint32_t* pxloc = rawvidmem + ( x +  ( ( y + yStart ) ) * OLED_WIDTH * px_scale ) * px_scale;
             for( ly = 0; ly < px_scale; ly++ )
             {
                 for( lx = 0; lx < px_scale; lx++ )
@@ -216,7 +275,7 @@ void emuCheckResize()
         munmap(swadgeshm_video_data, swadgeshm_video_data_size);
 
         // Figure out new size
-        int rawvmsize = px_scale * OLED_WIDTH * px_scale * (OLED_HEIGHT + FOOTER_PIXELS) * px_scale * 4;
+        int rawvmsize = px_scale * OLED_WIDTH * px_scale * (HEADER_PIXELS + OLED_HEIGHT + FOOTER_PIXELS) * px_scale * 4;
         swadgeshm_video_data_size = rawvmsize + 64;
 
         // Resize the file, should still be open
@@ -232,7 +291,7 @@ void emuCheckResize()
         //[4..12] = LEDs
         rawvidmem = swadgeshm_video_data + 16;
 #else
-        rawvidmem = realloc( rawvidmem, px_scale * OLED_WIDTH * px_scale * (OLED_HEIGHT + FOOTER_PIXELS) * px_scale * 4 );
+        rawvidmem = realloc( rawvidmem, px_scale * OLED_WIDTH * px_scale * (HEADER_PIXELS + OLED_HEIGHT + FOOTER_PIXELS) * px_scale * 4 );
 #endif
         updateOLED( false );
     }
@@ -260,8 +319,8 @@ void emuCheckResize()
 
     CNFGBGColor = 0x800000;
     CNFGDialogColor = 0x444444;
-    CNFGSetup( "swadgemu", OLED_WIDTH * px_scale, px_scale * ( OLED_HEIGHT + FOOTER_PIXELS ) );
-    int rawvmsize = px_scale * OLED_WIDTH * px_scale * (OLED_HEIGHT + FOOTER_PIXELS) * px_scale * 4;
+    CNFGSetup( "swadgemu", OLED_WIDTH * px_scale, px_scale * ( HEADER_PIXELS + OLED_HEIGHT + FOOTER_PIXELS ) );
+    int rawvmsize = px_scale * OLED_WIDTH * px_scale * (HEADER_PIXELS + OLED_HEIGHT + FOOTER_PIXELS) * px_scale * 4;
 
     // atexit(exitMode);
     // CNFGSetupFullscreen( "Test Bench", 0 );
@@ -324,8 +383,9 @@ void emuCheckResize()
         CNFGColor( 0xFFFFFF );
         emuCheckResize();
 
+        emuHeader();
         emuFooter();
-        CNFGUpdateScreenWithBitmap( rawvidmem, OLED_WIDTH * px_scale, (OLED_HEIGHT + FOOTER_PIXELS)*px_scale  );
+        CNFGUpdateScreenWithBitmap( rawvidmem, OLED_WIDTH * px_scale, (HEADER_PIXELS + OLED_HEIGHT + FOOTER_PIXELS)*px_scale  );
 
         frames++;
         //CNFGSwapBuffers();

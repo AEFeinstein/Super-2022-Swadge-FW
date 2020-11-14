@@ -631,9 +631,9 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void)
                 curRow->count++;
             }
         }
-        
+
         //Penalize misfires
-        if(ddr->ButtonDownState & curRow->pressDirection) 
+        if(ddr->ButtonDownState & curRow->pressDirection)
         {
             ddrHandleMisfire();
             ddr->ButtonDownState = ddr->ButtonDownState & ~curRow->pressDirection;
@@ -845,7 +845,7 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
             {
                 if(ddr->ButtonState & ddr->arrowRows[rowNum].pressDirection)
                 {
-                    plotCircle(110, 55 - 16 * rowNum, BTN_RAD-1, WHITE);
+                    plotCircle(110, 55 - 16 * rowNum, BTN_RAD - 1, WHITE);
                 }
             }
 
@@ -1099,7 +1099,7 @@ static void ICACHE_FLASH_ATTR ddrSongDurationFunc(void* arg __attribute__((unuse
 static void ICACHE_FLASH_ATTR ddrButtonCallback( uint8_t state,
         int button, int down)
 {
-    int current_button_mask = 1<<button;
+    int current_button_mask = 1 << button;
     switch(ddr->mode)
     {
         default:
