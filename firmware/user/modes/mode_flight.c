@@ -380,7 +380,7 @@ static void ICACHE_FLASH_ATTR flightStartGame(flGameType type)
     flight->yawmoment = 0;
 
 
-    memset(flight->beangotmask, 0, sizeof( flight->beangotmask) );
+    ets_memset(flight->beangotmask, 0, sizeof( flight->beangotmask) );
 
     flightLEDAnimate( FLIGHT_LED_GAME_START );
 }
@@ -898,7 +898,7 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 #ifdef EMU
     uint32_t start = 0;
 #else
-    uint32_t start = xthal_get_ccount();
+    // uint32_t start = xthal_get_ccount();
 #endif
     if( tflight->type == FL_PERFTEST )
     {
@@ -1151,7 +1151,7 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 #ifdef EMU
     uint32_t stop = 0;
 #else
-    uint32_t stop = xthal_get_ccount();
+    // uint32_t stop = xthal_get_ccount();
 #endif
 
 

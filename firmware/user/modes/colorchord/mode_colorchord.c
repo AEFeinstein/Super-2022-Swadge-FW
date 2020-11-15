@@ -162,6 +162,8 @@ bool ICACHE_FLASH_ATTR ccRenderTask(void)
                     OLED_HEIGHT,
                     BLACK);
     plotText((OLED_WIDTH - width) / 2, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, exit, IBM_VGA_8, WHITE);
+
+    return true;
 }
 
 /**

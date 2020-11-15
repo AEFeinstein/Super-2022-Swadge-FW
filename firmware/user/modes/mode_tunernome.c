@@ -66,7 +66,7 @@
 /// Helper macro to return the absolute value of an integer
 #define ABS(X) (((X) < 0) ? -(X) : (X))
 /// Helper macro to return the highest of two integers
-#define MAX(X, Y) ( ((X) > (Y)) ? (X) : (Y) )
+// #define MAX(X, Y) ( ((X) > (Y)) ? (X) : (Y) )
 
 typedef enum
 {
