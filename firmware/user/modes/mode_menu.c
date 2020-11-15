@@ -94,8 +94,6 @@ typedef struct
     button_num buttonHist[MNU_BUTTON_HIST_SIZE];
 } mnu_t;
 
-static const uint8_t acceptableDances[] = {17, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16};
-
 /*============================================================================
  * Variables
  *==========================================================================*/
@@ -261,7 +259,8 @@ void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
             }
             case UP:
             {
-                mnu->menuScreensaverIdx = (mnu->menuScreensaverIdx + 1) % (sizeof(acceptableDances) / sizeof(acceptableDances[0]));
+                mnu->menuScreensaverIdx = (mnu->menuScreensaverIdx + 1) % getNumDances();
+                danceClearVars();
 
                 // Start screensaver immediately
                 if(!mnu->screensaverIsRunning)
@@ -278,8 +277,9 @@ void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
                 }
                 else
                 {
-                    mnu->menuScreensaverIdx = (sizeof(acceptableDances) / sizeof(acceptableDances[0])) - 1;
+                    mnu->menuScreensaverIdx = getNumDances() - 1;
                 }
+                danceClearVars();
 
                 // Start screensaver immediately
                 if(!mnu->screensaverIsRunning)
@@ -438,7 +438,7 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
     setDanceBrightness(1);
 
     // Animate it at the given period
-    timerArm(&mnu->timerScreensaverLEDAnimation, danceTimers[mnu->menuScreensaverIdx].period, true);
+    timerArm(&mnu->timerScreensaverLEDAnimation, 1, true);
 
     // Animate the OLED at the given period
     timerArm(&mnu->timerScreensaverOLEDAnimation, MENU_PAN_PERIOD_MS, true);
@@ -482,7 +482,7 @@ static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unu
 static void ICACHE_FLASH_ATTR menuAnimateScreensaverLEDs(void* arg __attribute__((unused)))
 {
     // Animation!
-    danceTimers[mnu->menuScreensaverIdx].timerFn(NULL);
+    danceLeds(mnu->menuScreensaverIdx);
 }
 
 /**
