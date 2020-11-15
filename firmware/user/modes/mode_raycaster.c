@@ -49,7 +49,6 @@
 #define NUM_HURT_FRAMES            2
 
 #define ENEMY_HEALTH               2
-#define PLAYER_HEALTH             99
 
 // Helper macro to return the absolute value of an integer
 #define ABS(X) (((X) < 0) ? -(X) : (X))
@@ -1371,6 +1370,7 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
     switch(rc->difficulty)
     {
         default:
+        case RC_NUM_DIFFICULTIES:
         case RC_EASY:
         {
             moveSpeed = frameTimeSec * 0.7f; // the constant value is in squares/second
@@ -2185,6 +2185,8 @@ void ICACHE_FLASH_ATTR raycasterDrawScores(void)
     // Plot title
     switch(rc->difficulty)
     {
+        default:
+        case RC_NUM_DIFFICULTIES:
         case RC_EASY:
         {
             uint16_t width = textWidth(rc_easy, RADIOSTARS);
@@ -2202,11 +2204,6 @@ void ICACHE_FLASH_ATTR raycasterDrawScores(void)
             uint16_t width = textWidth(rc_hard, RADIOSTARS);
             plotText((OLED_WIDTH - width) / 2, 0, rc_hard, RADIOSTARS, WHITE);
             break;
-        }
-        case RC_NUM_DIFFICULTIES:
-        default:
-        {
-            return;
         }
     }
 

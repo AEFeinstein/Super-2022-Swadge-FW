@@ -198,7 +198,7 @@ static void ICACHE_FLASH_ATTR rssi_scan_done_cb(void* bss_struct, STATUS status)
             if(bss->ssid_len > 0)
             {
                 // Copy the SSID
-                ets_strncpy(rssi->aps[i].ssid, bss->ssid, sizeof(rssi->aps[i].ssid) - 1);
+                ets_strncpy(rssi->aps[i].ssid, (char*)bss->ssid, sizeof(rssi->aps[i].ssid) - 1);
                 // Save the other info
                 rssi->aps[i].auth = bss->authmode;
                 rssi->aps[i].channel = bss->channel;
