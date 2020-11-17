@@ -48,6 +48,7 @@
 #define GUITAR_OFFSET         0
 #define CHROMATIC_OFFSET      6 // adjust start point by quartertones
 #define SENSITIVITY           5
+#define TONAL_DIFF_IN_TUNE_DEVIATION 10
 
 #define METRONOME_CENTER_X    OLED_WIDTH / 2
 #define METRONOME_CENTER_Y    OLED_HEIGHT - 10
@@ -118,6 +119,7 @@ typedef struct
 
     uint32_t semitone_intensitiy_filt;
     int32_t semitone_diff_filt;
+    int16_t tonalDiff;
 
     pngHandle upArrowPng;
 } tunernome_t;
@@ -136,6 +138,7 @@ void ICACHE_FLASH_ATTR decreaseBpm(void* timer_arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp);
 void ICACHE_FLASH_ATTR recalcMetronome(void);
 void ICACHE_FLASH_ATTR plotInstrumentNameAndNotes(const char* instrumentName, const char** instrumentNotes, uint16_t numNotes);
+void ICACHE_FLASH_ATTR plotTopSemiCircle(int xm, int ym, int r, color col);
 void ICACHE_FLASH_ATTR instrumentTunerMagic(const uint16_t freqBinIdxs[], uint16_t numStrings, led_t colors[], const uint16_t stringIdxToLedIdx[]);
 static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR ledReset(void* timer_arg __attribute__((unused)));
@@ -266,6 +269,11 @@ static const char leftStr[] = "< Exit";
 static const char rightStrTuner[] = "Tuner >";
 static const char rightStrMetronome[] = "Metronome >";
 
+// TODO: these should be const after being assigned
+static int TUNER_FLAT_THRES_X;
+static int TUNER_SHARP_THRES_X;
+static int TUNER_THRES_Y;
+
 /*============================================================================
  * Functions
  *==========================================================================*/
@@ -275,6 +283,12 @@ static const char rightStrMetronome[] = "Metronome >";
  */
 void ICACHE_FLASH_ATTR tunernomeEnterMode(void)
 {
+    float intermedX = cosf(TONAL_DIFF_IN_TUNE_DEVIATION * M_PI / 17 );
+    float intermedY = sinf(TONAL_DIFF_IN_TUNE_DEVIATION * M_PI / 17 );
+    TUNER_SHARP_THRES_X = round(METRONOME_CENTER_X - (intermedX * METRONOME_RADIUS));
+    TUNER_FLAT_THRES_X = round(METRONOME_CENTER_X + (intermedX * METRONOME_RADIUS));
+    TUNER_THRES_Y = round(METRONOME_CENTER_Y - (ABS(intermedY) * METRONOME_RADIUS));
+
     // Alloc and clear everything
     tunernome = os_malloc(sizeof(tunernome_t));
     ets_memset(tunernome, 0, sizeof(tunernome_t));
@@ -479,6 +493,27 @@ void ICACHE_FLASH_ATTR plotInstrumentNameAndNotes(const char* instrumentName, co
     }
 }
 
+void ICACHE_FLASH_ATTR plotTopSemiCircle(int xm, int ym, int r, color col)
+{
+    int x = -r, y = 0, err = 2 - 2 * r; /* bottom left to top right */
+    do
+    {
+        //drawPixel(xm - x, ym + y, col); /*   I. Quadrant +x +y */
+        //drawPixel(xm - y, ym - x, col); /*  II. Quadrant -x +y */
+        drawPixel(xm + x, ym - y, col); /* III. Quadrant -x -y */
+        drawPixel(xm + y, ym + x, col); /*  IV. Quadrant +x -y */
+        r = err;
+        if (r <= y)
+        {
+            err += ++y * 2 + 1;    /* e_xy+e_y < 0 */
+        }
+        if (r > x || err > y) /* e_xy+e_x > 0 or no 2nd y-step */
+        {
+            err += ++x * 2 + 1;    /* -> x-step now */
+        }
+    } while (x < 0);
+}
+
 /**
  * Instrument-agnostic tuner magic. Updates LEDs
  * @param freqBinIdxs An array of the indices of notes for the instrument's strings. See freqBinIdxsGuitar for an example.
@@ -508,7 +543,7 @@ void ICACHE_FLASH_ATTR instrumentTunerMagic(const uint16_t freqBinIdxs[], uint16
 
         int32_t red, grn, blu;
         // Is the note in tune, i.e. is the magnitude difference in surrounding bins small?
-        if( (ABS(tonalDiff) < 10) )
+        if( (ABS(tonalDiff) < TONAL_DIFF_IN_TUNE_DEVIATION) )
         {
             // Note is in tune, make it white
             red = 255;
@@ -619,6 +654,17 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
                              (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2,
                              semitoneNoteNames[semitoneNum], IBM_VGA_8, WHITE);
                     
+                    // Draw metronome arm based on the value of tonalDiff, which is between (-17, 17)
+                    // we use 17 because the LEDs use +/-255 +/- (tonalDiff*15). 255 / 15 = 17.
+                    int16_t clampedTonalDiff = CLAMP(tunernome->tonalDiff, -17, 17);
+                    float intermedX = cosf(clampedTonalDiff * M_PI / 17 );
+                    float intermedY = sinf(clampedTonalDiff * M_PI / 17 );
+                    int x = round(METRONOME_CENTER_X + (intermedX * METRONOME_RADIUS));
+                    int y = round(METRONOME_CENTER_Y - (ABS(intermedY) * METRONOME_RADIUS));
+                    plotLine(METRONOME_CENTER_X, METRONOME_CENTER_Y, x, y, WHITE);
+                    plotDashedLine(METRONOME_CENTER_X, METRONOME_CENTER_Y, TUNER_FLAT_THRES_X, TUNER_THRES_Y, 3, 1, WHITE);
+                    plotDashedLine(METRONOME_CENTER_X, METRONOME_CENTER_Y, TUNER_SHARP_THRES_X, TUNER_THRES_Y, 3, 1, WHITE);
+                    plotTopSemiCircle(METRONOME_CENTER_X, METRONOME_CENTER_Y, METRONOME_RADIUS, WHITE);
                     break;
                 }
             }
@@ -967,14 +1013,15 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
                     intensity = CLAMP(intensity, 0, 255);
 
                     //This is the tonal difference.  You "calibrate" out the intensity.
-                    int16_t tonalDiff = (tunernome->semitone_diff_filt >> SENSITIVITY) * 200 / (intensity + 1);
+                    tunernome->tonalDiff = (tunernome->semitone_diff_filt >> SENSITIVITY) * 200 / (intensity + 1);
 
-                    // tonal diff is -32768 to 32767. if its within -10 to 10, it's in tune. positive means too sharp, negative means too flat
+                    // tonal diff is -32768 to 32767. if its within -10 to 10 (now defined as TONAL_DIFF_IN_TUNE_DEVIATION), it's in tune.
+                    // positive means too sharp, negative means too flat
                     // intensity is how 'loud' that frequency is, 0 to 255. you'll have to play around with values
                     //os_printf("thaeli, semitone %2d, tonal diff %6d, intensity %3d\r\n", tunernome->curTunerMode, tonalDiff, intensity);
                     int32_t red, grn, blu;
                     // Is the note in tune, i.e. is the magnitude difference in surrounding bins small?
-                    if( (ABS(tonalDiff) < 10) )
+                    if( (ABS(tunernome->tonalDiff) < TONAL_DIFF_IN_TUNE_DEVIATION) )
                     {
                         // Note is in tune, make it white
                         red = 255;
@@ -984,17 +1031,17 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
                     else
                     {
                         // Check if the note is sharp or flat
-                        if( tonalDiff > 0 )
+                        if( tunernome->tonalDiff > 0 )
                         {
                             // Note too sharp, make it red
                             red = 255;
-                            grn = blu = 255 - (tonalDiff) * 15;
+                            grn = blu = 255 - (tunernome->tonalDiff) * 15;
                         }
                         else
                         {
                             // Note too flat, make it blue
                             blu = 255;
-                            grn = red = 255 - (-tonalDiff) * 15;
+                            grn = red = 255 - (-tunernome->tonalDiff) * 15;
                         }
 
                         // Make sure LED output isn't more than 255
