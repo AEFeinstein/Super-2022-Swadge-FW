@@ -267,7 +267,7 @@ ASSETS_DIR=assets
 ################################################################################
 
 # This list of targets do not build files which match their name
-.PHONY: all clean debug bump_submodule erase dumprom wipechip burnitall burn burn_cutecom docs print-%
+.PHONY: all clean debug bump_submodule erase dumprom wipechip burnitall burn burn_cutecom docs cppcheck print-%
 
 # Build everything!
 all: $(FW_FILE1) $(FW_FILE2) $(ASSETS_FILE)
@@ -443,6 +443,9 @@ burn_cutecom :
 
 docs :
 	doxygen swadge2019.doxyfile
+
+cppcheck:
+	cppcheck --std=c99 --platform=unix32 --suppress=missingIncludeSystem --enable=all $(DEFINES) $(INC) user/ > /dev/null
 
 ################################################################################
 # General Utility Targets

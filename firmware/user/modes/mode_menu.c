@@ -77,7 +77,7 @@ typedef struct
     uint8_t menuScreensaverIdx;
     int16_t squareWaveScrollOffset;
     int16_t squareWaveScrollSpeed;
-    uint8_t drawOLEDScreensaver;
+    bool drawOLEDScreensaver;
 
     gifHandle img1;
     gifHandle img2;
@@ -199,9 +199,9 @@ void ICACHE_FLASH_ATTR menuExit(void)
 void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down)
 {
-    // Save in button history
     if(down)
     {
+        // Save in button history
         ets_memmove(&mnu->buttonHist[0], &mnu->buttonHist[1], sizeof(button_num) * (MNU_BUTTON_HIST_SIZE - 1));
         mnu->buttonHist[MNU_BUTTON_HIST_SIZE - 1] = button;
         if(0 == ets_memcmp(mnu->buttonHist, konami, sizeof(konami)))
@@ -209,43 +209,40 @@ void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
             switchToSwadgeMode(mnu->numModes + 1);
             return;
         }
-    }
 
-    // Stop the screensaver
-    if(stopScreensaver())
-    {
-        // Draw what's under the screensaver
-        drawGifFromAsset(mnu->curImg, 0, 0, false, false, 0, false);
-        // But don't process the button otherwise
-        return;
-    }
+        // Stop the screensaver, unless it's UP or DOWN
+        if((button != UP) && (button != DOWN) && stopScreensaver())
+        {
+            // Draw what's under the screensaver
+            drawGifFromAsset(mnu->curImg, 0, 0, false, false, 0, false);
+            // But don't process the button otherwise
+            return;
+        }
 
-    // Don't accept button input if the menu is panning
-    if(mnu->menuIsPanning)
-    {
-        return;
-    }
+        // Don't accept button input if the menu is panning
+        if(mnu->menuIsPanning)
+        {
+            return;
+        }
 
-    // Menu is not panning
-    if(down)
-    {
+        // Menu is not panning
         switch(button)
         {
-            case 4:
+            case ACTION:
             {
                 // Select the mode
                 setMenuPos(mnu->selectedMode);
                 switchToSwadgeMode(1 + mnu->selectedMode);
                 break;
             }
-            case 2:
+            case RIGHT:
             {
                 // Cycle the currently selected mode
                 mnu->selectedMode = (mnu->selectedMode + 1) % mnu->numModes;
                 startPanning(true);
                 break;
             }
-            case 0:
+            case LEFT:
             {
                 // Cycle the currently selected mode
                 if(0 == mnu->selectedMode)
@@ -260,14 +257,35 @@ void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
                 startPanning(false);
                 break;
             }
-            case 1:
+            case UP:
             {
-                // TODO cycle dances
+                mnu->menuScreensaverIdx = (mnu->menuScreensaverIdx + 1) % getNumDances();
+                danceClearVars();
+
+                // Start screensaver immediately
+                if(!mnu->screensaverIsRunning)
+                {
+                    menuStartScreensaver(NULL);
+                }
                 break;
             }
-            case 3:
+            case DOWN:
             {
-                // TODO cycle dances
+                if(mnu->menuScreensaverIdx > 0)
+                {
+                    mnu->menuScreensaverIdx--;
+                }
+                else
+                {
+                    mnu->menuScreensaverIdx = getNumDances() - 1;
+                }
+                danceClearVars();
+
+                // Start screensaver immediately
+                if(!mnu->screensaverIsRunning)
+                {
+                    menuStartScreensaver(NULL);
+                }
                 break;
             }
             default:
@@ -416,21 +434,16 @@ void ICACHE_FLASH_ATTR plotSquareWave (int16_t x, int16_t y)
  */
 static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unused)))
 {
-    // Pick a random screensaver from a reduced list of dances (missing 12, 13, 18, 19)
-    // static const uint8_t acceptableDances[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 17};
-    static const uint8_t acceptableDances[] = {17};
-    mnu->menuScreensaverIdx = acceptableDances[os_random() % sizeof(acceptableDances)];
-
     // Set the brightness to low
     setDanceBrightness(1);
 
     // Animate it at the given period
-    timerArm(&mnu->timerScreensaverLEDAnimation, danceTimers[mnu->menuScreensaverIdx].period, true);
+    timerArm(&mnu->timerScreensaverLEDAnimation, 1, true);
 
     // Animate the OLED at the given period
     timerArm(&mnu->timerScreensaverOLEDAnimation, MENU_PAN_PERIOD_MS, true);
 
-    mnu->drawOLEDScreensaver = 0;
+    mnu->drawOLEDScreensaver = false;
 
     // Start a timer to turn the screensaver brighter
     timerArm(&mnu->timerScreensaverBright, 1000, false);
@@ -455,7 +468,7 @@ static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unu
     // Plot some tiny corner text
     plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Swadge 2021", TOM_THUMB, WHITE);
 
-    mnu->drawOLEDScreensaver = 1;
+    mnu->drawOLEDScreensaver = true;
 
     // Set the brightness to medium
     setDanceBrightness(0);
@@ -469,7 +482,7 @@ static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unu
 static void ICACHE_FLASH_ATTR menuAnimateScreensaverLEDs(void* arg __attribute__((unused)))
 {
     // Animation!
-    danceTimers[mnu->menuScreensaverIdx].timerFn(NULL);
+    danceLeds(mnu->menuScreensaverIdx);
 }
 
 /**
@@ -505,7 +518,8 @@ bool ICACHE_FLASH_ATTR stopScreensaver(void)
     timerDisarm(&mnu->timerScreensaverOLEDAnimation);
     led_t leds[NUM_LIN_LEDS] = {{0}};
     setLeds(leds, sizeof(leds));
-    mnu->drawOLEDScreensaver = 0;
+    bool retVal = mnu->drawOLEDScreensaver;
+    mnu->drawOLEDScreensaver = false;
 
 #if SWADGE_VERSION != SWADGE_BBKIWI
     // Start a timer to start the screensaver if there's no input
@@ -515,7 +529,6 @@ bool ICACHE_FLASH_ATTR stopScreensaver(void)
     // Stop this timer too
     timerDisarm(&mnu->timerScreensaverBright);
 
-    bool retVal = mnu->screensaverIsRunning;
     mnu->screensaverIsRunning = false;
     return retVal;
 }

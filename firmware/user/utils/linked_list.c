@@ -280,13 +280,11 @@ void* ICACHE_FLASH_ATTR removeEntry(list_t* list, node_t* entry)
             // Found the node to remove
             if(entry == curr->next)
             {
-                void* retval = NULL;
-
                 // We need to free the removed node, and adjust the nodes before and after it.
                 // current is set to the node before it.
 
                 node_t* target = curr->next;
-                retval = target->val;
+                void* retval = target->val;
 
                 curr->next = target->next;
                 curr->next->prev = curr;

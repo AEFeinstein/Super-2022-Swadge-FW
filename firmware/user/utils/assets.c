@@ -504,6 +504,7 @@ bool ICACHE_FLASH_ATTR allocPngSequence(pngSequenceHandle* handle, uint16_t coun
         if(false == allocPngAsset(va_arg(ap, const char*), &(handle->handles[i])))
         {
             freePngSequence(handle);
+            va_end(ap);
             return false;
         }
     }

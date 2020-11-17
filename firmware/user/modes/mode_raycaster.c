@@ -38,16 +38,17 @@
 
 // For enemy textures
 #define ENEMY_SHOT_COOLDOWN  3000000
-#define SHOOTING_ANIM_TIME   1000000
-#define GOT_SHOT_ANIM_TIME   1000000
+#define SHOOTING_ANIM_TIME    500000
+#define GOT_SHOT_ANIM_TIME    500000
 #define LONG_WALK_ANIM_TIME  3000000
 #define WALK_ANIM_TIME       1000000
 #define STEP_ANIM_TIME        250000
 
 #define NUM_WALK_FRAMES            2
+#define NUM_SHOT_FRAMES            2
+#define NUM_HURT_FRAMES            2
 
 #define ENEMY_HEALTH               2
-#define PLAYER_HEALTH             99
 
 // Helper macro to return the absolute value of an integer
 #define ABS(X) (((X) < 0) ? -(X) : (X))
@@ -137,6 +138,7 @@ typedef struct
     float planeY;
     int32_t shotCooldown;
     bool checkShot;
+    int32_t initialHealth;
     int32_t health;
     uint32_t tRoundStartedUs;
     uint32_t tRoundElapsed;
@@ -148,19 +150,15 @@ typedef struct
     uint8_t kills;
 
     // Storage for textures
-    color stoneTex[TEX_WIDTH * TEX_HEIGHT];
+    color stoneTex [TEX_WIDTH * TEX_HEIGHT];
     color stripeTex[TEX_WIDTH * TEX_HEIGHT];
-    color brickTex[TEX_WIDTH * TEX_HEIGHT];
-    color sinTex[TEX_WIDTH * TEX_HEIGHT];
+    color brickTex [TEX_WIDTH * TEX_HEIGHT];
+    color sinTex   [TEX_WIDTH * TEX_HEIGHT];
 
-    color walk[NUM_WALK_FRAMES][TEX_WIDTH * TEX_HEIGHT];
-
-    color s1[TEX_WIDTH * TEX_HEIGHT];
-    color s2[TEX_WIDTH * TEX_HEIGHT];
-
-    color d1[TEX_WIDTH * TEX_HEIGHT];
-    color d2[TEX_WIDTH * TEX_HEIGHT];
-    color d3[TEX_WIDTH * TEX_HEIGHT];
+    color walk    [NUM_WALK_FRAMES][TEX_WIDTH * TEX_HEIGHT];
+    color shooting[NUM_SHOT_FRAMES][TEX_WIDTH * TEX_HEIGHT];
+    color hurt    [NUM_HURT_FRAMES][TEX_WIDTH * TEX_HEIGHT];
+    color dead                     [TEX_WIDTH * TEX_HEIGHT];
 
     // Storage for HUD images
     pngHandle heart;
@@ -170,8 +168,12 @@ typedef struct
     // For LEDs
     timer_t ledTimer;
     uint32_t closestDist;
+    float closestAngle;
     int32_t gotShotTimer;
     int32_t shotSomethingTimer;
+    int32_t killedSpriteTimer;
+    int32_t healthWarningTimer;
+    bool healthWarningInc;
 } raycaster_t;
 
 /*==============================================================================
@@ -277,7 +279,7 @@ static const WorldMapTile_t worldMap[MAP_WIDTH][MAP_HEIGHT] =
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, },
 };
 
-static const char rc_title[]  = "RAYCAST FPS";
+static const char rc_title[]  = "SHREDDER";
 static const char rc_easy[]   = "EASY";
 static const char rc_med[]    = "MEDIUM";
 static const char rc_hard[]   = "HARD";
@@ -317,32 +319,32 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
 
     // Load the enemy texture to RAM
     pngHandle tmpPngHandle;
-    allocPngAsset("w1.png", &tmpPngHandle);
+    allocPngAsset("h8_wlk1.png", &tmpPngHandle);
     drawPngToBuffer(&tmpPngHandle, rc->walk[0]);
     freePngAsset(&tmpPngHandle);
 
-    allocPngAsset("w2.png", &tmpPngHandle);
+    allocPngAsset("h8_wlk2.png", &tmpPngHandle);
     drawPngToBuffer(&tmpPngHandle, rc->walk[1]);
     freePngAsset(&tmpPngHandle);
 
-    allocPngAsset("s1.png", &tmpPngHandle);
-    drawPngToBuffer(&tmpPngHandle, rc->s1);
+    allocPngAsset("h8_atk1.png", &tmpPngHandle);
+    drawPngToBuffer(&tmpPngHandle, rc->shooting[0]);
     freePngAsset(&tmpPngHandle);
 
-    allocPngAsset("s2.png", &tmpPngHandle);
-    drawPngToBuffer(&tmpPngHandle, rc->s2);
+    allocPngAsset("h8_atk2.png", &tmpPngHandle);
+    drawPngToBuffer(&tmpPngHandle, rc->shooting[1]);
     freePngAsset(&tmpPngHandle);
 
-    allocPngAsset("d1.png", &tmpPngHandle);
-    drawPngToBuffer(&tmpPngHandle, rc->d1);
+    allocPngAsset("h8_hrt1.png", &tmpPngHandle);
+    drawPngToBuffer(&tmpPngHandle, rc->hurt[0]);
     freePngAsset(&tmpPngHandle);
 
-    allocPngAsset("d2.png", &tmpPngHandle);
-    drawPngToBuffer(&tmpPngHandle, rc->d2);
+    allocPngAsset("h8_hrt2.png", &tmpPngHandle);
+    drawPngToBuffer(&tmpPngHandle, rc->hurt[1]);
     freePngAsset(&tmpPngHandle);
 
-    allocPngAsset("d3.png", &tmpPngHandle);
-    drawPngToBuffer(&tmpPngHandle, rc->d3);
+    allocPngAsset("h8_ded.png", &tmpPngHandle);
+    drawPngToBuffer(&tmpPngHandle, rc->dead);
     freePngAsset(&tmpPngHandle);
 
     // Load the wall textures to RAM
@@ -374,6 +376,7 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
 
     // Set up the LED timer
     rc->closestDist = 0xFFFFFFFF;
+    rc->closestAngle = 0;
     timerSetFn(&(rc->ledTimer), raycasterLedTimer, NULL);
     timerArm(&(rc->ledTimer), 10, true);
 
@@ -433,21 +436,18 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
         rc->sprites[i].posY = -1;
     }
 
-    // Set health and number of enemies based on the difficulty
+    // Set the number of enemies based on the difficulty
     uint16_t diffMod = 0;
     if(RC_EASY == difficulty)
     {
-        rc->health = PLAYER_HEALTH;
         diffMod = 2;
     }
     else if(RC_MED == difficulty)
     {
-        rc->health = (2 * PLAYER_HEALTH) / 3;
         diffMod = 3;
     }
     else if(RC_HARD == difficulty)
     {
-        rc->health = PLAYER_HEALTH / 2;
         diffMod = 1;
     }
 
@@ -495,14 +495,34 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
     rc->liveSprites++;
 #endif
 
+    // Set health based on the number of enemies and difficulty
+    if(RC_EASY == difficulty)
+    {
+        rc->initialHealth = rc->liveSprites * 2;
+    }
+    else if(RC_MED == difficulty)
+    {
+        rc->initialHealth = (rc->liveSprites * 3) / 2;
+    }
+    else if(RC_HARD == difficulty)
+    {
+        rc->initialHealth = rc->liveSprites;
+    }
+    rc->health = rc->initialHealth;
+
     // Clear player shot variables
     rc->shotCooldown = 0;
     rc->checkShot = false;
     rc->gotShotTimer = 0;
     rc->shotSomethingTimer = 0;
 
+    rc->killedSpriteTimer = 0;
+    rc->healthWarningTimer = 0;
+    rc->healthWarningInc = true;
+
     // Reset the closest distance to not shine LEDs
     rc->closestDist = 0xFFFFFFFF;
+    rc->closestAngle = 0;
 
     // Start the round clock
     rc->tRoundElapsed = 0;
@@ -697,6 +717,10 @@ void ICACHE_FLASH_ATTR raycasterGameRenderer(uint32_t tElapsedUs)
     if(rc->shotSomethingTimer > 0)
     {
         rc->shotSomethingTimer -= tElapsedUs;
+    }
+    if(rc->killedSpriteTimer > 0)
+    {
+        rc->killedSpriteTimer -= tElapsedUs;
     }
 
     // Cast all the rays for the scene and save the result
@@ -1144,7 +1168,8 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
                     drawPixelUnsafeC(stripe, y, rc->sprites[spriteOrder[i]].texture[texIdx]);
 
                     // If we should check a shot, and a sprite is centered
-                    if(true == rc->checkShot && (stripe == 63 || stripe == 64))
+                    if(true == rc->checkShot && (stripe == 63 || stripe == 64) &&
+                            rc->sprites[spriteOrder[i]].health > 0)
                     {
                         // Mark that sprite as shot
                         spriteIdxShot = spriteOrder[i];
@@ -1338,8 +1363,33 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
 
     // Keep track of the closest live sprite
     rc->closestDist = 0xFFFFFFFF;
+    rc->closestAngle = 0;
+
+    // Figure out the movement speed for this frame
+    float moveSpeed;
+    switch(rc->difficulty)
+    {
+        default:
+        case RC_NUM_DIFFICULTIES:
+        case RC_EASY:
+        {
+            moveSpeed = frameTimeSec * 0.7f; // the constant value is in squares/second
+            break;
+        }
+        case RC_MED:
+        {
+            moveSpeed = frameTimeSec * 1.0f;
+            break;
+        }
+        case RC_HARD:
+        {
+            moveSpeed = frameTimeSec * 1.3f;
+            break;
+        }
+    }
 
     // For each sprite
+    int16_t closestIdx = -1;
     for(uint8_t i = 0; i < NUM_SPRITES; i++)
     {
         // Skip over sprites with negative position, these weren't spawned
@@ -1363,6 +1413,7 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
         if(rc->sprites[i].health > 0 && (uint32_t)magSqr < rc->closestDist)
         {
             rc->closestDist = (uint32_t)magSqr;
+            closestIdx = i;
         }
 
         switch (rc->sprites[i].state)
@@ -1489,7 +1540,7 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
 
                 // Mirror sprites for a walking animation
                 rc->sprites[i].texTimer -= tElapsedUs;
-                while(rc->sprites[i].texTimer <= 0)
+                while(rc->sprites[i].texTimer < 0)
                 {
                     // Animate a 'step'
                     rc->sprites[i].texTimer += STEP_ANIM_TIME;
@@ -1504,8 +1555,6 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                 }
 
                 // Find the new position
-                float moveSpeed = frameTimeSec * 1.0; // the constant value is in squares/second
-
                 // If the sprite is really close and not walking backwards
                 if(magSqr < 0.5f && false == rc->sprites[i].isBackwards)
                 {
@@ -1573,29 +1622,39 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
             {
                 // Animate a shot
                 rc->sprites[i].texTimer -= tElapsedUs;
-                if(rc->sprites[i].texTimer <= 0)
+                while(rc->sprites[i].texTimer < 0)
                 {
-                    // After the shot, go to E_PICK_DIR_PLAYER
-                    setSpriteState(&(rc->sprites[i]), E_PICK_DIR_PLAYER);
-                }
-                else if(rc->sprites[i].texTimer < SHOOTING_ANIM_TIME / 2 &&
-                        rc->sprites[i].shotCooldown <= 0)
-                {
-                    rc->sprites[i].shotCooldown = ENEMY_SHOT_COOLDOWN;
-                    // After 0.5s switch to next texture
-                    rc->sprites[i].texture = rc->s2;
-                    // Check if the sprite can still see the player
-                    if(checkLineToPlayer(&rc->sprites[i], rc->posX, rc->posY))
-                    {
-                        // If it can, the player got shot
-                        rc->health--;
-                        rc->gotShotTimer = LED_ON_TIME;
+                    rc->sprites[i].texTimer += SHOOTING_ANIM_TIME;
 
-                        // If the player is out of health
-                        if(rc->health == 0)
+                    // Pick the next texture
+                    rc->sprites[i].texFrame = (rc->sprites[i].texFrame + 1) % NUM_SHOT_FRAMES;
+                    rc->sprites[i].texture = rc->shooting[rc->sprites[i].texFrame];
+
+                    // Reset if we're back to zero
+                    if(0 == rc->sprites[i].texFrame)
+                    {
+                        // After the shot, go to E_PICK_DIR_PLAYER
+                        setSpriteState(&(rc->sprites[i]), E_PICK_DIR_PLAYER);
+                    }
+                    // If we're halfway through the animation
+                    else if (NUM_SHOT_FRAMES / 2 == rc->sprites[i].texFrame)
+                    {
+                        // Actually take the shot
+                        rc->sprites[i].shotCooldown = ENEMY_SHOT_COOLDOWN;
+
+                        // Check if the sprite can still see the player
+                        if(checkLineToPlayer(&rc->sprites[i], rc->posX, rc->posY))
                         {
-                            // End the round
-                            raycasterEndRound();
+                            // If it can, the player got shot
+                            rc->health--;
+                            rc->gotShotTimer = LED_ON_TIME;
+
+                            // If the player is out of health
+                            if(rc->health == 0)
+                            {
+                                // End the round
+                                raycasterEndRound();
+                            }
                         }
                     }
                 }
@@ -1605,24 +1664,29 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
             {
                 // Animate getting shot
                 rc->sprites[i].texTimer -= tElapsedUs;
-                if(rc->sprites[i].texTimer <= 0)
+                while(rc->sprites[i].texTimer < 0)
                 {
-                    // If the enemy has any health
-                    if(rc->sprites[i].health > 0)
+                    rc->sprites[i].texTimer += GOT_SHOT_ANIM_TIME;
+
+                    // Pick the next texture
+                    rc->sprites[i].texFrame = (rc->sprites[i].texFrame + 1) % NUM_HURT_FRAMES;
+                    rc->sprites[i].texture = rc->hurt[rc->sprites[i].texFrame];
+
+                    // Reset if we're back to zero
+                    if(0 == rc->sprites[i].texFrame)
                     {
-                        // Go back to E_PICK_DIR_PLAYER
-                        setSpriteState(&(rc->sprites[i]), E_PICK_DIR_PLAYER);
+                        // If the enemy has any health
+                        if(rc->sprites[i].health > 0)
+                        {
+                            // Go back to E_PICK_DIR_PLAYER
+                            setSpriteState(&(rc->sprites[i]), E_PICK_DIR_PLAYER);
+                        }
+                        else
+                        {
+                            // If there is no health, go to E_DEAD
+                            setSpriteState(&(rc->sprites[i]), E_DEAD);
+                        }
                     }
-                    else
-                    {
-                        // If there is no health, go to E_DEAD
-                        setSpriteState(&(rc->sprites[i]), E_DEAD);
-                    }
-                }
-                else if(rc->sprites[i].texTimer < GOT_SHOT_ANIM_TIME / 2)
-                {
-                    // After 0.5s switch to next texture
-                    rc->sprites[i].texture = rc->d2;
                 }
                 break;
             }
@@ -1631,6 +1695,29 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                 // Do nothing, ya dead
                 break;
             }
+        }
+    }
+
+    // If there is a nearby sprite
+    if(closestIdx >= 0)
+    {
+        // Find the angle between the 'straight ahead' vector and the nearest sprite
+        // Use rc->dirX, rc->dirY as vector straight ahead
+        // This is the vector to the closest sprite
+        float xClosest = (rc->sprites[closestIdx].posX - rc->posX);
+        float yClosest = (rc->sprites[closestIdx].posY - rc->posY);
+
+        // Find the angle between the two vectors
+        rc->closestAngle = acosf(
+                               ((rc->dirX * xClosest) + (rc->dirY * yClosest)) *        // Dot Product
+                               Q_rsqrt((xClosest * xClosest) + (yClosest * yClosest))); // (1 / distance to sprite)
+        // The magnitude of the 'straight ahead' vector is always 1, so it's left out of the denominator
+
+        // Check if the sprite is to the left or right of us
+        if(((rc->dirX) * (yClosest) - (rc->dirY) * (xClosest)) > 0)
+        {
+            // If it's to the left, rotate the angle to the pi->2*pi range
+            rc->closestAngle = (2 * M_PI) - rc->closestAngle;
         }
     }
 }
@@ -1812,7 +1899,7 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
         {
             // Set up the shooting texture
             sprite->stateTimer = SHOOTING_ANIM_TIME;
-            sprite->texture = rc->s1;
+            sprite->texture = rc->shooting[0];
             sprite->texTimer = SHOOTING_ANIM_TIME;
             break;
         }
@@ -1820,7 +1907,7 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
         {
             // Set up the got shot texture
             sprite->stateTimer = GOT_SHOT_ANIM_TIME;
-            sprite->texture = rc->d1;
+            sprite->texture = rc->hurt[0];
             sprite->texTimer = GOT_SHOT_ANIM_TIME;
             break;
         }
@@ -1828,6 +1915,7 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
         {
             // If the sprite is dead, decrement live sprite and increment kills
             rc->liveSprites--;
+            rc->killedSpriteTimer = LED_ON_TIME;
             rc->kills++;
             // If there are no sprites left
             if(0 == rc->liveSprites)
@@ -1838,7 +1926,7 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
 
             // ALso set up the corpse texture
             sprite->stateTimer = 0;
-            sprite->texture = rc->d3;
+            sprite->texture = rc->dead;
             sprite->texTimer = 0;
         }
     }
@@ -1860,10 +1948,14 @@ void ICACHE_FLASH_ATTR drawHUD(void)
                     BLACK);
 
     // Draw note display
-    drawPng(&(rc->mnote),
-            0,
-            OLED_HEIGHT - rc->mnote.height,
-            false, false, 0);
+    if(rc->killedSpriteTimer <= 0)
+    {
+        // Blink the note when an enemy is defeated
+        drawPng(&(rc->mnote),
+                0,
+                OLED_HEIGHT - rc->mnote.height,
+                false, false, 0);
+    }
     plotText(rc->mnote.width + 2,
              OLED_HEIGHT - FONT_HEIGHT_IBMVGA8,
              notes, IBM_VGA_8, WHITE);
@@ -1880,10 +1972,14 @@ void ICACHE_FLASH_ATTR drawHUD(void)
                     BLACK);
 
     // Draw health display
-    drawPng(&(rc->heart),
-            OLED_WIDTH - rc->heart.width,
-            OLED_HEIGHT - rc->heart.height,
-            false, false, 0);
+    if(rc->gotShotTimer <= 0)
+    {
+        // Blink the heart when getting shot, same as the red LED
+        drawPng(&(rc->heart),
+                OLED_WIDTH - rc->heart.width,
+                OLED_HEIGHT - rc->heart.height,
+                false, false, 0);
+    }
     plotText(healthDrawX,
              OLED_HEIGHT - FONT_HEIGHT_IBMVGA8,
              health, IBM_VGA_8, WHITE);
@@ -1928,6 +2024,7 @@ void ICACHE_FLASH_ATTR raycasterEndRound(void)
     // Show game over screen, disable radar
     rc->mode = RC_GAME_OVER;
     rc->closestDist = 0xFFFFFFFF;
+    rc->closestAngle = 0;
 }
 
 /**
@@ -2013,10 +2110,65 @@ void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg __attribute__((unused)))
     // Otherwise use the LEDs like a radar
     else if(rc->closestDist < 64) // This is the squared dist, so check for radius 8
     {
+        // Associate each LED with a radian angle around the circle
+        float ledAngles[NUM_LIN_LEDS] =
+        {
+            3.665191f,
+            4.712389f,
+            5.759587f,
+            0.523599f,
+            1.570796f,
+            2.617994f,
+        };
+
+        // For each LED
         for(uint8_t i = 0; i < NUM_LIN_LEDS; i++)
         {
-            leds[i].b = 3 * (64 - rc->closestDist);
+            // Find the distance between this LED's angle and the angle to the nearest enemy
+            float dist = ABS(rc->closestAngle - ledAngles[i]);
+            if(dist > M_PI)
+            {
+                dist = (2 * M_PI) - dist;
+            }
+
+            // If the distance is small enough
+            if(dist < 1)
+            {
+                // Light this LED proportional to the player distance to the sprite
+                // and the LED distance to the angle
+                leds[i].b = (4 * (64 - rc->closestDist)) * (1 - dist);
+            }
         }
+    }
+
+    // If we're at a quarter health or less
+    if(rc->mode == RC_GAME && rc->health <= rc->initialHealth / 4)
+    {
+        // Increment or decrement the red warning LED
+        if(true == rc->healthWarningInc)
+        {
+            rc->healthWarningTimer++;
+            if(rc->healthWarningTimer == 0x80)
+            {
+                rc->healthWarningInc = false;
+            }
+        }
+        else
+        {
+            rc->healthWarningTimer--;
+            if(rc->healthWarningTimer == 0)
+            {
+                rc->healthWarningInc = true;
+            }
+        }
+
+        // Pulse two LEDs red as a warning, reduce G and B
+        leds[0].r = rc->healthWarningTimer;
+        leds[0].g /= 4;
+        leds[0].b /= 4;
+        leds[NUM_LIN_LEDS - 1].r = rc->healthWarningTimer;
+        leds[NUM_LIN_LEDS - 1].g /= 4;
+        leds[NUM_LIN_LEDS - 1].b /= 4;
     }
 
     // Push out the LEDs
@@ -2033,6 +2185,8 @@ void ICACHE_FLASH_ATTR raycasterDrawScores(void)
     // Plot title
     switch(rc->difficulty)
     {
+        default:
+        case RC_NUM_DIFFICULTIES:
         case RC_EASY:
         {
             uint16_t width = textWidth(rc_easy, RADIOSTARS);
@@ -2050,11 +2204,6 @@ void ICACHE_FLASH_ATTR raycasterDrawScores(void)
             uint16_t width = textWidth(rc_hard, RADIOSTARS);
             plotText((OLED_WIDTH - width) / 2, 0, rc_hard, RADIOSTARS, WHITE);
             break;
-        }
-        case RC_NUM_DIFFICULTIES:
-        default:
-        {
-            return;
         }
     }
 

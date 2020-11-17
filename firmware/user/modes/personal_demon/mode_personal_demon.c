@@ -537,26 +537,28 @@ void ICACHE_FLASH_ATTR personalDemonLedTimer(void* arg __attribute__((unused)))
     }
 
     // +/-4
-    leds[LED_1].r = 5 * (8 - (4 + pd->ledDiscipline));
-    leds[LED_1].g = 5 * (8 - (4 + pd->ledDiscipline));
-    leds[LED_6].r = 5 * (8 - (4 + pd->ledDiscipline));
-    leds[LED_6].g = 5 * (8 - (4 + pd->ledDiscipline));
-
-    leds[LED_1].g = 5 * (4 + pd->ledDiscipline);
-    leds[LED_1].b = 5 * (4 + pd->ledDiscipline);
-    leds[LED_6].g = 5 * (4 + pd->ledDiscipline);
-    leds[LED_6].b = 5 * (4 + pd->ledDiscipline);
+    leds[LED_1].r = CLAMP((255 * (4 - pd->ledDiscipline)) / 9, 0, 255);
+    leds[LED_1].g = CLAMP((255 * (4 + pd->ledDiscipline)) / 9, 0, 255);
+    leds[LED_1].b = 0;
+    leds[LED_6].r = leds[LED_1].r;
+    leds[LED_6].g = leds[LED_1].g;
+    leds[LED_6].b = leds[LED_1].b;
 
     // +/-4
-    leds[LED_2].r = 5 * (8 - (4 + pd->ledHappy));
-    leds[LED_2].b = 5 * (8 - (4 + pd->ledHappy));
-    leds[LED_5].r = 5 * (8 - (4 + pd->ledHappy));
-    leds[LED_5].b = 5 * (8 - (4 + pd->ledHappy));
+    leds[LED_2].r = CLAMP((255 * (4 - pd->ledHappy)) / 9, 0, 255);
+    leds[LED_2].g = 0;
+    leds[LED_2].b = CLAMP((255 * (4 + pd->ledHappy)) / 9, 0, 255);
+    leds[LED_5].r = leds[LED_2].r;
+    leds[LED_5].g = leds[LED_2].g;
+    leds[LED_5].b = leds[LED_2].b;
 
-    leds[LED_2].g = 5 * (4 + pd->ledHappy);
-    leds[LED_2].b = 5 * (4 + pd->ledHappy);
-    leds[LED_5].g = 5 * (4 + pd->ledHappy);
-    leds[LED_5].b = 5 * (4 + pd->ledHappy);
+    // Dim everything a bit
+    for(uint8_t i = 0; i < NUM_LIN_LEDS; i++)
+    {
+        leds[i].r >>= 2;
+        leds[i].g >>= 2;
+        leds[i].b >>= 2;
+    }
 
     setLeds(leds, sizeof(leds));
 }
@@ -649,49 +651,36 @@ bool ICACHE_FLASH_ATTR personalDemonAnimationRender(void)
             }
 
             // Draw anything else for this scene
-            bool sceneDrawn = false;
-            if(pd->animTable[pd->anim].updtAnim(tElapsed))
-            {
-                personalDemonUpdateDisplay();
-                sceneDrawn = true;
-            }
+            pd->animTable[pd->anim].updtAnim(tElapsed);
+            personalDemonUpdateDisplay();
 
             // Draw the menu text for this scene
-            static bool shouldDrawMenu = true;
-            if(shouldDrawMenu || sceneDrawn)
-            {
-                shouldDrawMenu = false;
-                drawMenu(pd->menu);
+            drawMenu(pd->menu);
 
-                // Only draw health if the demon is alive
-                if(pd->demon.health)
+            // Only draw health if the demon is alive
+            if(pd->demon.health)
+            {
+                int16_t healthPxCovered = 40 - (pd->drawHealth * 40) / STARTING_HEALTH;
+                if(healthPxCovered > 40)
                 {
-                    int16_t healthPxCovered = 40 - (pd->drawHealth * 40) / STARTING_HEALTH;
-                    if(healthPxCovered > 40)
-                    {
-                        healthPxCovered = 40;
-                    }
-
-                    // Always draw the health counter
-                    for(uint8_t i = 0; i < 4; i++)
-                    {
-                        drawPng(&(pd->heart),
-                                OLED_WIDTH - pd->heart.width,
-                                FONT_HEIGHT_IBMVGA8 + 1 + i * (pd->heart.height),
-                                false, false, 0);
-                    }
-
-                    if(healthPxCovered)
-                    {
-                        fillDisplayArea(OLED_WIDTH - pd->heart.width, FONT_HEIGHT_IBMVGA8 + 1,
-                                        OLED_WIDTH, FONT_HEIGHT_IBMVGA8 + healthPxCovered,
-                                        BLACK);
-                    }
+                    healthPxCovered = 40;
                 }
-            }
-            else
-            {
-                shouldDrawMenu = true;
+
+                // Always draw the health counter
+                for(uint8_t i = 0; i < 4; i++)
+                {
+                    drawPng(&(pd->heart),
+                            OLED_WIDTH - pd->heart.width,
+                            FONT_HEIGHT_IBMVGA8 + 1 + i * (pd->heart.height),
+                            false, false, 0);
+                }
+
+                if(healthPxCovered)
+                {
+                    fillDisplayArea(OLED_WIDTH - pd->heart.width, FONT_HEIGHT_IBMVGA8 + 1,
+                                    OLED_WIDTH, FONT_HEIGHT_IBMVGA8 + healthPxCovered,
+                                    BLACK);
+                }
             }
 
             // Draw the menu text for this screen

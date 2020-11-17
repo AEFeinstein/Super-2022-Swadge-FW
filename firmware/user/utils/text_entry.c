@@ -147,22 +147,24 @@ bool ICACHE_FLASH_ATTR textEntryDraw(void)
     {
         case SHIFT:
         {
-            int8_t width = textWidth("Upper", TOM_THUMB);
-            plotText(OLED_WIDTH - width, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 2, "Upper", TOM_THUMB, WHITE);
-            plotLine(OLED_WIDTH - width, OLED_HEIGHT - 1, OLED_WIDTH - 1, OLED_HEIGHT - 1, WHITE);
+            int8_t width = textWidth("Typing: Upper", TOM_THUMB);
+            int8_t typingWidth = textWidth("Typing: ", TOM_THUMB);
+            plotText(OLED_WIDTH - width, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 2, "Typing: Upper", TOM_THUMB, WHITE);
+            plotLine(OLED_WIDTH - width + typingWidth, OLED_HEIGHT - 1, OLED_WIDTH - 1, OLED_HEIGHT - 1, WHITE);
             break;
         }
         case NO_SHIFT:
         {
-            int8_t width = textWidth("Lower", TOM_THUMB);
-            plotText(OLED_WIDTH - width, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 2, "Lower", TOM_THUMB, WHITE);
+            int8_t width = textWidth("Typing: Lower", TOM_THUMB);
+            plotText(OLED_WIDTH - width, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 2, "Typing: Lower", TOM_THUMB, WHITE);
             break;
         }
         case CAPS_LOCK:
         {
-            int8_t width = textWidth("CAPS LOCK", TOM_THUMB);
-            plotText(OLED_WIDTH - width, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 2, "CAPS LOCK", TOM_THUMB, WHITE);
-            plotLine(OLED_WIDTH - width, OLED_HEIGHT - 1, OLED_WIDTH - 1, OLED_HEIGHT - 1, WHITE);
+            int8_t width = textWidth("Typing: CAPS LOCK", TOM_THUMB);
+            int8_t typingWidth = textWidth("Typing: ", TOM_THUMB);
+            plotText(OLED_WIDTH - width, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 2, "Typing: CAPS LOCK", TOM_THUMB, WHITE);
+            plotLine(OLED_WIDTH - width + typingWidth, OLED_HEIGHT - 1, OLED_WIDTH - 1, OLED_HEIGHT - 1, WHITE);
             break;
         }
         default:
