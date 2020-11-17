@@ -277,11 +277,11 @@ bool ICACHE_FLASH_ATTR updateHighScores(uint32_t newScore);*/
 
 uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font);
 bool ICACHE_FLASH_ATTR AABBCollision (int ax0, int ay0, int ax1, int ay1, int bx0, int by0, int bx1, int by1);
-void normalize (vecdouble_t * vec);
-bool fireProjectile (uint8_t owner, uint8_t type, vec_t position, vec_t bbHalf, vec_t direction, uint8_t speed, uint8_t damage);
-bool spawnEnemy (uint8_t type, vec_t spawn, uint8_t health, vec_t bbHalf, uint32_t frameOffsetX, uint32_t frameOffsetY);
-bool spawnEnemyFormation (uint8_t type, vec_t spawn, uint8_t health, vec_t bbHalf, uint32_t frameOffsetX, uint32_t frameOffsetY, uint8_t numEnemies, int16_t xSpacing, int16_t ySpacing);
-void enemyDeath (uint8_t index);
+void ICACHE_FLASH_ATTR normalize (vecdouble_t * vec);
+bool ICACHE_FLASH_ATTR fireProjectile (uint8_t owner, uint8_t type, vec_t position, vec_t bbHalf, vec_t direction, uint8_t speed, uint8_t damage);
+bool ICACHE_FLASH_ATTR spawnEnemy (uint8_t type, vec_t spawn, uint8_t health, vec_t bbHalf, uint32_t frameOffsetX, uint32_t frameOffsetY);
+bool ICACHE_FLASH_ATTR spawnEnemyFormation (uint8_t type, vec_t spawn, uint8_t health, vec_t bbHalf, uint32_t frameOffsetX, uint32_t frameOffsetY, uint8_t numEnemies, int16_t xSpacing, int16_t ySpacing);
+void ICACHE_FLASH_ATTR enemyDeath (uint8_t index);
 
 
 /*============================================================================
@@ -1154,7 +1154,7 @@ uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font)
     return textWidth;
 }
 
-bool AABBCollision (int ax0, int ay0, int ax1, int ay1, int bx0, int by0, int bx1, int by1) {
+bool ICACHE_FLASH_ATTR AABBCollision (int ax0, int ay0, int ax1, int ay1, int bx0, int by0, int bx1, int by1) {
     int awidth = ax1 - ax0;
     int aheight = ay1 - ay0;
 
@@ -1167,7 +1167,7 @@ bool AABBCollision (int ax0, int ay0, int ax1, int ay1, int bx0, int by0, int bx
             ay1 > by0);
 }
 
-void normalize (vecdouble_t * vec)
+void ICACHE_FLASH_ATTR normalize (vecdouble_t * vec)
 {
     if (vec->x != 0 || vec->y != 0) {
         double mag = sqrt(pow(vec->x, 2) + pow(vec->y, 2));
@@ -1176,7 +1176,7 @@ void normalize (vecdouble_t * vec)
     }
 }
 
-bool fireProjectile (uint8_t owner, uint8_t type, vec_t position, vec_t bbHalf, vec_t direction, uint8_t speed, uint8_t damage)
+bool ICACHE_FLASH_ATTR fireProjectile (uint8_t owner, uint8_t type, vec_t position, vec_t bbHalf, vec_t direction, uint8_t speed, uint8_t damage)
 {
     for (int i = 0; i < MAX_PROJECTILES; i++) {
         if (!mType->projectiles[i].active) {
@@ -1197,7 +1197,7 @@ bool fireProjectile (uint8_t owner, uint8_t type, vec_t position, vec_t bbHalf, 
     return false;
 }
 
-bool spawnEnemy (uint8_t type, vec_t spawn, uint8_t health, vec_t bbHalf, uint32_t frameOffsetX, uint32_t frameOffsetY) {
+bool ICACHE_FLASH_ATTR spawnEnemy (uint8_t type, vec_t spawn, uint8_t health, vec_t bbHalf, uint32_t frameOffsetX, uint32_t frameOffsetY) {
     for (int i = 0; i < MAX_ENEMIES; i++) {
         if (!mType->enemies[i].active) {
             mType->enemies[i].active = 1;
@@ -1218,7 +1218,7 @@ bool spawnEnemy (uint8_t type, vec_t spawn, uint8_t health, vec_t bbHalf, uint32
     return false;
 }
 
-bool spawnEnemyFormation (uint8_t type, vec_t spawn, uint8_t health, vec_t bbHalf, uint32_t unitFrameOffsetX, uint32_t unitFrameOffsetY, uint8_t numEnemies, int16_t xSpacing, int16_t ySpacing) {
+bool ICACHE_FLASH_ATTR spawnEnemyFormation (uint8_t type, vec_t spawn, uint8_t health, vec_t bbHalf, uint32_t unitFrameOffsetX, uint32_t unitFrameOffsetY, uint8_t numEnemies, int16_t xSpacing, int16_t ySpacing) {
     bool spawnSuccess = true;
     for (int i = 0; i < numEnemies; i++) {
         vec_t currentSpawn;
@@ -1231,7 +1231,7 @@ bool spawnEnemyFormation (uint8_t type, vec_t spawn, uint8_t health, vec_t bbHal
     return spawnSuccess;
 }
 
-void enemyDeath (uint8_t index) {
+void ICACHE_FLASH_ATTR enemyDeath (uint8_t index) {
     // TODO: explosion / anim sequence.
     mType->enemies[index].active = 0;
 
