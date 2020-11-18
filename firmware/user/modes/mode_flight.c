@@ -168,9 +168,9 @@ swadgeMode flightMode =
 flight_t* flight;
 
 static const char fl_title[]  = "Flightsim";
-static const char fl_flight_perf[] = "PERF";
-static const char fl_flight_triangles[] = "TRIS";
-static const char fl_flight_env[] = "ENV";
+// static const char fl_flight_perf[] = "PERF";
+// static const char fl_flight_triangles[] = "TRIS";
+static const char fl_flight_env[] = "Take Flight";
 static const char fl_quit[]   = "QUIT";
 
 /*============================================================================
@@ -243,8 +243,8 @@ void ICACHE_FLASH_ATTR flightEnterMode(void)
 
     flight->menu = initMenu(fl_title, flightMenuCb);
     addRowToMenu(flight->menu);
-    addItemToRow(flight->menu, fl_flight_perf);
-    addItemToRow(flight->menu, fl_flight_triangles);
+    // addItemToRow(flight->menu, fl_flight_perf);
+    // addItemToRow(flight->menu, fl_flight_triangles);
     addItemToRow(flight->menu, fl_flight_env);
     addRowToMenu(flight->menu);
     addItemToRow(flight->menu, fl_quit);
@@ -276,6 +276,7 @@ void ICACHE_FLASH_ATTR flightExitMode(void)
  */
 static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem)
 {
+    /*
     if( fl_flight_triangles == menuItem )
     {
         flightStartGame(FL_TRIANGLES);
@@ -284,7 +285,7 @@ static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem)
     {
         flightStartGame(FL_PERFTEST);
     }
-    else if (fl_flight_env == menuItem)
+    else */ if (fl_flight_env == menuItem)
     {
         flightStartGame(FL_ENV);
     }
