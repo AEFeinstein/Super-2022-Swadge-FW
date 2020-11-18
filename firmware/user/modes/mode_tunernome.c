@@ -37,7 +37,7 @@
  *==========================================================================*/
 
 #ifndef M_PI
-#define M_PI		          3.14159265358979323846
+    #define M_PI                  3.14159265358979323846
 #endif
 
 #define TUNER_UPDATE_MS       20 // less frequent screen updates to allow more processing time for colorchord magic
@@ -139,9 +139,11 @@ void ICACHE_FLASH_ATTR increaseBpm(void* timer_arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR decreaseBpm(void* timer_arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp);
 void ICACHE_FLASH_ATTR recalcMetronome(void);
-void ICACHE_FLASH_ATTR plotInstrumentNameAndNotes(const char* instrumentName, const char** instrumentNotes, uint16_t numNotes);
+void ICACHE_FLASH_ATTR plotInstrumentNameAndNotes(const char* instrumentName, const char** instrumentNotes,
+        uint16_t numNotes);
 void ICACHE_FLASH_ATTR plotTopSemiCircle(int xm, int ym, int r, color col);
-void ICACHE_FLASH_ATTR instrumentTunerMagic(const uint16_t freqBinIdxs[], uint16_t numStrings, led_t colors[], const uint16_t stringIdxToLedIdx[]);
+void ICACHE_FLASH_ATTR instrumentTunerMagic(const uint16_t freqBinIdxs[], uint16_t numStrings, led_t colors[],
+        const uint16_t stringIdxToLedIdx[]);
 static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR ledReset(void* timer_arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR fasterBpmChange(void* timer_arg __attribute__((unused)));
@@ -337,7 +339,7 @@ void ICACHE_FLASH_ATTR switchToSubmode(tnMode newMode)
             enableDebounce(true);
 
             clearDisplay();
-            
+
             break;
         }
         case TN_METRONOME:
@@ -444,10 +446,11 @@ static inline int16_t getSemiDiffAround(uint16_t idx)
 /**
  * Recalculate the per-bpm values for the metronome
  */
-void ICACHE_FLASH_ATTR recalcMetronome(void) {
+void ICACHE_FLASH_ATTR recalcMetronome(void)
+{
     // Figure out how many microseconds are in one beat
     tunernome->usPerBeat = (60 * 1000000) / tunernome->bpm;
-    
+
 }
 
 // TODO: make this compatible with instruments with an odd number of notes
@@ -457,12 +460,13 @@ void ICACHE_FLASH_ATTR recalcMetronome(void) {
  * @param instrumentNotes The note names of the strings of the instrument to plot to the display
  * @param numNotes The number of notes in instrumentsNotes
  */
-void ICACHE_FLASH_ATTR plotInstrumentNameAndNotes(const char* instrumentName, const char** instrumentNotes, uint16_t numNotes)
+void ICACHE_FLASH_ATTR plotInstrumentNameAndNotes(const char* instrumentName, const char** instrumentNotes,
+        uint16_t numNotes)
 {
     // Mode name
     plotText((OLED_WIDTH - textWidth(instrumentName, IBM_VGA_8)) / 2,
-                (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2,
-                instrumentName, IBM_VGA_8, WHITE);
+             (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2,
+             instrumentName, IBM_VGA_8, WHITE);
 
     // Note names of strings, arranged to match LED positions
     bool oddNumLedRows = (numNotes / 2) % 2;
@@ -472,12 +476,14 @@ void ICACHE_FLASH_ATTR plotInstrumentNameAndNotes(const char* instrumentName, co
         if(oddNumLedRows)
         {
             y = (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (1 - i);
-        } else
+        }
+        else
         {
             y = OLED_HEIGHT / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (- i) + 2;
         }
 
-        plotText((OLED_WIDTH - textWidth(instrumentName, IBM_VGA_8)) / 2 - textWidth(/*placeholder for widest note name + ' '*/ "G4 ", IBM_VGA_8),
+        plotText((OLED_WIDTH - textWidth(instrumentName,
+                                         IBM_VGA_8)) / 2 - textWidth(/*placeholder for widest note name + ' '*/ "G4 ", IBM_VGA_8),
                  y,
                  instrumentNotes[i], IBM_VGA_8, WHITE);
     }
@@ -487,7 +493,8 @@ void ICACHE_FLASH_ATTR plotInstrumentNameAndNotes(const char* instrumentName, co
         if(oddNumLedRows)
         {
             y = (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (i - (numNotes / 2) - 1);
-        } else
+        }
+        else
         {
             y = OLED_HEIGHT / 2 + (FONT_HEIGHT_IBMVGA8 + 5) * (i - (numNotes / 2) - 1) + 2;
         }
@@ -526,18 +533,19 @@ void ICACHE_FLASH_ATTR plotTopSemiCircle(int xm, int ym, int r, color col)
  * @param colors The RGB colors of the LEDs to set
  * @param stringIdxToLedIdx A remapping from each index into freqBinIdxs (same index into stringIdxToLedIdx), to the index of an LED to map that string/freqBinIdx to. Set to NULL to skip remapping.
  */
-void ICACHE_FLASH_ATTR instrumentTunerMagic(const uint16_t freqBinIdxs[], uint16_t numStrings, led_t colors[], const uint16_t stringIdxToLedIdx[])
+void ICACHE_FLASH_ATTR instrumentTunerMagic(const uint16_t freqBinIdxs[], uint16_t numStrings, led_t colors[],
+        const uint16_t stringIdxToLedIdx[])
 {
     uint32_t i;
     for( i = 0; i < numStrings; i++ )
     {
         // Pick out the current magnitude and filter it
         tunernome->intensities_filt[i] = (getMagnitude(freqBinIdxs[i] + GUITAR_OFFSET)  + tunernome->intensities_filt[i]) -
-                            (tunernome->intensities_filt[i] >> 5);
+                                         (tunernome->intensities_filt[i] >> 5);
 
         // Pick out the difference around current magnitude and filter it too
         tunernome->diffs_filt[i] =       (getDiffAround(freqBinIdxs[i] + GUITAR_OFFSET) + tunernome->diffs_filt[i]) -
-                            (tunernome->diffs_filt[i] >> 5);
+                                         (tunernome->diffs_filt[i] >> 5);
 
         // This is the magnitude of the target frequency bin, cleaned up
         int16_t intensity = (tunernome->intensities_filt[i] >> SENSITIVITY) - 40; // drop a baseline.
@@ -605,12 +613,13 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
 
             // Instructions at top of display
             plotText(0, 0, "Blu= Flat", TOM_THUMB, WHITE);
-            plotText((OLED_WIDTH - textWidth("Wht= OK", TOM_THUMB))/2, 0, "Wht= OK", TOM_THUMB, WHITE);
+            plotText((OLED_WIDTH - textWidth("Wht= OK", TOM_THUMB)) / 2, 0, "Wht= OK", TOM_THUMB, WHITE);
             plotText(OLED_WIDTH - textWidth("Red= Sharp", TOM_THUMB) + 1, 0, "Red= Sharp", TOM_THUMB, WHITE);
 
             // Left/Right button functions at bottom of display
             plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, leftStr, TOM_THUMB, WHITE);
-            plotText(OLED_WIDTH - textWidth(rightStrMetronome, TOM_THUMB) + 1, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, rightStrMetronome, TOM_THUMB, WHITE);
+            plotText(OLED_WIDTH - textWidth(rightStrMetronome, TOM_THUMB) + 1, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB,
+                     rightStrMetronome, TOM_THUMB, WHITE);
 
             // Up/Down arrows in middle of display around current note/mode
             drawPng(&(tunernome->upArrowPng),
@@ -684,20 +693,20 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
 
                     // Plot text on top of everything else
                     uint8_t semitoneNum = (tunernome->curTunerMode - SEMITONE_0);
-                    bool shouldDrawFlat = (semitoneNoteNames[semitoneNum][ets_strlen(semitoneNoteNames[semitoneNum])-1] == 1);
+                    bool shouldDrawFlat = (semitoneNoteNames[semitoneNum][ets_strlen(semitoneNoteNames[semitoneNum]) - 1] == 1);
                     int16_t tWidth = textWidth(semitoneNoteNames[semitoneNum], IBM_VGA_8);
                     if(shouldDrawFlat)
                     {
                         tWidth += tunernome->flatPng.width + 1;
                     }
                     fillDisplayArea((OLED_WIDTH - tWidth) / 2,
-                        (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2 -1,
-                        (OLED_WIDTH - tWidth) / 2 + tWidth,
-                        ((OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2) + FONT_HEIGHT_IBMVGA8,
-                        BLACK);
+                                    (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2 - 1,
+                                    (OLED_WIDTH - tWidth) / 2 + tWidth,
+                                    ((OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2) + FONT_HEIGHT_IBMVGA8,
+                                    BLACK);
                     int16_t textEnd = plotText((OLED_WIDTH - tWidth) / 2 + 1,
-                                (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2,
-                                semitoneNoteNames[semitoneNum], IBM_VGA_8, WHITE);
+                                               (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2,
+                                               semitoneNoteNames[semitoneNum], IBM_VGA_8, WHITE);
 
                     // Append the png for a flat
                     if(shouldDrawFlat)
@@ -713,14 +722,15 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
         case TN_METRONOME:
         {
             clearDisplay();
-    
+
             char bpmStr[8];
             ets_sprintf(bpmStr, "%d bpm", tunernome->bpm);
 
             plotText((OLED_WIDTH - textWidth(bpmStr, IBM_VGA_8)) / 2, 0, bpmStr, IBM_VGA_8, WHITE);
             plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, leftStr, TOM_THUMB, WHITE);
-            plotText(OLED_WIDTH - textWidth(rightStrTuner, TOM_THUMB), OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, rightStrTuner, TOM_THUMB, WHITE);
-            
+            plotText(OLED_WIDTH - textWidth(rightStrTuner, TOM_THUMB), OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, rightStrTuner, TOM_THUMB,
+                     WHITE);
+
             // Don't do anything when paused
             if(tunernome->pause)
             {
@@ -762,16 +772,16 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
                         tunernome->tAccumulatedUs = tunernome->usPerBeat - (tunernome->tAccumulatedUs - tunernome->usPerBeat);
                         // Blink LED Tick color
                         led_t leds[NUM_LIN_LEDS] = {{0}};
-                            for(int i = 0; i < NUM_LIN_LEDS; i++)
-                            {
-                                leds[i].r = 0xFF;
-                                leds[i].g = 0xFF;
-                                leds[i].b = 0xFF;
-                            }
-                            setLeds(leds, sizeof(leds));
+                        for(int i = 0; i < NUM_LIN_LEDS; i++)
+                        {
+                            leds[i].r = 0xFF;
+                            leds[i].g = 0xFF;
+                            leds[i].b = 0xFF;
+                        }
+                        setLeds(leds, sizeof(leds));
 
-                            timerDisarm(&(tunernome->ledTimer));
-                            timerArm(&(tunernome->ledTimer), METRONOME_FLASH_MS, false);
+                        timerDisarm(&(tunernome->ledTimer));
+                        timerArm(&(tunernome->ledTimer), METRONOME_FLASH_MS, false);
                     } // if(tAccumulatedUs >= tunernome->usPerBeat)
                 } // if(tunernome->isClockwise)
                 else
@@ -789,22 +799,22 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
                         tunernome->tAccumulatedUs = -(tunernome->tAccumulatedUs);
                         // Blink LED Tock color
                         led_t leds[NUM_LIN_LEDS] = {{0}};
-                            for(int i = 0; i < NUM_LIN_LEDS; i++)
-                            {
-                                leds[i].r = 0xDD;
-                                leds[i].g = 0xDD;
-                                leds[i].b = 0x00;
-                            }
-                            leds[2].r = 0x00;
-                            leds[2].g = 0x00;
-                            leds[2].b = 0x00;
-                            leds[3].r = 0x00;
-                            leds[3].g = 0x00;
-                            leds[3].b = 0x00;
-                            setLeds(leds, sizeof(leds));
+                        for(int i = 0; i < NUM_LIN_LEDS; i++)
+                        {
+                            leds[i].r = 0xDD;
+                            leds[i].g = 0xDD;
+                            leds[i].b = 0x00;
+                        }
+                        leds[2].r = 0x00;
+                        leds[2].g = 0x00;
+                        leds[2].b = 0x00;
+                        leds[3].r = 0x00;
+                        leds[3].g = 0x00;
+                        leds[3].b = 0x00;
+                        setLeds(leds, sizeof(leds));
 
-                            timerDisarm(&(tunernome->ledTimer));
-                            timerArm(&(tunernome->ledTimer), METRONOME_FLASH_MS, false);
+                        timerDisarm(&(tunernome->ledTimer));
+                        timerArm(&(tunernome->ledTimer), METRONOME_FLASH_MS, false);
                     } // if(tunernome->tAccumulatedUs <= 0)
                 } // if(!tunernome->isClockwise)
                 // Draw metronome arm based on the value of tAccumulatedUs, which is between (0, usPerBeat)
@@ -1040,12 +1050,14 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
                 {
                     uint8_t semitoneIdx = (tunernome->curTunerMode - SEMITONE_0) * 2;
                     // Pick out the current magnitude and filter it
-                    tunernome->semitone_intensitiy_filt = (getSemiMagnitude(semitoneIdx + CHROMATIC_OFFSET)  + tunernome->semitone_intensitiy_filt) -
-                                            (tunernome->semitone_intensitiy_filt >> 5);
+                    tunernome->semitone_intensitiy_filt = (getSemiMagnitude(semitoneIdx + CHROMATIC_OFFSET)  +
+                                                           tunernome->semitone_intensitiy_filt) -
+                                                          (tunernome->semitone_intensitiy_filt >> 5);
 
                     // Pick out the difference around current magnitude and filter it too
-                    tunernome->semitone_diff_filt =       (getSemiDiffAround(semitoneIdx + CHROMATIC_OFFSET) + tunernome->semitone_diff_filt)       -
-                                            (tunernome->semitone_diff_filt >> 5);
+                    tunernome->semitone_diff_filt =       (getSemiDiffAround(semitoneIdx + CHROMATIC_OFFSET) +
+                                                           tunernome->semitone_diff_filt)       -
+                                                          (tunernome->semitone_diff_filt >> 5);
 
                     // This is the magnitude of the target frequency bin, cleaned up
                     int16_t intensity = (tunernome->semitone_intensitiy_filt >> SENSITIVITY) - 40; // drop a baseline.
