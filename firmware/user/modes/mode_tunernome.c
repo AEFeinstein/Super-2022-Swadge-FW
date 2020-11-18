@@ -22,6 +22,7 @@
 #include "embeddednf.h"
 #include "oled.h"
 #include "bresenham.h"
+#include "cndraw.h"
 #include "assets.h"
 #include "buttons.h"
 #include "linked_list.h"
@@ -122,6 +123,7 @@ typedef struct
     int16_t tonalDiff;
 
     pngHandle upArrowPng;
+    pngHandle flatPng;
 } tunernome_t;
 
 /*============================================================================
@@ -245,19 +247,20 @@ const char* ukeleleNoteNames[4] =
     "A4"
 };
 
+// End a string with "\1" to draw the flat symbol
 const char* semitoneNoteNames[12] =
 {
     "C",
-    "C#/D flat",
+    "C#/D\1",
     "D",
-    "D#/E flat",
+    "D#/E\1",
     "E",
     "F",
-    "F#/G flat",
+    "F#/G\1",
     "G",
-    "G#/A flat",
+    "G#/A\1",
     "A",
-    "A#/B flat",
+    "A#/B\1",
     "B"
 };
 
@@ -294,6 +297,7 @@ void ICACHE_FLASH_ATTR tunernomeEnterMode(void)
     ets_memset(tunernome, 0, sizeof(tunernome_t));
 
     allocPngAsset("uparrow.png", &(tunernome->upArrowPng));
+    allocPngAsset("flat.png", &(tunernome->flatPng));
 
     tunernome->pause = false;
     tunernome->bpm = INITIAL_BPM;
@@ -373,6 +377,7 @@ void ICACHE_FLASH_ATTR switchToSubmode(tnMode newMode)
 void ICACHE_FLASH_ATTR tunernomeExitMode(void)
 {
     freePngAsset(&(tunernome->upArrowPng));
+    freePngAsset(&(tunernome->flatPng));
 
     timerDisarm(&(tunernome->updateTimer));
     timerDisarm(&(tunernome->ledTimer));
@@ -599,20 +604,22 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
             clearDisplay();
 
             // Instructions at top of display
-            plotText(0, 0, "Blu= Flat   Wht= OK   Red= Sharp", TOM_THUMB, WHITE);
+            plotText(0, 0, "Blu= Flat", TOM_THUMB, WHITE);
+            plotText((OLED_WIDTH - textWidth("Wht= OK", TOM_THUMB))/2, 0, "Wht= OK", TOM_THUMB, WHITE);
+            plotText(OLED_WIDTH - textWidth("Red= Sharp", TOM_THUMB) + 1, 0, "Red= Sharp", TOM_THUMB, WHITE);
 
             // Left/Right button functions at bottom of display
             plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, leftStr, TOM_THUMB, WHITE);
-            plotText(OLED_WIDTH - textWidth(rightStrMetronome, TOM_THUMB), OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, rightStrMetronome, TOM_THUMB, WHITE);
+            plotText(OLED_WIDTH - textWidth(rightStrMetronome, TOM_THUMB) + 1, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, rightStrMetronome, TOM_THUMB, WHITE);
 
             // Up/Down arrows in middle of display around current note/mode
             drawPng(&(tunernome->upArrowPng),
-                    (OLED_WIDTH - tunernome->upArrowPng.width) / 2,
-                    (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2 - tunernome->upArrowPng.height - 10,
+                    (OLED_WIDTH - tunernome->upArrowPng.width) / 2 + 1,
+                    FONT_HEIGHT_TOMTHUMB + 4,
                     false, false, 0);
             drawPng(&(tunernome->upArrowPng),
-                    (OLED_WIDTH - tunernome->upArrowPng.width) / 2,
-                    (OLED_HEIGHT + FONT_HEIGHT_IBMVGA8) / 2 + 10,
+                    (OLED_WIDTH - tunernome->upArrowPng.width) / 2 + 1,
+                    OLED_HEIGHT - tunernome->upArrowPng.height,
                     false, true, 0);
 
             // Current note/mode in middle of display
@@ -649,22 +656,54 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
                 case SEMITONE_11:
                 default:
                 {
-                    uint8_t semitoneNum = (tunernome->curTunerMode - SEMITONE_0);
-                    plotText((OLED_WIDTH - textWidth(semitoneNoteNames[semitoneNum], IBM_VGA_8)) / 2,
-                             (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2,
-                             semitoneNoteNames[semitoneNum], IBM_VGA_8, WHITE);
-                    
-                    // Draw metronome arm based on the value of tonalDiff, which is between (-17, 17)
-                    // we use 17 because the LEDs use +/-255 +/- (tonalDiff*15). 255 / 15 = 17.
-                    int16_t clampedTonalDiff = CLAMP(tunernome->tonalDiff, -17, 17);
-                    float intermedX = cosf(clampedTonalDiff * M_PI / 17 );
-                    float intermedY = sinf(clampedTonalDiff * M_PI / 17 );
+                    // Draw tuner needle based on the value of tonalDiff, which is at most -32768 to 32767
+                    // clamp it to the range -180 -> 180
+                    int16_t clampedTonalDiff = CLAMP(tunernome->tonalDiff / 2, -180, 180);
+
+                    // If the signal isn't intense enough, don't move the needle
+                    if(tunernome->semitone_intensitiy_filt < 1000)
+                    {
+                        clampedTonalDiff = -180;
+                    }
+
+                    // Find the end point of the unit-length needle
+                    float intermedX = sinf(clampedTonalDiff * M_PI / 360.0f );
+                    float intermedY = cosf(clampedTonalDiff * M_PI / 360.0f );
+
+                    // Find the actual end point of the full-length needle
                     int x = round(METRONOME_CENTER_X + (intermedX * METRONOME_RADIUS));
-                    int y = round(METRONOME_CENTER_Y - (ABS(intermedY) * METRONOME_RADIUS));
+                    int y = round(METRONOME_CENTER_Y - (intermedY * METRONOME_RADIUS));
+
+                    // Plot the needle
                     plotLine(METRONOME_CENTER_X, METRONOME_CENTER_Y, x, y, WHITE);
+                    // Plot dashed lines indicating the 'in tune' range
                     plotDashedLine(METRONOME_CENTER_X, METRONOME_CENTER_Y, TUNER_FLAT_THRES_X, TUNER_THRES_Y, WHITE);
                     plotDashedLine(METRONOME_CENTER_X, METRONOME_CENTER_Y, TUNER_SHARP_THRES_X, TUNER_THRES_Y, WHITE);
+                    // Plot a semicircle around it all
                     plotTopSemiCircle(METRONOME_CENTER_X, METRONOME_CENTER_Y, METRONOME_RADIUS, WHITE);
+
+                    // Plot text on top of everything else
+                    uint8_t semitoneNum = (tunernome->curTunerMode - SEMITONE_0);
+                    bool shouldDrawFlat = (semitoneNoteNames[semitoneNum][ets_strlen(semitoneNoteNames[semitoneNum])-1] == 1);
+                    int16_t tWidth = textWidth(semitoneNoteNames[semitoneNum], IBM_VGA_8);
+                    if(shouldDrawFlat)
+                    {
+                        tWidth += tunernome->flatPng.width + 1;
+                    }
+                    fillDisplayArea((OLED_WIDTH - tWidth) / 2,
+                        (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2 -1,
+                        (OLED_WIDTH - tWidth) / 2 + tWidth,
+                        ((OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2) + FONT_HEIGHT_IBMVGA8,
+                        BLACK);
+                    int16_t textEnd = plotText((OLED_WIDTH - tWidth) / 2 + 1,
+                                (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2,
+                                semitoneNoteNames[semitoneNum], IBM_VGA_8, WHITE);
+
+                    // Append the png for a flat
+                    if(shouldDrawFlat)
+                    {
+                        drawPng(&tunernome->flatPng, textEnd, (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2, false, false, 0);
+                    }
                     break;
                 }
             }
@@ -1035,13 +1074,13 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
                         {
                             // Note too sharp, make it red
                             red = 255;
-                            grn = blu = 255 - (tunernome->tonalDiff) * 15;
+                            grn = blu = 255 - (tunernome->tonalDiff - TONAL_DIFF_IN_TUNE_DEVIATION) * 15;
                         }
                         else
                         {
                             // Note too flat, make it blue
                             blu = 255;
-                            grn = red = 255 - (-tunernome->tonalDiff) * 15;
+                            grn = red = 255 - (-(tunernome->tonalDiff + TONAL_DIFF_IN_TUNE_DEVIATION)) * 15;
                         }
 
                         // Make sure LED output isn't more than 255
