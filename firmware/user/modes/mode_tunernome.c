@@ -662,8 +662,8 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
                     int x = round(METRONOME_CENTER_X + (intermedX * METRONOME_RADIUS));
                     int y = round(METRONOME_CENTER_Y - (ABS(intermedY) * METRONOME_RADIUS));
                     plotLine(METRONOME_CENTER_X, METRONOME_CENTER_Y, x, y, WHITE);
-                    plotDashedLine(METRONOME_CENTER_X, METRONOME_CENTER_Y, TUNER_FLAT_THRES_X, TUNER_THRES_Y, 3, 1, WHITE);
-                    plotDashedLine(METRONOME_CENTER_X, METRONOME_CENTER_Y, TUNER_SHARP_THRES_X, TUNER_THRES_Y, 3, 1, WHITE);
+                    plotDashedLine(METRONOME_CENTER_X, METRONOME_CENTER_Y, TUNER_FLAT_THRES_X, TUNER_THRES_Y, WHITE);
+                    plotDashedLine(METRONOME_CENTER_X, METRONOME_CENTER_Y, TUNER_SHARP_THRES_X, TUNER_THRES_Y, WHITE);
                     plotTopSemiCircle(METRONOME_CENTER_X, METRONOME_CENTER_Y, METRONOME_RADIUS, WHITE);
                     break;
                 }

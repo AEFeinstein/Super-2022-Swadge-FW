@@ -58,34 +58,21 @@ void ICACHE_FLASH_ATTR plotLine(int x0, int y0, int x1, int y1, color col)
     }
 }
 
-void ICACHE_FLASH_ATTR plotDashedLine(int x0, int y0, int x1, int y1, int dashLen, int spaceLen, color col)
+void ICACHE_FLASH_ATTR plotDashedLine(int x0, int y0, int x1, int y1, color col)
 {
     int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
     int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
     int err = dx + dy, e2; /* error value e_xy */
 
-    int curLen = 1;
-    bool draw = true;
+    uint8_t dashCtr = 0;
 
     for (;;)   /* loop */
     {
-        if(draw)
+        if(dashCtr < 2)
         {
-            if(curLen <= (draw ? dashLen : spaceLen))
-            {
-                if(draw)
-                {
-                    drawPixel(x0, y0, col);
-                }
-                curLen++;
-            }
-            else
-            {
-                curLen = 1;
-                draw = !draw;
-            }
+            drawPixel(x0, y0, col);
         }
-        
+        dashCtr = (dashCtr + 1) % 4;
         e2 = 2 * err;
         if (e2 >= dy)   /* e_xy+e_x > 0 */
         {
