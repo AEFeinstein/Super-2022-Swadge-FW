@@ -215,6 +215,7 @@ void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
         {
             // Draw what's under the screensaver
             drawGifFromAsset(mnu->curImg, 0, 0, false, false, 0, false);
+            mnuDrawArrows();
             // But don't process the button otherwise
             return;
         }
