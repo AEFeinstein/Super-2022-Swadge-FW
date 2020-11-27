@@ -41,6 +41,7 @@
 #include "mode_rssi.h"
 #include "mode_tunernome.h"
 #include "mode_selftest.h"
+#include "mode_mtype.h"
 
 #include "ccconfig.h"
 
@@ -83,6 +84,7 @@ swadgeMode* swadgeModes[] =
     &ddrMode,
     &colorchordMode,
     &tunernomeMode,
+    &mTypeMode,
     &rssiMode,     // must be second to last
     &selfTestMode, // must be last
 };
