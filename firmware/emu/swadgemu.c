@@ -318,7 +318,7 @@ void emuCheckResize()
     int linesegs = 0;
 
     CNFGBGColor = 0x800000;
-    CNFGDialogColor = 0x444444;
+    // CNFGDialogColor = 0x444444;
     CNFGSetup( "swadgemu", OLED_WIDTH * px_scale, px_scale * ( HEADER_PIXELS + OLED_HEIGHT + FOOTER_PIXELS ) );
     int rawvmsize = px_scale * OLED_WIDTH * px_scale * (HEADER_PIXELS + OLED_HEIGHT + FOOTER_PIXELS) * px_scale * 4;
 
