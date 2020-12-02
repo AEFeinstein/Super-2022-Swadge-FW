@@ -356,7 +356,7 @@ void ICACHE_FLASH_ATTR danceRise(uint32_t tElapsedUs, uint32_t arg, bool reset)
 
     if(reset)
     {
-        for(uint8_t i; i < NUM_LIN_LEDS / 2; i++)
+        for(uint8_t i = 0; i < NUM_LIN_LEDS / 2; i++)
         {
             levels[i] = i * -256;
             rising[i] = true;
@@ -367,7 +367,7 @@ void ICACHE_FLASH_ATTR danceRise(uint32_t tElapsedUs, uint32_t arg, bool reset)
     }
 
     bool ledsUpdated = false;
-    led_t leds[NUM_LIN_LEDS] = {0};
+    led_t leds[NUM_LIN_LEDS] = {{0}};
 
     tAccumulated += tElapsedUs;
     while(tAccumulated >= 800)
@@ -446,7 +446,7 @@ void ICACHE_FLASH_ATTR danceRise(uint32_t tElapsedUs, uint32_t arg, bool reset)
  * @param tElapsedUs The time elapsed since last call, in microseconds
  * @param reset      true to reset this dance's variables
  */
-void ICACHE_FLASH_ATTR danceSmoothRainbow(uint32_t tElapsedUs, uint32_t arg, bool reset)
+void ICACHE_FLASH_ATTR danceSmoothRainbow(uint32_t tElapsedUs, uint32_t arg __attribute__((unused)), bool reset)
 {
     static uint32_t tAccumulated = 0;
     static uint8_t ledCount = 0;
@@ -493,7 +493,7 @@ void ICACHE_FLASH_ATTR danceSmoothRainbow(uint32_t tElapsedUs, uint32_t arg, boo
  * @param tElapsedUs The time elapsed since last call, in microseconds
  * @param reset      true to reset this dance's variables
  */
-void ICACHE_FLASH_ATTR danceSharpRainbow(uint32_t tElapsedUs, uint32_t arg, bool reset)
+void ICACHE_FLASH_ATTR danceSharpRainbow(uint32_t tElapsedUs, uint32_t arg __attribute__((unused)), bool reset)
 {
     static int32_t ledCount = 0;
     static uint32_t tAccumulated = 0;
@@ -545,7 +545,7 @@ void ICACHE_FLASH_ATTR danceSharpRainbow(uint32_t tElapsedUs, uint32_t arg, bool
  * @param tElapsedUs The time elapsed since last call, in microseconds
  * @param reset      true to reset this dance's variables
  */
-void ICACHE_FLASH_ATTR danceBinaryCounter(uint32_t tElapsedUs, uint32_t arg, bool reset)
+void ICACHE_FLASH_ATTR danceBinaryCounter(uint32_t tElapsedUs, uint32_t arg __attribute__((unused)), bool reset)
 {
     static int32_t ledCount = 0;
     static int32_t ledCount2 = 0;
@@ -693,7 +693,7 @@ void ICACHE_FLASH_ATTR danceFire(uint32_t tElapsedUs, uint32_t arg, bool reset)
  * @param tElapsedUs The time elapsed since last call, in microseconds
  * @param reset      true to reset this dance's variables
  */
-void ICACHE_FLASH_ATTR dancePoliceSiren(uint32_t tElapsedUs, uint32_t arg, bool reset)
+void ICACHE_FLASH_ATTR dancePoliceSiren(uint32_t tElapsedUs, uint32_t arg __attribute__((unused)), bool reset)
 {
     static int32_t ledCount;
     static uint32_t tAccumulated = 0;
@@ -757,7 +757,7 @@ void ICACHE_FLASH_ATTR dancePoliceSiren(uint32_t tElapsedUs, uint32_t arg, bool 
  * @param tElapsedUs The time elapsed since last call, in microseconds
  * @param reset      true to reset this dance's variables
  */
-void ICACHE_FLASH_ATTR dancePureRandom(uint32_t tElapsedUs, uint32_t arg, bool reset)
+void ICACHE_FLASH_ATTR dancePureRandom(uint32_t tElapsedUs, uint32_t arg __attribute__((unused)), bool reset)
 {
     static uint32_t tAccumulated = 0;
     static uint8_t randLed = 0;
@@ -829,7 +829,7 @@ void ICACHE_FLASH_ATTR dancePureRandom(uint32_t tElapsedUs, uint32_t arg, bool r
  * @param tElapsedUs The time elapsed since last call, in microseconds
  * @param reset      true to reset this dance's variables
  */
-void ICACHE_FLASH_ATTR danceRainbowSolid(uint32_t tElapsedUs, uint32_t arg, bool reset)
+void ICACHE_FLASH_ATTR danceRainbowSolid(uint32_t tElapsedUs, uint32_t arg __attribute__((unused)), bool reset)
 {
     static int32_t ledCount = 0;
     static int32_t color_save = 0;
@@ -884,7 +884,7 @@ void ICACHE_FLASH_ATTR danceRainbowSolid(uint32_t tElapsedUs, uint32_t arg, bool
  * @param tElapsedUs The time elapsed since last call, in microseconds
  * @param reset      true to reset this dance's variables
  */
-void ICACHE_FLASH_ATTR danceRandomDance(uint32_t tElapsedUs, uint32_t arg, bool reset)
+void ICACHE_FLASH_ATTR danceRandomDance(uint32_t tElapsedUs, uint32_t arg __attribute__((unused)), bool reset)
 {
     static int32_t random_choice = -1;
     static uint32_t tAccumulated = 0;
