@@ -20,6 +20,7 @@
 #include "embeddednf.h"
 #include "oled.h"
 #include "bresenham.h"
+#include "cndraw.h"
 #include "assets.h"
 #include "buttons.h"
 #include "menu2d.h"

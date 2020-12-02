@@ -24,7 +24,18 @@
  * Typedefs
  *==========================================================================*/
 
-typedef void (*ledDance)(uint32_t, bool);
+typedef void (*ledDance)(uint32_t, uint32_t, bool);
+
+typedef struct
+{
+    ledDance func;
+    uint32_t arg;
+} ledDanceArg;
+
+#define RGB_2_ARG(r,g,b) ((((r)&0xFF) << 16) | (((g)&0xFF) << 8) | (((b)&0xFF)))
+#define ARG_R(arg) (((arg) >> 16)&0xFF)
+#define ARG_G(arg) (((arg) >>  8)&0xFF)
+#define ARG_B(arg) (((arg) >>  0)&0xFF)
 
 /*============================================================================
  * Prototypes
@@ -33,25 +44,17 @@ typedef void (*ledDance)(uint32_t, bool);
 void ICACHE_FLASH_ATTR setDanceLeds(led_t* ledData, uint8_t ledDataLen);
 uint32_t ICACHE_FLASH_ATTR danceRand(uint32_t upperBound);
 
-void ICACHE_FLASH_ATTR danceRotateWhite(uint32_t tElapsedUs, bool reset);
-void ICACHE_FLASH_ATTR danceBlinkRed(uint32_t tElapsedUs, bool reset);
-void ICACHE_FLASH_ATTR danceRotateTwoBlue(uint32_t tElapsedUs, bool reset);
-void ICACHE_FLASH_ATTR danceSmoothRainbow(uint32_t tElapsedUs, bool reset);
-void ICACHE_FLASH_ATTR danceSharpRainbow(uint32_t tElapsedUs, bool reset);
-void ICACHE_FLASH_ATTR danceSingleRainbow(uint32_t tElapsedUs, bool reset);
-void ICACHE_FLASH_ATTR danceRainbowSolid(uint32_t tElapsedUs, bool reset);
-void ICACHE_FLASH_ATTR danceBinaryCounter(uint32_t tElapsedUs, bool reset);
-void ICACHE_FLASH_ATTR danceFireRed(uint32_t tElapsedUs, bool reset);
-void ICACHE_FLASH_ATTR danceFireGreen(uint32_t tElapsedUs, bool reset);
-void ICACHE_FLASH_ATTR danceFireBlue(uint32_t tElapsedUs, bool reset);
-void ICACHE_FLASH_ATTR danceRotateOneRandomColor(uint32_t tElapsedUs, bool reset);
-void ICACHE_FLASH_ATTR dancePulseRandomColor(uint32_t tElapsedUs, bool reset);
-void ICACHE_FLASH_ATTR danceStaticPatterns(uint32_t tElapsedUs, bool reset);
-void ICACHE_FLASH_ATTR dancePoliceSiren(uint32_t tElapsedUs, bool reset);
-void ICACHE_FLASH_ATTR dancePureRandom(uint32_t tElapsedUs, bool reset);
-void ICACHE_FLASH_ATTR danceChristmas(uint32_t tElapsedUs, bool reset);
-void ICACHE_FLASH_ATTR danceChainsaw(uint32_t tElapsedUs, bool reset);
-void ICACHE_FLASH_ATTR danceRandomDance(uint32_t tElapsedUs, bool reset);
+void ICACHE_FLASH_ATTR danceComet(uint32_t tElapsedUs, uint32_t arg, bool reset);
+void ICACHE_FLASH_ATTR danceRise(uint32_t tElapsedUs, uint32_t arg, bool reset);
+void ICACHE_FLASH_ATTR dancePulse(uint32_t tElapsedUs, uint32_t arg, bool reset);
+void ICACHE_FLASH_ATTR danceSmoothRainbow(uint32_t tElapsedUs, uint32_t arg, bool reset);
+void ICACHE_FLASH_ATTR danceSharpRainbow(uint32_t tElapsedUs, uint32_t arg, bool reset);
+void ICACHE_FLASH_ATTR danceRainbowSolid(uint32_t tElapsedUs, uint32_t arg, bool reset);
+void ICACHE_FLASH_ATTR danceBinaryCounter(uint32_t tElapsedUs, uint32_t arg, bool reset);
+void ICACHE_FLASH_ATTR danceFire(uint32_t tElapsedUs, uint32_t arg, bool reset);
+void ICACHE_FLASH_ATTR dancePoliceSiren(uint32_t tElapsedUs, uint32_t arg, bool reset);
+void ICACHE_FLASH_ATTR dancePureRandom(uint32_t tElapsedUs, uint32_t arg, bool reset);
+void ICACHE_FLASH_ATTR danceRandomDance(uint32_t tElapsedUs, uint32_t arg, bool reset);
 
 /*============================================================================
  * Variables
@@ -64,27 +67,30 @@ static const uint8_t danceBrightnesses[] =
     0x40,
 };
 
-static const ledDance ledDances[] =
+static const ledDanceArg ledDances[] =
 {
-    danceRotateWhite,
-    danceBlinkRed,
-    danceRotateTwoBlue,
-    danceSmoothRainbow,
-    danceSharpRainbow,
-    danceSingleRainbow,
-    danceRainbowSolid,
-    danceBinaryCounter,
-    danceFireRed,
-    danceFireGreen,
-    danceFireBlue,
-    danceRotateOneRandomColor,
-    dancePulseRandomColor,
-    danceStaticPatterns,
-    dancePoliceSiren,
-    dancePureRandom,
-    danceChristmas,
-    danceChainsaw,
-    danceRandomDance
+    {.func = danceComet, .arg = RGB_2_ARG(0xFF, 0, 0)},
+    {.func = danceComet, .arg = RGB_2_ARG(0, 0xFF, 0)},
+    {.func = danceComet, .arg = RGB_2_ARG(0, 0, 0xFF)},
+    {.func = danceComet, .arg = RGB_2_ARG(0, 0, 0)}, // This is rainbow
+    {.func = danceRise, .arg = RGB_2_ARG(0xFF, 0, 0)},
+    {.func = danceRise, .arg = RGB_2_ARG(0, 0xFF, 0)},
+    {.func = danceRise, .arg = RGB_2_ARG(0, 0, 0xFF)},
+    {.func = danceRise, .arg = RGB_2_ARG(0, 0, 0)}, // This is random
+    {.func = dancePulse, .arg = RGB_2_ARG(0xFF, 0, 0)},
+    {.func = dancePulse, .arg = RGB_2_ARG(0, 0xFF, 0)},
+    {.func = dancePulse, .arg = RGB_2_ARG(0, 0, 0xFF)},
+    {.func = dancePulse, .arg = RGB_2_ARG(0, 0, 0)}, // This is random
+    {.func = danceSharpRainbow, .arg = 0},
+    {.func = danceSmoothRainbow, .arg = 0},
+    {.func = danceRainbowSolid, .arg = 0},
+    {.func = danceFire, .arg = RGB_2_ARG(0xFF, 51, 0)},
+    {.func = danceFire, .arg = RGB_2_ARG(0, 0xFF, 51)},
+    {.func = danceFire, .arg = RGB_2_ARG(51, 0, 0xFF)},
+    {.func = danceBinaryCounter, .arg = 0},
+    {.func = dancePoliceSiren, .arg = 0},
+    {.func = dancePureRandom, .arg = 0},
+    {.func = danceRandomDance, .arg = 0},
 };
 
 uint8_t danceBrightnessIdx = 0;
@@ -107,7 +113,7 @@ void ICACHE_FLASH_ATTR danceClearVars(void)
     // Reset all dances
     for(uint8_t i = 0; i < getNumDances(); i++)
     {
-        ledDances[i](0, true);
+        ledDances[i].func(0, ledDances[i].arg, true);
     }
 }
 
@@ -178,7 +184,7 @@ void ICACHE_FLASH_ATTR danceLeds(uint8_t danceIdx)
         uint32_t tNow = system_get_time();
         uint32_t tElapsedUs = tNow - tLast;
         tLast = tNow;
-        ledDances[danceIdx](tElapsedUs, false);
+        ledDances[danceIdx].func(tElapsedUs, ledDances[danceIdx].arg, false);
     }
 }
 
@@ -188,41 +194,73 @@ void ICACHE_FLASH_ATTR danceLeds(uint8_t danceIdx)
  * @param tElapsedUs The time elapsed since last call, in microseconds
  * @param reset      true to reset this dance's variables
  */
-void ICACHE_FLASH_ATTR danceRotateWhite(uint32_t tElapsedUs, bool reset)
+void ICACHE_FLASH_ATTR danceComet(uint32_t tElapsedUs, uint32_t arg, bool reset)
 {
     static int32_t ledCount = 0;
+    static uint8_t rainbow = 0;
+    static int32_t msCount = 0;
     static uint32_t tAccumulated = 0;
+    static led_t leds[NUM_LIN_LEDS] = {{0}};
 
     if(reset)
     {
         ledCount = 0;
-        tAccumulated = 0;
+        rainbow = 0;
+        msCount = 80;
+        tAccumulated = 2000;
+        ets_memset(leds, sizeof(leds), 0);
         return;
     }
 
-    // Declare some LEDs, all off
-    led_t leds[NUM_LIN_LEDS] = {{0}};
     bool ledsUpdated = false;
 
     tAccumulated += tElapsedUs;
-    while(tAccumulated > 100000)
+    while(tAccumulated >= 2000)
     {
-        tAccumulated -= 100000;
-        ledsUpdated = true;
-
-        // Skip to the next LED around the hexagon
-        ledCount = ledCount + 1;
-        if(ledCount > NUM_LIN_LEDS)
+        tAccumulated -= 2000;
+        for(uint8_t i = 0; i < NUM_LIN_LEDS; i++)
         {
-            ledCount = 0;
+            if(leds[i].r > 0)
+            {
+                leds[i].r--;
+            }
+            if(leds[i].g > 0)
+            {
+                leds[i].g--;
+            }
+            if(leds[i].b > 0)
+            {
+                leds[i].b--;
+            }
+        }
+        msCount++;
+
+        if(msCount % 10 == 0)
+        {
+            rainbow++;
         }
 
-        // Turn the current LED on, full bright white
-        leds[ledCount].r = 255;
-        leds[ledCount].g = 255;
-        leds[ledCount].b = 255;
+        if(msCount >= 80)
+        {
+            if(0 == arg)
+            {
+                int32_t color = EHSVtoHEX(rainbow, 0xFF, 0xFF);
+                leds[ledCount].r = (color >>  0) & 0xFF;
+                leds[ledCount].g = (color >>  8) & 0xFF;
+                leds[ledCount].b = (color >> 16) & 0xFF;
+            }
+            else
+            {
+                leds[ledCount].r = ARG_R(arg);
+                leds[ledCount].g = ARG_G(arg);
+                leds[ledCount].b = ARG_B(arg);
+            }
+            ledCount = (ledCount + 1) % NUM_LIN_LEDS;
+            msCount = 0;
+        }
+        ledsUpdated = true;
     }
-    // Output the LED data, actually turning them on
+
     if(ledsUpdated)
     {
         setDanceLeds(leds, sizeof(leds));
@@ -235,15 +273,19 @@ void ICACHE_FLASH_ATTR danceRotateWhite(uint32_t tElapsedUs, bool reset)
  * @param tElapsedUs The time elapsed since last call, in microseconds
  * @param reset      true to reset this dance's variables
  */
-void ICACHE_FLASH_ATTR danceBlinkRed(uint32_t tElapsedUs, bool reset)
+void ICACHE_FLASH_ATTR dancePulse(uint32_t tElapsedUs, uint32_t arg, bool reset)
 {
-    static int32_t ledCount = 0;
+    static uint8_t ledVal = 0;
+    static uint8_t randColor = 0;
+    static bool goingUp = true;
     static uint32_t tAccumulated = 0;
 
     if(reset)
     {
-        ledCount = 0;
-        tAccumulated = 0;
+        ledVal = 0;
+        randColor = 0;
+        goingUp = true;
+        tAccumulated = 5000;
         return;
     }
 
@@ -252,85 +294,147 @@ void ICACHE_FLASH_ATTR danceBlinkRed(uint32_t tElapsedUs, bool reset)
     bool ledsUpdated = false;
 
     tAccumulated += tElapsedUs;
-    while(tAccumulated > 100000)
+    while(tAccumulated >= 5000)
     {
-        tAccumulated -= 100000;
-        ledsUpdated = true;
+        tAccumulated -= 5000;
 
-        ledCount = ledCount + 1;
-        if(ledCount < 5)
+        if(goingUp)
         {
-            // full bright red
-            for (int i = 0; i < NUM_LIN_LEDS; i++)
+            ledVal++;
+            if(255 == ledVal)
             {
-                leds[i].r = 200;
+                goingUp = false;
             }
         }
         else
         {
-            // off
-            for (int i = 0; i < NUM_LIN_LEDS; i++)
+            ledVal--;
+            if(0 == ledVal)
             {
-                leds[i].r = 0;
+                goingUp = true;
+                randColor = danceRand(256);
             }
         }
 
-        if(ledCount > 10)
+        for (int i = 0; i < NUM_LIN_LEDS; i++)
         {
-            ledCount = 0;
+            if(0 == arg)
+            {
+                int32_t color = EHSVtoHEX(randColor, 0xFF, 0xFF);
+                leds[i].r = (ledVal * ((color >>  0) & 0xFF) >> 8);
+                leds[i].g = (ledVal * ((color >>  8) & 0xFF) >> 8);
+                leds[i].b = (ledVal * ((color >> 16) & 0xFF) >> 8);
+            }
+            else
+            {
+                leds[i].r = (ledVal * ARG_R(arg)) >> 8;
+                leds[i].g = (ledVal * ARG_G(arg)) >> 8;
+                leds[i].b = (ledVal * ARG_B(arg)) >> 8;
+            }
         }
+        ledsUpdated = true;
     }
+
     if(ledsUpdated)
     {
         setDanceLeds(leds, sizeof(leds));
     }
 }
 
-/** This animation is set to be called every 100ms
- * Rotates two blue LEDs, one clockwise and one counterclockwise
+/** This animation is set to be called every 100 ms
+ * Rotate a single white LED around the hexagon
  *
  * @param tElapsedUs The time elapsed since last call, in microseconds
  * @param reset      true to reset this dance's variables
  */
-void ICACHE_FLASH_ATTR danceRotateTwoBlue(uint32_t tElapsedUs, bool reset)
+void ICACHE_FLASH_ATTR danceRise(uint32_t tElapsedUs, uint32_t arg, bool reset)
 {
-    static int32_t ledCount = 0;
+    static int16_t levels[NUM_LIN_LEDS / 2] = {0, -256, -512};
+    static bool rising[NUM_LIN_LEDS / 2] = {true, true, true};
+    static uint8_t angle = 0;
     static uint32_t tAccumulated = 0;
 
     if(reset)
     {
-        ledCount = 0;
-        tAccumulated = 0;
+        for(uint8_t i = 0; i < NUM_LIN_LEDS / 2; i++)
+        {
+            levels[i] = i * -256;
+            rising[i] = true;
+        }
+        angle = 0;
+        tAccumulated = 800;
         return;
     }
 
-    // Declare some LEDs, all off
-    led_t leds[NUM_LIN_LEDS] = {{0}};
     bool ledsUpdated = false;
+    led_t leds[NUM_LIN_LEDS] = {{0}};
 
     tAccumulated += tElapsedUs;
-    while(tAccumulated > 100000)
+    while(tAccumulated >= 800)
     {
-        tAccumulated -= 100000;
-        ledsUpdated = true;
+        tAccumulated -= 800;
 
-        // Skip to the next LED around the hexagon
-        ledCount = ledCount - 1;
-        if(ledCount < 0 || ledCount > NUM_LIN_LEDS - 1)
+        if(true == rising[0] && 0 == levels[0])
         {
-            ledCount = NUM_LIN_LEDS - 1;
+            angle = danceRand(256);
         }
 
-        // Turn the current LED on, full bright blue
-        leds[ledCount].r = 0;
-        leds[ledCount].g = 0;
-        leds[ledCount].b = 255;
+        for(uint8_t i = 0; i < NUM_LIN_LEDS / 2; i++)
+        {
+            if(rising[i])
+            {
+                levels[i]++;
+                if(levels[i] == 255)
+                {
+                    rising[i] = false;
+                }
+            }
+            else
+            {
+                levels[i]--;
+                if(levels[i] == -512)
+                {
+                    rising[i] = true;
+                }
+            }
+        }
 
-        leds[(NUM_LIN_LEDS - ledCount ) % NUM_LIN_LEDS].r = 0;
-        leds[(NUM_LIN_LEDS - ledCount ) % NUM_LIN_LEDS].g = 0;
-        leds[(NUM_LIN_LEDS - ledCount ) % NUM_LIN_LEDS].b = 255;
+        if(0 == arg)
+        {
+            int32_t color = EHSVtoHEX(angle, 0xFF, 0xFF);
+            for(uint8_t i = 0; i < NUM_LIN_LEDS / 2; i++)
+            {
+                if(levels[i] > 0)
+                {
+                    leds[i].r = (levels[i] * ((color >>  0) & 0xFF) >> 8);
+                    leds[i].g = (levels[i] * ((color >>  8) & 0xFF) >> 8);
+                    leds[i].b = (levels[i] * ((color >> 16) & 0xFF) >> 8);
+
+                    leds[NUM_LIN_LEDS - 1 - i].r = (levels[i] * ((color >>  0) & 0xFF) >> 8);
+                    leds[NUM_LIN_LEDS - 1 - i].g = (levels[i] * ((color >>  8) & 0xFF) >> 8);
+                    leds[NUM_LIN_LEDS - 1 - i].b = (levels[i] * ((color >> 16) & 0xFF) >> 8);
+                }
+            }
+        }
+        else
+        {
+            for(uint8_t i = 0; i < NUM_LIN_LEDS / 2; i++)
+            {
+                if(levels[i] > 0)
+                {
+                    leds[i].r = (levels[i] * ARG_R(arg)) >> 8;
+                    leds[i].g = (levels[i] * ARG_G(arg)) >> 8;
+                    leds[i].b = (levels[i] * ARG_B(arg)) >> 8;
+
+                    leds[NUM_LIN_LEDS - 1 - i].r = (levels[i] * ARG_R(arg)) >> 8;
+                    leds[NUM_LIN_LEDS - 1 - i].g = (levels[i] * ARG_G(arg)) >> 8;
+                    leds[NUM_LIN_LEDS - 1 - i].b = (levels[i] * ARG_B(arg)) >> 8;
+                }
+            }
+        }
+        ledsUpdated = true;
     }
-    // Output the LED data, actually turning them on
+
     if(ledsUpdated)
     {
         setDanceLeds(leds, sizeof(leds));
@@ -342,15 +446,15 @@ void ICACHE_FLASH_ATTR danceRotateTwoBlue(uint32_t tElapsedUs, bool reset)
  * @param tElapsedUs The time elapsed since last call, in microseconds
  * @param reset      true to reset this dance's variables
  */
-void ICACHE_FLASH_ATTR danceSmoothRainbow(uint32_t tElapsedUs, bool reset)
+void ICACHE_FLASH_ATTR danceSmoothRainbow(uint32_t tElapsedUs, uint32_t arg __attribute__((unused)), bool reset)
 {
     static uint32_t tAccumulated = 0;
-    static int32_t ledCount = 0;
+    static uint8_t ledCount = 0;
 
     if(reset)
     {
         ledCount = 0;
-        tAccumulated = 0;
+        tAccumulated = 20000;
         return;
     }
 
@@ -359,21 +463,17 @@ void ICACHE_FLASH_ATTR danceSmoothRainbow(uint32_t tElapsedUs, bool reset)
     bool ledsUpdated = false;
 
     tAccumulated += tElapsedUs;
-    while(tAccumulated > 5000)
+    while(tAccumulated >= 20000)
     {
-        tAccumulated -= 5000;
+        tAccumulated -= 20000;
         ledsUpdated = true;
 
-        ledCount = ledCount + 1;
-        if(ledCount > 256)
-        {
-            ledCount = 0;
-        }
+        ledCount--;
 
         uint8_t i;
         for(i = 0; i < NUM_LIN_LEDS; i++)
         {
-            int16_t angle = (((i * 256) / NUM_LIN_LEDS)) + ledCount % 256;
+            int16_t angle = ((((i * 256) / NUM_LIN_LEDS)) + ledCount) % 256;
             uint32_t color = EHSVtoHEX(angle, 0xFF, 0xFF);
 
             leds[i].r = (color >>  0) & 0xFF;
@@ -393,7 +493,7 @@ void ICACHE_FLASH_ATTR danceSmoothRainbow(uint32_t tElapsedUs, bool reset)
  * @param tElapsedUs The time elapsed since last call, in microseconds
  * @param reset      true to reset this dance's variables
  */
-void ICACHE_FLASH_ATTR danceSharpRainbow(uint32_t tElapsedUs, bool reset)
+void ICACHE_FLASH_ATTR danceSharpRainbow(uint32_t tElapsedUs, uint32_t arg __attribute__((unused)), bool reset)
 {
     static int32_t ledCount = 0;
     static uint32_t tAccumulated = 0;
@@ -401,7 +501,7 @@ void ICACHE_FLASH_ATTR danceSharpRainbow(uint32_t tElapsedUs, bool reset)
     if(reset)
     {
         ledCount = 0;
-        tAccumulated = 0;
+        tAccumulated = 300000;
         return;
     }
 
@@ -410,9 +510,9 @@ void ICACHE_FLASH_ATTR danceSharpRainbow(uint32_t tElapsedUs, bool reset)
     bool ledsUpdated = false;
 
     tAccumulated += tElapsedUs;
-    while(tAccumulated > 100000)
+    while(tAccumulated >= 300000)
     {
-        tAccumulated -= 100000;
+        tAccumulated -= 300000;
         ledsUpdated = true;
 
         ledCount = ledCount + 1;
@@ -424,7 +524,7 @@ void ICACHE_FLASH_ATTR danceSharpRainbow(uint32_t tElapsedUs, bool reset)
         uint8_t i;
         for(i = 0; i < NUM_LIN_LEDS; i++)
         {
-            int16_t angle = (((i * 256)  / NUM_LIN_LEDS)) % 256;
+            int16_t angle = (((i * 256) / NUM_LIN_LEDS)) % 256;
             uint32_t color = EHSVtoHEX(angle, 0xFF, 0xFF);
 
             leds[(i + ledCount) % NUM_LIN_LEDS].r = (color >>  0) & 0xFF;
@@ -439,60 +539,13 @@ void ICACHE_FLASH_ATTR danceSharpRainbow(uint32_t tElapsedUs, bool reset)
     }
 }
 
-/** Rotate a single LED around the hexagon while smoothy iterating its color
- * around the color wheel
- *
- * @param tElapsedUs The time elapsed since last call, in microseconds
- * @param reset      true to reset this dance's variables
- */
-void ICACHE_FLASH_ATTR danceSingleRainbow(uint32_t tElapsedUs, bool reset)
-{
-    static int32_t ledCount = 0;
-    static uint32_t tAccumulated = 0;
-
-    if(reset)
-    {
-        ledCount = 0;
-        tAccumulated = 0;
-        return;
-    }
-
-    // Declare some LEDs, all off
-    led_t leds[NUM_LIN_LEDS] = {{0}};
-    bool ledsUpdated = false;
-
-    tAccumulated += tElapsedUs;
-    while(tAccumulated > 80000)
-    {
-        tAccumulated -= 80000;
-        ledsUpdated = true;
-
-        ledCount = ledCount - 1;
-        if(ledCount < 0 || ledCount > 255)
-        {
-            ledCount = 255;
-        }
-        int16_t angle = ledCount % 256;
-        uint32_t color = EHSVtoHEX(angle, 0xFF, 0xFF);
-
-        leds[(ledCount) % NUM_LIN_LEDS].r = (color >>  0) & 0xFF;
-        leds[(ledCount) % NUM_LIN_LEDS].g = (color >>  8) & 0xFF;
-        leds[(ledCount) % NUM_LIN_LEDS].b = (color >> 16) & 0xFF;
-    }
-    // Output the LED data, actually turning them on
-    if(ledsUpdated)
-    {
-        setDanceLeds(leds, sizeof(leds));
-    }
-}
-
 /** Counts up to 64 in binary. At 64, the color is held for ~3s
  * The 'on' color is smoothly iterated over the color wheel. The 'off'
  * color is also iterated over the color wheel, 180 degrees offset from 'on'
  * @param tElapsedUs The time elapsed since last call, in microseconds
  * @param reset      true to reset this dance's variables
  */
-void ICACHE_FLASH_ATTR danceBinaryCounter(uint32_t tElapsedUs, bool reset)
+void ICACHE_FLASH_ATTR danceBinaryCounter(uint32_t tElapsedUs, uint32_t arg __attribute__((unused)), bool reset)
 {
     static int32_t ledCount = 0;
     static int32_t ledCount2 = 0;
@@ -504,7 +557,7 @@ void ICACHE_FLASH_ATTR danceBinaryCounter(uint32_t tElapsedUs, bool reset)
         ledCount = 0;
         ledCount2 = 0;
         led_bool = false;
-        tAccumulated = 0;
+        tAccumulated = 300000;
         return;
     }
 
@@ -513,7 +566,7 @@ void ICACHE_FLASH_ATTR danceBinaryCounter(uint32_t tElapsedUs, bool reset)
     bool ledsUpdated = false;
 
     tAccumulated += tElapsedUs;
-    while(tAccumulated > 300000)
+    while(tAccumulated >= 300000)
     {
         tAccumulated -= 300000;
         ledsUpdated = true;
@@ -584,13 +637,13 @@ void ICACHE_FLASH_ATTR danceBinaryCounter(uint32_t tElapsedUs, bool reset)
  * @param tElapsedUs The time elapsed since last call, in microseconds
  * @param reset      true to reset this dance's variables
  */
-void ICACHE_FLASH_ATTR danceFireRed(uint32_t tElapsedUs, bool reset)
+void ICACHE_FLASH_ATTR danceFire(uint32_t tElapsedUs, uint32_t arg, bool reset)
 {
     static uint32_t tAccumulated = 0;
 
     if(reset)
     {
-        tAccumulated = 0;
+        tAccumulated = 100000;
         return;
     }
 
@@ -599,334 +652,36 @@ void ICACHE_FLASH_ATTR danceFireRed(uint32_t tElapsedUs, bool reset)
     bool ledsUpdated = false;
 
     tAccumulated += tElapsedUs;
-    while(tAccumulated > 100000)
+    while(tAccumulated >= 100000)
     {
         tAccumulated -= 100000;
         ledsUpdated = true;
 
-        leds[3].r = danceRand(120) + 135;
-        leds[3].g = leds[3].r / 5;
+        uint8_t base = danceRand(120) + 135;
+        uint8_t mid = danceRand(80) + 80;
+        uint8_t tip = danceRand(50) + 40;
 
-        leds[4].r = danceRand(80) + 80;
-        leds[4].g = leds[4].r / 5;
-        leds[2].r = danceRand(80) + 80;
-        leds[2].g = leds[2].r / 5;
+        leds[0].r = (base * ARG_R(arg)) / 256;
+        leds[0].g = (base * ARG_G(arg)) / 256;
+        leds[0].b = (base * ARG_B(arg)) / 256;
+        leds[5].r = leds[0].r;
+        leds[5].g = leds[0].g;
+        leds[5].b = leds[0].b;
 
-        leds[5].r = danceRand(50) + 40;
-        leds[5].g = leds[5].r / 5;
-        leds[1].r = danceRand(50) + 40;
-        leds[1].g = leds[1].r / 5;
+        leds[1].r = (mid * ARG_R(arg)) / 256;
+        leds[1].g = (mid * ARG_G(arg)) / 256;
+        leds[1].b = (mid * ARG_B(arg)) / 256;
+        leds[4].r = leds[1].r;
+        leds[4].g = leds[1].g;
+        leds[4].b = leds[1].b;
 
-        leds[0].r = danceRand(10) + 10;
-        leds[0].g = leds[0].r / 5;
+        leds[2].r = (tip * ARG_R(arg)) / 256;
+        leds[2].g = (tip * ARG_G(arg)) / 256;
+        leds[2].b = (tip * ARG_B(arg)) / 256;
+        leds[3].r = leds[2].r;
+        leds[3].g = leds[2].g;
+        leds[3].b = leds[2].b;
     }
-    if(ledsUpdated)
-    {
-        setDanceLeds(leds, sizeof(leds));
-    }
-}
-
-/**
- * Fire pattern. All LEDs are random amount of green, and fifth that of blue.
- * The LEDs towards the bottom have a brighter base and more randomness. The
- * LEDs towards the top are dimmer and have less randomness.
- *
- * @param tElapsedUs The time elapsed since last call, in microseconds
- * @param reset      true to reset this dance's variables
- */
-void ICACHE_FLASH_ATTR danceFireGreen(uint32_t tElapsedUs, bool reset)
-{
-    static uint32_t tAccumulated = 0;
-
-    if(reset)
-    {
-        tAccumulated = 0;
-        return;
-    }
-
-    // Declare some LEDs, all off
-    led_t leds[NUM_LIN_LEDS] = {{0}};
-    bool ledsUpdated = false;
-
-    tAccumulated += tElapsedUs;
-    while(tAccumulated > 100000)
-    {
-        tAccumulated -= 100000;
-        ledsUpdated = true;
-
-        leds[3].g = danceRand(120) + 135;
-        leds[3].b = leds[3].g / 5;
-
-        leds[4].g = danceRand(80) + 80;
-        leds[4].b = leds[4].g / 5;
-        leds[2].g = danceRand(80) + 80;
-        leds[2].b = leds[2].g / 5;
-
-        leds[5].g = danceRand(50) + 40;
-        leds[5].b = leds[5].g / 5;
-        leds[1].g = danceRand(50) + 40;
-        leds[1].b = leds[1].g / 5;
-
-        leds[0].g = danceRand(10) + 10;
-        leds[0].b = leds[0].g / 5;
-    }
-    if(ledsUpdated)
-    {
-        setDanceLeds(leds, sizeof(leds));
-    }
-}
-
-/**
- * Fire pattern. All LEDs are random amount of blue, and fifth that of green.
- * The LEDs towards the bottom have a brighter base and more randomness. The
- * LEDs towards the top are dimmer and have less randomness.
- *
- * @param tElapsedUs The time elapsed since last call, in microseconds
- * @param reset      true to reset this dance's variables
- */
-void ICACHE_FLASH_ATTR danceFireBlue(uint32_t tElapsedUs, bool reset)
-{
-    static uint32_t tAccumulated = 0;
-
-    if(reset)
-    {
-        tAccumulated = 0;
-        return;
-    }
-
-    // Declare some LEDs, all off
-    led_t leds[NUM_LIN_LEDS] = {{0}};
-    bool ledsUpdated = false;
-
-    tAccumulated += tElapsedUs;
-    while(tAccumulated > 100000)
-    {
-        tAccumulated -= 100000;
-        ledsUpdated = true;
-
-        leds[3].b = danceRand(120) + 135;
-        leds[3].g = leds[3].b / 5;
-
-        leds[4].b = danceRand(80) + 80;
-        leds[4].g = leds[4].b / 5;
-        leds[2].b = danceRand(80) + 80;
-        leds[2].g = leds[2].b / 5;
-
-        leds[5].b = danceRand(50) + 40;
-        leds[5].g = leds[5].b / 5;
-        leds[1].b = danceRand(50) + 40;
-        leds[1].g = leds[1].b / 5;
-
-        leds[0].b = danceRand(10) + 10;
-        leds[0].g = leds[0].b / 5;
-    }
-    if(ledsUpdated)
-    {
-        setDanceLeds(leds, sizeof(leds));
-    }
-}
-
-/** This animation is set to be called every 100 ms
- * Rotate a single LED around the hexagon, giving it a new random color for each
- * rotation
- *
- * @param tElapsedUs The time elapsed since last call, in microseconds
- * @param reset      true to reset this dance's variables
- */
-void ICACHE_FLASH_ATTR danceRotateOneRandomColor(uint32_t tElapsedUs, bool reset)
-{
-    static int32_t ledCount = 0;
-    static int32_t color_save = 0;
-    static uint32_t tAccumulated = 0;
-
-    if(reset)
-    {
-        ledCount = 0;
-        color_save = 0;
-        tAccumulated = 0;
-        return;
-    }
-
-    // Declare some LEDs, all off
-    led_t leds[NUM_LIN_LEDS] = {{0}};
-    bool ledsUpdated = false;
-
-    tAccumulated += tElapsedUs;
-    while(tAccumulated > 100000)
-    {
-        tAccumulated -= 100000;
-        ledsUpdated = true;
-
-        // Skip to the next LED around the hexagon
-        ledCount = ledCount + 1;
-        if(ledCount > NUM_LIN_LEDS - 1)
-        {
-            ledCount = 0;
-            color_save = EHSVtoHEX(danceRand(256), 0xFF, 0xFF);
-        }
-
-        // Turn the current LED on, full bright white
-        leds[ledCount].r = (color_save >>  0) & 0xFF;
-        leds[ledCount].g = (color_save >>  8) & 0xFF;
-        leds[ledCount].b = (color_save >> 16) & 0xFF;
-    }
-    // Output the LED data, actually turning them on
-    if(ledsUpdated)
-    {
-        setDanceLeds(leds, sizeof(leds));
-    }
-}
-
-/** Pulse all LEDs smoothly on and off. For each pulse, pick a random color
- *
- * @param tElapsedUs The time elapsed since last call, in microseconds
- * @param reset      true to reset this dance's variables
- */
-void ICACHE_FLASH_ATTR dancePulseRandomColor(uint32_t tElapsedUs, bool reset)
-{
-    static int32_t ledCount = 0;
-    static int32_t ledCount2 = 0;
-    static int32_t color_save = 0;
-    static uint32_t tAccumulated = 0;
-
-    if(reset)
-    {
-        ledCount = 0;
-        ledCount2 = 0;
-        color_save = 0;
-        tAccumulated = 0;
-        return;
-    }
-
-    // Declare some LEDs, all off
-    led_t leds[NUM_LIN_LEDS] = {{0}};
-    bool ledsUpdated = false;
-
-    tAccumulated += tElapsedUs;
-    while(tAccumulated > 2000)
-    {
-        tAccumulated -= 2000;
-        ledsUpdated = true;
-
-        // Skip to the next LED around the hexagon
-        ledCount = ledCount + 1;
-
-        if(ledCount > 510)
-        {
-            ledCount = 0;
-            ledCount2 = danceRand(256);
-        }
-        int intensity = ledCount;
-        if(ledCount > 255)
-        {
-            intensity = 510 - ledCount;
-        }
-        color_save = EHSVtoHEX(ledCount2, 0xFF, intensity);
-        uint8_t i;
-        for(i = 0; i < NUM_LIN_LEDS; i++)
-        {
-
-            leds[i].r = (color_save >>  0) & 0xFF;
-            leds[i].g = (color_save >>  8) & 0xFF;
-            leds[i].b = (color_save >> 16) & 0xFF;
-        }
-    }
-    // Output the LED data, actually turning them on
-    if(ledsUpdated)
-    {
-        setDanceLeds(leds, sizeof(leds));
-    }
-}
-
-/** Show a static pattern for 30s, then show another static pattern for 30s
- *
- * @param tElapsedUs The time elapsed since last call, in microseconds
- * @param reset      true to reset this dance's variables
- */
-void ICACHE_FLASH_ATTR danceStaticPatterns(uint32_t tElapsedUs, bool reset)
-{
-    static int32_t timerCount = 0;
-    static uint32_t tAccumulated = 0;
-
-    if(reset)
-    {
-        timerCount = 0;
-        tAccumulated = 0;
-        return;
-    }
-
-    // Declare some LEDs, all off
-    led_t leds[NUM_LIN_LEDS] = {{0}};
-    bool ledsUpdated = false;
-
-    tAccumulated += tElapsedUs;
-    while(tAccumulated > 100000)
-    {
-        tAccumulated -= 100000;
-        ledsUpdated = true;
-
-        timerCount++;
-        if (timerCount > 600)
-        {
-            timerCount = 0;
-        }
-
-        if (timerCount < 300)
-        {
-            // Turn the current LED on GREEN
-            leds[0].r = 13;
-            leds[0].g = 255;
-            leds[0].b = 32;
-
-            leds[1].r = 40;
-            leds[1].g = 80;
-            leds[1].b = 50;
-
-            leds[2].r = 13;
-            leds[2].g = 255;
-            leds[2].b = 32;
-
-            leds[3].r = 152;
-            leds[3].g = 113;
-            leds[3].b = 20;
-
-            leds[4].r = 13;
-            leds[4].g = 255;
-            leds[4].b = 32;
-
-            leds[5].r = 40;
-            leds[5].g = 80;
-            leds[5].b = 50;
-        }
-        else
-        {
-            // Turn the current LED on RED
-            leds[0].r = 255;
-            leds[0].g = 32;
-            leds[0].b = 32;
-
-            leds[1].r = 80;
-            leds[1].g = 50;
-            leds[1].b = 50;
-
-            leds[2].r = 255;
-            leds[2].g = 32;
-            leds[2].b = 32;
-
-            leds[3].r = 152;
-            leds[3].g = 113;
-            leds[3].b = 20;
-
-            leds[4].r = 255;
-            leds[4].g = 32;
-            leds[4].b = 32;
-
-            leds[5].r = 80;
-            leds[5].g = 50;
-            leds[5].b = 50;
-        }
-    }
-    // Output the LED data, actually turning them on
     if(ledsUpdated)
     {
         setDanceLeds(leds, sizeof(leds));
@@ -938,7 +693,7 @@ void ICACHE_FLASH_ATTR danceStaticPatterns(uint32_t tElapsedUs, bool reset)
  * @param tElapsedUs The time elapsed since last call, in microseconds
  * @param reset      true to reset this dance's variables
  */
-void ICACHE_FLASH_ATTR dancePoliceSiren(uint32_t tElapsedUs, bool reset)
+void ICACHE_FLASH_ATTR dancePoliceSiren(uint32_t tElapsedUs, uint32_t arg __attribute__((unused)), bool reset)
 {
     static int32_t ledCount;
     static uint32_t tAccumulated = 0;
@@ -946,7 +701,7 @@ void ICACHE_FLASH_ATTR dancePoliceSiren(uint32_t tElapsedUs, bool reset)
     if(reset)
     {
         ledCount = 0;
-        tAccumulated = 0;
+        tAccumulated = 120000;
         return;
     }
 
@@ -955,7 +710,7 @@ void ICACHE_FLASH_ATTR dancePoliceSiren(uint32_t tElapsedUs, bool reset)
     bool ledsUpdated = false;
 
     tAccumulated += tElapsedUs;
-    while(tAccumulated > 120000)
+    while(tAccumulated >= 120000)
     {
         tAccumulated -= 120000;
         ledsUpdated = true;
@@ -1002,13 +757,23 @@ void ICACHE_FLASH_ATTR dancePoliceSiren(uint32_t tElapsedUs, bool reset)
  * @param tElapsedUs The time elapsed since last call, in microseconds
  * @param reset      true to reset this dance's variables
  */
-void ICACHE_FLASH_ATTR dancePureRandom(uint32_t tElapsedUs, bool reset)
+void ICACHE_FLASH_ATTR dancePureRandom(uint32_t tElapsedUs, uint32_t arg __attribute__((unused)), bool reset)
 {
     static uint32_t tAccumulated = 0;
+    static uint8_t randLed = 0;
+    static uint32_t randColor = 0;
+    static uint8_t ledVal = 0;
+    static bool ledRising = true;
+    static uint32_t randInterval = 5000;
 
     if(reset)
     {
-        tAccumulated = 0;
+        randInterval = 5000;
+        tAccumulated = randInterval;
+        randLed = 0;
+        randColor = 0;
+        ledVal = 0;
+        ledRising = true;
         return;
     }
 
@@ -1017,116 +782,39 @@ void ICACHE_FLASH_ATTR dancePureRandom(uint32_t tElapsedUs, bool reset)
     bool ledsUpdated = false;
 
     tAccumulated += tElapsedUs;
-    while(tAccumulated > 100000)
+    while(tAccumulated >= randInterval)
     {
-        tAccumulated -= 100000;
+        tAccumulated -= randInterval;
+
+        if(0 == ledVal)
+        {
+            randColor = danceRand(256);
+            randLed = danceRand(NUM_LIN_LEDS);
+            randInterval = 500 + danceRand(4096);
+            ledVal++;
+        }
+        else if(ledRising)
+        {
+            ledVal++;
+            if(255 == ledVal)
+            {
+                ledRising = false;
+            }
+        }
+        else
+        {
+            ledVal--;
+            if(0 == ledVal)
+            {
+                ledRising = true;
+            }
+        }
+
         ledsUpdated = true;
-        uint32_t rand_color = EHSVtoHEX(danceRand(255), 0xFF, 0xFF);
-        int rand_light = danceRand(NUM_LIN_LEDS);
-        leds[rand_light].r = (rand_color >>  0) & 0xFF;
-        leds[rand_light].g = (rand_color >>  8) & 0xFF;
-        leds[rand_light].b = (rand_color >> 16) & 0xFF;
-    }
-    // Output the LED data, actually turning them on
-    if(ledsUpdated)
-    {
-        setDanceLeds(leds, sizeof(leds));
-    }
-}
-
-/** Christmas lights. Picks random target hues (red or green) and saturations for
- * random LEDs at random intervals, then smoothly iterates towards those targets.
- * All LEDs are shown with a randomness added to their brightness for a little
- * sparkle
- *
- * @param tElapsedUs The time elapsed since last call, in microseconds
- * @param reset      true to reset this dance's variables
- */
-void ICACHE_FLASH_ATTR danceChristmas(uint32_t tElapsedUs, bool reset)
-{
-    static int32_t ledCount = 0;
-    static int32_t ledCount2 = 0;
-    static uint8_t color_hue_save[NUM_LIN_LEDS] = {0};
-    static uint8_t color_saturation_save[NUM_LIN_LEDS] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-    static uint8_t current_color_hue[NUM_LIN_LEDS] = {0};
-    static uint8_t current_color_saturation[NUM_LIN_LEDS] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-
-    static uint32_t tAccumulated = 0;
-
-    if(reset)
-    {
-        ledCount = 0;
-        ledCount2 = 0;
-        ets_memset(color_hue_save, 0, sizeof(color_hue_save));
-        ets_memset(color_saturation_save, 0xFF, sizeof(color_hue_save));
-        ets_memset(current_color_hue, 0, sizeof(color_hue_save));
-        ets_memset(current_color_saturation, 0xFF, sizeof(color_hue_save));
-        tAccumulated = 0;
-        return;
-    }
-
-    // Declare some LEDs, all off
-    led_t leds[NUM_LIN_LEDS] = {{0}};
-    bool ledsUpdated = false;
-
-    tAccumulated += tElapsedUs;
-    while(tAccumulated > 7000)
-    {
-        tAccumulated -= 7000;
-        ledsUpdated = true;
-
-        ledCount += 1;
-        if(ledCount > ledCount2)
-        {
-            ledCount = 0;
-            ledCount2 = danceRand(1000) + 50; // 350ms to 7350ms
-            int color_picker = danceRand(NUM_LIN_LEDS - 1);
-            int node_select = danceRand(NUM_LIN_LEDS);
-
-            if(color_picker < 2)
-            {
-                color_hue_save[node_select] = 0;
-                color_saturation_save[node_select] = danceRand(15) + 240;
-            }
-            else if (color_picker < 4)
-            {
-                color_hue_save[node_select] = 86;
-                color_saturation_save[node_select] = danceRand(15) + 240;
-            }
-            else
-            {
-                color_saturation_save[node_select] = danceRand(25);
-            }
-        }
-
-        uint8_t i;
-        for(i = 0; i < NUM_LIN_LEDS; i++)
-        {
-            if(current_color_hue[i] > color_hue_save[i])
-            {
-                current_color_hue[i] -= 1;
-            }
-            else if (current_color_hue[i] < color_hue_save[i])
-            {
-                current_color_hue[i] += 1;
-            }
-
-            if(current_color_saturation[i] > color_saturation_save[i])
-            {
-                current_color_saturation[i] -= 1;
-            }
-            else if (current_color_saturation[i] < color_saturation_save[i])
-            {
-                current_color_saturation[i] += 1;
-            }
-        }
-
-        for(i = 0; i < NUM_LIN_LEDS; i++)
-        {
-            leds[i].r = (EHSVtoHEX(current_color_hue[i],  current_color_saturation[i], danceRand(15) + 240) >>  0) & 0xFF;
-            leds[i].g = (EHSVtoHEX(current_color_hue[i],  current_color_saturation[i], danceRand(15) + 240) >>  8) & 0xFF;
-            leds[i].b = (EHSVtoHEX(current_color_hue[i],  current_color_saturation[i], danceRand(15) + 240) >> 16) & 0xFF;
-        }
+        uint32_t color = EHSVtoHEX(randColor, 0xFF, ledVal);
+        leds[randLed].r = (color >>  0) & 0xFF;
+        leds[randLed].g = (color >>  8) & 0xFF;
+        leds[randLed].b = (color >> 16) & 0xFF;
     }
     // Output the LED data, actually turning them on
     if(ledsUpdated)
@@ -1136,62 +824,12 @@ void ICACHE_FLASH_ATTR danceChristmas(uint32_t tElapsedUs, bool reset)
 }
 
 /**
- * Chainsaw blade. Use EHSVtoHEX() to smoothly iterate, but only draw red
+ * Turn on all LEDs and smooth iterate their singular color around the color wheel
  *
  * @param tElapsedUs The time elapsed since last call, in microseconds
  * @param reset      true to reset this dance's variables
  */
-void ICACHE_FLASH_ATTR danceChainsaw(uint32_t tElapsedUs, bool reset)
-{
-    static int32_t ledCount = 0;
-    static uint32_t tAccumulated = 0;
-
-    if(reset)
-    {
-        ledCount = 0;
-        tAccumulated = 0;
-        return;
-    }
-
-    // Declare some LEDs, all off
-    led_t leds[NUM_LIN_LEDS] = {{0}};
-    bool ledsUpdated = false;
-
-    tAccumulated += tElapsedUs;
-    while(tAccumulated > 10000)
-    {
-        tAccumulated -= 10000;
-        ledsUpdated = true;
-
-        ledCount = ledCount + 2;
-        if(ledCount > 256)
-        {
-            ledCount = 0;
-        }
-
-        uint8_t i;
-        for(i = 0; i < NUM_LIN_LEDS; i++)
-        {
-            int16_t angle = 256 - (((i * 256) / NUM_LIN_LEDS)) + ledCount % 256;
-            uint32_t color = EHSVtoHEX(angle, 0xFF, 0xFF);
-            leds[i].r = (color >>  0) & 0xFF;
-        }
-    }
-    // Output the LED data, actually turning them on
-    if(ledsUpdated)
-    {
-        setDanceLeds(leds, sizeof(leds));
-    }
-}
-
-/** Turn on all LEDs and smooth iterate their singular color around the color wheel
- * Note, called the 7th but comes after danceChristmas(uint32_t tElapsedUs, bool reset). Must come before
- * freeze_color()
- *
- * @param tElapsedUs The time elapsed since last call, in microseconds
- * @param reset      true to reset this dance's variables
- */
-void ICACHE_FLASH_ATTR danceRainbowSolid(uint32_t tElapsedUs, bool reset)
+void ICACHE_FLASH_ATTR danceRainbowSolid(uint32_t tElapsedUs, uint32_t arg __attribute__((unused)), bool reset)
 {
     static int32_t ledCount = 0;
     static int32_t color_save = 0;
@@ -1201,7 +839,7 @@ void ICACHE_FLASH_ATTR danceRainbowSolid(uint32_t tElapsedUs, bool reset)
     {
         ledCount = 0;
         color_save = 0;
-        tAccumulated = 0;
+        tAccumulated = 70000;
         return;
     }
 
@@ -1210,7 +848,7 @@ void ICACHE_FLASH_ATTR danceRainbowSolid(uint32_t tElapsedUs, bool reset)
     bool ledsUpdated = false;
 
     tAccumulated += tElapsedUs;
-    while(tAccumulated > 70000)
+    while(tAccumulated >= 70000)
     {
         tAccumulated -= 70000;
         ledsUpdated = true;
@@ -1246,7 +884,7 @@ void ICACHE_FLASH_ATTR danceRainbowSolid(uint32_t tElapsedUs, bool reset)
  * @param tElapsedUs The time elapsed since last call, in microseconds
  * @param reset      true to reset this dance's variables
  */
-void ICACHE_FLASH_ATTR danceRandomDance(uint32_t tElapsedUs, bool reset)
+void ICACHE_FLASH_ATTR danceRandomDance(uint32_t tElapsedUs, uint32_t arg __attribute__((unused)), bool reset)
 {
     static int32_t random_choice = -1;
     static uint32_t tAccumulated = 0;
@@ -1254,7 +892,7 @@ void ICACHE_FLASH_ATTR danceRandomDance(uint32_t tElapsedUs, bool reset)
     if(reset)
     {
         random_choice = -1;
-        tAccumulated = 0;
+        tAccumulated = 4500000;
         return;
     }
 
@@ -1264,12 +902,12 @@ void ICACHE_FLASH_ATTR danceRandomDance(uint32_t tElapsedUs, bool reset)
     }
 
     tAccumulated += tElapsedUs;
-    while(tAccumulated > 4500000)
+    while(tAccumulated >= 4500000)
     {
         tAccumulated -= 4500000;
         random_choice = danceRand(getNumDances() - 1); // exclude the random mode
-        ledDances[random_choice](0, true);
+        ledDances[random_choice].func(0, ledDances[random_choice].arg, true);
     }
 
-    ledDances[random_choice](tElapsedUs, false);
+    ledDances[random_choice].func(tElapsedUs, ledDances[random_choice].arg, false);
 }

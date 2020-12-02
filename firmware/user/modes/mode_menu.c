@@ -438,6 +438,9 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
     // Set the brightness to low
     setDanceBrightness(1);
 
+    // Reset variables
+    danceClearVars();
+
     // Animate it at the given period
     timerArm(&mnu->timerScreensaverLEDAnimation, 1, true);
 
