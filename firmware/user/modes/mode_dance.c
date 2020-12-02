@@ -760,10 +760,20 @@ void ICACHE_FLASH_ATTR dancePoliceSiren(uint32_t tElapsedUs, uint32_t arg, bool 
 void ICACHE_FLASH_ATTR dancePureRandom(uint32_t tElapsedUs, uint32_t arg, bool reset)
 {
     static uint32_t tAccumulated = 0;
+    static uint8_t randLed = 0;
+    static uint32_t randColor = 0;
+    static uint8_t ledVal = 0;
+    static bool ledRising = true;
+    static uint32_t randInterval = 5000;
 
     if(reset)
     {
-        tAccumulated = 100000;
+        randInterval = 5000;
+        tAccumulated = randInterval;
+        randLed = 0;
+        randColor = 0;
+        ledVal = 0;
+        ledRising = true;
         return;
     }
 
@@ -772,15 +782,39 @@ void ICACHE_FLASH_ATTR dancePureRandom(uint32_t tElapsedUs, uint32_t arg, bool r
     bool ledsUpdated = false;
 
     tAccumulated += tElapsedUs;
-    while(tAccumulated >= 100000)
+    while(tAccumulated >= randInterval)
     {
-        tAccumulated -= 100000;
+        tAccumulated -= randInterval;
+
+        if(0 == ledVal)
+        {
+            randColor = danceRand(256);
+            randLed = danceRand(NUM_LIN_LEDS);
+            randInterval = 500 + danceRand(4096);
+            ledVal++;
+        }
+        else if(ledRising)
+        {
+            ledVal++;
+            if(255 == ledVal)
+            {
+                ledRising = false;
+            }
+        }
+        else
+        {
+            ledVal--;
+            if(0 == ledVal)
+            {
+                ledRising = true;
+            }
+        }
+
         ledsUpdated = true;
-        uint32_t rand_color = EHSVtoHEX(danceRand(255), 0xFF, 0xFF);
-        int rand_light = danceRand(NUM_LIN_LEDS);
-        leds[rand_light].r = (rand_color >>  0) & 0xFF;
-        leds[rand_light].g = (rand_color >>  8) & 0xFF;
-        leds[rand_light].b = (rand_color >> 16) & 0xFF;
+        uint32_t color = EHSVtoHEX(randColor, 0xFF, ledVal);
+        leds[randLed].r = (color >>  0) & 0xFF;
+        leds[randLed].g = (color >>  8) & 0xFF;
+        leds[randLed].b = (color >> 16) & 0xFF;
     }
     // Output the LED data, actually turning them on
     if(ledsUpdated)
