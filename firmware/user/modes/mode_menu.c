@@ -261,7 +261,7 @@ void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
             case UP:
             {
                 mnu->menuScreensaverIdx = (mnu->menuScreensaverIdx + 1) % getNumDances();
-                danceClearVars();
+                danceClearVars(mnu->menuScreensaverIdx);
 
                 // Start screensaver immediately
                 if(!mnu->screensaverIsRunning)
@@ -280,7 +280,7 @@ void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
                 {
                     mnu->menuScreensaverIdx = getNumDances() - 1;
                 }
-                danceClearVars();
+                danceClearVars(mnu->menuScreensaverIdx);
 
                 // Start screensaver immediately
                 if(!mnu->screensaverIsRunning)
@@ -439,7 +439,7 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
     setDanceBrightness(1);
 
     // Reset variables
-    danceClearVars();
+    danceClearVars(mnu->menuScreensaverIdx);
 
     // Animate it at the given period
     timerArm(&mnu->timerScreensaverLEDAnimation, 1, true);

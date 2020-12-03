@@ -11,6 +11,6 @@
 void ICACHE_FLASH_ATTR danceLeds(uint8_t danceIdx);
 void ICACHE_FLASH_ATTR setDanceBrightness(uint8_t brightness);
 uint8_t ICACHE_FLASH_ATTR getNumDances(void);
-void ICACHE_FLASH_ATTR danceClearVars(void);
+void ICACHE_FLASH_ATTR danceClearVars(uint8_t idx);
 
 #endif /* MODE_DANCE_H_ */
