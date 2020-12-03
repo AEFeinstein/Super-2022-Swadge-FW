@@ -760,7 +760,7 @@ void ICACHE_FLASH_ATTR dancePoliceSiren(uint32_t tElapsedUs, uint32_t arg __attr
 void ICACHE_FLASH_ATTR dancePureRandom(uint32_t tElapsedUs, uint32_t arg __attribute__((unused)), bool reset)
 {
     static uint32_t tAccumulated = 0;
-    static uint8_t randLed = 0;
+    static uint8_t randLedMask = 0;
     static uint32_t randColor = 0;
     static uint8_t ledVal = 0;
     static bool ledRising = true;
@@ -770,7 +770,7 @@ void ICACHE_FLASH_ATTR dancePureRandom(uint32_t tElapsedUs, uint32_t arg __attri
     {
         randInterval = 5000;
         tAccumulated = randInterval;
-        randLed = 0;
+        randLedMask = 0;
         randColor = 0;
         ledVal = 0;
         ledRising = true;
@@ -789,7 +789,7 @@ void ICACHE_FLASH_ATTR dancePureRandom(uint32_t tElapsedUs, uint32_t arg __attri
         if(0 == ledVal)
         {
             randColor = danceRand(256);
-            randLed = danceRand(NUM_LIN_LEDS);
+            randLedMask = danceRand(1 << NUM_LIN_LEDS);
             randInterval = 500 + danceRand(4096);
             ledVal++;
         }
@@ -812,9 +812,15 @@ void ICACHE_FLASH_ATTR dancePureRandom(uint32_t tElapsedUs, uint32_t arg __attri
 
         ledsUpdated = true;
         uint32_t color = EHSVtoHEX(randColor, 0xFF, ledVal);
-        leds[randLed].r = (color >>  0) & 0xFF;
-        leds[randLed].g = (color >>  8) & 0xFF;
-        leds[randLed].b = (color >> 16) & 0xFF;
+        for(uint8_t i = 0; i < NUM_LIN_LEDS; i++)
+        {
+            if((1 << i) & randLedMask)
+            {
+                leds[i].r = (color >>  0) & 0xFF;
+                leds[i].g = (color >>  8) & 0xFF;
+                leds[i].b = (color >> 16) & 0xFF;
+            }
+        }
     }
     // Output the LED data, actually turning them on
     if(ledsUpdated)
@@ -864,7 +870,6 @@ void ICACHE_FLASH_ATTR danceRainbowSolid(uint32_t tElapsedUs, uint32_t arg __att
         uint8_t i;
         for(i = 0; i < NUM_LIN_LEDS; i++)
         {
-
             leds[i].r = (color_save >>  0) & 0xFF;
             leds[i].g = (color_save >>  8) & 0xFF;
             leds[i].b = (color_save >> 16) & 0xFF;
