@@ -55,6 +55,7 @@ void ICACHE_FLASH_ATTR danceFire(uint32_t tElapsedUs, uint32_t arg, bool reset);
 void ICACHE_FLASH_ATTR dancePoliceSiren(uint32_t tElapsedUs, uint32_t arg, bool reset);
 void ICACHE_FLASH_ATTR dancePureRandom(uint32_t tElapsedUs, uint32_t arg, bool reset);
 void ICACHE_FLASH_ATTR danceRandomDance(uint32_t tElapsedUs, uint32_t arg, bool reset);
+void ICACHE_FLASH_ATTR danceChristmas(uint32_t tElapsedUs, uint32_t arg, bool reset);
 
 /*============================================================================
  * Variables
@@ -90,6 +91,8 @@ static const ledDanceArg ledDances[] =
     {.func = danceBinaryCounter, .arg = 0},
     {.func = dancePoliceSiren, .arg = 0},
     {.func = dancePureRandom, .arg = 0},
+    {.func = danceChristmas, .arg = 1},
+    {.func = danceChristmas, .arg = 0},
     {.func = danceRandomDance, .arg = 0},
 };
 
@@ -106,15 +109,12 @@ uint8_t ICACHE_FLASH_ATTR getNumDances(void)
     return (sizeof(ledDances) / sizeof(ledDances[0]));
 }
 
-/** This is called to clear all dance variables
+/** This is called to clear specific dance variables
  */
-void ICACHE_FLASH_ATTR danceClearVars(void)
+void ICACHE_FLASH_ATTR danceClearVars(uint8_t idx)
 {
-    // Reset all dances
-    for(uint8_t i = 0; i < getNumDances(); i++)
-    {
-        ledDances[i].func(0, ledDances[i].arg, true);
-    }
+    // Reset the specific dance
+    ledDances[idx].func(0, ledDances[idx].arg, true);
 }
 
 /** Set the brightness index
@@ -910,4 +910,129 @@ void ICACHE_FLASH_ATTR danceRandomDance(uint32_t tElapsedUs, uint32_t arg __attr
     }
 
     ledDances[random_choice].func(tElapsedUs, ledDances[random_choice].arg, false);
+}
+
+/** Holiday lights. Picks random target hues (red or green) or (blue or yellow) and saturations for
+ * random LEDs at random intervals, then smoothly iterates towards those targets.
+ * All LEDs are shown with a randomness added to their brightness for a little
+ * sparkle
+ *
+ * @param tElapsedUs The time elapsed since last call, in microseconds
+ * @param arg        unused
+ * @param reset      true to reset this dance's variables
+ */
+void ICACHE_FLASH_ATTR danceChristmas(uint32_t tElapsedUs, uint32_t arg, bool reset)
+{
+    static int32_t ledCount = 0;
+    static int32_t ledCount2 = 0;
+    static uint8_t color_hue_save[NUM_LIN_LEDS] = {0};
+    static uint8_t color_saturation_save[NUM_LIN_LEDS] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    static uint8_t current_color_hue[NUM_LIN_LEDS] = {0};
+    static uint8_t current_color_saturation[NUM_LIN_LEDS] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+    static uint32_t tAccumulated = 0;
+
+    if(reset)
+    {
+        ledCount = 0;
+        ledCount2 = 0;
+        ets_memset(color_saturation_save, 0xFF, sizeof(color_saturation_save));
+        ets_memset(current_color_saturation, 0xFF, sizeof(current_color_saturation));
+        if(arg)
+        {
+            ets_memset(color_hue_save, 0, sizeof(color_hue_save));
+            ets_memset(current_color_hue, 0, sizeof(current_color_hue)); // All red
+        }
+        else
+        {
+            ets_memset(color_hue_save, 171, sizeof(color_hue_save));
+            ets_memset(current_color_hue, 171, sizeof(current_color_hue)); // All blue
+        }
+        tAccumulated = 0;
+        return;
+    }
+
+    // Declare some LEDs, all off
+    led_t leds[NUM_LIN_LEDS] = {{0}};
+    bool ledsUpdated = false;
+
+    tAccumulated += tElapsedUs;
+    while(tAccumulated > 7000)
+    {
+        tAccumulated -= 7000;
+        ledsUpdated = true;
+
+        ledCount += 1;
+        if(ledCount > ledCount2)
+        {
+            ledCount = 0;
+            ledCount2 = danceRand(1000) + 50; // 350ms to 7350ms
+            int color_picker = danceRand(NUM_LIN_LEDS - 1);
+            int node_select = danceRand(NUM_LIN_LEDS);
+
+            if(color_picker < 2)
+            {
+                if(arg)
+                {
+                    color_hue_save[node_select] = 0; // 0 is red
+                }
+                else
+                {
+                    color_hue_save[node_select] = 171; // 171 is blue
+                }
+
+                color_saturation_save[node_select] = danceRand(15) + 240;
+            }
+            else if (color_picker < 4)
+            {
+                if(arg)
+                {
+                    color_hue_save[node_select] = 86; // 86 is green
+                }
+                else
+                {
+                    color_hue_save[node_select] = 43; // 43 is yellow
+                }
+                color_saturation_save[node_select] = danceRand(15) + 240;
+            }
+            else
+            {
+                color_saturation_save[node_select] = danceRand(25);
+            }
+        }
+
+        uint8_t i;
+        for(i = 0; i < NUM_LIN_LEDS; i++)
+        {
+            if(current_color_hue[i] > color_hue_save[i])
+            {
+                current_color_hue[i] -= 1;
+            }
+            else if (current_color_hue[i] < color_hue_save[i])
+            {
+                current_color_hue[i] += 1;
+            }
+
+            if(current_color_saturation[i] > color_saturation_save[i])
+            {
+                current_color_saturation[i] -= 1;
+            }
+            else if (current_color_saturation[i] < color_saturation_save[i])
+            {
+                current_color_saturation[i] += 1;
+            }
+        }
+
+        for(i = 0; i < NUM_LIN_LEDS; i++)
+        {
+            leds[i].r = (EHSVtoHEX(current_color_hue[i],  current_color_saturation[i], danceRand(55) + 200) >>  0) & 0xFF;
+            leds[i].g = (EHSVtoHEX(current_color_hue[i],  current_color_saturation[i], danceRand(55) + 200) >>  8) & 0xFF;
+            leds[i].b = (EHSVtoHEX(current_color_hue[i],  current_color_saturation[i], danceRand(55) + 200) >> 16) & 0xFF;
+        }
+    }
+    // Output the LED data, actually turning them on
+    if(ledsUpdated)
+    {
+        setDanceLeds(leds, sizeof(leds));
+    }
 }
