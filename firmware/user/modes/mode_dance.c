@@ -934,8 +934,11 @@ void ICACHE_FLASH_ATTR danceChristmas(uint32_t tElapsedUs, uint32_t arg, bool re
     static uint8_t color_saturation_save[NUM_LIN_LEDS] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
     static uint8_t current_color_hue[NUM_LIN_LEDS] = {0};
     static uint8_t current_color_saturation[NUM_LIN_LEDS] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    static uint8_t target_value[NUM_LIN_LEDS] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    static uint8_t current_value[NUM_LIN_LEDS] = {0};
 
     static uint32_t tAccumulated = 0;
+    static uint32_t tAccumulatedValue = 0;
 
     if(reset)
     {
@@ -943,6 +946,8 @@ void ICACHE_FLASH_ATTR danceChristmas(uint32_t tElapsedUs, uint32_t arg, bool re
         ledCount2 = 0;
         ets_memset(color_saturation_save, 0xFF, sizeof(color_saturation_save));
         ets_memset(current_color_saturation, 0xFF, sizeof(current_color_saturation));
+        ets_memset(target_value, 0xFF, sizeof(target_value));
+        ets_memset(current_value, 0x00, sizeof(current_value));
         if(arg)
         {
             ets_memset(color_hue_save, 0, sizeof(color_hue_save));
@@ -954,6 +959,7 @@ void ICACHE_FLASH_ATTR danceChristmas(uint32_t tElapsedUs, uint32_t arg, bool re
             ets_memset(current_color_hue, 171, sizeof(current_color_hue)); // All blue
         }
         tAccumulated = 0;
+        tAccumulatedValue = 0;
         return;
     }
 
@@ -961,11 +967,45 @@ void ICACHE_FLASH_ATTR danceChristmas(uint32_t tElapsedUs, uint32_t arg, bool re
     led_t leds[NUM_LIN_LEDS] = {{0}};
     bool ledsUpdated = false;
 
+    // Run a faster loop for LED brightness updates, this gives a twinkling effect
+    tAccumulatedValue += tElapsedUs;
+    while(tAccumulatedValue > 1500)
+    {
+        tAccumulatedValue -= 1500;
+
+        uint8_t i;
+        for(i = 0; i < NUM_LIN_LEDS; i++)
+        {
+            if(current_value[i] == target_value[i])
+            {
+                if(0xFF == target_value[i])
+                {
+                    // Reached full bright, pick new target value
+                    target_value[i] = danceRand(64) + 192;
+                }
+                else
+                {
+                    // Reached target value, reset target to full bright
+                    target_value[i] = 0xFF;
+                }
+            }
+            // Smoothly move to the target value
+            else if(current_value[i] > target_value[i])
+            {
+                current_value[i] -= 1;
+            }
+            else if (current_value[i] < target_value[i])
+            {
+                current_value[i] += 1;
+            }
+        }
+    }
+
+    // Run a slower loop for hue and saturation updates
     tAccumulated += tElapsedUs;
     while(tAccumulated > 7000)
     {
         tAccumulated -= 7000;
-        ledsUpdated = true;
 
         ledCount += 1;
         if(ledCount > ledCount2)
@@ -975,33 +1015,37 @@ void ICACHE_FLASH_ATTR danceChristmas(uint32_t tElapsedUs, uint32_t arg, bool re
             int color_picker = danceRand(NUM_LIN_LEDS - 1);
             int node_select = danceRand(NUM_LIN_LEDS);
 
-            if(color_picker < 2)
+            if (color_picker < 4)
             {
+                // Flip some color targets
                 if(arg)
                 {
-                    color_hue_save[node_select] = 0; // 0 is red
+                    if(color_hue_save[node_select] == 0) // red
+                    {
+                        color_hue_save[node_select] = 86; // green
+                    }
+                    else
+                    {
+                        color_hue_save[node_select] = 0; // red
+                    }
                 }
                 else
                 {
-                    color_hue_save[node_select] = 171; // 171 is blue
+                    if(color_hue_save[node_select] == 171) // blue
+                    {
+                        color_hue_save[node_select] = 43; // yellow
+                    }
+                    else
+                    {
+                        color_hue_save[node_select] = 171; // blue
+                    }
                 }
-
-                color_saturation_save[node_select] = danceRand(15) + 240;
-            }
-            else if (color_picker < 4)
-            {
-                if(arg)
-                {
-                    color_hue_save[node_select] = 86; // 86 is green
-                }
-                else
-                {
-                    color_hue_save[node_select] = 43; // 43 is yellow
-                }
+                // Pick a random saturation target
                 color_saturation_save[node_select] = danceRand(15) + 240;
             }
             else
             {
+                // Whiteish target
                 color_saturation_save[node_select] = danceRand(25);
             }
         }
@@ -1009,6 +1053,7 @@ void ICACHE_FLASH_ATTR danceChristmas(uint32_t tElapsedUs, uint32_t arg, bool re
         uint8_t i;
         for(i = 0; i < NUM_LIN_LEDS; i++)
         {
+            // Smoothly move hue to the target
             if(current_color_hue[i] > color_hue_save[i])
             {
                 current_color_hue[i] -= 1;
@@ -1018,6 +1063,7 @@ void ICACHE_FLASH_ATTR danceChristmas(uint32_t tElapsedUs, uint32_t arg, bool re
                 current_color_hue[i] += 1;
             }
 
+            // Smoothly move saturation to the target
             if(current_color_saturation[i] > color_saturation_save[i])
             {
                 current_color_saturation[i] -= 1;
@@ -1028,12 +1074,14 @@ void ICACHE_FLASH_ATTR danceChristmas(uint32_t tElapsedUs, uint32_t arg, bool re
             }
         }
 
+        // Calculate actual LED values
         for(i = 0; i < NUM_LIN_LEDS; i++)
         {
-            leds[i].r = (EHSVtoHEX(current_color_hue[i],  current_color_saturation[i], danceRand(55) + 200) >>  0) & 0xFF;
-            leds[i].g = (EHSVtoHEX(current_color_hue[i],  current_color_saturation[i], danceRand(55) + 200) >>  8) & 0xFF;
-            leds[i].b = (EHSVtoHEX(current_color_hue[i],  current_color_saturation[i], danceRand(55) + 200) >> 16) & 0xFF;
+            leds[i].r = (EHSVtoHEX(current_color_hue[i], current_color_saturation[i], current_value[i]) >>  0) & 0xFF;
+            leds[i].g = (EHSVtoHEX(current_color_hue[i], current_color_saturation[i], current_value[i]) >>  8) & 0xFF;
+            leds[i].b = (EHSVtoHEX(current_color_hue[i], current_color_saturation[i], current_value[i]) >> 16) & 0xFF;
         }
+        ledsUpdated = true;
     }
     // Output the LED data, actually turning them on
     if(ledsUpdated)
