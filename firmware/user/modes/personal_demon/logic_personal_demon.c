@@ -425,19 +425,24 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
      * Discipline Status
      **************************************************************************/
 
-    // If unhappy, the demon might get a little less disciplined
-    // pos -> 12.5%
-    //  0  -> 25%
-    // -1  -> 50%
-    // -2  -> 75%
-    // -3  -> 100%
-    if (pd->happy > 0 && os_random() % 16 < 1)
+    // Children don't lose discipline, that starts with teens
+    // See where EVT_LOST_DISCIPLINE gets dequeued
+    if(pd->age != AGE_CHILD)
     {
-        enqueueEvt(pd, EVT_LOST_DISCIPLINE);
-    }
-    else if (pd->happy <= 0 && (int32_t)(os_random() % 4) < (1 - pd->happy))
-    {
-        enqueueEvt(pd, EVT_LOST_DISCIPLINE);
+        // If unhappy, the demon might get a little less disciplined
+        // pos -> 12.5%
+        //  0  -> 25%
+        // -1  -> 50%
+        // -2  -> 75%
+        // -3  -> 100%
+        if (pd->happy > 0 && os_random() % 16 < 1)
+        {
+            enqueueEvt(pd, EVT_LOST_DISCIPLINE);
+        }
+        else if (pd->happy <= 0 && (int32_t)(os_random() % 4) < (1 - pd->happy))
+        {
+            enqueueEvt(pd, EVT_LOST_DISCIPLINE);
+        }
     }
 
     /***************************************************************************

@@ -83,6 +83,10 @@ typedef struct
     pngHandle ball;
     pngHandle water;
     pngHandle heart;
+    pngHandle happy;
+    pngHandle sad;
+    pngHandle cross;
+    pngHandle angry;
 
     // Demon position, direction, and state
     int16_t demonX;
@@ -380,6 +384,10 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     allocPngAsset("ball.png", &(pd->ball));
     allocPngAsset("water.png", &(pd->water));
     allocPngAsset("heart.png", &(pd->heart));
+    allocPngAsset("happy.png", &(pd->happy));
+    allocPngAsset("sad.png", &(pd->sad));
+    allocPngAsset("cross.png", &(pd->cross));
+    allocPngAsset("angry.png", &(pd->angry));
 
     pd->demonX = (OLED_WIDTH / 2) - (pd->demonSprite.width / 2);
     pd->demonDirLR = false;
@@ -444,6 +452,10 @@ void ICACHE_FLASH_ATTR personalDemonExitMode(void)
     freePngAsset(&(pd->ball));
     freePngAsset(&(pd->water));
     freePngAsset(&(pd->heart));
+    freePngAsset(&(pd->happy));
+    freePngAsset(&(pd->sad));
+    freePngAsset(&(pd->cross));
+    freePngAsset(&(pd->angry));
 
     // Free the menu
     deinitMenu(pd->menu);
@@ -681,6 +693,35 @@ bool ICACHE_FLASH_ATTR personalDemonAnimationRender(void)
                                     OLED_WIDTH, FONT_HEIGHT_IBMVGA8 + healthPxCovered,
                                     BLACK);
                 }
+
+                // Draw a column of statuses
+                int16_t statusY = FONT_HEIGHT_IBMVGA8 + 1;
+
+                // Draw a happy or sad face
+                if(pd->ledHappy > 0)
+                {
+                    drawPng(&(pd->happy), 0, statusY, false, false, 0);
+                    statusY += (pd->happy.height + 1);
+                }
+                else if(pd->ledHappy < 0)
+                {
+                    drawPng(&(pd->sad), 0, statusY, false, false, 0);
+                    statusY += (pd->sad.height + 1);
+                }
+
+                // Draw a cross if the demon is sick
+                if(pd->drawSick)
+                {
+                    drawPng(&(pd->cross), 0, statusY, false, false, 0);
+                    statusY += (pd->cross.height + 1);
+                }
+
+                // Draw an angry symbol if the demon is angry
+                if(pd->ledDiscipline < -1)
+                {
+                    drawPng(&(pd->angry), 0, statusY, false, false, 0);
+                    statusY += (pd->angry.height + 1);
+                }
             }
 
             // Draw the menu text for this screen
@@ -914,6 +955,7 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_NOT_PLAYING);
+            ets_snprintf(marquee->str, ACT_STRLEN, "%s is too angry to play. ", pd->demon.name);
             break;
         }
         case EVT_SCOLD:
@@ -1071,7 +1113,7 @@ bool ICACHE_FLASH_ATTR updtAnimWalk(uint32_t tElapsed)
             pd->demonDirLR = false;
         }
 
-        if(pd->demonX <= 0)
+        if(pd->demonX <= pd->happy.width)
         {
             pd->demonDirLR = true;
         }
@@ -2040,5 +2082,5 @@ void ICACHE_FLASH_ATTR drawAnimBirthday(void)
 {
     // Draw the demon
     drawAnimDemon();
-    drawPng(&(pd->cake), pd->demonX - pd->cake.width - 4, (OLED_HEIGHT - pd->cake.height) / 2, false, false, 0);
+    drawPng(&(pd->cake), pd->demonX - pd->cake.width - 2, (OLED_HEIGHT - pd->cake.height) / 2, false, false, 0);
 }
