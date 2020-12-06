@@ -652,9 +652,9 @@ void ICACHE_FLASH_ATTR danceFire(uint32_t tElapsedUs, uint32_t arg, bool reset)
     bool ledsUpdated = false;
 
     tAccumulated += tElapsedUs;
-    while(tAccumulated >= 100000)
+    while(tAccumulated >= 75000)
     {
-        tAccumulated -= 100000;
+        tAccumulated -= 75000;
         ledsUpdated = true;
 
         uint8_t randC;
@@ -670,21 +670,21 @@ void ICACHE_FLASH_ATTR danceFire(uint32_t tElapsedUs, uint32_t arg, bool reset)
         leds[5].b = (randC * ARG_B(arg)) / 256;
 
         // Mid
-        randC = danceRand(60) + 30;
+        randC = danceRand(32) + 16;
         leds[1].r = (randC * ARG_R(arg)) / 256;
         leds[1].g = (randC * ARG_G(arg)) / 256;
         leds[1].b = (randC * ARG_B(arg)) / 256;
-        randC = danceRand(60) + 30;
+        randC = danceRand(32) + 16;
         leds[4].r = (randC * ARG_R(arg)) / 256;
         leds[4].g = (randC * ARG_G(arg)) / 256;
         leds[4].b = (randC * ARG_B(arg)) / 256;
 
         // Tip
-        randC = danceRand(30) + 10;
+        randC = danceRand(16) + 4;
         leds[2].r = (randC * ARG_R(arg)) / 256;
         leds[2].g = (randC * ARG_G(arg)) / 256;
         leds[2].b = (randC * ARG_B(arg)) / 256;
-        randC = danceRand(30) + 10;
+        randC = danceRand(16) + 4;
         leds[3].r = (randC * ARG_R(arg)) / 256;
         leds[3].g = (randC * ARG_G(arg)) / 256;
         leds[3].b = (randC * ARG_B(arg)) / 256;
@@ -976,9 +976,9 @@ void ICACHE_FLASH_ATTR danceChristmas(uint32_t tElapsedUs, uint32_t arg, bool re
 
     // Run a faster loop for LED brightness updates, this gives a twinkling effect
     tAccumulatedValue += tElapsedUs;
-    while(tAccumulatedValue > 1500)
+    while(tAccumulatedValue > 3500)
     {
-        tAccumulatedValue -= 1500;
+        tAccumulatedValue -= 3500;
 
         uint8_t i;
         for(i = 0; i < NUM_LIN_LEDS; i++)
