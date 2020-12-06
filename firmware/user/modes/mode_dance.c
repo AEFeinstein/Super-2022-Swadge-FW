@@ -657,30 +657,37 @@ void ICACHE_FLASH_ATTR danceFire(uint32_t tElapsedUs, uint32_t arg, bool reset)
         tAccumulated -= 100000;
         ledsUpdated = true;
 
-        uint8_t base = danceRand(120) + 135;
-        uint8_t mid = danceRand(80) + 80;
-        uint8_t tip = danceRand(50) + 40;
+        uint8_t randC;
 
-        leds[0].r = (base * ARG_R(arg)) / 256;
-        leds[0].g = (base * ARG_G(arg)) / 256;
-        leds[0].b = (base * ARG_B(arg)) / 256;
-        leds[5].r = leds[0].r;
-        leds[5].g = leds[0].g;
-        leds[5].b = leds[0].b;
+        // Base
+        randC = danceRand(105) + 150;
+        leds[0].r = (randC * ARG_R(arg)) / 256;
+        leds[0].g = (randC * ARG_G(arg)) / 256;
+        leds[0].b = (randC * ARG_B(arg)) / 256;
+        randC = danceRand(105) + 150;
+        leds[5].r = (randC * ARG_R(arg)) / 256;
+        leds[5].g = (randC * ARG_G(arg)) / 256;
+        leds[5].b = (randC * ARG_B(arg)) / 256;
 
-        leds[1].r = (mid * ARG_R(arg)) / 256;
-        leds[1].g = (mid * ARG_G(arg)) / 256;
-        leds[1].b = (mid * ARG_B(arg)) / 256;
-        leds[4].r = leds[1].r;
-        leds[4].g = leds[1].g;
-        leds[4].b = leds[1].b;
+        // Mid
+        randC = danceRand(60) + 30;
+        leds[1].r = (randC * ARG_R(arg)) / 256;
+        leds[1].g = (randC * ARG_G(arg)) / 256;
+        leds[1].b = (randC * ARG_B(arg)) / 256;
+        randC = danceRand(60) + 30;
+        leds[4].r = (randC * ARG_R(arg)) / 256;
+        leds[4].g = (randC * ARG_G(arg)) / 256;
+        leds[4].b = (randC * ARG_B(arg)) / 256;
 
-        leds[2].r = (tip * ARG_R(arg)) / 256;
-        leds[2].g = (tip * ARG_G(arg)) / 256;
-        leds[2].b = (tip * ARG_B(arg)) / 256;
-        leds[3].r = leds[2].r;
-        leds[3].g = leds[2].g;
-        leds[3].b = leds[2].b;
+        // Tip
+        randC = danceRand(30) + 10;
+        leds[2].r = (randC * ARG_R(arg)) / 256;
+        leds[2].g = (randC * ARG_G(arg)) / 256;
+        leds[2].b = (randC * ARG_B(arg)) / 256;
+        randC = danceRand(30) + 10;
+        leds[3].r = (randC * ARG_R(arg)) / 256;
+        leds[3].g = (randC * ARG_G(arg)) / 256;
+        leds[3].b = (randC * ARG_B(arg)) / 256;
     }
     if(ledsUpdated)
     {
