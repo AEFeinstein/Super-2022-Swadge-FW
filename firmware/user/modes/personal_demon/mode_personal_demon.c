@@ -5,6 +5,7 @@
 #include <osapi.h>
 #include <mem.h>
 #include <user_interface.h>
+#include <math.h>
 #include "mode_personal_demon.h"
 #include "assets.h"
 #include "oled.h"
@@ -909,7 +910,7 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         case EVT_LOST_DISCIPLINE:
         {
             // TODO Animate getting rowdy?
-            ets_snprintf(marquee->str, ACT_STRLEN, "%s got rowdy. ", pd->demon.name);
+            ets_snprintf(marquee->str, ACT_STRLEN, "%s got unruly. ", pd->demon.name);
             break;
         }
         case EVT_EAT:
@@ -935,7 +936,7 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_NOT_EATING);
-            ets_snprintf(marquee->str, ACT_STRLEN, "%s is too rowdy eat. ", pd->demon.name);
+            ets_snprintf(marquee->str, ACT_STRLEN, "%s is too unruly eat. ", pd->demon.name);
             break;
         }
         case EVT_NO_EAT_FULL:
@@ -955,7 +956,7 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_NOT_PLAYING);
-            ets_snprintf(marquee->str, ACT_STRLEN, "%s is too angry to play. ", pd->demon.name);
+            ets_snprintf(marquee->str, ACT_STRLEN, "%s is too unruly to play. ", pd->demon.name);
             break;
         }
         case EVT_SCOLD:
@@ -1543,11 +1544,23 @@ void ICACHE_FLASH_ATTR drawAnimFlush(void)
 void ICACHE_FLASH_ATTR initAnimPlaying(void)
 {
     pd->demonDirLR = false;
-    pd->ballX = -pd->ball.width;
-    pd->ballY = (OLED_HEIGHT / 2) - ((pd->ball.width / 2) / 2);
 
-    pd->ballVelX = 41; // Pixels per second
-    pd->ballVelY = 29;
+    // Start the ball somewhere valid, right off the screen
+    pd->ballX = -pd->ball.width;
+    pd->ballY = FONT_HEIGHT_IBMVGA8 + 1 + (os_random() % (OLED_HEIGHT - pd->ball.height - (2 * (FONT_HEIGHT_IBMVGA8 + 1))));
+
+    // Get an angle between 30 and 90 degrees
+    float angle = 30 + os_random() % 60;
+
+    // Point the ball at that angle
+    pd->ballVelX = 64 * cosf(angle); // Pixels per second
+    pd->ballVelY = 64 * sinf(angle);
+
+    // Coin flip if the ball starts up or down
+    if(os_random() % 2)
+    {
+        pd->ballVelY = -pd->ballVelY;
+    }
     pd->handRot = 0;
 }
 
