@@ -41,7 +41,7 @@
 #define HAPPINESS_LOST_PER_STANDING_POOP         5 ///< Being around poop decreases happiness
 #define HAPPINESS_LOST_PER_SCOLDING              6 ///< Scolding decreases happiness
 
-// TODO once a demon gets unruly, its hard to get it back on track, cascading effect. unruly->refuse stuff->unhappy->unruly
+// TODO once a demon loses discipline, its hard to get it back on track, cascading effect. (no discipline)->refuse stuff->unhappy->(no discipline)
 #define DISCIPLINE_GAINED_PER_SCOLDING 4 ///< Scolding increases discipline
 #define DISCIPLINE_LOST_RANDOMLY       2 ///< Discipline is randomly lost
 
@@ -58,7 +58,7 @@
 bool eatFood(demon_t* pd);
 void feedDemon(demon_t* pd);
 void playWithDemon(demon_t* pd);
-void disciplineDemon(demon_t* pd);
+void scoldDemon(demon_t* pd);
 bool disciplineCheck(demon_t* pd);
 void medicineDemon(demon_t* pd);
 void flushPoop(demon_t* pd);
@@ -89,7 +89,7 @@ void ICACHE_FLASH_ATTR feedDemon(demon_t* pd)
         // Get a bit hungrier
         INC_BOUND(pd->hunger, HUNGER_GAINED_PER_MEDICINE,  INT32_MIN, INT32_MAX);
     }
-    // If the demon is unruly, it may refuse to eat
+    // If the demon has no discipline, it may refuse to eat
     else if (disciplineCheck(pd))
     {
         if(os_random() % 2 == 0)
@@ -203,12 +203,12 @@ void ICACHE_FLASH_ATTR playWithDemon(demon_t* pd)
  *
  * @param pd The demon
  */
-void ICACHE_FLASH_ATTR disciplineDemon(demon_t* pd)
+void ICACHE_FLASH_ATTR scoldDemon(demon_t* pd)
 {
-    // Count discipline as an action
+    // Count scolding as an action
     INC_BOUND(pd->actionsTaken, 1, 0, INT16_MAX);
 
-    // Discipline always reduces happiness
+    // scolding always reduces happiness
     INC_BOUND(pd->happy, -HAPPINESS_LOST_PER_SCOLDING,  INT32_MIN, INT32_MAX);
 
     // Discipline only increases if the demon is not sick
@@ -229,7 +229,7 @@ void ICACHE_FLASH_ATTR disciplineDemon(demon_t* pd)
 /**
  * @brief
  *
- * @return true if the demon is being unruly (won't take action)
+ * @return true if the demon has no discipline (won't take action)
  */
 bool ICACHE_FLASH_ATTR disciplineCheck(demon_t* pd)
 {
@@ -351,9 +351,36 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
     }
 
     // The demon randomly gets sick
-    if (os_random() % 12 == 0)
+    switch (pd->age)
     {
-        enqueueEvt(pd, EVT_GOT_SICK_RANDOMLY);
+        default:
+        case AGE_CHILD:
+        {
+            // Kids are the healthiest
+            if (os_random() % 14 == 0)
+            {
+                enqueueEvt(pd, EVT_GOT_SICK_RANDOMLY);
+            }
+            break;
+        }
+        case AGE_TEEN:
+        {
+            // Teens are a little sicker
+            if (os_random() % 12 == 0)
+            {
+                enqueueEvt(pd, EVT_GOT_SICK_RANDOMLY);
+            }
+            break;
+        }
+        case AGE_ADULT:
+        {
+            // Adults are the sickest
+            if (os_random() % 10 == 0)
+            {
+                enqueueEvt(pd, EVT_GOT_SICK_RANDOMLY);
+            }
+            break;
+        }
     }
 
     /***************************************************************************
@@ -546,8 +573,8 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
                 }
                 case AGE_TEEN:
                 {
-                    // Rebellious teenage years lose triple discipline
-                    INC_BOUND(pd->discipline, 3 * -DISCIPLINE_LOST_RANDOMLY,  INT32_MIN, INT32_MAX);
+                    // Rebellious teenage years lose 1.5x discipline
+                    INC_BOUND(pd->discipline, (3 * -DISCIPLINE_LOST_RANDOMLY) / 2,  INT32_MIN, INT32_MAX);
                     break;
                 }
                 case AGE_ADULT:
@@ -597,7 +624,7 @@ bool ICACHE_FLASH_ATTR takeAction(demon_t* pd, action_t action)
         }
         case ACT_DISCIPLINE:
         {
-            disciplineDemon(pd);
+            scoldDemon(pd);
             break;
         }
         case ACT_MEDICINE:
