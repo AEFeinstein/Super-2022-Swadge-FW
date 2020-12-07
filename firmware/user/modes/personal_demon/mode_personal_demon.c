@@ -1549,12 +1549,12 @@ void ICACHE_FLASH_ATTR initAnimPlaying(void)
     pd->ballX = -pd->ball.width;
     pd->ballY = FONT_HEIGHT_IBMVGA8 + 1 + (os_random() % (OLED_HEIGHT - pd->ball.height - (2 * (FONT_HEIGHT_IBMVGA8 + 1))));
 
-    // Get an angle between 30 and 90 degrees
-    float angle = 30 + os_random() % 60;
+    // Get an angle between 45 and 90 degrees
+    float angle =  (M_PI * (45 + os_random(45))) / 180.0f;
 
     // Point the ball at that angle
-    pd->ballVelX = 64 * cosf(angle); // Pixels per second
-    pd->ballVelY = 64 * sinf(angle);
+    pd->ballVelX = 72 * sinf(angle); // Pixels per second
+    pd->ballVelY = 72 * cosf(angle);
 
     // Coin flip if the ball starts up or down
     if(os_random() % 2)
