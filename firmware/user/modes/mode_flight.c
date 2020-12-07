@@ -73,7 +73,7 @@ typedef struct
     int16_t indices_and_vertices[1];
 } tdModel;
 
-#define MAXRINGS 30
+#define MAXRINGS 15
 
 typedef enum
 {
@@ -366,16 +366,16 @@ static void ICACHE_FLASH_ATTR flightStartGame(flGameType type)
     flight->frames = 0;
 
 
-    flight->planeloc[0] = 800;
-    flight->planeloc[1] = 400;
-    flight->planeloc[2] = -500;
+    flight->planeloc[0] = 24*48;
+    flight->planeloc[1] = 18*48; //Start pos * 48 since 48 is the fixed scale.
+    flight->planeloc[2] = 60*48;
     flight->ondonut = 0; //SEt to 14 to b-line it to the end 
     flight->beans = 0;
     flight->timer = 0;
     flight->wintime = 0;
     flight->speed = 0;
-    flight->hpr[0] = 0;
-    flight->hpr[1] = 0;
+    flight->hpr[0] = 2061;
+    flight->hpr[1] = 190;
     flight->hpr[2] = 0;
     flight->pitchmoment = 0;
     flight->yawmoment = 0;
@@ -992,7 +992,6 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
         clearDisplay();
         tdRotateEA( ProjectionMatrix, tflight->hpr[1]/16, tflight->hpr[0]/16, 0 );
         tdTranslate( ModelviewMatrix, -tflight->planeloc[0], -tflight->planeloc[1], -tflight->planeloc[2] );
-
 
         struct ModelRangePair mrp[tflight->enviromodels];
         int mdlct = 0;
