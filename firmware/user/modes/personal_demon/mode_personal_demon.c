@@ -1550,7 +1550,7 @@ void ICACHE_FLASH_ATTR initAnimPlaying(void)
     pd->ballY = FONT_HEIGHT_IBMVGA8 + 1 + (os_random() % (OLED_HEIGHT - pd->ball.height - (2 * (FONT_HEIGHT_IBMVGA8 + 1))));
 
     // Get an angle between 45 and 90 degrees
-    float angle =  (M_PI * (45 + os_random(45))) / 180.0f;
+    float angle =  (M_PI * (45 + (os_random() % 45))) / 180.0f;
 
     // Point the ball at that angle
     pd->ballVelX = 72 * sinf(angle); // Pixels per second

@@ -258,8 +258,8 @@ bool ICACHE_FLASH_ATTR selfTestRenderTask(void)
         passedTests++;
     }
 
-    // If the mic heard something loud, plot that
-    if(maxEnergy > 40000)
+    // If the mic heard something loud, plot that (tuned to running a thumb over the mic)
+    if(maxEnergy > 20000)
     {
         plotText(0, FONT_HEIGHT_TOMTHUMB + FONT_HEIGHT_IBMVGA8 + 4, "MIC OK", IBM_VGA_8, WHITE);
         passedTests++;
