@@ -23,6 +23,7 @@
 #include <osapi.h>
 #include <mem.h>
 #include <stdint.h>
+#include <user_interface.h>
 
 #include "user_main.h"
 #include "embeddednf.h"
@@ -145,6 +146,7 @@ static void ICACHE_FLASH_ATTR flightLEDAnimate( flLEDAnimation anim );
 static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int faces, const uint16_t * indices, const int16_t * vertices, int indices_per_face /* 2= lines 3= tris */ );
 int ICACHE_FLASH_ATTR tdModelVisibilitycheck( const tdModel * m );
 void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m );
+void iplotRectB( int x1, int y1, int x2, int y2 );
 
 //Forward libc declarations.
 void qsort(void *base, size_t nmemb, size_t size,
