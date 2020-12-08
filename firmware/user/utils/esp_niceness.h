@@ -6,9 +6,6 @@ void rom_i2c_writeReg_Mask(uint8_t block, uint8_t host_id, uint8_t reg_add, uint
 void read_sar_dout(uint16_t* );
 uint32_t xthal_get_ccount(void);
 char* ets_strcat(char* dest, const char* src);
-uint32_t system_get_rtc_time(void); //XXX TESTME (note, probably inaccurate, will also need system_rtc_clock_cali_proc) "If system_get_rtc_time returns 10 (which means 10 RTC cycles), and system_rtc_clock_cali_proc returns 5.75 (which means 5.75 μs per RTC cycle), the real time is 10 x 5.75 = 57.5 μs.
-uint32_t hw_timer_get_count_data(void); //XXX TESTME
-uint32_t system_get_time(void); //time in microseconds maybe?
 
 // Redefine common functions as their ESP equivalents
 #define bzero ets_bzero
