@@ -47,6 +47,12 @@
 
 #define FLIGHT_UPDATE_MS 33
 
+//XXX TODO: Refactor - these should probably be unified.
+#define MAXRINGS 15
+#define MAX_DONUTS 14
+#define MAX_BEANS 69
+
+
 typedef enum
 {
     FL_PERFTEST,
@@ -73,7 +79,6 @@ typedef struct
     int16_t indices_and_vertices[1];
 } tdModel;
 
-#define MAXRINGS 30
 
 typedef enum
 {
@@ -90,7 +95,7 @@ typedef struct
     flightModeScreen mode;
 
     timer_t updateTimer;
-    int frames;
+    int frames, tframes;
     uint8_t buttonState;
     flGameType type;
 
@@ -109,7 +114,8 @@ typedef struct
 
     int beans;
     int ondonut;
-    int timer;
+    uint32_t timeOfStart;
+    uint32_t timeGot100Percent;
     int wintime;
 
     flLEDAnimation ledAnimation;
@@ -177,7 +183,15 @@ static const char fl_quit[]   = "QUIT";
  * Functions
  *==========================================================================*/
 
-
+void iplotRectB( int x1, int y1, int x2, int y2 )
+{
+	int x;
+	for( ; y1 < y2; y1++ )
+	for( x = x1; x < x2; x++ )
+	{
+		drawPixelUnsafeBlack( x, y1 );
+	}
+}
 
 
 
@@ -366,16 +380,19 @@ static void ICACHE_FLASH_ATTR flightStartGame(flGameType type)
     flight->frames = 0;
 
 
-    flight->planeloc[0] = 800;
-    flight->planeloc[1] = 400;
-    flight->planeloc[2] = -500;
     flight->ondonut = 0; //SEt to 14 to b-line it to the end 
     flight->beans = 0;
-    flight->timer = 0;
+    flight->timeOfStart = system_get_time();//-1000000*190; (Do this to force extra coursetime)
+	flight->timeGot100Percent = 0;
     flight->wintime = 0;
     flight->speed = 0;
-    flight->hpr[0] = 0;
-    flight->hpr[1] = 0;
+
+	//Starting location/orientation
+    flight->planeloc[0] = 24*48;
+    flight->planeloc[1] = 18*48; //Start pos * 48 since 48 is the fixed scale.
+    flight->planeloc[2] = 60*48;
+    flight->hpr[0] = 2061;
+    flight->hpr[1] = 190;
     flight->hpr[2] = 0;
     flight->pitchmoment = 0;
     flight->yawmoment = 0;
@@ -889,6 +906,7 @@ int mdlctcmp( const void * va, const void * vb )
 static bool ICACHE_FLASH_ATTR flightRender(void)
 {
     flight_t * tflight = flight;
+	tflight->tframes++;
     if( tflight->mode != FLIGHT_GAME && tflight->mode != FLIGHT_GAME_OVER ) return false;
 
     // First clear the OLED
@@ -993,7 +1011,6 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
         tdRotateEA( ProjectionMatrix, tflight->hpr[1]/16, tflight->hpr[0]/16, 0 );
         tdTranslate( ModelviewMatrix, -tflight->planeloc[0], -tflight->planeloc[1], -tflight->planeloc[2] );
 
-
         struct ModelRangePair mrp[tflight->enviromodels];
         int mdlct = 0;
 
@@ -1040,11 +1057,11 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
                 if( label == 999 ) //gazebo
                 {
                     draw = 1;
-                    if( flight->mode != FLIGHT_GAME_OVER && tdDist( tflight->planeloc, m->center ) < 200 && tflight->ondonut == 14)
+                    if( flight->mode != FLIGHT_GAME_OVER && tdDist( tflight->planeloc, m->center ) < 200 && tflight->ondonut == MAX_DONUTS)
                     {
                         flightLEDAnimate( FLIGHT_LED_ENDING );
                         tflight->frames = 0;
-                        tflight->wintime = tflight->timer;
+                        tflight->wintime = (system_get_time() - tflight->timeOfStart)/10000;
                         tflight->mode = FLIGHT_GAME_OVER;
                     }
                 }
@@ -1080,7 +1097,7 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
                 }
                 if( label == 999 ) //gazebo
                 {
-                    draw = (tflight->ondonut==14)?2:1; //flash on last donut.
+                    draw = (tflight->ondonut==MAX_DONUTS)?2:1; //flash on last donut.
                 }
             }
 
@@ -1160,9 +1177,14 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
     {
         char framesStr[32] = {0};
         //ets_snprintf(framesStr, sizeof(framesStr), "%02x %dus", tflight->buttonState, (stop-start)/160);
-        ets_snprintf(framesStr, sizeof(framesStr), "%d %d %d", tflight->ondonut, tflight->beans, tflight->timer );
+		int elapsed = (system_get_time()-tflight->timeOfStart)/10000;
+        ets_snprintf(framesStr, sizeof(framesStr), "%2d/%2d %2d", tflight->ondonut, MAX_DONUTS, tflight->beans );
+		iplotRectB(0, 0, 33, 7 );
+        plotText(1, 1, framesStr,TOM_THUMB /*IBM_VGA_8*/, WHITE);
 
-        plotText(1, 1, framesStr, TOM_THUMB, WHITE);
+		ets_snprintf(framesStr, sizeof(framesStr), "%3d.%02d", elapsed/100, elapsed%100 );
+		iplotRectB(79, 0, 128, 12 );
+        plotText(80, 1, framesStr, IBM_VGA_8, WHITE);
     }
     else
     {
@@ -1170,11 +1192,20 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
         //ets_snprintf(framesStr, sizeof(framesStr), "%02x %dus", tflight->buttonState, (stop-start)/160);
         ets_snprintf(framesStr, sizeof(framesStr), "YOU  WIN:" );
         plotText(20, 0, framesStr, RADIOSTARS, WHITE);
-        ets_snprintf(framesStr, sizeof(framesStr), "TIME:%5d", tflight->wintime );
-        plotText(20, 20, framesStr, RADIOSTARS, WHITE);
-        ets_snprintf(framesStr, sizeof(framesStr), "BEANS:%3d",tflight->beans );
-        plotText(20, 40, framesStr, RADIOSTARS, WHITE);
+        ets_snprintf(framesStr, sizeof(framesStr), "TIME:%d.%02d", tflight->wintime/100,tflight->wintime%100 );
+        plotText((tflight->wintime>10000)?14:20, 18, framesStr, RADIOSTARS, WHITE);
+        ets_snprintf(framesStr, sizeof(framesStr), "BEANS:%2d",tflight->beans );
+        plotText(20, 36, framesStr, RADIOSTARS, WHITE);
     }
+
+	if( tflight->beans >= MAX_BEANS )
+	{
+		if( tflight->timeGot100Percent == 0 )
+			tflight->timeGot100Percent = (system_get_time() - tflight->timeOfStart);
+
+		int crazy = ((system_get_time() - tflight->timeOfStart)-tflight->timeGot100Percent) < 3000000;
+        plotText(10, 52, "100% 100% 100%", IBM_VGA_8, crazy?( tflight->tframes & 1)?WHITE:BLACK:WHITE );
+	}
 
     //If perf test, force full frame refresh
     //Otherwise, don't force full-screen refresh
@@ -1247,8 +1278,6 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
     tflight->planeloc[0] += (tflight->speed * tdSIN( tflight->hpr[0]/16 ) )>>FLIGHT_SPEED_DEC;
     tflight->planeloc[2] += (tflight->speed * tdCOS( tflight->hpr[0]/16 ) )>>FLIGHT_SPEED_DEC;
     tflight->planeloc[1] -= (tflight->speed * tdSIN( tflight->hpr[1]/16 ) )>>FLIGHT_SPEED_DEC;
-
-    flight->timer++;
 }
 
 /**
