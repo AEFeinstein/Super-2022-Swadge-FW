@@ -24,7 +24,9 @@
 #include <mem.h>
 #include <stdint.h>
 #include <user_interface.h>
+#include "text_entry.h"
 
+#include "nvm_interface.h"
 #include "user_main.h"
 #include "embeddednf.h"
 #include "oled.h"
@@ -67,6 +69,8 @@ typedef enum
     FLIGHT_MENU,
     FLIGHT_GAME,
     FLIGHT_GAME_OVER,
+    FLIGHT_HIGH_SCORE_ENTRY,
+    FLIGHT_SHOW_HIGH_SCORES,
 } flightModeScreen;
 
 typedef struct
@@ -118,9 +122,12 @@ typedef struct
     uint32_t timeOfStart;
     uint32_t timeGot100Percent;
     int wintime;
+    bool inverty;
 
     flLEDAnimation ledAnimation;
     uint8_t        ledAnimationTime;
+
+    char highScoreNameBuffer[FLIGHT_HIGH_SCORE_NAME_LEN+1];
 
     uint8_t beangotmask[MAXRINGS];
 } flight_t;
@@ -146,6 +153,10 @@ static void ICACHE_FLASH_ATTR flightLEDAnimate( flLEDAnimation anim );
 static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int faces, const uint16_t * indices, const int16_t * vertices, int indices_per_face /* 2= lines 3= tris */ );
 int ICACHE_FLASH_ATTR tdModelVisibilitycheck( const tdModel * m );
 void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m );
+static int ICACHE_FLASH_ATTR flightTimeHighScorePlace( int wintime, bool is100percent );
+static void ICACHE_FLASH_ATTR flightTimeHighScoreInsert( int insertplace, bool is100percent, char * name, int timeCentiseconds );
+void ICACHE_FLASH_ATTR flightRefreshMenu(void);
+
 void iplotRectB( int x1, int y1, int x2, int y2 );
 
 //Forward libc declarations.
@@ -179,6 +190,9 @@ static const char fl_title[]  = "Flightsim";
 // static const char fl_flight_perf[] = "PERF";
 // static const char fl_flight_triangles[] = "TRIS";
 static const char fl_flight_env[] = "Take Flight";
+static const char fl_flight_invertY0_env[] = "INVERT Y";
+static const char fl_flight_invertY1_env[] = "Y INVERTED";
+static const char fl_highscores[] = "HIGH SCORES";
 static const char fl_quit[]   = "QUIT";
 
 /*============================================================================
@@ -187,12 +201,12 @@ static const char fl_quit[]   = "QUIT";
 
 void iplotRectB( int x1, int y1, int x2, int y2 )
 {
-	int x;
-	for( ; y1 < y2; y1++ )
-	for( x = x1; x < x2; x++ )
-	{
-		drawPixelUnsafeBlack( x, y1 );
-	}
+    int x;
+    for( ; y1 < y2; y1++ )
+    for( x = x1; x < x2; x++ )
+    {
+        drawPixelUnsafeBlack( x, y1 );
+    }
 }
 
 
@@ -230,6 +244,31 @@ static const uint16_t IsoSphereIndices[] RODATA_ATTR = { /* 120 line segments */
         };
 
 
+/**
+ * Re-setup the main flight menu.
+ */
+void ICACHE_FLASH_ATTR flightRefreshMenu(void)
+{
+    flight->menu = initMenu(fl_title, flightMenuCb);
+    addRowToMenu(flight->menu);
+    // addItemToRow(flight->menu, fl_flight_perf);
+    // addItemToRow(flight->menu, fl_flight_triangles);
+    addItemToRow(flight->menu, fl_flight_env);
+    addRowToMenu(flight->menu);
+    addItemToRow(flight->menu, fl_quit);
+
+    addRowToMenu(flight->menu);
+    addItemToRow(flight->menu, 
+        getFlightSaveData()->flightInvertY?
+            fl_flight_invertY1_env:
+            fl_flight_invertY0_env );
+
+    addRowToMenu(flight->menu);
+    addItemToRow(flight->menu, fl_highscores );
+
+    drawMenu(flight->menu);
+}
+
 
 /**
  * Initializer for flight
@@ -257,15 +296,7 @@ void ICACHE_FLASH_ATTR flightEnterMode(void)
         }
     }
 
-    flight->menu = initMenu(fl_title, flightMenuCb);
-    addRowToMenu(flight->menu);
-    // addItemToRow(flight->menu, fl_flight_perf);
-    // addItemToRow(flight->menu, fl_flight_triangles);
-    addItemToRow(flight->menu, fl_flight_env);
-    addRowToMenu(flight->menu);
-    addItemToRow(flight->menu, fl_quit);
-    drawMenu(flight->menu);
-
+    flightRefreshMenu();
 
     timerDisarm(&(flight->updateTimer));
     timerSetFn(&(flight->updateTimer), flightUpdate, NULL);
@@ -305,6 +336,25 @@ static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem)
     {
         flightStartGame(FL_ENV);
     }
+    else if ( fl_flight_invertY0_env == menuItem )
+    {
+        flightSimSaveData_t * sd = getFlightSaveData();
+        sd->flightInvertY = 1;
+        setFlightSaveData( sd );        
+        flightRefreshMenu();
+    }
+    else if ( fl_flight_invertY1_env == menuItem )
+    {
+        flightSimSaveData_t * sd = getFlightSaveData();
+        sd->flightInvertY = 0;
+        setFlightSaveData( sd );
+        flightRefreshMenu();
+    }
+    else if ( fl_highscores == menuItem )
+    {
+        flight->mode = FLIGHT_SHOW_HIGH_SCORES;
+        flightRefreshMenu();
+    }
     else if (fl_quit == menuItem)
     {
         switchToSwadgeMode(0);
@@ -313,7 +363,15 @@ static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem)
 
 static void ICACHE_FLASH_ATTR flightEndGame()
 {
-    flight->mode = FLIGHT_MENU;
+    if( flightTimeHighScorePlace( flight->wintime, flight->beans == MAX_BEANS ) < NUM_FLIGHTSIM_TOP_SCORES )
+    {
+        flight->mode = FLIGHT_HIGH_SCORE_ENTRY;
+        textEntryStart( FLIGHT_HIGH_SCORE_NAME_LEN+1, flight->highScoreNameBuffer );
+    }
+    else
+    {
+        flight->mode = FLIGHT_MENU;
+    }
     //called when ending animation complete.
 }
 
@@ -382,14 +440,14 @@ static void ICACHE_FLASH_ATTR flightStartGame(flGameType type)
     flight->frames = 0;
 
 
-    flight->ondonut = 0; //SEt to 14 to b-line it to the end 
-    flight->beans = 0;
+    flight->ondonut = 0; //Set to 14 to b-line it to the end for testing.
+    flight->beans = 0; //Set to MAX_BEANS for 100% instant.
     flight->timeOfStart = system_get_time();//-1000000*190; (Do this to force extra coursetime)
-	flight->timeGot100Percent = 0;
+    flight->timeGot100Percent = 0;
     flight->wintime = 0;
     flight->speed = 0;
 
-	//Starting location/orientation
+    //Starting location/orientation
     flight->planeloc[0] = 24*48;
     flight->planeloc[1] = 18*48; //Start pos * 48 since 48 is the fixed scale.
     flight->planeloc[2] = 60*48;
@@ -399,6 +457,7 @@ static void ICACHE_FLASH_ATTR flightStartGame(flGameType type)
     flight->pitchmoment = 0;
     flight->yawmoment = 0;
 
+    flight->inverty = getFlightSaveData()->flightInvertY;
 
     ets_memset(flight->beangotmask, 0, sizeof( flight->beangotmask) );
 
@@ -412,6 +471,7 @@ static void ICACHE_FLASH_ATTR flightStartGame(flGameType type)
  */
 static void ICACHE_FLASH_ATTR flightUpdate(void* arg __attribute__((unused)))
 {
+    static const char * EnglishNumberSuffix[] = { "st", "nd", "rd", "th" };
     switch(flight->mode)
     {
         default:
@@ -432,6 +492,46 @@ static void ICACHE_FLASH_ATTR flightUpdate(void* arg __attribute__((unused)))
             flight->frames++;
             flightGameUpdate( flight );
             if( flight->frames > 200 ) flight->frames = 200; //Keep it at 200, so we can click any button to continue.
+            break;
+        }
+        case FLIGHT_SHOW_HIGH_SCORES:
+        {
+            clearDisplay();
+
+            char buffer[32];
+            flightSimSaveData_t * sd = getFlightSaveData();
+            int line;
+            for( line = 0; line < NUM_FLIGHTSIM_TOP_SCORES; line++ )
+            {
+                int anyp = 0;
+                ets_snprintf( buffer, sizeof(buffer), "%d%s", line+1, EnglishNumberSuffix[line] );
+                plotText( 3, (line+1)*10+10, buffer, TOM_THUMB, WHITE );
+
+                plotText( 20, 1, "ANY %", IBM_VGA_8, WHITE );
+                plotText( 84, 1, "100 %", IBM_VGA_8, WHITE );
+
+                for( anyp = 0; anyp < 2; anyp++ )
+                {
+                    int cs = sd->timeCentiseconds[line+anyp*NUM_FLIGHTSIM_TOP_SCORES];
+                    char * name = sd->displayName[line+anyp*NUM_FLIGHTSIM_TOP_SCORES];
+                    char namebuff[FLIGHT_HIGH_SCORE_NAME_LEN+1];    //Force pad of null.
+                    memcpy( namebuff, name, FLIGHT_HIGH_SCORE_NAME_LEN );
+                    namebuff[FLIGHT_HIGH_SCORE_NAME_LEN] = 0;
+                    ets_snprintf( buffer, sizeof(buffer), "%4s %3d.%02d", namebuff, cs/100,cs%100 );
+                    plotText( anyp?81:17, (line+1)*10+10, buffer, TOM_THUMB, WHITE );
+                }
+            }
+            break;
+        }
+        case FLIGHT_HIGH_SCORE_ENTRY:
+        {
+            int place = flightTimeHighScorePlace( flight->wintime, flight->beans >= MAX_BEANS );
+            textEntryDraw();
+
+            char placeStr[32] = {0};
+            ets_snprintf(placeStr, sizeof(placeStr), "%d%s %s", place + 1, EnglishNumberSuffix[place],
+                (flight->beans == MAX_BEANS)?"100%":"ANY%" );
+            plotText(65,2, placeStr, IBM_VGA_8, WHITE);
             break;
         }
     }
@@ -908,7 +1008,7 @@ int mdlctcmp( const void * va, const void * vb )
 static bool ICACHE_FLASH_ATTR flightRender(void)
 {
     flight_t * tflight = flight;
-	tflight->tframes++;
+    tflight->tframes++;
     if( tflight->mode != FLIGHT_GAME && tflight->mode != FLIGHT_GAME_OVER ) return false;
 
     // First clear the OLED
@@ -1053,7 +1153,6 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
                             tflight->beangotmask[beansec] |= (1<<((label-1000)%10));
                             flightLEDAnimate( FLIGHT_LED_BEAN );
                         }
-
                     }
                 }
                 if( label == 999 ) //gazebo
@@ -1179,13 +1278,13 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
     {
         char framesStr[32] = {0};
         //ets_snprintf(framesStr, sizeof(framesStr), "%02x %dus", tflight->buttonState, (stop-start)/160);
-		int elapsed = (system_get_time()-tflight->timeOfStart)/10000;
+        int elapsed = (system_get_time()-tflight->timeOfStart)/10000;
         ets_snprintf(framesStr, sizeof(framesStr), "%2d/%2d %2d", tflight->ondonut, MAX_DONUTS, tflight->beans );
-		iplotRectB(0, 0, 33, 7 );
+        iplotRectB(0, 0, 33, 7 );
         plotText(1, 1, framesStr,TOM_THUMB /*IBM_VGA_8*/, WHITE);
 
-		ets_snprintf(framesStr, sizeof(framesStr), "%3d.%02d", elapsed/100, elapsed%100 );
-		iplotRectB(79, 0, 128, 12 );
+        ets_snprintf(framesStr, sizeof(framesStr), "%3d.%02d", elapsed/100, elapsed%100 );
+        iplotRectB(79, 0, 128, 12 );
         plotText(80, 1, framesStr, IBM_VGA_8, WHITE);
     }
     else
@@ -1200,14 +1299,14 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
         plotText(20, 36, framesStr, RADIOSTARS, WHITE);
     }
 
-	if( tflight->beans >= MAX_BEANS )
-	{
-		if( tflight->timeGot100Percent == 0 )
-			tflight->timeGot100Percent = (system_get_time() - tflight->timeOfStart);
+    if( tflight->beans >= MAX_BEANS )
+    {
+        if( tflight->timeGot100Percent == 0 )
+            tflight->timeGot100Percent = (system_get_time() - tflight->timeOfStart);
 
-		int crazy = ((system_get_time() - tflight->timeOfStart)-tflight->timeGot100Percent) < 3000000;
+        int crazy = ((system_get_time() - tflight->timeOfStart)-tflight->timeGot100Percent) < 3000000;
         plotText(10, 52, "100% 100% 100%", IBM_VGA_8, crazy?( tflight->tframes & 1)?WHITE:BLACK:WHITE );
-	}
+    }
 
     //If perf test, force full frame refresh
     //Otherwise, don't force full-screen refresh
@@ -1225,14 +1324,14 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
     const int thruster_max = 40; //NOTE: thruster_max must be divisble by thruster_accel
     const int thruster_decay = 4;
     const int FLIGHT_SPEED_DEC = 10;
-    const int flight_max_speed = 50;
+    const int flight_max_speed = 70;
     const int flight_min_speed = 10;
 
     //If we're at the ending screen and the user presses a button end game.
     if( tflight->mode == FLIGHT_GAME_OVER && ( bs & 16 ) && flight->frames > 199 )
-	{
-		flightEndGame();
-	}
+    {
+        flightEndGame();
+    }
 
     if( tflight->mode == FLIGHT_GAME )
     {
@@ -1240,6 +1339,8 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
         if( bs & 4 ) dpitch -= thruster_accel;
         if( bs & 2 ) dyaw += thruster_accel;
         if( bs & 8 ) dyaw -= thruster_accel;
+
+        if( tflight->inverty ) dyaw *= -1;
 
         if( dpitch )
         {
@@ -1271,8 +1372,8 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
 
         if( bs & 16 ) tflight->speed++;
         else tflight->speed--;
-		if( tflight->speed < flight_min_speed ) tflight->speed = flight_min_speed;
-	    if( tflight->speed > flight_max_speed ) tflight->speed = flight_max_speed;
+        if( tflight->speed < flight_min_speed ) tflight->speed = flight_min_speed;
+        if( tflight->speed > flight_max_speed ) tflight->speed = flight_max_speed;
     }
 
     //If game over, just keep status quo.
@@ -1303,6 +1404,33 @@ void ICACHE_FLASH_ATTR flightButtonCallback( uint8_t state,
             }
             break;
         }
+        case FLIGHT_SHOW_HIGH_SCORES:
+        {
+            if( down )
+            {
+                //Return to main mode.
+                flight->mode = FLIGHT_MENU;
+            }
+            break;
+        }
+        case FLIGHT_HIGH_SCORE_ENTRY:
+        {
+            if( !textEntryInput( down, button ) )
+            {
+                //Actually insert high score.
+                textEntryEnd();
+                if( strlen( flight->highScoreNameBuffer ) )
+                {
+                    flightTimeHighScoreInsert(
+                        flightTimeHighScorePlace( flight->wintime, flight->beans == MAX_BEANS ),
+                        flight->beans == MAX_BEANS,
+                        flight->highScoreNameBuffer,
+                        flight->wintime );
+                }
+                flight->mode = FLIGHT_SHOW_HIGH_SCORES;
+            }
+            break;
+        }
         case FLIGHT_GAME_OVER:
         case FLIGHT_GAME:
         {
@@ -1314,4 +1442,61 @@ void ICACHE_FLASH_ATTR flightButtonCallback( uint8_t state,
     }
 }
 
+
+
+
+//Handling high scores.
+/**
+ *
+ * @param wintime in centiseconds
+ * @param whether this is a 100% run.
+ * @return place in top score list.  If 4, means not in top score list.
+ *
+ */
+static int ICACHE_FLASH_ATTR flightTimeHighScorePlace( int wintime, bool is100percent )
+{
+    flightSimSaveData_t * sd = getFlightSaveData();
+    int i;
+    for( i = 0; i < NUM_FLIGHTSIM_TOP_SCORES; i++ )
+    {
+        int cs = sd->timeCentiseconds[i+is100percent*NUM_FLIGHTSIM_TOP_SCORES];
+        if( !cs || cs > wintime ) break;
+    }
+    return i;
+}
+
+/**
+ *
+ * @param which winning slot to place player into
+ * @param whether this is a 100% run.
+ * @param display name for player (truncated to 
+ * @param wintime in centiseconds
+ *
+ */
+static void ICACHE_FLASH_ATTR flightTimeHighScoreInsert( int insertplace, bool is100percent, char * name, int timeCentiseconds )
+{
+    if( insertplace >= NUM_FLIGHTSIM_TOP_SCORES || insertplace < 0 ) return;
+
+    flightSimSaveData_t * sd = getFlightSaveData();
+    int i;
+    for( i = NUM_FLIGHTSIM_TOP_SCORES-1; i > insertplace; i-- )
+    {
+        memcpy( sd->displayName[i+is100percent*NUM_FLIGHTSIM_TOP_SCORES],
+            sd->displayName[(i-1)+is100percent*NUM_FLIGHTSIM_TOP_SCORES],
+            NUM_FLIGHTSIM_TOP_SCORES );
+        sd->timeCentiseconds[i+is100percent*NUM_FLIGHTSIM_TOP_SCORES] =
+            sd->timeCentiseconds[i-1+is100percent*NUM_FLIGHTSIM_TOP_SCORES];
+    }
+    int namelen = strlen( name );
+    if( namelen > FLIGHT_HIGH_SCORE_NAME_LEN ) namelen = FLIGHT_HIGH_SCORE_NAME_LEN;
+    memcpy( sd->displayName[insertplace+is100percent*NUM_FLIGHTSIM_TOP_SCORES],
+        name, namelen );
+
+    //Zero pad if less than 4 chars.
+    if( namelen < FLIGHT_HIGH_SCORE_NAME_LEN )
+        sd->displayName[insertplace+is100percent*NUM_FLIGHTSIM_TOP_SCORES][namelen] = 0;
+
+    sd->timeCentiseconds[insertplace+is100percent*NUM_FLIGHTSIM_TOP_SCORES] = timeCentiseconds;
+    setFlightSaveData( sd );
+}
 

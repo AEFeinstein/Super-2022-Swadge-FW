@@ -25,6 +25,20 @@ typedef struct
     int32_t actionsTaken;
 } demonMemorial_t;
 
+
+#define NUM_FLIGHTSIM_TOP_SCORES 4
+#define FLIGHT_HIGH_SCORE_NAME_LEN 4
+
+typedef struct
+{
+    //One set for any% one set for 100%
+    char displayName[NUM_FLIGHTSIM_TOP_SCORES*2][FLIGHT_HIGH_SCORE_NAME_LEN];
+    uint32_t timeCentiseconds[NUM_FLIGHTSIM_TOP_SCORES*2];
+    uint8_t flightInvertY;
+    uint8_t reserved;
+    uint16_t reserved2; //pad to 32 bit.
+} flightSimSaveData_t;
+
 void ICACHE_FLASH_ATTR LoadSettings( void );
 
 #if defined(FEATURE_BZR)
@@ -44,6 +58,9 @@ void ICACHE_FLASH_ATTR getDDRScores(ddrHighScores_t* highScores);
 
 demonMemorial_t* ICACHE_FLASH_ATTR getDemonMemorials(void);
 void ICACHE_FLASH_ATTR addDemonMemorial(char* name, int32_t actionsTaken);
+
+flightSimSaveData_t * ICACHE_FLASH_ATTR getFlightSaveData(void);
+void ICACHE_FLASH_ATTR setFlightSaveData( flightSimSaveData_t * t );
 
 void ICACHE_FLASH_ATTR setGitHash(char* hash);
 void ICACHE_FLASH_ATTR getGitHash(char* hash);
