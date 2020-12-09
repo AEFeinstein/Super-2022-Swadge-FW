@@ -676,6 +676,21 @@ bool ICACHE_FLASH_ATTR personalDemonAnimationRender(void)
             // Draw the menu text for this scene
             drawMenu(pd->menu);
 
+            // If something is animating, shade the menu to show it's frozen
+            if (pd->anim != PDA_WALKING)
+            {
+                for(int16_t x = 0; x < OLED_WIDTH; x++)
+                {
+                    for(int16_t y = 0; y < FONT_HEIGHT_IBMVGA8 + 4; y++)
+                    {
+                        if((x % 2) == (y % 2))
+                        {
+                            drawPixel(x, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 4 + y, BLACK);
+                        }
+                    }
+                }
+            }
+
             // Only draw health if the demon is alive
             if(pd->demon.health)
             {
