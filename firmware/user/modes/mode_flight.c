@@ -490,14 +490,15 @@ static void ICACHE_FLASH_ATTR flightUpdate(void* arg __attribute__((unused)))
             char buffer[32];
             flightSimSaveData_t * sd = getFlightSaveData();
             int line;
+
+            plotText( 20, 1, "ANY %", IBM_VGA_8, WHITE );
+            plotText( 84, 1, "100 %", IBM_VGA_8, WHITE );
+
             for( line = 0; line < NUM_FLIGHTSIM_TOP_SCORES; line++ )
             {
                 int anyp = 0;
                 ets_snprintf( buffer, sizeof(buffer), "%d%s", line+1, EnglishNumberSuffix[line] );
                 plotText( 3, (line+1)*10+10, buffer, TOM_THUMB, WHITE );
-
-                plotText( 20, 1, "ANY %", IBM_VGA_8, WHITE );
-                plotText( 84, 1, "100 %", IBM_VGA_8, WHITE );
 
                 for( anyp = 0; anyp < 2; anyp++ )
                 {
