@@ -435,8 +435,8 @@ void ICACHE_FLASH_ATTR plotSquareWave (int16_t x, int16_t y)
  */
 static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unused)))
 {
-    // Set the brightness to low
-    setDanceBrightness(1);
+    // Set the brightness to medium
+    setDanceBrightness(32);
 
     // Reset variables
     danceClearVars(mnu->menuScreensaverIdx);
@@ -450,7 +450,7 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
     mnu->drawOLEDScreensaver = false;
 
     // Start a timer to turn the screensaver brighter
-    timerArm(&mnu->timerScreensaverBright, 1000, false);
+    timerArm(&mnu->timerScreensaverBright, 3000, false);
 
     mnu->screensaverIsRunning = true;
 }
@@ -474,8 +474,8 @@ static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unu
 
     mnu->drawOLEDScreensaver = true;
 
-    // Set the brightness to medium
-    setDanceBrightness(0);
+    // Set the brightness to high
+    setDanceBrightness(1);
 }
 
 /**

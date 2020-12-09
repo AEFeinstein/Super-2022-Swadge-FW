@@ -61,13 +61,6 @@ void ICACHE_FLASH_ATTR danceChristmas(uint32_t tElapsedUs, uint32_t arg, bool re
  * Variables
  *==========================================================================*/
 
-static const uint8_t danceBrightnesses[] =
-{
-    0x01,
-    0x08,
-    0x40,
-};
-
 static const ledDanceArg ledDances[] =
 {
     {.func = danceComet, .arg = RGB_2_ARG(0xFF, 0, 0)},
@@ -96,7 +89,7 @@ static const ledDanceArg ledDances[] =
     {.func = danceRandomDance, .arg = 0},
 };
 
-uint8_t danceBrightnessIdx = 0;
+uint8_t danceBrightness = 1;
 
 /*============================================================================
  * Functions
@@ -119,15 +112,15 @@ void ICACHE_FLASH_ATTR danceClearVars(uint8_t idx)
 
 /** Set the brightness index
  *
- * @param brightness index into danceBrightnesses[]
+ * @param brightness LEDs get divided by this before being set
  */
 void ICACHE_FLASH_ATTR setDanceBrightness(uint8_t brightness)
 {
-    if(brightness > 2)
+    if (0 == brightness)
     {
-        brightness = 2;
+        brightness = 1;
     }
-    danceBrightnessIdx = brightness;
+    danceBrightness = brightness;
 }
 
 /** Intermediate function which adjusts brightness and sets the LEDs
@@ -137,14 +130,15 @@ void ICACHE_FLASH_ATTR setDanceBrightness(uint8_t brightness)
  */
 void ICACHE_FLASH_ATTR setDanceLeds(led_t* ledData, uint8_t ledDataLen)
 {
+    led_t ledDataTmp[ledDataLen / sizeof(led_t)];
     uint8_t i;
     for(i = 0; i < ledDataLen / sizeof(led_t); i++)
     {
-        ledData[i].r = ledData[i].r / danceBrightnesses[danceBrightnessIdx];
-        ledData[i].g = ledData[i].g / danceBrightnesses[danceBrightnessIdx];
-        ledData[i].b = ledData[i].b / danceBrightnesses[danceBrightnessIdx];
+        ledDataTmp[i].r = ledData[i].r / danceBrightness;
+        ledDataTmp[i].g = ledData[i].g / danceBrightness;
+        ledDataTmp[i].b = ledData[i].b / danceBrightness;
     }
-    setLeds(ledData, ledDataLen);
+    setLeds(ledDataTmp, ledDataLen);
 }
 
 /** Get a random number from a range.
