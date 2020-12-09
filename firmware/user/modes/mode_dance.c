@@ -30,6 +30,7 @@ typedef struct
 {
     ledDance func;
     uint32_t arg;
+    char* name;
 } ledDanceArg;
 
 #define RGB_2_ARG(r,g,b) ((((r)&0xFF) << 16) | (((g)&0xFF) << 8) | (((b)&0xFF)))
@@ -63,30 +64,30 @@ void ICACHE_FLASH_ATTR danceChristmas(uint32_t tElapsedUs, uint32_t arg, bool re
 
 static const ledDanceArg ledDances[] =
 {
-    {.func = danceComet, .arg = RGB_2_ARG(0xFF, 0, 0)},
-    {.func = danceComet, .arg = RGB_2_ARG(0, 0xFF, 0)},
-    {.func = danceComet, .arg = RGB_2_ARG(0, 0, 0xFF)},
-    {.func = danceComet, .arg = RGB_2_ARG(0, 0, 0)}, // This is rainbow
-    {.func = danceRise, .arg = RGB_2_ARG(0xFF, 0, 0)},
-    {.func = danceRise, .arg = RGB_2_ARG(0, 0xFF, 0)},
-    {.func = danceRise, .arg = RGB_2_ARG(0, 0, 0xFF)},
-    {.func = danceRise, .arg = RGB_2_ARG(0, 0, 0)}, // This is random
-    {.func = dancePulse, .arg = RGB_2_ARG(0xFF, 0, 0)},
-    {.func = dancePulse, .arg = RGB_2_ARG(0, 0xFF, 0)},
-    {.func = dancePulse, .arg = RGB_2_ARG(0, 0, 0xFF)},
-    {.func = dancePulse, .arg = RGB_2_ARG(0, 0, 0)}, // This is random
-    {.func = danceSharpRainbow, .arg = 0},
-    {.func = danceSmoothRainbow, .arg = 0},
-    {.func = danceRainbowSolid, .arg = 0},
-    {.func = danceFire, .arg = RGB_2_ARG(0xFF, 51, 0)},
-    {.func = danceFire, .arg = RGB_2_ARG(0, 0xFF, 51)},
-    {.func = danceFire, .arg = RGB_2_ARG(51, 0, 0xFF)},
-    {.func = danceBinaryCounter, .arg = 0},
-    {.func = dancePoliceSiren, .arg = 0},
-    {.func = dancePureRandom, .arg = 0},
-    {.func = danceChristmas, .arg = 1},
-    {.func = danceChristmas, .arg = 0},
-    {.func = danceRandomDance, .arg = 0},
+    {.func = danceComet, .arg = RGB_2_ARG(0xFF, 0, 0), .name = "Comet R"},
+    {.func = danceComet, .arg = RGB_2_ARG(0, 0xFF, 0), .name = "Comet G"},
+    {.func = danceComet, .arg = RGB_2_ARG(0, 0, 0xFF), .name = "Comet B"},
+    {.func = danceComet, .arg = RGB_2_ARG(0, 0, 0),    .name = "Comet RGB"},
+    {.func = danceRise,  .arg = RGB_2_ARG(0xFF, 0, 0), .name = "Rise R"},
+    {.func = danceRise,  .arg = RGB_2_ARG(0, 0xFF, 0), .name = "Rise R"},
+    {.func = danceRise,  .arg = RGB_2_ARG(0, 0, 0xFF), .name = "Rise B"},
+    {.func = danceRise,  .arg = RGB_2_ARG(0, 0, 0),    .name = "Rise RGB"},
+    {.func = dancePulse, .arg = RGB_2_ARG(0xFF, 0, 0), .name = "Pulse R"},
+    {.func = dancePulse, .arg = RGB_2_ARG(0, 0xFF, 0), .name = "Pulse G"},
+    {.func = dancePulse, .arg = RGB_2_ARG(0, 0, 0xFF), .name = "Pulse B"},
+    {.func = dancePulse, .arg = RGB_2_ARG(0, 0, 0),    .name = "Pulse RGB"},
+    {.func = danceSharpRainbow,  .arg = 0, .name = "Rainbow Sharp"},
+    {.func = danceSmoothRainbow, .arg = 0, .name = "Rainbow Smooth"},
+    {.func = danceRainbowSolid,  .arg = 0, .name = "Rainbow Solid"},
+    {.func = danceFire, .arg = RGB_2_ARG(0xFF, 51, 0), .name = "Fire R"},
+    {.func = danceFire, .arg = RGB_2_ARG(0, 0xFF, 51), .name = "Fire G"},
+    {.func = danceFire, .arg = RGB_2_ARG(51, 0, 0xFF), .name = "Fire B"},
+    {.func = danceBinaryCounter, .arg = 0, .name = "Binary"},
+    {.func = dancePoliceSiren,   .arg = 0, .name = "Siren"},
+    {.func = dancePureRandom,    .arg = 0, .name = "Random"},
+    {.func = danceChristmas,     .arg = 1, .name = "Holiday 1"},
+    {.func = danceChristmas,     .arg = 0, .name = "Holiday 2"},
+    {.func = danceRandomDance,   .arg = 0, .name = "???"},
 };
 
 uint8_t danceBrightness = 1;
@@ -100,6 +101,17 @@ uint8_t danceBrightness = 1;
 uint8_t ICACHE_FLASH_ATTR getNumDances(void)
 {
     return (sizeof(ledDances) / sizeof(ledDances[0]));
+}
+
+/**
+ * @brief Get the Dance Name
+ *
+ * @param idx  The index of the dance
+ * @return the dance name
+ */
+char* getDanceName(uint8_t idx)
+{
+    return ledDances[idx].name;
 }
 
 /** This is called to clear specific dance variables

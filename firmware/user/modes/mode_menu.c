@@ -463,15 +463,7 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
  */
 static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unused)))
 {
-    // Clear the display
-    clearDisplay();
-
     mnu->squareWaveScrollOffset = 0;
-    plotSquareWave(mnu->squareWaveScrollOffset, 0);
-
-    // Plot some tiny corner text
-    plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Swadge 2021", TOM_THUMB, WHITE);
-
     mnu->drawOLEDScreensaver = true;
 
     // Set the brightness to high
@@ -508,6 +500,11 @@ static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__
 
         // Plot some tiny corner text
         plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Swadge 2021", TOM_THUMB, WHITE);
+
+        // Plot the dance name
+        int16_t width = textWidth(getDanceName(mnu->menuScreensaverIdx), TOM_THUMB);
+        plotText(OLED_WIDTH - width, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB,
+                 getDanceName(mnu->menuScreensaverIdx), TOM_THUMB, WHITE);
     }
 }
 
