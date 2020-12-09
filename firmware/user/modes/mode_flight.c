@@ -116,6 +116,7 @@ typedef struct
     tdModel ** environment;
 
     menu_t* menu;
+    linkedInfo_t* invYmnu;
 
     int beans;
     int ondonut;
@@ -155,7 +156,6 @@ int ICACHE_FLASH_ATTR tdModelVisibilitycheck( const tdModel * m );
 void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m );
 static int ICACHE_FLASH_ATTR flightTimeHighScorePlace( int wintime, bool is100percent );
 static void ICACHE_FLASH_ATTR flightTimeHighScoreInsert( int insertplace, bool is100percent, char * name, int timeCentiseconds );
-void ICACHE_FLASH_ATTR flightRefreshMenu(void);
 
 void iplotRectB( int x1, int y1, int x2, int y2 );
 
@@ -190,7 +190,7 @@ static const char fl_title[]  = "Flightsim";
 // static const char fl_flight_perf[] = "PERF";
 // static const char fl_flight_triangles[] = "TRIS";
 static const char fl_flight_env[] = "Take Flight";
-static const char fl_flight_invertY0_env[] = "INVERT Y";
+static const char fl_flight_invertY0_env[] = "Y NOT INVERTED";
 static const char fl_flight_invertY1_env[] = "Y INVERTED";
 static const char fl_highscores[] = "HIGH SCORES";
 static const char fl_quit[]   = "QUIT";
@@ -212,63 +212,36 @@ void iplotRectB( int x1, int y1, int x2, int y2 )
 
 
 
-static const int16_t IsoSphereVertices[] RODATA_ATTR = { 
-           0, -256,    0,   
-         185, -114,  134,        -70, -114,  217,       -228, -114,    0,        -70, -114, -217,   
-         185, -114, -134,         70,  114,  217,       -185,  114,  134,       -185,  114, -134,   
-          70,  114, -217,        228,  114,    0,          0,  256,    0,        108, -217,   79,   
-         -41, -217,  127,         67, -134,  207,        108, -217,  -79,        217, -134,    0,   
-        -134, -217,    0,       -176, -134,  127,        -41, -217, -127,       -176, -134, -127,   
-          67, -134, -207,        243,    0,  -79,        243,    0,   79,        150,    0,  207,   
-           0,    0,  256,       -150,    0,  207,       -243,    0,   79,       -243,    0,  -79,   
-        -150,    0, -207,          0,    0, -256,        150,    0, -207,        176,  134,  127,   
-         -67,  134,  207,       -217,  134,    0,        -67,  134, -207,        176,  134, -127,   
-         134,  217,    0,         41,  217,  127,       -108,  217,   79,       -108,  217,  -79,   
+static const int16_t IsoSphereVertices[] RODATA_ATTR = {
+           0, -256,    0,
+         185, -114,  134,        -70, -114,  217,       -228, -114,    0,        -70, -114, -217,
+         185, -114, -134,         70,  114,  217,       -185,  114,  134,       -185,  114, -134,
+          70,  114, -217,        228,  114,    0,          0,  256,    0,        108, -217,   79,
+         -41, -217,  127,         67, -134,  207,        108, -217,  -79,        217, -134,    0,
+        -134, -217,    0,       -176, -134,  127,        -41, -217, -127,       -176, -134, -127,
+          67, -134, -207,        243,    0,  -79,        243,    0,   79,        150,    0,  207,
+           0,    0,  256,       -150,    0,  207,       -243,    0,   79,       -243,    0,  -79,
+        -150,    0, -207,          0,    0, -256,        150,    0, -207,        176,  134,  127,
+         -67,  134,  207,       -217,  134,    0,        -67,  134, -207,        176,  134, -127,
+         134,  217,    0,         41,  217,  127,       -108,  217,   79,       -108,  217,  -79,
           41,  217, -127};
 static const uint16_t IsoSphereIndices[] RODATA_ATTR = { /* 120 line segments */
-          42,  36,     36,   3,      3,  42,     42,  39,     39,  36,      6,  39,     42,   6,     39,   0,   
-           0,  36,     48,   3,     36,  48,     36,  45,     45,  48,     15,  48,     45,  15,      0,  45,   
-          54,  39,      6,  54,     54,  51,     51,  39,      9,  51,     54,   9,     51,   0,     60,  51,   
-           9,  60,     60,  57,     57,  51,     12,  57,     60,  12,     57,   0,     63,  57,     12,  63,   
-          63,  45,     45,  57,     63,  15,     69,   3,     48,  69,     48,  66,     66,  69,     30,  69,   
-          66,  30,     15,  66,     75,   6,     42,  75,     42,  72,     72,  75,     18,  75,     72,  18,   
-           3,  72,     81,   9,     54,  81,     54,  78,     78,  81,     21,  81,     78,  21,      6,  78,   
-          87,  12,     60,  87,     60,  84,     84,  87,     24,  87,     84,  24,      9,  84,     93,  15,   
-          63,  93,     63,  90,     90,  93,     27,  93,     90,  27,     12,  90,     96,  69,     30,  96,   
-          96,  72,     72,  69,     96,  18,     99,  75,     18,  99,     99,  78,     78,  75,     99,  21,   
-         102,  81,     21, 102,    102,  84,     84,  81,    102,  24,    105,  87,     24, 105,    105,  90,   
-          90,  87,    105,  27,    108,  93,     27, 108,    108,  66,     66,  93,    108,  30,    114,  18,   
-          96, 114,     96, 111,    111, 114,     33, 114,    111,  33,     30, 111,    117,  21,     99, 117,   
-          99, 114,    114, 117,     33, 117,    120,  24,    102, 120,    102, 117,    117, 120,     33, 120,   
-         123,  27,    105, 123,    105, 120,    120, 123,     33, 123,    108, 111,    108, 123,    123, 111,   
+          42,  36,     36,   3,      3,  42,     42,  39,     39,  36,      6,  39,     42,   6,     39,   0,
+           0,  36,     48,   3,     36,  48,     36,  45,     45,  48,     15,  48,     45,  15,      0,  45,
+          54,  39,      6,  54,     54,  51,     51,  39,      9,  51,     54,   9,     51,   0,     60,  51,
+           9,  60,     60,  57,     57,  51,     12,  57,     60,  12,     57,   0,     63,  57,     12,  63,
+          63,  45,     45,  57,     63,  15,     69,   3,     48,  69,     48,  66,     66,  69,     30,  69,
+          66,  30,     15,  66,     75,   6,     42,  75,     42,  72,     72,  75,     18,  75,     72,  18,
+           3,  72,     81,   9,     54,  81,     54,  78,     78,  81,     21,  81,     78,  21,      6,  78,
+          87,  12,     60,  87,     60,  84,     84,  87,     24,  87,     84,  24,      9,  84,     93,  15,
+          63,  93,     63,  90,     90,  93,     27,  93,     90,  27,     12,  90,     96,  69,     30,  96,
+          96,  72,     72,  69,     96,  18,     99,  75,     18,  99,     99,  78,     78,  75,     99,  21,
+         102,  81,     21, 102,    102,  84,     84,  81,    102,  24,    105,  87,     24, 105,    105,  90,
+          90,  87,    105,  27,    108,  93,     27, 108,    108,  66,     66,  93,    108,  30,    114,  18,
+          96, 114,     96, 111,    111, 114,     33, 114,    111,  33,     30, 111,    117,  21,     99, 117,
+          99, 114,    114, 117,     33, 117,    120,  24,    102, 120,    102, 117,    117, 120,     33, 120,
+         123,  27,    105, 123,    105, 120,    120, 123,     33, 123,    108, 111,    108, 123,    123, 111,
         };
-
-
-/**
- * Re-setup the main flight menu.
- */
-void ICACHE_FLASH_ATTR flightRefreshMenu(void)
-{
-    flight->menu = initMenu(fl_title, flightMenuCb);
-    addRowToMenu(flight->menu);
-    // addItemToRow(flight->menu, fl_flight_perf);
-    // addItemToRow(flight->menu, fl_flight_triangles);
-    addItemToRow(flight->menu, fl_flight_env);
-    addRowToMenu(flight->menu);
-    addItemToRow(flight->menu, fl_quit);
-
-    addRowToMenu(flight->menu);
-    addItemToRow(flight->menu, 
-        getFlightSaveData()->flightInvertY?
-            fl_flight_invertY1_env:
-            fl_flight_invertY0_env );
-
-    addRowToMenu(flight->menu);
-    addItemToRow(flight->menu, fl_highscores );
-
-    drawMenu(flight->menu);
-}
-
 
 /**
  * Initializer for flight
@@ -296,7 +269,24 @@ void ICACHE_FLASH_ATTR flightEnterMode(void)
         }
     }
 
-    flightRefreshMenu();
+    flight->menu = initMenu(fl_title, flightMenuCb);
+    addRowToMenu(flight->menu);
+    // addItemToRow(flight->menu, fl_flight_perf);
+    // addItemToRow(flight->menu, fl_flight_triangles);
+    addItemToRow(flight->menu, fl_flight_env);
+    addRowToMenu(flight->menu);
+    addItemToRow(flight->menu, fl_quit);
+
+    addRowToMenu(flight->menu);
+    flight->invYmnu = addItemToRow(flight->menu,
+        getFlightSaveData()->flightInvertY?
+            fl_flight_invertY1_env:
+            fl_flight_invertY0_env );
+
+    addRowToMenu(flight->menu);
+    addItemToRow(flight->menu, fl_highscores );
+
+    drawMenu(flight->menu);
 
     timerDisarm(&(flight->updateTimer));
     timerSetFn(&(flight->updateTimer), flightUpdate, NULL);
@@ -340,20 +330,19 @@ static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem)
     {
         flightSimSaveData_t * sd = getFlightSaveData();
         sd->flightInvertY = 1;
-        setFlightSaveData( sd );        
-        flightRefreshMenu();
+        setFlightSaveData( sd );
+        flight->invYmnu->item.name = fl_flight_invertY1_env;
     }
     else if ( fl_flight_invertY1_env == menuItem )
     {
         flightSimSaveData_t * sd = getFlightSaveData();
         sd->flightInvertY = 0;
         setFlightSaveData( sd );
-        flightRefreshMenu();
+        flight->invYmnu->item.name = fl_flight_invertY0_env;
     }
     else if ( fl_highscores == menuItem )
     {
         flight->mode = FLIGHT_SHOW_HIGH_SCORES;
-        flightRefreshMenu();
     }
     else if (fl_quit == menuItem)
     {
@@ -382,7 +371,7 @@ static void ICACHE_FLASH_ATTR flightLEDAnimate( flLEDAnimation anim )
 }
 
 static void ICACHE_FLASH_ATTR flightUpdateLEDs(flight_t * tflight)
-{    
+{
     led_t leds[NUM_LIN_LEDS] = {{0}};
 
     uint8_t        ledAnimationTime = tflight->ledAnimationTime++;
@@ -415,10 +404,10 @@ static void ICACHE_FLASH_ATTR flightUpdateLEDs(flight_t * tflight)
         leds[2] = leds[3] = SafeEHSVtoHEXhelper(0, 0, 60 - 40*abs(ledAnimationTime-10), 1 );
         if( ledAnimationTime == 50 ) flightLEDAnimate( FLIGHT_LED_NONE );
         break;
-    case FLIGHT_LED_BEAN:    
+    case FLIGHT_LED_BEAN:
         leds[0] = leds[5] = SafeEHSVtoHEXhelper(ledAnimationTime*16, 128, 150 - 40*abs(ledAnimationTime-2), 1 );
         leds[1] = leds[4] = SafeEHSVtoHEXhelper(ledAnimationTime*16, 128, 150 - 40*abs(ledAnimationTime-6), 1 );
-        leds[2] = leds[3] = SafeEHSVtoHEXhelper(ledAnimationTime*16, 128, 150 - 40*abs(ledAnimationTime-10), 1 );        
+        leds[2] = leds[3] = SafeEHSVtoHEXhelper(ledAnimationTime*16, 128, 150 - 40*abs(ledAnimationTime-10), 1 );
         if( ledAnimationTime == 30 ) flightLEDAnimate( FLIGHT_LED_NONE );
         break;
     }
@@ -809,7 +798,7 @@ void ICACHE_FLASH_ATTR Draw3DSegment( const int16_t * c1, const int16_t * c2 )
 
     //GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
     speedyWhiteLine( sx0, sy0, sx1, sy1, false );
-    //GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
+    //GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 );
 
     //plotLine( sx0, sy0, sx1, sy1, WHITE );
 }
@@ -1028,7 +1017,7 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
         int x = 0;
         int y = -1;
 #ifndef EMU
-        PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.  
+        PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.
         GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
         OVERCLOCK_SECTION_ENABLE();
 #endif
@@ -1058,13 +1047,13 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
         }
 #ifndef EMU
         OVERCLOCK_SECTION_DISABLE();
-        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
+        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 );
 #endif
     }
     else if( tflight->type == FL_TRIANGLES )
     {
 #ifndef EMU
-        PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.  
+        PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.
         GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
         OVERCLOCK_SECTION_ENABLE();
 #endif
@@ -1097,14 +1086,14 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
         }
 #ifndef EMU
         OVERCLOCK_SECTION_DISABLE();
-        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
+        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 );
 #endif
     }
     else if( tflight->type == FL_ENV )
     {
 
 #ifndef EMU
-        PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.  
+        PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.
         GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
         OVERCLOCK_SECTION_ENABLE();
 #endif
@@ -1217,7 +1206,7 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
             {
                 if( draw == 2 )
                     renderlinecolor = (tflight->frames&1)?WHITE:BLACK;
-                if( draw == 3 ) 
+                if( draw == 3 )
                     renderlinecolor = (tflight->frames&1)?BLACK:WHITE;
                 tdDrawModel( m );
                 renderlinecolor = WHITE;
@@ -1227,7 +1216,7 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 
 #ifndef EMU
         OVERCLOCK_SECTION_DISABLE();
-        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
+        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 );
 #endif
 
     }
@@ -1238,7 +1227,7 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
         int y = -1;
 
 #ifndef EMU
-        PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.  
+        PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.
         GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
         OVERCLOCK_SECTION_ENABLE();
 #endif
@@ -1253,7 +1242,7 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
             for( y = -2; y < 10; y++ )
             {
                 ets_memcpy( BackupMatrix, ModelviewMatrix, sizeof( BackupMatrix ) );
-                tdTranslate( ModelviewMatrix, 
+                tdTranslate( ModelviewMatrix,
                     500*x-800,
                     140 + (tdSIN( (x + y)*40 + ij*1 )>>2),
                     500*y+500 );
@@ -1264,7 +1253,7 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
         }
 #ifndef EMU
         OVERCLOCK_SECTION_DISABLE();
-        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 ); 
+        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 );
 #endif
     }
 #ifdef EMU
@@ -1310,7 +1299,7 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 
     //If perf test, force full frame refresh
     //Otherwise, don't force full-screen refresh
-    return tflight->type == FL_PERFTEST; 
+    return tflight->type == FL_PERFTEST;
 }
 
 static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
@@ -1399,7 +1388,7 @@ void ICACHE_FLASH_ATTR flightButtonCallback( uint8_t state,
         {
             if(down)
             {
-                flightLEDAnimate( FLIGHT_LED_MENU_TICK ); 
+                flightLEDAnimate( FLIGHT_LED_MENU_TICK );
                 menuButton(flight->menu, button);
             }
             break;
@@ -1469,7 +1458,7 @@ static int ICACHE_FLASH_ATTR flightTimeHighScorePlace( int wintime, bool is100pe
  *
  * @param which winning slot to place player into
  * @param whether this is a 100% run.
- * @param display name for player (truncated to 
+ * @param display name for player (truncated to
  * @param wintime in centiseconds
  *
  */

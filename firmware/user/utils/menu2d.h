@@ -69,7 +69,7 @@ typedef struct
 menu_t* initMenu(const char* title, menuCb cbFunc);
 void deinitMenu(menu_t* menu);
 void addRowToMenu(menu_t* menu);
-void addItemToRow(menu_t* menu, const char* name);
+linkedInfo_t* addItemToRow(menu_t* menu, const char* name);
 void drawMenu(menu_t* menu);
 void menuButton(menu_t* menu, int btn);
 
