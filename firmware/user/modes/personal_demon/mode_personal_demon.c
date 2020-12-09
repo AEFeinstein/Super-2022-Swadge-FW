@@ -249,6 +249,12 @@ const demonSprites_t demonSprites[] =
         .thin = "pd-4-thin.png",
         .fat  = "pd-4-fat.png"
     },
+    {
+        .norm = "pd-5-norm.png",
+        .sick = "pd-5-sick.png",
+        .thin = "pd-5-thin.png",
+        .fat  = "pd-5-fat.png"
+    },
 };
 
 /*==============================================================================
