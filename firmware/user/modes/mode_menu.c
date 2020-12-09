@@ -435,8 +435,11 @@ void ICACHE_FLASH_ATTR plotSquareWave (int16_t x, int16_t y)
  */
 static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unused)))
 {
-    // Set the brightness to low
-    setDanceBrightness(1);
+    // Set the brightness to medium
+    setDanceBrightness(32);
+
+    // Start on a random dance, but not the one that cycles dances
+    mnu->menuScreensaverIdx = os_random() % (getNumDances() - 1);
 
     // Reset variables
     danceClearVars(mnu->menuScreensaverIdx);
@@ -450,7 +453,7 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
     mnu->drawOLEDScreensaver = false;
 
     // Start a timer to turn the screensaver brighter
-    timerArm(&mnu->timerScreensaverBright, 1000, false);
+    timerArm(&mnu->timerScreensaverBright, 3000, false);
 
     mnu->screensaverIsRunning = true;
 }
@@ -463,19 +466,11 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
  */
 static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unused)))
 {
-    // Clear the display
-    clearDisplay();
-
     mnu->squareWaveScrollOffset = 0;
-    plotSquareWave(mnu->squareWaveScrollOffset, 0);
-
-    // Plot some tiny corner text
-    plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Swadge 2021", TOM_THUMB, WHITE);
-
     mnu->drawOLEDScreensaver = true;
 
-    // Set the brightness to medium
-    setDanceBrightness(0);
+    // Set the brightness to high
+    setDanceBrightness(1);
 }
 
 /**
@@ -508,6 +503,11 @@ static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__
 
         // Plot some tiny corner text
         plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Swadge 2021", TOM_THUMB, WHITE);
+
+        // Plot the dance name
+        int16_t width = textWidth(getDanceName(mnu->menuScreensaverIdx), TOM_THUMB);
+        plotText(OLED_WIDTH - width, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB,
+                 getDanceName(mnu->menuScreensaverIdx), TOM_THUMB, WHITE);
     }
 }
 
