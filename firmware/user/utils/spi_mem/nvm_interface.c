@@ -17,7 +17,7 @@
  * Defines
  *==========================================================================*/
 
-#define SAVE_LOAD_KEY 0xBE
+#define SAVE_LOAD_KEY 0xBF
 
 /*============================================================================
  * Structs
@@ -284,12 +284,12 @@ void ICACHE_FLASH_ATTR addRaycasterScore(raycasterDifficulty_t difficulty, uint1
     }
 }
 
-flightSimSaveData_t * ICACHE_FLASH_ATTR getFlightSaveData(void)
+flightSimSaveData_t* ICACHE_FLASH_ATTR getFlightSaveData(void)
 {
     return &settings.flightSaveData;
 }
 
-void ICACHE_FLASH_ATTR setFlightSaveData( flightSimSaveData_t * t )
+void ICACHE_FLASH_ATTR setFlightSaveData( flightSimSaveData_t* t )
 {
     if( t != &settings.flightSaveData )
     {
