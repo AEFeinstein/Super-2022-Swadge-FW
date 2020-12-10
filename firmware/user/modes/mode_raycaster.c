@@ -8,6 +8,7 @@
 #include <user_interface.h>
 #include <mem.h>
 #include "user_main.h"
+#include "printControl.h"
 #include "nvm_interface.h"
 #include "mode_raycaster.h"
 
@@ -295,8 +296,8 @@ static const char rc_quit[]   = "QUIT";
  */
 void ICACHE_FLASH_ATTR raycasterEnterMode(void)
 {
-    os_printf("malloc %d\n", sizeof(raycaster_t));
-    os_printf("system_get_free_heap_size %d\n", system_get_free_heap_size());
+    RAY_PRINTF("malloc %d\n", sizeof(raycaster_t));
+    RAY_PRINTF("system_get_free_heap_size %d\n", system_get_free_heap_size());
 
     // Allocate and zero out everything
     rc = os_malloc(sizeof(raycaster_t));
@@ -380,7 +381,7 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
     timerSetFn(&(rc->ledTimer), raycasterLedTimer, NULL);
     timerArm(&(rc->ledTimer), 10, true);
 
-    os_printf("system_get_free_heap_size %d\n", system_get_free_heap_size());
+    RAY_PRINTF("system_get_free_heap_size %d\n", system_get_free_heap_size());
 }
 
 /**
