@@ -189,6 +189,7 @@ bool ICACHE_FLASH_ATTR ccRenderTask(void)
 void ICACHE_FLASH_ATTR colorchordExitMode(void)
 {
     timerDisarm(&(cc.exitTimer));
+    timerFlush();
 }
 
 /**
@@ -322,7 +323,6 @@ void ICACHE_FLASH_ATTR ccExitTimerFn(void* arg __attribute__((unused)))
 
         if(cc.exitTimeAccumulatedUs > US_TO_QUIT)
         {
-            timerDisarm(&(cc.exitTimer));
             switchToSwadgeMode(0);
         }
     }
