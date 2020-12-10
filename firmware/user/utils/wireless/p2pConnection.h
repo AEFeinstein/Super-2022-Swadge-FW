@@ -1,6 +1,8 @@
 #ifndef _P2P_CONNECTION_H_
 #define _P2P_CONNECTION_H_
 
+#ifdef P2P_ENABLED
+
 #include <osapi.h>
 #include "user_main.h"
 
@@ -102,5 +104,7 @@ void ICACHE_FLASH_ATTR p2pRecvCb(p2pInfo* p2p, uint8_t* mac_addr, uint8_t* data,
 
 playOrder_t ICACHE_FLASH_ATTR p2pGetPlayOrder(p2pInfo* p2p);
 void ICACHE_FLASH_ATTR p2pSetPlayOrder(p2pInfo* p2p, playOrder_t order);
+
+#endif // P2P_ENABLED
 
 #endif
