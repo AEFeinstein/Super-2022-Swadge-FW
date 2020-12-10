@@ -63,6 +63,8 @@
 #define PAUSE_SPACE_WIDTH     3
 #define PAUSE_HEIGHT          10
 
+#define US_TO_QUIT 1048576 // 2^20, makes division easy
+
 /// Helper macro to return an integer clamped within a range (MIN to MAX)
 #define CLAMP(X, MIN, MAX) ( ((X) > (MAX)) ? (MAX) : ( ((X) < (MIN)) ? (MIN) : (X)) )
 /// Helper macro to return the absolute value of an integer
@@ -124,6 +126,10 @@ typedef struct
 
     pngHandle upArrowPng;
     pngHandle flatPng;
+
+    timer_t exitTimer;
+    uint32_t exitTimeAccumulatedUs;
+    uint32_t tLastCallUs;
 } tunernome_t;
 
 /*============================================================================
@@ -152,6 +158,7 @@ static inline int16_t getMagnitude(uint16_t idx);
 static inline int16_t getDiffAround(uint16_t idx);
 static inline int16_t getSemiMagnitude(int16_t idx);
 static inline int16_t getSemiDiffAround(uint16_t idx);
+void ICACHE_FLASH_ATTR tnExitTimerFn(void* arg);
 
 /*============================================================================
  * Variables
@@ -316,6 +323,10 @@ void ICACHE_FLASH_ATTR tunernomeEnterMode(void)
     enableDebounce(true);
 
     InitColorChord();
+
+    tunernome->exitTimeAccumulatedUs = 0;
+    tunernome->tLastCallUs = 0;
+    timerSetFn(&(tunernome->exitTimer), tnExitTimerFn, NULL);
 }
 
 /**
@@ -384,6 +395,7 @@ void ICACHE_FLASH_ATTR tunernomeExitMode(void)
     timerDisarm(&(tunernome->updateTimer));
     timerDisarm(&(tunernome->ledTimer));
     timerDisarm(&(tunernome->bpmButtonTimer));
+    timerDisarm(&(tunernome->exitTimer));
     timerFlush();
 
     os_free(tunernome);
@@ -829,6 +841,13 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
             break;
         } // case TN_METRONOME:
     } // switch(tunernome->mode)
+
+    // If the quit button is being held
+    if(tunernome->exitTimeAccumulatedUs > 0)
+    {
+        // Draw a bar
+        plotLine(0, OLED_HEIGHT - 1, (OLED_WIDTH * tunernome->exitTimeAccumulatedUs) / US_TO_QUIT, OLED_HEIGHT - 1, WHITE);
+    }
 }
 
 /**
@@ -841,6 +860,23 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
 void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unused)),
         int button, int down)
 {
+    if(LEFT == button)
+    {
+        if(down)
+        {
+            // Start the timer to exit
+            timerArm(&(tunernome->exitTimer), 1, true);
+        }
+        else
+        {
+            // Stop the timer to exit
+            tunernome->exitTimeAccumulatedUs = 0;
+            tunernome->tLastCallUs = 0;
+            timerDisarm(&(tunernome->exitTimer));
+        }
+        return;
+    }
+
     switch (tunernome->mode)
     {
         default:
@@ -879,7 +915,7 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unu
                     }
                     case LEFT:
                     {
-                        switchToSwadgeMode(0);
+                        // Handled above
                         break;
                     }
                     default:
@@ -930,7 +966,7 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unu
                     }
                     case LEFT:
                     {
-                        switchToSwadgeMode(0);
+                        // Handled above
                         break;
                     }
                     default:
@@ -961,6 +997,32 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unu
             }
             break;
         } // case TN_METRONOME:
+    }
+}
+
+/**
+ * This timer function is called periodically when the button to exit is held down
+ * When the accumulated time hits US_TO_QUIT, the mode is quit
+ *
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR tnExitTimerFn(void* arg __attribute__((unused)))
+{
+    if(0 == tunernome->tLastCallUs)
+    {
+        tunernome->tLastCallUs = system_get_time();
+    }
+    else
+    {
+        uint32_t tNowUs = system_get_time();
+        tunernome->exitTimeAccumulatedUs += (tNowUs - tunernome->tLastCallUs);
+        tunernome->tLastCallUs = tNowUs;
+
+        if(tunernome->exitTimeAccumulatedUs > US_TO_QUIT)
+        {
+            // TODO exiting from a timer and freeing that timer is bad
+            switchToSwadgeMode(0);
+        }
     }
 }
 
