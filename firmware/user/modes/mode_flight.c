@@ -1371,6 +1371,34 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
     tflight->planeloc[0] += (tflight->speed * tdSIN( tflight->hpr[0]/16 ) )>>FLIGHT_SPEED_DEC;
     tflight->planeloc[2] += (tflight->speed * tdCOS( tflight->hpr[0]/16 ) )>>FLIGHT_SPEED_DEC;
     tflight->planeloc[1] -= (tflight->speed * tdSIN( tflight->hpr[1]/16 ) )>>FLIGHT_SPEED_DEC;
+
+    // Bound the area
+    if(tflight->planeloc[0] < -1900)
+    {
+        tflight->planeloc[0] = -1900;
+    }
+    else if(tflight->planeloc[0] > 1900)
+    {
+        tflight->planeloc[0] = 1900;
+    }
+
+    if(tflight->planeloc[1] < -800)
+    {
+        tflight->planeloc[1] = -800;
+    }
+    else if(tflight->planeloc[1] > 3500)
+    {
+        tflight->planeloc[1] = 3500;
+    }
+
+    if(tflight->planeloc[2] < -1300)
+    {
+        tflight->planeloc[2] = -1300;
+    }
+    else if(tflight->planeloc[2] > 3700)
+    {
+        tflight->planeloc[2] = 3700;
+    }
 }
 
 /**
