@@ -70,6 +70,7 @@ struct
     timer_t exitTimer;
     uint32_t exitTimeAccumulatedUs;
     uint32_t tLastCallUs;
+    bool shouldExit;
 } cc;
 
 struct CCSettings CCS =
@@ -111,6 +112,7 @@ void ICACHE_FLASH_ATTR colorchordEnterMode(void)
 
     cc.exitTimeAccumulatedUs = 0;
     cc.tLastCallUs = 0;
+    cc.shouldExit = false;
     timerSetFn(&(cc.exitTimer), ccExitTimerFn, NULL);
 }
 
@@ -122,6 +124,13 @@ void ICACHE_FLASH_ATTR colorchordEnterMode(void)
  */
 bool ICACHE_FLASH_ATTR ccRenderTask(void)
 {
+    // If a timer says to quit, quit
+    if(cc.shouldExit)
+    {
+        switchToSwadgeMode(0);
+        return false;
+    }
+
     // Clear the display first
     clearDisplay();
 
@@ -323,7 +332,7 @@ void ICACHE_FLASH_ATTR ccExitTimerFn(void* arg __attribute__((unused)))
 
         if(cc.exitTimeAccumulatedUs > US_TO_QUIT)
         {
-            switchToSwadgeMode(0);
+            cc.shouldExit = true;
         }
     }
 }
