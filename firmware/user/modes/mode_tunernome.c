@@ -55,6 +55,7 @@
 #define MAX_BPM               400
 #define METRONOME_FLASH_MS    35
 #define BPM_CHANGE_FIRST_MS   500
+#define BPM_CHANGE_FAST_MS    2000
 #define BPM_CHANGE_REPEAT_MS  50
 #define PAUSE_WIDTH           3
 #define PAUSE_SPACE_WIDTH     3
@@ -102,6 +103,8 @@ typedef struct
 
     timer_t ledTimer;
     timer_t bpmButtonTimer;
+    int lastBpmButton;
+    uint32_t bpmButtonTimerUs;
 
     int audioSamplesProcessed;
     uint32_t intensities_filt[NUM_LIN_LEDS];
@@ -113,8 +116,6 @@ typedef struct
     int32_t tAccumulatedUs;
     bool isClockwise;
     int32_t usPerBeat;
-
-    int lastBpmButton;
 
     uint32_t semitone_intensitiy_filt;
     int32_t semitone_diff_filt;
@@ -138,8 +139,7 @@ void ICACHE_FLASH_ATTR tunernomeExitMode(void);
 void ICACHE_FLASH_ATTR switchToSubmode(tnMode);
 void ICACHE_FLASH_ATTR tunernomeButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down);
-void ICACHE_FLASH_ATTR increaseBpm(void* timer_arg __attribute__((unused)));
-void ICACHE_FLASH_ATTR decreaseBpm(void* timer_arg __attribute__((unused)));
+void ICACHE_FLASH_ATTR modifyBpm(int16_t bpmMod);
 void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp);
 void ICACHE_FLASH_ATTR recalcMetronome(void);
 void ICACHE_FLASH_ATTR plotInstrumentNameAndNotes(const char* instrumentName, const char** instrumentNotes,
@@ -357,6 +357,7 @@ void ICACHE_FLASH_ATTR switchToSubmode(tnMode newMode)
             tunernome->tAccumulatedUs = 0;
 
             tunernome->lastBpmButton = 0;
+            tunernome->bpmButtonTimerUs = 0;
 
             recalcMetronome();
 
@@ -928,20 +929,18 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unu
                 {
                     case UP:
                     {
-                        increaseBpm(NULL);
+                        modifyBpm(1);
                         tunernome->lastBpmButton = button;
-                        timerDisarm(&(tunernome->bpmButtonTimer));
-                        timerSetFn(&(tunernome->bpmButtonTimer), fasterBpmChange, NULL);
-                        timerArm(&(tunernome->bpmButtonTimer), BPM_CHANGE_FIRST_MS, true);
+                        tunernome->bpmButtonTimerUs = 0;
+                        timerArm(&(tunernome->bpmButtonTimer), BPM_CHANGE_REPEAT_MS, true);
                         break;
                     }
                     case DOWN:
                     {
-                        decreaseBpm(NULL);
+                        modifyBpm(-1);
                         tunernome->lastBpmButton = button;
-                        timerDisarm(&(tunernome->bpmButtonTimer));
-                        timerSetFn(&(tunernome->bpmButtonTimer), fasterBpmChange, NULL);
-                        timerArm(&(tunernome->bpmButtonTimer), BPM_CHANGE_FIRST_MS, true);
+                        tunernome->bpmButtonTimerUs = 0;
+                        timerArm(&(tunernome->bpmButtonTimer), BPM_CHANGE_REPEAT_MS, true);
                         break;
                     }
                     case ACTION:
@@ -976,6 +975,7 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unu
                     {
                         if(button == tunernome->lastBpmButton)
                         {
+                            tunernome->bpmButtonTimerUs = 0;
                             tunernome->lastBpmButton = 0;
                             timerDisarm(&(tunernome->bpmButtonTimer));
                         }
@@ -1018,24 +1018,13 @@ void ICACHE_FLASH_ATTR tnExitTimerFn(void* arg __attribute__((unused)))
 }
 
 /**
- * Increases the bpm by 1
+ * Increases the bpm by bpmMod, may be negative
  *
- * @param timer_arg unused
+ * @param bpmMod The amount to change the BPM
  */
-void ICACHE_FLASH_ATTR increaseBpm(void* timer_arg __attribute__((unused)))
+void ICACHE_FLASH_ATTR modifyBpm(int16_t bpmMod)
 {
-    tunernome->bpm = CLAMP(tunernome->bpm + 1, 1, MAX_BPM);
-    recalcMetronome();
-}
-
-/**
- * Decreases the bpm by 1
- *
- * @param timer_arg unused
- */
-void ICACHE_FLASH_ATTR decreaseBpm(void* timer_arg __attribute__((unused)))
-{
-    tunernome->bpm = CLAMP(tunernome->bpm - 1, 1, MAX_BPM);
+    tunernome->bpm = CLAMP(tunernome->bpm + bpmMod, 1, MAX_BPM);
     recalcMetronome();
 }
 
@@ -1194,28 +1183,37 @@ void ICACHE_FLASH_ATTR ledReset(void* timer_arg __attribute__((unused)))
  * This timer function is called after the up or down button is held long enough in metronome mode.
  * It repeats the button press while the button is held.
  *
+ * Called every 50ms (BPM_CHANGE_REPEAT_MS)
+ *
  * @param timer_arg unused
  */
 void ICACHE_FLASH_ATTR fasterBpmChange(void* timer_arg __attribute__((unused)))
 {
-    timerDisarm(&(tunernome->bpmButtonTimer));
-    switch(tunernome->lastBpmButton)
+    tunernome->bpmButtonTimerUs += BPM_CHANGE_REPEAT_MS;
+
+    if(tunernome->bpmButtonTimerUs >= BPM_CHANGE_FIRST_MS)
     {
-        case UP:
+        int16_t mod = 1;
+        if(tunernome->bpmButtonTimerUs >= BPM_CHANGE_FAST_MS)
         {
-            timerSetFn(&(tunernome->bpmButtonTimer), increaseBpm, NULL);
-            timerArm(&(tunernome->bpmButtonTimer), BPM_CHANGE_REPEAT_MS, true);
-            break;
+            mod = 3;
         }
-        case DOWN:
+        switch(tunernome->lastBpmButton)
         {
-            timerSetFn(&(tunernome->bpmButtonTimer), decreaseBpm, NULL);
-            timerArm(&(tunernome->bpmButtonTimer), BPM_CHANGE_REPEAT_MS, true);
-            break;
-        }
-        default:
-        {
-            break;
+            case UP:
+            {
+                modifyBpm(mod);
+                break;
+            }
+            case DOWN:
+            {
+                modifyBpm(-mod);
+                break;
+            }
+            default:
+            {
+                break;
+            }
         }
     }
 }
