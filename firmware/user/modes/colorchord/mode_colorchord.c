@@ -9,6 +9,7 @@
  * Includes
  *============================================================================*/
 
+#include <user_interface.h>
 #include "user_main.h"
 #include "mode_colorchord.h"
 #include "DFT32.h"
@@ -31,6 +32,8 @@
 #define AMP_STEPS     9
 #define AMP_STEP_SIZE 10
 
+#define US_TO_QUIT 1048576 // 2^20, makes division easy
+
 /*==============================================================================
  * Prototypes
  *============================================================================*/
@@ -40,6 +43,7 @@ void ICACHE_FLASH_ATTR colorchordExitMode(void);
 void ICACHE_FLASH_ATTR colorchordSampleHandler(int32_t samp);
 void ICACHE_FLASH_ATTR colorchordButtonCallback(uint8_t state, int button, int down);
 bool ICACHE_FLASH_ATTR ccRenderTask(void);
+void ICACHE_FLASH_ATTR ccExitTimerFn(void* arg);
 
 /*==============================================================================
  * Variables
@@ -63,6 +67,10 @@ struct
 {
     int samplesProcessed;
     uint16_t maxValue;
+    timer_t exitTimer;
+    uint32_t exitTimeAccumulatedUs;
+    uint32_t tLastCallUs;
+    bool shouldExit;
 } cc;
 
 struct CCSettings CCS =
@@ -101,6 +109,11 @@ void ICACHE_FLASH_ATTR colorchordEnterMode(void)
     ets_memset(&cc, 0, sizeof(cc));
     cc.samplesProcessed = 0;
     cc.maxValue = 1;
+
+    cc.exitTimeAccumulatedUs = 0;
+    cc.tLastCallUs = 0;
+    cc.shouldExit = false;
+    timerSetFn(&(cc.exitTimer), ccExitTimerFn, NULL);
 }
 
 /**
@@ -111,6 +124,13 @@ void ICACHE_FLASH_ATTR colorchordEnterMode(void)
  */
 bool ICACHE_FLASH_ATTR ccRenderTask(void)
 {
+    // If a timer says to quit, quit
+    if(cc.shouldExit)
+    {
+        switchToSwadgeMode(0);
+        return false;
+    }
+
     // Clear the display first
     clearDisplay();
 
@@ -123,7 +143,7 @@ bool ICACHE_FLASH_ATTR ccRenderTask(void)
             cc.maxValue = fuzzed_bins[i];
         }
         uint8_t height = (OLED_HEIGHT * fuzzed_bins[i]) / mv;
-        fillDisplayArea(i, OLED_HEIGHT - height, (i + 1), OLED_HEIGHT, WHITE);
+        fillDisplayArea(i, OLED_HEIGHT - height, (i + 1), OLED_HEIGHT - 2, WHITE);
     }
 
     // Plot sensitivity
@@ -157,12 +177,18 @@ bool ICACHE_FLASH_ATTR ccRenderTask(void)
     char exit[] = "exit";
     width = textWidth(exit, IBM_VGA_8);
     fillDisplayArea((OLED_WIDTH - width) / 2 - 1,
-                    OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1,
+                    OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 2,
                     (OLED_WIDTH - width) / 2 + width - 1,
-                    OLED_HEIGHT,
+                    OLED_HEIGHT - 1,
                     BLACK);
-    plotText((OLED_WIDTH - width) / 2, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8, exit, IBM_VGA_8, WHITE);
+    plotText((OLED_WIDTH - width) / 2, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, exit, IBM_VGA_8, WHITE);
 
+    // If the quit button is being held
+    if(cc.exitTimeAccumulatedUs > 0)
+    {
+        // Draw a bar
+        plotLine(0, OLED_HEIGHT - 1, (OLED_WIDTH * cc.exitTimeAccumulatedUs) / US_TO_QUIT, OLED_HEIGHT - 1, WHITE);
+    }
     return true;
 }
 
@@ -171,7 +197,8 @@ bool ICACHE_FLASH_ATTR ccRenderTask(void)
  */
 void ICACHE_FLASH_ATTR colorchordExitMode(void)
 {
-    // Nothing to cleanup lol
+    timerDisarm(&(cc.exitTimer));
+    timerFlush();
 }
 
 /**
@@ -238,7 +265,8 @@ void ICACHE_FLASH_ATTR colorchordButtonCallback(
         {
             case DOWN:
             {
-                switchToSwadgeMode(0);
+                // Start the timer to exit
+                timerArm(&(cc.exitTimer), 1, true);
                 break;
             }
             case RIGHT:
@@ -258,6 +286,53 @@ void ICACHE_FLASH_ATTR colorchordButtonCallback(
                 // The buttons, they do nothing!
                 break;
             }
+        }
+    }
+    else
+    {
+        switch(button)
+        {
+            case DOWN:
+            {
+                // Stop the timer to exit
+                cc.exitTimeAccumulatedUs = 0;
+                cc.tLastCallUs = 0;
+                timerDisarm(&(cc.exitTimer));
+                break;
+            }
+            case RIGHT:
+            case LEFT:
+            case UP:
+            case ACTION:
+            default:
+            {
+                break;
+            }
+        }
+    }
+}
+
+/**
+ * This timer function is called periodically when the button to exit is held down
+ * When the accumulated time hits US_TO_QUIT, the mode is quit
+ *
+ * @param arg unused
+ */
+void ICACHE_FLASH_ATTR ccExitTimerFn(void* arg __attribute__((unused)))
+{
+    if(0 == cc.tLastCallUs)
+    {
+        cc.tLastCallUs = system_get_time();
+    }
+    else
+    {
+        uint32_t tNowUs = system_get_time();
+        cc.exitTimeAccumulatedUs += (tNowUs - cc.tLastCallUs);
+        cc.tLastCallUs = tNowUs;
+
+        if(cc.exitTimeAccumulatedUs > US_TO_QUIT)
+        {
+            cc.shouldExit = true;
         }
     }
 }

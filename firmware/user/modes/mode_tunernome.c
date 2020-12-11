@@ -40,9 +40,6 @@
     #define M_PI                  3.14159265358979323846
 #endif
 
-#define TUNER_UPDATE_MS       20 // less frequent screen updates to allow more processing time for colorchord magic
-#define METRONOME_UPDATE_MS   15
-
 #define NUM_GUITAR_STRINGS    6
 #define NUM_VIOLIN_STRINGS    4
 #define NUM_UKELELE_STRINGS   4
@@ -58,10 +55,13 @@
 #define MAX_BPM               400
 #define METRONOME_FLASH_MS    35
 #define BPM_CHANGE_FIRST_MS   500
+#define BPM_CHANGE_FAST_MS    2000
 #define BPM_CHANGE_REPEAT_MS  50
 #define PAUSE_WIDTH           3
 #define PAUSE_SPACE_WIDTH     3
 #define PAUSE_HEIGHT          10
+
+#define US_TO_QUIT 1048576 // 2^20, makes division easy
 
 /// Helper macro to return an integer clamped within a range (MIN to MAX)
 #define CLAMP(X, MIN, MAX) ( ((X) > (MAX)) ? (MAX) : ( ((X) < (MIN)) ? (MIN) : (X)) )
@@ -101,9 +101,10 @@ typedef struct
     tnMode mode;
     tuner_mode_t curTunerMode;
 
-    timer_t updateTimer;
     timer_t ledTimer;
     timer_t bpmButtonTimer;
+    int lastBpmButton;
+    uint32_t bpmButtonTimerUs;
 
     int audioSamplesProcessed;
     uint32_t intensities_filt[NUM_LIN_LEDS];
@@ -116,14 +117,17 @@ typedef struct
     bool isClockwise;
     int32_t usPerBeat;
 
-    int lastBpmButton;
-
     uint32_t semitone_intensitiy_filt;
     int32_t semitone_diff_filt;
     int16_t tonalDiff;
 
     pngHandle upArrowPng;
     pngHandle flatPng;
+
+    timer_t exitTimer;
+    uint32_t exitTimeAccumulatedUs;
+    uint32_t tLastCallUs;
+    bool shouldExit;
 } tunernome_t;
 
 /*============================================================================
@@ -135,8 +139,7 @@ void ICACHE_FLASH_ATTR tunernomeExitMode(void);
 void ICACHE_FLASH_ATTR switchToSubmode(tnMode);
 void ICACHE_FLASH_ATTR tunernomeButtonCallback(uint8_t state __attribute__((unused)),
         int button, int down);
-void ICACHE_FLASH_ATTR increaseBpm(void* timer_arg __attribute__((unused)));
-void ICACHE_FLASH_ATTR decreaseBpm(void* timer_arg __attribute__((unused)));
+void ICACHE_FLASH_ATTR modifyBpm(int16_t bpmMod);
 void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp);
 void ICACHE_FLASH_ATTR recalcMetronome(void);
 void ICACHE_FLASH_ATTR plotInstrumentNameAndNotes(const char* instrumentName, const char** instrumentNotes,
@@ -144,7 +147,7 @@ void ICACHE_FLASH_ATTR plotInstrumentNameAndNotes(const char* instrumentName, co
 void ICACHE_FLASH_ATTR plotTopSemiCircle(int xm, int ym, int r, color col);
 void ICACHE_FLASH_ATTR instrumentTunerMagic(const uint16_t freqBinIdxs[], uint16_t numStrings, led_t colors[],
         const uint16_t stringIdxToLedIdx[]);
-static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)));
+bool ICACHE_FLASH_ATTR tunernomeRenderTask(void);
 void ICACHE_FLASH_ATTR ledReset(void* timer_arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR fasterBpmChange(void* timer_arg __attribute__((unused)));
 
@@ -152,6 +155,7 @@ static inline int16_t getMagnitude(uint16_t idx);
 static inline int16_t getDiffAround(uint16_t idx);
 static inline int16_t getSemiMagnitude(int16_t idx);
 static inline int16_t getSemiDiffAround(uint16_t idx);
+void ICACHE_FLASH_ATTR tnExitTimerFn(void* arg);
 
 /*============================================================================
  * Variables
@@ -163,6 +167,7 @@ swadgeMode tunernomeMode =
     .fnEnterMode = tunernomeEnterMode,
     .fnExitMode = tunernomeExitMode,
     .fnButtonCallback = tunernomeButtonCallback,
+    .fnRenderTask = tunernomeRenderTask,
     .wifiMode = NO_WIFI,
     .fnEspNowRecvCb = NULL,
     .fnEspNowSendCb = NULL,
@@ -316,6 +321,11 @@ void ICACHE_FLASH_ATTR tunernomeEnterMode(void)
     enableDebounce(true);
 
     InitColorChord();
+
+    tunernome->exitTimeAccumulatedUs = 0;
+    tunernome->tLastCallUs = 0;
+    tunernome->shouldExit = false;
+    timerSetFn(&(tunernome->exitTimer), tnExitTimerFn, NULL);
 }
 
 /**
@@ -332,10 +342,6 @@ void ICACHE_FLASH_ATTR switchToSubmode(tnMode newMode)
             led_t leds[NUM_LIN_LEDS] = {{0}};
             setLeds(leds, sizeof(leds));
 
-            timerDisarm(&(tunernome->updateTimer));
-            timerSetFn(&(tunernome->updateTimer), tunernomeUpdate, NULL);
-            timerArm(&(tunernome->updateTimer), TUNER_UPDATE_MS, true);
-
             enableDebounce(true);
 
             clearDisplay();
@@ -351,15 +357,12 @@ void ICACHE_FLASH_ATTR switchToSubmode(tnMode newMode)
             tunernome->tAccumulatedUs = 0;
 
             tunernome->lastBpmButton = 0;
+            tunernome->bpmButtonTimerUs = 0;
 
             recalcMetronome();
 
             led_t leds[NUM_LIN_LEDS] = {{0}};
             setLeds(leds, sizeof(leds));
-
-            timerDisarm(&(tunernome->updateTimer));
-            timerSetFn(&(tunernome->updateTimer), tunernomeUpdate, NULL);
-            timerArm(&(tunernome->updateTimer), METRONOME_UPDATE_MS, true);
 
             enableDebounce(false);
 
@@ -381,9 +384,9 @@ void ICACHE_FLASH_ATTR tunernomeExitMode(void)
     freePngAsset(&(tunernome->upArrowPng));
     freePngAsset(&(tunernome->flatPng));
 
-    timerDisarm(&(tunernome->updateTimer));
     timerDisarm(&(tunernome->ledTimer));
     timerDisarm(&(tunernome->bpmButtonTimer));
+    timerDisarm(&(tunernome->exitTimer));
     timerFlush();
 
     os_free(tunernome);
@@ -598,12 +601,19 @@ void ICACHE_FLASH_ATTR instrumentTunerMagic(const uint16_t freqBinIdxs[], uint16
 }
 
 /**
- * @brief called on a timer, updates the game state
+ * This is called periodically to render the OLED image
  *
- * @param arg
+ * @return true if there is something to render, false otherwise
  */
-static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
+bool ICACHE_FLASH_ATTR tunernomeRenderTask(void)
 {
+    // If a timer says to quit, quit
+    if(true == tunernome->shouldExit)
+    {
+        switchToSwadgeMode(0);
+        return false;
+    }
+
     switch(tunernome->mode)
     {
         default:
@@ -617,8 +627,8 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
             plotText(OLED_WIDTH - textWidth("Red= Sharp", TOM_THUMB) + 1, 0, "Red= Sharp", TOM_THUMB, WHITE);
 
             // Left/Right button functions at bottom of display
-            plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, leftStr, TOM_THUMB, WHITE);
-            plotText(OLED_WIDTH - textWidth(rightStrMetronome, TOM_THUMB) + 1, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB,
+            plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, leftStr, TOM_THUMB, WHITE);
+            plotText(OLED_WIDTH - textWidth(rightStrMetronome, TOM_THUMB) + 1, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1,
                      rightStrMetronome, TOM_THUMB, WHITE);
 
             // Up/Down arrows in middle of display around current note/mode
@@ -727,8 +737,9 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
             ets_sprintf(bpmStr, "%d bpm", tunernome->bpm);
 
             plotText((OLED_WIDTH - textWidth(bpmStr, IBM_VGA_8)) / 2, 0, bpmStr, IBM_VGA_8, WHITE);
-            plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, leftStr, TOM_THUMB, WHITE);
-            plotText(OLED_WIDTH - textWidth(rightStrTuner, TOM_THUMB), OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, rightStrTuner, TOM_THUMB,
+            plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, leftStr, TOM_THUMB, WHITE);
+            plotText(OLED_WIDTH - textWidth(rightStrTuner, TOM_THUMB), OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, rightStrTuner,
+                     TOM_THUMB,
                      WHITE);
 
             // Don't do anything when paused
@@ -744,7 +755,7 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
                          (OLED_WIDTH + PAUSE_SPACE_WIDTH) / 2 + PAUSE_WIDTH,
                          (OLED_HEIGHT + PAUSE_HEIGHT) / 2,
                          WHITE);
-                return;
+                break;
             }
             if(0 == tunernome->tLastUpdateUs)
             {
@@ -764,8 +775,6 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
                     // If it's crossed the threshold for one beat
                     if(tunernome->tAccumulatedUs >= tunernome->usPerBeat)
                     {
-                        // Debug
-                        os_printf("Tick\n");
                         // Flip the metronome arm
                         tunernome->isClockwise = false;
                         // Start counting down by subtacting the excess time from tAccumulatedUs
@@ -791,8 +800,6 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
                     // If it's crossed the threshold for one beat
                     if(tunernome->tAccumulatedUs <= 0)
                     {
-                        // Debug
-                        os_printf("Tock\n");
                         // Flip the metronome arm
                         tunernome->isClockwise = true;
                         // Start counting up by flipping the excess time from negative to positive
@@ -829,6 +836,14 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
             break;
         } // case TN_METRONOME:
     } // switch(tunernome->mode)
+
+    // If the quit button is being held
+    if(tunernome->exitTimeAccumulatedUs > 0)
+    {
+        // Draw a bar
+        plotLine(0, OLED_HEIGHT - 1, (OLED_WIDTH * tunernome->exitTimeAccumulatedUs) / US_TO_QUIT, OLED_HEIGHT - 1, WHITE);
+    }
+    return true;
 }
 
 /**
@@ -841,6 +856,23 @@ static void ICACHE_FLASH_ATTR tunernomeUpdate(void* arg __attribute__((unused)))
 void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unused)),
         int button, int down)
 {
+    if(LEFT == button)
+    {
+        if(down)
+        {
+            // Start the timer to exit
+            timerArm(&(tunernome->exitTimer), 1, true);
+        }
+        else
+        {
+            // Stop the timer to exit
+            tunernome->exitTimeAccumulatedUs = 0;
+            tunernome->tLastCallUs = 0;
+            timerDisarm(&(tunernome->exitTimer));
+        }
+        return;
+    }
+
     switch (tunernome->mode)
     {
         default:
@@ -879,7 +911,7 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unu
                     }
                     case LEFT:
                     {
-                        switchToSwadgeMode(0);
+                        // Handled above
                         break;
                     }
                     default:
@@ -892,28 +924,24 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unu
         } // case TN_TUNER:
         case TN_METRONOME:
         {
-            os_printf("state=%d, button=%d, down=%d\n", state, button, down);
-
             if(down)
             {
                 switch(button)
                 {
                     case UP:
                     {
-                        increaseBpm(NULL);
+                        modifyBpm(1);
                         tunernome->lastBpmButton = button;
-                        timerDisarm(&(tunernome->bpmButtonTimer));
-                        timerSetFn(&(tunernome->bpmButtonTimer), fasterBpmChange, NULL);
-                        timerArm(&(tunernome->bpmButtonTimer), BPM_CHANGE_FIRST_MS, true);
+                        tunernome->bpmButtonTimerUs = 0;
+                        timerArm(&(tunernome->bpmButtonTimer), BPM_CHANGE_REPEAT_MS, true);
                         break;
                     }
                     case DOWN:
                     {
-                        decreaseBpm(NULL);
+                        modifyBpm(-1);
                         tunernome->lastBpmButton = button;
-                        timerDisarm(&(tunernome->bpmButtonTimer));
-                        timerSetFn(&(tunernome->bpmButtonTimer), fasterBpmChange, NULL);
-                        timerArm(&(tunernome->bpmButtonTimer), BPM_CHANGE_FIRST_MS, true);
+                        tunernome->bpmButtonTimerUs = 0;
+                        timerArm(&(tunernome->bpmButtonTimer), BPM_CHANGE_REPEAT_MS, true);
                         break;
                     }
                     case ACTION:
@@ -930,7 +958,7 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unu
                     }
                     case LEFT:
                     {
-                        switchToSwadgeMode(0);
+                        // Handled above
                         break;
                     }
                     default:
@@ -948,6 +976,7 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unu
                     {
                         if(button == tunernome->lastBpmButton)
                         {
+                            tunernome->bpmButtonTimerUs = 0;
                             tunernome->lastBpmButton = 0;
                             timerDisarm(&(tunernome->bpmButtonTimer));
                         }
@@ -965,24 +994,38 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unu
 }
 
 /**
- * Increases the bpm by 1
+ * This timer function is called periodically when the button to exit is held down
+ * When the accumulated time hits US_TO_QUIT, the mode is quit
  *
- * @param timer_arg unused
+ * @param arg unused
  */
-void ICACHE_FLASH_ATTR increaseBpm(void* timer_arg __attribute__((unused)))
+void ICACHE_FLASH_ATTR tnExitTimerFn(void* arg __attribute__((unused)))
 {
-    tunernome->bpm = CLAMP(tunernome->bpm + 1, 1, MAX_BPM);
-    recalcMetronome();
+    if(0 == tunernome->tLastCallUs)
+    {
+        tunernome->tLastCallUs = system_get_time();
+    }
+    else
+    {
+        uint32_t tNowUs = system_get_time();
+        tunernome->exitTimeAccumulatedUs += (tNowUs - tunernome->tLastCallUs);
+        tunernome->tLastCallUs = tNowUs;
+
+        if(tunernome->exitTimeAccumulatedUs > US_TO_QUIT)
+        {
+            tunernome->shouldExit = true;
+        }
+    }
 }
 
 /**
- * Decreases the bpm by 1
+ * Increases the bpm by bpmMod, may be negative
  *
- * @param timer_arg unused
+ * @param bpmMod The amount to change the BPM
  */
-void ICACHE_FLASH_ATTR decreaseBpm(void* timer_arg __attribute__((unused)))
+void ICACHE_FLASH_ATTR modifyBpm(int16_t bpmMod)
 {
-    tunernome->bpm = CLAMP(tunernome->bpm - 1, 1, MAX_BPM);
+    tunernome->bpm = CLAMP(tunernome->bpm + bpmMod, 1, MAX_BPM);
     recalcMetronome();
 }
 
@@ -997,7 +1040,6 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
 {
     if(tunernome->mode == TN_TUNER)
     {
-        //os_printf("%s :: %d\r\n", __func__, __LINE__);
         PushSample32( samp );
         tunernome->audioSamplesProcessed++;
 
@@ -1069,7 +1111,6 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
                     // tonal diff is -32768 to 32767. if its within -10 to 10 (now defined as TONAL_DIFF_IN_TUNE_DEVIATION), it's in tune.
                     // positive means too sharp, negative means too flat
                     // intensity is how 'loud' that frequency is, 0 to 255. you'll have to play around with values
-                    //os_printf("thaeli, semitone %2d, tonal diff %6d, intensity %3d\r\n", tunernome->curTunerMode, tonalDiff, intensity);
                     int32_t red, grn, blu;
                     // Is the note in tune, i.e. is the magnitude difference in surrounding bins small?
                     if( (ABS(tunernome->tonalDiff) < TONAL_DIFF_IN_TUNE_DEVIATION) )
@@ -1143,28 +1184,37 @@ void ICACHE_FLASH_ATTR ledReset(void* timer_arg __attribute__((unused)))
  * This timer function is called after the up or down button is held long enough in metronome mode.
  * It repeats the button press while the button is held.
  *
+ * Called every 50ms (BPM_CHANGE_REPEAT_MS)
+ *
  * @param timer_arg unused
  */
 void ICACHE_FLASH_ATTR fasterBpmChange(void* timer_arg __attribute__((unused)))
 {
-    timerDisarm(&(tunernome->bpmButtonTimer));
-    switch(tunernome->lastBpmButton)
+    tunernome->bpmButtonTimerUs += BPM_CHANGE_REPEAT_MS;
+
+    if(tunernome->bpmButtonTimerUs >= BPM_CHANGE_FIRST_MS)
     {
-        case UP:
+        int16_t mod = 1;
+        if(tunernome->bpmButtonTimerUs >= BPM_CHANGE_FAST_MS)
         {
-            timerSetFn(&(tunernome->bpmButtonTimer), increaseBpm, NULL);
-            timerArm(&(tunernome->bpmButtonTimer), BPM_CHANGE_REPEAT_MS, true);
-            break;
+            mod = 3;
         }
-        case DOWN:
+        switch(tunernome->lastBpmButton)
         {
-            timerSetFn(&(tunernome->bpmButtonTimer), decreaseBpm, NULL);
-            timerArm(&(tunernome->bpmButtonTimer), BPM_CHANGE_REPEAT_MS, true);
-            break;
-        }
-        default:
-        {
-            break;
+            case UP:
+            {
+                modifyBpm(mod);
+                break;
+            }
+            case DOWN:
+            {
+                modifyBpm(-mod);
+                break;
+            }
+            default:
+            {
+                break;
+            }
         }
     }
 }

@@ -190,7 +190,7 @@ static void ICACHE_FLASH_ATTR rssi_scan_done_cb(void* bss_struct, STATUS status)
 {
     if (status == OK)
     {
-        os_printf("Scan OK [%u]\n", status);
+        RSSI_PRINTF("Scan OK [%u]\n", status);
         struct bss_info* bss = (struct bss_info*) bss_struct;
         int i = 0;
         while (bss != 0 && i < MAX_SCAN)
@@ -204,7 +204,7 @@ static void ICACHE_FLASH_ATTR rssi_scan_done_cb(void* bss_struct, STATUS status)
                 rssi->aps[i].channel = bss->channel;
                 rssi->aps[i].rssi = bss->rssi;
 
-                os_printf("%s\n  bssid: " MACSTR
+                RSSI_PRINTF("%s\n  bssid: " MACSTR
                           "\n  ssid_len: %d\n  channel: %d\n  rssi: %d\n  authmode: %d\n  is_hidden: %d\n  freq_offset: %d\n  freqcal_val: %d\n  *esp_mesh_ie: %p\n  simple_pair: %d\n  pairwise_cipher: %d\n  group_cipher: %d\n  phy_11b: %d\n  phy_11g: %d\n  phy_11n: %d\n  wps: %d\n  reserved: %d\n",
                           bss->ssid,
                           MAC2STR(bss->bssid),
@@ -234,7 +234,7 @@ static void ICACHE_FLASH_ATTR rssi_scan_done_cb(void* bss_struct, STATUS status)
     }
     else
     {
-        os_printf( "Scan Fail\n" );
+        RSSI_PRINTF( "Scan Fail\n" );
     }
 }
 
@@ -299,7 +299,7 @@ static void ICACHE_FLASH_ATTR rssiMenuCb(const char* menuItem)
                 // }
                 // else
                 // {
-                //  os_printf( "Connect to SSID %s\n", menuItem );
+                //  RSSI_PRINTF( "Connect to SSID %s\n", menuItem );
                 //  rssi->mode = RSSI_STATION;
                 //  wifi_set_opmode_current( STATION_MODE );
                 //  struct station_config sc;
@@ -495,7 +495,7 @@ void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
                 rssi->mode = RSSI_STATION;
                 wifi_set_opmode_current( STATION_MODE );
                 struct station_config sc;
-                os_printf( "Connecting to \"%s\" password \"%s\"\n", rssi->connectssid, rssi->password );
+                RSSI_PRINTF( "Connecting to \"%s\" password \"%s\"\n", rssi->connectssid, rssi->password );
                 ets_memset( (char*)&sc, 0, sizeof(sc) );
                 ets_strcpy( (char*)sc.password, rssi->password );
                 ets_strcpy( (char*)sc.ssid, rssi->connectssid);

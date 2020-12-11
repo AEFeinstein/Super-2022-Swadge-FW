@@ -1,3 +1,5 @@
+#ifdef P2P_ENABLED
+
 /* PlantUML documentation
 
 == Connection ==
@@ -901,3 +903,5 @@ void ICACHE_FLASH_ATTR p2pSetPlayOrder(p2pInfo* p2p, playOrder_t order)
 {
     p2p->cnc.playOrder = order;
 }
+
+#endif // P2P_ENABLED

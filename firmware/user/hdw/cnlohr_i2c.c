@@ -128,6 +128,8 @@ unsigned char ICACHE_FLASH_ATTR SendByte( unsigned char data, bool highSpeed )
     return i;
 }
 
+#ifdef CNLOHR_I2C_FUNCS
+
 unsigned char ICACHE_FLASH_ATTR GetByte( uint8_t send_nak, bool highSpeed)
 {
     unsigned char i;
@@ -173,6 +175,8 @@ unsigned char ICACHE_FLASH_ATTR GetByte( uint8_t send_nak, bool highSpeed)
     return ret;
 }
 
+#endif // CNLOHR_I2C_FUNCS
+
 __attribute__((noinline)) void my_i2c_delay(bool highSpeed)
 {
     asm volatile("nop\nnop\n"); // Less than two nops causes a sad face :(
@@ -207,6 +211,7 @@ void ICACHE_FLASH_ATTR cnlohr_i2c_setup( uint32_t clock_stretch_time_out_usec __
     ConfigI2C();
 }
 
+#ifdef CNLOHR_I2C_FUNCS
 
 void cnlohr_i2c_write(const uint8_t* data, uint32_t no_of_bytes, bool repeated_start)
 {
@@ -271,5 +276,7 @@ uint8_t ICACHE_FLASH_ATTR cnlohr_i2c_end_transaction(void)
     cnl_need_new_stop = 0;
     return cnl_err;
 }
+
+#endif // CNLOHR_I2C_FUNCS
 
 #endif
