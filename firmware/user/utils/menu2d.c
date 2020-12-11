@@ -37,7 +37,7 @@
  * Prototypes
  *============================================================================*/
 
-void linkNewNode(cLinkedNode_t** root, uint8_t len, linkedInfo_t info);
+linkedInfo_t* linkNewNode(cLinkedNode_t** root, uint8_t len, linkedInfo_t info);
 void drawRow(cLinkedNode_t* row, int16_t yPos, bool shouldDrawBox, uint32_t tElapsedUs);
 
 /*==============================================================================
@@ -105,8 +105,9 @@ void ICACHE_FLASH_ATTR deinitMenu(menu_t* menu)
  * @param root A pointer to a cLinkedNode_t pointer to link the new node to
  * @param len  The number of items in root
  * @param info The info to link in the list
+ * @return The newly linked node
  */
-void ICACHE_FLASH_ATTR linkNewNode(cLinkedNode_t** root, uint8_t len, linkedInfo_t info)
+linkedInfo_t* ICACHE_FLASH_ATTR linkNewNode(cLinkedNode_t** root, uint8_t len, linkedInfo_t info)
 {
     // If root points to a null pointer
     if(NULL == (*root))
@@ -120,6 +121,9 @@ void ICACHE_FLASH_ATTR linkNewNode(cLinkedNode_t** root, uint8_t len, linkedInfo
 
         // And store the information
         (*root)->d = info;
+
+        // Return a pointer to the new node
+        return &((*root)->d);
     }
     else
     {
@@ -146,6 +150,9 @@ void ICACHE_FLASH_ATTR linkNewNode(cLinkedNode_t** root, uint8_t len, linkedInfo
 
         // And store the information
         row->d = info;
+
+        // Return a pointer to the new node
+        return &(row->d);
     }
 }
 
@@ -175,8 +182,9 @@ void ICACHE_FLASH_ATTR addRowToMenu(menu_t* menu)
  * @param name The name of this item. This must be a pointer to static memory.
  *             New memory is NOT allocated for this string. This pointer will
  *             be returned via the callback when the item is selected
+ * @return A pointer to the newly created item
  */
-void ICACHE_FLASH_ATTR addItemToRow(menu_t* menu, const char* name)
+linkedInfo_t* ICACHE_FLASH_ATTR addItemToRow(menu_t* menu, const char* name)
 {
     // Iterate to the end of the rows
     cLinkedNode_t* row = menu->rows;
@@ -190,9 +198,10 @@ void ICACHE_FLASH_ATTR addItemToRow(menu_t* menu, const char* name)
     linkedInfo_t newItem;
     newItem.item.name = name;
 
-    // Link the new item
-    linkNewNode(&(row->d.row.items), row->d.row.numItems, newItem);
+    // Link the new item and return a pointer to it
+    linkedInfo_t* linkedItem = linkNewNode(&(row->d.row.items), row->d.row.numItems, newItem);
     row->d.row.numItems++;
+    return linkedItem;
 }
 
 /**

@@ -17,7 +17,7 @@
  * Defines
  *==========================================================================*/
 
-#define SAVE_LOAD_KEY 0xBD
+#define SAVE_LOAD_KEY 0xBF
 
 /*============================================================================
  * Structs
@@ -32,6 +32,7 @@ typedef struct __attribute__((aligned(4)))
     demon_t savedDemon;
     ddrHighScores_t ddrHighScores;
     demonMemorial_t demonMemorials[NUM_DEMON_MEMORIALS];
+    flightSimSaveData_t flightSaveData;
     char gitHash[32];
     bool selfTestPassed;
     raycasterScores_t raycasterScores;
@@ -57,6 +58,7 @@ settings_t settings =
     .savedDemon = {0},
     .ddrHighScores = {{{0}}, {{0}}, {{0}}, {{0}}},
     .gitHash = {0},
+    .flightSaveData = {0},
     .selfTestPassed = false,
 };
 
@@ -281,3 +283,19 @@ void ICACHE_FLASH_ATTR addRaycasterScore(raycasterDifficulty_t difficulty, uint1
         }
     }
 }
+
+flightSimSaveData_t* ICACHE_FLASH_ATTR getFlightSaveData(void)
+{
+    return &settings.flightSaveData;
+}
+
+void ICACHE_FLASH_ATTR setFlightSaveData( flightSimSaveData_t* t )
+{
+    if( t != &settings.flightSaveData )
+    {
+        memcpy( t, &settings.flightSaveData, sizeof( *t ) );
+    }
+    SaveSettings();
+}
+
+

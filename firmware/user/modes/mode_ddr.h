@@ -29,19 +29,21 @@ typedef enum
     DDR_ALL_PERFECT
 } ddrWinType;
 
-typedef struct
+typedef struct __attribute__((aligned(4)))
 {
     ddrWinType winType;
     uint32_t score;
-} ddrWinResult_t;
+}
+ddrWinResult_t;
 
 
-typedef struct
+typedef struct __attribute__((aligned(4)))
 {
     ddrWinResult_t veryEasyWins[DDR_HIGHSCORE_LEN];
     ddrWinResult_t easyWins[DDR_HIGHSCORE_LEN];
     ddrWinResult_t mediumWins[DDR_HIGHSCORE_LEN];
     ddrWinResult_t hardWins[DDR_HIGHSCORE_LEN];
-} ddrHighScores_t;
+}
+ddrHighScores_t;
 
 #endif /* MODES_MODE_DDR_H_ */
