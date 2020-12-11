@@ -627,8 +627,8 @@ bool ICACHE_FLASH_ATTR tunernomeRenderTask(void)
             plotText(OLED_WIDTH - textWidth("Red= Sharp", TOM_THUMB) + 1, 0, "Red= Sharp", TOM_THUMB, WHITE);
 
             // Left/Right button functions at bottom of display
-            plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, leftStr, TOM_THUMB, WHITE);
-            plotText(OLED_WIDTH - textWidth(rightStrMetronome, TOM_THUMB) + 1, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB,
+            plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, leftStr, TOM_THUMB, WHITE);
+            plotText(OLED_WIDTH - textWidth(rightStrMetronome, TOM_THUMB) + 1, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1,
                      rightStrMetronome, TOM_THUMB, WHITE);
 
             // Up/Down arrows in middle of display around current note/mode
@@ -737,8 +737,9 @@ bool ICACHE_FLASH_ATTR tunernomeRenderTask(void)
             ets_sprintf(bpmStr, "%d bpm", tunernome->bpm);
 
             plotText((OLED_WIDTH - textWidth(bpmStr, IBM_VGA_8)) / 2, 0, bpmStr, IBM_VGA_8, WHITE);
-            plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, leftStr, TOM_THUMB, WHITE);
-            plotText(OLED_WIDTH - textWidth(rightStrTuner, TOM_THUMB), OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, rightStrTuner, TOM_THUMB,
+            plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, leftStr, TOM_THUMB, WHITE);
+            plotText(OLED_WIDTH - textWidth(rightStrTuner, TOM_THUMB), OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, rightStrTuner,
+                     TOM_THUMB,
                      WHITE);
 
             // Don't do anything when paused
