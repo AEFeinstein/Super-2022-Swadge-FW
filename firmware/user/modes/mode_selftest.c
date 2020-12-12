@@ -87,6 +87,7 @@ void ICACHE_FLASH_ATTR selfTestInit(void)
 {
     // Allocate memory
     st = os_malloc(sizeof(selftest_t));
+    ets_memset(st, 0, sizeof(selftest_t));
 
     // Initialize colorchord
     InitColorChord();
