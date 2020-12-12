@@ -13,6 +13,8 @@
 #include <osapi.h>
 #include <mem.h>
 #include <stdint.h>
+#include <sntp.h>
+#include <time.h>
 
 #include "user_main.h"
 #include "embeddednf.h"
@@ -77,6 +79,9 @@ typedef struct
     int8_t  rssi_history[128];
     int     rssi_head;
     int num_scan;
+
+    bool sntpInit; // time init
+    int8_t tz; // timezone
 } rssi_t;
 
 /*============================================================================
@@ -92,6 +97,9 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR rssiMenuCb(const char* menuItem);
 static void ICACHE_FLASH_ATTR rssi_scan_done_cb(void* arg, STATUS status);
 static void ICACHE_FLASH_ATTR rssiSetupMenu(void);
+
+// Prototype missing from sntp.h
+struct tm* sntp_localtime(const time_t* tim_p);
 
 /*============================================================================
  * Variables
@@ -168,6 +176,9 @@ void ICACHE_FLASH_ATTR rssiEnterMode(void)
     timerSetFn(&(rssi->updateTimer), rssiUpdate, NULL);
     timerArm(&(rssi->updateTimer), RSSI_UPDATE_MS, true);
     enableDebounce(false);
+
+    rssi->sntpInit = false;
+    rssi->tz = -5; // eastern US
 }
 
 /**
@@ -205,25 +216,25 @@ static void ICACHE_FLASH_ATTR rssi_scan_done_cb(void* bss_struct, STATUS status)
                 rssi->aps[i].rssi = bss->rssi;
 
                 RSSI_PRINTF("%s\n  bssid: " MACSTR
-                          "\n  ssid_len: %d\n  channel: %d\n  rssi: %d\n  authmode: %d\n  is_hidden: %d\n  freq_offset: %d\n  freqcal_val: %d\n  *esp_mesh_ie: %p\n  simple_pair: %d\n  pairwise_cipher: %d\n  group_cipher: %d\n  phy_11b: %d\n  phy_11g: %d\n  phy_11n: %d\n  wps: %d\n  reserved: %d\n",
-                          bss->ssid,
-                          MAC2STR(bss->bssid),
-                          bss->ssid_len,
-                          bss->channel,
-                          bss->rssi,
-                          bss->authmode,
-                          bss->is_hidden,
-                          bss->freq_offset,
-                          bss->freqcal_val,
-                          bss->esp_mesh_ie,
-                          bss->simple_pair,
-                          bss->pairwise_cipher,
-                          bss->group_cipher,
-                          bss->phy_11b,
-                          bss->phy_11g,
-                          bss->phy_11n,
-                          bss->wps,
-                          bss->reserved);
+                            "\n  ssid_len: %d\n  channel: %d\n  rssi: %d\n  authmode: %d\n  is_hidden: %d\n  freq_offset: %d\n  freqcal_val: %d\n  *esp_mesh_ie: %p\n  simple_pair: %d\n  pairwise_cipher: %d\n  group_cipher: %d\n  phy_11b: %d\n  phy_11g: %d\n  phy_11n: %d\n  wps: %d\n  reserved: %d\n",
+                            bss->ssid,
+                            MAC2STR(bss->bssid),
+                            bss->ssid_len,
+                            bss->channel,
+                            bss->rssi,
+                            bss->authmode,
+                            bss->is_hidden,
+                            bss->freq_offset,
+                            bss->freqcal_val,
+                            bss->esp_mesh_ie,
+                            bss->simple_pair,
+                            bss->pairwise_cipher,
+                            bss->group_cipher,
+                            bss->phy_11b,
+                            bss->phy_11g,
+                            bss->phy_11n,
+                            bss->wps,
+                            bss->reserved);
                 i++;
             }
             bss = STAILQ_NEXT(bss, next);
@@ -354,27 +365,63 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                 {
                     // First clear the OLED
                     clearDisplay();
+                    int16_t textY = 0;
                     struct ip_info ipi;
 
-                    // if( rssi->mode == RSSI_STATION )
+#define VERT_SPACING 5
+
+                    os_sprintf( cts, "RSSI:%d", wifi_station_get_rssi());
+                    plotText(0, textY, cts, IBM_VGA_8, WHITE);
+                    textY += (FONT_HEIGHT_IBMVGA8 + VERT_SPACING);
+
+                    if(wifi_get_ip_info( (rssi->mode == RSSI_SOFTAP) ? SOFTAP_IF : STATION_IF, &ipi))
                     {
-                        sint8 sr = wifi_station_get_rssi();
-                        os_sprintf( cts, "RSSI:%d", sr );
-                        plotText(0, 0, cts, IBM_VGA_8, WHITE);
+                        os_sprintf( cts, " IP %d.%d.%d.%d", IP2STR( &ipi.ip ) );
+                        plotText(0, textY, cts, IBM_VGA_8, WHITE);
+                        textY += (FONT_HEIGHT_IBMVGA8 + VERT_SPACING);
+
+                        os_sprintf( cts, " NM %d.%d.%d.%d", IP2STR( &ipi.netmask ) );
+                        plotText(0, textY, cts, IBM_VGA_8, WHITE);
+                        textY += (FONT_HEIGHT_IBMVGA8 + VERT_SPACING);
+
+                        os_sprintf( cts, " GW %d.%d.%d.%d", IP2STR( &ipi.gw ) );
+                        plotText(0, textY, cts, IBM_VGA_8, WHITE);
+                        textY += (FONT_HEIGHT_IBMVGA8 + VERT_SPACING);
+
+                        // Start NTP if we have an IP address and it hasn't been started yet
+                        if(ipi.ip.addr != 0 && false == rssi->sntpInit)
+                        {
+                            os_printf("Init SNTP\n");
+                            rssi->sntpInit = true;
+                            sntp_setservername(0, "time.google.com");
+                            sntp_setservername(1, "time.cloudflare.com");
+                            sntp_setservername(2, "time-a-g.nist.gov");
+                            sntp_init();
+                            sntp_set_timezone(rssi->tz); // Eastern
+                        }
+                        else if(rssi->sntpInit)
+                        {
+                            time_t ts = sntp_get_current_timestamp();
+                            if (0 != ts)
+                            {
+                                struct tm* tStruct = sntp_localtime(&ts);
+                                char* am = "am";
+                                char* pm = "pm";
+                                char* suffix = am;
+                                if(tStruct->tm_hour > 12)
+                                {
+                                    tStruct->tm_hour -= 12;
+                                    suffix = pm;
+                                }
+                                os_sprintf(cts, "%d:%02d:%02d%s", tStruct->tm_hour, tStruct->tm_min, tStruct->tm_sec, suffix);
+                                int16_t width = textWidth(cts, IBM_VGA_8);
+                                plotText(OLED_WIDTH - width - 1, 0, cts, IBM_VGA_8, WHITE);
+                            }
+                        }
                     }
 
-                    bool b = wifi_get_ip_info( (rssi->mode == RSSI_SOFTAP) ? SOFTAP_IF : STATION_IF, &ipi);
-                    os_sprintf( cts, " LOAD %d", b );
-                    plotText(64, 0, cts, IBM_VGA_8, WHITE);
-                    os_sprintf( cts, " IP %d.%d.%d.%d", IP2STR( &ipi.ip ) );
-                    plotText(0, 16, cts, IBM_VGA_8, WHITE);
-                    os_sprintf( cts, " NM %d.%d.%d.%d", IP2STR( &ipi.netmask ) );
-                    plotText(0, 32, cts, IBM_VGA_8, WHITE);
-                    os_sprintf( cts, "<GW %d.%d.%d.%d", IP2STR( &ipi.gw ) );
-                    plotText(0, 48, cts, IBM_VGA_8, WHITE);
-                    plotText(120, 48, ">", IBM_VGA_8, WHITE);
-                    led_t leds[NUM_LIN_LEDS] = {{0}};
-                    setLeds(leds, sizeof(leds));
+                    plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "<", TOM_THUMB, WHITE);
+                    plotText(OLED_WIDTH - 3, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, ">", TOM_THUMB, WHITE);
                     break;
                 }
                 case RSSI_SUBMODE_ALTERNATE2:
@@ -435,8 +482,8 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                             }
                             plotLine(x, OLED_HEIGHT - 1, x, y, WHITE);
                         }
-                        plotText(0, 48, "<", IBM_VGA_8, BLACK);
-                        plotText(120, 48, ">", IBM_VGA_8, BLACK);
+                        plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "<", TOM_THUMB, INVERSE);
+                        plotText(OLED_WIDTH - 3, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, ">", TOM_THUMB, INVERSE);
                     }
                     break;
             }
@@ -511,7 +558,7 @@ void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
         {
             if( down )
             {
-                if( button == 0 )
+                if( button == LEFT )
                 {
                     rssiSubmode m = rssi->submode;
                     m++;
@@ -524,7 +571,7 @@ void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
                         rssi->submode = m;
                     }
                 }
-                else if( button == 2 )
+                else if( button == RIGHT )
                 {
                     rssiSubmode m = rssi->submode;
                     if( m == 0 )
@@ -536,7 +583,37 @@ void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
                         rssi->submode = m - 1;
                     }
                 }
-                else if( button == 4 )
+                else if( button == UP )
+                {
+                    if(rssi->sntpInit)
+                    {
+                        rssi->tz++;
+                        if(14 == rssi->tz)
+                        {
+                            rssi->tz = -11;
+                        }
+                        sntp_stop();
+                        sntp_set_timezone(rssi->tz);
+                        sntp_init();
+                    }
+                    break;
+                }
+                else if( button == DOWN )
+                {
+                    if(rssi->sntpInit)
+                    {
+                        rssi->tz--;
+                        if(-12 == rssi->tz)
+                        {
+                            rssi->tz = 13;
+                        }
+                        sntp_stop();
+                        sntp_set_timezone(rssi->tz);
+                        sntp_init();
+                    }
+                    break;
+                }
+                else if( button == ACTION )
                 {
                     HandleEnterPressOnSubmode( rssi->submode );
                 }
@@ -546,5 +623,3 @@ void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
         }
     }
 }
-
-

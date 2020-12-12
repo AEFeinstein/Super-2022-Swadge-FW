@@ -88,6 +88,8 @@ void ICACHE_FLASH_ATTR textEntryStart( int max_len, char* buffer )
     showCursor = true;
     timerSetFn(&cursorTimer, blinkCursor, NULL);
     timerArm(&cursorTimer, 500, true);
+
+    ets_memcpy(texString, "TheHomeDepot", sizeof("TheHomeDepot"));
 }
 
 /**
