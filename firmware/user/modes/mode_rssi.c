@@ -415,7 +415,7 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                                 }
                                 os_sprintf(cts, "%d:%02d:%02d%s", tStruct->tm_hour, tStruct->tm_min, tStruct->tm_sec, suffix);
                                 int16_t width = textWidth(cts, IBM_VGA_8);
-                                plotText(OLED_WIDTH - width - 1, 0, cts, IBM_VGA_8, WHITE);
+                                plotText(OLED_WIDTH - width, 0, cts, IBM_VGA_8, WHITE);
                             }
                         }
                     }
