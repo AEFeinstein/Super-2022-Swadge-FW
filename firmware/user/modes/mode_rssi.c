@@ -31,6 +31,7 @@
 #include "ip_addr.h"
 #include "user_interface.h"
 #include "printControl.h"
+#include "nvm_interface.h"
 
 /*============================================================================
  * Defines, Structs, Enums
@@ -60,7 +61,7 @@ typedef enum
 
 typedef struct
 {
-    char ssid[64];
+    char ssid[SSID_NAME_LEN];
     AUTH_MODE auth;
     sint8 rssi;
     uint8 channel;
@@ -75,8 +76,8 @@ typedef struct
     menu_t* menu;
 
     accessPoint_t aps [MAX_SCAN];
-    char    password[64];
-    char    connectssid[64];
+    char    password[SSID_NAME_LEN];
+    char    connectssid[SSID_NAME_LEN];
     int8_t  rssi_history[128];
     int     rssi_head;
     int num_scan;
@@ -292,9 +293,23 @@ static void ICACHE_FLASH_ATTR rssiMenuCb(const char* menuItem)
     }
     else if( fl_connlast == menuItem)
     {
+        // Get last used params
+        getSsidPw(rssi->connectssid, rssi->password);
+
+        // Set wifi mode
         wifi_set_opmode_current( STATION_MODE );
+
+        // Connect
+        struct station_config sc;
+        RSSI_PRINTF( "Connecting to \"%s\" password \"%s\"\n", rssi->connectssid, rssi->password );
+        ets_memset( (char*)&sc, 0, sizeof(sc) );
+        ets_strcpy( (char*)sc.password, rssi->password );
+        ets_strcpy( (char*)sc.ssid, rssi->connectssid);
+        sc.all_channel_scan = 1;
+        wifi_station_set_config( &sc );
         wifi_station_connect();
         wifi_set_sleep_type(NONE_SLEEP_T);
+        
         rssi->mode = RSSI_STATION;
     }
     else if (fl_quit == menuItem)
@@ -594,6 +609,9 @@ void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
                 wifi_station_set_config( &sc );
                 wifi_station_connect();
                 wifi_set_sleep_type(NONE_SLEEP_T);
+
+                // Save these as the last used params
+                setSsidPw(rssi->connectssid, rssi->password);
             }
             break;
         case RSSI_SOFTAP:
@@ -679,6 +697,7 @@ void ICACHE_FLASH_ATTR strDow(char* str, int dow)
 {
     switch(dow)
     {
+        default:
         case 0:
         {
             ets_strcpy(str, "Sunday");
@@ -728,6 +747,7 @@ void ICACHE_FLASH_ATTR strMon(char* str, int mDay, int mon)
 {
     switch(mon)
     {
+        default:
         case 0:
         {
             ets_sprintf(str, "January %d", mDay);
