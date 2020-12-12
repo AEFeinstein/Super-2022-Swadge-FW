@@ -52,7 +52,7 @@ ifeq ($(OS),Windows_NT)	 # is Windows_NT on XP, 2000, 7, Vista, 10...
 endif
 
 # All the compiler flags
-CFLAGS   := -g $(patsubst %, -I%, $(INCDIRS)) $(patsubst %, -D%, $(DEFINES)) -fshort-enums
+CFLAGS   := -g $(patsubst %, -I%, $(INCDIRS)) $(patsubst %, -D%, $(DEFINES))
 
 # if you want to make a smaller executable
 #CFLAGS += -Os -s -flto -ffunction-sections -fdata-sections -Wl,--gc-sections
