@@ -52,6 +52,7 @@ typedef enum
     RSSI_SUBMODE_REGULAR,
     RSSI_SUBMODE_ALTERNATE,
     RSSI_SUBMODE_ALTERNATE2,
+    RSSI_SUBMODE_CLOCK,
     RSSI_SUBMODE_MAX,
 } rssiSubmode;
 
@@ -97,6 +98,10 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR rssiMenuCb(const char* menuItem);
 static void ICACHE_FLASH_ATTR rssi_scan_done_cb(void* arg, STATUS status);
 static void ICACHE_FLASH_ATTR rssiSetupMenu(void);
+
+void ICACHE_FLASH_ATTR strDow(char* str, int dow);
+void ICACHE_FLASH_ATTR strMon(char* str, int mDay, int mon);
+void ICACHE_FLASH_ATTR strTime(char* str, int h, int m, int s, bool space);
 
 // Prototype missing from sntp.h
 struct tm* sntp_localtime(const time_t* tim_p);
@@ -362,31 +367,40 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                 default:
                 case RSSI_SUBMODE_MAX:
                 case RSSI_SUBMODE_REGULAR:
+                case RSSI_SUBMODE_CLOCK:
                 {
                     // First clear the OLED
                     clearDisplay();
+
                     int16_t textY = 0;
+                    bool timePlotted = false;
                     struct ip_info ipi;
 
 #define VERT_SPACING 5
 
-                    os_sprintf( cts, "RSSI:%d", wifi_station_get_rssi());
-                    plotText(0, textY, cts, IBM_VGA_8, WHITE);
-                    textY += (FONT_HEIGHT_IBMVGA8 + VERT_SPACING);
+                    if(RSSI_SUBMODE_REGULAR == rssi->submode)
+                    {
+                        os_sprintf( cts, "%ddb", wifi_station_get_rssi());
+                        plotText(0, textY, cts, IBM_VGA_8, WHITE);
+                        textY += (FONT_HEIGHT_IBMVGA8 + VERT_SPACING);
+                    }
 
                     if(wifi_get_ip_info( (rssi->mode == RSSI_SOFTAP) ? SOFTAP_IF : STATION_IF, &ipi))
                     {
-                        os_sprintf( cts, " IP %d.%d.%d.%d", IP2STR( &ipi.ip ) );
-                        plotText(0, textY, cts, IBM_VGA_8, WHITE);
-                        textY += (FONT_HEIGHT_IBMVGA8 + VERT_SPACING);
+                        if(RSSI_SUBMODE_REGULAR == rssi->submode)
+                        {
+                            os_sprintf( cts, " IP %d.%d.%d.%d", IP2STR( &ipi.ip ) );
+                            plotText(0, textY, cts, IBM_VGA_8, WHITE);
+                            textY += (FONT_HEIGHT_IBMVGA8 + VERT_SPACING);
 
-                        os_sprintf( cts, " NM %d.%d.%d.%d", IP2STR( &ipi.netmask ) );
-                        plotText(0, textY, cts, IBM_VGA_8, WHITE);
-                        textY += (FONT_HEIGHT_IBMVGA8 + VERT_SPACING);
+                            os_sprintf( cts, " NM %d.%d.%d.%d", IP2STR( &ipi.netmask ) );
+                            plotText(0, textY, cts, IBM_VGA_8, WHITE);
+                            textY += (FONT_HEIGHT_IBMVGA8 + VERT_SPACING);
 
-                        os_sprintf( cts, " GW %d.%d.%d.%d", IP2STR( &ipi.gw ) );
-                        plotText(0, textY, cts, IBM_VGA_8, WHITE);
-                        textY += (FONT_HEIGHT_IBMVGA8 + VERT_SPACING);
+                            os_sprintf( cts, " GW %d.%d.%d.%d", IP2STR( &ipi.gw ) );
+                            plotText(0, textY, cts, IBM_VGA_8, WHITE);
+                            textY += (FONT_HEIGHT_IBMVGA8 + VERT_SPACING);
+                        }
 
                         // Start NTP if we have an IP address and it hasn't been started yet
                         if(ipi.ip.addr != 0 && false == rssi->sntpInit)
@@ -405,19 +419,47 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                             if (0 != ts)
                             {
                                 struct tm* tStruct = sntp_localtime(&ts);
-                                char* am = "am";
-                                char* pm = "pm";
-                                char* suffix = am;
-                                if(tStruct->tm_hour > 12)
+                                strTime(cts, tStruct->tm_hour, tStruct->tm_min, tStruct->tm_sec, (rssi->submode == RSSI_SUBMODE_CLOCK));
+
+                                if(RSSI_SUBMODE_REGULAR == rssi->submode)
                                 {
-                                    tStruct->tm_hour -= 12;
-                                    suffix = pm;
+                                    int16_t width = textWidth(cts, IBM_VGA_8);
+                                    plotText(OLED_WIDTH - width, 0, cts, IBM_VGA_8, WHITE);
                                 }
-                                os_sprintf(cts, "%d:%02d:%02d%s", tStruct->tm_hour, tStruct->tm_min, tStruct->tm_sec, suffix);
-                                int16_t width = textWidth(cts, IBM_VGA_8);
-                                plotText(OLED_WIDTH - width, 0, cts, IBM_VGA_8, WHITE);
+                                else
+                                {
+                                    textY = 4;
+
+                                    int16_t width = textWidth(cts, RADIOSTARS);
+                                    plotText((OLED_WIDTH - width) / 2, textY, cts, RADIOSTARS, WHITE);
+                                    textY += FONT_HEIGHT_RADIOSTARS + VERT_SPACING;
+
+                                    strDow(cts, tStruct->tm_wday);
+                                    width = textWidth(cts, IBM_VGA_8);
+                                    plotText((OLED_WIDTH - width) / 2, textY, cts, IBM_VGA_8, WHITE);
+                                    textY += FONT_HEIGHT_IBMVGA8 + VERT_SPACING;
+
+                                    strMon(cts, tStruct->tm_mday, tStruct->tm_mon);
+                                    width = textWidth(cts, IBM_VGA_8);
+                                    plotText((OLED_WIDTH - width) / 2, textY, cts, IBM_VGA_8, WHITE);
+                                    textY += FONT_HEIGHT_IBMVGA8 + VERT_SPACING;
+
+                                    os_sprintf(cts, "%d", 1900 + tStruct->tm_year);
+                                    width = textWidth(cts, IBM_VGA_8);
+                                    plotText((OLED_WIDTH - width) / 2, textY, cts, IBM_VGA_8, WHITE);
+                                    textY += FONT_HEIGHT_IBMVGA8 + VERT_SPACING;
+
+                                    timePlotted = true;
+                                }
                             }
                         }
+                    }
+
+                    if(RSSI_SUBMODE_CLOCK == rssi->submode && false == timePlotted)
+                    {
+                        const char* noTime = "No Time";
+                        int16_t width = textWidth(noTime, RADIOSTARS);
+                        plotText((OLED_WIDTH - width) / 2, (OLED_HEIGHT - FONT_HEIGHT_RADIOSTARS) / 2, noTime, RADIOSTARS, WHITE);
                     }
 
                     plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "<", TOM_THUMB, WHITE);
@@ -426,6 +468,7 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                 }
                 case RSSI_SUBMODE_ALTERNATE2:
                 case RSSI_SUBMODE_ALTERNATE:
+                {
                     clearDisplay();
                     if( rssi->mode == RSSI_SOFTAP )
                     {
@@ -457,7 +500,7 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                             setLeds(leds, sizeof(leds));
                         }
 
-                        os_sprintf( cts, "RSSI:%d", this_rssi );
+                        os_sprintf( cts, "%ddb", this_rssi );
                         plotText(0, 0, cts, IBM_VGA_8, WHITE);
                         rssi->rssi_history[rssi->rssi_head] = this_rssi;
                         int rpl = rssi->rssi_head;
@@ -486,6 +529,7 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                         plotText(OLED_WIDTH - 3, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, ">", TOM_THUMB, INVERSE);
                     }
                     break;
+                }
             }
             break;
         }
@@ -621,5 +665,154 @@ void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
             rssi->buttonState = state;
             break;
         }
+    }
+}
+
+/**
+ * @brief Helper function
+ *
+ * @param str
+ * @param dow
+ * @return const char*
+ */
+void ICACHE_FLASH_ATTR strDow(char* str, int dow)
+{
+    switch(dow)
+    {
+        case 0:
+        {
+            ets_strcpy(str, "Sunday");
+            break;
+        }
+        case 1:
+        {
+            ets_strcpy(str, "Monday");
+            break;
+        }
+        case 2:
+        {
+            ets_strcpy(str, "Tuesday");
+            break;
+        }
+        case 3:
+        {
+            ets_strcpy(str, "Wednesday");
+            break;
+        }
+        case 4:
+        {
+            ets_strcpy(str, "Thursday");
+            break;
+        }
+        case 5:
+        {
+            ets_strcpy(str, "Friday");
+            break;
+        }
+        case 6:
+        {
+            ets_strcpy(str, "Saturday");
+            break;
+        }
+    }
+}
+
+/**
+ * @brief
+ *
+ * @param str
+ * @param mDay
+ * @param mon
+ */
+void ICACHE_FLASH_ATTR strMon(char* str, int mDay, int mon)
+{
+    switch(mon)
+    {
+        case 0:
+        {
+            ets_sprintf(str, "January %d", mDay);
+            break;
+        }
+        case 1:
+        {
+            ets_sprintf(str, "February %d", mDay);
+            break;
+        }
+        case 2:
+        {
+            ets_sprintf(str, "March %d", mDay);
+            break;
+        }
+        case 3:
+        {
+            ets_sprintf(str, "April %d", mDay);
+            break;
+        }
+        case 4:
+        {
+            ets_sprintf(str, "May %d", mDay);
+            break;
+        }
+        case 5:
+        {
+            ets_sprintf(str, "June %d", mDay);
+            break;
+        }
+        case 6:
+        {
+            ets_sprintf(str, "July %d", mDay);
+            break;
+        }
+        case 7:
+        {
+            ets_sprintf(str, "August %d", mDay);
+            break;
+        }
+        case 8:
+        {
+            ets_sprintf(str, "September %d", mDay);
+            break;
+        }
+        case 9:
+        {
+            ets_sprintf(str, "October %d", mDay);
+            break;
+        }
+        case 10:
+        {
+            ets_sprintf(str, "November %d", mDay);
+            break;
+        }
+        case 11:
+        {
+            ets_sprintf(str, "December %d", mDay);
+            break;
+        }
+    }
+}
+
+/**
+ * @brief
+ *
+ * @param str
+ * @param h
+ * @param m
+ * @param s
+ */
+void ICACHE_FLASH_ATTR strTime(char* str, int h, int m, int s, bool space)
+{
+    bool am = true;
+    if(h > 12)
+    {
+        h -= 12;
+        am = false;
+    }
+    if(space)
+    {
+        ets_sprintf(str, "%d:%02d:%02d %s", h, m, s, am ? "am" : "pm");
+    }
+    else
+    {
+        ets_sprintf(str, "%d:%02d:%02d%s", h, m, s, am ? "am" : "pm");
     }
 }

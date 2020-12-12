@@ -1452,48 +1452,89 @@ void HandleDestroy()
 
 bool wifi_get_macaddr(uint8 if_index, uint8* macaddr)
 {
-    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    static bool warned = false;
+    if(!warned)
+    {
+        warned = true;
+        fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    }
     return true;
 }
 
 bool wifi_set_opmode_current(uint8 opmode)
 {
-    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    static bool warned = false;
+    if(!warned)
+    {
+        warned = true;
+
+        fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    }
     return true;
 }
 
 bool wifi_set_opmode(uint8 opmode )
 {
-    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    static bool warned = false;
+    if(!warned)
+    {
+        warned = true;
+        fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    }
     return true;
 }
 
 bool wifi_station_set_config(struct station_config* config)
 {
-    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    static bool warned = false;
+    if(!warned)
+    {
+        warned = true;
+        fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    }
     return true;
 }
 
 bool wifi_station_connect(void)
 {
-    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    static bool warned = false;
+    if(!warned)
+    {
+        warned = true;
+        fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    }
     return true;
 }
 
 void wifi_enable_signaling_measurement(void)
 {
-    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    static bool warned = false;
+    if(!warned)
+    {
+        warned = true;
+        fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    }
 }
 
 sint8 wifi_station_get_rssi(void)
 {
-    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    static bool warned = false;
+    if(!warned)
+    {
+        warned = true;
+        fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    }
     return 0;
 }
 
 bool wifi_station_scan(struct scan_config* config, scan_done_cb_t cb)
 {
-    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    static bool warned = false;
+    if(!warned)
+    {
+        warned = true;
+        fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    }
     struct bss_info bss = {0};
     bss.channel = 11;
     bss.authmode = AUTH_OPEN;
@@ -1506,13 +1547,23 @@ bool wifi_station_scan(struct scan_config* config, scan_done_cb_t cb)
 
 bool wifi_get_ip_info(uint8 if_index, struct ip_info* info)
 {
-    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    static bool warned = false;
+    if(!warned)
+    {
+        warned = true;
+        fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    }
     return true;
 }
 
 bool wifi_set_sleep_type(enum sleep_type type)
 {
-    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    static bool warned = false;
+    if(!warned)
+    {
+        warned = true;
+        fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    }
     return true;
 }
 
