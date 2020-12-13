@@ -86,6 +86,8 @@ typedef struct
     int8_t tz; // timezone
 } rssi_t;
 
+#define ABS(X) (((X) < 0) ? -(X) : (X))
+
 /*============================================================================
  * Prototypes
  *==========================================================================*/
@@ -103,6 +105,7 @@ static void ICACHE_FLASH_ATTR rssiSetupMenu(void);
 void ICACHE_FLASH_ATTR strDow(char* str, int dow);
 void ICACHE_FLASH_ATTR strMon(char* str, int mDay, int mon);
 void ICACHE_FLASH_ATTR strTime(char* str, int h, int m, int s, bool space);
+void ICACHE_FLASH_ATTR drawClockArm(led_t* leds, uint8_t hue, int16_t handAngle);
 
 // Prototype missing from sntp.h
 struct tm* sntp_localtime(const time_t* tim_p);
@@ -309,7 +312,7 @@ static void ICACHE_FLASH_ATTR rssiMenuCb(const char* menuItem)
         wifi_station_set_config( &sc );
         wifi_station_connect();
         wifi_set_sleep_type(NONE_SLEEP_T);
-        
+
         rssi->mode = RSSI_STATION;
     }
     else if (fl_quit == menuItem)
@@ -322,31 +325,14 @@ static void ICACHE_FLASH_ATTR rssiMenuCb(const char* menuItem)
         {
             if(rssi->aps[i].ssid == menuItem)
             {
-                // if(rssi->aps[i].auth != AUTH_OPEN)
-                // {
                 textEntryStart( 32, rssi->password );
                 ets_strcpy( rssi->connectssid, menuItem);
                 rssi->mode = RSSI_PASSWORD_ENTER;
-                // }
-                // else
-                // {
-                //  RSSI_PRINTF( "Connect to SSID %s\n", menuItem );
-                //  rssi->mode = RSSI_STATION;
-                //  wifi_set_opmode_current( STATION_MODE );
-                //  struct station_config sc;
-                //  ets_memset( (char*)&sc, 0, sizeof(sc) );
-                //  os_memcpy( (char*)sc.ssid, menuItem, ets_strlen(menuItem) );
-                //  sc.all_channel_scan = 1;
-                //  wifi_station_set_config( &sc );
-                //  wifi_station_connect();
-                //  wifi_set_sleep_type(NONE_SLEEP_T);
-                // }
                 break;
             }
         }
     }
 }
-
 
 /**
  * @brief called on a timer, updates the game state
@@ -366,12 +352,28 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
             break;
         }
         case RSSI_PASSWORD_ENTER:
+        {
             textEntryDraw();
             break;
+        }
         case RSSI_SCAN:
         {
             clearDisplay();
-            plotText(0, 0, "Scanning...", IBM_VGA_8, WHITE);
+
+            // Keep a rough timer in ms
+            static uint32_t dotCnt = 0;
+            dotCnt += RSSI_UPDATE_MS;
+            if(dotCnt / 400 > 3)
+            {
+                dotCnt = 0;
+            }
+
+            // Start with this message
+            char msg[] = "Scanning...";
+            // Truncate some dots
+            msg[8 + (dotCnt / 400)] = '\0';
+            // Plot it
+            plotText(16, (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2, msg, IBM_VGA_8, WHITE);
             break;
         }
         case RSSI_SOFTAP:
@@ -387,23 +389,29 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                     // First clear the OLED
                     clearDisplay();
 
+                    // helpers for drawing
                     int16_t textY = 0;
                     bool timePlotted = false;
-                    struct ip_info ipi;
 
 #define VERT_SPACING 5
 
+                    // If this is regular, not clock
                     if(RSSI_SUBMODE_REGULAR == rssi->submode)
                     {
-                        os_sprintf( cts, "%ddb", wifi_station_get_rssi());
+                        // Plot the RSSI
+                        os_sprintf( cts, "RSSI:%d", wifi_station_get_rssi());
                         plotText(0, textY, cts, IBM_VGA_8, WHITE);
                         textY += (FONT_HEIGHT_IBMVGA8 + VERT_SPACING);
                     }
 
+                    // Get the wifi info
+                    struct ip_info ipi;
                     if(wifi_get_ip_info( (rssi->mode == RSSI_SOFTAP) ? SOFTAP_IF : STATION_IF, &ipi))
                     {
+                        // If this is the normal mode
                         if(RSSI_SUBMODE_REGULAR == rssi->submode)
                         {
+                            // Print all the wifi info
                             os_sprintf( cts, " IP %d.%d.%d.%d", IP2STR( &ipi.ip ) );
                             plotText(0, textY, cts, IBM_VGA_8, WHITE);
                             textY += (FONT_HEIGHT_IBMVGA8 + VERT_SPACING);
@@ -420,7 +428,7 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                         // Start NTP if we have an IP address and it hasn't been started yet
                         if(ipi.ip.addr != 0 && false == rssi->sntpInit)
                         {
-                            os_printf("Init SNTP\n");
+                            RSSI_PRINTF("Init SNTP\n");
                             rssi->sntpInit = true;
                             sntp_setservername(0, "time.google.com");
                             sntp_setservername(1, "time.cloudflare.com");
@@ -430,19 +438,24 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                         }
                         else if(rssi->sntpInit)
                         {
+                            // if NTP is initialized, try to get a timestamp
                             time_t ts = sntp_get_current_timestamp();
                             if (0 != ts)
                             {
+                                // Get the time struct
                                 struct tm* tStruct = sntp_localtime(&ts);
+                                // Print the hour, minute and second to a string
                                 strTime(cts, tStruct->tm_hour, tStruct->tm_min, tStruct->tm_sec, (rssi->submode == RSSI_SUBMODE_CLOCK));
 
                                 if(RSSI_SUBMODE_REGULAR == rssi->submode)
                                 {
+                                    // Plot the text in the upper right corner
                                     int16_t width = textWidth(cts, IBM_VGA_8);
                                     plotText(OLED_WIDTH - width, 0, cts, IBM_VGA_8, WHITE);
                                 }
                                 else
                                 {
+                                    // If this is clock mode, plot the entire clock
                                     textY = 4;
 
                                     int16_t width = textWidth(cts, RADIOSTARS);
@@ -465,18 +478,28 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                                     textY += FONT_HEIGHT_IBMVGA8 + VERT_SPACING;
 
                                     timePlotted = true;
+
+                                    // Draw an analog clock to the LEDs
+                                    led_t leds[NUM_LIN_LEDS] = {{0}};
+                                    drawClockArm(leds, 0,   tStruct->tm_sec * 6);
+                                    drawClockArm(leds, 85,  tStruct->tm_min * 6);
+                                    drawClockArm(leds, 170, (tStruct->tm_hour % 12) * 30);
+                                    setLeds(leds, sizeof(leds));
                                 }
                             }
                         }
                     }
 
+                    // If this is clock mode, and no time was printed
                     if(RSSI_SUBMODE_CLOCK == rssi->submode && false == timePlotted)
                     {
+                        // Let the user know
                         const char* noTime = "No Time";
                         int16_t width = textWidth(noTime, RADIOSTARS);
                         plotText((OLED_WIDTH - width) / 2, (OLED_HEIGHT - FONT_HEIGHT_RADIOSTARS) / 2, noTime, RADIOSTARS, WHITE);
                     }
 
+                    // Draw arrows to scroll the mode
                     plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "<", TOM_THUMB, WHITE);
                     plotText(OLED_WIDTH - 3, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, ">", TOM_THUMB, WHITE);
                     break;
@@ -568,7 +591,9 @@ static void ICACHE_FLASH_ATTR HandleEnterPressOnSubmode( rssiSubmode sm )
         case RSSI_PASSWORD_ENTER:
         case RSSI_MENU:
         case RSSI_SCAN:
+        {
             break;
+        }
     }
 }
 
@@ -589,12 +614,13 @@ void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
         {
             if(down)
             {
-                INIT_PRINTF( "DOWN BUTTON: %d\n", button );
+                RSSI_PRINTF( "DOWN BUTTON: %d\n", button );
                 menuButton(rssi->menu, button);
             }
             break;
         }
         case RSSI_PASSWORD_ENTER:
+        {
             if( !textEntryInput( down, button ) )
             {
                 textEntryEnd();
@@ -614,6 +640,7 @@ void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
                 setSsidPw(rssi->connectssid, rssi->password);
             }
             break;
+        }
         case RSSI_SOFTAP:
         case RSSI_SCAN:
         case RSSI_STATION:
@@ -687,11 +714,10 @@ void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
 }
 
 /**
- * @brief Helper function
+ * Write the day of the week to a string
  *
- * @param str
- * @param dow
- * @return const char*
+ * @param str The string to write to
+ * @param dow The day of the week
  */
 void ICACHE_FLASH_ATTR strDow(char* str, int dow)
 {
@@ -737,11 +763,11 @@ void ICACHE_FLASH_ATTR strDow(char* str, int dow)
 }
 
 /**
- * @brief
+ * Write the month and day of the month to a string
  *
- * @param str
- * @param mDay
- * @param mon
+ * @param str The string to write to
+ * @param mDay The day of the month, 1-31
+ * @param mon The month, 0-11
  */
 void ICACHE_FLASH_ATTR strMon(char* str, int mDay, int mon)
 {
@@ -812,27 +838,65 @@ void ICACHE_FLASH_ATTR strMon(char* str, int mDay, int mon)
 }
 
 /**
- * @brief
+ * Write the hour, minute, and second to a string
  *
- * @param str
- * @param h
- * @param m
- * @param s
+ * @param str The string to write to
+ * @param h The hour, 1-24
+ * @param m The minute, 0-59
+ * @param s The second, 0-59
+ * @param space true to use 12 hour time and AM/PM, false to use 24 hour time
  */
 void ICACHE_FLASH_ATTR strTime(char* str, int h, int m, int s, bool space)
 {
-    bool am = true;
-    if(h > 12)
-    {
-        h -= 12;
-        am = false;
-    }
     if(space)
     {
+        bool am = true;
+        if(h > 12)
+        {
+            h -= 12;
+            am = false;
+        }
         ets_sprintf(str, "%d:%02d:%02d %s", h, m, s, am ? "am" : "pm");
     }
     else
     {
-        ets_sprintf(str, "%d:%02d:%02d%s", h, m, s, am ? "am" : "pm");
+        ets_sprintf(str, "%02d:%02d:%02d", h, m, s);
+    }
+}
+
+/**
+ * Given a hue and an angle, write the appropriate color to the LEDs.
+ * The brightness is related to how close the angle is to each LED
+ *
+ * @param leds The LEDs to write to
+ * @param hue The hue for this clock arm
+ * @param handAngle The angle for this clock arm
+ */
+void ICACHE_FLASH_ATTR drawClockArm(led_t* leds, uint8_t hue, int16_t handAngle)
+{
+    // Each LED is positioned at this angle
+    const int16_t degrees[NUM_LIN_LEDS] = {210, 270, 330, 30, 90, 150};
+
+    // For each LED
+    for(uint8_t idx = 0; idx < NUM_LIN_LEDS; idx++)
+    {
+        // Find the difference between the given angle and this LED's position
+        int16_t diff = ABS(handAngle - degrees[idx]);
+        // Account for wraparound
+        if(diff > 180)
+        {
+            diff = ABS(diff - 360);
+        }
+
+        // If the handAngle is close enough to this LED
+        if(diff < 60)
+        {
+            // Use the difference to calculate the brightness (never get fullbright)
+            uint32_t lColor = EHSVtoHEX(hue, 0xFF, ((60 - diff) * 0xFF) / 90);
+            // Sum this color to the LED
+            leds[idx].r += ((lColor >>  0) & 0xFF);
+            leds[idx].g += ((lColor >>  8) & 0xFF);
+            leds[idx].b += ((lColor >> 16) & 0xFF);
+        }
     }
 }
