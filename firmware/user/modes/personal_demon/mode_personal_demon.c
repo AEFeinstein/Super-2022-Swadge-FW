@@ -30,7 +30,7 @@ typedef struct
     int16_t pos;
 } marqueeText_t;
 
-typedef enum
+typedef enum __attribute__((__packed__))
 {
     PDA_WALKING,
     PDA_CENTER,
