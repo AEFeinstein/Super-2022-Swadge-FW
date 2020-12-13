@@ -13,7 +13,7 @@
 
 #if defined(FEATURE_OLED)
 
-typedef enum
+typedef enum __attribute__((__packed__))
 {
     BLACK = 0,
     WHITE = 1,

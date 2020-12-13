@@ -58,7 +58,7 @@
  * Enums
  *============================================================================*/
 
-typedef enum
+typedef enum __attribute__((__packed__))
 {
     E_IDLE,
     E_PICK_DIR_PLAYER,
@@ -78,12 +78,15 @@ typedef enum
 } raycasterMode_t;
 
 // World map tiles. Use defines, not an enum, so worldMap[][] can be a uint8_t[][]
-#define WMT_W1 0 ///< Wall 1
-#define WMT_W2 1 ///< Wall 2
-#define WMT_W3 2 ///< Wall 2
-#define WMT_C  3 ///< Column
-#define WMT_E  4 ///< Empty
-#define WMT_S  5 ///< Spawn point
+typedef enum  __attribute__((__packed__))
+{
+    WMT_W1 = 0, ///< Wall 1
+    WMT_W2 = 1, ///< Wall 2
+    WMT_W3 = 2, ///< Wall 2
+    WMT_C  = 3, ///< Column
+    WMT_E  = 4, ///< Empty
+    WMT_S  = 5, ///< Spawn point
+} WorldMapTile_t;
 
 /*==============================================================================
  * Structs
@@ -226,7 +229,7 @@ swadgeMode raycasterMode =
 
 raycaster_t* rc;
 
-static const uint8_t worldMap[MAP_WIDTH][MAP_HEIGHT] =
+static const WorldMapTile_t worldMap[MAP_WIDTH][MAP_HEIGHT] =
 {
     {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, },
     {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, },
