@@ -856,6 +856,10 @@ void ICACHE_FLASH_ATTR strTime(char* str, int h, int m, int s, bool space)
             h -= 12;
             am = false;
         }
+        else if (h == 0)
+        {
+            h = 12;
+        }
         ets_sprintf(str, "%d:%02d:%02d %s", h, m, s, am ? "am" : "pm");
     }
     else
