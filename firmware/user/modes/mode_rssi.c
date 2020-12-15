@@ -856,6 +856,10 @@ void ICACHE_FLASH_ATTR strTime(char* str, int h, int m, int s, bool space)
             h -= 12;
             am = false;
         }
+        else if (h == 12)
+        {
+            am = false;
+        }
         else if (h == 0)
         {
             h = 12;
