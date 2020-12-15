@@ -122,6 +122,7 @@ typedef struct
     int32_t texTimer;
     int8_t texFrame;
     bool mirror;
+    int32_t invertTexUs;
 
     // Sprite logic
     enemyState_t state;
@@ -1174,8 +1175,34 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
                         texIdx = (texX * TEX_HEIGHT) + texY;
                     }
 
-                    // draw the pixel for the texture
-                    drawPixelUnsafeC(stripe, y, rc->sprites[spriteOrder[i]].texture[texIdx]);
+                    // draw the pixel for the texture, maybe inverted
+                    if(rc->sprites[spriteOrder[i]].invertTexUs > 0)
+                    {
+                        switch(rc->sprites[spriteOrder[i]].texture[texIdx])
+                        {
+                            case BLACK:
+                            {
+                                drawPixelUnsafeC(stripe, y, WHITE);
+                                break;
+                            }
+                            case WHITE:
+                            {
+                                drawPixelUnsafeC(stripe, y, BLACK);
+                                break;
+                            }
+                            case INVERSE:
+                            case TRANSPARENT_COLOR:
+                            default:
+                            {
+                                // These don't draw
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        drawPixelUnsafeC(stripe, y, rc->sprites[spriteOrder[i]].texture[texIdx]);
+                    }
 
                     // If we should check a shot, and a sprite is centered
                     if(true == rc->checkShot && (stripe == 63 || stripe == 64) &&
@@ -1413,6 +1440,13 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
         if(rc->sprites[i].shotCooldown > 0)
         {
             rc->sprites[i].shotCooldown -= tElapsedUs;
+        }
+
+        // Always run down the sprite's inverted texture value, until zero
+        rc->sprites[i].invertTexUs -= tElapsedUs;
+        if(rc->sprites[i].invertTexUs < 0)
+        {
+            rc->sprites[i].invertTexUs = 0;
         }
 
         // Find the distance between this sprite and the player, generally useful
@@ -1875,6 +1909,7 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
     // Set the state, reset the texture frame
     sprite->state = state;
     sprite->texFrame = 0;
+    sprite->invertTexUs = 0;
 
     // Set timers and textures
     switch(state)
@@ -1923,6 +1958,7 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
             // Set up the got shot texture
             sprite->stateTimer = GOT_SHOT_ANIM_TIME;
             sprite->texture = rc->hurt[0];
+            sprite->invertTexUs = GOT_SHOT_ANIM_TIME / 3;
             sprite->texTimer = GOT_SHOT_ANIM_TIME;
             break;
         }
