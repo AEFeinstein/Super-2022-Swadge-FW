@@ -1994,7 +1994,7 @@ void ICACHE_FLASH_ATTR drawHUD(void)
     int16_t noteWidth = textWidth(notes, IBM_VGA_8);
 
     // Clear area behind note display
-    fillDisplayArea(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1,
+    fillDisplayArea(0, OLED_HEIGHT - rc->mnote.height,
                     noteWidth + rc->mnote.width + 1, OLED_HEIGHT,
                     BLACK);
 
@@ -2007,8 +2007,16 @@ void ICACHE_FLASH_ATTR drawHUD(void)
                 OLED_HEIGHT - rc->mnote.height,
                 false, false, 0);
     }
+    else
+    {
+        // Invert this texture
+        drawPngInv(&(rc->mnote),
+                   0,
+                   OLED_HEIGHT - rc->mnote.height,
+                   false, false, 0, true);
+    }
     plotText(rc->mnote.width + 2,
-             OLED_HEIGHT - FONT_HEIGHT_IBMVGA8,
+             OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1,
              notes, IBM_VGA_8, WHITE);
 
     // Figure out width for health display
@@ -2018,7 +2026,7 @@ void ICACHE_FLASH_ATTR drawHUD(void)
     int16_t healthDrawX = OLED_WIDTH - rc->heart.width - 1 - healthWidth;
 
     // Clear area behind health display
-    fillDisplayArea(healthDrawX - 1, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1,
+    fillDisplayArea(healthDrawX - 1, OLED_HEIGHT - rc->heart.height,
                     OLED_WIDTH, OLED_HEIGHT,
                     BLACK);
 
@@ -2031,8 +2039,17 @@ void ICACHE_FLASH_ATTR drawHUD(void)
                 OLED_HEIGHT - rc->heart.height,
                 false, false, 0);
     }
+    else
+    {
+        // Invert this texture
+        drawPngInv(&(rc->heart),
+                   OLED_WIDTH - rc->heart.width,
+                   OLED_HEIGHT - rc->heart.height,
+                   false, false, 0, true);
+    }
+
     plotText(healthDrawX,
-             OLED_HEIGHT - FONT_HEIGHT_IBMVGA8,
+             OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1,
              health, IBM_VGA_8, WHITE);
 
     // Draw Guitar
