@@ -183,6 +183,9 @@ typedef struct
     int32_t killedSpriteTimer;
     int32_t healthWarningTimer;
     bool healthWarningInc;
+
+    // For the game over screen
+    int32_t gameOverButtonLockUs;
 } raycaster_t;
 
 /*==============================================================================
@@ -570,7 +573,7 @@ void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state, int32_t button, in
         case RC_GAME_OVER:
         {
             // If any button is pressed on game over, just return to the menu
-            if(down)
+            if(rc->gameOverButtonLockUs == 0 && down)
             {
                 rc->mode = RC_MENU;
             }
@@ -2091,9 +2094,12 @@ void ICACHE_FLASH_ATTR raycasterEndRound(void)
 
     // Show game over screen, disable radar
     rc->mode = RC_GAME_OVER;
+    rc->gameOverButtonLockUs = 2000000;
     rc->closestDist = 0xFFFFFFFF;
     rc->closestAngle = 0;
     rc->radarObstructed = false;
+    rc->killedSpriteTimer = 0;
+    rc->gotShotTimer = 0;
 }
 
 /**
@@ -2147,6 +2153,12 @@ void ICACHE_FLASH_ATTR raycasterDrawRoundOver(uint32_t tElapsedUs)
     else
     {
         rc->shotCooldown = 0;
+    }
+
+    rc->gameOverButtonLockUs -= tElapsedUs;
+    if(rc->gameOverButtonLockUs < 0)
+    {
+        rc->gameOverButtonLockUs = 0;
     }
     drawHUD();
 }
