@@ -488,6 +488,11 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
                     rc->sprites[rc->liveSprites].shotCooldown = 0;
                     rc->sprites[rc->liveSprites].isBackwards = false;
                     rc->sprites[rc->liveSprites].health = ENEMY_HEALTH;
+                    // Double their health on hard mode
+                    if(RC_HARD == rc->difficulty)
+                    {
+                        rc->sprites[rc->liveSprites].health *= 2;
+                    }
                     setSpriteState(&(rc->sprites[rc->liveSprites]), E_IDLE);
                     rc->liveSprites++;
                 }
@@ -1424,7 +1429,7 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
         }
         case RC_HARD:
         {
-            moveSpeed = frameTimeSec * 1.3f;
+            moveSpeed = frameTimeSec * 1.5f;
             break;
         }
     }
@@ -1672,7 +1677,15 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                 rc->sprites[i].texTimer -= tElapsedUs;
                 while(rc->sprites[i].texTimer < 0)
                 {
-                    rc->sprites[i].texTimer += SHOOTING_ANIM_TIME;
+                    // Hard mode is twice as fast
+                    if(RC_HARD == rc->difficulty)
+                    {
+                        rc->sprites[i].texTimer += (SHOOTING_ANIM_TIME / 2);
+                    }
+                    else
+                    {
+                        rc->sprites[i].texTimer += SHOOTING_ANIM_TIME;
+                    }
 
                     // Pick the next texture
                     rc->sprites[i].texFrame = (rc->sprites[i].texFrame + 1) % NUM_SHOT_FRAMES;
@@ -1689,6 +1702,11 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                     {
                         // Actually take the shot
                         rc->sprites[i].shotCooldown = ENEMY_SHOT_COOLDOWN;
+                        // Half cooldown for hard mode
+                        if(RC_HARD == rc->difficulty)
+                        {
+                            rc->sprites[i].shotCooldown /= 2;
+                        }
 
                         // Check if the sprite can still see the player
                         if(checkWallsBetweenPoints(rc->sprites[i].posX, rc->sprites[i].posY, rc->posX, rc->posY))
@@ -1714,7 +1732,15 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                 rc->sprites[i].texTimer -= tElapsedUs;
                 while(rc->sprites[i].texTimer < 0)
                 {
-                    rc->sprites[i].texTimer += GOT_SHOT_ANIM_TIME;
+                    // Hard mode is twice as fast
+                    if(RC_HARD == rc->difficulty)
+                    {
+                        rc->sprites[i].texTimer += (GOT_SHOT_ANIM_TIME / 2);
+                    }
+                    else
+                    {
+                        rc->sprites[i].texTimer += GOT_SHOT_ANIM_TIME;
+                    }
 
                     // Pick the next texture
                     rc->sprites[i].texFrame = (rc->sprites[i].texFrame + 1) % NUM_HURT_FRAMES;
@@ -1952,17 +1978,27 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
         {
             // Set up the shooting texture
             sprite->stateTimer = SHOOTING_ANIM_TIME;
+            // Hard mode is twice as fast
+            if(RC_HARD == rc->difficulty)
+            {
+                sprite->stateTimer /= 2;
+            }
             sprite->texture = rc->shooting[0];
-            sprite->texTimer = SHOOTING_ANIM_TIME;
+            sprite->texTimer = sprite->stateTimer;
             break;
         }
         case E_GOT_SHOT:
         {
             // Set up the got shot texture
             sprite->stateTimer = GOT_SHOT_ANIM_TIME;
+            // Hard mode is twice as fast
+            if(RC_HARD == rc->difficulty)
+            {
+                sprite->stateTimer /= 2;
+            }
             sprite->texture = rc->hurt[0];
-            sprite->invertTexUs = GOT_SHOT_ANIM_TIME / 3;
-            sprite->texTimer = GOT_SHOT_ANIM_TIME;
+            sprite->invertTexUs = sprite->stateTimer / 3;
+            sprite->texTimer = sprite->stateTimer;
             break;
         }
         case E_DEAD:
