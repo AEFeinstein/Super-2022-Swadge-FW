@@ -55,6 +55,8 @@
 // Helper macro to return the absolute value of an integer
 #define ABS(X) (((X) < 0) ? -(X) : (X))
 
+#define RADAR_RANGE 81 // Square of the range in cells
+
 /*==============================================================================
  * Enums
  *============================================================================*/
@@ -2122,7 +2124,7 @@ void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg __attribute__((unused)))
         }
     }
     // Otherwise use the LEDs like a radar
-    else if(rc->closestDist < 64) // This is the squared dist, so check for radius 8
+    else if(rc->closestDist < RADAR_RANGE) // This is the squared dist, so check against the radius
     {
         // Associate each LED with a radian angle around the circle
         float ledAngles[NUM_LIN_LEDS] =
@@ -2152,7 +2154,7 @@ void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg __attribute__((unused)))
                 // and the LED distance to the angle
                 uint32_t rColor = EHSVtoHEX(rc->radarObstructed ? 140 : 200, // 0 is red, 85 is green, 171 is blue
                                             0xFF,
-                                            (4 * (64 - rc->closestDist)) * (1 - dist));
+                                            (255 * (RADAR_RANGE - rc->closestDist) * (1 - dist)) / RADAR_RANGE);
                 leds[i].r = ((rColor >>  0) & 0xFF);
                 leds[i].g = ((rColor >>  8) & 0xFF);
                 leds[i].b = ((rColor >> 16) & 0xFF);
