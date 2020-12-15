@@ -277,7 +277,7 @@ const sprite_t font_IbmVga8[] RODATA_ATTR =
         },
     },
     {
-        .width = 6,
+        .width = 7,
         .height = FONT_HEIGHT_IBMVGA8,
         .data = {
             0b0000000000001100,

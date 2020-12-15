@@ -192,7 +192,7 @@ const sprite_t font_TomThumb[] RODATA_ATTR =
         },
     },
     {
-        .width = 2,
+        .width = 3,
         .height = FONT_HEIGHT_TOMTHUMB,
         .data = {
             0b0000000000000001,
