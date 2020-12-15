@@ -16,6 +16,7 @@
 #include "assets.h"
 #include "font.h"
 #include "cndraw.h"
+#include "hsv_utils.h"
 
 #include "buttons.h"
 
@@ -67,7 +68,8 @@ typedef enum __attribute__((__packed__))
     E_SHOOTING,
     E_GOT_SHOT,
     E_DEAD
-} enemyState_t;
+}
+enemyState_t;
 
 typedef enum
 {
@@ -86,7 +88,8 @@ typedef enum  __attribute__((__packed__))
     WMT_C  = 3, ///< Column
     WMT_E  = 4, ///< Empty
     WMT_S  = 5, ///< Spawn point
-} WorldMapTile_t;
+}
+WorldMapTile_t;
 
 /*==============================================================================
  * Structs
@@ -171,6 +174,7 @@ typedef struct
     timer_t ledTimer;
     uint32_t closestDist;
     float closestAngle;
+    bool radarObstructed;
     int32_t gotShotTimer;
     int32_t shotSomethingTimer;
     int32_t killedSpriteTimer;
@@ -205,7 +209,7 @@ void ICACHE_FLASH_ATTR drawHUD(void);
 void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty);
 void ICACHE_FLASH_ATTR sortSprites(int32_t* order, float* dist, int32_t amount);
 float ICACHE_FLASH_ATTR Q_rsqrt( float number );
-bool ICACHE_FLASH_ATTR checkLineToPlayer(raySprite_t* sprite, float pX, float pY);
+bool ICACHE_FLASH_ATTR checkWallsBetweenPoints(float sX, float sY, float pX, float pY);
 void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state);
 
 /*==============================================================================
@@ -379,6 +383,7 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
     // Set up the LED timer
     rc->closestDist = 0xFFFFFFFF;
     rc->closestAngle = 0;
+    rc->radarObstructed = false;
     timerSetFn(&(rc->ledTimer), raycasterLedTimer, NULL);
     timerArm(&(rc->ledTimer), 10, true);
 
@@ -525,6 +530,7 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
     // Reset the closest distance to not shine LEDs
     rc->closestDist = 0xFFFFFFFF;
     rc->closestAngle = 0;
+    rc->radarObstructed = false;
 
     // Start the round clock
     rc->tRoundElapsed = 0;
@@ -1366,6 +1372,7 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
     // Keep track of the closest live sprite
     rc->closestDist = 0xFFFFFFFF;
     rc->closestAngle = 0;
+    rc->radarObstructed = false;
 
     // Figure out the movement speed for this frame
     float moveSpeed;
@@ -1645,7 +1652,7 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                         rc->sprites[i].shotCooldown = ENEMY_SHOT_COOLDOWN;
 
                         // Check if the sprite can still see the player
-                        if(checkLineToPlayer(&rc->sprites[i], rc->posX, rc->posY))
+                        if(checkWallsBetweenPoints(rc->sprites[i].posX, rc->sprites[i].posY, rc->posX, rc->posY))
                         {
                             // If it can, the player got shot
                             rc->health--;
@@ -1709,6 +1716,10 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
         float xClosest = (rc->sprites[closestIdx].posX - rc->posX);
         float yClosest = (rc->sprites[closestIdx].posY - rc->posY);
 
+        rc->radarObstructed = checkWallsBetweenPoints(
+                                  rc->sprites[closestIdx].posX, rc->sprites[closestIdx].posY,
+                                  rc->posX, rc->posY);
+
         // Find the angle between the two vectors
         rc->closestAngle = acosf(
                                ((rc->dirX * xClosest) + (rc->dirY * yClosest)) *        // Dot Product
@@ -1735,11 +1746,11 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
  * @return true  if there is a clear line between the player and sprite,
  *         false if there is an obstruction
  */
-bool ICACHE_FLASH_ATTR checkLineToPlayer(raySprite_t* sprite, float pX, float pY)
+bool ICACHE_FLASH_ATTR checkWallsBetweenPoints(float sX, float sY, float pX, float pY)
 {
     // If the sprite and the player are in the same cell
-    if(((int32_t)sprite->posX == (int32_t)pX) &&
-            ((int32_t)sprite->posY == (int32_t)pY))
+    if(((int32_t)sX == (int32_t)pX) &&
+            ((int32_t)sY == (int32_t)pY))
     {
         // We can definitely draw a line between the two
         return true;
@@ -1747,8 +1758,8 @@ bool ICACHE_FLASH_ATTR checkLineToPlayer(raySprite_t* sprite, float pX, float pY
 
     // calculate ray position and direction
     // x-coordinate in camera space
-    float rayDirX = sprite->posX - pX;
-    float rayDirY = sprite->posY - pY;
+    float rayDirX = sX - pX;
+    float rayDirY = sY - pY;
 
     // which box of the map we're in
     int32_t mapX = (int32_t)(pX);
@@ -1819,7 +1830,7 @@ bool ICACHE_FLASH_ATTR checkLineToPlayer(raySprite_t* sprite, float pX, float pY
             // There is a wall between the player and the sprite
             return false;
         }
-        else if(mapX == (int32_t)sprite->posX && mapY == (int32_t)sprite->posY)
+        else if(mapX == (int32_t)sX && mapY == (int32_t)sY)
         {
             // Ray reaches from the player to the sprite unobstructed
             return true;
@@ -2027,6 +2038,7 @@ void ICACHE_FLASH_ATTR raycasterEndRound(void)
     rc->mode = RC_GAME_OVER;
     rc->closestDist = 0xFFFFFFFF;
     rc->closestAngle = 0;
+    rc->radarObstructed = false;
 }
 
 /**
@@ -2138,7 +2150,12 @@ void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg __attribute__((unused)))
             {
                 // Light this LED proportional to the player distance to the sprite
                 // and the LED distance to the angle
-                leds[i].b = (4 * (64 - rc->closestDist)) * (1 - dist);
+                uint32_t rColor = EHSVtoHEX(rc->radarObstructed ? 140 : 200, // 0 is red, 85 is green, 171 is blue
+                                            0xFF,
+                                            (4 * (64 - rc->closestDist)) * (1 - dist));
+                leds[i].r = ((rColor >>  0) & 0xFF);
+                leds[i].g = ((rColor >>  8) & 0xFF);
+                leds[i].b = ((rColor >> 16) & 0xFF);
             }
         }
     }
