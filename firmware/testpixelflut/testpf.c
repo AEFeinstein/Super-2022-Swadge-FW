@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <netdb.h>
+#include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <X11/extensions/XTest.h>
@@ -17,15 +18,18 @@ extern Display *CNFGDisplay;
 extern Window CNFGWindow;
 
 #define PORT 1337
-#define SERVER "192.168.18.132"
 
-int main()
+int main( int argc, char ** argv )
 {
+	if( argc != 2 )
+	{
+		fprintf( stderr, "Usage: [testpf] [server IP]\n" );
+		return -5;
+	}
     void    CNFGPrepareForTransparency();
     CNFGPrepareForTransparency();
 
     CNFGSetup( "PFTest", 128, 64 );
-
 
     struct sockaddr_in si_other;
     int s, i, slen=sizeof(si_other);
@@ -35,7 +39,7 @@ int main()
     si_other.sin_family = AF_INET;
     si_other.sin_port = htons(PORT);
     
-    if (inet_aton(SERVER , &si_other.sin_addr) == 0) 
+    if (inet_aton(argv[1] , &si_other.sin_addr) == 0) 
     {
         fprintf(stderr, "inet_aton() failed\n");
         exit(1);

@@ -929,7 +929,7 @@ void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
         case RSSI_SCAN:
         case RSSI_STATION:
         {
-            if( down )
+            if( down && rssi->netInit )
             {
                 if( button == LEFT )
                 {
