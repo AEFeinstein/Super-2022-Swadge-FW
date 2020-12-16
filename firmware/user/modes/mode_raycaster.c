@@ -8,6 +8,7 @@
 #include <user_interface.h>
 #include <mem.h>
 #include "user_main.h"
+#include "printControl.h"
 #include "nvm_interface.h"
 #include "mode_raycaster.h"
 
@@ -76,15 +77,13 @@ typedef enum
     RC_SCORES
 } raycasterMode_t;
 
-typedef enum
-{
-    WMT_W1 = 0, ///< Wall 1
-    WMT_W2 = 1, ///< Wall 2
-    WMT_W3 = 2, ///< Wall 2
-    WMT_C  = 3, ///< Column
-    WMT_E  = 4, ///< Empty
-    WMT_S  = 5, ///< Spawn point
-} WorldMapTile_t;
+// World map tiles. Use defines, not an enum, so worldMap[][] can be a uint8_t[][]
+#define WMT_W1 0 ///< Wall 1
+#define WMT_W2 1 ///< Wall 2
+#define WMT_W3 2 ///< Wall 2
+#define WMT_C  3 ///< Column
+#define WMT_E  4 ///< Empty
+#define WMT_S  5 ///< Spawn point
 
 /*==============================================================================
  * Structs
@@ -227,7 +226,7 @@ swadgeMode raycasterMode =
 
 raycaster_t* rc;
 
-static const WorldMapTile_t worldMap[MAP_WIDTH][MAP_HEIGHT] =
+static const uint8_t worldMap[MAP_WIDTH][MAP_HEIGHT] =
 {
     {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, },
     {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, },
@@ -295,8 +294,8 @@ static const char rc_quit[]   = "QUIT";
  */
 void ICACHE_FLASH_ATTR raycasterEnterMode(void)
 {
-    os_printf("malloc %d\n", sizeof(raycaster_t));
-    os_printf("system_get_free_heap_size %d\n", system_get_free_heap_size());
+    RAY_PRINTF("malloc %d\n", sizeof(raycaster_t));
+    RAY_PRINTF("system_get_free_heap_size %d\n", system_get_free_heap_size());
 
     // Allocate and zero out everything
     rc = os_malloc(sizeof(raycaster_t));
@@ -380,7 +379,7 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
     timerSetFn(&(rc->ledTimer), raycasterLedTimer, NULL);
     timerArm(&(rc->ledTimer), 10, true);
 
-    os_printf("system_get_free_heap_size %d\n", system_get_free_heap_size());
+    RAY_PRINTF("system_get_free_heap_size %d\n", system_get_free_heap_size());
 }
 
 /**

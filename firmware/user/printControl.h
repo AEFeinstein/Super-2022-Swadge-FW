@@ -29,6 +29,8 @@
 // #define RING_PRINTF(fmt, ...) os_printf("%s::%d " fmt, __func__, __LINE__, ##__VA_ARGS__)
 // #define PET_PRINTF(fmt, ...)  os_printf("%s::%d " fmt, __func__, __LINE__, ##__VA_ARGS__)
 // #define TIME_PRINTF(fmt, ...) os_printf("%s::%d " fmt, __func__, __LINE__, ##__VA_ARGS__)
+// #define RAY_PRINTF(fmt, ...)  os_printf("%s::%d " fmt, __func__, __LINE__, ##__VA_ARGS__)
+// #define RSSI_PRINTF(fmt, ...) os_printf("%s::%d " fmt, __func__, __LINE__, ##__VA_ARGS__)
 
 /*==============================================================================
  * These defines turn debugging off
@@ -43,5 +45,7 @@
 #define RING_PRINTF(fmt, ...)
 #define PET_PRINTF(fmt, ...)
 #define TIME_PRINTF(fmt, ...)
+#define RAY_PRINTF(fmt, ...)
+#define RSSI_PRINTF(fmt, ...)
 
 #endif

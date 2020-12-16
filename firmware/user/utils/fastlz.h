@@ -56,7 +56,7 @@ extern "C" {
   The input buffer and the output buffer can not overlap.
 */
 
-int ICACHE_FLASH_ATTR fastlz_compress(const void* input, int length, void* output);
+// int ICACHE_FLASH_ATTR fastlz_compress(const void* input, int length, void* output);
 
 /**
   Decompress a block of compressed data and returns the size of the
@@ -94,7 +94,7 @@ int ICACHE_FLASH_ATTR fastlz_decompress(const void* input, int length, void* out
   decompressed using the function fastlz_decompress above.
 */
 
-int ICACHE_FLASH_ATTR fastlz_compress_level(int level, const void* input, int length, void* output);
+// int ICACHE_FLASH_ATTR fastlz_compress_level(int level, const void* input, int length, void* output);
 
 #if defined (__cplusplus)
 }

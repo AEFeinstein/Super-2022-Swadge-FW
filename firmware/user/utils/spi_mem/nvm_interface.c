@@ -17,7 +17,7 @@
  * Defines
  *==========================================================================*/
 
-#define SAVE_LOAD_KEY 0xBE
+#define SAVE_LOAD_KEY 0xC0
 
 /*============================================================================
  * Structs
@@ -36,6 +36,8 @@ typedef struct __attribute__((aligned(4)))
     char gitHash[32];
     bool selfTestPassed;
     raycasterScores_t raycasterScores;
+    char ssid[SSID_NAME_LEN];
+    char ssidPw[SSID_NAME_LEN];
 }
 settings_t;
 
@@ -284,17 +286,30 @@ void ICACHE_FLASH_ATTR addRaycasterScore(raycasterDifficulty_t difficulty, uint1
     }
 }
 
-flightSimSaveData_t * ICACHE_FLASH_ATTR getFlightSaveData(void)
+flightSimSaveData_t* ICACHE_FLASH_ATTR getFlightSaveData(void)
 {
     return &settings.flightSaveData;
 }
 
-void ICACHE_FLASH_ATTR setFlightSaveData( flightSimSaveData_t * t )
+void ICACHE_FLASH_ATTR setFlightSaveData( flightSimSaveData_t* t )
 {
     if( t != &settings.flightSaveData )
     {
         memcpy( t, &settings.flightSaveData, sizeof( *t ) );
     }
+    SaveSettings();
+}
+
+void ICACHE_FLASH_ATTR getSsidPw(char* ssid, char* pw)
+{
+    memcpy(ssid, settings.ssid, SSID_NAME_LEN);
+    memcpy(pw, settings.ssidPw, SSID_NAME_LEN);
+}
+
+void ICACHE_FLASH_ATTR setSsidPw(char* ssid, char* pw)
+{
+    memcpy(settings.ssid, ssid, SSID_NAME_LEN);
+    memcpy(settings.ssidPw, pw, SSID_NAME_LEN);
     SaveSettings();
 }
 

@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#define _GNU_SOURCE /* for tm_gmtoff and tm_zone */
+#include <time.h>
 #include "rawdraw/CNFG.h"
 #include "rawdraw/os_generic.h"
 #include "swadgemu.h"
@@ -146,7 +148,7 @@ void emuHeader()
         {
             yS = 0;
         }
-        
+
         for( y = 0; y < WS_HEIGHT; y++ )
         {
             for( x = 0; x < OLED_WIDTH / 2; x++ )
@@ -291,7 +293,8 @@ void emuCheckResize()
         //[4..12] = LEDs
         rawvidmem = swadgeshm_video_data + 16;
 #else
-        rawvidmem = realloc( rawvidmem, px_scale * OLED_WIDTH * px_scale * (HEADER_PIXELS + OLED_HEIGHT + FOOTER_PIXELS) * px_scale * 4 );
+        rawvidmem = realloc( rawvidmem, px_scale * OLED_WIDTH * px_scale * (HEADER_PIXELS + OLED_HEIGHT + FOOTER_PIXELS) *
+                             px_scale * 4 );
 #endif
         updateOLED( false );
     }
@@ -439,7 +442,7 @@ int ets_strlen( const char* s )
 {
     return strlen( s );
 }
-char *ets_strcpy(char *dest, const char *src)
+char* ets_strcpy(char* dest, const char* src)
 {
     return strcpy(dest, src);
 }
@@ -455,7 +458,7 @@ char* ets_strcat(char* dest, const char* src)
 {
     return strcat(dest, src);
 }
-int ets_strncmp(const char *s1, const char *s2, int len)
+int ets_strncmp(const char* s1, const char* s2, int len)
 {
     return strncmp(s1, s2, len);
 }
@@ -1449,48 +1452,89 @@ void HandleDestroy()
 
 bool wifi_get_macaddr(uint8 if_index, uint8* macaddr)
 {
-    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    static bool warned = false;
+    if(!warned)
+    {
+        warned = true;
+        fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    }
     return true;
 }
 
 bool wifi_set_opmode_current(uint8 opmode)
 {
-    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    static bool warned = false;
+    if(!warned)
+    {
+        warned = true;
+
+        fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    }
     return true;
 }
 
 bool wifi_set_opmode(uint8 opmode )
 {
-    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    static bool warned = false;
+    if(!warned)
+    {
+        warned = true;
+        fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    }
     return true;
 }
 
-bool wifi_station_set_config(struct station_config *config)
+bool wifi_station_set_config(struct station_config* config)
 {
-    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    static bool warned = false;
+    if(!warned)
+    {
+        warned = true;
+        fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    }
     return true;
 }
 
 bool wifi_station_connect(void)
 {
-    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    static bool warned = false;
+    if(!warned)
+    {
+        warned = true;
+        fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    }
     return true;
 }
 
 void wifi_enable_signaling_measurement(void)
 {
-    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    static bool warned = false;
+    if(!warned)
+    {
+        warned = true;
+        fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    }
 }
 
 sint8 wifi_station_get_rssi(void)
 {
-    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    static bool warned = false;
+    if(!warned)
+    {
+        warned = true;
+        fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    }
     return 0;
 }
 
-bool wifi_station_scan(struct scan_config *config, scan_done_cb_t cb)
+bool wifi_station_scan(struct scan_config* config, scan_done_cb_t cb)
 {
-    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    static bool warned = false;
+    if(!warned)
+    {
+        warned = true;
+        fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    }
     struct bss_info bss = {0};
     bss.channel = 11;
     bss.authmode = AUTH_OPEN;
@@ -1501,14 +1545,148 @@ bool wifi_station_scan(struct scan_config *config, scan_done_cb_t cb)
     return true;
 }
 
-bool wifi_get_ip_info(uint8 if_index, struct ip_info *info)
+bool wifi_get_ip_info(uint8 if_index, struct ip_info* info)
 {
-    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    static bool warned = false;
+    if(!warned)
+    {
+        warned = true;
+        fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    }
     return true;
 }
 
 bool wifi_set_sleep_type(enum sleep_type type)
 {
-    fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    static bool warned = false;
+    if(!warned)
+    {
+        warned = true;
+        fprintf( stderr, "EMU Warning: %s not implemented\n", __func__);
+    }
     return true;
+}
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+// SNTP Stubs
+
+/**
+ * get the seconds since Jan 01, 1970, 00:00 (GMT + 8)
+ */
+uint32 sntp_get_current_timestamp()
+{
+    return time(NULL);
+}
+
+/**
+ * get real time (GTM + 8 time zone)
+ */
+char* sntp_get_real_time(long t)
+{
+    /* Define temporary variables */
+    time_t current_time;
+    struct tm* local_time;
+
+    /* Retrieve the current time */
+    current_time = time(NULL);
+
+    /* Get the local time using the current time */
+    local_time = localtime(&current_time);
+
+    /* Return the local time */
+    return asctime(local_time);
+}
+
+/**
+ * SNTP get time_zone default GMT + 8
+ */
+sint8 sntp_get_timezone(void)
+{
+    time_t t = time(NULL);
+    struct tm lt = {0};
+    localtime_r(&t, &lt);
+
+    return lt.tm_gmtoff;
+}
+
+/**
+ * SNTP set time_zone (default GMT + 8)
+ */
+bool sntp_set_timezone(sint8 timezone)
+{
+    // Don't support time zones for emulation
+    return false;
+}
+
+/**
+ * Initialize this module.
+ * Send out request instantly or after SNTP_STARTUP_DELAY(_FUNC).
+ */
+void sntp_init(void)
+{
+    // Do nothing, it's emulated
+    return;
+}
+
+/**
+ * Stop this module.
+ */
+void sntp_stop(void)
+{
+    // Do nothing, it's emulated
+    return;
+}
+
+/**
+ * Initialize one of the NTP servers by IP address
+ *
+ * @param numdns the index of the NTP server to set must be < SNTP_MAX_SERVERS
+ * @param dnsserver IP address of the NTP server to set
+ */
+void sntp_setserver(unsigned char idx, ip_addr_t* addr)
+{
+    return;
+}
+
+/**
+ * Obtain one of the currently configured by IP address (or DHCP) NTP servers
+ *
+ * @param numdns the index of the NTP server
+ * @return IP address of the indexed NTP server or "ip_addr_any" if the NTP
+ *         server has not been configured by address (or at all).
+ */
+ip_addr_t sntp_getserver(unsigned char idx)
+{
+    static ip_addr_t dummy = {0};
+    return dummy;
+}
+
+/**
+ * Initialize one of the NTP servers by name
+ *
+ * @param numdns the index of the NTP server to set must be < SNTP_MAX_SERVERS,now sdk support SNTP_MAX_SERVERS = 3
+ * @param dnsserver DNS name of the NTP server to set, to be resolved at contact time
+ */
+void sntp_setservername(unsigned char idx, char* server)
+{
+    return;
+}
+
+/**
+ * Obtain one of the currently configured by name NTP servers.
+ *
+ * @param numdns the index of the NTP server
+ * @return IP address of the indexed NTP server or NULL if the NTP
+ *         server has not been configured by name (or at all)
+ */
+char* sntp_getservername(unsigned char idx)
+{
+    return NULL;
+}
+
+struct tm* sntp_localtime(const time_t* tim_p)
+{
+    return localtime(tim_p);
 }

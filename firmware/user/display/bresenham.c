@@ -22,10 +22,12 @@
 
 #if defined(FEATURE_OLED)
 
+#ifdef EXTRA_DRAW_FUNCS
 #define assert(x) \
     if(false == (x)) { \
         return; \
     }
+#endif
 
 void ICACHE_FLASH_ATTR plotLine(int x0, int y0, int x1, int y1, color col)
 {
@@ -105,6 +107,7 @@ void ICACHE_FLASH_ATTR plotRect(int x0, int y0, int x1, int y1, color col)
     plotLine(x0, y1, x1, y1, col);
 }
 
+#ifdef EXTRA_DRAW_FUNCS
 void ICACHE_FLASH_ATTR plotEllipse(int xm, int ym, int a, int b, color col)
 {
     int x = -a, y = 0; /* II. quadrant from bottom left to top right */
@@ -165,6 +168,7 @@ void ICACHE_FLASH_ATTR plotOptimizedEllipse(int xm, int ym, int a, int b, color 
         drawPixel(xm, ym - y, col);
     }
 }
+#endif
 
 void ICACHE_FLASH_ATTR plotCircle(int xm, int ym, int r, color col)
 {
@@ -187,6 +191,7 @@ void ICACHE_FLASH_ATTR plotCircle(int xm, int ym, int r, color col)
     } while (x < 0);
 }
 
+#ifdef EXTRA_DRAW_FUNCS
 void ICACHE_FLASH_ATTR plotEllipseRect(int x0, int y0, int x1,
                                        int y1, color col)   /* rectangular parameter enclosing the ellipse */
 {
@@ -885,5 +890,6 @@ void ICACHE_FLASH_ATTR plotCubicSpline(int n, int x[], int y[],
                     floor((y1 + 2 * y2) / 3 + 0.5), x3, y3, col);
     plotCubicBezier(x0, y0, x0, y0, (x0 + x1) / 2, (y0 + y1) / 2, x4, y4, col);
 }
+#endif
 
 #endif

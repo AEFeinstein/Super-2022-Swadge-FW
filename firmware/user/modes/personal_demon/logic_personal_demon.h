@@ -78,7 +78,7 @@ typedef enum
  * Structs
  ******************************************************************************/
 
-typedef struct
+typedef struct __attribute__((aligned(4)))
 {
     int32_t hunger; ///< 0 hunger is perfect, positive means too hungry, negative means too full
     int32_t happy;
@@ -93,7 +93,8 @@ typedef struct
     event_t evQueue[32];
     uint8_t evQueueIdx;
     uint8_t species;
-} demon_t;
+}
+demon_t;
 
 /*******************************************************************************
  * Prototypes
