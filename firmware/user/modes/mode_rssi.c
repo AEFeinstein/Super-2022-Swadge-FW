@@ -15,6 +15,7 @@
 #include <stdint.h>
 #include <sntp.h>
 #include <time.h>
+#include <stdlib.h>
 
 #include "user_main.h"
 #include "embeddednf.h"
@@ -32,12 +33,17 @@
 #include "user_interface.h"
 #include "printControl.h"
 #include "nvm_interface.h"
+#include "espconn.h"
 
 /*============================================================================
  * Defines, Structs, Enums
  *==========================================================================*/
 
-#define RSSI_UPDATE_MS 20
+#define RSSI_UPDATE_MS    20
+#define NUM_PF_CLIENTS    10
+#define LED_PORT        7777
+#define PF_PORT            1337
+#define ARTNET_PORT        6454
 
 typedef enum
 {
@@ -54,6 +60,7 @@ typedef enum
     RSSI_SUBMODE_ALTERNATE,
     RSSI_SUBMODE_ALTERNATE2,
     RSSI_SUBMODE_CLOCK,
+    RSSI_SUBMODE_PIXELFLUT,
     RSSI_SUBMODE_MAX,
 } rssiSubmode;
 
@@ -82,8 +89,30 @@ typedef struct
     int     rssi_head;
     int num_scan;
 
-    bool sntpInit; // time init
+    bool netInit; // time init
     int8_t tz; // timezone
+    bool bEnableLEDsOnTime;
+    bool bGotNetworkLED;
+    bool bAlreadyUpdated; //Right now, only used on pixelflut mode.
+    bool bEnableBufferMode;
+    uint16_t artnetOffset;
+
+    struct espconn server_pf_socket;
+    esp_tcp server_pf_socket_tcp;
+    uint32_t time_of_pf_last[NUM_PF_CLIENTS];
+    esp_tcp server_pf_clients_tcp[NUM_PF_CLIENTS];
+    struct espconn server_pf_clients[NUM_PF_CLIENTS];
+
+    struct espconn server_udp_leds;
+    esp_udp server_udp_leds_udp;
+
+    struct espconn server_udp_artnet;
+    esp_udp server_udp_artnet_udp;
+
+    struct espconn server_udp_pf;
+    esp_udp server_udp_pf_udp;
+
+    led_t set_leds[NUM_LIN_LEDS];
 } rssi_t;
 
 #define ABS(X) (((X) < 0) ? -(X) : (X))
@@ -106,6 +135,12 @@ void ICACHE_FLASH_ATTR strDow(char* str, int dow);
 void ICACHE_FLASH_ATTR strMon(char* str, int mDay, int mon);
 void ICACHE_FLASH_ATTR strTime(char* str, int h, int m, int s, bool space);
 void ICACHE_FLASH_ATTR drawClockArm(led_t* leds, uint8_t hue, int16_t handAngle);
+
+static void ICACHE_FLASH_ATTR RSSIConnectPIXELFLUTCB(void *pArg);
+static void ICACHE_FLASH_ATTR RSSIRecvPIXELFLUTData(void *pArg, char *pData, unsigned short len);
+static void ICACHE_FLASH_ATTR RSSIRecvLEDData(void *pArg, char *pData, unsigned short len);
+static void ICACHE_FLASH_ATTR RSSIRecvARTNETData(void *pArg, char *pData, unsigned short len);
+static void ICACHE_FLASH_ATTR ProcessPixelFlutCommand( struct espconn *pConn, const char * command, int len );
 
 // Prototype missing from sntp.h
 struct tm* sntp_localtime(const time_t* tim_p);
@@ -186,7 +221,8 @@ void ICACHE_FLASH_ATTR rssiEnterMode(void)
     timerArm(&(rssi->updateTimer), RSSI_UPDATE_MS, true);
     enableDebounce(false);
 
-    rssi->sntpInit = false;
+    rssi->netInit = false;
+    rssi->bEnableLEDsOnTime = true;
     rssi->tz = -5; // eastern US
 }
 
@@ -201,8 +237,8 @@ void ICACHE_FLASH_ATTR rssiExitMode(void)
     os_free(rssi);
     rssi = 0;
 
-    led_t leds[NUM_LIN_LEDS] = {{0}};
-    setLeds(leds, sizeof(leds));
+    memset( rssi->set_leds, 0, sizeof( rssi->set_leds ) );
+    setLeds( rssi->set_leds, sizeof(rssi->set_leds));
 }
 
 
@@ -290,6 +326,7 @@ static void ICACHE_FLASH_ATTR rssiMenuCb(const char* menuItem)
     {
         rssi->mode = RSSI_SOFTAP;
         rssi->submode = 0;
+        rssi->bAlreadyUpdated = false;
         wifi_set_opmode_current( SOFTAP_MODE );
         wifi_set_sleep_type(NONE_SLEEP_T);
         wifi_enable_signaling_measurement();
@@ -333,6 +370,175 @@ static void ICACHE_FLASH_ATTR rssiMenuCb(const char* menuItem)
         }
     }
 }
+
+
+
+
+static void ICACHE_FLASH_ATTR RSSIConnectPIXELFLUTCB(void *pArg) {
+    struct espconn *pConn = (struct espconn *)pArg;
+    os_printf("connection from %d.%d.%d.%d port %d\n",
+              IP2STR(pConn->proto.tcp->remote_ip),
+              pConn->proto.tcp->remote_port);
+     
+    espconn_regist_recvcb(pConn, &RSSIRecvPIXELFLUTData);
+}
+
+
+
+static void ICACHE_FLASH_ATTR ProcessPixelFlutCommand( struct espconn *pConn, const char * command, int len )
+{
+    if( len >= 4 && memcmp( command, "SIZE", 4 ) == 0 )
+    {
+        char st[64];
+        int slen = os_sprintf( st, "SIZE %d %d\n", OLED_WIDTH, OLED_HEIGHT );
+        espconn_send( pConn, (uint8_t*)st, slen );
+    }
+    else if( len >= 3 && memcmp( command, "PX ", 3 ) == 0 )
+    {
+        int sp1, sp2;
+        for( sp1 = 3; sp1 < len && command[sp1] != ' '; sp1++ );
+        for( sp2 = sp1+1; sp2 < len && command[sp2] != ' '; sp2++ );
+        if( sp1 >= len ) goto help;
+
+        int x = atoi( command + 2 );
+        int y = atoi( command + sp1 );
+        if( sp2 >= len )
+        {
+            //No 3rd parameter.  This is a get.
+            char st[64];
+            int slen = os_sprintf( st, "PX %d %d %06x\n", x, y, ( getPixel( x, y ) == WHITE )?0xffffff:0x000000 );
+            espconn_send( pConn, (uint8_t*)st, slen );
+        }
+        else
+        {
+            //3rd parameter present, interpret as a color request.
+            int value = strtol( command+sp2, 0, 16 );
+            int r = (value>>24)&0xff;
+            int g = (value>>16)&0xff;
+            int b = (value>>8)&0xff;
+            int a = (value>>0)&0xff;
+            int avg = (r+g+b);
+            os_printf( "DRAW AT %d, %d, %d %d\n", x, y, avg,a );
+            if( a > 0x7f )
+            {
+                drawPixel( x, y, (avg > 0x17D)?WHITE:BLACK );
+            }
+        }
+    }
+    else
+    {
+        goto help;
+    }
+    return;
+help:
+    {
+        const char * swadgpf = "Swadge PF Server; Usage:\nHELP: Display this message\nSIZE: Return size of target screen\nPX <x> <y>: Get value of pixel (0xFFFFFF or 0x000000 only)\nPX <x> <y> <value>: Set value of pixel (>0x7f average brightness = on, otherwise off)\nBUFFER <swadge-full display, 1kB data>";
+        espconn_send( pConn, (uint8_t*)swadgpf, strlen( swadgpf ) );
+    }
+}
+
+static void ICACHE_FLASH_ATTR RSSIRecvPIXELFLUTData(void *pArg, char *pData, unsigned short len) {
+    struct espconn *pConn = (struct espconn *)pArg;
+    os_printf("PF received %d bytes from %d.%d.%d.%d port %d: \"%s\"\n",
+              len,
+              IP2STR(pConn->proto.tcp->remote_ip),
+              pConn->proto.tcp->remote_port,
+              pData);
+
+    do
+    {
+        if( len >= 7+(OLED_WIDTH * (OLED_HEIGHT / 8)) )
+        {
+            if( memcmp( pData, "BUFFER ", 7 ) == 0 )
+            {
+                if( !rssi->bEnableBufferMode )
+                {
+                    const char * swadgpf = "Press Action to Enable Buffer Mode";
+                    espconn_send( pConn, (uint8_t*)swadgpf, strlen( swadgpf ) );
+                }
+                else
+                {
+                    extern uint8_t currentFb[(OLED_WIDTH * (OLED_HEIGHT / 8))];
+                    memcpy( currentFb, pData+7, (OLED_WIDTH * (OLED_HEIGHT / 8)) );
+                    extern bool fbChanges;
+                    fbChanges = true;
+                    //updateOLED( 0 );
+                    //Whole frame.
+                }
+                return;
+            }
+        }
+        //Scan line for newline.
+        int epl = 0;
+        for( epl = 0; epl < len && pData[epl] != '\n'; epl++ );
+        if( epl < len ) pData[epl] = 0;    //Force null termination.
+        if( epl ) ProcessPixelFlutCommand( pConn, pData, epl );
+        if( epl < len ) epl++; //Advance past null.
+        pData += epl;
+        len -= epl;
+    } while( len > 0 );
+
+    return;
+/*
+abort:
+    os_printf( "invalid command %s\n", pData );
+    if( pConn->type == ESPCONN_TCP )
+    {
+        espconn_disconnect( pConn );
+        espconn_delete( pConn );
+    }
+    return;
+*/
+}
+
+static void ICACHE_FLASH_ATTR RSSIRecvLEDData(void *pArg, char *pData, unsigned short len)
+{
+    struct espconn *pConn = (struct espconn *)pArg;
+
+/*
+    os_printf("LED received %d bytes from %d.%d.%d.%d port %d: \"%s\"\n",
+              len,
+              IP2STR(pConn->proto.tcp->remote_ip),
+              pConn->proto.tcp->remote_port,
+              pData);
+*/
+
+    int ll = len;
+    ll -= 3;
+    if( ll < 0 ) return;
+    if( pData[0] || pData[1] || pData[2] ) return; //Not an LED packet.
+    if( ll > 18 ) ll = 18; 
+
+    //Skip 3 bytes.  Cause that's just how we do (From esp8266ws2812i2s)
+    memcpy( rssi->set_leds, pData+3, ll );
+}
+
+static void ICACHE_FLASH_ATTR RSSIRecvARTNETData(void *pArg, char *pData, unsigned short len)
+{
+    struct espconn *pConn = (struct espconn *)pArg;
+
+    os_printf("LED received %d bytes from %d.%d.%d.%d port %d: \"%s\"\n",
+              len,
+              IP2STR(pConn->proto.tcp->remote_ip),
+              pConn->proto.tcp->remote_port,
+              pData);
+
+
+    int ll = len;
+    if( ll <= 18 ) return;
+    if( memcmp( pData, "Art-Net", 8 ) != 0 ) return; //Not an artnet packet.
+    //Ignore protocol, universe, sequence, physical and length.
+    ll -= 18; //18 bytes in header
+
+    int offset = rssi->artnetOffset;
+    ll -= offset;
+
+    //3 colors x 6 LEDs
+    if( ll > 18 ) ll = 18;
+
+    memcpy( rssi->set_leds, pData+18+offset, ll );
+}
+
 
 /**
  * @brief called on a timer, updates the game state
@@ -382,6 +588,20 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
             switch( rssi->submode )
             {
                 default:
+                case RSSI_SUBMODE_PIXELFLUT:
+                    if( !rssi->bAlreadyUpdated )
+                    {
+                        clearDisplay();
+                        plotText(0, 0, "PIXELFLUT/ARTNET", IBM_VGA_8, WHITE);
+                        char st[64];
+                        os_sprintf( st, "ARTNET OFFSET %d\n", rssi->artnetOffset ); 
+                        plotText(0, 20, st, IBM_VGA_8, WHITE);
+                        os_sprintf( st, "BUFFER MODE %d\n", rssi->bEnableBufferMode ); 
+                        plotText(0, 40, st, IBM_VGA_8, WHITE);
+                        rssi->bAlreadyUpdated = true;
+                    }
+                    //Otherwise, don't touch screen, except on first frame..
+                    break;
                 case RSSI_SUBMODE_MAX:
                 case RSSI_SUBMODE_REGULAR:
                 case RSSI_SUBMODE_CLOCK:
@@ -426,17 +646,47 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                         }
 
                         // Start NTP if we have an IP address and it hasn't been started yet
-                        if(ipi.ip.addr != 0 && false == rssi->sntpInit)
+                        if(ipi.ip.addr != 0 && false == rssi->netInit)
                         {
                             RSSI_PRINTF("Init SNTP\n");
-                            rssi->sntpInit = true;
+                            rssi->netInit = true;
                             sntp_setservername(0, "time.google.com");
                             sntp_setservername(1, "time.cloudflare.com");
                             sntp_setservername(2, "time-a-g.nist.gov");
                             sntp_init();
                             sntp_set_timezone(rssi->tz); // Eastern
+
+                            //Set up other sockets.
+                            memset( &rssi->server_udp_leds, 0, sizeof( rssi->server_udp_leds ) );
+                            rssi->server_udp_leds.type = ESPCONN_UDP;
+                            rssi->server_udp_leds.proto.udp = &rssi->server_udp_leds_udp;
+                            rssi->server_udp_leds.proto.udp->local_port = LED_PORT;
+                            espconn_regist_recvcb( &rssi->server_udp_leds, RSSIRecvLEDData);
+                            espconn_create( &rssi->server_udp_leds );
+
+                            memset( &rssi->server_udp_artnet, 0, sizeof( rssi->server_udp_artnet ) );
+                            rssi->server_udp_artnet.type = ESPCONN_UDP;
+                            rssi->server_udp_artnet.proto.udp = &rssi->server_udp_artnet_udp;
+                            rssi->server_udp_artnet.proto.udp->local_port = ARTNET_PORT;
+                            espconn_regist_recvcb( &rssi->server_udp_artnet, RSSIRecvARTNETData);
+                            espconn_create( &rssi->server_udp_artnet );
+
+                            memset( &rssi->server_udp_pf, 0, sizeof( rssi->server_udp_pf ) );
+                            rssi->server_udp_pf.type = ESPCONN_UDP;
+                            rssi->server_udp_pf.proto.udp = &rssi->server_udp_pf_udp;
+                            rssi->server_udp_pf.proto.udp->local_port = PF_PORT;
+                            espconn_regist_recvcb(&rssi->server_udp_pf, RSSIRecvPIXELFLUTData);
+                            espconn_create( &rssi->server_udp_pf );
+
+                            memset( &rssi->server_pf_socket, 0, sizeof( rssi->server_udp_pf ) );
+                            rssi->server_pf_socket.type = ESPCONN_TCP;
+                            rssi->server_pf_socket.proto.tcp = &rssi->server_pf_socket_tcp;
+                            rssi->server_pf_socket.proto.tcp->local_port = PF_PORT;
+                            espconn_regist_connectcb(&rssi->server_pf_socket, RSSIConnectPIXELFLUTCB);
+                            espconn_create( &rssi->server_pf_socket );
+                            espconn_accept( &rssi->server_pf_socket );
                         }
-                        else if(rssi->sntpInit)
+                        else if(rssi->netInit)
                         {
                             // if NTP is initialized, try to get a timestamp
                             time_t ts = sntp_get_current_timestamp();
@@ -480,11 +730,13 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                                     timePlotted = true;
 
                                     // Draw an analog clock to the LEDs
-                                    led_t leds[NUM_LIN_LEDS] = {{0}};
-                                    drawClockArm(leds, 0,   tStruct->tm_sec * 6);
-                                    drawClockArm(leds, 85,  tStruct->tm_min * 6);
-                                    drawClockArm(leds, 170, (tStruct->tm_hour % 12) * 30);
-                                    setLeds(leds, sizeof(leds));
+                                    memset( rssi->set_leds, 0, sizeof( rssi->set_leds ) );
+                                    if( rssi->bEnableLEDsOnTime )
+                                    {
+                                        drawClockArm(rssi->set_leds, 0,   tStruct->tm_sec * 6);
+                                        drawClockArm(rssi->set_leds, 85,  tStruct->tm_min * 6);
+                                        drawClockArm(rssi->set_leds, 170, (tStruct->tm_hour % 12) * 30);
+                                    }
                                 }
                             }
                         }
@@ -511,6 +763,7 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                     if( rssi->mode == RSSI_SOFTAP )
                     {
                         rssi->submode = RSSI_SUBMODE_REGULAR;
+                        rssi->bAlreadyUpdated = false;
                     }
                     else
                     {
@@ -522,20 +775,13 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                             selcol += 90;
                             selcol *= 8;
                             uint32_t rcolor = EHSVtoHEX(selcol, 0xFF, 0xFF);
-                            led_t leds[NUM_LIN_LEDS] = {{0}};
                             int i;
                             for( i = 0; i < NUM_LIN_LEDS; i++ )
                             {
-                                leds[i].r = rcolor & 0xff;
-                                leds[i].g = (rcolor >> 8) & 0xff;
-                                leds[i].b = (rcolor >> 16) & 0xff;
+                                rssi->set_leds[i].r = rcolor & 0xff;
+                                rssi->set_leds[i].g = (rcolor >> 8) & 0xff;
+                                rssi->set_leds[i].b = (rcolor >> 16) & 0xff;
                             }
-                            setLeds(leds, sizeof(leds));
-                        }
-                        else
-                        {
-                            led_t leds[NUM_LIN_LEDS] = {{0}};
-                            setLeds(leds, sizeof(leds));
                         }
 
                         os_sprintf( cts, "%ddb", this_rssi );
@@ -569,6 +815,7 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                     break;
                 }
             }
+            setLeds(rssi->set_leds, sizeof(rssi->set_leds));
             break;
         }
     }
@@ -582,9 +829,20 @@ static void ICACHE_FLASH_ATTR HandleEnterPressOnSubmode( rssiSubmode sm )
         case RSSI_SOFTAP:
         case RSSI_STATION:
         {
-            if( sm == RSSI_SUBMODE_REGULAR )
+            switch( sm )
             {
+            case RSSI_SUBMODE_REGULAR:
                 rssi->mode = RSSI_MENU;
+                break;
+            case RSSI_SUBMODE_CLOCK:
+                rssi->bEnableLEDsOnTime = !rssi->bEnableLEDsOnTime;
+                break;
+            case RSSI_SUBMODE_PIXELFLUT:
+                rssi->bEnableBufferMode = !rssi->bEnableBufferMode;
+                rssi->bAlreadyUpdated = 0;
+                break;
+            default:
+                break;
             }
             break;
         }
@@ -649,6 +907,7 @@ void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
             {
                 if( button == LEFT )
                 {
+                    rssi->bAlreadyUpdated = false;
                     rssiSubmode m = rssi->submode;
                     m++;
                     if( m == RSSI_SUBMODE_MAX )
@@ -662,6 +921,7 @@ void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
                 }
                 else if( button == RIGHT )
                 {
+                    rssi->bAlreadyUpdated = false;
                     rssiSubmode m = rssi->submode;
                     if( m == 0 )
                     {
@@ -674,7 +934,16 @@ void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
                 }
                 else if( button == UP )
                 {
-                    if(rssi->sntpInit)
+
+                    if( rssi->submode == RSSI_SUBMODE_PIXELFLUT )
+                    {
+                        if( rssi->artnetOffset < 512 )
+                        {
+                            rssi->artnetOffset++;
+                            rssi->bAlreadyUpdated = false;
+                        }
+                    }
+                    else if(rssi->netInit)
                     {
                         rssi->tz++;
                         if(14 == rssi->tz)
@@ -689,7 +958,15 @@ void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
                 }
                 else if( button == DOWN )
                 {
-                    if(rssi->sntpInit)
+                    if( rssi->submode == RSSI_SUBMODE_PIXELFLUT )
+                    {
+                        if( rssi->artnetOffset > 0 )
+                        {
+                            rssi->artnetOffset--;
+                            rssi->bAlreadyUpdated = false;
+                        }
+                    }
+                    else if(rssi->netInit)
                     {
                         rssi->tz--;
                         if(-12 == rssi->tz)
