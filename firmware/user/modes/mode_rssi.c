@@ -96,6 +96,8 @@ typedef struct
     bool bAlreadyUpdated; //Right now, only used on pixelflut mode.
     bool bEnableBufferMode;
     uint16_t artnetOffset;
+    uint8_t iLastButtonState;
+    bool bForcePixelFlutBuffer; //happens after buffer is enabled and received a packet.  Can no longer exit mode.
 
     struct espconn server_pf_socket;
     esp_tcp server_pf_socket_tcp;
@@ -376,7 +378,7 @@ static void ICACHE_FLASH_ATTR rssiMenuCb(const char* menuItem)
 
 static void ICACHE_FLASH_ATTR RSSIConnectPIXELFLUTCB(void *pArg) {
     struct espconn *pConn = (struct espconn *)pArg;
-    os_printf("connection from %d.%d.%d.%d port %d\n",
+    RSSI_PRINTF("connection from %d.%d.%d.%d port %d\n",
               IP2STR(pConn->proto.tcp->remote_ip),
               pConn->proto.tcp->remote_port);
      
@@ -418,7 +420,7 @@ static void ICACHE_FLASH_ATTR ProcessPixelFlutCommand( struct espconn *pConn, co
             int b = (value>>8)&0xff;
             int a = (value>>0)&0xff;
             int avg = (r+g+b);
-            os_printf( "DRAW AT %d, %d, %d %d\n", x, y, avg,a );
+            RSSI_PRINTF( "DRAW AT %d, %d, %d %d\n", x, y, avg,a );
             if( a > 0x7f )
             {
                 drawPixel( x, y, (avg > 0x17D)?WHITE:BLACK );
@@ -439,11 +441,11 @@ help:
 
 static void ICACHE_FLASH_ATTR RSSIRecvPIXELFLUTData(void *pArg, char *pData, unsigned short len) {
     struct espconn *pConn = (struct espconn *)pArg;
-    os_printf("PF received %d bytes from %d.%d.%d.%d port %d: \"%s\"\n",
-              len,
-              IP2STR(pConn->proto.tcp->remote_ip),
-              pConn->proto.tcp->remote_port,
-              pData);
+    //RSSI_PRINTF("PF received %d bytes from %d.%d.%d.%d port %d: \"%s\"\n",
+    //          len,
+    //          IP2STR(pConn->proto.tcp->remote_ip),
+    //          pConn->proto.tcp->remote_port,
+    //          pData);
 
     do
     {
@@ -458,12 +460,29 @@ static void ICACHE_FLASH_ATTR RSSIRecvPIXELFLUTData(void *pArg, char *pData, uns
                 }
                 else
                 {
+                    //Update screen
                     extern uint8_t currentFb[(OLED_WIDTH * (OLED_HEIGHT / 8))];
                     memcpy( currentFb, pData+7, (OLED_WIDTH * (OLED_HEIGHT / 8)) );
+                    //currentFb[0] = 0;
                     extern bool fbChanges;
                     fbChanges = true;
-                    //updateOLED( 0 );
-                    //Whole frame.
+
+                    //Reply with button states
+                    char cts[16];
+                    int sl = os_sprintf( cts, "BTN %d\n", rssi->iLastButtonState );
+
+                    if( pConn->type == ESPCONN_UDP )
+                    {
+                        remot_info * ri = 0;
+                        espconn_get_connection_info( pConn, &ri, 0);
+                        ets_memcpy( pConn->proto.udp->remote_ip, ri->remote_ip, 4 );
+                        pConn->proto.udp->remote_port = ri->remote_port;
+                    }
+
+                    espconn_send( pConn, (uint8_t*)cts, sl );
+
+                    //Force buffer mode.
+                    rssi->bForcePixelFlutBuffer = true;
                 }
                 return;
             }
@@ -481,7 +500,7 @@ static void ICACHE_FLASH_ATTR RSSIRecvPIXELFLUTData(void *pArg, char *pData, uns
     return;
 /*
 abort:
-    os_printf( "invalid command %s\n", pData );
+    RSSI_PRINTF( "invalid command %s\n", pData );
     if( pConn->type == ESPCONN_TCP )
     {
         espconn_disconnect( pConn );
@@ -493,10 +512,11 @@ abort:
 
 static void ICACHE_FLASH_ATTR RSSIRecvLEDData(void *pArg, char *pData, unsigned short len)
 {
-    struct espconn *pConn = (struct espconn *)pArg;
+    pArg = pArg;
+//    struct espconn *pConn = (struct espconn *)pArg;
 
 /*
-    os_printf("LED received %d bytes from %d.%d.%d.%d port %d: \"%s\"\n",
+    RSSI_PRINTF("LED received %d bytes from %d.%d.%d.%d port %d: \"%s\"\n",
               len,
               IP2STR(pConn->proto.tcp->remote_ip),
               pConn->proto.tcp->remote_port,
@@ -517,7 +537,7 @@ static void ICACHE_FLASH_ATTR RSSIRecvARTNETData(void *pArg, char *pData, unsign
 {
     struct espconn *pConn = (struct espconn *)pArg;
 
-    os_printf("LED received %d bytes from %d.%d.%d.%d port %d: \"%s\"\n",
+    RSSI_PRINTF("LED received %d bytes from %d.%d.%d.%d port %d: \"%s\"\n",
               len,
               IP2STR(pConn->proto.tcp->remote_ip),
               pConn->proto.tcp->remote_port,
@@ -841,6 +861,9 @@ static void ICACHE_FLASH_ATTR HandleEnterPressOnSubmode( rssiSubmode sm )
                 rssi->bEnableBufferMode = !rssi->bEnableBufferMode;
                 rssi->bAlreadyUpdated = 0;
                 break;
+            case RSSI_SUBMODE_ALTERNATE2:
+            case RSSI_SUBMODE_MAX:
+            case RSSI_SUBMODE_ALTERNATE:
             default:
                 break;
             }
@@ -865,6 +888,9 @@ static void ICACHE_FLASH_ATTR HandleEnterPressOnSubmode( rssiSubmode sm )
 void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
         int button __attribute__((unused)), int down __attribute__((unused)))
 {
+    rssi->iLastButtonState = state&0x1f;
+    if( rssi->bForcePixelFlutBuffer ) return;
+
     switch (rssi->mode)
     {
         default:

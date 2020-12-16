@@ -5,6 +5,8 @@
 #include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <X11/extensions/XTest.h>
+#include <X11/keysym.h>
 
 #define CNFG_IMPLEMENTATION
 #define HAS_XSHAPE
@@ -39,10 +41,16 @@ int main()
         exit(1);
     }
 
+    if( connect( s, (struct sockaddr *) &si_other, slen ) < 0 )
+    {
+        fprintf(stderr, "connect() failed\n");
+        exit(1);
+    }
+
     void    CNFGClearTransparencyLevel();
     CNFGClearTransparencyLevel();
 
-
+    uint8_t last_key_state;
     while(1)
     {
         int x, y;
@@ -86,16 +94,40 @@ int main()
                     if( pxvals[1] > maxv ) maxv = pxvals[1];
                     if( pxvals[2] > maxv ) maxv = pxvals[2];
                     if( pxvals[3] > maxv ) maxv = pxvals[3];
-                    pxval = maxv > 128;
+                    pxval = maxv > 160;
                 }
                 sb[x*8+(y/8)] |= pxval<<(y&7);
             }
         }
-        sb[0] = 0;
+        //sb[0] = 0;
         XDestroyImage( image );
         //XFree (image);
 
-        int rr = sendto( s, sendbuffer, sizeof(sendbuffer), MSG_NOSIGNAL, (struct sockaddr *) &si_other, slen );
+        int rr = send( s, sendbuffer, sizeof(sendbuffer), MSG_NOSIGNAL );
+
+
+        char buffer[1024];
+        int rb = recv( s, buffer, 1023, MSG_DONTWAIT );
+        if( rb > 0 )
+        {
+            buffer[rb] = 0;
+            int st = atoi( buffer+4 );
+            int i;
+            const KeySym keyCodes[5] = { XK_Left, XK_Down, XK_Right, XK_Up, XK_space };
+            for( i = 0; i < 5; i++ )
+            {
+                if( (last_key_state & (1<<i)) && !(st & (1<<i) ))
+                {
+                    XTestFakeKeyEvent( CNFGDisplay, XKeysymToKeycode(CNFGDisplay,keyCodes[i]), False, 0);
+                }
+                if( !(last_key_state & (1<<i)) && (st & (1<<i) ))
+                {
+                    XTestFakeKeyEvent( CNFGDisplay, XKeysymToKeycode(CNFGDisplay,keyCodes[i]), True, 0);
+                }
+            }
+            last_key_state = st;
+            //write( 0, buffer, rb );
+        }
 
         //XQueryColor (d, DefaultColormap(d, DefaultScreen (d)), c);
         //cout << c.red << " " << c.green << " " << c.blue << "\n";
