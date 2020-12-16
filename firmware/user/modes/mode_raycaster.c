@@ -50,7 +50,9 @@
 #define NUM_SHOT_FRAMES            2
 #define NUM_HURT_FRAMES            2
 
-#define ENEMY_HEALTH               2
+#define ENEMY_HEALTH_E             1
+#define ENEMY_HEALTH_M             2
+#define ENEMY_HEALTH_H             4
 
 // Helper macro to return the absolute value of an integer
 #define ABS(X) (((X) < 0) ? -(X) : (X))
@@ -538,11 +540,25 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
                     rc->sprites[rc->liveSprites].dirX = 0;
                     rc->sprites[rc->liveSprites].shotCooldown = 0;
                     rc->sprites[rc->liveSprites].isBackwards = false;
-                    rc->sprites[rc->liveSprites].health = ENEMY_HEALTH;
-                    // Double their health on hard mode
-                    if(RC_HARD == rc->difficulty)
+                    switch(rc->difficulty)
                     {
-                        rc->sprites[rc->liveSprites].health *= 2;
+                        default:
+                        case RC_NUM_DIFFICULTIES:
+                        case RC_EASY:
+                        {
+                            rc->sprites[rc->liveSprites].health = ENEMY_HEALTH_E;
+                            break;
+                        }
+                        case RC_MED:
+                        {
+                            rc->sprites[rc->liveSprites].health = ENEMY_HEALTH_M;
+                            break;
+                        }
+                        case RC_HARD:
+                        {
+                            rc->sprites[rc->liveSprites].health = ENEMY_HEALTH_H;
+                            break;
+                        }
                     }
                     setSpriteState(&(rc->sprites[rc->liveSprites]), E_IDLE);
                     rc->liveSprites++;
@@ -559,7 +575,7 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
     rc->sprites[rc->liveSprites].dirX = 0;
     rc->sprites[rc->liveSprites].shotCooldown = 0;
     rc->sprites[rc->liveSprites].isBackwards = false;
-    rc->sprites[rc->liveSprites].health = ENEMY_HEALTH;
+    rc->sprites[rc->liveSprites].health = ENEMY_HEALTH_E;
     setSpriteState(&(rc->sprites[rc->liveSprites]), E_IDLE);
     rc->liveSprites++;
 #endif
@@ -2180,16 +2196,20 @@ void ICACHE_FLASH_ATTR drawHUD(void)
                         false, false, 0, idx);
     }
 
-    // Plot the elapsed time
-    uint32_t tElapsed = system_get_time() - rc->tRoundStartedUs;
-    uint32_t dSec = (tElapsed / 100000) % 10;
-    uint32_t sec  = (tElapsed / 1000000) % 60;
-    uint32_t min  = (tElapsed / (1000000 * 60));
-    char timestr[64] = {0};
-    ets_snprintf(timestr, sizeof(timestr), "%02d:%02d.%d", min, sec, dSec);
-    int16_t timeWidth = textWidth(timestr, TOM_THUMB);
-    fillDisplayArea(OLED_WIDTH - timeWidth, 0, OLED_WIDTH, FONT_HEIGHT_TOMTHUMB, BLACK);
-    plotText(OLED_WIDTH - timeWidth + 1, 0, timestr, TOM_THUMB, WHITE);
+    // Only draw clock while playing the game
+    if(RC_GAME == rc->mode)
+    {
+        // Plot the elapsed time
+        uint32_t tElapsed = system_get_time() - rc->tRoundStartedUs;
+        uint32_t dSec = (tElapsed / 100000) % 10;
+        uint32_t sec  = (tElapsed / 1000000) % 60;
+        uint32_t min  = (tElapsed / (1000000 * 60));
+        char timestr[64] = {0};
+        ets_snprintf(timestr, sizeof(timestr), "%02d:%02d.%d", min, sec, dSec);
+        int16_t timeWidth = textWidth(timestr, TOM_THUMB);
+        fillDisplayArea(OLED_WIDTH - timeWidth, 0, OLED_WIDTH, FONT_HEIGHT_TOMTHUMB, BLACK);
+        plotText(OLED_WIDTH - timeWidth + 1, 0, timestr, TOM_THUMB, WHITE);
+    }
 }
 
 /**
@@ -2434,7 +2454,7 @@ void ICACHE_FLASH_ATTR raycasterDrawScores(void)
  *
  * @param tElapsedUs The time elapsed since the last call to this function
  */
-void ICACHE_FLASH_ATTR raycasterMapSelectRenderer(uint32_t tElapsedUs)
+void ICACHE_FLASH_ATTR raycasterMapSelectRenderer(uint32_t tElapsedUs __attribute__((unused)))
 {
     clearDisplay();
     int16_t xOffset = (OLED_WIDTH - rc->mapW) / 2;
