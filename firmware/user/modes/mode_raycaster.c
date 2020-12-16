@@ -76,6 +76,7 @@ enemyState_t;
 typedef enum
 {
     RC_MENU,
+    RC_MAP_SELECT,
     RC_GAME,
     RC_GAME_OVER,
     RC_SCORES
@@ -217,6 +218,9 @@ void ICACHE_FLASH_ATTR sortSprites(int32_t* order, float* dist, int32_t amount);
 float ICACHE_FLASH_ATTR Q_rsqrt( float number );
 bool ICACHE_FLASH_ATTR checkWallsBetweenPoints(float sX, float sY, float pX, float pY);
 void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state);
+
+void ICACHE_FLASH_ATTR raycasterMapSelectRenderer(uint32_t tElapsedUs);
+void ICACHE_FLASH_ATTR raycasterMapSelectButton(int32_t button);
 
 /*==============================================================================
  * Variables
@@ -569,6 +573,14 @@ void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state, int32_t button, in
             }
             break;
         }
+        case RC_MAP_SELECT:
+        {
+            if(down)
+            {
+                raycasterMapSelectButton(button);
+            }
+            break;
+        }
         case RC_GAME:
         {
             // Save the button state for the game to process later
@@ -642,18 +654,18 @@ void ICACHE_FLASH_ATTR raycasterMenuButtonCallback(const char* selected)
     }
     else if(rc_easy == selected)
     {
-        // Start the game
-        raycasterInitGame(RC_EASY);
+        rc->mode = RC_MAP_SELECT;
+        rc->difficulty = RC_EASY;
     }
     else if(rc_med == selected)
     {
-        // Start the game
-        raycasterInitGame(RC_MED);
+        rc->mode = RC_MAP_SELECT;
+        rc->difficulty = RC_MED;
     }
     else if(rc_hard == selected)
     {
-        // Start the game
-        raycasterInitGame(RC_HARD);
+        rc->mode = RC_MAP_SELECT;
+        rc->difficulty = RC_HARD;
     }
     else if (rc_scores == selected)
     {
@@ -691,6 +703,11 @@ bool ICACHE_FLASH_ATTR raycasterRenderTask(void)
             case RC_MENU:
             {
                 drawMenu(rc->menu);
+                break;
+            }
+            case RC_MAP_SELECT:
+            {
+                raycasterMapSelectRenderer(tElapsedUs);
                 break;
             }
             case RC_GAME:
@@ -2361,6 +2378,79 @@ void ICACHE_FLASH_ATTR raycasterDrawScores(void)
             // Plot the string
             plotText(0, FONT_HEIGHT_RADIOSTARS + 3 + (i * (FONT_HEIGHT_IBMVGA8 + 3)),
                      scoreStr, IBM_VGA_8, WHITE);
+        }
+    }
+}
+
+/**
+ * Draw the map options to the screen
+ *
+ * @param tElapsedUs The time elapsed since the last call to this function
+ */
+void ICACHE_FLASH_ATTR raycasterMapSelectRenderer(uint32_t tElapsedUs)
+{
+    clearDisplay();
+    int16_t xOffset = (OLED_WIDTH - MAP_WIDTH) / 2;
+    int16_t yOffset = (OLED_HEIGHT - MAP_HEIGHT) / 2;
+    for(int16_t y = 0; y < MAP_HEIGHT; y++)
+    {
+        for(int16_t x = 0; x < MAP_WIDTH; x++)
+        {
+            switch(worldMap[y][x])
+            {
+                case WMT_W1:
+                case WMT_W2:
+                case WMT_W3:
+                case WMT_C:
+                {
+                    drawPixel(x + xOffset, y + yOffset, WHITE);
+                    break;
+                }
+                default:
+                case WMT_E:
+                case WMT_S:
+                {
+                    drawPixel(x + xOffset, y + yOffset, BLACK);
+                    break;
+                }
+            }
+        }
+    }
+
+    // Draw arrows to scroll the maps
+    plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "<", TOM_THUMB, WHITE);
+    plotText(OLED_WIDTH - 3, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, ">", TOM_THUMB, WHITE);
+}
+
+/**
+ * Handle button input when selecting the map
+ *
+ * @param button The button that was pressed down
+ */
+void ICACHE_FLASH_ATTR raycasterMapSelectButton(int32_t button)
+{
+    switch(button)
+    {
+        case UP:
+        case DOWN:
+        {
+            // Do nothing
+            break;
+        }
+        case LEFT:
+        {
+            // TODO scroll
+            break;
+        }
+        case RIGHT:
+        {
+            // TODO scroll
+            break;
+        }
+        case ACTION:
+        {
+            raycasterInitGame(rc->difficulty);
+            break;
         }
     }
 }
