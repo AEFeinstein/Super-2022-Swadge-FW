@@ -349,6 +349,24 @@ void ICACHE_FLASH_ATTR freePngAsset(pngHandle* handle)
 void ICACHE_FLASH_ATTR drawPng(pngHandle* handle, int16_t xp,
                                int16_t yp, bool flipLR, bool flipUD, int16_t rotateDeg)
 {
+    drawPngInv(handle, xp, yp, flipLR, flipUD, rotateDeg, false);
+}
+
+/**
+ * @brief Draw a PNG asset to the OLED
+ *
+ * @param handle A handle of a PNG to draw
+ * @param xp The x coordinate to draw the asset at
+ * @param yp The y coordinate to draw the asset at
+ * @param flipLR true to flip over the Y axis, false to do nothing
+ * @param flipUD true to flip over the X axis, false to do nothing
+ * @param rotateDeg The number of degrees to rotate clockwise, must be 0-359
+ * @param inv true to invert all colors, false to draw it normally
+ */
+void ICACHE_FLASH_ATTR drawPngInv(pngHandle* handle, int16_t xp,
+                                  int16_t yp, bool flipLR, bool flipUD,
+                                  int16_t rotateDeg, bool inv)
+{
     uint32_t idx = 0;
 
     // Read 32 bits at a time
@@ -369,8 +387,15 @@ void ICACHE_FLASH_ATTR drawPng(pngHandle* handle, int16_t xp,
             bool isZero = true;
             if(chunk & (0x80000000 >> (bitIdx++)))
             {
-                // If it's a one, draw a black pixel
-                drawPixel(x, y, BLACK);
+                // If it's a one, draw a normal black pixel
+                if(inv)
+                {
+                    drawPixel(x, y, WHITE);
+                }
+                else
+                {
+                    drawPixel(x, y, BLACK);
+                }
                 isZero = false;
             }
 
@@ -394,8 +419,15 @@ void ICACHE_FLASH_ATTR drawPng(pngHandle* handle, int16_t xp,
                 }
                 else
                 {
-                    // zero-zero means white, draw a pixel
-                    drawPixel(x, y, WHITE);
+                    // zero-zero means normal white, draw a pixel
+                    if(inv)
+                    {
+                        drawPixel(x, y, BLACK);
+                    }
+                    else
+                    {
+                        drawPixel(x, y, WHITE);
+                    }
                 }
 
                 // After bitIdx was incremented, check it

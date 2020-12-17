@@ -14,6 +14,8 @@ typedef enum
     WMT_S  = 5,
 } WorldMapTile_t;
 
+void processMapImage(char * fname);
+
 int main (void)
 {
     // Generate a texture with a sin wave
@@ -31,8 +33,16 @@ int main (void)
     // }
     // stbi_write_bmp("sin.bmp", 48, 48, 1, bmp);
 
+    processMapImage("map_s.png");
+    processMapImage("map_m.png");
+    processMapImage("map_l.png");
+    return 0;
+}
+
+void processMapImage(char * fname)
+{
     int w, h, n;
-    unsigned char* data = stbi_load("map.png", &w, &h, &n, 0);
+    unsigned char* data = stbi_load(fname, &w, &h, &n, 0);
     if(NULL != data)
     {
         printf("%d by %d (%d)\n", w, h, n);
@@ -84,5 +94,4 @@ int main (void)
         // ... but "n" will always be the number that it would have been if you said 0
         stbi_image_free(data);
     }
-    return 0;
 }

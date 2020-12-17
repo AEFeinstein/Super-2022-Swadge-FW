@@ -17,7 +17,7 @@
  * Defines
  *==========================================================================*/
 
-#define SAVE_LOAD_KEY 0xC0
+#define SAVE_LOAD_KEY 0xC2
 
 /*============================================================================
  * Structs
@@ -258,25 +258,29 @@ raycasterScores_t* ICACHE_FLASH_ATTR getRaycasterScores(void)
     return &(settings.raycasterScores);
 }
 
-void ICACHE_FLASH_ATTR addRaycasterScore(raycasterDifficulty_t difficulty, uint16_t kills, uint32_t tElapsed)
+void ICACHE_FLASH_ATTR addRaycasterScore(raycasterDifficulty_t difficulty, raycasterMap_t mapIdx, uint16_t kills,
+        uint32_t tElapsed)
 {
     // Look through the table for a spot tto insert
     for(uint8_t i = 0; i < RC_NUM_SCORES; i++)
     {
         // More kills, insert before this index
-        if((settings.raycasterScores.scores[difficulty][i].kills < kills) ||
+        if((settings.raycasterScores.scores[mapIdx][difficulty][i].kills < kills) ||
                 // Same kills but faster, insert before this index
-                (settings.raycasterScores.scores[difficulty][i].kills == kills &&
-                 settings.raycasterScores.scores[difficulty][i].tElapsedUs > tElapsed))
+                (settings.raycasterScores.scores[mapIdx][difficulty][i].kills == kills &&
+                 settings.raycasterScores.scores[mapIdx][difficulty][i].tElapsedUs > tElapsed) ||
+                // Or slot is empty, insert before this index
+                (settings.raycasterScores.scores[mapIdx][difficulty][i].kills == 0 &&
+                 settings.raycasterScores.scores[mapIdx][difficulty][i].tElapsedUs == 0))
         {
             // Make room for this element
-            ets_memmove(&settings.raycasterScores.scores[difficulty][i + 1],
-                        &settings.raycasterScores.scores[difficulty][i],
+            ets_memmove(&settings.raycasterScores.scores[mapIdx][difficulty][i + 1],
+                        &settings.raycasterScores.scores[mapIdx][difficulty][i],
                         sizeof(raycasterScore_t ) * (RC_NUM_SCORES - 1 - i));
 
             // Write the new data
-            settings.raycasterScores.scores[difficulty][i].kills = kills;
-            settings.raycasterScores.scores[difficulty][i].tElapsedUs = tElapsed;
+            settings.raycasterScores.scores[mapIdx][difficulty][i].kills = kills;
+            settings.raycasterScores.scores[mapIdx][difficulty][i].tElapsedUs = tElapsed;
 
             // Save the settings
             SaveSettings();
@@ -312,5 +316,3 @@ void ICACHE_FLASH_ATTR setSsidPw(char* ssid, char* pw)
     memcpy(settings.ssidPw, pw, SSID_NAME_LEN);
     SaveSettings();
 }
-
-

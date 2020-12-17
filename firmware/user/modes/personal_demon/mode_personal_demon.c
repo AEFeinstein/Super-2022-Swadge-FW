@@ -30,7 +30,7 @@ typedef struct
     int16_t pos;
 } marqueeText_t;
 
-typedef enum
+typedef enum __attribute__((__packed__))
 {
     PDA_WALKING,
     PDA_CENTER,
@@ -47,7 +47,8 @@ typedef enum
     PDA_DEATH,
     PDA_BIRTHDAY,
     PDA_NUM_ANIMATIONS
-} pdAnimationState_t;
+}
+pdAnimationState_t;
 
 typedef struct
 {
@@ -705,7 +706,7 @@ bool ICACHE_FLASH_ATTR personalDemonAnimationRender(void)
                 {
                     drawPng(&(pd->heart),
                             OLED_WIDTH - pd->heart.width,
-                            FONT_HEIGHT_IBMVGA8 + 1 + i * (pd->heart.height),
+                            FONT_HEIGHT_IBMVGA8 + i * (pd->heart.height - 2), // Overlap the outlines
                             false, false, 0);
                 }
 

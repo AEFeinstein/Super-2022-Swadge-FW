@@ -9,6 +9,14 @@ typedef enum
     RC_NUM_DIFFICULTIES
 } raycasterDifficulty_t;
 
+typedef enum
+{
+    RC_MAP_S,
+    RC_MAP_M,
+    RC_MAP_L,
+    RC_NUM_MAPS
+} raycasterMap_t;
+
 typedef struct __attribute__((aligned(4)))
 {
     uint16_t kills;
@@ -20,7 +28,7 @@ raycasterScore_t;
 
 typedef struct __attribute__((aligned(4)))
 {
-    raycasterScore_t scores[RC_NUM_DIFFICULTIES][RC_NUM_SCORES];
+    raycasterScore_t scores[RC_NUM_MAPS][RC_NUM_DIFFICULTIES][RC_NUM_SCORES];
 }
 raycasterScores_t;
 

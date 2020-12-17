@@ -16,6 +16,7 @@
 #include "assets.h"
 #include "font.h"
 #include "cndraw.h"
+#include "hsv_utils.h"
 
 #include "buttons.h"
 
@@ -25,8 +26,7 @@
  * Defines
  *============================================================================*/
 
-#define MAP_WIDTH  48
-#define MAP_HEIGHT 48
+#define MAP_TILE(x, y) rc->map[(y) + ((x) * (rc->mapH))]
 
 #define TEX_WIDTH  48
 #define TEX_HEIGHT 48
@@ -49,16 +49,20 @@
 #define NUM_SHOT_FRAMES            2
 #define NUM_HURT_FRAMES            2
 
-#define ENEMY_HEALTH               2
+#define ENEMY_HEALTH_E             1
+#define ENEMY_HEALTH_M             2
+#define ENEMY_HEALTH_H             4
 
 // Helper macro to return the absolute value of an integer
 #define ABS(X) (((X) < 0) ? -(X) : (X))
+
+#define RADAR_RANGE 81 // Square of the range in cells
 
 /*==============================================================================
  * Enums
  *============================================================================*/
 
-typedef enum
+typedef enum __attribute__((__packed__))
 {
     E_IDLE,
     E_PICK_DIR_PLAYER,
@@ -67,23 +71,29 @@ typedef enum
     E_SHOOTING,
     E_GOT_SHOT,
     E_DEAD
-} enemyState_t;
+}
+enemyState_t;
 
 typedef enum
 {
     RC_MENU,
+    RC_MAP_SELECT,
     RC_GAME,
     RC_GAME_OVER,
     RC_SCORES
 } raycasterMode_t;
 
-// World map tiles. Use defines, not an enum, so worldMap[][] can be a uint8_t[][]
-#define WMT_W1 0 ///< Wall 1
-#define WMT_W2 1 ///< Wall 2
-#define WMT_W3 2 ///< Wall 2
-#define WMT_C  3 ///< Column
-#define WMT_E  4 ///< Empty
-#define WMT_S  5 ///< Spawn point
+// World map tiles. Make sure this is packed
+typedef enum  __attribute__((__packed__))
+{
+    WMT_W1 = 0, ///< Wall 1
+    WMT_W2 = 1, ///< Wall 2
+    WMT_W3 = 2, ///< Wall 2
+    WMT_C  = 3, ///< Column
+    WMT_E  = 4, ///< Empty
+    WMT_S  = 5, ///< Spawn point
+}
+WorldMapTile_t;
 
 /*==============================================================================
  * Structs
@@ -114,6 +124,7 @@ typedef struct
     int32_t texTimer;
     int8_t texFrame;
     bool mirror;
+    int32_t invertTexUs;
 
     // Sprite logic
     enemyState_t state;
@@ -164,15 +175,25 @@ typedef struct
     pngHandle mnote;
     pngSequenceHandle gtr;
 
+    // For the map
+    uint16_t mapW;
+    uint16_t mapH;
+    const WorldMapTile_t* map;
+    raycasterMap_t mapIdx;
+
     // For LEDs
     timer_t ledTimer;
     uint32_t closestDist;
     float closestAngle;
+    bool radarObstructed;
     int32_t gotShotTimer;
     int32_t shotSomethingTimer;
     int32_t killedSpriteTimer;
     int32_t healthWarningTimer;
     bool healthWarningInc;
+
+    // For the game over screen
+    int32_t gameOverButtonLockUs;
 } raycaster_t;
 
 /*==============================================================================
@@ -187,6 +208,7 @@ bool ICACHE_FLASH_ATTR raycasterRenderTask(void);
 void ICACHE_FLASH_ATTR raycasterGameRenderer(uint32_t tElapsedUs);
 void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR raycasterDrawScores(void);
+void ICACHE_FLASH_ATTR raycasterScoreDisplayButton(uint32_t);
 void ICACHE_FLASH_ATTR raycasterEndRound(void);
 void ICACHE_FLASH_ATTR raycasterDrawRoundOver(uint32_t tElapsedUs);
 
@@ -202,8 +224,12 @@ void ICACHE_FLASH_ATTR drawHUD(void);
 void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty);
 void ICACHE_FLASH_ATTR sortSprites(int32_t* order, float* dist, int32_t amount);
 float ICACHE_FLASH_ATTR Q_rsqrt( float number );
-bool ICACHE_FLASH_ATTR checkLineToPlayer(raySprite_t* sprite, float pX, float pY);
+bool ICACHE_FLASH_ATTR checkWallsBetweenPoints(float sX, float sY, float pX, float pY);
 void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state);
+
+void ICACHE_FLASH_ATTR raycasterMapSelectRenderer(uint32_t tElapsedUs);
+void ICACHE_FLASH_ATTR raycasterMapSelectButton(int32_t button);
+void ICACHE_FLASH_ATTR raycasterSetMap(void);
 
 /*==============================================================================
  * Variables
@@ -226,56 +252,112 @@ swadgeMode raycasterMode =
 
 raycaster_t* rc;
 
-static const uint8_t worldMap[MAP_WIDTH][MAP_HEIGHT] =
+#define MAP_L_W 48
+#define MAP_L_H 48
+static const WorldMapTile_t worldMap_l[MAP_L_W][MAP_L_H] =
 {
-    {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, },
-    {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, },
-    {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 4, 5, 4, 4, 0, 0, 0, 4, 4, 5, 4, 4, 0, 4, 2, 4, 4, 5, 4, 5, 4, 3, 3, 3, 4, 4, 4, 4, 4, 4, 2, },
-    {4, 4, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 0, 0, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 4, 2, },
-    {4, 4, 4, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 3, 4, 2, },
-    {1, 1, 1, 1, 4, 3, 5, 3, 4, 3, 4, 3, 4, 1, 1, 0, 0, 0, 0, 4, 4, 5, 5, 5, 4, 4, 0, 0, 0, 0, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 4, 2, },
-    {2, 4, 4, 4, 4, 4, 5, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 4, 2, 4, 4, 4, 4, 4, 4, 3, 3, 3, 4, 5, 4, 5, 4, 4, 2, },
-    {2, 4, 1, 1, 4, 3, 5, 3, 4, 3, 4, 3, 4, 1, 4, 0, 0, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 0, 0, 4, 2, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, },
-    {2, 4, 2, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 0, 4, 4, 5, 4, 4, 0, 0, 0, 4, 4, 5, 4, 4, 0, 4, 2, 4, 3, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, },
-    {2, 4, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 4, 4, 4, 4, 0, 4, 2, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, },
-    {2, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 4, 4, 5, 4, 5, 4, 3, 3, 3, 4, 4, 4, 4, 4, 4, 2, },
-    {2, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 2, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 4, 2, },
-    {2, 4, 5, 4, 4, 4, 4, 2, 4, 4, 4, 4, 5, 4, 2, 0, 4, 5, 5, 4, 4, 4, 4, 4, 4, 5, 4, 4, 5, 4, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 3, 4, 2, },
-    {2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 0, 4, 5, 5, 4, 4, 3, 3, 3, 4, 4, 3, 3, 4, 4, 0, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 4, 2, },
-    {2, 4, 4, 4, 3, 4, 4, 5, 4, 4, 3, 4, 4, 4, 2, 0, 4, 4, 4, 4, 4, 3, 4, 4, 4, 5, 4, 4, 5, 4, 0, 2, 4, 4, 4, 4, 4, 4, 3, 3, 3, 4, 5, 4, 4, 4, 4, 2, },
-    {2, 4, 4, 4, 4, 3, 4, 4, 4, 3, 4, 4, 4, 4, 2, 0, 4, 4, 3, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4, 0, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, },
-    {2, 4, 4, 4, 4, 4, 3, 4, 3, 4, 4, 4, 4, 4, 2, 0, 4, 4, 3, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 2, 4, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, },
-    {2, 2, 2, 4, 5, 4, 4, 3, 4, 4, 5, 4, 2, 2, 2, 0, 4, 4, 4, 4, 4, 4, 4, 4, 0, 1, 1, 1, 1, 1, 1, 1, 4, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, },
-    {2, 4, 4, 4, 4, 4, 3, 4, 3, 4, 4, 4, 4, 4, 2, 0, 4, 4, 4, 4, 5, 5, 4, 4, 0, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, },
-    {2, 4, 4, 4, 4, 3, 4, 4, 4, 3, 4, 4, 4, 4, 2, 0, 4, 4, 3, 4, 5, 5, 4, 4, 0, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, },
-    {2, 4, 4, 4, 3, 4, 4, 5, 4, 4, 3, 4, 4, 4, 2, 0, 4, 4, 3, 4, 4, 4, 4, 4, 0, 1, 4, 4, 3, 3, 3, 3, 3, 3, 3, 4, 4, 3, 3, 3, 3, 3, 3, 3, 4, 4, 1, 4, },
-    {2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 0, 4, 4, 3, 3, 3, 4, 4, 4, 0, 1, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 4, 4, 1, 4, },
-    {2, 4, 5, 4, 4, 4, 4, 2, 4, 4, 4, 4, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 1, 4, 4, 3, 4, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 4, 3, 4, 4, 1, 4, },
-    {2, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 1, 4, 4, 3, 4, 4, 3, 3, 3, 3, 4, 4, 3, 3, 3, 3, 4, 4, 3, 4, 4, 1, 4, },
-    {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 4, 4, 3, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4, 3, 4, 4, 3, 4, 4, 1, 4, },
-    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 4, 4, 4, 4, 4, 4, 4, 5, 4, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, },
-    {1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 4, 5, 4, 4, 4, 4, 4, 4, 4, 1, 4, },
-    {1, 4, 5, 4, 4, 4, 4, 4, 4, 5, 4, 4, 4, 2, 4, 4, 4, 4, 5, 4, 4, 4, 4, 4, 2, 1, 4, 4, 3, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4, 3, 4, 4, 3, 4, 4, 1, 4, },
-    {1, 4, 4, 3, 3, 4, 4, 3, 3, 4, 4, 1, 4, 2, 4, 4, 3, 4, 4, 4, 3, 4, 4, 4, 2, 1, 4, 4, 3, 4, 4, 3, 3, 3, 3, 4, 4, 3, 3, 3, 3, 4, 4, 3, 4, 4, 1, 4, },
-    {1, 4, 4, 3, 3, 4, 4, 3, 3, 4, 4, 1, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 4, 4, 2, 1, 4, 4, 3, 4, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 4, 3, 4, 4, 1, 4, },
-    {1, 4, 4, 4, 4, 5, 4, 4, 4, 4, 4, 1, 4, 4, 4, 4, 4, 4, 4, 4, 3, 4, 4, 4, 2, 1, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 4, 4, 1, 4, },
-    {1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 2, 2, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 2, 1, 4, 4, 3, 3, 3, 3, 3, 3, 3, 4, 4, 3, 3, 3, 3, 3, 3, 3, 4, 4, 1, 4, },
-    {1, 4, 4, 3, 3, 4, 4, 3, 3, 4, 4, 1, 4, 2, 4, 4, 3, 3, 3, 4, 4, 5, 4, 4, 2, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, },
-    {1, 4, 4, 3, 3, 4, 4, 3, 3, 4, 4, 1, 4, 2, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 2, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, },
-    {1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 2, 4, 4, 4, 4, 4, 4, 3, 4, 4, 4, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4, 1, 4, },
-    {1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 2, 4, 4, 4, 5, 4, 3, 3, 3, 4, 4, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 1, 4, 4, 1, 4, },
-    {1, 1, 1, 1, 4, 4, 1, 1, 1, 1, 1, 1, 4, 2, 4, 4, 4, 4, 4, 4, 3, 4, 4, 4, 2, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 4, 4, 4, 1, 4, },
-    {0, 4, 4, 4, 4, 4, 1, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 2, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 4, 4, 4, 4, 4, 4, 4, 4, 1, 1, 4, },
-    {0, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 2, 4, 4, 3, 3, 3, 4, 4, 4, 4, 4, 2, 0, 4, 4, 3, 3, 3, 3, 3, 3, 3, 4, 4, 3, 4, 4, 4, 4, 4, 4, 0, 4, 4, 4, },
-    {0, 4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 0, 4, 2, 4, 4, 4, 3, 4, 4, 4, 3, 4, 4, 2, 0, 4, 4, 3, 4, 4, 4, 4, 4, 3, 4, 4, 4, 5, 4, 0, 0, 0, 0, 0, 4, 4, 4, },
-    {0, 4, 5, 4, 4, 4, 4, 4, 4, 0, 4, 0, 4, 2, 4, 4, 4, 4, 4, 5, 4, 4, 4, 4, 2, 0, 4, 4, 3, 4, 4, 4, 4, 4, 3, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 4, },
-    {0, 4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 0, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 0, 4, 4, 3, 4, 5, 3, 4, 5, 3, 4, 5, 3, 4, 4, 0, 4, 4, 4, 4, 4, 4, 4, },
-    {0, 4, 5, 4, 3, 3, 4, 4, 4, 0, 4, 0, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 2, 0, 4, 4, 4, 4, 4, 3, 4, 4, 4, 4, 4, 3, 4, 4, 0, 4, 4, 4, 4, 4, 4, 4, },
-    {0, 4, 4, 4, 3, 3, 4, 4, 4, 0, 4, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 2, 0, 4, 4, 4, 4, 4, 3, 4, 4, 4, 4, 4, 3, 4, 4, 0, 4, 4, 4, 4, 4, 4, 4, },
-    {0, 4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 2, 0, 4, 4, 3, 4, 4, 3, 3, 3, 3, 3, 3, 3, 4, 4, 0, 4, 4, 4, 4, 4, 4, 4, },
-    {0, 4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 4, },
-    {0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 4, },
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, },
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 4, 4, 4, 4, 4, },
+    {0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 2, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 4, 4, },
+    {0, 4, 4, 4, 4, 5, 4, 5, 4, 4, 4, 1, 4, 4, 4, 4, 4, 4, 4, 4, 5, 4, 1, 2, 4, 5, 4, 4, 4, 4, 2, 4, 4, 4, 4, 5, 4, 2, 2, 2, 1, 4, 1, 4, 4, 4, 4, 4, },
+    {0, 4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 1, 4, 4, 3, 3, 4, 4, 3, 3, 4, 4, 1, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 1, 1, 1, 4, 1, 1, 1, 4, 4, 4, },
+    {0, 4, 4, 4, 3, 3, 4, 4, 4, 0, 4, 4, 4, 4, 3, 3, 4, 4, 3, 3, 4, 4, 1, 2, 4, 4, 4, 3, 4, 4, 5, 4, 4, 3, 4, 4, 4, 2, 1, 4, 4, 4, 4, 4, 1, 4, 4, 4, },
+    {0, 4, 4, 4, 3, 3, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 4, 5, 4, 4, 4, 4, 1, 2, 4, 4, 4, 4, 3, 4, 4, 4, 3, 4, 4, 4, 4, 2, 1, 4, 3, 4, 3, 4, 1, 4, 4, 4, },
+    {0, 4, 4, 4, 4, 4, 4, 4, 4, 0, 1, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 2, 4, 4, 4, 4, 4, 3, 4, 3, 4, 4, 4, 4, 4, 2, 1, 4, 5, 5, 5, 4, 1, 4, 4, 4, },
+    {0, 4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 1, 4, 4, 3, 3, 4, 4, 3, 3, 4, 4, 1, 2, 2, 2, 4, 5, 4, 4, 3, 4, 4, 5, 4, 2, 2, 2, 1, 4, 3, 4, 3, 4, 1, 4, 4, 4, },
+    {0, 4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 1, 4, 4, 3, 3, 4, 4, 3, 3, 4, 4, 1, 2, 4, 4, 4, 4, 4, 3, 4, 3, 4, 4, 4, 4, 4, 2, 1, 4, 4, 4, 4, 4, 1, 4, 4, 4, },
+    {0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1, 4, 4, 4, 4, 4, 4, 4, 4, 5, 4, 1, 2, 4, 4, 4, 4, 3, 4, 4, 4, 3, 4, 4, 4, 4, 2, 1, 4, 3, 4, 3, 4, 1, 4, 4, 4, },
+    {0, 4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 2, 4, 4, 4, 3, 4, 4, 5, 4, 4, 3, 4, 4, 4, 2, 1, 4, 4, 4, 4, 4, 1, 4, 4, 4, },
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4, 1, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 1, 4, 3, 4, 3, 4, 1, 4, 4, 4, },
+    {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 1, 2, 4, 5, 4, 4, 4, 4, 2, 4, 4, 4, 4, 5, 4, 2, 1, 4, 4, 4, 4, 4, 1, 4, 4, 4, },
+    {4, 4, 4, 4, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 2, 1, 1, 1, 4, 1, 1, 1, 4, 4, 4, },
+    {4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 4, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 4, 4, 4, 4, 1, 4, 4, 4, 4, 4, },
+    {4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 0, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+    {4, 4, 4, 4, 4, 2, 4, 4, 4, 3, 4, 4, 4, 4, 4, 3, 4, 4, 4, 3, 4, 4, 2, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 4, 0, 0, 0, 0, 0, 4, 4, 0, },
+    {4, 4, 4, 4, 4, 2, 4, 4, 3, 3, 3, 4, 5, 4, 3, 3, 3, 4, 4, 4, 4, 4, 2, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 4, 0, 4, 4, 4, 0, 0, 0, 4, 4, 4, 0, },
+    {4, 4, 4, 4, 4, 2, 4, 4, 4, 3, 4, 4, 4, 4, 4, 3, 4, 4, 4, 4, 5, 4, 2, 0, 4, 4, 3, 3, 3, 4, 4, 3, 3, 4, 5, 5, 4, 0, 4, 5, 4, 4, 0, 4, 4, 5, 4, 0, },
+    {4, 4, 4, 4, 4, 2, 4, 5, 4, 4, 4, 4, 3, 4, 4, 4, 4, 4, 3, 4, 4, 4, 2, 0, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, },
+    {4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 3, 3, 3, 4, 4, 4, 3, 3, 3, 4, 4, 2, 0, 4, 4, 3, 4, 5, 5, 4, 4, 4, 4, 4, 4, 4, 0, 0, 4, 4, 4, 4, 4, 4, 4, 0, 0, },
+    {4, 4, 2, 2, 2, 2, 4, 4, 3, 4, 4, 4, 3, 4, 4, 5, 4, 4, 3, 4, 4, 4, 2, 0, 4, 4, 4, 4, 5, 5, 4, 4, 3, 3, 3, 4, 4, 0, 0, 0, 4, 4, 5, 4, 4, 0, 0, 0, },
+    {4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 4, 4, 0, 0, 0, 0, 4, 5, 4, 0, 0, 0, 0, },
+    {0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 4, 4, 0, 0, 0, 4, 4, 5, 4, 4, 0, 0, 0, },
+    {0, 4, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 0, 0, 4, 4, 4, 4, 4, 4, 4, 0, 0, },
+    {0, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 4, 5, 4, 5, 4, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, },
+    {0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 0, 4, 4, 3, 4, 4, 0, 4, 5, 4, 4, 0, 4, 4, 5, 4, 0, },
+    {0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 0, 4, 4, 3, 4, 4, 0, 4, 4, 4, 0, 0, 0, 4, 4, 4, 0, },
+    {0, 4, 4, 3, 4, 4, 3, 3, 3, 3, 4, 4, 0, 1, 4, 4, 3, 3, 3, 3, 3, 4, 4, 3, 3, 3, 3, 3, 4, 4, 1, 0, 4, 5, 4, 5, 4, 0, 4, 4, 0, 0, 0, 0, 0, 4, 4, 0, },
+    {0, 4, 4, 4, 4, 4, 4, 4, 4, 3, 4, 4, 0, 1, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 4, 4, 1, 0, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, },
+    {0, 4, 4, 4, 4, 4, 5, 4, 4, 3, 4, 4, 0, 1, 4, 4, 3, 4, 5, 4, 4, 4, 4, 4, 4, 5, 4, 3, 4, 4, 1, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 2, 4, 4, 4, 0, },
+    {0, 4, 4, 3, 3, 3, 3, 4, 4, 3, 4, 4, 0, 1, 4, 4, 3, 4, 4, 3, 3, 4, 4, 3, 3, 4, 4, 3, 4, 4, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 2, 2, 2, },
+    {0, 4, 4, 3, 4, 4, 4, 4, 4, 3, 4, 4, 0, 1, 4, 4, 3, 4, 4, 3, 4, 4, 4, 4, 3, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 2, },
+    {0, 4, 4, 3, 4, 4, 5, 4, 4, 3, 4, 4, 0, 1, 4, 4, 3, 4, 4, 3, 4, 4, 5, 4, 3, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 3, 3, 3, 4, 4, 2, 4, 4, 4, 2, },
+    {0, 4, 4, 3, 4, 4, 3, 3, 3, 3, 4, 4, 0, 1, 4, 4, 3, 4, 4, 3, 4, 4, 4, 4, 3, 4, 4, 3, 4, 4, 1, 2, 4, 4, 4, 2, 4, 5, 4, 4, 4, 4, 4, 2, 4, 5, 4, 2, },
+    {0, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4, 0, 1, 4, 4, 4, 4, 4, 4, 4, 3, 3, 4, 4, 4, 4, 4, 4, 4, 1, 2, 4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 2, },
+    {0, 4, 4, 3, 4, 4, 5, 4, 4, 4, 5, 4, 0, 1, 4, 4, 4, 4, 4, 4, 4, 3, 3, 4, 4, 4, 4, 4, 4, 4, 1, 2, 4, 4, 4, 2, 4, 5, 4, 2, 4, 4, 4, 2, 4, 5, 4, 2, },
+    {0, 4, 4, 3, 3, 3, 3, 4, 4, 3, 4, 4, 0, 1, 4, 4, 3, 4, 4, 3, 4, 4, 4, 4, 3, 4, 4, 3, 4, 4, 1, 2, 4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 2, },
+    {0, 4, 4, 4, 4, 4, 4, 4, 5, 4, 4, 4, 0, 1, 4, 4, 3, 4, 4, 3, 4, 5, 4, 4, 3, 4, 4, 3, 4, 4, 1, 2, 4, 3, 4, 2, 4, 3, 4, 2, 4, 3, 4, 2, 4, 3, 4, 2, },
+    {0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 1, 4, 4, 3, 4, 4, 3, 4, 4, 4, 4, 3, 4, 4, 3, 4, 4, 1, 2, 4, 3, 4, 2, 4, 3, 4, 2, 4, 3, 4, 2, 4, 3, 4, 2, },
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 0, 0, 1, 4, 4, 3, 4, 4, 3, 3, 4, 4, 3, 3, 4, 4, 3, 4, 4, 1, 2, 4, 3, 4, 2, 4, 3, 4, 2, 4, 3, 4, 2, 4, 3, 4, 2, },
+    {4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 4, 0, 4, 1, 4, 4, 3, 4, 5, 4, 4, 4, 4, 4, 4, 5, 4, 3, 4, 4, 1, 2, 4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 2, },
+    {4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 4, 0, 4, 1, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 4, 4, 1, 2, 4, 5, 4, 2, 4, 4, 4, 2, 4, 5, 4, 2, 4, 4, 4, 2, },
+    {4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 1, 1, 4, 4, 3, 3, 3, 3, 3, 4, 4, 3, 3, 3, 3, 3, 4, 4, 1, 2, 4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 2, 4, 4, 4, 2, },
+    {4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 2, 4, 4, 4, 4, 4, 4, 4, 2, 4, 5, 4, 4, 4, 4, 4, 2, },
+    {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 2, 4, 4, 3, 3, 3, 4, 4, 2, 4, 4, 3, 3, 3, 4, 4, 2, },
+    {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 2, },
+    {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, },
+};
+
+#define MAP_M_W 30
+#define MAP_M_H 30
+static const WorldMapTile_t worldMap_m[MAP_M_W][MAP_M_H] =
+{
+    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, },
+    {1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, },
+    {1, 4, 4, 4, 4, 4, 5, 4, 4, 4, 5, 4, 1, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+    {1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 4, 0, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, },
+    {1, 4, 4, 3, 3, 3, 4, 3, 3, 3, 4, 4, 1, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 4, 0, },
+    {1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 4, 0, 4, 4, 0, 0, 0, 4, 4, 3, 3, 4, 4, 0, },
+    {1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 4, 0, 4, 4, 0, 4, 0, 4, 4, 3, 3, 4, 4, 0, },
+    {1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 4, 0, 4, 4, 0, 4, 0, 4, 4, 3, 3, 4, 4, 0, },
+    {1, 4, 4, 1, 1, 1, 1, 1, 1, 1, 4, 4, 1, 0, 0, 0, 0, 0, 4, 4, 0, 4, 0, 4, 5, 4, 4, 5, 4, 0, },
+    {1, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 4, 4, 4, 4, 0, 5, 4, 0, 4, 0, 4, 4, 4, 4, 4, 4, 0, },
+    {1, 5, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 5, 4, 4, 4, 4, 0, 4, 4, 0, 4, 0, 0, 0, 0, 0, 4, 4, 0, },
+    {1, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 4, 4, 4, 4, 0, 4, 4, 0, 2, 2, 2, 2, 2, 2, 4, 4, 2, },
+    {1, 4, 4, 1, 1, 1, 1, 1, 1, 1, 4, 4, 1, 0, 0, 4, 4, 0, 4, 4, 0, 2, 4, 3, 4, 4, 4, 4, 4, 2, },
+    {1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 0, 4, 4, 0, 4, 4, 0, 2, 4, 5, 3, 4, 4, 4, 4, 2, },
+    {1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 0, 4, 4, 0, 4, 5, 0, 2, 4, 4, 4, 3, 4, 4, 4, 2, },
+    {1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 0, 4, 5, 4, 4, 4, 0, 2, 4, 4, 4, 4, 3, 4, 4, 2, },
+    {1, 4, 4, 3, 3, 3, 4, 3, 3, 3, 4, 4, 1, 4, 0, 4, 4, 4, 4, 4, 0, 2, 4, 4, 4, 4, 4, 4, 4, 2, },
+    {1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 0, 0, 0, 0, 0, 0, 0, 2, 4, 4, 3, 4, 4, 4, 4, 2, },
+    {1, 4, 4, 4, 4, 4, 5, 4, 4, 4, 5, 4, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 3, 4, 4, 4, 2, },
+    {1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 3, 4, 4, 2, },
+    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 4, 2, },
+    {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 2, 2, 2, 2, 2, 2, },
+    {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, },
+    {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 5, 5, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, },
+    {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 5, 5, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, },
+    {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, },
+    {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, },
+    {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 4, 3, 4, 4, 4, 4, 3, 4, 2, 4, 4, 4, 4, 4, 4, 4, },
+    {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, },
+    {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, },
+};
+
+#define MAP_S_W 12
+#define MAP_S_H 12
+static const WorldMapTile_t worldMap_s[MAP_S_W][MAP_S_H] =
+{
+    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
+    {1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, },
+    {1, 4, 5, 4, 4, 5, 3, 3, 4, 5, 4, 1, },
+    {1, 4, 3, 3, 4, 4, 4, 4, 4, 3, 4, 1, },
+    {1, 4, 4, 5, 4, 3, 4, 5, 4, 3, 5, 1, },
+    {1, 4, 3, 4, 4, 3, 4, 4, 4, 4, 4, 1, },
+    {1, 4, 3, 5, 4, 5, 4, 3, 3, 5, 4, 1, },
+    {1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, },
+    {1, 4, 5, 4, 3, 3, 4, 5, 4, 4, 5, 1, },
+    {1, 5, 3, 4, 5, 4, 4, 1, 1, 1, 4, 1, },
+    {1, 4, 4, 4, 4, 4, 4, 4, 4, 1, 5, 1, },
+    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
 };
 
 static const char rc_title[]  = "SHREDDER";
@@ -284,6 +366,10 @@ static const char rc_med[]    = "MEDIUM";
 static const char rc_hard[]   = "HARD";
 static const char rc_scores[] = "SCORES";
 static const char rc_quit[]   = "QUIT";
+
+static const char rc_small[]   = "SM";
+static const char rc_medium[]  = "MD";
+static const char rc_large[]   = "LG";
 
 /*==============================================================================
  * Functions
@@ -376,8 +462,12 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
     // Set up the LED timer
     rc->closestDist = 0xFFFFFFFF;
     rc->closestAngle = 0;
+    rc->radarObstructed = false;
     timerSetFn(&(rc->ledTimer), raycasterLedTimer, NULL);
     timerArm(&(rc->ledTimer), 10, true);
+
+    // Set map
+    raycasterSetMap();
 
     RAY_PRINTF("system_get_free_heap_size %d\n", system_get_free_heap_size());
 }
@@ -419,14 +509,14 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
     rc->rButtonState = 0;
 
     // x and y start position
-    rc->posY = 10.5;
-    rc->posX = 40;
+    rc->posY = 8;
+    rc->posX = 10.5;
     // initial direction vector
-    rc->dirX = 1;
-    rc->dirY = 0;
+    rc->dirX = 0;
+    rc->dirY = -1;
     // the 2d raycaster version of camera plane
-    rc->planeX = 0;
-    rc->planeY = -0.66;
+    rc->planeX = -0.66;
+    rc->planeY = 0;
 
     // Make sure all sprites are intially out of bounds
     for(uint8_t i = 0; i < NUM_SPRITES; i++)
@@ -456,12 +546,12 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
     uint16_t spawnIdx = 0;
 #ifndef TEST_GAME_OVER
     // Look over the whole map
-    for(uint8_t x = 0; x < MAP_WIDTH; x++)
+    for(uint8_t x = 0; x < rc->mapW; x++)
     {
-        for(uint8_t y = 0; y < MAP_HEIGHT; y++)
+        for(uint8_t y = 0; y < rc->mapH; y++)
         {
             // If this is a spawn point
-            if(worldMap[x][y] == WMT_S)
+            if(MAP_TILE(x, y) == WMT_S)
             {
                 // And a sprite should be spawned
                 if(rc->liveSprites < NUM_SPRITES && (((spawnIdx % diffMod) > 0) || (RC_HARD == difficulty)))
@@ -473,7 +563,26 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
                     rc->sprites[rc->liveSprites].dirX = 0;
                     rc->sprites[rc->liveSprites].shotCooldown = 0;
                     rc->sprites[rc->liveSprites].isBackwards = false;
-                    rc->sprites[rc->liveSprites].health = ENEMY_HEALTH;
+                    switch(rc->difficulty)
+                    {
+                        default:
+                        case RC_NUM_DIFFICULTIES:
+                        case RC_EASY:
+                        {
+                            rc->sprites[rc->liveSprites].health = ENEMY_HEALTH_E;
+                            break;
+                        }
+                        case RC_MED:
+                        {
+                            rc->sprites[rc->liveSprites].health = ENEMY_HEALTH_M;
+                            break;
+                        }
+                        case RC_HARD:
+                        {
+                            rc->sprites[rc->liveSprites].health = ENEMY_HEALTH_H;
+                            break;
+                        }
+                    }
                     setSpriteState(&(rc->sprites[rc->liveSprites]), E_IDLE);
                     rc->liveSprites++;
                 }
@@ -483,13 +592,13 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
     }
 #else
     // For testing, just spawn one sprite
-    rc->sprites[rc->liveSprites].posX = 45;
-    rc->sprites[rc->liveSprites].posY = 2;
+    rc->sprites[rc->liveSprites].posX = rc->posX;
+    rc->sprites[rc->liveSprites].posY = rc->posY;
     rc->sprites[rc->liveSprites].dirX = 0;
     rc->sprites[rc->liveSprites].dirX = 0;
     rc->sprites[rc->liveSprites].shotCooldown = 0;
     rc->sprites[rc->liveSprites].isBackwards = false;
-    rc->sprites[rc->liveSprites].health = ENEMY_HEALTH;
+    rc->sprites[rc->liveSprites].health = ENEMY_HEALTH_E;
     setSpriteState(&(rc->sprites[rc->liveSprites]), E_IDLE);
     rc->liveSprites++;
 #endif
@@ -522,6 +631,7 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
     // Reset the closest distance to not shine LEDs
     rc->closestDist = 0xFFFFFFFF;
     rc->closestAngle = 0;
+    rc->radarObstructed = false;
 
     // Start the round clock
     rc->tRoundElapsed = 0;
@@ -549,6 +659,14 @@ void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state, int32_t button, in
             }
             break;
         }
+        case RC_MAP_SELECT:
+        {
+            if(down)
+            {
+                raycasterMapSelectButton(button);
+            }
+            break;
+        }
         case RC_GAME:
         {
             // Save the button state for the game to process later
@@ -558,7 +676,7 @@ void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state, int32_t button, in
         case RC_GAME_OVER:
         {
             // If any button is pressed on game over, just return to the menu
-            if(down)
+            if(rc->gameOverButtonLockUs == 0 && down)
             {
                 rc->mode = RC_MENU;
             }
@@ -569,39 +687,7 @@ void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state, int32_t button, in
             // If the button is pressed on the score screen
             if(down)
             {
-                switch (button)
-                {
-                    case 2:
-                    {
-                        // Left, cycle left
-                        rc->difficulty = (rc->difficulty + 1) % RC_NUM_DIFFICULTIES;
-                        break;
-                    }
-                    case 0:
-                    {
-                        // Right, cycle right
-                        if(0 == rc->difficulty)
-                        {
-                            rc->difficulty = RC_NUM_DIFFICULTIES - 1;
-                        }
-                        else
-                        {
-                            rc->difficulty--;
-                        }
-                        break;
-                    }
-                    case 4:
-                    {
-                        // Action, return to the menu
-                        rc->mode = RC_MENU;
-                        break;
-                    }
-                    default:
-                    {
-                        // Do nothing
-                        break;
-                    }
-                }
+                raycasterScoreDisplayButton(button);
             }
             break;
         }
@@ -615,6 +701,7 @@ void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state, int32_t button, in
  */
 void ICACHE_FLASH_ATTR raycasterMenuButtonCallback(const char* selected)
 {
+    // Do a thing based on the menu option selected
     if(rc_quit == selected)
     {
         // Quit to the Swadge menu
@@ -622,24 +709,31 @@ void ICACHE_FLASH_ATTR raycasterMenuButtonCallback(const char* selected)
     }
     else if(rc_easy == selected)
     {
-        // Start the game
-        raycasterInitGame(RC_EASY);
+        rc->difficulty = RC_EASY;
     }
     else if(rc_med == selected)
     {
-        // Start the game
-        raycasterInitGame(RC_MED);
+        rc->difficulty = RC_MED;
     }
     else if(rc_hard == selected)
     {
-        // Start the game
-        raycasterInitGame(RC_HARD);
+        rc->difficulty = RC_HARD;
     }
     else if (rc_scores == selected)
     {
         // Show some scores
         rc->mode = RC_SCORES;
         rc->difficulty = RC_EASY;
+    }
+
+    // Then set mode to map select if it was a game start
+    if(     (rc_easy == selected) ||
+            (rc_med  == selected) ||
+            (rc_hard == selected))
+    {
+        rc->mode = RC_MAP_SELECT;
+        rc->mapIdx = RC_MAP_S;
+        raycasterSetMap();
     }
 }
 
@@ -671,6 +765,11 @@ bool ICACHE_FLASH_ATTR raycasterRenderTask(void)
             case RC_MENU:
             {
                 drawMenu(rc->menu);
+                break;
+            }
+            case RC_MAP_SELECT:
+            {
+                raycasterMapSelectRenderer(tElapsedUs);
                 break;
             }
             case RC_GAME:
@@ -819,7 +918,7 @@ void ICACHE_FLASH_ATTR castRays(rayResult_t* rayResult)
             }
 
             // Check if ray has hit a wall
-            if(worldMap[mapX][mapY] <= WMT_C)
+            if(MAP_TILE(mapX, mapY) <= WMT_C)
             {
                 hit = 1;
             }
@@ -885,7 +984,7 @@ void ICACHE_FLASH_ATTR drawTextures(rayResult_t* rayResult)
         int16_t drawEnd   = rayResult[x].drawEnd;
 
         // Only draw textures for walls and columns, not empty space or spawn points
-        if(worldMap[mapX][mapY] <= WMT_C)
+        if(MAP_TILE(mapX, mapY) <= WMT_C)
         {
             // Make sure not to waste any draws out-of-bounds
             if(drawStart < 0)
@@ -908,7 +1007,7 @@ void ICACHE_FLASH_ATTR drawTextures(rayResult_t* rayResult)
 
             // Pick a texture
             color* wallTex = NULL;
-            switch(worldMap[mapX][mapY])
+            switch(MAP_TILE(mapX, mapY))
             {
                 case WMT_W1:
                 {
@@ -1163,8 +1262,34 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
                         texIdx = (texX * TEX_HEIGHT) + texY;
                     }
 
-                    // draw the pixel for the texture
-                    drawPixelUnsafeC(stripe, y, rc->sprites[spriteOrder[i]].texture[texIdx]);
+                    // draw the pixel for the texture, maybe inverted
+                    if(rc->sprites[spriteOrder[i]].invertTexUs > 0)
+                    {
+                        switch(rc->sprites[spriteOrder[i]].texture[texIdx])
+                        {
+                            case BLACK:
+                            {
+                                drawPixelUnsafeC(stripe, y, WHITE);
+                                break;
+                            }
+                            case WHITE:
+                            {
+                                drawPixelUnsafeC(stripe, y, BLACK);
+                                break;
+                            }
+                            case INVERSE:
+                            case TRANSPARENT_COLOR:
+                            default:
+                            {
+                                // These don't draw
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        drawPixelUnsafeC(stripe, y, rc->sprites[spriteOrder[i]].texture[texIdx]);
+                    }
 
                     // If we should check a shot, and a sprite is centered
                     if(true == rc->checkShot && (stripe == 63 || stripe == 64) &&
@@ -1253,11 +1378,11 @@ void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
     // move forward if no wall in front of you
     if(rc->rButtonState & 0x08)
     {
-        if(worldMap[(int32_t)(rc->posX + rc->dirX * moveSpeed)][(int32_t)(rc->posY)] > WMT_C)
+        if(MAP_TILE((int32_t)(rc->posX + rc->dirX * moveSpeed), (int32_t)(rc->posY)) > WMT_C)
         {
             rc->posX += rc->dirX * moveSpeed;
         }
-        if(worldMap[(int32_t)(rc->posX)][(int32_t)(rc->posY + rc->dirY * moveSpeed)] > WMT_C)
+        if(MAP_TILE((int32_t)(rc->posX), (int32_t)(rc->posY + rc->dirY * moveSpeed)) > WMT_C)
         {
             rc->posY += rc->dirY * moveSpeed;
         }
@@ -1266,11 +1391,11 @@ void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
     // move backwards if no wall behind you
     if(rc->rButtonState & 0x02)
     {
-        if(worldMap[(int32_t)(rc->posX - rc->dirX * moveSpeed)][(int32_t)(rc->posY)] > WMT_C)
+        if(MAP_TILE((int32_t)(rc->posX - rc->dirX * moveSpeed), (int32_t)(rc->posY)) > WMT_C)
         {
             rc->posX -= rc->dirX * moveSpeed;
         }
-        if(worldMap[(int32_t)(rc->posX)][(int32_t)(rc->posY - rc->dirY * moveSpeed)] > WMT_C)
+        if(MAP_TILE((int32_t)(rc->posX), (int32_t)(rc->posY - rc->dirY * moveSpeed)) > WMT_C)
         {
             rc->posY -= rc->dirY * moveSpeed;
         }
@@ -1363,6 +1488,7 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
     // Keep track of the closest live sprite
     rc->closestDist = 0xFFFFFFFF;
     rc->closestAngle = 0;
+    rc->radarObstructed = false;
 
     // Figure out the movement speed for this frame
     float moveSpeed;
@@ -1382,7 +1508,7 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
         }
         case RC_HARD:
         {
-            moveSpeed = frameTimeSec * 1.3f;
+            moveSpeed = frameTimeSec * 1.5f;
             break;
         }
     }
@@ -1401,6 +1527,13 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
         if(rc->sprites[i].shotCooldown > 0)
         {
             rc->sprites[i].shotCooldown -= tElapsedUs;
+        }
+
+        // Always run down the sprite's inverted texture value, until zero
+        rc->sprites[i].invertTexUs -= tElapsedUs;
+        if(rc->sprites[i].invertTexUs < 0)
+        {
+            rc->sprites[i].invertTexUs = 0;
         }
 
         // Find the distance between this sprite and the player, generally useful
@@ -1581,10 +1714,10 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
 
                 // Make sure the new position is in bounds, assume invalid
                 bool moveIsValid = false;
-                if(     (0 <= newPosXi && newPosXi < MAP_WIDTH) &&
-                        (0 <= newPosYi && newPosYi < MAP_HEIGHT) &&
+                if(     (0 <= newPosXi && newPosXi < rc->mapW) &&
+                        (0 <= newPosYi && newPosYi < rc->mapH) &&
                         // And that it's not occupied by a wall or column
-                        (worldMap[newPosXi][newPosYi] > WMT_C))
+                        (MAP_TILE(newPosXi, newPosYi) > WMT_C))
                 {
                     // In bounds, so it's valid so far
                     moveIsValid = true;
@@ -1623,7 +1756,15 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                 rc->sprites[i].texTimer -= tElapsedUs;
                 while(rc->sprites[i].texTimer < 0)
                 {
-                    rc->sprites[i].texTimer += SHOOTING_ANIM_TIME;
+                    // Hard mode is twice as fast
+                    if(RC_HARD == rc->difficulty)
+                    {
+                        rc->sprites[i].texTimer += (SHOOTING_ANIM_TIME / 2);
+                    }
+                    else
+                    {
+                        rc->sprites[i].texTimer += SHOOTING_ANIM_TIME;
+                    }
 
                     // Pick the next texture
                     rc->sprites[i].texFrame = (rc->sprites[i].texFrame + 1) % NUM_SHOT_FRAMES;
@@ -1640,9 +1781,14 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                     {
                         // Actually take the shot
                         rc->sprites[i].shotCooldown = ENEMY_SHOT_COOLDOWN;
+                        // Half cooldown for hard mode
+                        if(RC_HARD == rc->difficulty)
+                        {
+                            rc->sprites[i].shotCooldown /= 2;
+                        }
 
                         // Check if the sprite can still see the player
-                        if(checkLineToPlayer(&rc->sprites[i], rc->posX, rc->posY))
+                        if(checkWallsBetweenPoints(rc->sprites[i].posX, rc->sprites[i].posY, rc->posX, rc->posY))
                         {
                             // If it can, the player got shot
                             rc->health--;
@@ -1665,7 +1811,15 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                 rc->sprites[i].texTimer -= tElapsedUs;
                 while(rc->sprites[i].texTimer < 0)
                 {
-                    rc->sprites[i].texTimer += GOT_SHOT_ANIM_TIME;
+                    // Hard mode is twice as fast
+                    if(RC_HARD == rc->difficulty)
+                    {
+                        rc->sprites[i].texTimer += (GOT_SHOT_ANIM_TIME / 2);
+                    }
+                    else
+                    {
+                        rc->sprites[i].texTimer += GOT_SHOT_ANIM_TIME;
+                    }
 
                     // Pick the next texture
                     rc->sprites[i].texFrame = (rc->sprites[i].texFrame + 1) % NUM_HURT_FRAMES;
@@ -1706,6 +1860,10 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
         float xClosest = (rc->sprites[closestIdx].posX - rc->posX);
         float yClosest = (rc->sprites[closestIdx].posY - rc->posY);
 
+        rc->radarObstructed = checkWallsBetweenPoints(
+                                  rc->sprites[closestIdx].posX, rc->sprites[closestIdx].posY,
+                                  rc->posX, rc->posY);
+
         // Find the angle between the two vectors
         rc->closestAngle = acosf(
                                ((rc->dirX * xClosest) + (rc->dirY * yClosest)) *        // Dot Product
@@ -1732,11 +1890,11 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
  * @return true  if there is a clear line between the player and sprite,
  *         false if there is an obstruction
  */
-bool ICACHE_FLASH_ATTR checkLineToPlayer(raySprite_t* sprite, float pX, float pY)
+bool ICACHE_FLASH_ATTR checkWallsBetweenPoints(float sX, float sY, float pX, float pY)
 {
     // If the sprite and the player are in the same cell
-    if(((int32_t)sprite->posX == (int32_t)pX) &&
-            ((int32_t)sprite->posY == (int32_t)pY))
+    if(((int32_t)sX == (int32_t)pX) &&
+            ((int32_t)sY == (int32_t)pY))
     {
         // We can definitely draw a line between the two
         return true;
@@ -1744,8 +1902,8 @@ bool ICACHE_FLASH_ATTR checkLineToPlayer(raySprite_t* sprite, float pX, float pY
 
     // calculate ray position and direction
     // x-coordinate in camera space
-    float rayDirX = sprite->posX - pX;
-    float rayDirY = sprite->posY - pY;
+    float rayDirX = sX - pX;
+    float rayDirY = sY - pY;
 
     // which box of the map we're in
     int32_t mapX = (int32_t)(pX);
@@ -1811,12 +1969,12 @@ bool ICACHE_FLASH_ATTR checkLineToPlayer(raySprite_t* sprite, float pX, float pY
         }
 
         // Check if ray has hit a wall
-        if(worldMap[mapX][mapY] <= WMT_C)
+        if(MAP_TILE(mapX, mapY) <= WMT_C)
         {
             // There is a wall between the player and the sprite
             return false;
         }
-        else if(mapX == (int32_t)sprite->posX && mapY == (int32_t)sprite->posY)
+        else if(mapX == (int32_t)sX && mapY == (int32_t)sY)
         {
             // Ray reaches from the player to the sprite unobstructed
             return true;
@@ -1859,6 +2017,7 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
     // Set the state, reset the texture frame
     sprite->state = state;
     sprite->texFrame = 0;
+    sprite->invertTexUs = 0;
 
     // Set timers and textures
     switch(state)
@@ -1898,16 +2057,27 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
         {
             // Set up the shooting texture
             sprite->stateTimer = SHOOTING_ANIM_TIME;
+            // Hard mode is twice as fast
+            if(RC_HARD == rc->difficulty)
+            {
+                sprite->stateTimer /= 2;
+            }
             sprite->texture = rc->shooting[0];
-            sprite->texTimer = SHOOTING_ANIM_TIME;
+            sprite->texTimer = sprite->stateTimer;
             break;
         }
         case E_GOT_SHOT:
         {
             // Set up the got shot texture
             sprite->stateTimer = GOT_SHOT_ANIM_TIME;
+            // Hard mode is twice as fast
+            if(RC_HARD == rc->difficulty)
+            {
+                sprite->stateTimer /= 2;
+            }
             sprite->texture = rc->hurt[0];
-            sprite->texTimer = GOT_SHOT_ANIM_TIME;
+            sprite->invertTexUs = sprite->stateTimer / 3;
+            sprite->texTimer = sprite->stateTimer;
             break;
         }
         case E_DEAD:
@@ -1942,7 +2112,7 @@ void ICACHE_FLASH_ATTR drawHUD(void)
     int16_t noteWidth = textWidth(notes, IBM_VGA_8);
 
     // Clear area behind note display
-    fillDisplayArea(0, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1,
+    fillDisplayArea(0, OLED_HEIGHT - rc->mnote.height,
                     noteWidth + rc->mnote.width + 1, OLED_HEIGHT,
                     BLACK);
 
@@ -1955,8 +2125,16 @@ void ICACHE_FLASH_ATTR drawHUD(void)
                 OLED_HEIGHT - rc->mnote.height,
                 false, false, 0);
     }
+    else
+    {
+        // Invert this texture
+        drawPngInv(&(rc->mnote),
+                   0,
+                   OLED_HEIGHT - rc->mnote.height,
+                   false, false, 0, true);
+    }
     plotText(rc->mnote.width + 2,
-             OLED_HEIGHT - FONT_HEIGHT_IBMVGA8,
+             OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1,
              notes, IBM_VGA_8, WHITE);
 
     // Figure out width for health display
@@ -1966,7 +2144,7 @@ void ICACHE_FLASH_ATTR drawHUD(void)
     int16_t healthDrawX = OLED_WIDTH - rc->heart.width - 1 - healthWidth;
 
     // Clear area behind health display
-    fillDisplayArea(healthDrawX - 1, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1,
+    fillDisplayArea(healthDrawX - 1, OLED_HEIGHT - rc->heart.height,
                     OLED_WIDTH, OLED_HEIGHT,
                     BLACK);
 
@@ -1979,8 +2157,17 @@ void ICACHE_FLASH_ATTR drawHUD(void)
                 OLED_HEIGHT - rc->heart.height,
                 false, false, 0);
     }
+    else
+    {
+        // Invert this texture
+        drawPngInv(&(rc->heart),
+                   OLED_WIDTH - rc->heart.width,
+                   OLED_HEIGHT - rc->heart.height,
+                   false, false, 0, true);
+    }
+
     plotText(healthDrawX,
-             OLED_HEIGHT - FONT_HEIGHT_IBMVGA8,
+             OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1,
              health, IBM_VGA_8, WHITE);
 
     // Draw Guitar
@@ -2007,6 +2194,21 @@ void ICACHE_FLASH_ATTR drawHUD(void)
                         (OLED_HEIGHT - rc->gtr.handles->height),
                         false, false, 0, idx);
     }
+
+    // Only draw clock while playing the game
+    if(RC_GAME == rc->mode)
+    {
+        // Plot the elapsed time
+        uint32_t tElapsed = system_get_time() - rc->tRoundStartedUs;
+        uint32_t dSec = (tElapsed / 100000) % 10;
+        uint32_t sec  = (tElapsed / 1000000) % 60;
+        uint32_t min  = (tElapsed / (1000000 * 60));
+        char timestr[64] = {0};
+        ets_snprintf(timestr, sizeof(timestr), "%02d:%02d.%d", min, sec, dSec);
+        int16_t timeWidth = textWidth(timestr, TOM_THUMB);
+        fillDisplayArea(OLED_WIDTH - timeWidth, 0, OLED_WIDTH, FONT_HEIGHT_TOMTHUMB, BLACK);
+        plotText(OLED_WIDTH - timeWidth + 1, 0, timestr, TOM_THUMB, WHITE);
+    }
 }
 
 /**
@@ -2018,12 +2220,16 @@ void ICACHE_FLASH_ATTR raycasterEndRound(void)
     rc->tRoundElapsed = system_get_time() - rc->tRoundStartedUs;
 
     // Save the score
-    addRaycasterScore(rc->difficulty, rc->kills, rc->tRoundElapsed);
+    addRaycasterScore(rc->difficulty, rc->mapIdx, rc->kills, rc->tRoundElapsed);
 
     // Show game over screen, disable radar
     rc->mode = RC_GAME_OVER;
+    rc->gameOverButtonLockUs = 2000000;
     rc->closestDist = 0xFFFFFFFF;
     rc->closestAngle = 0;
+    rc->radarObstructed = false;
+    rc->killedSpriteTimer = 0;
+    rc->gotShotTimer = 0;
 }
 
 /**
@@ -2065,18 +2271,31 @@ void ICACHE_FLASH_ATTR raycasterDrawRoundOver(uint32_t tElapsedUs)
     width = textWidth(timestr, IBM_VGA_8);
     plotText((OLED_WIDTH - width) / 2, (FONT_HEIGHT_RADIOSTARS + 5) + (FONT_HEIGHT_IBMVGA8 + 3), timestr, IBM_VGA_8, WHITE);
 
-    // Draw the HUD, with animation!
-    if(0 == rc->shotCooldown)
+    // Draw the HUD, with animation if you win!
+    if(rc->liveSprites > 0)
     {
-        rc->shotCooldown = PLAYER_SHOT_COOLDOWN;
-    }
-    else if(rc->shotCooldown > 0)
-    {
-        rc->shotCooldown -= tElapsedUs;
+        rc->shotCooldown = 0;
     }
     else
     {
-        rc->shotCooldown = 0;
+        if(0 == rc->shotCooldown)
+        {
+            rc->shotCooldown = PLAYER_SHOT_COOLDOWN;
+        }
+        else if(rc->shotCooldown > 0)
+        {
+            rc->shotCooldown -= tElapsedUs;
+        }
+        else
+        {
+            rc->shotCooldown = 0;
+        }
+    }
+
+    rc->gameOverButtonLockUs -= tElapsedUs;
+    if(rc->gameOverButtonLockUs < 0)
+    {
+        rc->gameOverButtonLockUs = 0;
     }
     drawHUD();
 }
@@ -2107,7 +2326,7 @@ void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg __attribute__((unused)))
         }
     }
     // Otherwise use the LEDs like a radar
-    else if(rc->closestDist < 64) // This is the squared dist, so check for radius 8
+    else if(rc->closestDist < RADAR_RANGE) // This is the squared dist, so check against the radius
     {
         // Associate each LED with a radian angle around the circle
         float ledAngles[NUM_LIN_LEDS] =
@@ -2135,7 +2354,12 @@ void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg __attribute__((unused)))
             {
                 // Light this LED proportional to the player distance to the sprite
                 // and the LED distance to the angle
-                leds[i].b = (4 * (64 - rc->closestDist)) * (1 - dist);
+                uint32_t rColor = EHSVtoHEX(rc->radarObstructed ? 140 : 200, // 0 is red, 85 is green, 171 is blue
+                                            0xFF,
+                                            (255 * (RADAR_RANGE - rc->closestDist) * (1 - dist)) / RADAR_RANGE);
+                leds[i].r = ((rColor >>  0) & 0xFF);
+                leds[i].g = ((rColor >>  8) & 0xFF);
+                leds[i].b = ((rColor >> 16) & 0xFF);
             }
         }
     }
@@ -2181,52 +2405,264 @@ void ICACHE_FLASH_ATTR raycasterDrawScores(void)
 {
     clearDisplay();
 
-    // Plot title
+    const char* difficulty;
+    const char* map;
+
+    // Pick difficulty
     switch(rc->difficulty)
     {
         default:
         case RC_NUM_DIFFICULTIES:
         case RC_EASY:
         {
-            uint16_t width = textWidth(rc_easy, RADIOSTARS);
-            plotText((OLED_WIDTH - width) / 2, 0, rc_easy, RADIOSTARS, WHITE);
+            difficulty = rc_easy;
             break;
         }
         case RC_MED:
         {
-            uint16_t width = textWidth(rc_med, RADIOSTARS);
-            plotText((OLED_WIDTH - width) / 2, 0, rc_med, RADIOSTARS, WHITE);
+            difficulty = rc_med;
             break;
         }
         case RC_HARD:
         {
-            uint16_t width = textWidth(rc_hard, RADIOSTARS);
-            plotText((OLED_WIDTH - width) / 2, 0, rc_hard, RADIOSTARS, WHITE);
+            difficulty = rc_hard;
             break;
         }
     }
+
+    // Pick map size
+    switch(rc->mapIdx)
+    {
+        default:
+        case RC_NUM_MAPS:
+        case RC_MAP_S:
+        {
+            map = rc_small;
+            break;
+        }
+        case RC_MAP_M:
+        {
+            map = rc_medium;
+            break;
+        }
+        case RC_MAP_L:
+        {
+            map = rc_large;
+            break;
+        }
+    }
+
+    // Plot the title
+    char title[64] = {0};
+    ets_snprintf(title, sizeof(title) - 1, "%s (%s)", difficulty, map);
+    uint16_t width = textWidth(title, RADIOSTARS);
+    plotText((OLED_WIDTH - width) / 2, 0, title, RADIOSTARS, WHITE);
 
     // Display scores
     raycasterScores_t* s = getRaycasterScores();
     for(uint8_t i = 0; i < RC_NUM_SCORES; i++)
     {
+        raycasterScore_t* score = &(s->scores[rc->mapIdx][rc->difficulty][i]);
         // If this is a valid score
-        if(s->scores[rc->difficulty][i].kills > 0)
+        if(score->kills > 0 || score->tElapsedUs > 0)
         {
             // Make the time human readable
-            uint32_t dSec = (s->scores[rc->difficulty][i].tElapsedUs / 100000) % 10;
-            uint32_t sec  = (s->scores[rc->difficulty][i].tElapsedUs / 1000000) % 60;
-            uint32_t min  = (s->scores[rc->difficulty][i].tElapsedUs / (1000000 * 60));
+            uint32_t dSec = (score->tElapsedUs / 100000) % 10;
+            uint32_t sec  = (score->tElapsedUs / 1000000) % 60;
+            uint32_t min  = (score->tElapsedUs / (1000000 * 60));
 
             // Print the string to an array
             char scoreStr[64] = {0};
             ets_snprintf(scoreStr, sizeof(scoreStr), "%2d in %02d:%02d.%d",
-                         s->scores[rc->difficulty][i].kills,
+                         score->kills,
                          min, sec, dSec);
 
             // Plot the string
             plotText(0, FONT_HEIGHT_RADIOSTARS + 3 + (i * (FONT_HEIGHT_IBMVGA8 + 3)),
                      scoreStr, IBM_VGA_8, WHITE);
+        }
+    }
+}
+
+/**
+ * @brief Handle button input when displaying scores
+ *
+ * @param button The button that was pressed down
+ */
+void ICACHE_FLASH_ATTR raycasterScoreDisplayButton(uint32_t button)
+{
+    switch (button)
+    {
+        case RIGHT:
+        {
+            // Cycle difficulty
+            rc->difficulty = (rc->difficulty + 1) % RC_NUM_DIFFICULTIES;
+            break;
+        }
+        case LEFT:
+        {
+            // Cycle difficulty
+            if(0 == rc->difficulty)
+            {
+                rc->difficulty = RC_NUM_DIFFICULTIES - 1;
+            }
+            else
+            {
+                rc->difficulty--;
+            }
+            break;
+        }
+        case UP:
+        {
+            // Cycle maps
+            if(0 == rc->mapIdx)
+            {
+                rc->mapIdx = RC_NUM_MAPS - 1;
+            }
+            else
+            {
+                rc->mapIdx--;
+            }
+            break;
+        }
+        case DOWN:
+        {
+            // Cycle maps
+            rc->mapIdx = (rc->mapIdx + 1) % RC_NUM_MAPS;
+            break;
+        }
+        case ACTION:
+        {
+            // Action, return to the menu
+            rc->mode = RC_MENU;
+            break;
+        }
+        default:
+        {
+            // Do nothing
+            break;
+        }
+    }
+}
+
+/**
+ * Draw the map options to the screen
+ *
+ * @param tElapsedUs The time elapsed since the last call to this function
+ */
+void ICACHE_FLASH_ATTR raycasterMapSelectRenderer(uint32_t tElapsedUs __attribute__((unused)))
+{
+    clearDisplay();
+    int16_t xOffset = (OLED_WIDTH - rc->mapW) / 2;
+    int16_t yOffset = (OLED_HEIGHT - rc->mapH) / 2;
+    for(int16_t y = 0; y < rc->mapH; y++)
+    {
+        for(int16_t x = 0; x < rc->mapW; x++)
+        {
+            switch(MAP_TILE(y, x))
+            {
+                case WMT_W1:
+                case WMT_W2:
+                case WMT_W3:
+                case WMT_C:
+                {
+                    drawPixel(x + xOffset, y + yOffset, WHITE);
+                    break;
+                }
+                default:
+                case WMT_E:
+                case WMT_S:
+                {
+                    drawPixel(x + xOffset, y + yOffset, BLACK);
+                    break;
+                }
+            }
+        }
+    }
+
+    // Draw arrows to scroll the maps
+    plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "<", TOM_THUMB, WHITE);
+    plotText(OLED_WIDTH - 3, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, ">", TOM_THUMB, WHITE);
+}
+
+/**
+ * Handle button input when selecting the map
+ *
+ * @param button The button that was pressed down
+ */
+void ICACHE_FLASH_ATTR raycasterMapSelectButton(int32_t button)
+{
+    switch(button)
+    {
+        case UP:
+        case DOWN:
+        default:
+        {
+            // Do nothing
+            break;
+        }
+        case LEFT:
+        {
+            // Scroll maps
+            if(rc->mapIdx == 0)
+            {
+                rc->mapIdx = RC_NUM_MAPS - 1;
+            }
+            else
+            {
+                rc->mapIdx--;
+            }
+            raycasterSetMap();
+            break;
+        }
+        case RIGHT:
+        {
+            // Scroll maps
+            rc->mapIdx = (rc->mapIdx + 1) % RC_NUM_MAPS;
+            raycasterSetMap();
+            break;
+        }
+        case ACTION:
+        {
+            raycasterSetMap();
+            raycasterInitGame(rc->difficulty);
+            break;
+        }
+    }
+}
+
+/**
+ * Set the current map pointer and sizes from the current index
+ */
+void ICACHE_FLASH_ATTR raycasterSetMap(void)
+{
+    switch(rc->mapIdx)
+    {
+        default:
+        case RC_NUM_MAPS:
+        case RC_MAP_S:
+        {
+            // Set map vars
+            rc->mapW = MAP_S_W;
+            rc->mapH = MAP_S_H;
+            rc->map = &(worldMap_s[0][0]);
+            break;
+        }
+        case RC_MAP_M:
+        {
+            // Set map vars
+            rc->mapW = MAP_M_W;
+            rc->mapH = MAP_M_H;
+            rc->map = &(worldMap_m[0][0]);
+            break;
+        }
+        case RC_MAP_L:
+        {
+            // Set map vars
+            rc->mapW = MAP_L_W;
+            rc->mapH = MAP_L_H;
+            rc->map = &(worldMap_l[0][0]);
+            break;
         }
     }
 }

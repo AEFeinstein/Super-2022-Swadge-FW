@@ -15,14 +15,14 @@
  * Enums
  ******************************************************************************/
 
-typedef enum
+typedef enum __attribute__((__packed__))
 {
     AGE_CHILD,
     AGE_TEEN,
     AGE_ADULT
 } age_t;
 
-typedef enum
+typedef enum __attribute__((__packed__))
 {
     ACT_FEED,
     ACT_PLAY,
@@ -33,7 +33,7 @@ typedef enum
     ACT_NUM_ACTIONS
 } action_t;
 
-typedef enum
+typedef enum __attribute__((__packed__))
 {
     EVT_NONE,
     // Queued events (only one happens once per action)
