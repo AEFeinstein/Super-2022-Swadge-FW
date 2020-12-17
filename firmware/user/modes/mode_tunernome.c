@@ -641,9 +641,13 @@ bool ICACHE_FLASH_ATTR tunernomeRenderTask(void)
             plotText(OLED_WIDTH - textWidth("Red= Sharp", TOM_THUMB) + 1, 0, "Red= Sharp", TOM_THUMB, WHITE);
 
             // Left/Right button functions at bottom of display
-            plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, leftStr, TOM_THUMB, WHITE);
+            int16_t afterExit = plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, leftStr, TOM_THUMB, WHITE);
             plotText(OLED_WIDTH - textWidth(rightStrMetronome, TOM_THUMB) + 1, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1,
                      rightStrMetronome, TOM_THUMB, WHITE);
+
+            char gainStr[16] = {0};
+            ets_snprintf(gainStr, sizeof(gainStr) - 1, "Gain:%d", 1 + ((CCS.gINITIAL_AMP - AMP_OFFSET) / AMP_STEP_SIZE));
+            plotText(8 + afterExit, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, gainStr, TOM_THUMB, WHITE);
 
             // Up/Down arrows in middle of display around current note/mode
             drawPng(&(tunernome->upArrowPng),
