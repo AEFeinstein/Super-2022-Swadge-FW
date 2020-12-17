@@ -57,9 +57,6 @@
 #define BPM_CHANGE_FIRST_MS   500
 #define BPM_CHANGE_FAST_MS    2000
 #define BPM_CHANGE_REPEAT_MS  50
-#define PAUSE_WIDTH           3
-#define PAUSE_SPACE_WIDTH     3
-#define PAUSE_HEIGHT          10
 
 #define US_TO_QUIT 1048576 // 2^20, makes division easy
 
@@ -110,7 +107,8 @@ typedef struct
     uint32_t intensities_filt[NUM_LIN_LEDS];
     int32_t diffs_filt[NUM_LIN_LEDS];
 
-    bool pause;
+    uint8_t tSigIdx;
+    uint8_t beatCtr;
     int bpm;
     uint32_t tLastUpdateUs;
     int32_t tAccumulatedUs;
@@ -129,6 +127,12 @@ typedef struct
     uint32_t tLastCallUs;
     bool shouldExit;
 } tunernome_t;
+
+typedef struct
+{
+    uint8_t top;
+    uint8_t bottom;
+} timeSignature;
 
 /*============================================================================
  * Prototypes
@@ -284,6 +288,13 @@ static int TUNER_FLAT_THRES_X;
 static int TUNER_SHARP_THRES_X;
 static int TUNER_THRES_Y;
 
+static const timeSignature tSigs[] =
+{
+    {.top = 4, .bottom = 4},
+    {.top = 3, .bottom = 4},
+    {.top = 2, .bottom = 4},
+};
+
 /*============================================================================
  * Functions
  *==========================================================================*/
@@ -306,7 +317,8 @@ void ICACHE_FLASH_ATTR tunernomeEnterMode(void)
     allocPngAsset("uparrow.png", &(tunernome->upArrowPng));
     allocPngAsset("flat.png", &(tunernome->flatPng));
 
-    tunernome->pause = false;
+    tunernome->tSigIdx = 0;
+    tunernome->beatCtr = 0;
     tunernome->bpm = INITIAL_BPM;
     tunernome->curTunerMode = GUITAR_TUNER;
 
@@ -353,6 +365,8 @@ void ICACHE_FLASH_ATTR switchToSubmode(tnMode newMode)
             tunernome-> mode = newMode;
 
             tunernome->isClockwise = true;
+            tunernome->tSigIdx = 0;
+            tunernome->beatCtr = 0;
             tunernome->tLastUpdateUs = 0;
             tunernome->tAccumulatedUs = 0;
 
@@ -733,8 +747,8 @@ bool ICACHE_FLASH_ATTR tunernomeRenderTask(void)
         {
             clearDisplay();
 
-            char bpmStr[8];
-            ets_sprintf(bpmStr, "%d bpm", tunernome->bpm);
+            char bpmStr[32];
+            ets_sprintf(bpmStr, "%d bpm, %d/%d", tunernome->bpm, tSigs[tunernome->tSigIdx].top, tSigs[tunernome->tSigIdx].bottom);
 
             plotText((OLED_WIDTH - textWidth(bpmStr, IBM_VGA_8)) / 2, 0, bpmStr, IBM_VGA_8, WHITE);
             plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, leftStr, TOM_THUMB, WHITE);
@@ -742,21 +756,6 @@ bool ICACHE_FLASH_ATTR tunernomeRenderTask(void)
                      TOM_THUMB,
                      WHITE);
 
-            // Don't do anything when paused
-            if(tunernome->pause)
-            {
-                plotRect((OLED_WIDTH - PAUSE_SPACE_WIDTH) / 2 - PAUSE_WIDTH,
-                         (OLED_HEIGHT - PAUSE_HEIGHT) / 2,
-                         (OLED_WIDTH - PAUSE_SPACE_WIDTH) / 2,
-                         (OLED_HEIGHT + PAUSE_HEIGHT) / 2,
-                         WHITE);
-                plotRect((OLED_WIDTH + PAUSE_SPACE_WIDTH) / 2,
-                         (OLED_HEIGHT - PAUSE_HEIGHT) / 2,
-                         (OLED_WIDTH + PAUSE_SPACE_WIDTH) / 2 + PAUSE_WIDTH,
-                         (OLED_HEIGHT + PAUSE_HEIGHT) / 2,
-                         WHITE);
-                break;
-            }
             if(0 == tunernome->tLastUpdateUs)
             {
                 // Initialize the last time this function was called
@@ -767,6 +766,7 @@ bool ICACHE_FLASH_ATTR tunernomeRenderTask(void)
                 // Get the current time and the time elapsed since the last call
                 uint32_t tNowUs = system_get_time();
                 uint32_t tElapsedUs = tNowUs - tunernome->tLastUpdateUs;
+                bool shouldBlink = false;
                 // If the arm is sweeping clockwise
                 if(tunernome->isClockwise)
                 {
@@ -780,17 +780,7 @@ bool ICACHE_FLASH_ATTR tunernomeRenderTask(void)
                         // Start counting down by subtacting the excess time from tAccumulatedUs
                         tunernome->tAccumulatedUs = tunernome->usPerBeat - (tunernome->tAccumulatedUs - tunernome->usPerBeat);
                         // Blink LED Tick color
-                        led_t leds[NUM_LIN_LEDS] = {{0}};
-                        for(int i = 0; i < NUM_LIN_LEDS; i++)
-                        {
-                            leds[i].r = 0xFF;
-                            leds[i].g = 0xFF;
-                            leds[i].b = 0xFF;
-                        }
-                        setLeds(leds, sizeof(leds));
-
-                        timerDisarm(&(tunernome->ledTimer));
-                        timerArm(&(tunernome->ledTimer), METRONOME_FLASH_MS, false);
+                        shouldBlink = true;
                     } // if(tAccumulatedUs >= tunernome->usPerBeat)
                 } // if(tunernome->isClockwise)
                 else
@@ -805,7 +795,27 @@ bool ICACHE_FLASH_ATTR tunernomeRenderTask(void)
                         // Start counting up by flipping the excess time from negative to positive
                         tunernome->tAccumulatedUs = -(tunernome->tAccumulatedUs);
                         // Blink LED Tock color
-                        led_t leds[NUM_LIN_LEDS] = {{0}};
+                        shouldBlink = true;
+                    } // if(tunernome->tAccumulatedUs <= 0)
+                } // if(!tunernome->isClockwise)
+
+                if(shouldBlink)
+                {
+                    tunernome->beatCtr = (tunernome->beatCtr + 1) % tSigs[tunernome->tSigIdx].top;
+
+                    led_t leds[NUM_LIN_LEDS] = {{0}};
+
+                    if(0 == tunernome->beatCtr)
+                    {
+                        for(int i = 0; i < NUM_LIN_LEDS; i++)
+                        {
+                            leds[i].r = 0xFF;
+                            leds[i].g = 0xFF;
+                            leds[i].b = 0xFF;
+                        }
+                    }
+                    else
+                    {
                         for(int i = 0; i < NUM_LIN_LEDS; i++)
                         {
                             leds[i].r = 0xDD;
@@ -818,12 +828,13 @@ bool ICACHE_FLASH_ATTR tunernomeRenderTask(void)
                         leds[3].r = 0x00;
                         leds[3].g = 0x00;
                         leds[3].b = 0x00;
-                        setLeds(leds, sizeof(leds));
+                    }
 
-                        timerDisarm(&(tunernome->ledTimer));
-                        timerArm(&(tunernome->ledTimer), METRONOME_FLASH_MS, false);
-                    } // if(tunernome->tAccumulatedUs <= 0)
-                } // if(!tunernome->isClockwise)
+                    setLeds(leds, sizeof(leds));
+                    timerDisarm(&(tunernome->ledTimer));
+                    timerArm(&(tunernome->ledTimer), METRONOME_FLASH_MS, false);
+                }
+
                 // Draw metronome arm based on the value of tAccumulatedUs, which is between (0, usPerBeat)
                 float intermedX = -1 * cosf(tunernome->tAccumulatedUs * M_PI / tunernome->usPerBeat );
                 float intermedY = -1 * sinf(tunernome->tAccumulatedUs * M_PI / tunernome->usPerBeat );
@@ -946,9 +957,8 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unu
                     }
                     case ACTION:
                     {
-                        tunernome->pause = !tunernome->pause;
-                        tunernome->tAccumulatedUs = 0;
-                        tunernome->tLastUpdateUs = 0;
+                        // Cycle the time signature
+                        tunernome->tSigIdx = (tunernome->tSigIdx + 1) % (sizeof(tSigs) / sizeof(tSigs[0]));
                         break;
                     }
                     case RIGHT:
