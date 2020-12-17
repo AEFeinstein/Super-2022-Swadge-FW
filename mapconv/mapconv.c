@@ -34,6 +34,7 @@ int main (void)
     // stbi_write_bmp("sin.bmp", 48, 48, 1, bmp);
 
     processMapImage("map_s.png");
+    processMapImage("map_m.png");
     processMapImage("map_l.png");
     return 0;
 }
