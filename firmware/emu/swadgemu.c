@@ -9,6 +9,8 @@
 #include "rawdraw/CNFG.h"
 #include "rawdraw/os_generic.h"
 #include "swadgemu.h"
+#include "ip_addr.h"
+#include "espconn.h"
 
 //ESP Includes
 #include "user_interface.h"
@@ -1689,4 +1691,39 @@ char* sntp_getservername(unsigned char idx)
 struct tm* sntp_localtime(const time_t* tim_p)
 {
     return localtime(tim_p);
+}
+
+sint8 espconn_accept(struct espconn* espconn)
+{
+    return 0;
+}
+
+sint8 espconn_create(struct espconn* espconn)
+{
+    return 0;
+}
+
+sint8 espconn_get_connection_info(struct espconn* pespconn, remot_info** pcon_info, uint8 typeflags)
+{
+    return 0;
+}
+
+sint8 espconn_send(struct espconn* espconn, uint8* psent, uint16 length)
+{
+    return 0;
+}
+
+sint16 espconn_sendto(struct espconn* espconn, uint8* psent, uint16 length)
+{
+    return 0;
+}
+
+sint8 espconn_regist_connectcb(struct espconn* espconn, espconn_connect_callback connect_cb)
+{
+    return 0;
+}
+
+sint8 espconn_regist_recvcb(struct espconn* espconn, espconn_recv_callback recv_cb)
+{
+    return 0;
 }
