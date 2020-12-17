@@ -26,7 +26,6 @@
  * Defines
  *============================================================================*/
 
-#define NUM_MAPS 2
 #define MAP_TILE(x, y) rc->map[(y) + ((x) * (rc->mapH))]
 
 #define TEX_WIDTH  48
@@ -180,7 +179,7 @@ typedef struct
     uint16_t mapW;
     uint16_t mapH;
     const WorldMapTile_t* map;
-    uint8_t mapIdx;
+    raycasterMap_t mapIdx;
 
     // For LEDs
     timer_t ledTimer;
@@ -209,6 +208,7 @@ bool ICACHE_FLASH_ATTR raycasterRenderTask(void);
 void ICACHE_FLASH_ATTR raycasterGameRenderer(uint32_t tElapsedUs);
 void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg __attribute__((unused)));
 void ICACHE_FLASH_ATTR raycasterDrawScores(void);
+void ICACHE_FLASH_ATTR raycasterScoreDisplayButton(uint32_t);
 void ICACHE_FLASH_ATTR raycasterEndRound(void);
 void ICACHE_FLASH_ATTR raycasterDrawRoundOver(uint32_t tElapsedUs);
 
@@ -347,6 +347,10 @@ static const char rc_med[]    = "MEDIUM";
 static const char rc_hard[]   = "HARD";
 static const char rc_scores[] = "SCORES";
 static const char rc_quit[]   = "QUIT";
+
+static const char rc_small[]   = "SM";
+static const char rc_medium[]  = "MD";
+static const char rc_large[]   = "LG";
 
 /*==============================================================================
  * Functions
@@ -569,8 +573,8 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
     }
 #else
     // For testing, just spawn one sprite
-    rc->sprites[rc->liveSprites].posX = 45;
-    rc->sprites[rc->liveSprites].posY = 2;
+    rc->sprites[rc->liveSprites].posX = rc->posX;
+    rc->sprites[rc->liveSprites].posY = rc->posY;
     rc->sprites[rc->liveSprites].dirX = 0;
     rc->sprites[rc->liveSprites].dirX = 0;
     rc->sprites[rc->liveSprites].shotCooldown = 0;
@@ -664,39 +668,7 @@ void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state, int32_t button, in
             // If the button is pressed on the score screen
             if(down)
             {
-                switch (button)
-                {
-                    case 2:
-                    {
-                        // Left, cycle left
-                        rc->difficulty = (rc->difficulty + 1) % RC_NUM_DIFFICULTIES;
-                        break;
-                    }
-                    case 0:
-                    {
-                        // Right, cycle right
-                        if(0 == rc->difficulty)
-                        {
-                            rc->difficulty = RC_NUM_DIFFICULTIES - 1;
-                        }
-                        else
-                        {
-                            rc->difficulty--;
-                        }
-                        break;
-                    }
-                    case 4:
-                    {
-                        // Action, return to the menu
-                        rc->mode = RC_MENU;
-                        break;
-                    }
-                    default:
-                    {
-                        // Do nothing
-                        break;
-                    }
-                }
+                raycasterScoreDisplayButton(button);
             }
             break;
         }
@@ -710,6 +682,7 @@ void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state, int32_t button, in
  */
 void ICACHE_FLASH_ATTR raycasterMenuButtonCallback(const char* selected)
 {
+    // Do a thing based on the menu option selected
     if(rc_quit == selected)
     {
         // Quit to the Swadge menu
@@ -717,17 +690,14 @@ void ICACHE_FLASH_ATTR raycasterMenuButtonCallback(const char* selected)
     }
     else if(rc_easy == selected)
     {
-        rc->mode = RC_MAP_SELECT;
         rc->difficulty = RC_EASY;
     }
     else if(rc_med == selected)
     {
-        rc->mode = RC_MAP_SELECT;
         rc->difficulty = RC_MED;
     }
     else if(rc_hard == selected)
     {
-        rc->mode = RC_MAP_SELECT;
         rc->difficulty = RC_HARD;
     }
     else if (rc_scores == selected)
@@ -735,6 +705,16 @@ void ICACHE_FLASH_ATTR raycasterMenuButtonCallback(const char* selected)
         // Show some scores
         rc->mode = RC_SCORES;
         rc->difficulty = RC_EASY;
+    }
+
+    // Then set mode to map select if it was a game start
+    if(     (rc_easy == selected) ||
+            (rc_med  == selected) ||
+            (rc_hard == selected))
+    {
+        rc->mode = RC_MAP_SELECT;
+        rc->mapIdx = RC_MAP_S;
+        raycasterSetMap();
     }
 }
 
@@ -2221,7 +2201,7 @@ void ICACHE_FLASH_ATTR raycasterEndRound(void)
     rc->tRoundElapsed = system_get_time() - rc->tRoundStartedUs;
 
     // Save the score
-    addRaycasterScore(rc->difficulty, rc->kills, rc->tRoundElapsed);
+    addRaycasterScore(rc->difficulty, rc->mapIdx, rc->kills, rc->tRoundElapsed);
 
     // Show game over screen, disable radar
     rc->mode = RC_GAME_OVER;
@@ -2399,52 +2379,137 @@ void ICACHE_FLASH_ATTR raycasterDrawScores(void)
 {
     clearDisplay();
 
-    // Plot title
+    const char* difficulty;
+    const char* map;
+
+    // Pick difficulty
     switch(rc->difficulty)
     {
         default:
         case RC_NUM_DIFFICULTIES:
         case RC_EASY:
         {
-            uint16_t width = textWidth(rc_easy, RADIOSTARS);
-            plotText((OLED_WIDTH - width) / 2, 0, rc_easy, RADIOSTARS, WHITE);
+            difficulty = rc_easy;
             break;
         }
         case RC_MED:
         {
-            uint16_t width = textWidth(rc_med, RADIOSTARS);
-            plotText((OLED_WIDTH - width) / 2, 0, rc_med, RADIOSTARS, WHITE);
+            difficulty = rc_med;
             break;
         }
         case RC_HARD:
         {
-            uint16_t width = textWidth(rc_hard, RADIOSTARS);
-            plotText((OLED_WIDTH - width) / 2, 0, rc_hard, RADIOSTARS, WHITE);
+            difficulty = rc_hard;
             break;
         }
     }
+
+    // Pick map size
+    switch(rc->mapIdx)
+    {
+        default:
+        case RC_NUM_MAPS:
+        case RC_MAP_S:
+        {
+            map = rc_small;
+            break;
+        }
+        case RC_MAP_L:
+        {
+            map = rc_large;
+            break;
+        }
+    }
+
+    // Plot the title
+    char title[64] = {0};
+    ets_snprintf(title, sizeof(title) - 1, "%s (%s)", difficulty, map);
+    uint16_t width = textWidth(title, RADIOSTARS);
+    plotText((OLED_WIDTH - width) / 2, 0, title, RADIOSTARS, WHITE);
 
     // Display scores
     raycasterScores_t* s = getRaycasterScores();
     for(uint8_t i = 0; i < RC_NUM_SCORES; i++)
     {
+        raycasterScore_t* score = &(s->scores[rc->mapIdx][rc->difficulty][i]);
         // If this is a valid score
-        if(s->scores[rc->difficulty][i].kills > 0)
+        if(score->kills > 0 || score->tElapsedUs > 0)
         {
             // Make the time human readable
-            uint32_t dSec = (s->scores[rc->difficulty][i].tElapsedUs / 100000) % 10;
-            uint32_t sec  = (s->scores[rc->difficulty][i].tElapsedUs / 1000000) % 60;
-            uint32_t min  = (s->scores[rc->difficulty][i].tElapsedUs / (1000000 * 60));
+            uint32_t dSec = (score->tElapsedUs / 100000) % 10;
+            uint32_t sec  = (score->tElapsedUs / 1000000) % 60;
+            uint32_t min  = (score->tElapsedUs / (1000000 * 60));
 
             // Print the string to an array
             char scoreStr[64] = {0};
             ets_snprintf(scoreStr, sizeof(scoreStr), "%2d in %02d:%02d.%d",
-                         s->scores[rc->difficulty][i].kills,
+                         score->kills,
                          min, sec, dSec);
 
             // Plot the string
             plotText(0, FONT_HEIGHT_RADIOSTARS + 3 + (i * (FONT_HEIGHT_IBMVGA8 + 3)),
                      scoreStr, IBM_VGA_8, WHITE);
+        }
+    }
+}
+
+/**
+ * @brief Handle button input when displaying scores
+ *
+ * @param button The button that was pressed down
+ */
+void ICACHE_FLASH_ATTR raycasterScoreDisplayButton(uint32_t button)
+{
+    switch (button)
+    {
+        case RIGHT:
+        {
+            // Cycle difficulty
+            rc->difficulty = (rc->difficulty + 1) % RC_NUM_DIFFICULTIES;
+            break;
+        }
+        case LEFT:
+        {
+            // Cycle difficulty
+            if(0 == rc->difficulty)
+            {
+                rc->difficulty = RC_NUM_DIFFICULTIES - 1;
+            }
+            else
+            {
+                rc->difficulty--;
+            }
+            break;
+        }
+        case UP:
+        {
+            // Cycle maps
+            if(0 == rc->mapIdx)
+            {
+                rc->mapIdx = RC_NUM_MAPS - 1;
+            }
+            else
+            {
+                rc->mapIdx--;
+            }
+            break;
+        }
+        case DOWN:
+        {
+            // Cycle maps
+            rc->mapIdx = (rc->mapIdx + 1) % RC_NUM_MAPS;
+            break;
+        }
+        case ACTION:
+        {
+            // Action, return to the menu
+            rc->mode = RC_MENU;
+            break;
+        }
+        default:
+        {
+            // Do nothing
+            break;
         }
     }
 }
@@ -2510,7 +2575,7 @@ void ICACHE_FLASH_ATTR raycasterMapSelectButton(int32_t button)
             // Scroll maps
             if(rc->mapIdx == 0)
             {
-                rc->mapIdx = NUM_MAPS - 1;
+                rc->mapIdx = RC_NUM_MAPS - 1;
             }
             else
             {
@@ -2522,12 +2587,13 @@ void ICACHE_FLASH_ATTR raycasterMapSelectButton(int32_t button)
         case RIGHT:
         {
             // Scroll maps
-            rc->mapIdx = (rc->mapIdx + 1) % NUM_MAPS;
+            rc->mapIdx = (rc->mapIdx + 1) % RC_NUM_MAPS;
             raycasterSetMap();
             break;
         }
         case ACTION:
         {
+            raycasterSetMap();
             raycasterInitGame(rc->difficulty);
             break;
         }
@@ -2542,7 +2608,8 @@ void ICACHE_FLASH_ATTR raycasterSetMap(void)
     switch(rc->mapIdx)
     {
         default:
-        case 0:
+        case RC_NUM_MAPS:
+        case RC_MAP_S:
         {
             // Set map vars
             rc->mapW = MAP_S_W;
@@ -2550,7 +2617,7 @@ void ICACHE_FLASH_ATTR raycasterSetMap(void)
             rc->map = &(worldMap_s[0][0]);
             break;
         }
-        case 1:
+        case RC_MAP_L:
         {
             // Set map vars
             rc->mapW = MAP_L_W;

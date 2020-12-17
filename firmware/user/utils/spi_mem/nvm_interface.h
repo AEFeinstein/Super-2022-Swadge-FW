@@ -69,7 +69,7 @@ void ICACHE_FLASH_ATTR setSelfTestPass(bool pass);
 bool ICACHE_FLASH_ATTR getSelfTestPass(void);
 
 raycasterScores_t* ICACHE_FLASH_ATTR getRaycasterScores(void);
-void ICACHE_FLASH_ATTR addRaycasterScore(raycasterDifficulty_t difficulty, uint16_t kills, uint32_t tElapsed);
+void ICACHE_FLASH_ATTR addRaycasterScore(raycasterDifficulty_t difficulty, raycasterMap_t mapIdx, uint16_t kills, uint32_t tElapsed);
 
 #define SSID_NAME_LEN 64
 
