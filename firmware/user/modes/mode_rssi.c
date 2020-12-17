@@ -4,7 +4,6 @@
  *  Created on: Mar 27, 2019
  *      Author: adam
  */
-#include "user_config.h"
 
 /*============================================================================
  * Includes
@@ -17,6 +16,7 @@
 #include <time.h>
 #include <stdlib.h>
 
+#include "user_config.h"
 #include "user_main.h"
 #include "embeddednf.h"
 #include "oled.h"
@@ -42,8 +42,8 @@
 #define RSSI_UPDATE_MS    20
 #define NUM_PF_CLIENTS    10
 #define LED_PORT        7777
-#define PF_PORT            1337
-#define ARTNET_PORT        6454
+#define PF_PORT         1337
+#define ARTNET_PORT     6454
 
 typedef enum
 {
@@ -58,7 +58,6 @@ typedef enum
 {
     RSSI_SUBMODE_REGULAR,
     RSSI_SUBMODE_ALTERNATE,
-    RSSI_SUBMODE_ALTERNATE2,
     RSSI_SUBMODE_CLOCK,
     RSSI_SUBMODE_PIXELFLUT,
     RSSI_SUBMODE_MAX,
@@ -138,11 +137,12 @@ void ICACHE_FLASH_ATTR strMon(char* str, int mDay, int mon);
 void ICACHE_FLASH_ATTR strTime(char* str, int h, int m, int s, bool space);
 void ICACHE_FLASH_ATTR drawClockArm(led_t* leds, uint8_t hue, int16_t handAngle);
 
-static void ICACHE_FLASH_ATTR RSSIConnectPIXELFLUTCB(void *pArg);
-static void ICACHE_FLASH_ATTR RSSIRecvPIXELFLUTData(void *pArg, char *pData, unsigned short len);
-static void ICACHE_FLASH_ATTR RSSIRecvLEDData(void *pArg, char *pData, unsigned short len);
-static void ICACHE_FLASH_ATTR RSSIRecvARTNETData(void *pArg, char *pData, unsigned short len);
-static void ICACHE_FLASH_ATTR ProcessPixelFlutCommand( struct espconn *pConn, const char * command, int len );
+static void ICACHE_FLASH_ATTR RSSIConnectPIXELFLUTCB(void* pArg);
+static void ICACHE_FLASH_ATTR RSSIRecvPIXELFLUTData(void* pArg, char* pData, unsigned short len);
+static void ICACHE_FLASH_ATTR RSSIRecvLEDData(void* pArg, char* pData, unsigned short len);
+static void ICACHE_FLASH_ATTR RSSIRecvARTNETData(void* pArg, char* pData, unsigned short len);
+static void ICACHE_FLASH_ATTR ProcessPixelFlutCommand( struct espconn* pConn, const char* command, int len );
+static void ICACHE_FLASH_ATTR to_scan(void);
 
 // Prototype missing from sntp.h
 struct tm* sntp_localtime(const time_t* tim_p);
@@ -167,17 +167,20 @@ swadgeMode rssiMode =
 
 rssi_t* rssi;
 
-static const char fl_title[]  = "Rssi";
-static const char fl_station[]   = "Station";
-static const char fl_scan[]   = "Scan";
+static const char fl_title[]    = "Rssi";
+static const char fl_station[]  = "Station";
+static const char fl_scan[]     = "Scan";
 static const char fl_softap[]   = "Soft AP";
-static const char fl_connlast[]   = "Connect Last";
-static const char fl_quit[]   = "QUIT";
+static const char fl_connlast[] = "Connect Last";
+static const char fl_quit[]     = "Quit";
 
 /*============================================================================
  * Functions
  *==========================================================================*/
 
+/**
+ * @brief TODO cnlohr wizardry
+ */
 static void ICACHE_FLASH_ATTR rssiSetupMenu(void)
 {
     if( rssi->menu )
@@ -239,11 +242,16 @@ void ICACHE_FLASH_ATTR rssiExitMode(void)
     os_free(rssi);
     rssi = 0;
 
-    memset( rssi->set_leds, 0, sizeof( rssi->set_leds ) );
+    ets_memset( rssi->set_leds, 0, sizeof( rssi->set_leds ) );
     setLeds( rssi->set_leds, sizeof(rssi->set_leds));
 }
 
-
+/**
+ * @brief TODO cnlohr wizardry
+ *
+ * @param bss_struct
+ * @param status
+ */
 static void ICACHE_FLASH_ATTR rssi_scan_done_cb(void* bss_struct, STATUS status)
 {
     if (status == OK)
@@ -296,8 +304,10 @@ static void ICACHE_FLASH_ATTR rssi_scan_done_cb(void* bss_struct, STATUS status)
     }
 }
 
-static void ICACHE_FLASH_ATTR to_scan();
-static void ICACHE_FLASH_ATTR to_scan()
+/**
+ * @brief TODO cnlohr wizardry
+ */
+static void ICACHE_FLASH_ATTR to_scan(void)
 {
     struct scan_config sc;
     sc.ssid = 0;
@@ -312,7 +322,11 @@ static void ICACHE_FLASH_ATTR to_scan()
     rssi->num_scan = -1;
 }
 
-
+/**
+ * @brief TODO cnlohr wizardry
+ *
+ * @param menuItem
+ */
 static void ICACHE_FLASH_ATTR rssiMenuCb(const char* menuItem)
 {
     //if(fl_station == menuItem)
@@ -373,34 +387,45 @@ static void ICACHE_FLASH_ATTR rssiMenuCb(const char* menuItem)
     }
 }
 
-
-
-
-static void ICACHE_FLASH_ATTR RSSIConnectPIXELFLUTCB(void *pArg) {
-    struct espconn *pConn = (struct espconn *)pArg;
+/**
+ * @brief TODO cnlohr wizardry
+ *
+ * @param pArg
+ */
+static void ICACHE_FLASH_ATTR RSSIConnectPIXELFLUTCB(void* pArg)
+{
+    struct espconn* pConn = (struct espconn*)pArg;
     RSSI_PRINTF("connection from %d.%d.%d.%d port %d\n",
-              IP2STR(pConn->proto.tcp->remote_ip),
-              pConn->proto.tcp->remote_port);
-     
+                IP2STR(pConn->proto.tcp->remote_ip),
+                pConn->proto.tcp->remote_port);
+
     espconn_regist_recvcb(pConn, &RSSIRecvPIXELFLUTData);
 }
 
-
-
-static void ICACHE_FLASH_ATTR ProcessPixelFlutCommand( struct espconn *pConn, const char * command, int len )
+/**
+ * @brief TODO cnlohr wizardry
+ *
+ * @param pConn
+ * @param command
+ * @param len
+ */
+static void ICACHE_FLASH_ATTR ProcessPixelFlutCommand( struct espconn* pConn, const char* command, int len )
 {
-    if( len >= 4 && memcmp( command, "SIZE", 4 ) == 0 )
+    if( len >= 4 && ets_memcmp( command, "SIZE", 4 ) == 0 )
     {
         char st[64];
         int slen = os_sprintf( st, "SIZE %d %d\n", OLED_WIDTH, OLED_HEIGHT );
         espconn_send( pConn, (uint8_t*)st, slen );
     }
-    else if( len >= 3 && memcmp( command, "PX ", 3 ) == 0 )
+    else if( len >= 3 && ets_memcmp( command, "PX ", 3 ) == 0 )
     {
         int sp1, sp2;
         for( sp1 = 3; sp1 < len && command[sp1] != ' '; sp1++ );
-        for( sp2 = sp1+1; sp2 < len && command[sp2] != ' '; sp2++ );
-        if( sp1 >= len ) goto help;
+        for( sp2 = sp1 + 1; sp2 < len && command[sp2] != ' '; sp2++ );
+        if( sp1 >= len )
+        {
+            goto help;
+        }
 
         int x = atoi( command + 2 );
         int y = atoi( command + sp1 );
@@ -408,22 +433,22 @@ static void ICACHE_FLASH_ATTR ProcessPixelFlutCommand( struct espconn *pConn, co
         {
             //No 3rd parameter.  This is a get.
             char st[64];
-            int slen = os_sprintf( st, "PX %d %d %06x\n", x, y, ( getPixel( x, y ) == WHITE )?0xffffff:0x000000 );
+            int slen = os_sprintf( st, "PX %d %d %06x\n", x, y, ( getPixel( x, y ) == WHITE ) ? 0xffffff : 0x000000 );
             espconn_send( pConn, (uint8_t*)st, slen );
         }
         else
         {
             //3rd parameter present, interpret as a color request.
-            int value = strtol( command+sp2, 0, 16 );
-            int r = (value>>24)&0xff;
-            int g = (value>>16)&0xff;
-            int b = (value>>8)&0xff;
-            int a = (value>>0)&0xff;
-            int avg = (r+g+b);
-            RSSI_PRINTF( "DRAW AT %d, %d, %d %d\n", x, y, avg,a );
+            int value = strtol( command + sp2, 0, 16 );
+            int r = (value >> 24) & 0xff;
+            int g = (value >> 16) & 0xff;
+            int b = (value >> 8) & 0xff;
+            int a = (value >> 0) & 0xff;
+            int avg = (r + g + b);
+            RSSI_PRINTF( "DRAW AT %d, %d, %d %d\n", x, y, avg, a );
             if( a > 0x7f )
             {
-                drawPixel( x, y, (avg > 0x17D)?WHITE:BLACK );
+                drawPixel( x, y, (avg > 0x17D) ? WHITE : BLACK );
             }
         }
     }
@@ -434,13 +459,22 @@ static void ICACHE_FLASH_ATTR ProcessPixelFlutCommand( struct espconn *pConn, co
     return;
 help:
     {
-        const char * swadgpf = "Swadge PF Server; Usage:\nHELP: Display this message\nSIZE: Return size of target screen\nPX <x> <y>: Get value of pixel (0xFFFFFF or 0x000000 only)\nPX <x> <y> <value>: Set value of pixel (>0x7f average brightness = on, otherwise off)\nBUFFER <swadge-full display, 1kB data>";
-        espconn_send( pConn, (uint8_t*)swadgpf, strlen( swadgpf ) );
+        const char* swadgpf =
+            "Swadge PF Server; Usage:\nHELP: Display this message\nSIZE: Return size of target screen\nPX <x> <y>: Get value of pixel (0xFFFFFF or 0x000000 only)\nPX <x> <y> <value>: Set value of pixel (>0x7f average brightness = on, otherwise off)\nBUFFER <swadge-full display, 1kB data>";
+        espconn_send( pConn, (uint8_t*)swadgpf, ets_strlen( swadgpf ) );
     }
 }
 
-static void ICACHE_FLASH_ATTR RSSIRecvPIXELFLUTData(void *pArg, char *pData, unsigned short len) {
-    struct espconn *pConn = (struct espconn *)pArg;
+/**
+ * @brief TODO cnlohr wizardry
+ *
+ * @param pArg
+ * @param pData
+ * @param len
+ */
+static void ICACHE_FLASH_ATTR RSSIRecvPIXELFLUTData(void* pArg, char* pData, unsigned short len)
+{
+    struct espconn* pConn = (struct espconn*)pArg;
     //RSSI_PRINTF("PF received %d bytes from %d.%d.%d.%d port %d: \"%s\"\n",
     //          len,
     //          IP2STR(pConn->proto.tcp->remote_ip),
@@ -449,20 +483,20 @@ static void ICACHE_FLASH_ATTR RSSIRecvPIXELFLUTData(void *pArg, char *pData, uns
 
     do
     {
-        if( len >= 7+(OLED_WIDTH * (OLED_HEIGHT / 8)) )
+        if( len >= 7 + (OLED_WIDTH * (OLED_HEIGHT / 8)) )
         {
-            if( memcmp( pData, "BUFFER ", 7 ) == 0 )
+            if( ets_memcmp( pData, "BUFFER ", 7 ) == 0 )
             {
                 if( !rssi->bEnableBufferMode )
                 {
-                    const char * swadgpf = "Press Action to Enable Buffer Mode";
-                    espconn_send( pConn, (uint8_t*)swadgpf, strlen( swadgpf ) );
+                    const char* swadgpf = "Press Action to Enable Buffer Mode";
+                    espconn_send( pConn, (uint8_t*)swadgpf, ets_strlen( swadgpf ) );
                 }
                 else
                 {
                     //Update screen
                     extern uint8_t currentFb[(OLED_WIDTH * (OLED_HEIGHT / 8))];
-                    memcpy( currentFb, pData+7, (OLED_WIDTH * (OLED_HEIGHT / 8)) );
+                    ets_memcpy( currentFb, pData + 7, (OLED_WIDTH * (OLED_HEIGHT / 8)) );
                     //currentFb[0] = 0;
                     extern bool fbChanges;
                     fbChanges = true;
@@ -473,7 +507,7 @@ static void ICACHE_FLASH_ATTR RSSIRecvPIXELFLUTData(void *pArg, char *pData, uns
 
                     if( pConn->type == ESPCONN_UDP )
                     {
-                        remot_info * ri = 0;
+                        remot_info* ri = 0;
                         espconn_get_connection_info( pConn, &ri, 0);
                         ets_memcpy( pConn->proto.udp->remote_ip, ri->remote_ip, 4 );
                         pConn->proto.udp->remote_port = ri->remote_port;
@@ -490,63 +524,100 @@ static void ICACHE_FLASH_ATTR RSSIRecvPIXELFLUTData(void *pArg, char *pData, uns
         //Scan line for newline.
         int epl = 0;
         for( epl = 0; epl < len && pData[epl] != '\n'; epl++ );
-        if( epl < len ) pData[epl] = 0;    //Force null termination.
-        if( epl ) ProcessPixelFlutCommand( pConn, pData, epl );
-        if( epl < len ) epl++; //Advance past null.
+        if( epl < len )
+        {
+            pData[epl] = 0;    //Force null termination.
+        }
+        if( epl )
+        {
+            ProcessPixelFlutCommand( pConn, pData, epl );
+        }
+        if( epl < len )
+        {
+            epl++;    //Advance past null.
+        }
         pData += epl;
         len -= epl;
     } while( len > 0 );
 
     return;
-/*
-abort:
-    RSSI_PRINTF( "invalid command %s\n", pData );
-    if( pConn->type == ESPCONN_TCP )
-    {
-        espconn_disconnect( pConn );
-        espconn_delete( pConn );
-    }
-    return;
-*/
+    /*
+    abort:
+        RSSI_PRINTF( "invalid command %s\n", pData );
+        if( pConn->type == ESPCONN_TCP )
+        {
+            espconn_disconnect( pConn );
+            espconn_delete( pConn );
+        }
+        return;
+    */
 }
 
-static void ICACHE_FLASH_ATTR RSSIRecvLEDData(void *pArg, char *pData, unsigned short len)
+/**
+ * @brief TODO cnlohr wizardry
+ *
+ * @param pArg
+ * @param pData
+ * @param len
+ */
+static void ICACHE_FLASH_ATTR RSSIRecvLEDData(void* pArg, char* pData, unsigned short len)
 {
     pArg = pArg;
-//    struct espconn *pConn = (struct espconn *)pArg;
+    //    struct espconn *pConn = (struct espconn *)pArg;
 
-/*
-    RSSI_PRINTF("LED received %d bytes from %d.%d.%d.%d port %d: \"%s\"\n",
-              len,
-              IP2STR(pConn->proto.tcp->remote_ip),
-              pConn->proto.tcp->remote_port,
-              pData);
-*/
+    /*
+        RSSI_PRINTF("LED received %d bytes from %d.%d.%d.%d port %d: \"%s\"\n",
+                  len,
+                  IP2STR(pConn->proto.tcp->remote_ip),
+                  pConn->proto.tcp->remote_port,
+                  pData);
+    */
 
     int ll = len;
     ll -= 3;
-    if( ll < 0 ) return;
-    if( pData[0] || pData[1] || pData[2] ) return; //Not an LED packet.
-    if( ll > 18 ) ll = 18; 
+    if( ll < 0 )
+    {
+        return;
+    }
+    if( pData[0] || pData[1] || pData[2] )
+    {
+        return;    //Not an LED packet.
+    }
+    if( ll > 18 )
+    {
+        ll = 18;
+    }
 
     //Skip 3 bytes.  Cause that's just how we do (From esp8266ws2812i2s)
-    memcpy( rssi->set_leds, pData+3, ll );
+    ets_memcpy( rssi->set_leds, pData + 3, ll );
 }
 
-static void ICACHE_FLASH_ATTR RSSIRecvARTNETData(void *pArg, char *pData, unsigned short len)
+/**
+ * @brief TODO cnlohr wizardry
+ *
+ * @param pArg
+ * @param pData
+ * @param len
+ */
+static void ICACHE_FLASH_ATTR RSSIRecvARTNETData(void* pArg, char* pData, unsigned short len)
 {
-    struct espconn *pConn = (struct espconn *)pArg;
+    struct espconn* pConn = (struct espconn*)pArg;
 
     RSSI_PRINTF("LED received %d bytes from %d.%d.%d.%d port %d: \"%s\"\n",
-              len,
-              IP2STR(pConn->proto.tcp->remote_ip),
-              pConn->proto.tcp->remote_port,
-              pData);
-
+                len,
+                IP2STR(pConn->proto.tcp->remote_ip),
+                pConn->proto.tcp->remote_port,
+                pData);
 
     int ll = len;
-    if( ll <= 18 ) return;
-    if( memcmp( pData, "Art-Net", 8 ) != 0 ) return; //Not an artnet packet.
+    if( ll <= 18 )
+    {
+        return;
+    }
+    if( ets_memcmp( pData, "Art-Net", 8 ) != 0 )
+    {
+        return;    //Not an artnet packet.
+    }
     //Ignore protocol, universe, sequence, physical and length.
     ll -= 18; //18 bytes in header
 
@@ -554,11 +625,13 @@ static void ICACHE_FLASH_ATTR RSSIRecvARTNETData(void *pArg, char *pData, unsign
     ll -= offset;
 
     //3 colors x 6 LEDs
-    if( ll > 18 ) ll = 18;
+    if( ll > 18 )
+    {
+        ll = 18;
+    }
 
-    memcpy( rssi->set_leds, pData+18+offset, ll );
+    ets_memcpy( rssi->set_leds, pData + 18 + offset, ll );
 }
-
 
 /**
  * @brief called on a timer, updates the game state
@@ -605,6 +678,55 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
         case RSSI_SOFTAP:
         case RSSI_STATION:
         {
+            // Get the wifi info
+            struct ip_info ipi;
+            bool goodIpi = false;
+            if(wifi_get_ip_info( (rssi->mode == RSSI_SOFTAP) ? SOFTAP_IF : STATION_IF, &ipi))
+            {
+                goodIpi = true;
+                // For all submodes, start NTP if we have an IP address and it hasn't been started yet
+                if(ipi.ip.addr != 0 && false == rssi->netInit)
+                {
+                    RSSI_PRINTF("Init SNTP\n");
+                    rssi->netInit = true;
+                    sntp_setservername(0, "time.google.com");
+                    sntp_setservername(1, "time.cloudflare.com");
+                    sntp_setservername(2, "time-a-g.nist.gov");
+                    sntp_init();
+                    sntp_set_timezone(rssi->tz); // Eastern
+
+                    //Set up other sockets.
+                    ets_memset( &rssi->server_udp_leds, 0, sizeof( rssi->server_udp_leds ) );
+                    rssi->server_udp_leds.type = ESPCONN_UDP;
+                    rssi->server_udp_leds.proto.udp = &rssi->server_udp_leds_udp;
+                    rssi->server_udp_leds.proto.udp->local_port = LED_PORT;
+                    espconn_regist_recvcb( &rssi->server_udp_leds, RSSIRecvLEDData);
+                    espconn_create( &rssi->server_udp_leds );
+
+                    ets_memset( &rssi->server_udp_artnet, 0, sizeof( rssi->server_udp_artnet ) );
+                    rssi->server_udp_artnet.type = ESPCONN_UDP;
+                    rssi->server_udp_artnet.proto.udp = &rssi->server_udp_artnet_udp;
+                    rssi->server_udp_artnet.proto.udp->local_port = ARTNET_PORT;
+                    espconn_regist_recvcb( &rssi->server_udp_artnet, RSSIRecvARTNETData);
+                    espconn_create( &rssi->server_udp_artnet );
+
+                    ets_memset( &rssi->server_udp_pf, 0, sizeof( rssi->server_udp_pf ) );
+                    rssi->server_udp_pf.type = ESPCONN_UDP;
+                    rssi->server_udp_pf.proto.udp = &rssi->server_udp_pf_udp;
+                    rssi->server_udp_pf.proto.udp->local_port = PF_PORT;
+                    espconn_regist_recvcb(&rssi->server_udp_pf, RSSIRecvPIXELFLUTData);
+                    espconn_create( &rssi->server_udp_pf );
+
+                    ets_memset( &rssi->server_pf_socket, 0, sizeof( rssi->server_udp_pf ) );
+                    rssi->server_pf_socket.type = ESPCONN_TCP;
+                    rssi->server_pf_socket.proto.tcp = &rssi->server_pf_socket_tcp;
+                    rssi->server_pf_socket.proto.tcp->local_port = PF_PORT;
+                    espconn_regist_connectcb(&rssi->server_pf_socket, RSSIConnectPIXELFLUTCB);
+                    espconn_create( &rssi->server_pf_socket );
+                    espconn_accept( &rssi->server_pf_socket );
+                }
+            }
+
             switch( rssi->submode )
             {
                 default:
@@ -614,9 +736,9 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                         clearDisplay();
                         plotText(0, 0, "PIXELFLUT/ARTNET", IBM_VGA_8, WHITE);
                         char st[64];
-                        os_sprintf( st, "ARTNET OFFSET %d\n", rssi->artnetOffset ); 
+                        os_sprintf( st, "ARTNET OFFSET %d\n", rssi->artnetOffset );
                         plotText(0, 20, st, IBM_VGA_8, WHITE);
-                        os_sprintf( st, "BUFFER MODE %d\n", rssi->bEnableBufferMode ); 
+                        os_sprintf( st, "BUFFER MODE %d\n", rssi->bEnableBufferMode );
                         plotText(0, 40, st, IBM_VGA_8, WHITE);
                         rssi->bAlreadyUpdated = true;
                     }
@@ -644,9 +766,8 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                         textY += (FONT_HEIGHT_IBMVGA8 + VERT_SPACING);
                     }
 
-                    // Get the wifi info
-                    struct ip_info ipi;
-                    if(wifi_get_ip_info( (rssi->mode == RSSI_SOFTAP) ? SOFTAP_IF : STATION_IF, &ipi))
+                    // If we got IP info
+                    if(goodIpi)
                     {
                         // If this is the normal mode
                         if(RSSI_SUBMODE_REGULAR == rssi->submode)
@@ -665,48 +786,7 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                             textY += (FONT_HEIGHT_IBMVGA8 + VERT_SPACING);
                         }
 
-                        // Start NTP if we have an IP address and it hasn't been started yet
-                        if(ipi.ip.addr != 0 && false == rssi->netInit)
-                        {
-                            RSSI_PRINTF("Init SNTP\n");
-                            rssi->netInit = true;
-                            sntp_setservername(0, "time.google.com");
-                            sntp_setservername(1, "time.cloudflare.com");
-                            sntp_setservername(2, "time-a-g.nist.gov");
-                            sntp_init();
-                            sntp_set_timezone(rssi->tz); // Eastern
-
-                            //Set up other sockets.
-                            memset( &rssi->server_udp_leds, 0, sizeof( rssi->server_udp_leds ) );
-                            rssi->server_udp_leds.type = ESPCONN_UDP;
-                            rssi->server_udp_leds.proto.udp = &rssi->server_udp_leds_udp;
-                            rssi->server_udp_leds.proto.udp->local_port = LED_PORT;
-                            espconn_regist_recvcb( &rssi->server_udp_leds, RSSIRecvLEDData);
-                            espconn_create( &rssi->server_udp_leds );
-
-                            memset( &rssi->server_udp_artnet, 0, sizeof( rssi->server_udp_artnet ) );
-                            rssi->server_udp_artnet.type = ESPCONN_UDP;
-                            rssi->server_udp_artnet.proto.udp = &rssi->server_udp_artnet_udp;
-                            rssi->server_udp_artnet.proto.udp->local_port = ARTNET_PORT;
-                            espconn_regist_recvcb( &rssi->server_udp_artnet, RSSIRecvARTNETData);
-                            espconn_create( &rssi->server_udp_artnet );
-
-                            memset( &rssi->server_udp_pf, 0, sizeof( rssi->server_udp_pf ) );
-                            rssi->server_udp_pf.type = ESPCONN_UDP;
-                            rssi->server_udp_pf.proto.udp = &rssi->server_udp_pf_udp;
-                            rssi->server_udp_pf.proto.udp->local_port = PF_PORT;
-                            espconn_regist_recvcb(&rssi->server_udp_pf, RSSIRecvPIXELFLUTData);
-                            espconn_create( &rssi->server_udp_pf );
-
-                            memset( &rssi->server_pf_socket, 0, sizeof( rssi->server_udp_pf ) );
-                            rssi->server_pf_socket.type = ESPCONN_TCP;
-                            rssi->server_pf_socket.proto.tcp = &rssi->server_pf_socket_tcp;
-                            rssi->server_pf_socket.proto.tcp->local_port = PF_PORT;
-                            espconn_regist_connectcb(&rssi->server_pf_socket, RSSIConnectPIXELFLUTCB);
-                            espconn_create( &rssi->server_pf_socket );
-                            espconn_accept( &rssi->server_pf_socket );
-                        }
-                        else if(rssi->netInit)
+                        if(rssi->netInit)
                         {
                             // if NTP is initialized, try to get a timestamp
                             time_t ts = sntp_get_current_timestamp();
@@ -750,7 +830,7 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                                     timePlotted = true;
 
                                     // Draw an analog clock to the LEDs
-                                    memset( rssi->set_leds, 0, sizeof( rssi->set_leds ) );
+                                    ets_memset( rssi->set_leds, 0, sizeof( rssi->set_leds ) );
                                     if( rssi->bEnableLEDsOnTime )
                                     {
                                         drawClockArm(rssi->set_leds, 0,   tStruct->tm_sec * 6);
@@ -776,7 +856,6 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                     plotText(OLED_WIDTH - 3, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, ">", TOM_THUMB, WHITE);
                     break;
                 }
-                case RSSI_SUBMODE_ALTERNATE2:
                 case RSSI_SUBMODE_ALTERNATE:
                 {
                     clearDisplay();
@@ -789,7 +868,7 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                     {
                         int8_t this_rssi = wifi_station_get_rssi();
 
-                        if( rssi->submode == RSSI_SUBMODE_ALTERNATE2 )
+                        if( rssi->bEnableLEDsOnTime )
                         {
                             int selcol = this_rssi;
                             selcol += 90;
@@ -802,6 +881,10 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                                 rssi->set_leds[i].g = (rcolor >> 8) & 0xff;
                                 rssi->set_leds[i].b = (rcolor >> 16) & 0xff;
                             }
+                        }
+                        else
+                        {
+                            ets_memset(rssi->set_leds, 0, sizeof(rssi->set_leds));
                         }
 
                         os_sprintf( cts, "%ddb", this_rssi );
@@ -841,6 +924,11 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
     }
 }
 
+/**
+ * @brief TODO cnlohr wizardry
+ *
+ * @param sm
+ */
 static void ICACHE_FLASH_ATTR HandleEnterPressOnSubmode( rssiSubmode sm )
 {
     switch( rssi->mode )
@@ -851,21 +939,20 @@ static void ICACHE_FLASH_ATTR HandleEnterPressOnSubmode( rssiSubmode sm )
         {
             switch( sm )
             {
-            case RSSI_SUBMODE_REGULAR:
-                rssi->mode = RSSI_MENU;
-                break;
-            case RSSI_SUBMODE_CLOCK:
-                rssi->bEnableLEDsOnTime = !rssi->bEnableLEDsOnTime;
-                break;
-            case RSSI_SUBMODE_PIXELFLUT:
-                rssi->bEnableBufferMode = !rssi->bEnableBufferMode;
-                rssi->bAlreadyUpdated = 0;
-                break;
-            case RSSI_SUBMODE_ALTERNATE2:
-            case RSSI_SUBMODE_MAX:
-            case RSSI_SUBMODE_ALTERNATE:
-            default:
-                break;
+                case RSSI_SUBMODE_REGULAR:
+                    rssi->mode = RSSI_MENU;
+                    break;
+                case RSSI_SUBMODE_CLOCK:
+                case RSSI_SUBMODE_ALTERNATE:
+                    rssi->bEnableLEDsOnTime = !rssi->bEnableLEDsOnTime;
+                    break;
+                case RSSI_SUBMODE_PIXELFLUT:
+                    rssi->bEnableBufferMode = !rssi->bEnableBufferMode;
+                    rssi->bAlreadyUpdated = 0;
+                    break;
+                case RSSI_SUBMODE_MAX:
+                default:
+                    break;
             }
             break;
         }
@@ -888,8 +975,11 @@ static void ICACHE_FLASH_ATTR HandleEnterPressOnSubmode( rssiSubmode sm )
 void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
         int button __attribute__((unused)), int down __attribute__((unused)))
 {
-    rssi->iLastButtonState = state&0x1f;
-    if( rssi->bForcePixelFlutBuffer ) return;
+    rssi->iLastButtonState = state & 0x1f;
+    if( rssi->bForcePixelFlutBuffer )
+    {
+        return;
+    }
 
     switch (rssi->mode)
     {
