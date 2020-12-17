@@ -12,6 +12,7 @@ typedef enum
 typedef enum
 {
     RC_MAP_S,
+    RC_MAP_M,
     RC_MAP_L,
     RC_NUM_MAPS
 } raycasterMap_t;

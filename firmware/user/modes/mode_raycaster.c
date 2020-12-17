@@ -306,9 +306,9 @@ static const WorldMapTile_t worldMap_l[MAP_L_W][MAP_L_H] =
     {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, },
 };
 
-#define MAP_S_W 30
-#define MAP_S_H 30
-static const WorldMapTile_t worldMap_s[MAP_S_W][MAP_S_H] =
+#define MAP_M_W 30
+#define MAP_M_H 30
+static const WorldMapTile_t worldMap_m[MAP_M_W][MAP_M_H] =
 {
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, },
     {1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, },
@@ -341,6 +341,25 @@ static const WorldMapTile_t worldMap_s[MAP_S_W][MAP_S_H] =
     {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, },
     {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, },
 };
+
+#define MAP_S_W 12
+#define MAP_S_H 12
+static const WorldMapTile_t worldMap_s[MAP_S_W][MAP_S_H] =
+{
+    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
+    {1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, },
+    {1, 4, 5, 4, 4, 5, 3, 3, 4, 5, 4, 1, },
+    {1, 4, 3, 3, 4, 4, 4, 4, 4, 3, 4, 1, },
+    {1, 4, 4, 5, 4, 3, 4, 5, 4, 3, 5, 1, },
+    {1, 4, 3, 4, 4, 3, 4, 4, 4, 4, 4, 1, },
+    {1, 4, 3, 5, 4, 5, 4, 3, 3, 5, 4, 1, },
+    {1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, },
+    {1, 4, 5, 4, 3, 3, 4, 5, 4, 4, 5, 1, },
+    {1, 5, 3, 4, 5, 4, 4, 1, 1, 1, 4, 1, },
+    {1, 4, 4, 4, 4, 4, 4, 4, 4, 1, 5, 1, },
+    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
+};
+
 static const char rc_title[]  = "SHREDDER";
 static const char rc_easy[]   = "EASY";
 static const char rc_med[]    = "MEDIUM";
@@ -2252,18 +2271,25 @@ void ICACHE_FLASH_ATTR raycasterDrawRoundOver(uint32_t tElapsedUs)
     width = textWidth(timestr, IBM_VGA_8);
     plotText((OLED_WIDTH - width) / 2, (FONT_HEIGHT_RADIOSTARS + 5) + (FONT_HEIGHT_IBMVGA8 + 3), timestr, IBM_VGA_8, WHITE);
 
-    // Draw the HUD, with animation!
-    if(0 == rc->shotCooldown)
+    // Draw the HUD, with animation if you win!
+    if(rc->liveSprites > 0)
     {
-        rc->shotCooldown = PLAYER_SHOT_COOLDOWN;
-    }
-    else if(rc->shotCooldown > 0)
-    {
-        rc->shotCooldown -= tElapsedUs;
+        rc->shotCooldown = 0;
     }
     else
     {
-        rc->shotCooldown = 0;
+        if(0 == rc->shotCooldown)
+        {
+            rc->shotCooldown = PLAYER_SHOT_COOLDOWN;
+        }
+        else if(rc->shotCooldown > 0)
+        {
+            rc->shotCooldown -= tElapsedUs;
+        }
+        else
+        {
+            rc->shotCooldown = 0;
+        }
     }
 
     rc->gameOverButtonLockUs -= tElapsedUs;
@@ -2412,6 +2438,11 @@ void ICACHE_FLASH_ATTR raycasterDrawScores(void)
         case RC_MAP_S:
         {
             map = rc_small;
+            break;
+        }
+        case RC_MAP_M:
+        {
+            map = rc_medium;
             break;
         }
         case RC_MAP_L:
@@ -2615,6 +2646,14 @@ void ICACHE_FLASH_ATTR raycasterSetMap(void)
             rc->mapW = MAP_S_W;
             rc->mapH = MAP_S_H;
             rc->map = &(worldMap_s[0][0]);
+            break;
+        }
+        case RC_MAP_M:
+        {
+            // Set map vars
+            rc->mapW = MAP_M_W;
+            rc->mapH = MAP_M_H;
+            rc->map = &(worldMap_m[0][0]);
             break;
         }
         case RC_MAP_L:
