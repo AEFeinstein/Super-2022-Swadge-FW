@@ -28,9 +28,10 @@
  * Defines
  *============================================================================*/
 
+// Gain is an 8 bit number, max is 252 with these numbers
 #define AMP_OFFSET    20
 #define AMP_STEPS     9
-#define AMP_STEP_SIZE 10
+#define AMP_STEP_SIZE 29
 
 #define US_TO_QUIT 1048576 // 2^20, makes division easy
 
@@ -92,7 +93,7 @@ struct CCSettings CCS =
     .gUSE_NUM_LIN_LEDS     = NUM_LIN_LEDS,
     .gCOLORCHORD_ACTIVE    = 1,
     .gCOLORCHORD_OUTPUT_DRIVER = 1,
-    .gINITIAL_AMP          = AMP_OFFSET + AMP_STEP_SIZE
+    .gINITIAL_AMP          = AMP_OFFSET + (AMP_STEP_SIZE * (AMP_STEPS / 2))
 };
 
 /*==============================================================================
