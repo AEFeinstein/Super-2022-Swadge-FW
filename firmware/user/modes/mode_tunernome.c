@@ -28,6 +28,7 @@
 #include "linked_list.h"
 #include "font.h"
 #include "mode_colorchord.h"
+#include "hsv_utils.h"
 
 #include "embeddednf.h"
 #include "embeddedout.h"
@@ -92,6 +93,7 @@ typedef enum
     SEMITONE_9,
     SEMITONE_10,
     SEMITONE_11,
+    LISTENING,
     MAX_GUITAR_MODES
 } tuner_mode_t;
 
@@ -680,6 +682,56 @@ bool ICACHE_FLASH_ATTR tunernomeRenderTask(void)
                     plotInstrumentNameAndNotes(theWordUkelele, ukeleleNoteNames, NUM_UKELELE_STRINGS);
                     break;
                 }
+                case LISTENING:
+                {
+                    // Find the note that has the highest intensity. Must be larger than 1000
+                    int16_t maxIntensity = 1000;
+                    int8_t semitoneNum = -1;
+                    for(uint8_t semitone = 0; semitone < NUM_SEMITONES; semitone++)
+                    {
+                        if(tunernome->intensity[semitone] > maxIntensity)
+                        {
+                            maxIntensity = tunernome->intensity[semitone];
+                            semitoneNum = semitone;
+                        }
+                    }
+
+                    led_t leds[NUM_LIN_LEDS] = {{0}};
+
+                    // If some note is intense
+                    if(-1 != semitoneNum)
+                    {
+                        // Plot text on top of everything else
+                        bool shouldDrawFlat = (semitoneNoteNames[semitoneNum][ets_strlen(semitoneNoteNames[semitoneNum]) - 1] == 1);
+                        int16_t tWidth = textWidth(semitoneNoteNames[semitoneNum], IBM_VGA_8);
+                        if(shouldDrawFlat)
+                        {
+                            tWidth += tunernome->flatPng.width + 1;
+                        }
+                        int16_t textEnd = plotText((OLED_WIDTH - tWidth) / 2 + 1,
+                                                   (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2,
+                                                   semitoneNoteNames[semitoneNum], IBM_VGA_8, WHITE);
+
+                        // Append the png for a flat
+                        if(shouldDrawFlat)
+                        {
+                            drawPng(&tunernome->flatPng, textEnd, (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2, false, false, 0);
+                        }
+
+                        // Set the LEDs to a colorchord-like value
+                        uint32_t toneColor = EHSVtoHEX((semitoneNum * 256) / NUM_SEMITONES, 0xFF, 0x80);
+                        for(uint8_t i = 0; i < NUM_LIN_LEDS; i++)
+                        {
+                            leds[i].r = (toneColor >>  0) & 0xFF;
+                            leds[i].g = (toneColor >>  8) & 0xFF;
+                            leds[i].b = (toneColor >> 16) & 0xFF;
+                        }
+                    }
+
+                    // Set LEDs, this may turn them off
+                    setLeds(leds, sizeof(leds));
+                    break;
+                }
                 case MAX_GUITAR_MODES:
                     break;
                 case SEMITONE_0:
@@ -1105,6 +1157,7 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
                 case SEMITONE_9:
                 case SEMITONE_10:
                 case SEMITONE_11:
+                case LISTENING:
                 default:
                 {
                     for(uint8_t semitone = 0; semitone < NUM_SEMITONES; semitone++)
@@ -1131,21 +1184,6 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
                         tunernome->tonalDiff[semitone] = (tunernome->semitone_diff_filt[semitone] >> SENSITIVITY) * 200 /
                                                          (tunernome->intensity[semitone] + 1);
                     }
-
-                    // TODO this works...
-                    int16_t maxIntensity = 0;
-                    int8_t maxSemitone = -1;
-                    for(uint8_t semitone = 0; semitone < NUM_SEMITONES; semitone++)
-                    {
-                        if(tunernome->intensity[semitone] > maxIntensity)
-                        {
-                            maxIntensity = tunernome->intensity[semitone];
-                            maxSemitone = semitone;
-                        }
-                    }
-
-                    // If the signal isn't intense enough, don't move the needle
-                    os_printf("%s\n", semitoneNoteNames[maxSemitone]); // C is 0 ...
 
                     // tonal diff is -32768 to 32767. if its within -10 to 10 (now defined as TONAL_DIFF_IN_TUNE_DEVIATION), it's in tune.
                     // positive means too sharp, negative means too flat
@@ -1199,9 +1237,11 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
                 } // default:
             } // switch(tunernome->curTunerMode)
 
-            // Draw the LEDs
-            setLeds( colors, sizeof(colors) );
-
+            if(LISTENING != tunernome->curTunerMode)
+            {
+                // Draw the LEDs
+                setLeds( colors, sizeof(colors) );
+            }
             // Reset the sample count
             tunernome->audioSamplesProcessed = 0;
         }
