@@ -37,7 +37,7 @@
  *==========================================================================*/
 
 #ifndef M_PI
-    #define M_PI                  3.14159265358979323846
+    #define M_PI 3.14159265358979323846
 #endif
 
 #define NUM_GUITAR_STRINGS    6
@@ -66,6 +66,8 @@
 #define ABS(X) (((X) < 0) ? -(X) : (X))
 /// Helper macro to return the highest of two integers
 // #define MAX(X, Y) ( ((X) > (Y)) ? (X) : (Y) )
+
+#define NUM_SEMITONES 12
 
 typedef enum
 {
@@ -115,9 +117,10 @@ typedef struct
     bool isClockwise;
     int32_t usPerBeat;
 
-    uint32_t semitone_intensitiy_filt;
-    int32_t semitone_diff_filt;
-    int16_t tonalDiff;
+    uint32_t semitone_intensitiy_filt[NUM_SEMITONES];
+    int32_t semitone_diff_filt[NUM_SEMITONES];
+    int16_t tonalDiff[NUM_SEMITONES];
+    int16_t intensity[NUM_SEMITONES];
 
     pngHandle upArrowPng;
     pngHandle flatPng;
@@ -259,7 +262,7 @@ const char* ukeleleNoteNames[4] =
 };
 
 // End a string with "\1" to draw the flat symbol
-const char* semitoneNoteNames[12] =
+const char* semitoneNoteNames[NUM_SEMITONES] =
 {
     "C",
     "C#/D\1",
@@ -275,7 +278,7 @@ const char* semitoneNoteNames[12] =
     "B"
 };
 
-static const char tn_title[]  = "Tunernome";
+static const char tn_title[] = "Tunernome";
 static const char theWordGuitar[] = "Guitar";
 static const char theWordViolin[] = "Violin";
 static const char theWordUkelele[] = "Ukelele";
@@ -529,16 +532,16 @@ void ICACHE_FLASH_ATTR plotTopSemiCircle(int xm, int ym, int r, color col)
     {
         //drawPixel(xm - x, ym + y, col); /*   I. Quadrant +x +y */
         //drawPixel(xm - y, ym - x, col); /*  II. Quadrant -x +y */
-        drawPixel(xm + x, ym - y, col); /* III. Quadrant -x -y */
-        drawPixel(xm + y, ym + x, col); /*  IV. Quadrant +x -y */
+        drawPixel(xm + x, ym - y, col);   /* III. Quadrant -x -y */
+        drawPixel(xm + y, ym + x, col);   /*  IV. Quadrant +x -y */
         r = err;
         if (r <= y)
         {
-            err += ++y * 2 + 1;    /* e_xy+e_y < 0 */
+            err += ++y * 2 + 1; /* e_xy+e_y < 0 */
         }
         if (r > x || err > y) /* e_xy+e_x > 0 or no 2nd y-step */
         {
-            err += ++x * 2 + 1;    /* -> x-step now */
+            err += ++x * 2 + 1; /* -> x-step now */
         }
     } while (x < 0);
 }
@@ -557,18 +560,18 @@ void ICACHE_FLASH_ATTR instrumentTunerMagic(const uint16_t freqBinIdxs[], uint16
     for( i = 0; i < numStrings; i++ )
     {
         // Pick out the current magnitude and filter it
-        tunernome->intensities_filt[i] = (getMagnitude(freqBinIdxs[i] + GUITAR_OFFSET)  + tunernome->intensities_filt[i]) -
+        tunernome->intensities_filt[i] = (getMagnitude(freqBinIdxs[i] + GUITAR_OFFSET) + tunernome->intensities_filt[i]) -
                                          (tunernome->intensities_filt[i] >> 5);
 
         // Pick out the difference around current magnitude and filter it too
-        tunernome->diffs_filt[i] =       (getDiffAround(freqBinIdxs[i] + GUITAR_OFFSET) + tunernome->diffs_filt[i]) -
-                                         (tunernome->diffs_filt[i] >> 5);
+        tunernome->diffs_filt[i] = (getDiffAround(freqBinIdxs[i] + GUITAR_OFFSET) + tunernome->diffs_filt[i]) -
+                                   (tunernome->diffs_filt[i] >> 5);
 
         // This is the magnitude of the target frequency bin, cleaned up
         int16_t intensity = (tunernome->intensities_filt[i] >> SENSITIVITY) - 40; // drop a baseline.
         intensity = CLAMP(intensity, 0, 255);
 
-        // This is the tonal difference.  You "calibrate" out the intensity.
+        // This is the tonal difference. You "calibrate" out the intensity.
         int16_t tonalDiff = (tunernome->diffs_filt[i] >> SENSITIVITY) * 200 / (intensity + 1);
 
         int32_t red, grn, blu;
@@ -695,10 +698,10 @@ bool ICACHE_FLASH_ATTR tunernomeRenderTask(void)
                 {
                     // Draw tuner needle based on the value of tonalDiff, which is at most -32768 to 32767
                     // clamp it to the range -180 -> 180
-                    int16_t clampedTonalDiff = CLAMP(tunernome->tonalDiff / 2, -180, 180);
+                    int16_t clampedTonalDiff = CLAMP(tunernome->tonalDiff[tunernome->curTunerMode - SEMITONE_0] / 2, -180, 180);
 
                     // If the signal isn't intense enough, don't move the needle
-                    if(tunernome->semitone_intensitiy_filt < 1000)
+                    if(tunernome->semitone_intensitiy_filt[tunernome->curTunerMode - SEMITONE_0] < 1000)
                     {
                         clampedTonalDiff = -180;
                     }
@@ -864,9 +867,9 @@ bool ICACHE_FLASH_ATTR tunernomeRenderTask(void)
 /**
  * TODO
  *
- * @param state  A bitmask of all button states, unused
+ * @param state A bitmask of all button states, unused
  * @param button The button which triggered this event
- * @param down   true if the button was pressed, false if it was released
+ * @param down true if the button was pressed, false if it was released
  */
 void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unused)),
         int button, int down)
@@ -1104,30 +1107,52 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
                 case SEMITONE_11:
                 default:
                 {
-                    uint8_t semitoneIdx = (tunernome->curTunerMode - SEMITONE_0) * 2;
-                    // Pick out the current magnitude and filter it
-                    tunernome->semitone_intensitiy_filt = (getSemiMagnitude(semitoneIdx + CHROMATIC_OFFSET)  +
-                                                           tunernome->semitone_intensitiy_filt) -
-                                                          (tunernome->semitone_intensitiy_filt >> 5);
+                    for(uint8_t semitone = 0; semitone < NUM_SEMITONES; semitone++)
+                    {
+                        // uint8_t semitoneIdx = (tunernome->curTunerMode - SEMITONE_0) * 2;
+                        uint8_t semitoneIdx = semitone * 2;
+                        // Pick out the current magnitude and filter it
+                        tunernome->semitone_intensitiy_filt[semitone] = (getSemiMagnitude(semitoneIdx + CHROMATIC_OFFSET) +
+                                tunernome->semitone_intensitiy_filt[semitone]) -
+                                (tunernome->semitone_intensitiy_filt[semitone] >> 5);
 
-                    // Pick out the difference around current magnitude and filter it too
-                    tunernome->semitone_diff_filt =       (getSemiDiffAround(semitoneIdx + CHROMATIC_OFFSET) +
-                                                           tunernome->semitone_diff_filt)       -
-                                                          (tunernome->semitone_diff_filt >> 5);
+                        // Pick out the difference around current magnitude and filter it too
+                        tunernome->semitone_diff_filt[semitone] = (getSemiDiffAround(semitoneIdx + CHROMATIC_OFFSET) +
+                                tunernome->semitone_diff_filt[semitone]) -
+                                (tunernome->semitone_diff_filt[semitone] >> 5);
 
-                    // This is the magnitude of the target frequency bin, cleaned up
-                    int16_t intensity = (tunernome->semitone_intensitiy_filt >> SENSITIVITY) - 40; // drop a baseline.
-                    intensity = CLAMP(intensity, 0, 255);
 
-                    //This is the tonal difference.  You "calibrate" out the intensity.
-                    tunernome->tonalDiff = (tunernome->semitone_diff_filt >> SENSITIVITY) * 200 / (intensity + 1);
+                        // This is the magnitude of the target frequency bin, cleaned up
+                        tunernome->intensity[semitone] = (tunernome->semitone_intensitiy_filt[semitone] >> SENSITIVITY) -
+                                                         40; // drop a baseline.
+                        tunernome->intensity[semitone] = CLAMP(tunernome->intensity[semitone], 0, 255);
+
+                        //This is the tonal difference. You "calibrate" out the intensity.
+                        tunernome->tonalDiff[semitone] = (tunernome->semitone_diff_filt[semitone] >> SENSITIVITY) * 200 /
+                                                         (tunernome->intensity[semitone] + 1);
+                    }
+
+                    // TODO this works...
+                    int16_t maxIntensity = 0;
+                    int8_t maxSemitone = -1;
+                    for(uint8_t semitone = 0; semitone < NUM_SEMITONES; semitone++)
+                    {
+                        if(tunernome->intensity[semitone] > maxIntensity)
+                        {
+                            maxIntensity = tunernome->intensity[semitone];
+                            maxSemitone = semitone;
+                        }
+                    }
+
+                    // If the signal isn't intense enough, don't move the needle
+                    os_printf("%s\n", semitoneNoteNames[maxSemitone]); // C is 0 ...
 
                     // tonal diff is -32768 to 32767. if its within -10 to 10 (now defined as TONAL_DIFF_IN_TUNE_DEVIATION), it's in tune.
                     // positive means too sharp, negative means too flat
                     // intensity is how 'loud' that frequency is, 0 to 255. you'll have to play around with values
                     int32_t red, grn, blu;
                     // Is the note in tune, i.e. is the magnitude difference in surrounding bins small?
-                    if( (ABS(tunernome->tonalDiff) < TONAL_DIFF_IN_TUNE_DEVIATION) )
+                    if( (ABS(tunernome->tonalDiff[tunernome->curTunerMode - SEMITONE_0]) < TONAL_DIFF_IN_TUNE_DEVIATION) )
                     {
                         // Note is in tune, make it white
                         red = 255;
@@ -1137,17 +1162,17 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
                     else
                     {
                         // Check if the note is sharp or flat
-                        if( tunernome->tonalDiff > 0 )
+                        if( tunernome->tonalDiff[tunernome->curTunerMode - SEMITONE_0] > 0 )
                         {
                             // Note too sharp, make it red
                             red = 255;
-                            grn = blu = 255 - (tunernome->tonalDiff - TONAL_DIFF_IN_TUNE_DEVIATION) * 15;
+                            grn = blu = 255 - (tunernome->tonalDiff[tunernome->curTunerMode - SEMITONE_0] - TONAL_DIFF_IN_TUNE_DEVIATION) * 15;
                         }
                         else
                         {
                             // Note too flat, make it blue
                             blu = 255;
-                            grn = red = 255 - (-(tunernome->tonalDiff + TONAL_DIFF_IN_TUNE_DEVIATION)) * 15;
+                            grn = red = 255 - (-(tunernome->tonalDiff[tunernome->curTunerMode - SEMITONE_0] + TONAL_DIFF_IN_TUNE_DEVIATION)) * 15;
                         }
 
                         // Make sure LED output isn't more than 255
@@ -1157,9 +1182,9 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
                     }
 
                     // Scale each LED's brightness by the filtered intensity for that bin
-                    red = (red >> 3 ) * ( intensity >> 3);
-                    grn = (grn >> 3 ) * ( intensity >> 3);
-                    blu = (blu >> 3 ) * ( intensity >> 3);
+                    red = (red >> 3 ) * ( tunernome->intensity[tunernome->curTunerMode - SEMITONE_0] >> 3);
+                    grn = (grn >> 3 ) * ( tunernome->intensity[tunernome->curTunerMode - SEMITONE_0] >> 3);
+                    blu = (blu >> 3 ) * ( tunernome->intensity[tunernome->curTunerMode - SEMITONE_0] >> 3);
 
                     // Set the LED, ensure each channel is between 0 and 255
                     uint32_t i;
