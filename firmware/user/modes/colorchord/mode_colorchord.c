@@ -28,11 +28,6 @@
  * Defines
  *============================================================================*/
 
-// Gain is an 8 bit number, max is 252 with these numbers
-#define AMP_OFFSET    20
-#define AMP_STEPS     9
-#define AMP_STEP_SIZE 29
-
 #define US_TO_QUIT 1048576 // 2^20, makes division easy
 
 /*==============================================================================
