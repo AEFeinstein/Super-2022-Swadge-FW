@@ -684,8 +684,8 @@ bool ICACHE_FLASH_ATTR tunernomeRenderTask(void)
                 }
                 case LISTENING:
                 {
-                    // Find the note that has the highest intensity. Must be larger than 1000
-                    int16_t maxIntensity = 1000;
+                    // Find the note that has the highest intensity. Must be larger than 100
+                    int16_t maxIntensity = 100;
                     int8_t semitoneNum = -1;
                     for(uint8_t semitone = 0; semitone < NUM_SEMITONES; semitone++)
                     {
