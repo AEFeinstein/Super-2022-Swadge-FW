@@ -13,15 +13,15 @@
  * Defines
  ******************************************************************************/
 
-#define INC_BOUND(base, inc, lbound, ubound) \
-    do{                                      \
-        if (base + inc > ubound) {           \
-            base = ubound;                   \
-        } else if (base + inc < lbound) {    \
-            base = lbound;                   \
-        } else {                             \
-            base += inc;                     \
-        }                                    \
+#define INC_BOUND(base, inc, lbound, ubound)  \
+    do{                                       \
+        if (base + (inc) > (ubound)) {        \
+            base = (ubound);                  \
+        } else if (base + (inc) < (lbound)) { \
+            base = (lbound);                  \
+        } else {                              \
+            base += (inc);                    \
+        }                                     \
     } while(false)
 
 // Every action modifies hunger somehow
@@ -62,6 +62,8 @@ void scoldDemon(demon_t* pd);
 bool disciplineCheck(demon_t* pd);
 void medicineDemon(demon_t* pd);
 void flushPoop(demon_t* pd);
+void spinWheel(demon_t* pd);
+void wheelResult(demon_t* pd, action_t result);
 void updateStatus(demon_t* pd);
 
 event_t dequeueEvt(demon_t* pd);
@@ -327,6 +329,82 @@ void ICACHE_FLASH_ATTR flushPoop(demon_t* pd)
 }
 
 /**
+ * @brief Start spinning the wheel of fortune
+ *
+ * @param pd The demon
+ */
+void ICACHE_FLASH_ATTR spinWheel(demon_t* pd)
+{
+    // Spinning counts as an action
+    INC_BOUND(pd->actionsTaken, 1, 0, INT16_MAX);
+
+    // Start the wheel spinning, random event is received later
+    animateEvent(EVT_SPIN_WHEEL);
+}
+
+/**
+ * @brief Process the result of a wheel spin
+ *
+ * @param pd The demon
+ * @param result The result of the wheel spin
+ */
+void ICACHE_FLASH_ATTR wheelResult(demon_t* pd, action_t result)
+{
+    switch (result)
+    {
+        case ACT_WHEEL_CHALICE:
+        {
+            // The magic chalice always pulls hunger towards 0
+            if(pd->hunger > 0)
+            {
+                // If the demon is hungry, feed it
+                INC_BOUND(pd->hunger, -(2 * HUNGER_LOST_PER_FEEDING), 0, INT32_MAX);
+            }
+            else if(pd->hunger < 0)
+            {
+                // If the demon is full, make it less hungry
+                INC_BOUND(pd->hunger, 2 * HUNGER_LOST_PER_FEEDING, INT32_MIN, 0);
+            }
+            // Also heals sickness
+            pd->isSick = false;
+            break;
+        }
+        case ACT_WHEEL_DAGGER:
+        {
+            // Lose some discipline and happiness
+            INC_BOUND(pd->discipline, -DISCIPLINE_LOST_RANDOMLY,  INT32_MIN, INT32_MAX);
+            INC_BOUND(pd->happy, -HAPPINESS_LOST_PER_FEEDING_WHEN_FULL,  INT32_MIN, INT32_MAX);
+            break;
+        }
+        case ACT_WHEEL_HEART:
+        {
+            // Gain a heart
+            INC_BOUND(pd->health, STARTING_HEALTH / 4, 0, STARTING_HEALTH);
+            break;
+        }
+        case ACT_WHEEL_SKULL:
+        {
+            // Lose a half a heart
+            INC_BOUND(pd->health, -STARTING_HEALTH / 8, 0, STARTING_HEALTH);
+            break;
+        }
+        case ACT_FEED:
+        case ACT_PLAY:
+        case ACT_DISCIPLINE:
+        case ACT_MEDICINE:
+        case ACT_FLUSH:
+        case ACT_WHEEL_OF_FORTUNE:
+        case ACT_QUIT:
+        case ACT_NUM_ACTIONS:
+        default:
+        {
+            // Not actual wheel results
+            break;
+        }
+    }
+}
+
+/**
  * This is called after every action.
  * If there is poop, check if the demon becomes sick
  * If the demon is malnourished or obese, check if the demon becomes sick
@@ -512,6 +590,11 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
         case EVT_MEDICINE_FAIL:
         case EVT_FLUSH_POOP:
         case EVT_FLUSH_NOTHING:
+        case EVT_SPIN_WHEEL:
+        case EVT_WHEEL_CHALICE:
+        case EVT_WHEEL_DAGGER:
+        case EVT_WHEEL_HEART:
+        case EVT_WHEEL_SKULL:
         case EVT_LOST_HEALTH_SICK:
         case EVT_LOST_HEALTH_OBESITY:
         case EVT_LOST_HEALTH_MALNOURISHMENT:
@@ -635,6 +718,19 @@ bool ICACHE_FLASH_ATTR takeAction(demon_t* pd, action_t action)
         case ACT_FLUSH:
         {
             flushPoop(pd);
+            break;
+        }
+        case ACT_WHEEL_OF_FORTUNE:
+        {
+            spinWheel(pd);
+            break;
+        }
+        case ACT_WHEEL_CHALICE:
+        case ACT_WHEEL_DAGGER:
+        case ACT_WHEEL_HEART:
+        case ACT_WHEEL_SKULL:
+        {
+            wheelResult(pd, action);
             break;
         }
         case ACT_QUIT:
