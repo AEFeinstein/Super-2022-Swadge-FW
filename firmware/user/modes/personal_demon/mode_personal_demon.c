@@ -15,6 +15,7 @@
 #include "logic_personal_demon.h"
 #include "nvm_interface.h"
 #include "menu2d.h"
+#include "bresenham.h"
 
 /*==============================================================================
  * Defines, Enums
@@ -820,8 +821,8 @@ bool ICACHE_FLASH_ATTR personalDemonAnimationRender(void)
                     // Plot the text that's on the OLED
                     if(text->pos >= OLED_WIDTH)
                     {
-                        // Out of bounds, so return
-                        return true;
+                        // Out of bounds, so break
+                        break;
                     }
                     else if (0 > plotText(text->pos, 0, text->str, IBM_VGA_8, WHITE))
                     {
@@ -831,6 +832,15 @@ bool ICACHE_FLASH_ATTR personalDemonAnimationRender(void)
                     }
                 }
             }
+
+            // Plot the age over marquee text
+            char ageStr[8] = {0};
+            ets_snprintf(ageStr, sizeof(ageStr) - 1, "%d", pd->demon.actionsTaken);
+            int16_t width = textWidth(ageStr, IBM_VGA_8);
+
+            fillDisplayArea(OLED_WIDTH - width, 0, OLED_WIDTH, FONT_HEIGHT_IBMVGA8, BLACK);
+            plotLine(OLED_WIDTH - width - 1, 0, OLED_WIDTH - width - 1, FONT_HEIGHT_IBMVGA8 - 1, WHITE);
+            plotText(OLED_WIDTH - width + 1, 0, ageStr, IBM_VGA_8, WHITE);
         }
     }
     return true;
