@@ -599,14 +599,12 @@ static void ICACHE_FLASH_ATTR RSSIRecvLEDData(void* pArg, char* pData, unsigned 
  * @param pData
  * @param len
  */
-static void ICACHE_FLASH_ATTR RSSIRecvARTNETData(void* pArg, char* pData, unsigned short len)
+static void ICACHE_FLASH_ATTR RSSIRecvARTNETData(void* pArg __attribute__((unused)), char* pData, unsigned short len)
 {
-    struct espconn* pConn = (struct espconn*)pArg;
-
     RSSI_PRINTF("LED received %d bytes from %d.%d.%d.%d port %d: \"%s\"\n",
                 len,
-                IP2STR(pConn->proto.tcp->remote_ip),
-                pConn->proto.tcp->remote_port,
+                IP2STR(((struct espconn*)pArg)->proto.tcp->remote_ip),
+                ((struct espconn*)pArg)->proto.tcp->remote_port,
                 pData);
 
     int ll = len;

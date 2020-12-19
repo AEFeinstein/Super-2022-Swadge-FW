@@ -52,18 +52,7 @@ typedef struct
  * Variables
  *==========================================================================*/
 
-settings_t settings =
-{
-    .SaveLoadKey = 0,
-    .isMuted = 0,
-    .menuPos = 0,
-    .savedDemon = {0},
-    .ddrHighScores = {{{0}}, {{0}}, {{0}}, {{0}}},
-    .gitHash = {0},
-    .flightSaveData = {0},
-    .selfTestPassed = false,
-};
-
+settings_t settings = {0};
 bool muteOverride = false;
 
 /*============================================================================
