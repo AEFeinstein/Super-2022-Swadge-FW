@@ -34,6 +34,7 @@ typedef enum __attribute__((__packed__))
 {
     PDA_WALKING,
     PDA_CENTER,
+    PDA_OFF_CENTER,
     PDA_EATING,
     PDA_OVER_EATING,
     PDA_NOT_EATING,
@@ -155,6 +156,7 @@ static void demonMenuCb(const char* menuItem);
 
 bool updtAnimWalk(uint32_t);
 bool updtAnimCenter(uint32_t);
+bool updtAnimOffCenter(uint32_t);
 void drawAnimDemon(void);
 
 void initAnimEating(void);
@@ -308,6 +310,10 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     pd->animTable[PDA_CENTER].initAnim = NULL;
     pd->animTable[PDA_CENTER].updtAnim = updtAnimCenter;
     pd->animTable[PDA_CENTER].drawAnim = drawAnimDemon;
+
+    pd->animTable[PDA_OFF_CENTER].initAnim = NULL;
+    pd->animTable[PDA_OFF_CENTER].updtAnim = updtAnimOffCenter;
+    pd->animTable[PDA_OFF_CENTER].drawAnim = drawAnimDemon;
 
     pd->animTable[PDA_EATING].initAnim = initAnimEating;
     pd->animTable[PDA_EATING].updtAnim = updtAnimEating;
@@ -1052,7 +1058,7 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         }
         case EVT_SPIN_WHEEL:
         {
-            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_OFF_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_SPIN_WHEEL);
             break;
         }
@@ -1265,6 +1271,68 @@ bool ICACHE_FLASH_ATTR updtAnimCenter(uint32_t tElapsed)
             if(pd->demonX > (OLED_WIDTH / 2) - (pd->demonSprite.width / 2))
             {
                 pd->demonX = (OLED_WIDTH / 2) - (pd->demonSprite.width / 2);
+            }
+        }
+        else
+        {
+            centeredX = true;
+        }
+
+        if(pd->demonY > (OLED_HEIGHT / 2) - (pd->demonSprite.height / 2))
+        {
+            pd->demonY--;
+        }
+        else if(pd->demonY < (OLED_HEIGHT / 2) - (pd->demonSprite.height / 2))
+        {
+            pd->demonY++;
+        }
+        else
+        {
+            centeredY = true;
+        }
+
+        if(centeredX && centeredY)
+        {
+            personalDemonResetAnimVars();
+            break;
+        }
+    }
+    return retval;
+}
+
+/**
+ * @brief TODO
+ *
+ * @return true
+ * @return false
+ */
+bool ICACHE_FLASH_ATTR updtAnimOffCenter(uint32_t tElapsed)
+{
+    pd->animTimeUs += tElapsed;
+    bool retval = false;
+    while (pd->animTimeUs >= 40000)
+    {
+        pd->animTimeUs -= 40000;
+        retval = true;
+        bool centeredX = false;
+        bool centeredY = false;
+
+        if(pd->demonX > (OLED_WIDTH / 2 + 4))
+        {
+            pd->demonDirLR = false;
+            pd->demonX -= 2;
+            if(pd->demonX < (OLED_WIDTH / 2 + 4))
+            {
+                pd->demonX = (OLED_WIDTH / 2 + 4);
+            }
+        }
+        else if(pd->demonX < (OLED_WIDTH / 2 + 4))
+        {
+            pd->demonDirLR = true;
+            pd->demonX += 2;
+            if(pd->demonX > (OLED_WIDTH / 2 + 4))
+            {
+                pd->demonX = (OLED_WIDTH / 2 + 4);
             }
         }
         else
