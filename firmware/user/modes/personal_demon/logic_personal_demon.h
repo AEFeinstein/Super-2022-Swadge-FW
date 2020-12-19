@@ -71,6 +71,10 @@ typedef enum __attribute__((__packed__))
     EVT_FLUSH_NOTHING,
     // Immediate wheel events
     EVT_SPIN_WHEEL,
+    EVT_WHEEL_HEART,
+    EVT_WHEEL_CHALICE,
+    EVT_WHEEL_DAGGER,
+    EVT_WHEEL_SKULL,
     // Immediate general events
     EVT_LOST_HEALTH_SICK,
     EVT_LOST_HEALTH_OBESITY,

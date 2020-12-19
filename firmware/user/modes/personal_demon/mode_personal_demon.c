@@ -1056,6 +1056,26 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
             unshift(&pd->animationQueue, (void*)PDA_SPIN_WHEEL);
             break;
         }
+        case EVT_WHEEL_HEART:
+        {
+            ets_snprintf(marquee->str, ACT_STRLEN, "%s feels better. ", pd->demon.name);
+            break;
+        }
+        case EVT_WHEEL_SKULL:
+        {
+            ets_snprintf(marquee->str, ACT_STRLEN, "%s feels worse. ", pd->demon.name);
+            break;
+        }
+        case EVT_WHEEL_CHALICE:
+        {
+            ets_snprintf(marquee->str, ACT_STRLEN, "%s drank magic water. ", pd->demon.name);
+            break;
+        }
+        case EVT_WHEEL_DAGGER:
+        {
+            ets_snprintf(marquee->str, ACT_STRLEN, "%s got in a fight. ", pd->demon.name);
+            break;
+        }
         case EVT_LOST_HEALTH_SICK:
         {
             ets_snprintf(marquee->str, ACT_STRLEN, "%s lost health to sickness. ", pd->demon.name);
@@ -1633,18 +1653,22 @@ bool ICACHE_FLASH_ATTR updtAnimSpinWheel(uint32_t tElapsedUs)
             if(pd->handRot >= 270)
             {
                 takeAction(&(pd->demon), ACT_WHEEL_CHALICE);
+                animateEvent(EVT_WHEEL_CHALICE);
             }
             else if(pd->handRot >= 180)
             {
                 takeAction(&(pd->demon), ACT_WHEEL_HEART);
+                animateEvent(EVT_WHEEL_HEART);
             }
             else if(pd->handRot >= 90)
             {
                 takeAction(&(pd->demon), ACT_WHEEL_DAGGER);
+                animateEvent(EVT_WHEEL_DAGGER);
             }
             else
             {
                 takeAction(&(pd->demon), ACT_WHEEL_SKULL);
+                animateEvent(EVT_WHEEL_SKULL);
             }
         }
         else if(pd->wheelRotationsDeg > -600) // three seconds
