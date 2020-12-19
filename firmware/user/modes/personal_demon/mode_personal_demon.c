@@ -158,6 +158,7 @@ static void demonMenuCb(const char* menuItem);
 bool updtAnimWalk(uint32_t);
 bool updtAnimCenter(uint32_t);
 bool updtAnimOffCenter(uint32_t);
+bool ICACHE_FLASH_ATTR moveDemon(uint32_t tElapsed, int16_t tX, int16_t tY);
 void drawAnimDemon(void);
 
 void initAnimEating(void);
@@ -1256,58 +1257,9 @@ bool ICACHE_FLASH_ATTR updtAnimWalk(uint32_t tElapsed)
  */
 bool ICACHE_FLASH_ATTR updtAnimCenter(uint32_t tElapsed)
 {
-    pd->animTimeUs += tElapsed;
-    bool retval = false;
-    while (pd->animTimeUs >= 40000)
-    {
-        pd->animTimeUs -= 40000;
-        retval = true;
-        bool centeredX = false;
-        bool centeredY = false;
-
-        if(pd->demonX > (OLED_WIDTH / 2) - (pd->demonSprite.width / 2))
-        {
-            pd->demonDirLR = false;
-            pd->demonX -= 2;
-            if(pd->demonX < (OLED_WIDTH / 2) - (pd->demonSprite.width / 2))
-            {
-                pd->demonX = (OLED_WIDTH / 2) - (pd->demonSprite.width / 2);
-            }
-        }
-        else if(pd->demonX < (OLED_WIDTH / 2) - (pd->demonSprite.width / 2))
-        {
-            pd->demonDirLR = true;
-            pd->demonX += 2;
-            if(pd->demonX > (OLED_WIDTH / 2) - (pd->demonSprite.width / 2))
-            {
-                pd->demonX = (OLED_WIDTH / 2) - (pd->demonSprite.width / 2);
-            }
-        }
-        else
-        {
-            centeredX = true;
-        }
-
-        if(pd->demonY > (OLED_HEIGHT / 2) - (pd->demonSprite.height / 2))
-        {
-            pd->demonY--;
-        }
-        else if(pd->demonY < (OLED_HEIGHT / 2) - (pd->demonSprite.height / 2))
-        {
-            pd->demonY++;
-        }
-        else
-        {
-            centeredY = true;
-        }
-
-        if(centeredX && centeredY)
-        {
-            personalDemonResetAnimVars();
-            break;
-        }
-    }
-    return retval;
+    return moveDemon(tElapsed,
+                     (OLED_WIDTH / 2) - (pd->demonSprite.width / 2),
+                     (OLED_HEIGHT / 2) - (pd->demonSprite.height / 2));
 }
 
 /**
@@ -1318,6 +1270,22 @@ bool ICACHE_FLASH_ATTR updtAnimCenter(uint32_t tElapsed)
  */
 bool ICACHE_FLASH_ATTR updtAnimOffCenter(uint32_t tElapsed)
 {
+    return moveDemon(tElapsed,
+                     (OLED_WIDTH / 2 + 4),
+                     (OLED_HEIGHT / 2) - (pd->demonSprite.height / 2));
+}
+
+/**
+ * @brief TODO
+ *
+ * @param tElapsed
+ * @param tX
+ * @param tY
+ * @return true
+ * @return false
+ */
+bool ICACHE_FLASH_ATTR moveDemon(uint32_t tElapsed, int16_t tX, int16_t tY)
+{
     pd->animTimeUs += tElapsed;
     bool retval = false;
     while (pd->animTimeUs >= 40000)
@@ -1327,22 +1295,22 @@ bool ICACHE_FLASH_ATTR updtAnimOffCenter(uint32_t tElapsed)
         bool centeredX = false;
         bool centeredY = false;
 
-        if(pd->demonX > (OLED_WIDTH / 2 + 4))
+        if(pd->demonX > tX)
         {
             pd->demonDirLR = false;
             pd->demonX -= 2;
-            if(pd->demonX < (OLED_WIDTH / 2 + 4))
+            if(pd->demonX < tX)
             {
-                pd->demonX = (OLED_WIDTH / 2 + 4);
+                pd->demonX = tX;
             }
         }
-        else if(pd->demonX < (OLED_WIDTH / 2 + 4))
+        else if(pd->demonX < tX)
         {
             pd->demonDirLR = true;
             pd->demonX += 2;
-            if(pd->demonX > (OLED_WIDTH / 2 + 4))
+            if(pd->demonX > tX)
             {
-                pd->demonX = (OLED_WIDTH / 2 + 4);
+                pd->demonX = tX;
             }
         }
         else
@@ -1350,11 +1318,11 @@ bool ICACHE_FLASH_ATTR updtAnimOffCenter(uint32_t tElapsed)
             centeredX = true;
         }
 
-        if(pd->demonY > (OLED_HEIGHT / 2) - (pd->demonSprite.height / 2))
+        if(pd->demonY > tY)
         {
             pd->demonY--;
         }
-        else if(pd->demonY < (OLED_HEIGHT / 2) - (pd->demonSprite.height / 2))
+        else if(pd->demonY < tY)
         {
             pd->demonY++;
         }
