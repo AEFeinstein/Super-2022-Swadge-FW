@@ -39,6 +39,7 @@ typedef enum __attribute__((__packed__))
     PDA_NOT_EATING,
     PDA_POOPING,
     PDA_FLUSH,
+    PDA_SPIN_WHEEL,
     PDA_PLAYING,
     PDA_NOT_PLAYING,
     PDA_MEDICINE,
@@ -89,6 +90,8 @@ typedef struct
     pngHandle sad;
     pngHandle cross;
     pngHandle angry;
+    pngHandle wheel;
+    pngHandle wheelPin;
 
     // Demon position, direction, and state
     int16_t demonX;
@@ -114,6 +117,7 @@ typedef struct
     int16_t drawPoopCnt;
     uint8_t numFood;
     int16_t flushY;
+    int16_t wheelRotationsDeg;
 
     float ballX;
     float ballY;
@@ -176,6 +180,10 @@ void initAnimFlush(void);
 bool updtAnimFlush(uint32_t);
 void drawAnimFlush(void);
 
+void initAnimSpinWheel(void);
+bool updtAnimSpinWheel(uint32_t);
+void drawAnimSpinWheel(void);
+
 void initAnimMeds(void);
 bool updtAnimMeds(uint32_t);
 void drawAnimMeds(void);
@@ -221,6 +229,7 @@ char menuPlay[]  = "Play";
 char menuScold[] = "Scold";
 char menuMeds[]  = "Meds";
 char menuFlush[] = "Flush";
+char menuSpin[] = "Spin";
 char menuRecords[] = "Records";
 char menuQuit[]  = "Quit";
 
@@ -321,6 +330,10 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     pd->animTable[PDA_FLUSH].updtAnim = updtAnimFlush;
     pd->animTable[PDA_FLUSH].drawAnim = drawAnimFlush;
 
+    pd->animTable[PDA_SPIN_WHEEL].initAnim = initAnimSpinWheel;
+    pd->animTable[PDA_SPIN_WHEEL].updtAnim = updtAnimSpinWheel;
+    pd->animTable[PDA_SPIN_WHEEL].drawAnim = drawAnimSpinWheel;
+
     pd->animTable[PDA_PLAYING].initAnim = initAnimPlaying;
     pd->animTable[PDA_PLAYING].updtAnim = updtAnimPlaying;
     pd->animTable[PDA_PLAYING].drawAnim = drawAnimPlaying;
@@ -357,6 +370,7 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     addItemToRow(pd->menu, menuScold);
     addItemToRow(pd->menu, menuMeds);
     addItemToRow(pd->menu, menuFlush);
+    addItemToRow(pd->menu, menuSpin);
     addItemToRow(pd->menu, menuRecords);
     addItemToRow(pd->menu, menuQuit);
 
@@ -396,6 +410,8 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     allocPngAsset("sad.png", &(pd->sad));
     allocPngAsset("cross.png", &(pd->cross));
     allocPngAsset("angry.png", &(pd->angry));
+    allocPngAsset("wof.png", &(pd->wheel));
+    allocPngAsset("wof_pin.png", &(pd->wheelPin));
 
     pd->demonX = (OLED_WIDTH / 2) - (pd->demonSprite.width / 2);
     pd->demonDirLR = false;
@@ -464,6 +480,8 @@ void ICACHE_FLASH_ATTR personalDemonExitMode(void)
     freePngAsset(&(pd->sad));
     freePngAsset(&(pd->cross));
     freePngAsset(&(pd->angry));
+    freePngAsset(&(pd->wheel));
+    freePngAsset(&(pd->wheelPin));
 
     // Free the menu
     deinitMenu(pd->menu);
@@ -524,6 +542,10 @@ static void ICACHE_FLASH_ATTR demonMenuCb(const char* menuItem)
     else if(menuItem == menuFlush)
     {
         takeAction(&(pd->demon), ACT_FLUSH);
+    }
+    else if(menuItem == menuSpin)
+    {
+        takeAction(&(pd->demon), ACT_WHEEL_OF_FORTUNE);
     }
     else if(menuItem == menuRecords)
     {
@@ -874,6 +896,7 @@ void ICACHE_FLASH_ATTR personalDemonResetAnimVars(void)
     pd->ballVelX = 0;
     pd->ballVelY = 0;
     pd->flushY = 0;
+    pd->wheelRotationsDeg = 0;
 }
 
 /*******************************************************************************
@@ -1025,6 +1048,12 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         {
             unshift(&pd->animationQueue, (void*)PDA_CENTER);
             unshift(&pd->animationQueue, (void*)PDA_FLUSH);
+            break;
+        }
+        case EVT_SPIN_WHEEL:
+        {
+            unshift(&pd->animationQueue, (void*)PDA_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_SPIN_WHEEL);
             break;
         }
         case EVT_LOST_HEALTH_SICK:
@@ -1550,6 +1579,96 @@ void ICACHE_FLASH_ATTR drawAnimFlush(void)
         drawPng(&(pd->water), (OLED_WIDTH / 2) + (pd->demonSprite.width / 2),
                 pd->flushY + (i * pd->water.height), false, false, 0);
     }
+
+    // Draw the demon
+    drawAnimDemon();
+}
+
+/*******************************************************************************
+ * Wheel Spinning Animation
+ ******************************************************************************/
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR initAnimSpinWheel(void)
+{
+    pd->demonDirLR = false;
+    pd->handRot = 0;
+
+    pd->wheelRotationsDeg = (360 * 2) + 90 * (os_random() % 4);
+}
+
+/**
+ * @brief TODO
+ *
+ * @param tElapsedUs
+ * @return true
+ * @return false
+ */
+bool ICACHE_FLASH_ATTR updtAnimSpinWheel(uint32_t tElapsedUs)
+{
+    pd->animTimeUs += tElapsedUs;
+
+    bool retval = false;
+    while(pd->animTimeUs >= 5000)
+    {
+        pd->animTimeUs -= 5000;
+
+        pd->wheelRotationsDeg--;
+        if(pd->wheelRotationsDeg >= 0)
+        {
+            // Spin the wheel
+            pd->handRot++;
+            if(pd->handRot >= 360)
+            {
+                pd->handRot -= 360;
+            }
+            retval = true;
+        }
+        else if(pd->wheelRotationsDeg == -1)
+        {
+            // Do what the wheel says
+            if(pd->handRot >= 270)
+            {
+                takeAction(&(pd->demon), ACT_WHEEL_CHALICE);
+            }
+            else if(pd->handRot >= 180)
+            {
+                takeAction(&(pd->demon), ACT_WHEEL_HEART);
+            }
+            else if(pd->handRot >= 90)
+            {
+                takeAction(&(pd->demon), ACT_WHEEL_DAGGER);
+            }
+            else
+            {
+                takeAction(&(pd->demon), ACT_WHEEL_SKULL);
+            }
+        }
+        else if(pd->wheelRotationsDeg > -600) // three seconds
+        {
+            // Hold the final position
+        }
+        else
+        {
+            // All done
+            personalDemonResetAnimVars();
+        }
+    }
+    return retval;
+}
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR drawAnimSpinWheel(void)
+{
+    // Draw the pin and wheel
+    drawPng(&(pd->wheelPin), pd->happy.width + 1, (OLED_HEIGHT - pd->wheelPin.height) / 2 - 1, false, false, 0);
+    drawPng(&(pd->wheel), pd->happy.width + pd->wheelPin.width + 2, FONT_HEIGHT_IBMVGA8 + 1, false, false, pd->handRot);
 
     // Draw the demon
     drawAnimDemon();

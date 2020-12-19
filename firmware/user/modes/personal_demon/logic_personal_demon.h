@@ -20,7 +20,8 @@ typedef enum __attribute__((__packed__))
     AGE_CHILD,
     AGE_TEEN,
     AGE_ADULT
-} age_t;
+}
+age_t;
 
 typedef enum __attribute__((__packed__))
 {
@@ -29,9 +30,15 @@ typedef enum __attribute__((__packed__))
     ACT_DISCIPLINE,
     ACT_MEDICINE,
     ACT_FLUSH,
+    ACT_WHEEL_OF_FORTUNE,
+    ACT_WHEEL_SKULL,
+    ACT_WHEEL_DAGGER,
+    ACT_WHEEL_HEART,
+    ACT_WHEEL_CHALICE,
     ACT_QUIT,
     ACT_NUM_ACTIONS
-} action_t;
+}
+action_t;
 
 typedef enum __attribute__((__packed__))
 {
@@ -62,6 +69,8 @@ typedef enum __attribute__((__packed__))
     // Immediate flush events
     EVT_FLUSH_POOP,
     EVT_FLUSH_NOTHING,
+    // Immediate wheel events
+    EVT_SPIN_WHEEL,
     // Immediate general events
     EVT_LOST_HEALTH_SICK,
     EVT_LOST_HEALTH_OBESITY,
@@ -72,7 +81,8 @@ typedef enum __attribute__((__packed__))
     EVT_DEAD,
     // Always last
     EVT_NUM_EVENTS
-} event_t;
+}
+event_t;
 
 /*******************************************************************************
  * Structs

@@ -62,6 +62,8 @@ void scoldDemon(demon_t* pd);
 bool disciplineCheck(demon_t* pd);
 void medicineDemon(demon_t* pd);
 void flushPoop(demon_t* pd);
+void spinWheel(demon_t* pd);
+void wheelResult(demon_t* pd, action_t result);
 void updateStatus(demon_t* pd);
 
 event_t dequeueEvt(demon_t* pd);
@@ -327,6 +329,62 @@ void ICACHE_FLASH_ATTR flushPoop(demon_t* pd)
 }
 
 /**
+ * @brief Start spinning the wheel of fortune
+ *
+ * @param pd The demon
+ */
+void ICACHE_FLASH_ATTR spinWheel(demon_t* pd)
+{
+    // Spinning counts as an action
+    INC_BOUND(pd->actionsTaken, 1, 0, INT16_MAX);
+
+    // Start the wheel spinning, random event is received later
+    animateEvent(EVT_SPIN_WHEEL);
+}
+
+/**
+ * @brief Process the result of a wheel spin
+ *
+ * @param pd The demon
+ * @param result The result of the wheel spin
+ */
+void ICACHE_FLASH_ATTR wheelResult(demon_t* pd, action_t result)
+{
+    switch (result)
+    {
+        case ACT_WHEEL_CHALICE:
+        {
+            break;
+        }
+        case ACT_WHEEL_DAGGER:
+        {
+            break;
+        }
+        case ACT_WHEEL_HEART:
+        {
+            break;
+        }
+        case ACT_WHEEL_SKULL:
+        {
+            break;
+        }
+        case ACT_FEED:
+        case ACT_PLAY:
+        case ACT_DISCIPLINE:
+        case ACT_MEDICINE:
+        case ACT_FLUSH:
+        case ACT_WHEEL_OF_FORTUNE:
+        case ACT_QUIT:
+        case ACT_NUM_ACTIONS:
+        default:
+        {
+            // Not actual wheel results
+            break;
+        }
+    }
+}
+
+/**
  * This is called after every action.
  * If there is poop, check if the demon becomes sick
  * If the demon is malnourished or obese, check if the demon becomes sick
@@ -512,6 +570,7 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
         case EVT_MEDICINE_FAIL:
         case EVT_FLUSH_POOP:
         case EVT_FLUSH_NOTHING:
+        case EVT_SPIN_WHEEL:
         case EVT_LOST_HEALTH_SICK:
         case EVT_LOST_HEALTH_OBESITY:
         case EVT_LOST_HEALTH_MALNOURISHMENT:
@@ -635,6 +694,19 @@ bool ICACHE_FLASH_ATTR takeAction(demon_t* pd, action_t action)
         case ACT_FLUSH:
         {
             flushPoop(pd);
+            break;
+        }
+        case ACT_WHEEL_OF_FORTUNE:
+        {
+            spinWheel(pd);
+            break;
+        }
+        case ACT_WHEEL_CHALICE:
+        case ACT_WHEEL_DAGGER:
+        case ACT_WHEEL_HEART:
+        case ACT_WHEEL_SKULL:
+        {
+            wheelResult(pd, action);
             break;
         }
         case ACT_QUIT:
