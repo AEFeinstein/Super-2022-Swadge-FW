@@ -1700,6 +1700,7 @@ bool ICACHE_FLASH_ATTR updtAnimSpinWheel(uint32_t tElapsedUs)
     pd->animTimeUs += tElapsedUs;
 
     bool retval = false;
+    static bool demonCentered = false;
     while(pd->animTimeUs >= 5000)
     {
         pd->animTimeUs -= 5000;
@@ -1741,11 +1742,44 @@ bool ICACHE_FLASH_ATTR updtAnimSpinWheel(uint32_t tElapsedUs)
         }
         else if(pd->wheelRotationsDeg > -600) // three seconds
         {
-            // Hold the final position
+            if(0 == (pd->wheelRotationsDeg % 49))
+            {
+                // Hold the final position
+                if(pd->handRot >= 180)
+                {
+                    // Good things, jump a little
+                    if(true == demonCentered)
+                    {
+                        demonCentered = false;
+                        pd->demonY += 4;
+                    }
+                    else
+                    {
+                        demonCentered = true;
+                        pd->demonY -= 4;
+                    }
+                }
+                else
+                {
+                    // Bad things, shake a little
+                    if(true == demonCentered)
+                    {
+                        demonCentered = false;
+                        pd->demonX += 4;
+                    }
+                    else
+                    {
+                        demonCentered = true;
+                        pd->demonX -= 4;
+                    }
+                }
+                retval = true;
+            }
         }
         else
         {
             // All done
+            demonCentered = false;
             personalDemonResetAnimVars();
         }
     }
@@ -1759,8 +1793,8 @@ bool ICACHE_FLASH_ATTR updtAnimSpinWheel(uint32_t tElapsedUs)
 void ICACHE_FLASH_ATTR drawAnimSpinWheel(void)
 {
     // Draw the pin and wheel
-    drawPng(&(pd->wheelPin), pd->happy.width + 1, (OLED_HEIGHT - pd->wheelPin.height) / 2 - 1, false, false, 0);
-    drawPng(&(pd->wheel), pd->happy.width + pd->wheelPin.width + 2, FONT_HEIGHT_IBMVGA8 + 1, false, false, pd->handRot);
+    drawPng(&(pd->wheelPin), pd->happy.width + 2, (OLED_HEIGHT - pd->wheelPin.height) / 2 - 1, false, false, 0);
+    drawPng(&(pd->wheel), pd->happy.width + pd->wheelPin.width + 3, FONT_HEIGHT_IBMVGA8 + 1, false, false, pd->handRot);
 
     // Draw the demon
     drawAnimDemon();
