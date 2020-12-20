@@ -187,6 +187,7 @@ typedef struct
     float closestAngle;
     bool radarObstructed;
     int32_t gotShotTimer;
+    float shotFromAngle;
     int32_t shotSomethingTimer;
     int32_t killedSpriteTimer;
     int32_t healthWarningTimer;
@@ -226,6 +227,8 @@ void ICACHE_FLASH_ATTR sortSprites(int32_t* order, float* dist, int32_t amount);
 float ICACHE_FLASH_ATTR Q_rsqrt( float number );
 bool ICACHE_FLASH_ATTR checkWallsBetweenPoints(float sX, float sY, float pX, float pY);
 void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state);
+float ICACHE_FLASH_ATTR angleBetween(float pPosX, float pPosY, float pDirX, float pDirY, float sPosX, float sPosY);
+void ICACHE_FLASH_ATTR lightLedsFromAngle(led_t* leds, float angle, int hue, int valNumerator, int valDenominator);
 
 void ICACHE_FLASH_ATTR raycasterMapSelectRenderer(uint32_t tElapsedUs);
 void ICACHE_FLASH_ATTR raycasterMapSelectButton(int32_t button);
@@ -622,6 +625,7 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
     rc->shotCooldown = 0;
     rc->checkShot = false;
     rc->gotShotTimer = 0;
+    rc->shotFromAngle = 0;
     rc->shotSomethingTimer = 0;
 
     rc->killedSpriteTimer = 0;
@@ -1793,6 +1797,8 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                             // If it can, the player got shot
                             rc->health--;
                             rc->gotShotTimer = LED_ON_TIME;
+                            rc->shotFromAngle = angleBetween(rc->posX, rc->posY, rc->dirX, rc->dirY,
+                                                             rc->sprites[i].posX, rc->sprites[i].posY);
 
                             // If the player is out of health
                             if(rc->health == 0)
@@ -1854,29 +1860,45 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
     // If there is a nearby sprite
     if(closestIdx >= 0)
     {
-        // Find the angle between the 'straight ahead' vector and the nearest sprite
-        // Use rc->dirX, rc->dirY as vector straight ahead
-        // This is the vector to the closest sprite
-        float xClosest = (rc->sprites[closestIdx].posX - rc->posX);
-        float yClosest = (rc->sprites[closestIdx].posY - rc->posY);
-
-        rc->radarObstructed = checkWallsBetweenPoints(
-                                  rc->sprites[closestIdx].posX, rc->sprites[closestIdx].posY,
-                                  rc->posX, rc->posY);
-
-        // Find the angle between the two vectors
-        rc->closestAngle = acosf(
-                               ((rc->dirX * xClosest) + (rc->dirY * yClosest)) *        // Dot Product
-                               Q_rsqrt((xClosest * xClosest) + (yClosest * yClosest))); // (1 / distance to sprite)
-        // The magnitude of the 'straight ahead' vector is always 1, so it's left out of the denominator
-
-        // Check if the sprite is to the left or right of us
-        if(((rc->dirX) * (yClosest) - (rc->dirY) * (xClosest)) > 0)
-        {
-            // If it's to the left, rotate the angle to the pi->2*pi range
-            rc->closestAngle = (2 * M_PI) - rc->closestAngle;
-        }
+        rc->closestAngle = angleBetween(rc->posX, rc->posY, rc->dirX, rc->dirY,
+                                        rc->sprites[closestIdx].posX, rc->sprites[closestIdx].posY);
+        rc->radarObstructed = checkWallsBetweenPoints(rc->posX, rc->posY,
+                              rc->sprites[closestIdx].posX, rc->sprites[closestIdx].posY);
     }
+}
+
+/**
+ * Find the angle between a vector (position, direction) and a point
+ * This is used to run the radar
+ *
+ * @param pPosX The X position of the vector (player)
+ * @param pPosY The Y position of the vector
+ * @param pDirX The X direction of the vector (must be a unit vector (mag==1))
+ * @param pDirY The Y direction of the vector
+ * @param sPosX The X position of the target point (sprite)
+ * @param sPosY The Y position of the target point
+ * @return float
+ */
+float ICACHE_FLASH_ATTR angleBetween(float pPosX, float pPosY, float pDirX, float pDirY, float sPosX, float sPosY)
+{
+    // Find the angle between the 'straight ahead' vector and the nearest sprite
+    // Use pDirX, pDirY as vector straight ahead
+    // This is the vector to the closest sprite
+    float xClosest = (sPosX - pPosX);
+    float yClosest = (sPosY - pPosY);
+
+    // Find the angle between the two vectors
+    float closestAngle = acosf(((pDirX * xClosest) + (pDirY * yClosest)) *              // Dot Product
+                               Q_rsqrt((xClosest * xClosest) + (yClosest * yClosest))); // (1 / distance to sprite)
+    // The magnitude of the 'straight ahead' vector is always 1, so it's left out of the denominator
+
+    // Check if the sprite is to the left or right of us
+    if(((pDirX) * (yClosest) - (pDirY) * (xClosest)) > 0)
+    {
+        // If it's to the left, rotate the angle to the pi->2*pi range
+        closestAngle = (2 * M_PI) - closestAngle;
+    }
+    return closestAngle;
 }
 
 /**
@@ -2230,6 +2252,7 @@ void ICACHE_FLASH_ATTR raycasterEndRound(void)
     rc->radarObstructed = false;
     rc->killedSpriteTimer = 0;
     rc->gotShotTimer = 0;
+    rc->shotFromAngle = 0;
 }
 
 /**
@@ -2301,7 +2324,54 @@ void ICACHE_FLASH_ATTR raycasterDrawRoundOver(uint32_t tElapsedUs)
 }
 
 /**
+ * Illuminate LEDs based on a given angle
+ *
+ * @param leds The LEDs to light, arranged in a six-LED 'circle'
+ * @param angle The angle at which to light the LEDs
+ * @param hue The hue to light the LEDs with
+ * @param valNumerator The numerator to multiply the value by (brightness)
+ * @param valDenominator The denominator to multiply the value by (brightness)
+ */
+void ICACHE_FLASH_ATTR lightLedsFromAngle(led_t* leds, float angle, int hue, int valNumerator, int valDenominator)
+{
+    // Associate each LED with a radian angle around the circle
+    const float ledAngles[NUM_LIN_LEDS] =
+    {
+        3.665191f,
+        4.712389f,
+        5.759587f,
+        0.523599f,
+        1.570796f,
+        2.617994f,
+    };
+
+    // For each LED
+    for(uint8_t i = 0; i < NUM_LIN_LEDS; i++)
+    {
+        // Find the distance between this LED's angle and the angle to the nearest enemy
+        float dist = ABS(angle - ledAngles[i]);
+        if(dist > M_PI)
+        {
+            dist = (2 * M_PI) - dist;
+        }
+
+        // If the distance is small enough
+        if(dist < 1)
+        {
+            // Light this LED proportional to the player distance to the sprite
+            // and the LED distance to the angle
+            uint32_t rColor = EHSVtoHEX(hue, 0xFF,
+                                        (255 * valNumerator * (1 - dist)) / valDenominator);
+            leds[i].r = ((rColor >>  0) & 0xFF);
+            leds[i].g = ((rColor >>  8) & 0xFF);
+            leds[i].b = ((rColor >> 16) & 0xFF);
+        }
+    }
+}
+
+/**
  * @brief Drive LEDs based on game state
+ * Called every 10ms
  *
  * @param arg unused
  */
@@ -2309,15 +2379,13 @@ void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg __attribute__((unused)))
 {
     led_t leds[NUM_LIN_LEDS] = {{0}};
 
-    // If we were shot, flash red
+    // If we were shot, flash red at the angle from the shot
     if(rc->gotShotTimer > 0)
     {
-        for(uint8_t i = 0; i < NUM_LIN_LEDS; i++)
-        {
-            leds[i].r = (rc->gotShotTimer * 0x40) / LED_ON_TIME;
-        }
+        // 0 hue is red
+        lightLedsFromAngle(leds, rc->shotFromAngle, 0, rc->gotShotTimer, LED_ON_TIME);
     }
-    // Otherwise if we shot somethhing, flash green
+    // Otherwise if we shot something, flash green
     else if(rc->shotSomethingTimer > 0)
     {
         for(uint8_t i = 0; i < NUM_LIN_LEDS; i++)
@@ -2328,44 +2396,19 @@ void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg __attribute__((unused)))
     // Otherwise use the LEDs like a radar
     else if(rc->closestDist < RADAR_RANGE) // This is the squared dist, so check against the radius
     {
-        // Associate each LED with a radian angle around the circle
-        float ledAngles[NUM_LIN_LEDS] =
+        // 0 is red, 85 is green, 171 is blue
+        if(rc->radarObstructed)
         {
-            3.665191f,
-            4.712389f,
-            5.759587f,
-            0.523599f,
-            1.570796f,
-            2.617994f,
-        };
-
-        // For each LED
-        for(uint8_t i = 0; i < NUM_LIN_LEDS; i++)
+            lightLedsFromAngle(leds, rc->closestAngle, 140, (RADAR_RANGE - rc->closestDist), RADAR_RANGE);
+        }
+        else
         {
-            // Find the distance between this LED's angle and the angle to the nearest enemy
-            float dist = ABS(rc->closestAngle - ledAngles[i]);
-            if(dist > M_PI)
-            {
-                dist = (2 * M_PI) - dist;
-            }
-
-            // If the distance is small enough
-            if(dist < 1)
-            {
-                // Light this LED proportional to the player distance to the sprite
-                // and the LED distance to the angle
-                uint32_t rColor = EHSVtoHEX(rc->radarObstructed ? 140 : 200, // 0 is red, 85 is green, 171 is blue
-                                            0xFF,
-                                            (255 * (RADAR_RANGE - rc->closestDist) * (1 - dist)) / RADAR_RANGE);
-                leds[i].r = ((rColor >>  0) & 0xFF);
-                leds[i].g = ((rColor >>  8) & 0xFF);
-                leds[i].b = ((rColor >> 16) & 0xFF);
-            }
+            lightLedsFromAngle(leds, rc->closestAngle, 200, (RADAR_RANGE - rc->closestDist), RADAR_RANGE);
         }
     }
 
-    // If we're at a quarter health or less
-    if(rc->mode == RC_GAME && rc->health <= rc->initialHealth / 4)
+    // If we're at a quarter health or less, and not displaying 'got shot'
+    if(rc->mode == RC_GAME && rc->health <= rc->initialHealth / 4 && rc->gotShotTimer <= 0)
     {
         // Increment or decrement the red warning LED
         if(true == rc->healthWarningInc)
@@ -2385,13 +2428,16 @@ void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg __attribute__((unused)))
             }
         }
 
-        // Pulse two LEDs red as a warning, reduce G and B
-        leds[0].r = rc->healthWarningTimer;
-        leds[0].g /= 4;
-        leds[0].b /= 4;
-        leds[NUM_LIN_LEDS - 1].r = rc->healthWarningTimer;
-        leds[NUM_LIN_LEDS - 1].g /= 4;
-        leds[NUM_LIN_LEDS - 1].b /= 4;
+        // Pulse all LEDs red as a warning, reduce G and B
+        for(uint8_t i = 0; i < NUM_LIN_LEDS; i++)
+        {
+            if((rc->healthWarningTimer / 4) > leds[i].r)
+            {
+                leds[i].r = (rc->healthWarningTimer / 8);
+            }
+            leds[i].g /= 4;
+            leds[i].b /= 4;
+        }
     }
 
     // Push out the LEDs
