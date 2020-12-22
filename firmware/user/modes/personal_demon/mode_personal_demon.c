@@ -133,14 +133,6 @@ typedef struct
     bool isDisplayingRecords;
 } pd_data;
 
-typedef struct
-{
-    char* norm;
-    char* thin;
-    char* fat;
-    char* sick;
-} demonSprites_t;
-
 /*==============================================================================
  * Function Prototypes
  *============================================================================*/
@@ -151,6 +143,7 @@ void personalDemonButtonCallback(uint8_t state, int button, int down);
 bool personalDemonAnimationRender(void);
 void personalDemonUpdateDisplay(void);
 void personalDemonResetAnimVars(void);
+void allocDemonPngs(uint8_t species);
 
 void personalDemonLedTimer(void*);
 static void demonMenuCb(const char* menuItem);
@@ -158,7 +151,7 @@ static void demonMenuCb(const char* menuItem);
 bool updtAnimWalk(uint32_t);
 bool updtAnimCenter(uint32_t);
 bool updtAnimOffCenter(uint32_t);
-bool ICACHE_FLASH_ATTR moveDemon(uint32_t tElapsed, int16_t tX, int16_t tY);
+bool moveDemon(uint32_t tElapsed, int16_t tX, int16_t tY);
 void drawAnimDemon(void);
 
 void initAnimEating(void);
@@ -236,40 +229,6 @@ char menuFlush[] = "Flush";
 char menuSpin[] = "Spin";
 char menuRecords[] = "Records";
 char menuQuit[]  = "Quit";
-
-const demonSprites_t demonSprites[] =
-{
-    {
-        .norm = "pd-1-norm.png",
-        .sick = "pd-1-sick.png",
-        .thin = "pd-1-thin.png",
-        .fat  = "pd-1-fat.png"
-    },
-    {
-        .norm = "pd-2-norm.png",
-        .sick = "pd-2-sick.png",
-        .thin = "pd-2-thin.png",
-        .fat  = "pd-2-fat.png"
-    },
-    {
-        .norm = "pd-3-norm.png",
-        .sick = "pd-3-sick.png",
-        .thin = "pd-3-thin.png",
-        .fat  = "pd-3-fat.png"
-    },
-    {
-        .norm = "pd-4-norm.png",
-        .sick = "pd-4-sick.png",
-        .thin = "pd-4-thin.png",
-        .fat  = "pd-4-fat.png"
-    },
-    {
-        .norm = "pd-5-norm.png",
-        .sick = "pd-5-sick.png",
-        .thin = "pd-5-thin.png",
-        .fat  = "pd-5-fat.png"
-    },
-};
 
 /*==============================================================================
  * Functions
@@ -402,10 +361,7 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
                      "syringe09.png",
                      "syringe10.png",
                      "syringe11.png");
-    allocPngAsset(demonSprites[pd->demon.species].norm, &(pd->demonSprite));
-    allocPngAsset(demonSprites[pd->demon.species].fat,  &(pd->demonSpriteFat));
-    allocPngAsset(demonSprites[pd->demon.species].thin, &(pd->demonSpriteThin));
-    allocPngAsset(demonSprites[pd->demon.species].sick, &(pd->demonSpriteSick));
+    allocDemonPngs(pd->demon.species);
     allocPngAsset("scold.png", &(pd->hand));
     allocPngAsset("poop.png", &(pd->poop));
     allocPngAsset("archL.png", &(pd->archL));
@@ -438,11 +394,36 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
 }
 
 /**
+ * Load all the PNG assets for a given species
+ *
+ * @param species The 0-indexed species
+ */
+void ICACHE_FLASH_ATTR allocDemonPngs(uint8_t species)
+{
+    // The png names are 1-indexed
+    char normFname[] = "pd-0-norm.png";
+    normFname[3] = '1' + species;
+    allocPngAsset(normFname, &(pd->demonSprite));
+
+    char fatFname[] = "pd-0-fat.png";
+    fatFname[3] = '1' + species;
+    allocPngAsset(fatFname,  &(pd->demonSpriteFat));
+
+    char thinFname [] = "pd-0-thin.png";
+    thinFname[3] = '1' + species;
+    allocPngAsset(thinFname, &(pd->demonSpriteThin));
+
+    char sickFname[] = "pd-0-sick.png";
+    sickFname[3] = '1' + species;
+    allocPngAsset(sickFname, &(pd->demonSpriteSick));
+}
+
+/**
  * @return The number of demon species
  */
 uint8_t ICACHE_FLASH_ATTR getNumDemonSpecies(void)
 {
-    return (sizeof(demonSprites) / sizeof(demonSprites[0]));
+    return 6; // Just gotta hardcode this one
 }
 
 /**
@@ -2223,10 +2204,7 @@ bool ICACHE_FLASH_ATTR updtAnimDeath(uint32_t tElapsed)
                 freePngAsset(&(pd->demonSpriteFat));
                 freePngAsset(&(pd->demonSpriteThin));
                 freePngAsset(&(pd->demonSpriteSick));
-                allocPngAsset(demonSprites[pd->demon.species].norm, &(pd->demonSprite));
-                allocPngAsset(demonSprites[pd->demon.species].fat,  &(pd->demonSpriteFat));
-                allocPngAsset(demonSprites[pd->demon.species].thin, &(pd->demonSpriteThin));
-                allocPngAsset(demonSprites[pd->demon.species].sick, &(pd->demonSpriteSick));
+                allocDemonPngs(pd->demon.species);
 
                 // Initialize demon draw state
                 pd->drawSick = pd->demon.isSick;
