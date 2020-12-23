@@ -171,6 +171,7 @@ typedef struct
     bool isBackwards;
     int32_t health;
     int32_t invincibilityTimer;
+    bool shotWillMiss;
 } raySprite_t;
 
 typedef struct
@@ -610,6 +611,7 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
                     rc->sprites[rc->liveSprites].dirX = 0;
                     rc->sprites[rc->liveSprites].dirX = 0;
                     rc->sprites[rc->liveSprites].shotCooldown = 0;
+                    rc->sprites[rc->liveSprites].shotWillMiss = 0;
                     rc->sprites[rc->liveSprites].isBackwards = false;
                     rc->sprites[rc->liveSprites].invincibilityTimer = 0;
                     switch(rc->difficulty)
@@ -646,6 +648,7 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
     rc->sprites[rc->liveSprites].dirX = 0;
     rc->sprites[rc->liveSprites].dirX = 0;
     rc->sprites[rc->liveSprites].shotCooldown = 0;
+    rc->sprites[rc->liveSprites].shotWillMiss = 0;
     rc->sprites[rc->liveSprites].isBackwards = false;
     rc->sprites[rc->liveSprites].invincibilityTimer = 0;
     rc->sprites[rc->liveSprites].health = ENEMY_HEALTH_E;
@@ -1487,6 +1490,17 @@ void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
                     {
                         rc->strafeRightTmr = STRAFE_TIME;
                     }
+
+                    // Also mark any shots as dodged
+                    for(uint8_t spr = 0; spr < NUM_SPRITES; spr++)
+                    {
+                        // Skip over sprites with negative position, these weren't spawned
+                        if((rc->sprites[spr].posX >= 0) &&
+                                (E_SHOOTING == rc->sprites[spr].state))
+                        {
+                            rc->sprites[spr].shotWillMiss = true;
+                        }
+                    }
                 }
             }
         }
@@ -1952,12 +1966,6 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                     // Reset if we're back to zero
                     if(0 == rc->sprites[i].texFrame)
                     {
-                        // After the shot, go to E_PICK_DIR_PLAYER
-                        setSpriteState(&(rc->sprites[i]), E_PICK_DIR_PLAYER);
-                    }
-                    // If we're halfway through the animation
-                    else if (NUM_SHOT_FRAMES / 2 == rc->sprites[i].texFrame)
-                    {
                         // Actually take the shot
                         rc->sprites[i].shotCooldown = ENEMY_SHOT_COOLDOWN;
                         // Half cooldown for hard mode
@@ -1966,8 +1974,9 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                             rc->sprites[i].shotCooldown /= 2;
                         }
 
-                        // Check if the sprite can still see the player
-                        if(checkWallsBetweenPoints(rc->sprites[i].posX, rc->sprites[i].posY, rc->posX, rc->posY))
+                        // Check if the player hasn't strafed, and if the sprite can still see the player
+                        if(false == rc->sprites[i].shotWillMiss &&
+                                checkWallsBetweenPoints(rc->sprites[i].posX, rc->sprites[i].posY, rc->posX, rc->posY))
                         {
                             // If it can, the player got shot
                             uint8_t damage = 1 + ((GUITAR_SHOT_RANGE - magSqr) / DAMAGE_DIVISOR);
@@ -1987,6 +1996,9 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                                 raycasterEndRound();
                             }
                         }
+
+                        // After the shot, go to E_PICK_DIR_PLAYER
+                        setSpriteState(&(rc->sprites[i]), E_PICK_DIR_PLAYER);
                     }
                 }
                 break;
@@ -2265,6 +2277,9 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
             }
             sprite->texture = rc->shooting[0];
             sprite->texTimer = sprite->stateTimer;
+
+            // Shot won't miss unless the player strafes
+            sprite->shotWillMiss = false;
 
             // Show a warning that a shot is coming from this angle
             rc->warningShotTimer = LED_ON_TIME;
