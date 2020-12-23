@@ -227,6 +227,8 @@ typedef struct
     uint32_t closestDist;
     float closestAngle;
     bool radarObstructed;
+    int32_t warningShotTimer;
+    float warningShotAngle;
     int32_t gotShotTimer;
     float shotFromAngle;
     int32_t shotSomethingTimer;
@@ -669,6 +671,8 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
     // Clear player shot variables
     rc->shotCooldown = 0;
     rc->checkShot = false;
+    rc->warningShotTimer = 0;
+    rc->warningShotAngle = 0;
     rc->gotShotTimer = 0;
     rc->shotFromAngle = 0;
     rc->shotSomethingTimer = 0;
@@ -857,6 +861,10 @@ void ICACHE_FLASH_ATTR raycasterGameRenderer(uint32_t tElapsedUs)
     moveEnemies(tElapsedUs);
 
     // Tick down the timer to flash LEDs when shot or shooting
+    if(rc->warningShotTimer > 0)
+    {
+        rc->warningShotTimer -= tElapsedUs;
+    }
     if(rc->gotShotTimer > 0)
     {
         rc->gotShotTimer -= tElapsedUs;
@@ -2257,6 +2265,11 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
             }
             sprite->texture = rc->shooting[0];
             sprite->texTimer = sprite->stateTimer;
+
+            // Show a warning that a shot is coming from this angle
+            rc->warningShotTimer = LED_ON_TIME;
+            rc->warningShotAngle = angleBetween(rc->posX, rc->posY, rc->dirX, rc->dirY,
+                                                sprite->posX, sprite->posY);
             break;
         }
         case E_GOT_SHOT:
@@ -2424,6 +2437,8 @@ void ICACHE_FLASH_ATTR raycasterEndRound(void)
     rc->closestAngle = 0;
     rc->radarObstructed = false;
     rc->killedSpriteTimer = 0;
+    rc->warningShotTimer = 0;
+    rc->warningShotAngle = 0;
     rc->gotShotTimer = 0;
     rc->shotFromAngle = 0;
 }
@@ -2557,6 +2572,11 @@ void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg __attribute__((unused)))
     {
         // 0 hue is red
         lightLedsFromAngle(leds, rc->shotFromAngle, 0, rc->gotShotTimer, LED_ON_TIME);
+    }
+    else if(rc->warningShotTimer > 0)
+    {
+        // If we're about to be shot, flash yellow
+        lightLedsFromAngle(leds, rc->warningShotAngle, 43, 1, 1);
     }
     // Otherwise if we shot something, flash green
     else if(rc->shotSomethingTimer > 0)
