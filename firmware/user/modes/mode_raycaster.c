@@ -26,37 +26,78 @@
  * Defines
  *============================================================================*/
 
+// Mathy things
+#define PI_DIV_4     0.70710678f
+#define USEC_IN_SEC  1000000.0f
+#define USEC_IN_DSEC 100000
+#define ABS(X)       (((X) < 0) ? -(X) : (X))
+
+// Map macros
 #define MAP_TILE(x, y) rc->map[(y) + ((x) * (rc->mapH))]
 
-#define TEX_WIDTH  48
-#define TEX_HEIGHT 48
+// Texture defines (walls & sprites)
+#define TEX_WIDTH                 48 ///< texture width in px
+#define TEX_HEIGHT                48 ///< texture width in px
 
-#define NUM_SPRITES 57
+// Maximum number of sprites
+#define NUM_SPRITES               60 ///< maximum number of sprites
 
 // For the player
-#define PLAYER_SHOT_COOLDOWN  300000
-#define LED_ON_TIME           500000
+#define PLAYER_SHOT_COOLDOWN  300000 ///< Time between the player can shoot
+#define LED_ON_TIME           500000 ///< Time the LEDs flash after shooting something or getting shot
 
-// For enemy textures
-#define ENEMY_SHOT_COOLDOWN  3000000
-#define SHOOTING_ANIM_TIME    500000
-#define GOT_SHOT_ANIM_TIME    500000
-#define LONG_WALK_ANIM_TIME  3000000
-#define WALK_ANIM_TIME       1000000
-#define STEP_ANIM_TIME        250000
+#define PLAYER_MOVE_SPEED_E      5.0 ///< map tiles per second
+#define PLAYER_MOVE_SPEED_M      5.0 ///< map tiles per second
+#define PLAYER_MOVE_SPEED_H      6.0 ///< map tiles per second
+#define PLAYER_ROT_SPEED_E       3.0 ///< radians per second
+#define PLAYER_ROT_SPEED_M       3.0 ///< radians per second
+#define PLAYER_ROT_SPEED_H       3.6 ///< radians per second
 
+#define GUITAR_SHOT_RANGE     36.0f ///< range of the guitar's shots, in cells squared (i.e. range 6 -> 36)
+/**
+ * Damage is FLOOR(1 + ((GUITAR_SHOT_RANGE - distSqr) / DAMAGE_DIVISOR))
+ * 11.7 yields 4dmg when less than 1 tile away
+ *             3dmg between 1    and 3.5  tiles
+ *             2dmg between 3.5  and 4.75 tiles
+ *             1dmg between 4.75 and 6    tiles
+ */
+#define DAMAGE_DIVISOR         11.7f
+#define CRITICAL_DISTANCE          1 ///< If something is shot less than this sqr distance, its a crit
+#define HEALTH_PER_CRITICAL        2 ///< This much health is gained per critical hit
+
+// For enemy textures, all times in microseconds
+#define ENEMY_SHOT_COOLDOWN  3000000 ///< Minimum time between a sprite taking a shot
+#define SHOOTING_ANIM_TIME    500000 ///< Time for each frame to be displayed when shooting. Overall shot time is SHOOTING_ANIM_TIME * NUM_SHOT_FRAMES
+#define GOT_SHOT_ANIM_TIME    500000 ///< Time for each frame to be displayed getting shot. Overall shot time is GOT_SHOT_ANIM_TIME * NUM_HURT_FRAMES
+#define LONG_WALK_ANIM_TIME  3000000 ///< Time a sprite will walk in a random direction for after being blocked
+#define WALK_ANIM_TIME       1000000 ///< Time a sprite will walk towards the player
+#define STEP_ANIM_TIME        250000 ///< Time each step frame will be displayed when walking
+#define INVINCIBILITY_TIME   ((GOT_SHOT_ANIM_TIME * NUM_HURT_FRAMES) + 1000000) ///< Time a sprite is invincible after being shot
+#define INVINCIBILITY_HZ      400000 ///< Period for the invincibility flicker 
+
+#define SPRITE_MOVE_SPEED_E     1.4f ///< map tiles per second
+#define SPRITE_MOVE_SPEED_M     2.0f ///< map tiles per second
+#define SPRITE_MOVE_SPEED_H     3.0f ///< map tiles per second
+
+// Animation frame counts, don't change these unless also changing textures
 #define NUM_WALK_FRAMES            2
 #define NUM_SHOT_FRAMES            2
 #define NUM_HURT_FRAMES            2
 
+// Starting enemy health, per difficulty
 #define ENEMY_HEALTH_E             1
 #define ENEMY_HEALTH_M             2
 #define ENEMY_HEALTH_H             4
 
-// Helper macro to return the absolute value of an integer
-#define ABS(X) (((X) < 0) ? -(X) : (X))
+// Effective radar distance
+#define RADAR_RANGE               81 ///< Radar distance, in cells squared (i.e. range 9 -> 81)
 
-#define RADAR_RANGE 81 // Square of the range in cells
+// Input timer
+#define STRAFE_BUTTON_TIMEOUT 500000 ///< Time allowed between strafe double-taps
+#define STRAFE_TIME           250000 ///< Time spent strafing per double-tap
+
+// Game over defines
+#define GAME_OVER_BUTTON_LOCK_US 2000000
 
 /*==============================================================================
  * Enums
@@ -124,7 +165,6 @@ typedef struct
     int32_t texTimer;
     int8_t texFrame;
     bool mirror;
-    int32_t invertTexUs;
 
     // Sprite logic
     enemyState_t state;
@@ -132,6 +172,8 @@ typedef struct
     int32_t shotCooldown;
     bool isBackwards;
     int32_t health;
+    int32_t invincibilityTimer;
+    bool shotWillMiss;
 } raySprite_t;
 
 typedef struct
@@ -140,6 +182,8 @@ typedef struct
     menu_t* menu;
 
     uint8_t rButtonState;
+    int32_t strafeLeftTmr;
+    int32_t strafeRightTmr;
     float posX;
     float posY;
     float dirX;
@@ -186,9 +230,12 @@ typedef struct
     uint32_t closestDist;
     float closestAngle;
     bool radarObstructed;
+    int32_t warningShotTimer;
+    float warningShotAngle;
     int32_t gotShotTimer;
     float shotFromAngle;
     int32_t shotSomethingTimer;
+    bool isCriticalHit;
     int32_t killedSpriteTimer;
     int32_t healthWarningTimer;
     bool healthWarningInc;
@@ -510,6 +557,8 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
 
     // Clear the button state
     rc->rButtonState = 0;
+    rc->strafeLeftTmr = 0;
+    rc->strafeRightTmr = 0;
 
     // x and y start position
     rc->posY = 8;
@@ -565,7 +614,9 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
                     rc->sprites[rc->liveSprites].dirX = 0;
                     rc->sprites[rc->liveSprites].dirX = 0;
                     rc->sprites[rc->liveSprites].shotCooldown = 0;
+                    rc->sprites[rc->liveSprites].shotWillMiss = 0;
                     rc->sprites[rc->liveSprites].isBackwards = false;
+                    rc->sprites[rc->liveSprites].invincibilityTimer = 0;
                     switch(rc->difficulty)
                     {
                         default:
@@ -600,7 +651,9 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
     rc->sprites[rc->liveSprites].dirX = 0;
     rc->sprites[rc->liveSprites].dirX = 0;
     rc->sprites[rc->liveSprites].shotCooldown = 0;
+    rc->sprites[rc->liveSprites].shotWillMiss = 0;
     rc->sprites[rc->liveSprites].isBackwards = false;
+    rc->sprites[rc->liveSprites].invincibilityTimer = 0;
     rc->sprites[rc->liveSprites].health = ENEMY_HEALTH_E;
     setSpriteState(&(rc->sprites[rc->liveSprites]), E_IDLE);
     rc->liveSprites++;
@@ -624,9 +677,12 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
     // Clear player shot variables
     rc->shotCooldown = 0;
     rc->checkShot = false;
+    rc->warningShotTimer = 0;
+    rc->warningShotAngle = 0;
     rc->gotShotTimer = 0;
     rc->shotFromAngle = 0;
     rc->shotSomethingTimer = 0;
+    rc->isCriticalHit = false;
 
     rc->killedSpriteTimer = 0;
     rc->healthWarningTimer = 0;
@@ -812,6 +868,10 @@ void ICACHE_FLASH_ATTR raycasterGameRenderer(uint32_t tElapsedUs)
     moveEnemies(tElapsedUs);
 
     // Tick down the timer to flash LEDs when shot or shooting
+    if(rc->warningShotTimer > 0)
+    {
+        rc->warningShotTimer -= tElapsedUs;
+    }
     if(rc->gotShotTimer > 0)
     {
         rc->gotShotTimer -= tElapsedUs;
@@ -1267,7 +1327,8 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
                     }
 
                     // draw the pixel for the texture, maybe inverted
-                    if(rc->sprites[spriteOrder[i]].invertTexUs > 0)
+                    if(rc->sprites[spriteOrder[i]].invincibilityTimer > 0 &&
+                            (rc->sprites[spriteOrder[i]].invincibilityTimer % INVINCIBILITY_HZ > (INVINCIBILITY_HZ / 2)))
                     {
                         switch(rc->sprites[spriteOrder[i]].texture[texIdx])
                         {
@@ -1313,18 +1374,39 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
         // And it's fewer than six units away
         float distSqr = ((rc->sprites[spriteIdxShot].posX - rc->posX) * (rc->sprites[spriteIdxShot].posX - rc->posX)) +
                         ((rc->sprites[spriteIdxShot].posY - rc->posY) * (rc->sprites[spriteIdxShot].posY - rc->posY));
-        if(distSqr < 36.0f)
+        if(distSqr < GUITAR_SHOT_RANGE)
         {
-            // And it's not already getting shot or dead
+            // And it's not already getting shot or dead or invincible
             if(rc->sprites[spriteIdxShot].state != E_GOT_SHOT &&
-                    rc->sprites[spriteIdxShot].state != E_DEAD)
+                    rc->sprites[spriteIdxShot].state != E_DEAD &&
+                    rc->sprites[spriteIdxShot].invincibilityTimer <= 0)
             {
-                // decrement health by one
-                rc->sprites[spriteIdxShot].health--;
+                // Calculate damage based on distance
+                uint8_t damage = 1 + ((GUITAR_SHOT_RANGE - distSqr) / DAMAGE_DIVISOR);
+                if(damage > rc->sprites[spriteIdxShot].health)
+                {
+                    damage = rc->sprites[spriteIdxShot].health;
+                }
+                // decrement the health
+                rc->sprites[spriteIdxShot].health -= damage;
                 // Animate getting shot
                 setSpriteState(&(rc->sprites[spriteIdxShot]), E_GOT_SHOT);
                 // Flash LEDs that we shot something
                 rc->shotSomethingTimer = LED_ON_TIME;
+
+                // If this is a really close shot
+                if(distSqr <= CRITICAL_DISTANCE)
+                {
+                    // Count it as a critical hit
+                    rc->isCriticalHit = true;
+                    // Which gains some health
+                    rc->health += HEALTH_PER_CRITICAL;
+                }
+                else
+                {
+                    // Otherwise it's normal
+                    rc->isCriticalHit = false;
+                }
             }
         }
     }
@@ -1373,14 +1455,110 @@ void ICACHE_FLASH_ATTR sortSprites(int32_t* order, float* dist, int32_t amount)
  */
 void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
 {
-    float frameTime = (tElapsedUs) / 1000000.0;
+    // Double tap means strafe
+    static uint8_t buttonStateLast = 0;
+    static int32_t strafeTmr[2] = {0};
+    static uint8_t strafeBtn[2] = {0};
+    static const uint8_t strafeMasks[] = {LEFT_MASK, RIGHT_MASK};
+
+    // Run double tap detection for left and right buttons
+    for(int i = 0; i < 2; i++)
+    {
+        // Run down strafe timer
+        if(strafeTmr[i] > 0)
+        {
+            strafeTmr[i] -= tElapsedUs;
+        }
+        else
+        {
+            // Clear all taps
+            strafeBtn[i] = 0;
+        }
+
+        // Check for presses and releases
+        if(!(buttonStateLast & strafeMasks[i]) && (rc->rButtonState & strafeMasks[i]))
+        {
+            // Button press
+            if(0 >= strafeTmr[i])
+            {
+                // First tap
+                strafeTmr[i] = STRAFE_BUTTON_TIMEOUT;
+                strafeBtn[i] = 0;
+            }
+        }
+        else if((buttonStateLast & strafeMasks[i]) && !(rc->rButtonState & strafeMasks[i]))
+        {
+            // Button release
+            if(strafeTmr[i] > 0)
+            {
+                // Button released while timer is active, count as a tap
+                strafeBtn[i]++;
+                // If there are two taps
+                if(2 == strafeBtn[i])
+                {
+                    // Strafe!
+                    strafeTmr[i] = 0;
+                    strafeBtn[i] = 0;
+
+                    if(LEFT_MASK == strafeMasks[i])
+                    {
+                        rc->strafeLeftTmr = STRAFE_TIME;
+                    }
+                    else
+                    {
+                        rc->strafeRightTmr = STRAFE_TIME;
+                    }
+
+                    // Also mark any shots as dodged
+                    for(uint8_t spr = 0; spr < NUM_SPRITES; spr++)
+                    {
+                        // Skip over sprites with negative position, these weren't spawned
+                        if((rc->sprites[spr].posX >= 0) &&
+                                (E_SHOOTING == rc->sprites[spr].state))
+                        {
+                            rc->sprites[spr].shotWillMiss = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Save this button state to detect taps later
+    buttonStateLast = rc->rButtonState;
+
+    float frameTime = (tElapsedUs) / USEC_IN_SEC;
 
     // speed modifiers
-    float moveSpeed = frameTime * 5.0; // the constant value is in squares/second
-    float rotSpeed = frameTime * 3.0; // the constant value is in radians/second
+    float moveSpeed;
+    float rotSpeed;
+
+    switch(rc->difficulty)
+    {
+        default:
+        case RC_NUM_DIFFICULTIES:
+        case RC_EASY:
+        {
+            moveSpeed = frameTime * PLAYER_MOVE_SPEED_E;
+            rotSpeed = frameTime * PLAYER_ROT_SPEED_E;
+            break;
+        }
+        case RC_MED:
+        {
+            moveSpeed = frameTime * PLAYER_MOVE_SPEED_M;
+            rotSpeed = frameTime * PLAYER_ROT_SPEED_M;
+            break;
+        }
+        case RC_HARD:
+        {
+            moveSpeed = frameTime * PLAYER_MOVE_SPEED_H;
+            rotSpeed = frameTime * PLAYER_ROT_SPEED_H;
+            break;
+        }
+    }
 
     // move forward if no wall in front of you
-    if(rc->rButtonState & 0x08)
+    if(rc->rButtonState & UP_MASK)
     {
         if(MAP_TILE((int32_t)(rc->posX + rc->dirX * moveSpeed), (int32_t)(rc->posY)) > WMT_C)
         {
@@ -1393,7 +1571,7 @@ void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
     }
 
     // move backwards if no wall behind you
-    if(rc->rButtonState & 0x02)
+    if(rc->rButtonState & DOWN_MASK)
     {
         if(MAP_TILE((int32_t)(rc->posX - rc->dirX * moveSpeed), (int32_t)(rc->posY)) > WMT_C)
         {
@@ -1405,8 +1583,38 @@ void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
         }
     }
 
+    // Strafe left
+    if(rc->strafeLeftTmr > 0)
+    {
+        if(MAP_TILE((int32_t)(rc->posX - rc->dirY * moveSpeed), (int32_t)(rc->posY)) > WMT_C)
+        {
+            rc->posX -= rc->dirY * moveSpeed;
+        }
+        if(MAP_TILE((int32_t)(rc->posX), (int32_t)(rc->posY + rc->dirX * moveSpeed)) > WMT_C)
+        {
+            rc->posY += rc->dirX * moveSpeed;
+        }
+
+        rc->strafeLeftTmr -= tElapsedUs;
+    }
+
+    // Strafe right
+    if(rc->strafeRightTmr > 0)
+    {
+        if(MAP_TILE((int32_t)(rc->posX + rc->dirY * moveSpeed), (int32_t)(rc->posY)) > WMT_C)
+        {
+            rc->posX += rc->dirY * moveSpeed;
+        }
+        if(MAP_TILE((int32_t)(rc->posX), (int32_t)(rc->posY - rc->dirX * moveSpeed)) > WMT_C)
+        {
+            rc->posY -= rc->dirX * moveSpeed;
+        }
+
+        rc->strafeRightTmr -= tElapsedUs;
+    }
+
     // rotate to the right
-    if(rc->rButtonState & 0x04)
+    if(rc->rButtonState & RIGHT_MASK)
     {
         // both camera direction and camera plane must be rotated
         float oldDirX = rc->dirX;
@@ -1418,7 +1626,7 @@ void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
     }
 
     // rotate to the left
-    if(rc->rButtonState & 0x01)
+    if(rc->rButtonState & LEFT_MASK)
     {
         // both camera direction and camera plane must be rotated
         float oldDirX = rc->dirX;
@@ -1443,14 +1651,14 @@ void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
     static bool triggerPulled = false;
 
     // If the trigger hasn't been pulled, and the button was pressed, and cooldown isn't active
-    if(!triggerPulled && (rc->rButtonState & 0x10) && 0 == rc->shotCooldown)
+    if(!triggerPulled && (rc->rButtonState & ACTION_MASK) && 0 == rc->shotCooldown)
     {
         // Set the cooldown, tell drawSprites() to check the shot, and pull the trigger
         rc->shotCooldown = PLAYER_SHOT_COOLDOWN;
         rc->checkShot = true;
         triggerPulled = true;
     }
-    else if(triggerPulled && (rc->rButtonState & 0x10) == 0)
+    else if(triggerPulled && (rc->rButtonState & ACTION_MASK) == 0)
     {
         // If the button was released, release the trigger
         triggerPulled = false;
@@ -1487,7 +1695,7 @@ float ICACHE_FLASH_ATTR Q_rsqrt( float number )
  */
 void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
 {
-    float frameTimeSec = (tElapsedUs) / 1000000.0;
+    float frameTimeSec = (tElapsedUs) / USEC_IN_SEC;
 
     // Keep track of the closest live sprite
     rc->closestDist = 0xFFFFFFFF;
@@ -1502,17 +1710,17 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
         case RC_NUM_DIFFICULTIES:
         case RC_EASY:
         {
-            moveSpeed = frameTimeSec * 0.7f; // the constant value is in squares/second
+            moveSpeed = frameTimeSec * SPRITE_MOVE_SPEED_E;
             break;
         }
         case RC_MED:
         {
-            moveSpeed = frameTimeSec * 1.0f;
+            moveSpeed = frameTimeSec * SPRITE_MOVE_SPEED_M;
             break;
         }
         case RC_HARD:
         {
-            moveSpeed = frameTimeSec * 1.5f;
+            moveSpeed = frameTimeSec * SPRITE_MOVE_SPEED_H;
             break;
         }
     }
@@ -1533,11 +1741,10 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
             rc->sprites[i].shotCooldown -= tElapsedUs;
         }
 
-        // Always run down the sprite's inverted texture value, until zero
-        rc->sprites[i].invertTexUs -= tElapsedUs;
-        if(rc->sprites[i].invertTexUs < 0)
+        // Always run down the sprite's invincibility timer, regardless of state
+        if(rc->sprites[i].invincibilityTimer > 0)
         {
-            rc->sprites[i].invertTexUs = 0;
+            rc->sprites[i].invincibilityTimer -= tElapsedUs;
         }
 
         // Find the distance between this sprite and the player, generally useful
@@ -1638,15 +1845,15 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                         case 1:
                         {
                             // Rotate 45 degrees
-                            toPlayerX = toPlayerX * 0.70710678f - toPlayerY * 0.70710678f;
-                            toPlayerY = toPlayerY * 0.70710678f + toPlayerX * 0.70710678f;
+                            toPlayerX = toPlayerX * PI_DIV_4 - toPlayerY * PI_DIV_4;
+                            toPlayerY = toPlayerY * PI_DIV_4 + toPlayerX * PI_DIV_4;
                             break;
                         }
                         case 2:
                         {
                             // Rotate -45 degrees
-                            toPlayerX = toPlayerX * 0.70710678f + toPlayerY * 0.70710678f;
-                            toPlayerY = toPlayerY * 0.70710678f - toPlayerX * 0.70710678f;
+                            toPlayerX = toPlayerX * PI_DIV_4 + toPlayerY * PI_DIV_4;
+                            toPlayerY = toPlayerY * PI_DIV_4 - toPlayerX * PI_DIV_4;
                             break;
                         }
                     }
@@ -1777,12 +1984,6 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                     // Reset if we're back to zero
                     if(0 == rc->sprites[i].texFrame)
                     {
-                        // After the shot, go to E_PICK_DIR_PLAYER
-                        setSpriteState(&(rc->sprites[i]), E_PICK_DIR_PLAYER);
-                    }
-                    // If we're halfway through the animation
-                    else if (NUM_SHOT_FRAMES / 2 == rc->sprites[i].texFrame)
-                    {
                         // Actually take the shot
                         rc->sprites[i].shotCooldown = ENEMY_SHOT_COOLDOWN;
                         // Half cooldown for hard mode
@@ -1791,11 +1992,17 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                             rc->sprites[i].shotCooldown /= 2;
                         }
 
-                        // Check if the sprite can still see the player
-                        if(checkWallsBetweenPoints(rc->sprites[i].posX, rc->sprites[i].posY, rc->posX, rc->posY))
+                        // Check if the player hasn't strafed, and if the sprite can still see the player
+                        if(false == rc->sprites[i].shotWillMiss &&
+                                checkWallsBetweenPoints(rc->sprites[i].posX, rc->sprites[i].posY, rc->posX, rc->posY))
                         {
                             // If it can, the player got shot
-                            rc->health--;
+                            uint8_t damage = 1 + ((GUITAR_SHOT_RANGE - magSqr) / DAMAGE_DIVISOR);
+                            if(damage > rc->health)
+                            {
+                                damage = rc->health;
+                            }
+                            rc->health -= damage;
                             rc->gotShotTimer = LED_ON_TIME;
                             rc->shotFromAngle = angleBetween(rc->posX, rc->posY, rc->dirX, rc->dirY,
                                                              rc->sprites[i].posX, rc->sprites[i].posY);
@@ -1807,6 +2014,9 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                                 raycasterEndRound();
                             }
                         }
+
+                        // After the shot, go to E_PICK_DIR_PLAYER
+                        setSpriteState(&(rc->sprites[i]), E_PICK_DIR_PLAYER);
                     }
                 }
                 break;
@@ -2039,7 +2249,6 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
     // Set the state, reset the texture frame
     sprite->state = state;
     sprite->texFrame = 0;
-    sprite->invertTexUs = 0;
 
     // Set timers and textures
     switch(state)
@@ -2086,6 +2295,14 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
             }
             sprite->texture = rc->shooting[0];
             sprite->texTimer = sprite->stateTimer;
+
+            // Shot won't miss unless the player strafes
+            sprite->shotWillMiss = false;
+
+            // Show a warning that a shot is coming from this angle
+            rc->warningShotTimer = LED_ON_TIME;
+            rc->warningShotAngle = angleBetween(rc->posX, rc->posY, rc->dirX, rc->dirY,
+                                                sprite->posX, sprite->posY);
             break;
         }
         case E_GOT_SHOT:
@@ -2098,8 +2315,9 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
                 sprite->stateTimer /= 2;
             }
             sprite->texture = rc->hurt[0];
-            sprite->invertTexUs = sprite->stateTimer / 3;
             sprite->texTimer = sprite->stateTimer;
+            // Set some invincibility frames
+            sprite->invincibilityTimer = INVINCIBILITY_TIME;
             break;
         }
         case E_DEAD:
@@ -2119,6 +2337,7 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
             sprite->stateTimer = 0;
             sprite->texture = rc->dead;
             sprite->texTimer = 0;
+            sprite->invincibilityTimer = 0;
         }
     }
 }
@@ -2222,9 +2441,9 @@ void ICACHE_FLASH_ATTR drawHUD(void)
     {
         // Plot the elapsed time
         uint32_t tElapsed = system_get_time() - rc->tRoundStartedUs;
-        uint32_t dSec = (tElapsed / 100000) % 10;
-        uint32_t sec  = (tElapsed / 1000000) % 60;
-        uint32_t min  = (tElapsed / (1000000 * 60));
+        uint32_t dSec = (tElapsed / USEC_IN_DSEC) % 10;
+        uint32_t sec  = (tElapsed / (int)USEC_IN_SEC) % 60;
+        uint32_t min  = (tElapsed / (USEC_IN_SEC * 60));
         char timestr[64] = {0};
         ets_snprintf(timestr, sizeof(timestr), "%02d:%02d.%d", min, sec, dSec);
         int16_t timeWidth = textWidth(timestr, TOM_THUMB);
@@ -2246,11 +2465,13 @@ void ICACHE_FLASH_ATTR raycasterEndRound(void)
 
     // Show game over screen, disable radar
     rc->mode = RC_GAME_OVER;
-    rc->gameOverButtonLockUs = 2000000;
+    rc->gameOverButtonLockUs = GAME_OVER_BUTTON_LOCK_US;
     rc->closestDist = 0xFFFFFFFF;
     rc->closestAngle = 0;
     rc->radarObstructed = false;
     rc->killedSpriteTimer = 0;
+    rc->warningShotTimer = 0;
+    rc->warningShotAngle = 0;
     rc->gotShotTimer = 0;
     rc->shotFromAngle = 0;
 }
@@ -2263,9 +2484,9 @@ void ICACHE_FLASH_ATTR raycasterEndRound(void)
 void ICACHE_FLASH_ATTR raycasterDrawRoundOver(uint32_t tElapsedUs)
 {
     // Break down the elapsed time in microseconds to human readable numbers
-    uint32_t dSec = (rc->tRoundElapsed / 100000) % 10;
-    uint32_t sec  = (rc->tRoundElapsed / 1000000) % 60;
-    uint32_t min  = (rc->tRoundElapsed / (1000000 * 60));
+    uint32_t dSec = (rc->tRoundElapsed / USEC_IN_DSEC) % 10;
+    uint32_t sec  = (rc->tRoundElapsed / (int)USEC_IN_SEC) % 60;
+    uint32_t min  = (rc->tRoundElapsed / (USEC_IN_SEC * 60));
 
     // Create the time and kills string
     char timestr[64] = {0};
@@ -2385,12 +2606,36 @@ void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg __attribute__((unused)))
         // 0 hue is red
         lightLedsFromAngle(leds, rc->shotFromAngle, 0, rc->gotShotTimer, LED_ON_TIME);
     }
+    else if(rc->warningShotTimer > 0)
+    {
+        // If we're about to be shot, flash yellow
+        lightLedsFromAngle(leds, rc->warningShotAngle, 43, 1, 1);
+    }
     // Otherwise if we shot something, flash green
     else if(rc->shotSomethingTimer > 0)
     {
-        for(uint8_t i = 0; i < NUM_LIN_LEDS; i++)
+        // Display different LEDs for criticality
+        if(rc->isCriticalHit)
         {
-            leds[i].g = (rc->shotSomethingTimer * 0x40) / LED_ON_TIME;
+            // Rainbow for a critical hit
+            for(uint8_t i = 0; i < NUM_LIN_LEDS; i++)
+            {
+                uint32_t rColor = EHSVtoHEX(
+                                      /* Hue */ (i * 256) / NUM_LIN_LEDS,
+                                      /* Sat */ 0xFF,
+                                      /* Val */ (rc->shotSomethingTimer * 0xFF) / LED_ON_TIME);
+                leds[i].r = ((rColor >>  0) & 0xFF);
+                leds[i].g = ((rColor >>  8) & 0xFF);
+                leds[i].b = ((rColor >> 16) & 0xFF);
+            }
+        }
+        else
+        {
+            // Normal green for a normal shot
+            for(uint8_t i = 0; i < NUM_LIN_LEDS; i++)
+            {
+                leds[i].g = (rc->shotSomethingTimer * 0x40) / LED_ON_TIME;
+            }
         }
     }
     // Otherwise use the LEDs like a radar
@@ -2513,9 +2758,9 @@ void ICACHE_FLASH_ATTR raycasterDrawScores(void)
         if(score->kills > 0 || score->tElapsedUs > 0)
         {
             // Make the time human readable
-            uint32_t dSec = (score->tElapsedUs / 100000) % 10;
-            uint32_t sec  = (score->tElapsedUs / 1000000) % 60;
-            uint32_t min  = (score->tElapsedUs / (1000000 * 60));
+            uint32_t dSec = (score->tElapsedUs / USEC_IN_DSEC) % 10;
+            uint32_t sec  = (score->tElapsedUs / (int)USEC_IN_SEC) % 60;
+            uint32_t min  = (score->tElapsedUs / (USEC_IN_SEC * 60));
 
             // Print the string to an array
             char scoreStr[64] = {0};
