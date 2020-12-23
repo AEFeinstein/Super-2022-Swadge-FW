@@ -1269,13 +1269,20 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
         char framesStr[32] = {0};
         //ets_snprintf(framesStr, sizeof(framesStr), "%02x %dus", tflight->buttonState, (stop-start)/160);
         int elapsed = (system_get_time()-tflight->timeOfStart)/10000;
-        ets_snprintf(framesStr, sizeof(framesStr), "%2d/%2d %2d", tflight->ondonut, MAX_DONUTS, tflight->beans );
-        iplotRectB(0, 0, 33, 7 );
-        plotText(1, 1, framesStr,TOM_THUMB /*IBM_VGA_8*/, WHITE);
+        ets_snprintf(framesStr, sizeof(framesStr), "%d/%d, %d", tflight->ondonut, MAX_DONUTS, tflight->beans );
+        int16_t width = textWidth(framesStr, TOM_THUMB);
+        iplotRectB(0, 0, width, FONT_HEIGHT_TOMTHUMB + 1);
+        plotText(0, 0, framesStr, TOM_THUMB, WHITE);
 
-        ets_snprintf(framesStr, sizeof(framesStr), "%3d.%02d", elapsed/100, elapsed%100 );
-        iplotRectB(79, 0, 128, 12 );
-        plotText(80, 1, framesStr, IBM_VGA_8, WHITE);
+        ets_snprintf(framesStr, sizeof(framesStr), "%d.%02d", elapsed/100, elapsed%100 );
+        width = textWidth(framesStr, TOM_THUMB);
+        iplotRectB(OLED_WIDTH - width, 0, OLED_WIDTH, FONT_HEIGHT_TOMTHUMB + 1);
+        plotText(OLED_WIDTH - width + 1, 0, framesStr, TOM_THUMB, WHITE);
+
+        ets_snprintf(framesStr, sizeof(framesStr), "%d", tflight->speed);
+        width = textWidth(framesStr, TOM_THUMB);
+        iplotRectB(OLED_WIDTH - width, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, OLED_WIDTH, OLED_HEIGHT);
+        plotText(OLED_WIDTH - width + 1, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, framesStr, TOM_THUMB, WHITE);
     }
     else
     {
@@ -1314,7 +1321,7 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
     const int thruster_max = 40; //NOTE: thruster_max must be divisble by thruster_accel
     const int thruster_decay = 4;
     const int FLIGHT_SPEED_DEC = 10;
-    const int flight_max_speed = 70;
+    const int flight_max_speed = 150;
     const int flight_min_speed = 10;
 
     //If we're at the ending screen and the user presses a button end game.
