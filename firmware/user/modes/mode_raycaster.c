@@ -54,6 +54,14 @@
 #define PLAYER_ROT_SPEED_H       3.6 ///< radians per second
 
 #define GUITAR_SHOT_RANGE     36.0f ///< range of the guitar's shots, in cells squared (i.e. range 6 -> 36)
+/**
+ * Damage is FLOOR(1 + ((GUITAR_SHOT_RANGE - distSqr) / DAMAGE_DIVISOR))
+ * 11.7 yields 4dmg when less than 1 tile away
+ *             3dmg between 1    and 3.5  tiles
+ *             2dmg between 3.5  and 4.75 tiles
+ *             1dmg between 4.75 and 6    tiles
+ */
+#define DAMAGE_DIVISOR        11.7f
 
 // For enemy textures, all times in microseconds
 #define ENEMY_SHOT_COOLDOWN  3000000 ///< Minimum time between a sprite taking a shot
@@ -1344,8 +1352,14 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
             if(rc->sprites[spriteIdxShot].state != E_GOT_SHOT &&
                     rc->sprites[spriteIdxShot].state != E_DEAD)
             {
-                // decrement health by one
-                rc->sprites[spriteIdxShot].health--;
+                // Calculate damage based on distance
+                uint8_t damage = 1 + ((GUITAR_SHOT_RANGE - distSqr) / DAMAGE_DIVISOR);
+                if(damage > rc->sprites[spriteIdxShot].health)
+                {
+                    damage = rc->sprites[spriteIdxShot].health;
+                }
+                // decrement the health
+                rc->sprites[spriteIdxShot].health -= damage;
                 // Animate getting shot
                 setSpriteState(&(rc->sprites[spriteIdxShot]), E_GOT_SHOT);
                 // Flash LEDs that we shot something
@@ -1844,7 +1858,12 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                         if(checkWallsBetweenPoints(rc->sprites[i].posX, rc->sprites[i].posY, rc->posX, rc->posY))
                         {
                             // If it can, the player got shot
-                            rc->health--;
+                            uint8_t damage = 1 + ((GUITAR_SHOT_RANGE - magSqr) / DAMAGE_DIVISOR);
+                            if(damage > rc->health)
+                            {
+                                damage = rc->health;
+                            }
+                            rc->health -= damage;
                             rc->gotShotTimer = LED_ON_TIME;
                             rc->shotFromAngle = angleBetween(rc->posX, rc->posY, rc->dirX, rc->dirY,
                                                              rc->sprites[i].posX, rc->sprites[i].posY);
