@@ -1321,7 +1321,7 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
     const int thruster_max = 40; //NOTE: thruster_max must be divisble by thruster_accel
     const int thruster_decay = 4;
     const int FLIGHT_SPEED_DEC = 10;
-    const int flight_max_speed = 70;
+    const int flight_max_speed = 150;
     const int flight_min_speed = 10;
 
     //If we're at the ending screen and the user presses a button end game.
