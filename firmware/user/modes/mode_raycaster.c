@@ -46,10 +46,14 @@
 #define PLAYER_SHOT_COOLDOWN  300000 ///< Time between the player can shoot
 #define LED_ON_TIME           500000 ///< Time the LEDs flash after shooting something or getting shot
 
-#define PLAYER_MOVE_SPEED        5.0 ///< map tiles per second
-#define PLAYER_ROT_SPEED         3.0 ///< radians per second
+#define PLAYER_MOVE_SPEED_E      5.0 ///< map tiles per second
+#define PLAYER_MOVE_SPEED_M      5.0 ///< map tiles per second
+#define PLAYER_MOVE_SPEED_H      6.0 ///< map tiles per second
+#define PLAYER_ROT_SPEED_E       3.0 ///< radians per second
+#define PLAYER_ROT_SPEED_M       3.0 ///< radians per second
+#define PLAYER_ROT_SPEED_H       3.6 ///< radians per second
 
- #define GUITAR_SHOT_RANGE     36.0f ///< range of the guitar's shots, in cells squared (i.e. range 6 -> 36)
+#define GUITAR_SHOT_RANGE     36.0f ///< range of the guitar's shots, in cells squared (i.e. range 6 -> 36)
 
 // For enemy textures, all times in microseconds
 #define ENEMY_SHOT_COOLDOWN  3000000 ///< Minimum time between a sprite taking a shot
@@ -1397,8 +1401,32 @@ void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
     float frameTime = (tElapsedUs) / USEC_IN_SEC;
 
     // speed modifiers
-    float moveSpeed = frameTime * PLAYER_MOVE_SPEED;
-    float rotSpeed = frameTime * PLAYER_ROT_SPEED;
+    float moveSpeed;
+    float rotSpeed;
+
+    switch(rc->difficulty)
+    {
+        default:
+        case RC_NUM_DIFFICULTIES:
+        case RC_EASY:
+        {
+            moveSpeed = frameTime * PLAYER_MOVE_SPEED_E;
+            rotSpeed = frameTime * PLAYER_ROT_SPEED_E;
+            break;
+        }
+        case RC_MED:
+        {
+            moveSpeed = frameTime * PLAYER_MOVE_SPEED_M;
+            rotSpeed = frameTime * PLAYER_ROT_SPEED_M;
+            break;
+        }
+        case RC_HARD:
+        {
+            moveSpeed = frameTime * PLAYER_MOVE_SPEED_H;
+            rotSpeed = frameTime * PLAYER_ROT_SPEED_H;
+            break;
+        }
+    }
 
     // move forward if no wall in front of you
     if(rc->rButtonState & 0x08)
