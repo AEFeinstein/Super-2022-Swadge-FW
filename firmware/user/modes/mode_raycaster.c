@@ -61,7 +61,9 @@
  *             2dmg between 3.5  and 4.75 tiles
  *             1dmg between 4.75 and 6    tiles
  */
-#define DAMAGE_DIVISOR        11.7f
+#define DAMAGE_DIVISOR         11.7f
+#define CRITICAL_DISTANCE          1 ///< If something is shot less than this sqr distance, its a crit
+#define HEALTH_PER_CRITICAL        2 ///< This much health is gained per critical hit
 
 // For enemy textures, all times in microseconds
 #define ENEMY_SHOT_COOLDOWN  3000000 ///< Minimum time between a sprite taking a shot
@@ -233,6 +235,7 @@ typedef struct
     int32_t gotShotTimer;
     float shotFromAngle;
     int32_t shotSomethingTimer;
+    bool isCriticalHit;
     int32_t killedSpriteTimer;
     int32_t healthWarningTimer;
     bool healthWarningInc;
@@ -679,6 +682,7 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
     rc->gotShotTimer = 0;
     rc->shotFromAngle = 0;
     rc->shotSomethingTimer = 0;
+    rc->isCriticalHit = false;
 
     rc->killedSpriteTimer = 0;
     rc->healthWarningTimer = 0;
@@ -1389,6 +1393,20 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
                 setSpriteState(&(rc->sprites[spriteIdxShot]), E_GOT_SHOT);
                 // Flash LEDs that we shot something
                 rc->shotSomethingTimer = LED_ON_TIME;
+
+                // If this is a really close shot
+                if(distSqr <= CRITICAL_DISTANCE)
+                {
+                    // Count it as a critical hit
+                    rc->isCriticalHit = true;
+                    // Which gains some health
+                    rc->health += HEALTH_PER_CRITICAL;
+                }
+                else
+                {
+                    // Otherwise it's normal
+                    rc->isCriticalHit = false;
+                }
             }
         }
     }
@@ -2596,9 +2614,28 @@ void ICACHE_FLASH_ATTR raycasterLedTimer(void* arg __attribute__((unused)))
     // Otherwise if we shot something, flash green
     else if(rc->shotSomethingTimer > 0)
     {
-        for(uint8_t i = 0; i < NUM_LIN_LEDS; i++)
+        // Display different LEDs for criticality
+        if(rc->isCriticalHit)
         {
-            leds[i].g = (rc->shotSomethingTimer * 0x40) / LED_ON_TIME;
+            // Rainbow for a critical hit
+            for(uint8_t i = 0; i < NUM_LIN_LEDS; i++)
+            {
+                uint32_t rColor = EHSVtoHEX(
+                                      /* Hue */ (i * 256) / NUM_LIN_LEDS,
+                                      /* Sat */ 0xFF,
+                                      /* Val */ (rc->shotSomethingTimer * 0xFF) / LED_ON_TIME);
+                leds[i].r = ((rColor >>  0) & 0xFF);
+                leds[i].g = ((rColor >>  8) & 0xFF);
+                leds[i].b = ((rColor >> 16) & 0xFF);
+            }
+        }
+        else
+        {
+            // Normal green for a normal shot
+            for(uint8_t i = 0; i < NUM_LIN_LEDS; i++)
+            {
+                leds[i].g = (rc->shotSomethingTimer * 0x40) / LED_ON_TIME;
+            }
         }
     }
     // Otherwise use the LEDs like a radar
