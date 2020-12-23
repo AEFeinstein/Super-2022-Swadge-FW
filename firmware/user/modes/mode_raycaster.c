@@ -59,9 +59,9 @@
 #define WALK_ANIM_TIME       1000000 ///< Time a sprite will walk towards the player
 #define STEP_ANIM_TIME        250000 ///< Time each step frame will be displayed when walking
 
-#define SPRITE_MOVE_SPEED_E     0.7f ///< map tiles per second
-#define SPRITE_MOVE_SPEED_M     1.0f ///< map tiles per second
-#define SPRITE_MOVE_SPEED_H     1.5f ///< map tiles per second
+#define SPRITE_MOVE_SPEED_E     1.4f ///< map tiles per second
+#define SPRITE_MOVE_SPEED_M     2.0f ///< map tiles per second
+#define SPRITE_MOVE_SPEED_H     3.0f ///< map tiles per second
 
 // Animation frame counts, don't change these unless also changing textures
 #define NUM_WALK_FRAMES            2
