@@ -70,6 +70,8 @@
 #define LONG_WALK_ANIM_TIME  3000000 ///< Time a sprite will walk in a random direction for after being blocked
 #define WALK_ANIM_TIME       1000000 ///< Time a sprite will walk towards the player
 #define STEP_ANIM_TIME        250000 ///< Time each step frame will be displayed when walking
+#define INVINCIBILITY_TIME   ((GOT_SHOT_ANIM_TIME * NUM_HURT_FRAMES) + 1000000) ///< Time a sprite is invincible after being shot
+#define INVINCIBILITY_HZ      400000 ///< Period for the invincibility flicker 
 
 #define SPRITE_MOVE_SPEED_E     1.4f ///< map tiles per second
 #define SPRITE_MOVE_SPEED_M     2.0f ///< map tiles per second
@@ -157,7 +159,6 @@ typedef struct
     int32_t texTimer;
     int8_t texFrame;
     bool mirror;
-    int32_t invertTexUs;
 
     // Sprite logic
     enemyState_t state;
@@ -165,6 +166,7 @@ typedef struct
     int32_t shotCooldown;
     bool isBackwards;
     int32_t health;
+    int32_t invincibilityTimer;
 } raySprite_t;
 
 typedef struct
@@ -599,6 +601,7 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
                     rc->sprites[rc->liveSprites].dirX = 0;
                     rc->sprites[rc->liveSprites].shotCooldown = 0;
                     rc->sprites[rc->liveSprites].isBackwards = false;
+                    rc->sprites[rc->liveSprites].invincibilityTimer = 0;
                     switch(rc->difficulty)
                     {
                         default:
@@ -634,6 +637,7 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
     rc->sprites[rc->liveSprites].dirX = 0;
     rc->sprites[rc->liveSprites].shotCooldown = 0;
     rc->sprites[rc->liveSprites].isBackwards = false;
+    rc->sprites[rc->liveSprites].invincibilityTimer = 0;
     rc->sprites[rc->liveSprites].health = ENEMY_HEALTH_E;
     setSpriteState(&(rc->sprites[rc->liveSprites]), E_IDLE);
     rc->liveSprites++;
@@ -1300,7 +1304,8 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
                     }
 
                     // draw the pixel for the texture, maybe inverted
-                    if(rc->sprites[spriteOrder[i]].invertTexUs > 0)
+                    if(rc->sprites[spriteOrder[i]].invincibilityTimer > 0 &&
+                            (rc->sprites[spriteOrder[i]].invincibilityTimer % INVINCIBILITY_HZ > (INVINCIBILITY_HZ / 2)))
                     {
                         switch(rc->sprites[spriteOrder[i]].texture[texIdx])
                         {
@@ -1348,9 +1353,10 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
                         ((rc->sprites[spriteIdxShot].posY - rc->posY) * (rc->sprites[spriteIdxShot].posY - rc->posY));
         if(distSqr < GUITAR_SHOT_RANGE)
         {
-            // And it's not already getting shot or dead
+            // And it's not already getting shot or dead or invincible
             if(rc->sprites[spriteIdxShot].state != E_GOT_SHOT &&
-                    rc->sprites[spriteIdxShot].state != E_DEAD)
+                    rc->sprites[spriteIdxShot].state != E_DEAD &&
+                    rc->sprites[spriteIdxShot].invincibilityTimer <= 0)
             {
                 // Calculate damage based on distance
                 uint8_t damage = 1 + ((GUITAR_SHOT_RANGE - distSqr) / DAMAGE_DIVISOR);
@@ -1596,11 +1602,10 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
             rc->sprites[i].shotCooldown -= tElapsedUs;
         }
 
-        // Always run down the sprite's inverted texture value, until zero
-        rc->sprites[i].invertTexUs -= tElapsedUs;
-        if(rc->sprites[i].invertTexUs < 0)
+        // Always run down the sprite's invincibility timer, regardless of state
+        if(rc->sprites[i].invincibilityTimer > 0)
         {
-            rc->sprites[i].invertTexUs = 0;
+            rc->sprites[i].invincibilityTimer -= tElapsedUs;
         }
 
         // Find the distance between this sprite and the player, generally useful
@@ -2107,7 +2112,6 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
     // Set the state, reset the texture frame
     sprite->state = state;
     sprite->texFrame = 0;
-    sprite->invertTexUs = 0;
 
     // Set timers and textures
     switch(state)
@@ -2166,8 +2170,9 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
                 sprite->stateTimer /= 2;
             }
             sprite->texture = rc->hurt[0];
-            sprite->invertTexUs = sprite->stateTimer / 3;
             sprite->texTimer = sprite->stateTimer;
+            // Set some invincibility frames
+            sprite->invincibilityTimer = INVINCIBILITY_TIME;
             break;
         }
         case E_DEAD:
@@ -2187,6 +2192,7 @@ void ICACHE_FLASH_ATTR setSpriteState(raySprite_t* sprite, enemyState_t state)
             sprite->stateTimer = 0;
             sprite->texture = rc->dead;
             sprite->texTimer = 0;
+            sprite->invincibilityTimer = 0;
         }
     }
 }
