@@ -26,37 +26,58 @@
  * Defines
  *============================================================================*/
 
+// Mathy things
+#define PI_DIV_4     0.70710678f
+#define USEC_IN_SEC  1000000.0f
+#define USEC_IN_DSEC 100000
+#define ABS(X)       (((X) < 0) ? -(X) : (X))
+
+// Map macros
 #define MAP_TILE(x, y) rc->map[(y) + ((x) * (rc->mapH))]
 
-#define TEX_WIDTH  48
-#define TEX_HEIGHT 48
+// Texture defines (walls & sprites)
+#define TEX_WIDTH                 48 ///< texture width in px
+#define TEX_HEIGHT                48 ///< texture width in px
 
-#define NUM_SPRITES 57
+// Maximum number of sprites
+#define NUM_SPRITES               60 ///< maximum number of sprites
 
 // For the player
-#define PLAYER_SHOT_COOLDOWN  300000
-#define LED_ON_TIME           500000
+#define PLAYER_SHOT_COOLDOWN  300000 ///< Time between the player can shoot
+#define LED_ON_TIME           500000 ///< Time the LEDs flash after shooting something or getting shot
 
-// For enemy textures
-#define ENEMY_SHOT_COOLDOWN  3000000
-#define SHOOTING_ANIM_TIME    500000
-#define GOT_SHOT_ANIM_TIME    500000
-#define LONG_WALK_ANIM_TIME  3000000
-#define WALK_ANIM_TIME       1000000
-#define STEP_ANIM_TIME        250000
+#define PLAYER_MOVE_SPEED        5.0 ///< map tiles per second
+#define PLAYER_ROT_SPEED         3.0 ///< radians per second
 
+ #define GUITAR_SHOT_RANGE     36.0f ///< range of the guitar's shots, in cells squared (i.e. range 6 -> 36)
+
+// For enemy textures, all times in microseconds
+#define ENEMY_SHOT_COOLDOWN  3000000 ///< Minimum time between a sprite taking a shot
+#define SHOOTING_ANIM_TIME    500000 ///< Time for each frame to be displayed when shooting. Overall shot time is SHOOTING_ANIM_TIME * NUM_SHOT_FRAMES
+#define GOT_SHOT_ANIM_TIME    500000 ///< Time for each frame to be displayed getting shot. Overall shot time is GOT_SHOT_ANIM_TIME * NUM_HURT_FRAMES
+#define LONG_WALK_ANIM_TIME  3000000 ///< Time a sprite will walk in a random direction for after being blocked
+#define WALK_ANIM_TIME       1000000 ///< Time a sprite will walk towards the player
+#define STEP_ANIM_TIME        250000 ///< Time each step frame will be displayed when walking
+
+#define SPRITE_MOVE_SPEED_E     0.7f ///< map tiles per second
+#define SPRITE_MOVE_SPEED_M     1.0f ///< map tiles per second
+#define SPRITE_MOVE_SPEED_H     1.5f ///< map tiles per second
+
+// Animation frame counts, don't change these unless also changing textures
 #define NUM_WALK_FRAMES            2
 #define NUM_SHOT_FRAMES            2
 #define NUM_HURT_FRAMES            2
 
+// Starting enemy health, per difficulty
 #define ENEMY_HEALTH_E             1
 #define ENEMY_HEALTH_M             2
 #define ENEMY_HEALTH_H             4
 
-// Helper macro to return the absolute value of an integer
-#define ABS(X) (((X) < 0) ? -(X) : (X))
+// Effective radar distance
+#define RADAR_RANGE               81 ///< Radar distance, in cells squared (i.e. range 9 -> 81)
 
-#define RADAR_RANGE 81 // Square of the range in cells
+// Game over defines
+#define GAME_OVER_BUTTON_LOCK_US 2000000
 
 /*==============================================================================
  * Enums
@@ -1313,7 +1334,7 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
         // And it's fewer than six units away
         float distSqr = ((rc->sprites[spriteIdxShot].posX - rc->posX) * (rc->sprites[spriteIdxShot].posX - rc->posX)) +
                         ((rc->sprites[spriteIdxShot].posY - rc->posY) * (rc->sprites[spriteIdxShot].posY - rc->posY));
-        if(distSqr < 36.0f)
+        if(distSqr < GUITAR_SHOT_RANGE)
         {
             // And it's not already getting shot or dead
             if(rc->sprites[spriteIdxShot].state != E_GOT_SHOT &&
@@ -1373,11 +1394,11 @@ void ICACHE_FLASH_ATTR sortSprites(int32_t* order, float* dist, int32_t amount)
  */
 void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
 {
-    float frameTime = (tElapsedUs) / 1000000.0;
+    float frameTime = (tElapsedUs) / USEC_IN_SEC;
 
     // speed modifiers
-    float moveSpeed = frameTime * 5.0; // the constant value is in squares/second
-    float rotSpeed = frameTime * 3.0; // the constant value is in radians/second
+    float moveSpeed = frameTime * PLAYER_MOVE_SPEED;
+    float rotSpeed = frameTime * PLAYER_ROT_SPEED;
 
     // move forward if no wall in front of you
     if(rc->rButtonState & 0x08)
@@ -1487,7 +1508,7 @@ float ICACHE_FLASH_ATTR Q_rsqrt( float number )
  */
 void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
 {
-    float frameTimeSec = (tElapsedUs) / 1000000.0;
+    float frameTimeSec = (tElapsedUs) / USEC_IN_SEC;
 
     // Keep track of the closest live sprite
     rc->closestDist = 0xFFFFFFFF;
@@ -1502,17 +1523,17 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
         case RC_NUM_DIFFICULTIES:
         case RC_EASY:
         {
-            moveSpeed = frameTimeSec * 0.7f; // the constant value is in squares/second
+            moveSpeed = frameTimeSec * SPRITE_MOVE_SPEED_E;
             break;
         }
         case RC_MED:
         {
-            moveSpeed = frameTimeSec * 1.0f;
+            moveSpeed = frameTimeSec * SPRITE_MOVE_SPEED_M;
             break;
         }
         case RC_HARD:
         {
-            moveSpeed = frameTimeSec * 1.5f;
+            moveSpeed = frameTimeSec * SPRITE_MOVE_SPEED_H;
             break;
         }
     }
@@ -1638,15 +1659,15 @@ void ICACHE_FLASH_ATTR moveEnemies(uint32_t tElapsedUs)
                         case 1:
                         {
                             // Rotate 45 degrees
-                            toPlayerX = toPlayerX * 0.70710678f - toPlayerY * 0.70710678f;
-                            toPlayerY = toPlayerY * 0.70710678f + toPlayerX * 0.70710678f;
+                            toPlayerX = toPlayerX * PI_DIV_4 - toPlayerY * PI_DIV_4;
+                            toPlayerY = toPlayerY * PI_DIV_4 + toPlayerX * PI_DIV_4;
                             break;
                         }
                         case 2:
                         {
                             // Rotate -45 degrees
-                            toPlayerX = toPlayerX * 0.70710678f + toPlayerY * 0.70710678f;
-                            toPlayerY = toPlayerY * 0.70710678f - toPlayerX * 0.70710678f;
+                            toPlayerX = toPlayerX * PI_DIV_4 + toPlayerY * PI_DIV_4;
+                            toPlayerY = toPlayerY * PI_DIV_4 - toPlayerX * PI_DIV_4;
                             break;
                         }
                     }
@@ -2222,9 +2243,9 @@ void ICACHE_FLASH_ATTR drawHUD(void)
     {
         // Plot the elapsed time
         uint32_t tElapsed = system_get_time() - rc->tRoundStartedUs;
-        uint32_t dSec = (tElapsed / 100000) % 10;
-        uint32_t sec  = (tElapsed / 1000000) % 60;
-        uint32_t min  = (tElapsed / (1000000 * 60));
+        uint32_t dSec = (tElapsed / USEC_IN_DSEC) % 10;
+        uint32_t sec  = (tElapsed / (int)USEC_IN_SEC) % 60;
+        uint32_t min  = (tElapsed / (USEC_IN_SEC * 60));
         char timestr[64] = {0};
         ets_snprintf(timestr, sizeof(timestr), "%02d:%02d.%d", min, sec, dSec);
         int16_t timeWidth = textWidth(timestr, TOM_THUMB);
@@ -2246,7 +2267,7 @@ void ICACHE_FLASH_ATTR raycasterEndRound(void)
 
     // Show game over screen, disable radar
     rc->mode = RC_GAME_OVER;
-    rc->gameOverButtonLockUs = 2000000;
+    rc->gameOverButtonLockUs = GAME_OVER_BUTTON_LOCK_US;
     rc->closestDist = 0xFFFFFFFF;
     rc->closestAngle = 0;
     rc->radarObstructed = false;
@@ -2263,9 +2284,9 @@ void ICACHE_FLASH_ATTR raycasterEndRound(void)
 void ICACHE_FLASH_ATTR raycasterDrawRoundOver(uint32_t tElapsedUs)
 {
     // Break down the elapsed time in microseconds to human readable numbers
-    uint32_t dSec = (rc->tRoundElapsed / 100000) % 10;
-    uint32_t sec  = (rc->tRoundElapsed / 1000000) % 60;
-    uint32_t min  = (rc->tRoundElapsed / (1000000 * 60));
+    uint32_t dSec = (rc->tRoundElapsed / USEC_IN_DSEC) % 10;
+    uint32_t sec  = (rc->tRoundElapsed / (int)USEC_IN_SEC) % 60;
+    uint32_t min  = (rc->tRoundElapsed / (USEC_IN_SEC * 60));
 
     // Create the time and kills string
     char timestr[64] = {0};
@@ -2513,9 +2534,9 @@ void ICACHE_FLASH_ATTR raycasterDrawScores(void)
         if(score->kills > 0 || score->tElapsedUs > 0)
         {
             // Make the time human readable
-            uint32_t dSec = (score->tElapsedUs / 100000) % 10;
-            uint32_t sec  = (score->tElapsedUs / 1000000) % 60;
-            uint32_t min  = (score->tElapsedUs / (1000000 * 60));
+            uint32_t dSec = (score->tElapsedUs / USEC_IN_DSEC) % 10;
+            uint32_t sec  = (score->tElapsedUs / (int)USEC_IN_SEC) % 60;
+            uint32_t min  = (score->tElapsedUs / (USEC_IN_SEC * 60));
 
             // Print the string to an array
             char scoreStr[64] = {0};
