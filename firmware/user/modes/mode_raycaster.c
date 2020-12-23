@@ -90,6 +90,10 @@
 // Effective radar distance
 #define RADAR_RANGE               81 ///< Radar distance, in cells squared (i.e. range 9 -> 81)
 
+// Input timer
+#define STRAFE_BUTTON_TIMEOUT 500000 ///< Time allowed between strafe double-taps
+#define STRAFE_TIME           250000 ///< Time spent strafing per double-tap
+
 // Game over defines
 #define GAME_OVER_BUTTON_LOCK_US 2000000
 
@@ -175,6 +179,8 @@ typedef struct
     menu_t* menu;
 
     uint8_t rButtonState;
+    int32_t strafeLeftTmr;
+    int32_t strafeRightTmr;
     float posX;
     float posY;
     float dirX;
@@ -545,6 +551,8 @@ void ICACHE_FLASH_ATTR raycasterInitGame(raycasterDifficulty_t difficulty)
 
     // Clear the button state
     rc->rButtonState = 0;
+    rc->strafeLeftTmr = 0;
+    rc->strafeRightTmr = 0;
 
     // x and y start position
     rc->posY = 8;
@@ -1418,6 +1426,67 @@ void ICACHE_FLASH_ATTR sortSprites(int32_t* order, float* dist, int32_t amount)
  */
 void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
 {
+    // Double tap means strafe
+    static uint8_t buttonStateLast = 0;
+    static int32_t strafeTmr[2] = {0};
+    static uint8_t strafeBtn[2] = {0};
+    static const uint8_t strafeMasks[] = {LEFT_MASK, RIGHT_MASK};
+
+    // Run double tap detection for left and right buttons
+    for(int i = 0; i < 2; i++)
+    {
+        // Run down strafe timer
+        if(strafeTmr[i] > 0)
+        {
+            strafeTmr[i] -= tElapsedUs;
+        }
+        else
+        {
+            // Clear all taps
+            strafeBtn[i] = 0;
+        }
+
+        // Check for presses and releases
+        if(!(buttonStateLast & strafeMasks[i]) && (rc->rButtonState & strafeMasks[i]))
+        {
+            // Button press
+            if(0 >= strafeTmr[i])
+            {
+                // First tap
+                strafeTmr[i] = STRAFE_BUTTON_TIMEOUT;
+                strafeBtn[i] = 0;
+            }
+        }
+        else if((buttonStateLast & strafeMasks[i]) && !(rc->rButtonState & strafeMasks[i]))
+        {
+            // Button release
+            if(strafeTmr[i] > 0)
+            {
+                // Button released while timer is active, count as a tap
+                strafeBtn[i]++;
+                // If there are two taps
+                if(2 == strafeBtn[i])
+                {
+                    // Strafe!
+                    strafeTmr[i] = 0;
+                    strafeBtn[i] = 0;
+
+                    if(LEFT_MASK == strafeMasks[i])
+                    {
+                        rc->strafeLeftTmr = STRAFE_TIME;
+                    }
+                    else
+                    {
+                        rc->strafeRightTmr = STRAFE_TIME;
+                    }
+                }
+            }
+        }
+    }
+
+    // Save this button state to detect taps later
+    buttonStateLast = rc->rButtonState;
+
     float frameTime = (tElapsedUs) / USEC_IN_SEC;
 
     // speed modifiers
@@ -1449,7 +1518,7 @@ void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
     }
 
     // move forward if no wall in front of you
-    if(rc->rButtonState & 0x08)
+    if(rc->rButtonState & UP_MASK)
     {
         if(MAP_TILE((int32_t)(rc->posX + rc->dirX * moveSpeed), (int32_t)(rc->posY)) > WMT_C)
         {
@@ -1462,7 +1531,7 @@ void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
     }
 
     // move backwards if no wall behind you
-    if(rc->rButtonState & 0x02)
+    if(rc->rButtonState & DOWN_MASK)
     {
         if(MAP_TILE((int32_t)(rc->posX - rc->dirX * moveSpeed), (int32_t)(rc->posY)) > WMT_C)
         {
@@ -1474,8 +1543,38 @@ void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
         }
     }
 
+    // Strafe left
+    if(rc->strafeLeftTmr > 0)
+    {
+        if(MAP_TILE((int32_t)(rc->posX - rc->dirY * moveSpeed), (int32_t)(rc->posY)) > WMT_C)
+        {
+            rc->posX -= rc->dirY * moveSpeed;
+        }
+        if(MAP_TILE((int32_t)(rc->posX), (int32_t)(rc->posY + rc->dirX * moveSpeed)) > WMT_C)
+        {
+            rc->posY += rc->dirX * moveSpeed;
+        }
+
+        rc->strafeLeftTmr -= tElapsedUs;
+    }
+
+    // Strafe right
+    if(rc->strafeRightTmr > 0)
+    {
+        if(MAP_TILE((int32_t)(rc->posX + rc->dirY * moveSpeed), (int32_t)(rc->posY)) > WMT_C)
+        {
+            rc->posX += rc->dirY * moveSpeed;
+        }
+        if(MAP_TILE((int32_t)(rc->posX), (int32_t)(rc->posY - rc->dirX * moveSpeed)) > WMT_C)
+        {
+            rc->posY -= rc->dirX * moveSpeed;
+        }
+
+        rc->strafeRightTmr -= tElapsedUs;
+    }
+
     // rotate to the right
-    if(rc->rButtonState & 0x04)
+    if(rc->rButtonState & RIGHT_MASK)
     {
         // both camera direction and camera plane must be rotated
         float oldDirX = rc->dirX;
@@ -1487,7 +1586,7 @@ void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
     }
 
     // rotate to the left
-    if(rc->rButtonState & 0x01)
+    if(rc->rButtonState & LEFT_MASK)
     {
         // both camera direction and camera plane must be rotated
         float oldDirX = rc->dirX;
@@ -1512,14 +1611,14 @@ void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
     static bool triggerPulled = false;
 
     // If the trigger hasn't been pulled, and the button was pressed, and cooldown isn't active
-    if(!triggerPulled && (rc->rButtonState & 0x10) && 0 == rc->shotCooldown)
+    if(!triggerPulled && (rc->rButtonState & ACTION_MASK) && 0 == rc->shotCooldown)
     {
         // Set the cooldown, tell drawSprites() to check the shot, and pull the trigger
         rc->shotCooldown = PLAYER_SHOT_COOLDOWN;
         rc->checkShot = true;
         triggerPulled = true;
     }
-    else if(triggerPulled && (rc->rButtonState & 0x10) == 0)
+    else if(triggerPulled && (rc->rButtonState & ACTION_MASK) == 0)
     {
         // If the button was released, release the trigger
         triggerPulled = false;
