@@ -298,6 +298,11 @@ static const timeSignature tSigs[] =
     {.top = 4, .bottom = 4},
     {.top = 3, .bottom = 4},
     {.top = 2, .bottom = 4},
+    {.top = 1, .bottom = 4},
+    {.top = 8, .bottom = 4},
+    {.top = 7, .bottom = 4},
+    {.top = 6, .bottom = 4},
+    {.top = 5, .bottom = 4},
 };
 
 /*============================================================================
