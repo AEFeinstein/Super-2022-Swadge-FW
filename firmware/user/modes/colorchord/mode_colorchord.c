@@ -110,6 +110,8 @@ void ICACHE_FLASH_ATTR colorchordEnterMode(void)
     cc.tLastCallUs = 0;
     cc.shouldExit = false;
     timerSetFn(&(cc.exitTimer), ccExitTimerFn, NULL);
+
+    enableDebounce(false);
 }
 
 /**
