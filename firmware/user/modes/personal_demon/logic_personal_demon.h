@@ -95,6 +95,7 @@ event_t;
 typedef struct __attribute__((aligned(4)))
 {
     int32_t hunger; ///< 0 hunger is perfect, positive means too hungry, negative means too full
+    int32_t hungerLast;
     int32_t happy;
     int32_t discipline;
     int32_t health;

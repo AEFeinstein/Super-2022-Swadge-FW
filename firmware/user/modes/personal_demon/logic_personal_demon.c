@@ -89,6 +89,7 @@ void ICACHE_FLASH_ATTR feedDemon(demon_t* pd)
     {
         animateEvent(EVT_NO_EAT_SICK);
         // Get a bit hungrier
+        pd->hungerLast = pd->hunger;
         INC_BOUND(pd->hunger, HUNGER_GAINED_PER_MEDICINE,  INT32_MIN, INT32_MAX);
     }
     // If the demon has no discipline, it may refuse to eat
@@ -98,6 +99,7 @@ void ICACHE_FLASH_ATTR feedDemon(demon_t* pd)
         {
             animateEvent(EVT_NO_EAT_DISCIPLINE);
             // Get a bit hungrier
+            pd->hungerLast = pd->hunger;
             INC_BOUND(pd->hunger, HUNGER_GAINED_PER_MEDICINE,  INT32_MIN, INT32_MAX);
         }
         else
@@ -152,6 +154,7 @@ bool ICACHE_FLASH_ATTR eatFood(demon_t* pd)
             pd->stomach[i] = 3 + (os_random() % 4);
 
             // Feeding always makes the demon less hungry
+            pd->hungerLast = pd->hunger;
             INC_BOUND(pd->hunger, -HUNGER_LOST_PER_FEEDING,  INT32_MIN, INT32_MAX);
             return true;
         }
@@ -197,6 +200,7 @@ void ICACHE_FLASH_ATTR playWithDemon(demon_t* pd)
     }
 
     // Playing makes the demon hungry
+    pd->hungerLast = pd->hunger;
     INC_BOUND(pd->hunger, HUNGER_GAINED_PER_PLAY,  INT32_MIN, INT32_MAX);
 }
 
@@ -225,6 +229,7 @@ void ICACHE_FLASH_ATTR scoldDemon(demon_t* pd)
     }
 
     // Disciplining makes the demon hungry
+    pd->hungerLast = pd->hunger;
     INC_BOUND(pd->hunger, HUNGER_GAINED_PER_SCOLD,  INT32_MIN, INT32_MAX);
 }
 
@@ -300,6 +305,7 @@ void ICACHE_FLASH_ATTR medicineDemon(demon_t* pd)
     INC_BOUND(pd->happy, -HAPPINESS_LOST_PER_MEDICINE,  INT32_MIN, INT32_MAX);
 
     // Giving medicine to the demon makes the demon hungry
+    pd->hungerLast = pd->hunger;
     INC_BOUND(pd->hunger, HUNGER_GAINED_PER_MEDICINE,  INT32_MIN, INT32_MAX);
 }
 
@@ -325,6 +331,7 @@ void ICACHE_FLASH_ATTR flushPoop(demon_t* pd)
     }
 
     // Flushing makes the demon hungry
+    pd->hungerLast = pd->hunger;
     INC_BOUND(pd->hunger, HUNGER_GAINED_PER_FLUSH,  INT32_MIN, INT32_MAX);
 }
 
@@ -358,11 +365,13 @@ void ICACHE_FLASH_ATTR wheelResult(demon_t* pd, action_t result)
             if(pd->hunger > 0)
             {
                 // If the demon is hungry, feed it
+                pd->hungerLast = pd->hunger;
                 INC_BOUND(pd->hunger, -(2 * HUNGER_LOST_PER_FEEDING), 0, INT32_MAX);
             }
             else if(pd->hunger < 0)
             {
                 // If the demon is full, make it less hungry
+                pd->hungerLast = pd->hunger;
                 INC_BOUND(pd->hunger, 2 * HUNGER_LOST_PER_FEEDING, INT32_MIN, 0);
             }
             // Also heals sickness
@@ -508,10 +517,12 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
             enqueueEvt(pd, EVT_GOT_SICK_OBESE);
         }
 
-        // decrease the health
-        INC_BOUND(pd->health, -HEALTH_LOST_PER_OBE_MAL,  INT32_MIN, INT32_MAX);
-
-        animateEvent(EVT_LOST_HEALTH_OBESITY);
+        if(pd->hungerLast < OBESE_THRESHOLD)
+        {
+            // decrease the health
+            INC_BOUND(pd->health, -HEALTH_LOST_PER_OBE_MAL,  INT32_MIN, INT32_MAX);
+            animateEvent(EVT_LOST_HEALTH_OBESITY);
+        }
     }
     else if (pd->hunger > MALNOURISHED_THRESHOLD)
     {
@@ -521,9 +532,12 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
             enqueueEvt(pd, EVT_GOT_SICK_MALNOURISHED);
         }
 
-        // decrease the health
-        INC_BOUND(pd->health, -HEALTH_LOST_PER_OBE_MAL,  INT32_MIN, INT32_MAX);
-        animateEvent(EVT_LOST_HEALTH_MALNOURISHMENT);
+        if(pd->hungerLast > MALNOURISHED_THRESHOLD)
+        {
+            // decrease the health
+            INC_BOUND(pd->health, -HEALTH_LOST_PER_OBE_MAL,  INT32_MIN, INT32_MAX);
+            animateEvent(EVT_LOST_HEALTH_MALNOURISHMENT);
+        }
     }
 
     /***************************************************************************
