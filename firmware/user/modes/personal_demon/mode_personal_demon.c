@@ -757,59 +757,69 @@ bool ICACHE_FLASH_ATTR personalDemonAnimationRender(void)
                 }
             }
 
-            // Draw the menu text for this screen
-            // Shift the text 1px every 20ms
-            static uint32_t marqueeTextAccum = 0;
-            marqueeTextAccum += tElapsed;
-            int16_t pxToShift = 0;
-            while(marqueeTextAccum > 20000)
+            // If there's any text
+            if(pd->marqueeTextQueue.length > 0)
             {
-                pxToShift++;
-                marqueeTextAccum -= 20000;
-            }
-
-            // If there's anything in the text marquee queue
-            if(pd->marqueeTextQueue.length > 0 && pxToShift > 0)
-            {
-                // Clear the text background first
-                fillDisplayArea(0, 0, OLED_WIDTH, FONT_HEIGHT_IBMVGA8, BLACK);
-                // Iterate through all the text
-                node_t* node = pd->marqueeTextQueue.first;
-
-                // Shift all the text
-                while(NULL != node)
+                // Draw the menu text for this screen
+                // Shift the text 1px every 20ms, and an extra 5ms for each queued text
+                static uint32_t marqueeTextAccum = 0;
+                marqueeTextAccum += tElapsed;
+                int16_t pxToShift = 0;
+                int32_t usPerPixel = 20000 - ((pd->marqueeTextQueue.length - 1) * 2500);
+                if(usPerPixel < 0)
                 {
-                    // Get the text from the queue
-                    marqueeText_t* text = node->val;
-
-                    // Iterate to the next
-                    node = node->next;
-
-                    // Shift the text if it's time
-                    text->pos -= pxToShift;
+                    usPerPixel = 7500; // Cap out at 7.5us per pixel
                 }
 
-                // Then draw the necessary text
-                node = pd->marqueeTextQueue.first;
-                while(NULL != node)
+                while(marqueeTextAccum > usPerPixel)
                 {
-                    // Get the text from the queue
-                    marqueeText_t* text = node->val;
+                    pxToShift++;
+                    marqueeTextAccum -= usPerPixel;
+                }
 
-                    // Iterate to the next
-                    node = node->next;
+                // If there's anything in the text marquee queue
+                if(pxToShift > 0)
+                {
+                    // Clear the text background first
+                    fillDisplayArea(0, 0, OLED_WIDTH, FONT_HEIGHT_IBMVGA8, BLACK);
+                    // Iterate through all the text
+                    node_t* node = pd->marqueeTextQueue.first;
 
-                    // Plot the text that's on the OLED
-                    if(text->pos >= OLED_WIDTH)
+                    // Shift all the text
+                    while(NULL != node)
                     {
-                        // Out of bounds, so break
-                        break;
+                        // Get the text from the queue
+                        marqueeText_t* text = node->val;
+
+                        // Iterate to the next
+                        node = node->next;
+
+                        // Shift the text if it's time
+                        text->pos -= pxToShift;
                     }
-                    else if (0 > plotText(text->pos, 0, text->str, IBM_VGA_8, WHITE))
+
+                    // Then draw the necessary text
+                    node = pd->marqueeTextQueue.first;
+                    while(NULL != node)
                     {
-                        // If the text was plotted off the screen, remove it from the queue
-                        shift(&(pd->marqueeTextQueue));
-                        os_free(text);
+                        // Get the text from the queue
+                        marqueeText_t* text = node->val;
+
+                        // Iterate to the next
+                        node = node->next;
+
+                        // Plot the text that's on the OLED
+                        if(text->pos >= OLED_WIDTH)
+                        {
+                            // Out of bounds, so break
+                            break;
+                        }
+                        else if (0 > plotText(text->pos, 0, text->str, IBM_VGA_8, WHITE))
+                        {
+                            // If the text was plotted off the screen, remove it from the queue
+                            shift(&(pd->marqueeTextQueue));
+                            os_free(text);
+                        }
                     }
                 }
             }
