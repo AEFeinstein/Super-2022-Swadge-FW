@@ -206,7 +206,7 @@ linkedInfo_t* ICACHE_FLASH_ATTR addItemToRow(menu_t* menu, const char* name)
 
 /**
  * Remove an item from the menu. This will iterate through all rows and all
- * items and remove the first item whose name matches the given pointer 
+ * items and remove the first item whose name matches the given pointer
  *
  * @param menu The menu to remove an item from
  * @param name A pointer to the name of an item to remove. Must match the
@@ -229,8 +229,19 @@ void ICACHE_FLASH_ATTR removeItemFromMenu(menu_t* menu, const char* name)
                 item->next->prev = item->prev;
                 // Relink the next node
                 item->prev->next = item->next;
+
+                // Decrement the item count
+                rowInfo.numItems--;
+                // If this row started with this item
+                if(rowInfo.items == item)
+                {
+                    // Point it to the next one instead
+                    rowInfo.items = item->next;
+                }
+
                 // Free this node
                 os_free(item);
+
                 // Return now that an item was removed
                 return;
             }
