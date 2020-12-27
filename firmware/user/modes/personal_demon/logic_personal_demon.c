@@ -51,6 +51,41 @@
 #define ACTIONS_UNTIL_TEEN  33
 #define ACTIONS_UNTIL_ADULT 66
 
+/*** Probabilities ***/
+
+#define PCT_SICK_NO_EAT        50 ///< Percent chance a demon may refuse food
+#define PCT_DISCIPLINE_NO_EAT  50
+
+#define PCT_DISCIPLINE_1       50 ///< A little negative discipline may fail
+#define PCT_DISCIPLINE_2       63
+#define PCT_DISCIPLINE_3       75
+#define PCT_DISCIPLINE_4       88 ///< A lot of negative discipline will probably fail
+#define PCT_DISCIPLINE_TEEN    25 ///< Teenagers sometimes fail for no reason
+#define PCT_DISCIPLINE_ADULT   13 ///< Adults too, but less common
+
+#define PCT_MEDICINE_SUCCESS   85 ///< Percent chance medicine works
+
+#define PCT_RANDOM_SICK_KID     7 ///< Percent chance a demon gets sick randomly
+#define PCT_RANDOM_SICK_TEEN    8
+#define PCT_RANDOM_SICK_ADULT  10 ///< Adults are naturally sicker
+
+#define PCT_POOP_SICK_1        25 ///< Percent change poop makes a demon sick
+#define PCT_POOP_SICK_2        50
+#define PCT_POOP_SICK_3        75
+#define PCT_POOP_SICK_4       100 ///< Four poops is the plague
+
+#define PCT_SICK_OBESITY       63 ///< Percent chance a status makes the demon sick
+#define PCT_SICK_MALNOURISHED  63
+
+#define PCT_LOST_DISCIPLINE_P  13 ///< Percent chance a demon loses discipline, based on happiness
+#define PCT_LOST_DISCIPLINE_0  25
+#define PCT_LOST_DISCIPLINE_1  50
+#define PCT_LOST_DISCIPLINE_2  75
+#define PCT_LOST_DISCIPLINE_3 100 ///< -3 happiness always loses discipline
+
+#define DIGEST_MIN              3 ///< Minimum number of cycles to digest food
+#define DIGEST_MAX              7 ///< Maximum number of cycles to digest food
+
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
@@ -85,7 +120,7 @@ void ICACHE_FLASH_ATTR feedDemon(demon_t* pd)
     INC_BOUND(pd->actionsTaken, 1, 0, INT16_MAX);
 
     // If the demon is sick, there's a 50% chance it refuses to eat
-    if (pd->isSick && os_random() % 2)
+    if (pd->isSick && ((os_random() % 100) < PCT_SICK_NO_EAT))
     {
         animateEvent(EVT_NO_EAT_SICK);
         // Get a bit hungrier
@@ -95,7 +130,7 @@ void ICACHE_FLASH_ATTR feedDemon(demon_t* pd)
     // If the demon has no discipline, it may refuse to eat
     else if (disciplineCheck(pd))
     {
-        if(os_random() % 2 == 0)
+        if(((os_random() % 100) < PCT_DISCIPLINE_NO_EAT))
         {
             animateEvent(EVT_NO_EAT_DISCIPLINE);
             // Get a bit hungrier
@@ -151,7 +186,7 @@ bool ICACHE_FLASH_ATTR eatFood(demon_t* pd)
             }
 
             // Give the food between 4 and 7 cycles to digest
-            pd->stomach[i] = 3 + (os_random() % 4);
+            pd->stomach[i] = DIGEST_MIN + (os_random() % (DIGEST_MAX - DIGEST_MIN));
 
             // Feeding always makes the demon less hungry
             pd->hungerLast = pd->hunger;
@@ -246,29 +281,29 @@ bool ICACHE_FLASH_ATTR disciplineCheck(demon_t* pd)
         {
             case -1:
             {
-                return (os_random() % 8) < 4;
+                return (os_random() % 100) < PCT_DISCIPLINE_1;
             }
             case -2:
             {
-                return (os_random() % 8) < 5;
+                return (os_random() % 100) < PCT_DISCIPLINE_2;
             }
             case -3:
             {
-                return (os_random() % 8) < 6;
+                return (os_random() % 100) < PCT_DISCIPLINE_3;
             }
             default:
             {
-                return (os_random() % 8) < 7;
+                return (os_random() % 100) < PCT_DISCIPLINE_4;
             }
         }
     }
     else if(AGE_TEEN == pd->age)
     {
-        return (os_random() % 8) < 2;
+        return (os_random() % 100) < PCT_DISCIPLINE_TEEN;
     }
     else if(AGE_ADULT == pd->age)
     {
-        return (os_random() % 8) < 1;
+        return (os_random() % 100) < PCT_DISCIPLINE_ADULT;
     }
     else
     {
@@ -290,8 +325,8 @@ void ICACHE_FLASH_ATTR medicineDemon(demon_t* pd)
     {
         animateEvent(EVT_MEDICINE_NOT_SICK);
     }
-    // 6/8 chance the demon is healed
-    else if (os_random() % 8 < 6)
+    // 85.16% chance the demon is healed
+    else if ((os_random() % 100) < PCT_MEDICINE_SUCCESS)
     {
         animateEvent(EVT_MEDICINE_CURE);
         pd->isSick = false;
@@ -444,7 +479,7 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
         case AGE_CHILD:
         {
             // Kids are the healthiest
-            if (os_random() % 14 == 0)
+            if ((os_random() % 100) < PCT_RANDOM_SICK_KID)
             {
                 enqueueEvt(pd, EVT_GOT_SICK_RANDOMLY);
             }
@@ -453,7 +488,7 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
         case AGE_TEEN:
         {
             // Teens are a little sicker
-            if (os_random() % 12 == 0)
+            if ((os_random() % 100) < PCT_RANDOM_SICK_TEEN)
             {
                 enqueueEvt(pd, EVT_GOT_SICK_RANDOMLY);
             }
@@ -462,7 +497,7 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
         case AGE_ADULT:
         {
             // Adults are the sickest
-            if (os_random() % 10 == 0)
+            if ((os_random() % 100) < PCT_RANDOM_SICK_ADULT)
             {
                 enqueueEvt(pd, EVT_GOT_SICK_RANDOMLY);
             }
@@ -493,9 +528,43 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
     // 2 poop  -> 50% chance
     // 3 poop  -> 75% chance
     // 4+ poop -> 100% chance
-    if ((int32_t)(os_random() % 4) > (3 - pd->poopCount))
+    if(pd->poopCount > 0)
     {
-        enqueueEvt(pd, EVT_GOT_SICK_POOP);
+        switch(pd->poopCount)
+        {
+            case 1:
+            {
+                if((os_random() % 100) < PCT_POOP_SICK_1)
+                {
+                    enqueueEvt(pd, EVT_GOT_SICK_POOP);
+                }
+                break;
+            }
+            case 2:
+            {
+                if((os_random() % 100) < PCT_POOP_SICK_2)
+                {
+                    enqueueEvt(pd, EVT_GOT_SICK_POOP);
+                }
+                break;
+            }
+            case 3:
+            {
+                if((os_random() % 100) < PCT_POOP_SICK_3)
+                {
+                    enqueueEvt(pd, EVT_GOT_SICK_POOP);
+                }
+                break;
+            }
+            default:
+            {
+                if((os_random() % 100) < PCT_POOP_SICK_4)
+                {
+                    enqueueEvt(pd, EVT_GOT_SICK_POOP);
+                }
+                break;
+            }
+        }
     }
 
     // Being around poop makes the demon sad
@@ -512,7 +581,7 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
     if (pd->hunger < OBESE_THRESHOLD)
     {
         // 5/8 chance the demon becomes sick
-        if ((os_random() % 8) >= 5)
+        if((os_random() % 100) < PCT_SICK_OBESITY)
         {
             enqueueEvt(pd, EVT_GOT_SICK_OBESE);
         }
@@ -527,7 +596,7 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
     else if (pd->hunger > MALNOURISHED_THRESHOLD)
     {
         // 5/8 chance the demon becomes sick
-        if ((os_random() % 8) >= 5)
+        if((os_random() % 100) < PCT_SICK_MALNOURISHED)
         {
             enqueueEvt(pd, EVT_GOT_SICK_MALNOURISHED);
         }
@@ -554,13 +623,50 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
         // -1  -> 50%
         // -2  -> 75%
         // -3  -> 100%
-        if (pd->happy > 0 && os_random() % 16 < 1)
+        if (pd->happy > 0)
         {
-            enqueueEvt(pd, EVT_LOST_DISCIPLINE);
+            if((os_random() % 100) < PCT_LOST_DISCIPLINE_P)
+            {
+                enqueueEvt(pd, EVT_LOST_DISCIPLINE);
+            }
         }
-        else if (pd->happy <= 0 && (int32_t)(os_random() % 4) < (1 - pd->happy))
+        else if (pd->happy <= 0)
         {
-            enqueueEvt(pd, EVT_LOST_DISCIPLINE);
+            switch(pd->happy)
+            {
+                case 0:
+                {
+                    if((os_random() % 100) < PCT_LOST_DISCIPLINE_0)
+                    {
+                        enqueueEvt(pd, EVT_LOST_DISCIPLINE);
+                    }
+                    break;
+                }
+                case -1:
+                {
+                    if((os_random() % 100) < PCT_LOST_DISCIPLINE_1)
+                    {
+                        enqueueEvt(pd, EVT_LOST_DISCIPLINE);
+                    }
+                    break;
+                }
+                case -2:
+                {
+                    if((os_random() % 100) < PCT_LOST_DISCIPLINE_2)
+                    {
+                        enqueueEvt(pd, EVT_LOST_DISCIPLINE);
+                    }
+                    break;
+                }
+                default:
+                {
+                    if((os_random() % 100) < PCT_LOST_DISCIPLINE_3)
+                    {
+                        enqueueEvt(pd, EVT_LOST_DISCIPLINE);
+                    }
+                    break;
+                }
+            }
         }
     }
 
