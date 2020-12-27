@@ -119,6 +119,7 @@ void medicineDemon(demon_t* pd);
 void flushPoop(demon_t* pd);
 void spinWheel(demon_t* pd);
 void wheelResult(demon_t* pd, action_t result);
+void drinkChalice(demon_t* pd);
 void updateStatus(demon_t* pd);
 
 event_t dequeueEvt(demon_t* pd);
@@ -416,21 +417,11 @@ void ICACHE_FLASH_ATTR wheelResult(demon_t* pd, action_t result)
     {
         case ACT_WHEEL_CHALICE:
         {
-            // The magic chalice always pulls hunger towards 0
-            if(pd->hunger > 0)
+            // If the demon doesn't have a chalice, give it one
+            if(false == pd->hasChalice)
             {
-                // If the demon is hungry, feed it
-                pd->hungerLast = pd->hunger;
-                INC_BOUND(pd->hunger, -(2 * HUNGER_LOST_PER_FEEDING), 0, MAX_HUNGER);
+                pd->hasChalice = true;
             }
-            else if(pd->hunger < 0)
-            {
-                // If the demon is full, make it less hungry
-                pd->hungerLast = pd->hunger;
-                INC_BOUND(pd->hunger, 2 * HUNGER_LOST_PER_FEEDING, MIN_HUNGER, 0);
-            }
-            // Also heals sickness
-            pd->isSick = false;
             break;
         }
         case ACT_WHEEL_DAGGER:
@@ -452,6 +443,7 @@ void ICACHE_FLASH_ATTR wheelResult(demon_t* pd, action_t result)
             INC_BOUND(pd->health, -STARTING_HEALTH / 8, MIN_HEALTH, MAX_HEALTH);
             break;
         }
+        case ACT_DRINK_CHALICE:
         case ACT_FEED:
         case ACT_PLAY:
         case ACT_DISCIPLINE:
@@ -465,6 +457,41 @@ void ICACHE_FLASH_ATTR wheelResult(demon_t* pd, action_t result)
             // Not actual wheel results
             break;
         }
+    }
+}
+
+/**
+ * @brief Drink from the chalice
+ *
+ * @param pd The demon which will drink deeply
+ */
+void ICACHE_FLASH_ATTR drinkChalice(demon_t* pd)
+{
+    if(true == pd->hasChalice)
+    {
+        pd->hasChalice = false;
+        // The magic chalice always pulls hunger towards 0
+        if(pd->hunger > 0)
+        {
+            // If the demon is hungry, feed it
+            pd->hungerLast = pd->hunger;
+            INC_BOUND(pd->hunger, -(2 * HUNGER_LOST_PER_FEEDING), 0, MAX_HUNGER);
+        }
+        else if(pd->hunger < 0)
+        {
+            // If the demon is full, make it less hungry
+            pd->hungerLast = pd->hunger;
+            INC_BOUND(pd->hunger, 2 * HUNGER_LOST_PER_FEEDING, MIN_HUNGER, 0);
+        }
+        // Also heals sickness
+        pd->isSick = false;
+
+        // Animate the drink
+        animateEvent(EVT_DRINK_CHALICE);
+    }
+    else
+    {
+        // TODO safety if there is no chalice?
     }
 }
 
@@ -735,6 +762,7 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
         case EVT_WHEEL_DAGGER:
         case EVT_WHEEL_HEART:
         case EVT_WHEEL_SKULL:
+        case EVT_DRINK_CHALICE:
         case EVT_LOST_HEALTH_SICK:
         case EVT_LOST_HEALTH_OBESITY:
         case EVT_LOST_HEALTH_MALNOURISHMENT:
@@ -871,6 +899,11 @@ bool ICACHE_FLASH_ATTR takeAction(demon_t* pd, action_t action)
         case ACT_WHEEL_SKULL:
         {
             wheelResult(pd, action);
+            break;
+        }
+        case ACT_DRINK_CHALICE:
+        {
+            drinkChalice(pd);
             break;
         }
         case ACT_QUIT:

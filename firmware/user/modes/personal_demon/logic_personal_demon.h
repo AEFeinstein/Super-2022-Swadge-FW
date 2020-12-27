@@ -35,6 +35,7 @@ typedef enum __attribute__((__packed__))
     ACT_WHEEL_DAGGER,
     ACT_WHEEL_HEART,
     ACT_WHEEL_CHALICE,
+    ACT_DRINK_CHALICE,
     ACT_QUIT,
     ACT_NUM_ACTIONS
 }
@@ -75,6 +76,7 @@ typedef enum __attribute__((__packed__))
     EVT_WHEEL_CHALICE,
     EVT_WHEEL_DAGGER,
     EVT_WHEEL_SKULL,
+    EVT_DRINK_CHALICE,
     // Immediate general events
     EVT_LOST_HEALTH_SICK,
     EVT_LOST_HEALTH_OBESITY,
@@ -108,6 +110,7 @@ typedef struct __attribute__((aligned(4)))
     event_t evQueue[32];
     uint8_t evQueueIdx;
     uint8_t species;
+    bool hasChalice;
 }
 demon_t;
 

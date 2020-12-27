@@ -226,6 +226,7 @@ char menuScold[] = "Scold";
 char menuMeds[]  = "Meds";
 char menuFlush[] = "Flush";
 char menuSpin[] = "Spin";
+char menuDrink[] = "Drink Chalice";
 char menuRecords[] = "Records";
 char menuQuit[]  = "Quit";
 
@@ -535,6 +536,11 @@ static void ICACHE_FLASH_ATTR demonMenuCb(const char* menuItem)
     {
         takeAction(&(pd->demon), ACT_WHEEL_OF_FORTUNE);
     }
+    else if (menuItem == menuDrink)
+    {
+        takeAction(&(pd->demon), ACT_DRINK_CHALICE);
+        removeItemFromMenu(pd->menu, menuDrink);
+    }
     else if(menuItem == menuRecords)
     {
         pd->isDisplayingRecords = true;
@@ -771,7 +777,7 @@ bool ICACHE_FLASH_ATTR personalDemonAnimationRender(void)
                     usPerPixel = 7500; // Cap out at 7.5us per pixel
                 }
 
-                while(marqueeTextAccum > usPerPixel)
+                while(marqueeTextAccum > (uint32_t)usPerPixel)
                 {
                     pxToShift++;
                     marqueeTextAccum -= usPerPixel;
@@ -1074,12 +1080,18 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         }
         case EVT_WHEEL_CHALICE:
         {
-            ets_snprintf(marquee->str, ACT_STRLEN, "%s drank magic water. ", pd->demon.name);
+            ets_snprintf(marquee->str, ACT_STRLEN, "%s found a chalice. ", pd->demon.name);
             break;
         }
         case EVT_WHEEL_DAGGER:
         {
             ets_snprintf(marquee->str, ACT_STRLEN, "%s got in a fight. ", pd->demon.name);
+            break;
+        }
+        case EVT_DRINK_CHALICE:
+        {
+            ets_snprintf(marquee->str, ACT_STRLEN, "%s drank from the chalice. ", pd->demon.name);
+            // TODO actual animation
             break;
         }
         case EVT_LOST_HEALTH_SICK:
@@ -1653,6 +1665,8 @@ void ICACHE_FLASH_ATTR initAnimSpinWheel(void)
     pd->handRot = 0;
 
     pd->wheelRotationsDeg = (360 * 2) + 90 * (os_random() % 4);
+    // TODO for chalice testing
+    // pd->wheelRotationsDeg = 270;
 }
 
 /**
@@ -1688,8 +1702,16 @@ bool ICACHE_FLASH_ATTR updtAnimSpinWheel(uint32_t tElapsedUs)
             // Do what the wheel says
             if(pd->handRot >= 270)
             {
-                takeAction(&(pd->demon), ACT_WHEEL_CHALICE);
-                animateEvent(EVT_WHEEL_CHALICE);
+                if(false == pd->demon.hasChalice)
+                {
+                    addItemToRow(pd->menu, menuDrink);
+                    takeAction(&(pd->demon), ACT_WHEEL_CHALICE);
+                    animateEvent(EVT_WHEEL_CHALICE);
+                }
+                else
+                {
+                    // TODO say you already have a chalice
+                }
             }
             else if(pd->handRot >= 180)
             {
