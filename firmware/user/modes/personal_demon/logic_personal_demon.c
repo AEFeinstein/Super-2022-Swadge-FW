@@ -88,22 +88,22 @@
 
 /*** Stat bounds ***/
 
-#define MIN_HUNGER       INT32_MIN
-#define MAX_HUNGER       INT32_MAX
+#define MIN_HUNGER       INT32_MIN ///< Plus means full. See HUNGER_LOST_PER_FEEDING
+#define MAX_HUNGER       INT32_MAX ///< Minus means hungry
 
-#define MIN_HAPPY        INT32_MIN
-#define MAX_HAPPY        INT32_MAX
+#define MIN_HAPPY        INT32_MIN ///< Plus means happy. See HAPPINESS_GAINED_PER_GAME
+#define MAX_HAPPY        INT32_MAX ///< Minus means sad
 
-#define MIN_DISCIPLINE   INT32_MIN
-#define MAX_DISCIPLINE   INT32_MAX
+#define MIN_DISCIPLINE   INT32_MIN ///< Plus means good boi. See DISCIPLINE_GAINED_PER_SCOLDING
+#define MAX_DISCIPLINE   INT32_MAX ///< Minus means rowdy. See DISCIPLINE_LOST_RANDOMLY
 
-#define MIN_POOP                 0
+#define MIN_POOP                 0 ///< Poop count, self explanatory
 #define MAX_POOP         INT32_MAX
 
-#define MIN_HEALTH               0
+#define MIN_HEALTH               0 ///< Health bounds, mostly for drawing hearts
 #define MAX_HEALTH STARTING_HEALTH
 
-#define MIN_ACTIONS              0
+#define MIN_ACTIONS              0 ///< Action bounds, to prevent overflows
 #define MAX_ACTIONS      INT32_MAX
 
 /*******************************************************************************
