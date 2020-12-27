@@ -17,6 +17,7 @@
 #include "font.h"
 #include "bresenham.h"
 #include "cndraw.h"
+#include "buttons.h"
 
 #if defined(FEATURE_OLED)
 
@@ -217,13 +218,13 @@ void ICACHE_FLASH_ATTR removeItemFromMenu(menu_t* menu, const char* name)
     cLinkedNode_t* row = menu->rows;
     for(int rowIdx = 0; rowIdx < menu->numRows; rowIdx++)
     {
-        rowInfo_t rowInfo = row->d.row;
-        cLinkedNode_t* item = rowInfo.items;
-        for(uint8_t itemIdx = 0; itemIdx < rowInfo.numItems; itemIdx++)
+        rowInfo_t * rowInfo = &(row->d.row);
+        cLinkedNode_t* item = rowInfo->items;
+        for(uint8_t itemIdx = 0; itemIdx < rowInfo->numItems; itemIdx++)
         {
-            itemInfo_t itemInfo = item->d.item;
+            itemInfo_t * itemInfo = &(item->d.item);
             // Comparing pointers, not strings
-            if(itemInfo.name == name)
+            if(itemInfo->name == name)
             {
                 // Relink the previous node
                 item->next->prev = item->prev;
@@ -231,12 +232,12 @@ void ICACHE_FLASH_ATTR removeItemFromMenu(menu_t* menu, const char* name)
                 item->prev->next = item->next;
 
                 // Decrement the item count
-                rowInfo.numItems--;
+                rowInfo->numItems--;
                 // If this row started with this item
-                if(rowInfo.items == item)
+                if(rowInfo->items == item)
                 {
                     // Point it to the next one instead
-                    rowInfo.items = item->next;
+                    rowInfo->items = item->next;
                 }
 
                 // Free this node
@@ -439,21 +440,21 @@ void ICACHE_FLASH_ATTR menuButton(menu_t* menu, int btn)
 
     switch(btn)
     {
-        case 3:
+        case UP:
         {
             // Up pressed, move to the prior row and set a negative offset
             menu->rows = menu->rows->prev;
             menu->yOffset = -(FONT_HEIGHT_IBMVGA8 + ROW_SPACING);
             break;
         }
-        case 1:
+        case DOWN:
         {
             // Down pressed, move to the next row and set a positive offset
             menu->rows = menu->rows->next;
             menu->yOffset = (FONT_HEIGHT_IBMVGA8 + ROW_SPACING);
             break;
         }
-        case 0:
+        case LEFT:
         {
             // Left pressed, only change if there are multiple items in this row
             if(menu->rows->d.row.numItems > 1)
@@ -468,7 +469,7 @@ void ICACHE_FLASH_ATTR menuButton(menu_t* menu, int btn)
             }
             break;
         }
-        case 2:
+        case RIGHT:
         {
             // Right pressed, only change if there are multiple items in this row
             if(menu->rows->d.row.numItems > 1)
@@ -483,7 +484,7 @@ void ICACHE_FLASH_ATTR menuButton(menu_t* menu, int btn)
             }
             break;
         }
-        case 4:
+        case ACTION:
         {
             // Select pressed. Tell the host mode what item was selected
             if(NULL != menu->cbFunc)
