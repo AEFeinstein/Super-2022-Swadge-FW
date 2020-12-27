@@ -205,6 +205,42 @@ linkedInfo_t* ICACHE_FLASH_ATTR addItemToRow(menu_t* menu, const char* name)
 }
 
 /**
+ * Remove an item from the menu. This will iterate through all rows and all
+ * items and remove the first item whose name matches the given pointer 
+ *
+ * @param menu The menu to remove an item from
+ * @param name A pointer to the name of an item to remove. Must match the
+ *             pointer used to add the item
+ */
+void ICACHE_FLASH_ATTR removeItemFromMenu(menu_t* menu, const char* name)
+{
+    cLinkedNode_t* row = menu->rows;
+    for(int rowIdx = 0; rowIdx < menu->numRows; rowIdx++)
+    {
+        rowInfo_t rowInfo = row->d.row;
+        cLinkedNode_t* item = rowInfo.items;
+        for(uint8_t itemIdx = 0; itemIdx < rowInfo.numItems; itemIdx++)
+        {
+            itemInfo_t itemInfo = item->d.item;
+            // Comparing pointers, not strings
+            if(itemInfo.name == name)
+            {
+                // Relink the previous node
+                item->next->prev = item->prev;
+                // Relink the next node
+                item->prev->next = item->next;
+                // Free this node
+                os_free(item);
+                // Return now that an item was removed
+                return;
+            }
+            item = item->next;
+        }
+        row = row->next;
+    }
+}
+
+/**
  * Draw a single row of the menu to the OLED
  *
  * @param row The row to draw
