@@ -51,6 +51,61 @@
 #define ACTIONS_UNTIL_TEEN  33
 #define ACTIONS_UNTIL_ADULT 66
 
+/*** Probabilities ***/
+
+#define PCT_SICK_NO_EAT        50 ///< Percent chance a demon may refuse food
+#define PCT_DISCIPLINE_NO_EAT  50
+
+#define PCT_DISCIPLINE_1       50 ///< A little negative discipline may fail
+#define PCT_DISCIPLINE_2       63
+#define PCT_DISCIPLINE_3       75
+#define PCT_DISCIPLINE_4       88 ///< A lot of negative discipline will probably fail
+#define PCT_DISCIPLINE_TEEN    25 ///< Teenagers sometimes fail for no reason
+#define PCT_DISCIPLINE_ADULT   13 ///< Adults too, but less common
+
+#define PCT_MEDICINE_SUCCESS   85 ///< Percent chance medicine works
+
+#define PCT_RANDOM_SICK_KID     7 ///< Percent chance a demon gets sick randomly
+#define PCT_RANDOM_SICK_TEEN    8
+#define PCT_RANDOM_SICK_ADULT  10 ///< Adults are naturally sicker
+
+#define PCT_POOP_SICK_1        25 ///< Percent change poop makes a demon sick
+#define PCT_POOP_SICK_2        50
+#define PCT_POOP_SICK_3        75
+#define PCT_POOP_SICK_4       100 ///< Four poops is the plague
+
+#define PCT_SICK_OBESITY       63 ///< Percent chance a status makes the demon sick
+#define PCT_SICK_MALNOURISHED  63
+
+#define PCT_LOST_DISCIPLINE_P  13 ///< Percent chance a demon loses discipline, based on happiness
+#define PCT_LOST_DISCIPLINE_0  25
+#define PCT_LOST_DISCIPLINE_1  50
+#define PCT_LOST_DISCIPLINE_2  75
+#define PCT_LOST_DISCIPLINE_3 100 ///< -3 happiness always loses discipline
+
+#define DIGEST_MIN              3 ///< Minimum number of cycles to digest food
+#define DIGEST_MAX              7 ///< Maximum number of cycles to digest food
+
+/*** Stat bounds ***/
+
+#define MIN_HUNGER       INT32_MIN ///< Plus means full. See HUNGER_LOST_PER_FEEDING
+#define MAX_HUNGER       INT32_MAX ///< Minus means hungry
+
+#define MIN_HAPPY        INT32_MIN ///< Plus means happy. See HAPPINESS_GAINED_PER_GAME
+#define MAX_HAPPY        INT32_MAX ///< Minus means sad
+
+#define MIN_DISCIPLINE   INT32_MIN ///< Plus means good boi. See DISCIPLINE_GAINED_PER_SCOLDING
+#define MAX_DISCIPLINE   INT32_MAX ///< Minus means rowdy. See DISCIPLINE_LOST_RANDOMLY
+
+#define MIN_POOP                 0 ///< Poop count, self explanatory
+#define MAX_POOP         INT32_MAX
+
+#define MIN_HEALTH               0 ///< Health bounds, mostly for drawing hearts
+#define MAX_HEALTH STARTING_HEALTH
+
+#define MIN_ACTIONS              0 ///< Action bounds, to prevent overflows
+#define MAX_ACTIONS      INT32_MAX
+
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
@@ -64,6 +119,7 @@ void medicineDemon(demon_t* pd);
 void flushPoop(demon_t* pd);
 void spinWheel(demon_t* pd);
 void wheelResult(demon_t* pd, action_t result);
+void drinkChalice(demon_t* pd);
 void updateStatus(demon_t* pd);
 
 event_t dequeueEvt(demon_t* pd);
@@ -82,23 +138,25 @@ bool enqueueEvt(demon_t* pd, event_t evt);
 void ICACHE_FLASH_ATTR feedDemon(demon_t* pd)
 {
     // Count feeding as an action
-    INC_BOUND(pd->actionsTaken, 1, 0, INT16_MAX);
+    INC_BOUND(pd->actionsTaken, 1, MIN_ACTIONS, MAX_ACTIONS);
 
     // If the demon is sick, there's a 50% chance it refuses to eat
-    if (pd->isSick && os_random() % 2)
+    if (pd->isSick && ((os_random() % 100) < PCT_SICK_NO_EAT))
     {
         animateEvent(EVT_NO_EAT_SICK);
         // Get a bit hungrier
-        INC_BOUND(pd->hunger, HUNGER_GAINED_PER_MEDICINE,  INT32_MIN, INT32_MAX);
+        pd->hungerLast = pd->hunger;
+        INC_BOUND(pd->hunger, HUNGER_GAINED_PER_MEDICINE, MIN_HUNGER, MAX_HUNGER);
     }
     // If the demon has no discipline, it may refuse to eat
     else if (disciplineCheck(pd))
     {
-        if(os_random() % 2 == 0)
+        if(((os_random() % 100) < PCT_DISCIPLINE_NO_EAT))
         {
             animateEvent(EVT_NO_EAT_DISCIPLINE);
             // Get a bit hungrier
-            INC_BOUND(pd->hunger, HUNGER_GAINED_PER_MEDICINE,  INT32_MIN, INT32_MAX);
+            pd->hungerLast = pd->hunger;
+            INC_BOUND(pd->hunger, HUNGER_GAINED_PER_MEDICINE, MIN_HUNGER, MAX_HUNGER);
         }
         else
         {
@@ -141,18 +199,19 @@ bool ICACHE_FLASH_ATTR eatFood(demon_t* pd)
             // If the demon eats when hungry, it gets happy, otherwise it gets sad
             if (pd->hunger > 0)
             {
-                INC_BOUND(pd->happy, HAPPINESS_GAINED_PER_FEEDING_WHEN_HUNGRY,  INT32_MIN, INT32_MAX);
+                INC_BOUND(pd->happy, HAPPINESS_GAINED_PER_FEEDING_WHEN_HUNGRY, MIN_HAPPY, MAX_HAPPY);
             }
             else if(pd->hunger < 0)
             {
-                INC_BOUND(pd->happy, -HAPPINESS_LOST_PER_FEEDING_WHEN_FULL,  INT32_MIN, INT32_MAX);
+                INC_BOUND(pd->happy, -HAPPINESS_LOST_PER_FEEDING_WHEN_FULL, MIN_HAPPY, MAX_HAPPY);
             }
 
             // Give the food between 4 and 7 cycles to digest
-            pd->stomach[i] = 3 + (os_random() % 4);
+            pd->stomach[i] = DIGEST_MIN + (os_random() % (DIGEST_MAX - DIGEST_MIN));
 
             // Feeding always makes the demon less hungry
-            INC_BOUND(pd->hunger, -HUNGER_LOST_PER_FEEDING,  INT32_MIN, INT32_MAX);
+            pd->hungerLast = pd->hunger;
+            INC_BOUND(pd->hunger, -HUNGER_LOST_PER_FEEDING, MIN_HUNGER, MAX_HUNGER);
             return true;
         }
     }
@@ -167,7 +226,7 @@ bool ICACHE_FLASH_ATTR eatFood(demon_t* pd)
 void ICACHE_FLASH_ATTR playWithDemon(demon_t* pd)
 {
     // Count playing as an action
-    INC_BOUND(pd->actionsTaken, 1, 0, INT16_MAX);
+    INC_BOUND(pd->actionsTaken, 1, MIN_ACTIONS, MAX_ACTIONS);
 
     if (disciplineCheck(pd))
     {
@@ -182,13 +241,13 @@ void ICACHE_FLASH_ATTR playWithDemon(demon_t* pd)
             case AGE_CHILD:
             case AGE_TEEN:
             {
-                INC_BOUND(pd->happy, HAPPINESS_GAINED_PER_GAME,  INT32_MIN, INT32_MAX);
+                INC_BOUND(pd->happy, HAPPINESS_GAINED_PER_GAME, MIN_HAPPY, MAX_HAPPY);
                 break;
             }
             case AGE_ADULT:
             {
                 // Adults don't get as happy per play as kids
-                INC_BOUND(pd->happy, HAPPINESS_GAINED_PER_GAME / 2,  INT32_MIN, INT32_MAX);
+                INC_BOUND(pd->happy, HAPPINESS_GAINED_PER_GAME / 2, MIN_HAPPY, MAX_HAPPY);
                 break;
             }
         }
@@ -197,7 +256,8 @@ void ICACHE_FLASH_ATTR playWithDemon(demon_t* pd)
     }
 
     // Playing makes the demon hungry
-    INC_BOUND(pd->hunger, HUNGER_GAINED_PER_PLAY,  INT32_MIN, INT32_MAX);
+    pd->hungerLast = pd->hunger;
+    INC_BOUND(pd->hunger, HUNGER_GAINED_PER_PLAY, MIN_HUNGER, MAX_HUNGER);
 }
 
 /**
@@ -208,15 +268,15 @@ void ICACHE_FLASH_ATTR playWithDemon(demon_t* pd)
 void ICACHE_FLASH_ATTR scoldDemon(demon_t* pd)
 {
     // Count scolding as an action
-    INC_BOUND(pd->actionsTaken, 1, 0, INT16_MAX);
+    INC_BOUND(pd->actionsTaken, 1, MIN_ACTIONS, MAX_ACTIONS);
 
     // scolding always reduces happiness
-    INC_BOUND(pd->happy, -HAPPINESS_LOST_PER_SCOLDING,  INT32_MIN, INT32_MAX);
+    INC_BOUND(pd->happy, -HAPPINESS_LOST_PER_SCOLDING, MIN_HAPPY, MAX_HAPPY);
 
     // Discipline only increases if the demon is not sick
     if (false == pd->isSick)
     {
-        INC_BOUND(pd->discipline, DISCIPLINE_GAINED_PER_SCOLDING,  INT32_MIN, INT32_MAX);
+        INC_BOUND(pd->discipline, DISCIPLINE_GAINED_PER_SCOLDING, MIN_DISCIPLINE, MAX_DISCIPLINE);
         animateEvent(EVT_SCOLD);
     }
     else
@@ -225,7 +285,8 @@ void ICACHE_FLASH_ATTR scoldDemon(demon_t* pd)
     }
 
     // Disciplining makes the demon hungry
-    INC_BOUND(pd->hunger, HUNGER_GAINED_PER_SCOLD,  INT32_MIN, INT32_MAX);
+    pd->hungerLast = pd->hunger;
+    INC_BOUND(pd->hunger, HUNGER_GAINED_PER_SCOLD, MIN_HUNGER, MAX_HUNGER);
 }
 
 /**
@@ -241,29 +302,29 @@ bool ICACHE_FLASH_ATTR disciplineCheck(demon_t* pd)
         {
             case -1:
             {
-                return (os_random() % 8) < 4;
+                return (os_random() % 100) < PCT_DISCIPLINE_1;
             }
             case -2:
             {
-                return (os_random() % 8) < 5;
+                return (os_random() % 100) < PCT_DISCIPLINE_2;
             }
             case -3:
             {
-                return (os_random() % 8) < 6;
+                return (os_random() % 100) < PCT_DISCIPLINE_3;
             }
             default:
             {
-                return (os_random() % 8) < 7;
+                return (os_random() % 100) < PCT_DISCIPLINE_4;
             }
         }
     }
     else if(AGE_TEEN == pd->age)
     {
-        return (os_random() % 8) < 2;
+        return (os_random() % 100) < PCT_DISCIPLINE_TEEN;
     }
     else if(AGE_ADULT == pd->age)
     {
-        return (os_random() % 8) < 1;
+        return (os_random() % 100) < PCT_DISCIPLINE_ADULT;
     }
     else
     {
@@ -279,14 +340,14 @@ bool ICACHE_FLASH_ATTR disciplineCheck(demon_t* pd)
 void ICACHE_FLASH_ATTR medicineDemon(demon_t* pd)
 {
     // Giving medicine counts as an action
-    INC_BOUND(pd->actionsTaken, 1, 0, INT16_MAX);
+    INC_BOUND(pd->actionsTaken, 1, MIN_ACTIONS, MAX_ACTIONS);
 
     if(!pd->isSick)
     {
         animateEvent(EVT_MEDICINE_NOT_SICK);
     }
-    // 6/8 chance the demon is healed
-    else if (os_random() % 8 < 6)
+    // 85.16% chance the demon is healed
+    else if ((os_random() % 100) < PCT_MEDICINE_SUCCESS)
     {
         animateEvent(EVT_MEDICINE_CURE);
         pd->isSick = false;
@@ -297,10 +358,11 @@ void ICACHE_FLASH_ATTR medicineDemon(demon_t* pd)
     }
 
     // Giving medicine to the demon makes the demon sad
-    INC_BOUND(pd->happy, -HAPPINESS_LOST_PER_MEDICINE,  INT32_MIN, INT32_MAX);
+    INC_BOUND(pd->happy, -HAPPINESS_LOST_PER_MEDICINE, MIN_HAPPY, MAX_HAPPY);
 
     // Giving medicine to the demon makes the demon hungry
-    INC_BOUND(pd->hunger, HUNGER_GAINED_PER_MEDICINE,  INT32_MIN, INT32_MAX);
+    pd->hungerLast = pd->hunger;
+    INC_BOUND(pd->hunger, HUNGER_GAINED_PER_MEDICINE, MIN_HUNGER, MAX_HUNGER);
 }
 
 /**
@@ -311,13 +373,13 @@ void ICACHE_FLASH_ATTR medicineDemon(demon_t* pd)
 void ICACHE_FLASH_ATTR flushPoop(demon_t* pd)
 {
     // Flushing counts as an action
-    INC_BOUND(pd->actionsTaken, 1, 0, INT16_MAX);
+    INC_BOUND(pd->actionsTaken, 1, MIN_ACTIONS, MAX_ACTIONS);
 
     // Clear a poop
     if (pd->poopCount > 0)
     {
         animateEvent(EVT_FLUSH_POOP);
-        INC_BOUND(pd->poopCount, -1,  INT32_MIN, INT32_MAX);
+        INC_BOUND(pd->poopCount, -1, MIN_POOP, MAX_POOP);
     }
     else
     {
@@ -325,7 +387,8 @@ void ICACHE_FLASH_ATTR flushPoop(demon_t* pd)
     }
 
     // Flushing makes the demon hungry
-    INC_BOUND(pd->hunger, HUNGER_GAINED_PER_FLUSH,  INT32_MIN, INT32_MAX);
+    pd->hungerLast = pd->hunger;
+    INC_BOUND(pd->hunger, HUNGER_GAINED_PER_FLUSH, MIN_HUNGER, MAX_HUNGER);
 }
 
 /**
@@ -336,7 +399,7 @@ void ICACHE_FLASH_ATTR flushPoop(demon_t* pd)
 void ICACHE_FLASH_ATTR spinWheel(demon_t* pd)
 {
     // Spinning counts as an action
-    INC_BOUND(pd->actionsTaken, 1, 0, INT16_MAX);
+    INC_BOUND(pd->actionsTaken, 1, MIN_ACTIONS, MAX_ACTIONS);
 
     // Start the wheel spinning, random event is received later
     animateEvent(EVT_SPIN_WHEEL);
@@ -354,40 +417,33 @@ void ICACHE_FLASH_ATTR wheelResult(demon_t* pd, action_t result)
     {
         case ACT_WHEEL_CHALICE:
         {
-            // The magic chalice always pulls hunger towards 0
-            if(pd->hunger > 0)
+            // If the demon doesn't have a chalice, give it one
+            if(false == pd->hasChalice)
             {
-                // If the demon is hungry, feed it
-                INC_BOUND(pd->hunger, -(2 * HUNGER_LOST_PER_FEEDING), 0, INT32_MAX);
+                pd->hasChalice = true;
             }
-            else if(pd->hunger < 0)
-            {
-                // If the demon is full, make it less hungry
-                INC_BOUND(pd->hunger, 2 * HUNGER_LOST_PER_FEEDING, INT32_MIN, 0);
-            }
-            // Also heals sickness
-            pd->isSick = false;
             break;
         }
         case ACT_WHEEL_DAGGER:
         {
             // Lose some discipline and happiness
-            INC_BOUND(pd->discipline, -DISCIPLINE_LOST_RANDOMLY,  INT32_MIN, INT32_MAX);
-            INC_BOUND(pd->happy, -HAPPINESS_LOST_PER_FEEDING_WHEN_FULL,  INT32_MIN, INT32_MAX);
+            INC_BOUND(pd->discipline, -DISCIPLINE_LOST_RANDOMLY, MIN_DISCIPLINE, MAX_DISCIPLINE);
+            INC_BOUND(pd->happy, -HAPPINESS_LOST_PER_FEEDING_WHEN_FULL, MIN_HAPPY, MAX_HAPPY);
             break;
         }
         case ACT_WHEEL_HEART:
         {
             // Gain a heart
-            INC_BOUND(pd->health, STARTING_HEALTH / 4, 0, STARTING_HEALTH);
+            INC_BOUND(pd->health, STARTING_HEALTH / 4, MIN_HEALTH, MAX_HEALTH);
             break;
         }
         case ACT_WHEEL_SKULL:
         {
             // Lose a half a heart
-            INC_BOUND(pd->health, -STARTING_HEALTH / 8, 0, STARTING_HEALTH);
+            INC_BOUND(pd->health, -STARTING_HEALTH / 8, MIN_HEALTH, MAX_HEALTH);
             break;
         }
+        case ACT_DRINK_CHALICE:
         case ACT_FEED:
         case ACT_PLAY:
         case ACT_DISCIPLINE:
@@ -401,6 +457,37 @@ void ICACHE_FLASH_ATTR wheelResult(demon_t* pd, action_t result)
             // Not actual wheel results
             break;
         }
+    }
+}
+
+/**
+ * @brief Drink from the chalice
+ *
+ * @param pd The demon which will drink deeply
+ */
+void ICACHE_FLASH_ATTR drinkChalice(demon_t* pd)
+{
+    if(true == pd->hasChalice)
+    {
+        pd->hasChalice = false;
+        // The magic chalice always pulls hunger towards 0
+        if(pd->hunger > 0)
+        {
+            // If the demon is hungry, feed it
+            pd->hungerLast = pd->hunger;
+            INC_BOUND(pd->hunger, -(2 * HUNGER_LOST_PER_FEEDING), 0, MAX_HUNGER);
+        }
+        else if(pd->hunger < 0)
+        {
+            // If the demon is full, make it less hungry
+            pd->hungerLast = pd->hunger;
+            INC_BOUND(pd->hunger, 2 * HUNGER_LOST_PER_FEEDING, MIN_HUNGER, 0);
+        }
+        // Also heals sickness
+        pd->isSick = false;
+
+        // Animate the drink
+        animateEvent(EVT_DRINK_CHALICE);
     }
 }
 
@@ -424,7 +511,7 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
     // If the demon is sick, decrease health
     if (pd->isSick)
     {
-        INC_BOUND(pd->health, -HEALTH_LOST_PER_SICKNESS,  INT32_MIN, INT32_MAX);
+        INC_BOUND(pd->health, -HEALTH_LOST_PER_SICKNESS, MIN_HEALTH, MAX_HEALTH);
         animateEvent(EVT_LOST_HEALTH_SICK);
     }
 
@@ -435,7 +522,7 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
         case AGE_CHILD:
         {
             // Kids are the healthiest
-            if (os_random() % 14 == 0)
+            if ((os_random() % 100) < PCT_RANDOM_SICK_KID)
             {
                 enqueueEvt(pd, EVT_GOT_SICK_RANDOMLY);
             }
@@ -444,7 +531,7 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
         case AGE_TEEN:
         {
             // Teens are a little sicker
-            if (os_random() % 12 == 0)
+            if ((os_random() % 100) < PCT_RANDOM_SICK_TEEN)
             {
                 enqueueEvt(pd, EVT_GOT_SICK_RANDOMLY);
             }
@@ -453,7 +540,7 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
         case AGE_ADULT:
         {
             // Adults are the sickest
-            if (os_random() % 10 == 0)
+            if ((os_random() % 100) < PCT_RANDOM_SICK_ADULT)
             {
                 enqueueEvt(pd, EVT_GOT_SICK_RANDOMLY);
             }
@@ -484,15 +571,49 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
     // 2 poop  -> 50% chance
     // 3 poop  -> 75% chance
     // 4+ poop -> 100% chance
-    if ((int32_t)(os_random() % 4) > (3 - pd->poopCount))
+    if(pd->poopCount > 0)
     {
-        enqueueEvt(pd, EVT_GOT_SICK_POOP);
+        switch(pd->poopCount)
+        {
+            case 1:
+            {
+                if((os_random() % 100) < PCT_POOP_SICK_1)
+                {
+                    enqueueEvt(pd, EVT_GOT_SICK_POOP);
+                }
+                break;
+            }
+            case 2:
+            {
+                if((os_random() % 100) < PCT_POOP_SICK_2)
+                {
+                    enqueueEvt(pd, EVT_GOT_SICK_POOP);
+                }
+                break;
+            }
+            case 3:
+            {
+                if((os_random() % 100) < PCT_POOP_SICK_3)
+                {
+                    enqueueEvt(pd, EVT_GOT_SICK_POOP);
+                }
+                break;
+            }
+            default:
+            {
+                if((os_random() % 100) < PCT_POOP_SICK_4)
+                {
+                    enqueueEvt(pd, EVT_GOT_SICK_POOP);
+                }
+                break;
+            }
+        }
     }
 
     // Being around poop makes the demon sad
     if (pd->poopCount > 0)
     {
-        INC_BOUND(pd->happy, -HAPPINESS_LOST_PER_STANDING_POOP, INT32_MIN, INT32_MAX);
+        INC_BOUND(pd->happy, -HAPPINESS_LOST_PER_STANDING_POOP, MIN_HAPPY, MAX_HAPPY);
     }
 
     /***************************************************************************
@@ -503,27 +624,32 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
     if (pd->hunger < OBESE_THRESHOLD)
     {
         // 5/8 chance the demon becomes sick
-        if ((os_random() % 8) >= 5)
+        if((os_random() % 100) < PCT_SICK_OBESITY)
         {
             enqueueEvt(pd, EVT_GOT_SICK_OBESE);
         }
 
-        // decrease the health
-        INC_BOUND(pd->health, -HEALTH_LOST_PER_OBE_MAL,  INT32_MIN, INT32_MAX);
-
-        animateEvent(EVT_LOST_HEALTH_OBESITY);
+        if(pd->hungerLast < OBESE_THRESHOLD)
+        {
+            // decrease the health
+            INC_BOUND(pd->health, -HEALTH_LOST_PER_OBE_MAL, MIN_HEALTH, MAX_HEALTH);
+            animateEvent(EVT_LOST_HEALTH_OBESITY);
+        }
     }
     else if (pd->hunger > MALNOURISHED_THRESHOLD)
     {
         // 5/8 chance the demon becomes sick
-        if ((os_random() % 8) >= 5)
+        if((os_random() % 100) < PCT_SICK_MALNOURISHED)
         {
             enqueueEvt(pd, EVT_GOT_SICK_MALNOURISHED);
         }
 
-        // decrease the health
-        INC_BOUND(pd->health, -HEALTH_LOST_PER_OBE_MAL,  INT32_MIN, INT32_MAX);
-        animateEvent(EVT_LOST_HEALTH_MALNOURISHMENT);
+        if(pd->hungerLast > MALNOURISHED_THRESHOLD)
+        {
+            // decrease the health
+            INC_BOUND(pd->health, -HEALTH_LOST_PER_OBE_MAL, MIN_HEALTH, MAX_HEALTH);
+            animateEvent(EVT_LOST_HEALTH_MALNOURISHMENT);
+        }
     }
 
     /***************************************************************************
@@ -540,13 +666,50 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
         // -1  -> 50%
         // -2  -> 75%
         // -3  -> 100%
-        if (pd->happy > 0 && os_random() % 16 < 1)
+        if (pd->happy > 0)
         {
-            enqueueEvt(pd, EVT_LOST_DISCIPLINE);
+            if((os_random() % 100) < PCT_LOST_DISCIPLINE_P)
+            {
+                enqueueEvt(pd, EVT_LOST_DISCIPLINE);
+            }
         }
-        else if (pd->happy <= 0 && (int32_t)(os_random() % 4) < (1 - pd->happy))
+        else if (pd->happy <= 0)
         {
-            enqueueEvt(pd, EVT_LOST_DISCIPLINE);
+            switch(pd->happy)
+            {
+                case 0:
+                {
+                    if((os_random() % 100) < PCT_LOST_DISCIPLINE_0)
+                    {
+                        enqueueEvt(pd, EVT_LOST_DISCIPLINE);
+                    }
+                    break;
+                }
+                case -1:
+                {
+                    if((os_random() % 100) < PCT_LOST_DISCIPLINE_1)
+                    {
+                        enqueueEvt(pd, EVT_LOST_DISCIPLINE);
+                    }
+                    break;
+                }
+                case -2:
+                {
+                    if((os_random() % 100) < PCT_LOST_DISCIPLINE_2)
+                    {
+                        enqueueEvt(pd, EVT_LOST_DISCIPLINE);
+                    }
+                    break;
+                }
+                default:
+                {
+                    if((os_random() % 100) < PCT_LOST_DISCIPLINE_3)
+                    {
+                        enqueueEvt(pd, EVT_LOST_DISCIPLINE);
+                    }
+                    break;
+                }
+            }
         }
     }
 
@@ -592,9 +755,11 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
         case EVT_FLUSH_NOTHING:
         case EVT_SPIN_WHEEL:
         case EVT_WHEEL_CHALICE:
+        case EVT_WHEEL_HAD_CHALICE:
         case EVT_WHEEL_DAGGER:
         case EVT_WHEEL_HEART:
         case EVT_WHEEL_SKULL:
+        case EVT_DRINK_CHALICE:
         case EVT_LOST_HEALTH_SICK:
         case EVT_LOST_HEALTH_OBESITY:
         case EVT_LOST_HEALTH_MALNOURISHMENT:
@@ -657,13 +822,13 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
                 case AGE_TEEN:
                 {
                     // Rebellious teenage years lose 1.5x discipline
-                    INC_BOUND(pd->discipline, (3 * -DISCIPLINE_LOST_RANDOMLY) / 2,  INT32_MIN, INT32_MAX);
+                    INC_BOUND(pd->discipline, (3 * -DISCIPLINE_LOST_RANDOMLY) / 2, MIN_DISCIPLINE, MAX_DISCIPLINE);
                     break;
                 }
                 case AGE_ADULT:
                 {
                     // Adults calm down a bit
-                    INC_BOUND(pd->discipline, -DISCIPLINE_LOST_RANDOMLY,  INT32_MIN, INT32_MAX);
+                    INC_BOUND(pd->discipline, -DISCIPLINE_LOST_RANDOMLY, MIN_DISCIPLINE, MAX_DISCIPLINE);
                     break;
                 }
             }
@@ -731,6 +896,11 @@ bool ICACHE_FLASH_ATTR takeAction(demon_t* pd, action_t action)
         case ACT_WHEEL_SKULL:
         {
             wheelResult(pd, action);
+            break;
+        }
+        case ACT_DRINK_CHALICE:
+        {
+            drinkChalice(pd);
             break;
         }
         case ACT_QUIT:

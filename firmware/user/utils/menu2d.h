@@ -70,6 +70,7 @@ menu_t* initMenu(const char* title, menuCb cbFunc);
 void deinitMenu(menu_t* menu);
 void addRowToMenu(menu_t* menu);
 linkedInfo_t* addItemToRow(menu_t* menu, const char* name);
+void removeItemFromMenu(menu_t* menu, const char* name);
 void drawMenu(menu_t* menu);
 void menuButton(menu_t* menu, int btn);
 
