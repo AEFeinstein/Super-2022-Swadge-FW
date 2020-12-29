@@ -41,6 +41,7 @@ typedef enum __attribute__((__packed__))
     PDA_POOPING,
     PDA_FLUSH,
     PDA_SPIN_WHEEL,
+    PDA_DRINK_CHALICE,
     PDA_PLAYING,
     PDA_NOT_PLAYING,
     PDA_MEDICINE,
@@ -93,6 +94,7 @@ typedef struct
     pngHandle angry;
     pngHandle wheel;
     pngHandle wheelPin;
+    pngHandle chalice;
 
     // Demon position, direction, and state
     int16_t demonX;
@@ -179,6 +181,10 @@ void drawAnimFlush(void);
 void initAnimSpinWheel(void);
 bool updtAnimSpinWheel(uint32_t);
 void drawAnimSpinWheel(void);
+
+void initAnimDrink(void);
+bool updtAnimDrink(uint32_t);
+void drawAnimDrink(void);
 
 void initAnimMeds(void);
 bool updtAnimMeds(uint32_t);
@@ -301,6 +307,10 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     pd->animTable[PDA_SPIN_WHEEL].updtAnim = updtAnimSpinWheel;
     pd->animTable[PDA_SPIN_WHEEL].drawAnim = drawAnimSpinWheel;
 
+    pd->animTable[PDA_DRINK_CHALICE].initAnim = initAnimDrink;
+    pd->animTable[PDA_DRINK_CHALICE].updtAnim = updtAnimDrink;
+    pd->animTable[PDA_DRINK_CHALICE].drawAnim = drawAnimDrink;
+
     pd->animTable[PDA_PLAYING].initAnim = initAnimPlaying;
     pd->animTable[PDA_PLAYING].updtAnim = updtAnimPlaying;
     pd->animTable[PDA_PLAYING].drawAnim = drawAnimPlaying;
@@ -376,6 +386,7 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     allocPngAsset("angry.png", &(pd->angry));
     allocPngAsset("wof.png", &(pd->wheel));
     allocPngAsset("wof_pin.png", &(pd->wheelPin));
+    allocPngAsset("chalice.png", &(pd->chalice));
 
     pd->demonX = (OLED_WIDTH / 2) - (pd->demonSprite.width / 2);
     pd->demonDirLR = false;
@@ -471,6 +482,7 @@ void ICACHE_FLASH_ATTR personalDemonExitMode(void)
     freePngAsset(&(pd->angry));
     freePngAsset(&(pd->wheel));
     freePngAsset(&(pd->wheelPin));
+    freePngAsset(&(pd->chalice));
 
     // Free the menu
     deinitMenu(pd->menu);
@@ -1083,6 +1095,11 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
             ets_snprintf(marquee->str, ACT_STRLEN, "%s found a chalice. ", pd->demon.name);
             break;
         }
+        case EVT_WHEEL_HAD_CHALICE:
+        {
+            ets_snprintf(marquee->str, ACT_STRLEN, "%s already had a chalice. ", pd->demon.name);
+            break;
+        }
         case EVT_WHEEL_DAGGER:
         {
             ets_snprintf(marquee->str, ACT_STRLEN, "%s got in a fight. ", pd->demon.name);
@@ -1090,8 +1107,8 @@ void ICACHE_FLASH_ATTR animateEvent(event_t evt)
         }
         case EVT_DRINK_CHALICE:
         {
-            ets_snprintf(marquee->str, ACT_STRLEN, "%s drank from the chalice. ", pd->demon.name);
-            // TODO actual animation
+            unshift(&pd->animationQueue, (void*)PDA_OFF_CENTER);
+            unshift(&pd->animationQueue, (void*)PDA_DRINK_CHALICE);
             break;
         }
         case EVT_LOST_HEALTH_SICK:
@@ -1665,8 +1682,6 @@ void ICACHE_FLASH_ATTR initAnimSpinWheel(void)
     pd->handRot = 0;
 
     pd->wheelRotationsDeg = (360 * 2) + 90 * (os_random() % 4);
-    // TODO for chalice testing
-    // pd->wheelRotationsDeg = 270;
 }
 
 /**
@@ -1710,7 +1725,7 @@ bool ICACHE_FLASH_ATTR updtAnimSpinWheel(uint32_t tElapsedUs)
                 }
                 else
                 {
-                    // TODO say you already have a chalice
+                    animateEvent(EVT_WHEEL_HAD_CHALICE);
                 }
             }
             else if(pd->handRot >= 180)
@@ -1784,6 +1799,132 @@ void ICACHE_FLASH_ATTR drawAnimSpinWheel(void)
     // Draw the pin and wheel
     drawPng(&(pd->wheelPin), pd->happy.width + 2, (OLED_HEIGHT - pd->wheelPin.height) / 2 - 1, false, false, 0);
     drawPng(&(pd->wheel), pd->happy.width + pd->wheelPin.width + 3, FONT_HEIGHT_IBMVGA8 + 1, false, false, pd->handRot);
+
+    // Draw the demon
+    drawAnimDemon();
+}
+
+/*******************************************************************************
+ * Drinking Animation
+ ******************************************************************************/
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR initAnimDrink(void)
+{
+    pd->demonDirLR = false;
+    pd->handRot = 0;
+    pd->animTimeUs = 0;
+    pd->seqFrame = 0;
+}
+
+/**
+ * @brief TODO
+ *
+ * @param tElapsedUs
+ * @return true
+ * @return false
+ */
+bool ICACHE_FLASH_ATTR updtAnimDrink(uint32_t tElapsedUs)
+{
+    static uint8_t animState = 0;
+    pd->animTimeUs += tElapsedUs;
+
+    int32_t usPerFrame = 10000;
+    if(0 == animState || 4 == animState)
+    {
+        usPerFrame = 40000;
+    }
+
+    bool retval = false;
+    while(pd->animTimeUs > usPerFrame)
+    {
+        pd->animTimeUs -= usPerFrame;
+        retval = true;
+
+        switch(animState)
+        {
+            case 0:
+            {
+                // Move towards chalice
+                pd->demonX--;
+
+                // If it's centered
+                if(pd->demonX == (OLED_WIDTH / 2) - (pd->demonSprite.width / 2))
+                {
+                    // Move to the next
+                    animState = 1;
+                }
+                break;
+            }
+            case 1:
+            {
+                // tilt chalice clockwise
+                pd->handRot++;
+
+                // If it's tilted
+                if(90 <= pd->handRot)
+                {
+                    // Move to the next
+                    animState = 2;
+                }
+                break;
+            }
+            case 2:
+            {
+                // Hold it
+                pd->seqFrame++;
+                if(45 <= pd->seqFrame)
+                {
+                    animState = 3;
+                }
+                break;
+            }
+            case 3:
+            {
+                // tilt chalice counterclockwise
+                pd->handRot--;
+
+                // If it's straight
+                if(0 >= pd->handRot)
+                {
+                    // Move to the next
+                    animState = 4;
+                }
+                break;
+            }
+            case 4:
+            {
+                // move away from chalice
+                pd->demonX++;
+
+                // If the demon has returned to offcenter
+                if(pd->demonX == (OLED_WIDTH / 2 + 4))
+                {
+                    // All done
+                    animState = 0;
+                    personalDemonResetAnimVars();
+                }
+                break;
+            }
+        }
+    }
+    return retval;
+}
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR drawAnimDrink(void)
+{
+    // Draw the chalice
+    drawPng(&(pd->chalice),
+            ((OLED_WIDTH - pd->demonSprite.width) / 2) - pd->chalice.width - 3,
+            (OLED_HEIGHT - pd->chalice.height) / 2,
+            false, false, pd->handRot);
 
     // Draw the demon
     drawAnimDemon();

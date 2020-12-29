@@ -77,6 +77,7 @@ typedef enum __attribute__((__packed__))
     EVT_WHEEL_DAGGER,
     EVT_WHEEL_SKULL,
     EVT_DRINK_CHALICE,
+    EVT_WHEEL_HAD_CHALICE,
     // Immediate general events
     EVT_LOST_HEALTH_SICK,
     EVT_LOST_HEALTH_OBESITY,

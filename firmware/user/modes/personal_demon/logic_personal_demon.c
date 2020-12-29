@@ -489,10 +489,6 @@ void ICACHE_FLASH_ATTR drinkChalice(demon_t* pd)
         // Animate the drink
         animateEvent(EVT_DRINK_CHALICE);
     }
-    else
-    {
-        // TODO safety if there is no chalice?
-    }
 }
 
 /**
@@ -759,6 +755,7 @@ void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
         case EVT_FLUSH_NOTHING:
         case EVT_SPIN_WHEEL:
         case EVT_WHEEL_CHALICE:
+        case EVT_WHEEL_HAD_CHALICE:
         case EVT_WHEEL_DAGGER:
         case EVT_WHEEL_HEART:
         case EVT_WHEEL_SKULL:
