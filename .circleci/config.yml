@@ -1,7 +1,7 @@
 version: 2.1
 
 orbs:
-  slack: circleci/slack@3.4.2
+  slack: circleci/slack@4.2.0
 
 parameters:
   src-repo-url:
@@ -65,9 +65,40 @@ jobs:
           command: zip -r ../firmware/<< pipeline.parameters.esp8266-artifact >> .
       - store_artifacts:
           path: Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.esp8266-artifact >>
-      - slack/status:
-          fail_only: false
-          success_message: "Fresh hot builds!\n:esp8266-icon: https://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.esp8266-artifact >>\n:windows95: https://`expr ${CIRCLE_BUILD_NUM} - 1`-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.windows-artifact >>"
+      - slack/notify:
+          event: pass
+          custom: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Fresh hot builds!"
+                  }
+                },
+                {
+                  "type": "divider"
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":esp8266-icon: ESP Build\nhttps://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.esp8266-artifact >>"
+                  }
+                },
+                {
+                  "type": "divider"
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":windows95: Windows Build\nhttps://`expr ${CIRCLE_BUILD_NUM} - 1`-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.windows-artifact >>"
+                  }
+                }
+              ]
+            }
 
   build-windows:
     machine:
