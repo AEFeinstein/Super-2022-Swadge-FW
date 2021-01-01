@@ -123,8 +123,8 @@ jobs:
           name: Setup Python
           shell: C:\\cygwin64\\bin\\bash.exe --login -eo pipefail
           command: |
-            python36-pip install --upgrade pip
-            python36-pip install rtttl
+            pip3 install --upgrade pip
+            pip3 install rtttl
       - run:
           name: Clone and build Swadge
           shell: C:\\cygwin64\\bin\\bash.exe --login -eo pipefail
