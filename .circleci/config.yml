@@ -101,7 +101,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": ":windows95: Windows Build\nhttps://${CIRCLE_BUILD_NUM_PREV}`-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.windows-artifact >>"
+                    "text": ":windows95: Windows Build\nhttps://${CIRCLE_BUILD_NUM_PREV}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.windows-artifact >>"
                   }
                 }
               ]
