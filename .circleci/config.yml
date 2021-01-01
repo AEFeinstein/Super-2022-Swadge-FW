@@ -117,13 +117,13 @@ jobs:
           name: Install Cygwin and required packages
           shell: powershell.exe
           command: |
-            .\setup-x86_64.exe -q -s https://mirrors.kernel.org/sourceware/cygwin/ -P git,gcc-core,make,zip,find,python3,python3-devel,python36-pip,python36-imaging
+            .\setup-x86_64.exe -q -s https://mirrors.kernel.org/sourceware/cygwin/ -P git,gcc-core,make,zip,find,python38,python38-devel,python38-pip,python38-imaging
             $env:Path = "C:\cygwin64\bin\;" + $env:Path
       - run:
           name: Setup Python
           shell: C:\\cygwin64\\bin\\bash.exe --login -eo pipefail
           command: |
-            pip3 install --upgrade pip
+            # pip3 install --upgrade pip
             pip3 install rtttl
       - run:
           name: Clone and build Swadge
