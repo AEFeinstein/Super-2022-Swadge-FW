@@ -123,12 +123,16 @@ jobs:
           name: Setup Python
           shell: C:\\cygwin64\\bin\\bash.exe --login -eo pipefail
           command: |
+            alias python3='python3.8'
+            alias python='python3.8'
             # pip3 install --upgrade pip
             pip3 install rtttl
       - run:
           name: Clone and build Swadge
           shell: C:\\cygwin64\\bin\\bash.exe --login -eo pipefail
           command: |
+            alias python3='python3.8'
+            alias python='python3.8'
             CIRCLE_WORKING_DIRECTORY=$(eval "echo $CIRCLE_WORKING_DIRECTORY")
             cd $CIRCLE_WORKING_DIRECTORY
             git clone << pipeline.parameters.src-repo-url >> --recurse-submodules
