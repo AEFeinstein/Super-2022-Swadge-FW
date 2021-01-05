@@ -15,6 +15,7 @@
 
 #include "mode_menu.h"
 #include "mode_dance.h"
+#include "MatrixFastFire.h"
 
 #include "printControl.h"
 
@@ -23,6 +24,7 @@
  *==========================================================================*/
 
 #define MENU_PAN_PERIOD_MS 20
+#define MENU_SCREENSAVER_PERIOD_MS 100
 #define MENU_PX_PER_PAN     8
 #define SQ_WAVE_LINE_LEN   16
 
@@ -170,6 +172,8 @@ void ICACHE_FLASH_ATTR menuInit(void)
 
     // Make buttons sensitive, they're ignored during animation anyway
     enableDebounce(false);
+    
+    mff_setup();
 }
 
 /**
@@ -448,7 +452,7 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
     timerArm(&mnu->timerScreensaverLEDAnimation, 1, true);
 
     // Animate the OLED at the given period
-    timerArm(&mnu->timerScreensaverOLEDAnimation, MENU_PAN_PERIOD_MS, true);
+    timerArm(&mnu->timerScreensaverOLEDAnimation, MENU_SCREENSAVER_PERIOD_MS, true);
 
     mnu->drawOLEDScreensaver = false;
 
@@ -493,21 +497,22 @@ static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__
 {
     if (mnu->drawOLEDScreensaver)
     {
-        // Clear the display
-        clearDisplay();
+        make_fire();
+        // // Clear the display
+        // clearDisplay();
 
-        // Plot scrolling square wave
-        mnu->squareWaveScrollOffset += mnu->squareWaveScrollSpeed;
-        mnu->squareWaveScrollOffset = mnu->squareWaveScrollOffset % (SQ_WAVE_LINE_LEN * 2);
-        plotSquareWave(mnu->squareWaveScrollOffset, 0);
+        // // Plot scrolling square wave
+        // mnu->squareWaveScrollOffset += mnu->squareWaveScrollSpeed;
+        // mnu->squareWaveScrollOffset = mnu->squareWaveScrollOffset % (SQ_WAVE_LINE_LEN * 2);
+        // plotSquareWave(mnu->squareWaveScrollOffset, 0);
 
-        // Plot some tiny corner text
-        plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Swadge 2021", TOM_THUMB, WHITE);
+        // // Plot some tiny corner text
+        // plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Swadge 2021", TOM_THUMB, WHITE);
 
-        // Plot the dance name
-        int16_t width = textWidth(getDanceName(mnu->menuScreensaverIdx), TOM_THUMB);
-        plotText(OLED_WIDTH - width, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB,
-                 getDanceName(mnu->menuScreensaverIdx), TOM_THUMB, WHITE);
+        // // Plot the dance name
+        // int16_t width = textWidth(getDanceName(mnu->menuScreensaverIdx), TOM_THUMB);
+        // plotText(OLED_WIDTH - width, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB,
+        //          getDanceName(mnu->menuScreensaverIdx), TOM_THUMB, WHITE);
     }
 }
 
