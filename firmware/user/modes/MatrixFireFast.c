@@ -27,10 +27,10 @@
 
 /* Flare constants */
 #define FLARE_ROWS    4 /* number of rows (from bottom) allowed to flare */
-#define MAX_FLARE     8 /* max number of simultaneous flares */
+#define MAX_FLARE     4 /* max number of simultaneous flares */
 #define FLARE_CHANCE 50 /* chance (%) of a new flare (if there's room) */
 #define FLARE_DECAY  14 /* decay rate of flare radiation; 14 is good */
-#define NCOLORS      24
+#define NCOLORS     200
 
 /* Flare variables */
 uint8_t pix[MAT_W][MAT_H];
@@ -89,10 +89,11 @@ void ICACHE_FLASH_ATTR glow( int x, int y, int z )
                 {
                     n = z - d;
                 }
-                if ( n > pix[j][i] )   // can only get brighter
-                {
-                    pix[j][i] = n;
-                }
+                pix[j][i] += n;
+                // if ( n > pix[j][i] )   // can only get brighter
+                // {
+                //     pix[j][i] = n;
+                // }
             }
         }
     }
@@ -108,7 +109,7 @@ void ICACHE_FLASH_ATTR newflare(void)
     {
         int x = os_random() % MAT_W;
         int y = (MAT_H - 1) - (os_random() % FLARE_ROWS);
-        int z = NCOLORS / 2;
+        int z = 22;//NCOLORS / 2;
         flare[nflare++] = (z << 16) | (y << 8) | (x & 0xff);
         glow( x, y, z );
     }
@@ -126,14 +127,38 @@ void ICACHE_FLASH_ATTR make_fire(void)
     // First, move all existing heat points up the display and fade
     for(int16_t y = 0; y < MAT_H - 1; y++)
     {
+        // Zero the row
         for(int16_t x = 0; x < MAT_W; x++)
         {
-            uint8_t n = 0;
-            if(pix[x][y + 1] > 0)
+            pix[x][y] = 0;
+        }
+
+        for(int16_t x = 0; x < MAT_W; x++)
+        {
+            // Generate three random numbers that sum to 64
+            int totalSum = 64;
+            int rand_a = (totalSum / 2) + (os_random() % (totalSum / 2));
+            int rand_b = totalSum - rand_a;
+
+            // os_printf("%2d + %2d + %2d = %2d\n", rand_a, rand_b, rand_c, (rand_a + rand_b + rand_c));
+
+            // Fade and divide the flame
+            rand_a = (((pix[x][y + 1] - 1) * rand_a) / totalSum);
+            rand_b = (((pix[x][y + 1] - 1) * (rand_b / 2)) / totalSum);
+
+            // Propagate the flame
+            if(x > 0 && rand_b > 0)
             {
-                n = pix[x][y + 1] - 1;
+                pix[x - 1][y] += rand_b;
             }
-            pix[x][y] = n;
+            if(rand_a > 0)
+            {
+                pix[x + 0][y] += rand_a;
+            }
+            if(x < MAT_W - 1 && rand_b > 0)
+            {
+                pix[x + 1][y] += rand_b;
+            }
         }
     }
 
@@ -142,7 +167,7 @@ void ICACHE_FLASH_ATTR make_fire(void)
     {
         if(pix[x][MAT_H - 1] > 0)
         {
-            pix[x][MAT_H - 1] = (NCOLORS / 2) + os_random() % (NCOLORS / 2);
+            pix[x][MAT_H - 1] = 1 + os_random() % (NCOLORS - 1);
         }
     }
 
@@ -170,20 +195,128 @@ void ICACHE_FLASH_ATTR make_fire(void)
     newflare();
 
     // Set and draw
-    for(int16_t x = 0; x < OLED_WIDTH; x++)
+    for(int16_t x = 0; x < MAT_W; x++)
     {
-        for(int16_t y = 0; y < OLED_HEIGHT; y++)
+        for(int16_t y = 0; y < MAT_H; y++)
         {
-            if(pix[x / 2][y / 2] > 0/*NCOLORS / 4*/)
+            if(pix[x][y] > (NCOLORS * 4) / 5)
             {
-                drawPixel(x, y, WHITE);
+                drawPixel((x * 2) + 0, (y * 2) + 0, WHITE);
+                drawPixel((x * 2) + 0, (y * 2) + 1, WHITE);
+                drawPixel((x * 2) + 1, (y * 2) + 0, WHITE);
+                drawPixel((x * 2) + 1, (y * 2) + 1, WHITE);
+                continue;
+            }
+            else if(pix[x][y] > (NCOLORS * 3) / 5)
+            {
+                drawPixel((x * 2) + 0, (y * 2) + 0, WHITE);
+                drawPixel((x * 2) + 0, (y * 2) + 1, WHITE);
+                drawPixel((x * 2) + 1, (y * 2) + 0, WHITE);
+                drawPixel((x * 2) + 1, (y * 2) + 1, WHITE);
+                switch(os_random() % 4)
+                {
+                    case 0:
+                        drawPixel((x * 2) + 0, (y * 2) + 0, BLACK);
+                        break;
+                    case 1:
+                        drawPixel((x * 2) + 0, (y * 2) + 1, BLACK);
+                        break;
+                    case 2:
+                        drawPixel((x * 2) + 1, (y * 2) + 0, BLACK);
+                        break;
+                    case 3:
+                        drawPixel((x * 2) + 1, (y * 2) + 1, BLACK);
+                        break;
+                }
+            }
+            else if(pix[x][y] > (NCOLORS * 2) / 5)
+            {
+                drawPixel((x * 2) + 0, (y * 2) + 0, BLACK);
+                drawPixel((x * 2) + 0, (y * 2) + 1, BLACK);
+                drawPixel((x * 2) + 1, (y * 2) + 0, BLACK);
+                drawPixel((x * 2) + 1, (y * 2) + 1, BLACK);
+
+                int rand_o = os_random() % 4;
+                int rand_t = (rand_o + (1 + (os_random() % 3))) % 4;
+
+                switch(rand_o)
+                {
+                    case 0:
+                        drawPixel((x * 2) + 0, (y * 2) + 0, WHITE);
+                        break;
+                    case 1:
+                        drawPixel((x * 2) + 0, (y * 2) + 1, WHITE);
+                        break;
+                    case 2:
+                        drawPixel((x * 2) + 1, (y * 2) + 0, WHITE);
+                        break;
+                    case 3:
+                        drawPixel((x * 2) + 1, (y * 2) + 1, WHITE);
+                        break;
+                }
+
+                switch(rand_t)
+                {
+                    case 0:
+                        drawPixel((x * 2) + 0, (y * 2) + 0, WHITE);
+                        break;
+                    case 1:
+                        drawPixel((x * 2) + 0, (y * 2) + 1, WHITE);
+                        break;
+                    case 2:
+                        drawPixel((x * 2) + 1, (y * 2) + 0, WHITE);
+                        break;
+                    case 3:
+                        drawPixel((x * 2) + 1, (y * 2) + 1, WHITE);
+                        break;
+                }
+            }
+            else if(pix[x][y] > (NCOLORS * 1) / 5)
+            {
+                drawPixel((x * 2) + 0, (y * 2) + 0, BLACK);
+                drawPixel((x * 2) + 0, (y * 2) + 1, BLACK);
+                drawPixel((x * 2) + 1, (y * 2) + 0, BLACK);
+                drawPixel((x * 2) + 1, (y * 2) + 1, BLACK);
+                switch(os_random() % 4)
+                {
+                    case 0:
+                        drawPixel((x * 2) + 0, (y * 2) + 0, WHITE);
+                        break;
+                    case 1:
+                        drawPixel((x * 2) + 0, (y * 2) + 1, WHITE);
+                        break;
+                    case 2:
+                        drawPixel((x * 2) + 1, (y * 2) + 0, WHITE);
+                        break;
+                    case 3:
+                        drawPixel((x * 2) + 1, (y * 2) + 1, WHITE);
+                        break;
+                }
             }
             else
             {
-                drawPixel(x, y, BLACK);
+                drawPixel((x * 2) + 0, (y * 2) + 0, BLACK);
+                drawPixel((x * 2) + 0, (y * 2) + 1, BLACK);
+                drawPixel((x * 2) + 1, (y * 2) + 0, BLACK);
+                drawPixel((x * 2) + 1, (y * 2) + 1, BLACK);
+                continue;
             }
         }
     }
+    // for(int16_t x = 0; x < OLED_WIDTH; x++)
+    // {
+    //     for(int16_t y = 0; y < OLED_HEIGHT; y++)
+    //     {
+    //         if(pix[x / 2][y / 2] > 0)
+    //         {
+    //             drawPixel(x, y, WHITE);
+    //         }
+    //         else
+    //         {
+    //             drawPixel(x, y, BLACK);
+    //         }
+    //     }
+    // }
 }
 
 /**

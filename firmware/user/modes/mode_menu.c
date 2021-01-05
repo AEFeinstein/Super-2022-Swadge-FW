@@ -24,7 +24,7 @@
  *==========================================================================*/
 
 #define MENU_PAN_PERIOD_MS 20
-#define MENU_SCREENSAVER_PERIOD_MS 100
+#define MENU_SCREENSAVER_PERIOD_MS 75
 #define MENU_PX_PER_PAN     8
 #define SQ_WAVE_LINE_LEN   16
 
