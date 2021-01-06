@@ -1,3 +1,13 @@
+/*
+ * Starfield.c
+ *
+ *  Created on: January 5, 2020
+ *      Author: AEFeinstein, nathansmith11170
+ * 
+ * Adapted from
+ * https://github.com/nathansmith11170/StarField/blob/master/StarField/StarField.c
+ */
+
 #include <osapi.h>
 #include <user_interface.h>
 #include <limits.h>
