@@ -15,8 +15,10 @@
 
 #include "mode_menu.h"
 #include "mode_dance.h"
+
 #include "MatrixFastFire.h"
 #include "Starfield.h"
+#include "ForestFire.h"
 
 #include "printControl.h"
 
@@ -173,9 +175,10 @@ void ICACHE_FLASH_ATTR menuInit(void)
 
     // Make buttons sensitive, they're ignored during animation anyway
     enableDebounce(false);
-    
+
     mff_setup();
     initStarField();
+    initForestFire();
 }
 
 /**
@@ -499,7 +502,8 @@ static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__
 {
     if (mnu->drawOLEDScreensaver)
     {
-        starField();
+        // starField();
+        updateForestFire();
         // make_fire();
 
         // // Clear the display
@@ -510,13 +514,15 @@ static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__
         // mnu->squareWaveScrollOffset = mnu->squareWaveScrollOffset % (SQ_WAVE_LINE_LEN * 2);
         // plotSquareWave(mnu->squareWaveScrollOffset, 0);
 
-        // // Plot some tiny corner text
-        // plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Swadge 2021", TOM_THUMB, WHITE);
+        // Plot some tiny corner text
+        fillDisplayArea(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, textWidth("Swadge 2021", TOM_THUMB) - 1, OLED_HEIGHT, BLACK);
+        plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Swadge 2021", TOM_THUMB, WHITE);
 
-        // // Plot the dance name
-        // int16_t width = textWidth(getDanceName(mnu->menuScreensaverIdx), TOM_THUMB);
-        // plotText(OLED_WIDTH - width, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB,
-        //          getDanceName(mnu->menuScreensaverIdx), TOM_THUMB, WHITE);
+        // Plot the dance name
+        int16_t width = textWidth(getDanceName(mnu->menuScreensaverIdx), TOM_THUMB);
+        fillDisplayArea(OLED_WIDTH - width, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, OLED_WIDTH, OLED_HEIGHT, BLACK);
+        plotText(OLED_WIDTH - width + 1, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB,
+                 getDanceName(mnu->menuScreensaverIdx), TOM_THUMB, WHITE);
     }
 }
 
