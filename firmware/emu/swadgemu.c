@@ -22,9 +22,9 @@
 #include "../user/utils/assets.h"
 #include "spi_flash.h"
 
-#define BACKGROUND_COLOR  0x040510
+#define BACKGROUND_COLOR  0x000000
 #define BACKGROUND_COLOR2 0x1B2845
-#define OLED_ON_COLOR    0x4094FF
+#define OLED_ON_COLOR    0xFFFFFF
 #define FOREGROUND_COLOR 0xD00000
 
 #define NR_BUTTONS 5

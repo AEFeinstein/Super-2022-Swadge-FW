@@ -16,6 +16,7 @@
 #include "mode_menu.h"
 #include "mode_dance.h"
 #include "MatrixFastFire.h"
+#include "Starfield.h"
 
 #include "printControl.h"
 
@@ -24,7 +25,7 @@
  *==========================================================================*/
 
 #define MENU_PAN_PERIOD_MS 20
-#define MENU_SCREENSAVER_PERIOD_MS 75
+#define MENU_SCREENSAVER_PERIOD_MS 20
 #define MENU_PX_PER_PAN     8
 #define SQ_WAVE_LINE_LEN   16
 
@@ -174,6 +175,7 @@ void ICACHE_FLASH_ATTR menuInit(void)
     enableDebounce(false);
     
     mff_setup();
+    initStarField();
 }
 
 /**
@@ -497,7 +499,9 @@ static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__
 {
     if (mnu->drawOLEDScreensaver)
     {
-        make_fire();
+        starField();
+        // make_fire();
+
         // // Clear the display
         // clearDisplay();
 
