@@ -510,9 +510,9 @@ static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__
 {
     if (mnu->drawOLEDScreensaver)
     {
-        starField();
+        // starField();
         // updateForestFire();
-        // flyToasters();
+        flyToasters();
 
         // // Clear the display
         // clearDisplay();
