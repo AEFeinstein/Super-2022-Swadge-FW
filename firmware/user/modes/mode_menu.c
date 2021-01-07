@@ -16,7 +16,6 @@
 #include "mode_menu.h"
 #include "mode_dance.h"
 
-#include "MatrixFastFire.h"
 #include "Starfield.h"
 #include "ForestFire.h"
 #include "Toaster.h"
@@ -177,7 +176,7 @@ void ICACHE_FLASH_ATTR menuInit(void)
     // Make buttons sensitive, they're ignored during animation anyway
     enableDebounce(false);
 
-    mff_setup();
+    // Initialize screensavers
     initStarField();
     initForestFire();
     initToaster();
@@ -195,8 +194,15 @@ void ICACHE_FLASH_ATTR menuExit(void)
     timerDisarm(&mnu->timerScreensaverOLEDAnimation);
     timerDisarm(&mnu->timerPanning);
     timerFlush();
+
     freeGifAsset(mnu->curImg);
     freeGifAsset(mnu->nextImg);
+
+    // Free screensavers
+    destroyToaster();
+    destroyForestFire();
+    destroyStarField();
+
     os_free(mnu);
 }
 
@@ -504,10 +510,9 @@ static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__
 {
     if (mnu->drawOLEDScreensaver)
     {
-        // starField();
+        starField();
         // updateForestFire();
-        // make_fire();
-        flyToasters();
+        // flyToasters();
 
         // // Clear the display
         // clearDisplay();

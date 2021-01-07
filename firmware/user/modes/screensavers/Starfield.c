@@ -3,18 +3,26 @@
  *
  *  Created on: January 5, 2020
  *      Author: AEFeinstein, nathansmith11170
- * 
+ *
  * Adapted from
  * https://github.com/nathansmith11170/StarField/blob/master/StarField/StarField.c
  */
 
+/*==============================================================================
+ * Includes
+ *============================================================================*/
+
 #include <osapi.h>
 #include <user_interface.h>
-#include <limits.h>
+#include <mem.h>
 
 #include "oled.h"
 #include "bresenham.h"
 #include "Starfield.h"
+
+/*==============================================================================
+ * Structs and enums
+ *============================================================================*/
 
 /**
  * The x and the y are the position of the ellipse, and the z value represents
@@ -27,12 +35,53 @@ typedef struct
     int z;
 } Star;
 
+/*==============================================================================
+ * Defines
+ *============================================================================*/
+
+#define NUM_STARS 92
+
+/*==============================================================================
+ * Variables
+ *============================================================================*/
+
+Star* stars;
+
+/*==============================================================================
+ * Prototypes
+ *============================================================================*/
+
 void ICACHE_FLASH_ATTR updateStar(Star* star);
 void ICACHE_FLASH_ATTR translate(int (*coord)[], int translateByX, int translateByY);
 int ICACHE_FLASH_ATTR randomInt(int lowerBound, int upperBound);
 
-#define NUM_STARS 92
-Star stars[NUM_STARS];
+/*==============================================================================
+ * Functions
+ *============================================================================*/
+
+/**
+ * @brief Initialize Starfield
+ */
+void ICACHE_FLASH_ATTR initStarField(void)
+{
+    stars = os_malloc(sizeof(Star) * NUM_STARS);
+    /* Initialize the stars */
+    for(int i = 0; i < NUM_STARS; i++)
+    {
+        stars[i].x = randomInt(-OLED_WIDTH / 2, OLED_WIDTH / 2);
+        stars[i].y = randomInt(-OLED_HEIGHT / 2, OLED_HEIGHT / 2);
+        stars[i].z = 1 + (os_random() % 1023);
+    }
+}
+
+/**
+ * @brief TODO
+ *
+ */
+void ICACHE_FLASH_ATTR destroyStarField(void)
+{
+    os_free(stars);
+}
 
 /**
  * @brief Generates a random integer in a range
@@ -72,20 +121,6 @@ void ICACHE_FLASH_ATTR updateStar(Star* star)
         star->x = randomInt(-OLED_WIDTH / 2, OLED_WIDTH / 2);
         star->y = randomInt(-OLED_HEIGHT / 2, OLED_HEIGHT / 2);
         star->z += 1024;
-    }
-}
-
-/**
- * @brief Initialize Starfield
- */
-void ICACHE_FLASH_ATTR initStarField(void)
-{
-    /* Initialize the stars */
-    for(int i = 0; i < NUM_STARS; i++)
-    {
-        stars[i].x = randomInt(-OLED_WIDTH / 2, OLED_WIDTH / 2);
-        stars[i].y = randomInt(-OLED_HEIGHT / 2, OLED_HEIGHT / 2);
-        stars[i].z = 1 + (os_random() % 1023);
     }
 }
 
