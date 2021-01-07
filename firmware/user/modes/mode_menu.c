@@ -19,6 +19,7 @@
 #include "MatrixFastFire.h"
 #include "Starfield.h"
 #include "ForestFire.h"
+#include "Toaster.h"
 
 #include "printControl.h"
 
@@ -179,6 +180,7 @@ void ICACHE_FLASH_ATTR menuInit(void)
     mff_setup();
     initStarField();
     initForestFire();
+    initToaster();
 }
 
 /**
@@ -503,8 +505,9 @@ static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__
     if (mnu->drawOLEDScreensaver)
     {
         // starField();
-        updateForestFire();
+        // updateForestFire();
         // make_fire();
+        flyToasters();
 
         // // Clear the display
         // clearDisplay();
