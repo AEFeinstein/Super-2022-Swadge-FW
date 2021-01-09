@@ -19,6 +19,7 @@
 #include "Starfield.h"
 #include "ForestFire.h"
 #include "Toaster.h"
+#include "MatrixRain.h"
 
 #include "printControl.h"
 
@@ -180,6 +181,7 @@ void ICACHE_FLASH_ATTR menuInit(void)
     initStarField();
     initForestFire();
     initToaster();
+    initMatrixRain();
 }
 
 /**
@@ -202,6 +204,7 @@ void ICACHE_FLASH_ATTR menuExit(void)
     destroyToaster();
     destroyForestFire();
     destroyStarField();
+    destroyMatrixRain();
 
     os_free(mnu);
 }
@@ -512,7 +515,8 @@ static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__
     {
         // starField();
         // updateForestFire();
-        flyToasters();
+        // flyToasters();
+        updateMatrixRain();
 
         // // Clear the display
         // clearDisplay();

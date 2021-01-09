@@ -18,7 +18,8 @@ typedef enum __attribute__((__packed__))
     BLACK = 0,
     WHITE = 1,
     INVERSE = 2,
-    TRANSPARENT_COLOR = 3
+    TRANSPARENT_COLOR = 3,
+    WHITE_F_TRANSPARENT_B = 4,
 } color;
 
 typedef enum

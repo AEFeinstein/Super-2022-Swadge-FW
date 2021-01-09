@@ -31,6 +31,85 @@ void ICACHE_FLASH_ATTR fillDisplayArea(int16_t x1, int16_t y1, int16_t x2, int16
 }
 
 /**
+ * 'Shade' an area by drawing black pixels over it in a ordered-dithering way
+ *
+ * @param x1 The X pixel to start at
+ * @param y1 The Y pixel to start at
+ * @param x2 The X pixel to end at
+ * @param y2 The Y pixel to end at
+ * @param shadeLevel The level of shading, Higher means more shaded. Must be 0 to 4
+ */
+void ICACHE_FLASH_ATTR shadeDisplayArea(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint8_t shadeLevel)
+{
+    for(uint16_t dy = y1; dy < y2; dy++)
+    {
+        for(uint16_t dx = x1; dx < x2; dx++)
+        {
+            switch(shadeLevel)
+            {
+                case 0:
+                {
+                    // 25% faded
+                    if(dy % 2 == 0 && dx % 2 == 0)
+                    {
+                        drawPixel(dx, dy, BLACK);
+                    }
+                    break;
+                }
+                case 1:
+                {
+                    // 37.5% faded
+                    if(dy % 2 == 0 && dx % 2 == 0)
+                    {
+                        drawPixel(dx, dy, BLACK);
+                    }
+                    else if (dx % 4 == 0)
+                    {
+                        drawPixel(dx, dy, BLACK);
+                    }
+                    break;
+                }
+                case 2:
+                {
+                    // 50% faded
+                    if((dy % 2) == (dx % 2))
+                    {
+                        drawPixel(dx, dy, BLACK);
+                    }
+                    break;
+                }
+                case 3:
+                {
+                    // 62.5% faded
+                    if(dy % 2 == 0 && dx % 2 == 0)
+                    {
+                        drawPixel(dx, dy, BLACK);
+                    }
+                    else if (dx % 4 < 3)
+                    {
+                        drawPixel(dx, dy, BLACK);
+                    }
+                    break;
+                }
+                case 4:
+                {
+                    // 75% faded
+                    if(dy % 2 == 0 || dx % 2 == 0)
+                    {
+                        drawPixel(dx, dy, BLACK);
+                    }
+                    break;
+                }
+                default:
+                {
+                    return;
+                }
+            }
+        }
+    }
+}
+
+/**
  * @brief Optimized method to quickly draw a white line.
  *
  * @param x1, x0 Column of display, 0 is at the left
