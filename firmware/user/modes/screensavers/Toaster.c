@@ -18,6 +18,7 @@
 
 #include "oled.h"
 #include "assets.h"
+#include "Screensaver.h"
 #include "Toaster.h"
 
 /*==============================================================================
@@ -49,16 +50,27 @@ typedef struct
 } toasterDat;
 
 /*==============================================================================
+ * Prototypes
+ *============================================================================*/
+
+void ICACHE_FLASH_ATTR initObject(flyingObj* obj, bool veryOffScreen);
+
+void ICACHE_FLASH_ATTR flyToasters(void);
+void ICACHE_FLASH_ATTR destroyToaster(void);
+void ICACHE_FLASH_ATTR initToaster(void);
+
+/*==============================================================================
  * Variables
  *============================================================================*/
 
 toasterDat* toaster;
 
-/*==============================================================================
- * Prototypes
- *============================================================================*/
-
-void ICACHE_FLASH_ATTR initObject(flyingObj* obj, bool veryOffScreen);
+screensaver ssToaster =
+{
+    .initScreensaver = initToaster,
+    .updateScreensaver = flyToasters,
+    .destroyScreensaver = destroyToaster,
+};
 
 /*==============================================================================
  * Functions

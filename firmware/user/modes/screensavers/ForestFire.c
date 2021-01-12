@@ -12,6 +12,7 @@
 #include <osapi.h>
 #include <mem.h>
 #include "oled.h"
+#include "Screensaver.h"
 #include "ForestFire.h"
 
 /*==============================================================================
@@ -33,8 +34,23 @@ typedef struct
 } forestFireSim;
 
 /*==============================================================================
+ * Prototypes
+ *============================================================================*/
+
+void ICACHE_FLASH_ATTR initForestFire(void);
+void ICACHE_FLASH_ATTR updateForestFire(void);
+void ICACHE_FLASH_ATTR destroyForestFire(void);
+
+/*==============================================================================
  * Variables
  *============================================================================*/
+
+screensaver ssForestFire =
+{
+    .initScreensaver = initForestFire,
+    .updateScreensaver = updateForestFire,
+    .destroyScreensaver = destroyForestFire,
+};
 
 forestFireSim* fFire;
 

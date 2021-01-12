@@ -16,6 +16,7 @@
 #include "mode_menu.h"
 #include "mode_dance.h"
 
+#include "Screensaver.h"
 #include "Starfield.h"
 #include "ForestFire.h"
 #include "Toaster.h"
@@ -96,6 +97,7 @@ typedef struct
     int16_t panIdx;
 
     bool screensaverIsRunning;
+    uint8_t screensaverIdx;
 
     button_num buttonHist[MNU_BUTTON_HIST_SIZE];
 } mnu_t;
@@ -118,6 +120,14 @@ swadgeMode menuMode =
 mnu_t* mnu;
 
 static const button_num konami[MNU_BUTTON_HIST_SIZE] = {UP, UP, DOWN, DOWN, LEFT, RIGHT, LEFT, RIGHT};
+
+screensaver* screensavers[] =
+{
+    &ssToaster,
+    &ssStarfield,
+    &ssMatrixRain,
+    &ssForestFire
+};
 
 /*============================================================================
  * Swadge Mode Functions
@@ -178,10 +188,8 @@ void ICACHE_FLASH_ATTR menuInit(void)
     enableDebounce(false);
 
     // Initialize screensavers
-    initStarField();
-    initForestFire();
-    initToaster();
-    initMatrixRain();
+    mnu->screensaverIdx = 0;
+    screensavers[mnu->screensaverIdx]->initScreensaver();
 }
 
 /**
@@ -201,10 +209,7 @@ void ICACHE_FLASH_ATTR menuExit(void)
     freeGifAsset(mnu->nextImg);
 
     // Free screensavers
-    destroyToaster();
-    destroyForestFire();
-    destroyStarField();
-    destroyMatrixRain();
+    screensavers[mnu->screensaverIdx]->destroyScreensaver();
 
     os_free(mnu);
 }
@@ -513,18 +518,7 @@ static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__
 {
     if (mnu->drawOLEDScreensaver)
     {
-        // starField();
-        // updateForestFire();
-        // flyToasters();
-        updateMatrixRain();
-
-        // // Clear the display
-        // clearDisplay();
-
-        // // Plot scrolling square wave
-        // mnu->squareWaveScrollOffset += mnu->squareWaveScrollSpeed;
-        // mnu->squareWaveScrollOffset = mnu->squareWaveScrollOffset % (SQ_WAVE_LINE_LEN * 2);
-        // plotSquareWave(mnu->squareWaveScrollOffset, 0);
+        screensavers[mnu->screensaverIdx]->updateScreensaver();
 
         // Plot some tiny corner text
         fillDisplayArea(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, textWidth("Swadge 2021", TOM_THUMB) - 1, OLED_HEIGHT, BLACK);

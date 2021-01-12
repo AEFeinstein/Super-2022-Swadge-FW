@@ -18,6 +18,7 @@
 
 #include "oled.h"
 #include "bresenham.h"
+#include "Screensaver.h"
 #include "Starfield.h"
 
 /*==============================================================================
@@ -42,18 +43,29 @@ typedef struct
 #define NUM_STARS 92
 
 /*==============================================================================
+ * Prototypes
+ *============================================================================*/
+
+void ICACHE_FLASH_ATTR initStarField(void);
+void ICACHE_FLASH_ATTR destroyStarField(void);
+void ICACHE_FLASH_ATTR starField(void);
+
+void ICACHE_FLASH_ATTR updateStar(Star* star);
+void ICACHE_FLASH_ATTR translate(int (*coord)[], int translateByX, int translateByY);
+int ICACHE_FLASH_ATTR randomInt(int lowerBound, int upperBound);
+
+/*==============================================================================
  * Variables
  *============================================================================*/
 
 Star* stars;
 
-/*==============================================================================
- * Prototypes
- *============================================================================*/
-
-void ICACHE_FLASH_ATTR updateStar(Star* star);
-void ICACHE_FLASH_ATTR translate(int (*coord)[], int translateByX, int translateByY);
-int ICACHE_FLASH_ATTR randomInt(int lowerBound, int upperBound);
+screensaver ssStarfield =
+{
+    .initScreensaver = initStarField,
+    .updateScreensaver = starField,
+    .destroyScreensaver = destroyStarField,
+};
 
 /*==============================================================================
  * Functions

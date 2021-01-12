@@ -16,6 +16,7 @@
 #include "oled.h"
 #include "cndraw.h"
 #include "font.h"
+#include "Screensaver.h"
 #include "MatrixRain.h"
 
 /*==============================================================================
@@ -53,8 +54,23 @@ typedef struct
 } matrixRain;
 
 /*==============================================================================
+ * Prototypes
+ *============================================================================*/
+
+void ICACHE_FLASH_ATTR initMatrixRain(void);
+void ICACHE_FLASH_ATTR updateMatrixRain(void);
+void ICACHE_FLASH_ATTR destroyMatrixRain(void);
+
+/*==============================================================================
  * Variables
  *============================================================================*/
+
+screensaver ssMatrixRain =
+{
+    .initScreensaver = initMatrixRain,
+    .updateScreensaver = updateMatrixRain,
+    .destroyScreensaver = destroyMatrixRain,
+};
 
 matrixRain* mr;
 
