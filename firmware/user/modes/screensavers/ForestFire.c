@@ -52,7 +52,7 @@ screensaver ssForestFire =
     .destroyScreensaver = destroyForestFire,
 };
 
-forestFireSim* fFire;
+forestFireSim* fFire = NULL;
 
 /*==============================================================================
  * Functions
@@ -64,18 +64,21 @@ forestFireSim* fFire;
  */
 void ICACHE_FLASH_ATTR initForestFire(void)
 {
-    fFire = os_malloc(sizeof(forestFireSim));
-    for(int16_t x = 0; x < OLED_WIDTH; x++)
+    if(NULL == fFire)
     {
-        for(int16_t y = 0; y < OLED_HEIGHT; y++)
+        fFire = os_malloc(sizeof(forestFireSim));
+        for(int16_t x = 0; x < OLED_WIDTH; x++)
         {
-            if(os_random() % 2 == 0)
+            for(int16_t y = 0; y < OLED_HEIGHT; y++)
             {
-                fFire->forest[x][y] = TREE;
-            }
-            else
-            {
-                fFire->forest[x][y] = EMPTY;
+                if(os_random() % 2 == 0)
+                {
+                    fFire->forest[x][y] = TREE;
+                }
+                else
+                {
+                    fFire->forest[x][y] = EMPTY;
+                }
             }
         }
     }
@@ -87,7 +90,11 @@ void ICACHE_FLASH_ATTR initForestFire(void)
  */
 void ICACHE_FLASH_ATTR destroyForestFire(void)
 {
-    os_free(fFire);
+    if(NULL != fFire)
+    {
+        os_free(fFire);
+        fFire = NULL;
+    }
 }
 
 /**

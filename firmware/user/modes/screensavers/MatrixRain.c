@@ -72,7 +72,7 @@ screensaver ssMatrixRain =
     .destroyScreensaver = destroyMatrixRain,
 };
 
-matrixRain* mr;
+matrixRain* mr = NULL;
 
 /*==============================================================================
  * Prototypes
@@ -90,11 +90,14 @@ char ICACHE_FLASH_ATTR randChr(void);
  */
 void ICACHE_FLASH_ATTR initMatrixRain(void)
 {
-    mr = os_malloc(sizeof(matrixRain));
-
-    for(uint8_t i = 0; i < NUM_RAINDROPS; i++)
+    if(NULL == mr)
     {
-        initRaindrop(&mr->rain[i]);
+        mr = os_malloc(sizeof(matrixRain));
+
+        for(uint8_t i = 0; i < NUM_RAINDROPS; i++)
+        {
+            initRaindrop(&mr->rain[i]);
+        }
     }
 }
 
@@ -103,7 +106,11 @@ void ICACHE_FLASH_ATTR initMatrixRain(void)
  */
 void ICACHE_FLASH_ATTR destroyMatrixRain(void)
 {
-    os_free(mr);
+    if(NULL != mr)
+    {
+        os_free(mr);
+        mr = NULL;
+    }
 }
 
 /**

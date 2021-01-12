@@ -63,7 +63,7 @@ void ICACHE_FLASH_ATTR initToaster(void);
  * Variables
  *============================================================================*/
 
-toasterDat* toaster;
+toasterDat* toaster = NULL;
 
 screensaver ssToaster =
 {
@@ -81,17 +81,20 @@ screensaver ssToaster =
  */
 void ICACHE_FLASH_ATTR initToaster(void)
 {
-    toaster = os_malloc(sizeof(toasterDat));
-    allocPngSequence(&(toaster->toaster), 4,
-                     "toaster0.png",
-                     "toaster1.png",
-                     "toaster2.png",
-                     "toaster1.png");
-    allocPngAsset("toast.png", &(toaster->toast));
-
-    for(uint8_t i = 0; i < NUM_OBJECTS; i++)
+    if(NULL == toaster)
     {
-        initObject(&toaster->objects[i], true);
+        toaster = os_malloc(sizeof(toasterDat));
+        allocPngSequence(&(toaster->toaster), 4,
+                         "toaster0.png",
+                         "toaster1.png",
+                         "toaster2.png",
+                         "toaster1.png");
+        allocPngAsset("toast.png", &(toaster->toast));
+
+        for(uint8_t i = 0; i < NUM_OBJECTS; i++)
+        {
+            initObject(&toaster->objects[i], true);
+        }
     }
 }
 
@@ -100,9 +103,13 @@ void ICACHE_FLASH_ATTR initToaster(void)
  */
 void ICACHE_FLASH_ATTR destroyToaster(void)
 {
-    freePngSequence(&(toaster->toaster));
-    freePngAsset(&(toaster->toast));
-    os_free(toaster);
+    if(NULL != toaster)
+    {
+        freePngSequence(&(toaster->toaster));
+        freePngAsset(&(toaster->toast));
+        os_free(toaster);
+        toaster = NULL;
+    }
 }
 
 /**

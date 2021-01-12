@@ -58,7 +58,7 @@ int ICACHE_FLASH_ATTR randomInt(int lowerBound, int upperBound);
  * Variables
  *============================================================================*/
 
-Star* stars;
+Star* stars = NULL;
 
 screensaver ssStarfield =
 {
@@ -76,13 +76,16 @@ screensaver ssStarfield =
  */
 void ICACHE_FLASH_ATTR initStarField(void)
 {
-    stars = os_malloc(sizeof(Star) * NUM_STARS);
-    /* Initialize the stars */
-    for(int i = 0; i < NUM_STARS; i++)
+    if(NULL == stars)
     {
-        stars[i].x = randomInt(-OLED_WIDTH / 2, OLED_WIDTH / 2);
-        stars[i].y = randomInt(-OLED_HEIGHT / 2, OLED_HEIGHT / 2);
-        stars[i].z = 1 + (os_random() % 1023);
+        stars = os_malloc(sizeof(Star) * NUM_STARS);
+        /* Initialize the stars */
+        for(int i = 0; i < NUM_STARS; i++)
+        {
+            stars[i].x = randomInt(-OLED_WIDTH / 2, OLED_WIDTH / 2);
+            stars[i].y = randomInt(-OLED_HEIGHT / 2, OLED_HEIGHT / 2);
+            stars[i].z = 1 + (os_random() % 1023);
+        }
     }
 }
 
@@ -92,7 +95,11 @@ void ICACHE_FLASH_ATTR initStarField(void)
  */
 void ICACHE_FLASH_ATTR destroyStarField(void)
 {
-    os_free(stars);
+    if(NULL != stars)
+    {
+        os_free(stars);
+        stars = NULL;
+    }
 }
 
 /**
