@@ -1832,7 +1832,7 @@ bool ICACHE_FLASH_ATTR updtAnimDrink(uint32_t tElapsedUs)
     static uint8_t animState = 0;
     pd->animTimeUs += tElapsedUs;
 
-    int32_t usPerFrame = 10000;
+    uint32_t usPerFrame = 10000;
     if(0 == animState || 4 == animState)
     {
         usPerFrame = 40000;
@@ -1846,6 +1846,7 @@ bool ICACHE_FLASH_ATTR updtAnimDrink(uint32_t tElapsedUs)
 
         switch(animState)
         {
+            default:
             case 0:
             {
                 // Move towards chalice

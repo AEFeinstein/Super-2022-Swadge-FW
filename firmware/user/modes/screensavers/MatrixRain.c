@@ -270,7 +270,6 @@ void ICACHE_FLASH_ATTR updateMatrixRain(void)
                         // Plot the char
                         int16_t width = charWidth(obj->tail[j], obj->font);
                         int16_t charX = obj->x + (maxCharWidth - width) / 2;
-                        int16_t charY = obj->tailY - (j * (obj->fontHeight + 1));
                         plotChar(charX,
                                  charY,
                                  obj->tail[j],

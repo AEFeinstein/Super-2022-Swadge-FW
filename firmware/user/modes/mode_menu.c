@@ -189,7 +189,6 @@ void ICACHE_FLASH_ATTR menuInit(void)
 
     // Initialize screensavers
     mnu->screensaverIdx = 0;
-    screensavers[mnu->screensaverIdx]->initScreensaver();
 }
 
 /**
@@ -235,8 +234,8 @@ void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
             return;
         }
 
-        // Stop the screensaver, unless it's UP or DOWN
-        if((button != UP) && (button != DOWN) && stopScreensaver())
+        // Stop the screensaver if the action button is pressed
+        if((button == ACTION) && stopScreensaver())
         {
             // Draw what's under the screensaver
             drawGifFromAsset(mnu->curImg, 0, 0, false, false, 0, false);
@@ -263,24 +262,51 @@ void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
             }
             case RIGHT:
             {
-                // Cycle the currently selected mode
-                mnu->selectedMode = (mnu->selectedMode + 1) % mnu->numModes;
-                startPanning(true);
+                if(mnu->screensaverIsRunning)
+                {
+                    // Cycle the screensaver
+                    screensavers[mnu->screensaverIdx]->destroyScreensaver();
+                    mnu->screensaverIdx = (mnu->screensaverIdx + 1) % (sizeof(screensavers) / sizeof(screensavers[0]));
+                    screensavers[mnu->screensaverIdx]->initScreensaver();
+                }
+                else
+                {
+                    // Cycle the currently selected mode
+                    mnu->selectedMode = (mnu->selectedMode + 1) % mnu->numModes;
+                    startPanning(true);
+                }
                 break;
             }
             case LEFT:
             {
-                // Cycle the currently selected mode
-                if(0 == mnu->selectedMode)
+                if(mnu->screensaverIsRunning)
                 {
-                    mnu->selectedMode = mnu->numModes - 1;
+                    // Cycle the screensaver
+                    screensavers[mnu->screensaverIdx]->destroyScreensaver();
+                    if(0 == mnu->screensaverIdx)
+                    {
+                        mnu->screensaverIdx = (sizeof(screensavers) / sizeof(screensavers[0])) - 1;
+                    }
+                    else
+                    {
+                        mnu->screensaverIdx--;
+                    }
+                    screensavers[mnu->screensaverIdx]->initScreensaver();
                 }
                 else
                 {
-                    mnu->selectedMode--;
-                }
+                    // Cycle the currently selected mode
+                    if(0 == mnu->selectedMode)
+                    {
+                        mnu->selectedMode = mnu->numModes - 1;
+                    }
+                    else
+                    {
+                        mnu->selectedMode--;
+                    }
 
-                startPanning(false);
+                    startPanning(false);
+                }
                 break;
             }
             case UP:
@@ -481,6 +507,8 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
     timerArm(&mnu->timerScreensaverBright, 3000, false);
 
     mnu->screensaverIsRunning = true;
+
+    screensavers[mnu->screensaverIdx]->initScreensaver();
 }
 
 /**
@@ -555,6 +583,7 @@ bool ICACHE_FLASH_ATTR stopScreensaver(void)
     timerDisarm(&mnu->timerScreensaverBright);
 
     mnu->screensaverIsRunning = false;
+    screensavers[mnu->screensaverIdx]->destroyScreensaver();
     return retVal;
 }
 
