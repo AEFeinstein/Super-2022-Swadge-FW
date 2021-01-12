@@ -38,15 +38,13 @@ Start with the basic mechanics of r type, add a reflector shield with a CD, and 
 This is a Swadge Mode which has states, the mode updates in different ways depending on the current state.
 An Update consists of detecting and handline INPUT -> running any game LOGIC that is unrelated to input -> DISPLAY to the user the current mode state.
 
-TODO for playable:
-Enemy wave generator (bug fix)
-Placeholder title screen
-
-TODO polish:
+TODO:
 Score display / loading / saving
 LED FX
-Art assets
+Art assets and integration
 Attempt rising / lowering sun BG fx
+Refine enemy wave generator
+
 
 */
 
@@ -87,7 +85,8 @@ Attempt rising / lowering sun BG fx
 #define PWRUP_FP 0
 #define PWRUP_REFLECT 1
 #define PWRUP_CHARGE 2
-#define PWRUP_LIFETIME (10 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
+//#define PWRUP_LIFETIME (10 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
+#define PWRUP_DRIFT_DELAY (3 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
 //TODO: other powerups?
 
 #define ENEMY_SNAKE 0
@@ -115,6 +114,8 @@ Attempt rising / lowering sun BG fx
 
 #define PLAYER_PROJECTILE_SPEED 3
 #define PLAYER_PROJECTILE_DAMAGE 1
+#define PLAYER_START_LIVES 3
+#define PLAYER_INVINCIBILITY_TIME (3.0 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
 
 #define ENEMY_PROJECTILE_SPEED 1
 #define ENEMY_PROJECTILE_DAMAGE 1
@@ -129,6 +130,10 @@ Attempt rising / lowering sun BG fx
 #define REFLECT_RAM_BONUS 2
 #define REFLECT_KILL_BONUS 10
 #define POWERUP_GET_BONUS 50
+
+#define DIFFICULTY_EASY 1
+#define DIFFICULTY_MEDIUM 2
+#define DIFFICULTY_HARD 3
 
 // floor terrain consts.
 #define CHUNK_WIDTH 8
@@ -159,6 +164,8 @@ typedef struct
     uint32_t shotCooldown;  // cooldown between firing shots.
     uint32_t abilityChargeCounter;    // counter for ability charge.
     int abilityCountdown;   // counter for how long ability will last once active.
+    uint8_t numLives;
+    int invincibilityCountdown; // counter for spawn invincibility.
 } player_t;
 
 typedef struct 
@@ -180,6 +187,8 @@ typedef struct
     uint8_t type;
     vec_t position;
     vec_t bbHalf;
+    uint8_t speed;  // drift speed of the powerup.
+    uint32_t driftDelay;  // drift speed of the powerup.
 } powerup_t;
 
 typedef struct 
@@ -215,6 +224,8 @@ typedef struct
     uint32_t stateTime; // total time the state has been running in microseconds.
     uint32_t modeFrames; // total number of frames elapsed in this mode.
     uint32_t stateFrames; // total number of frames elapsed in this state.
+
+    uint8_t difficulty; // the selected difficulty for the game.
 
     uint32_t score;
     uint32_t wave; // enemy wave number.
@@ -299,6 +310,7 @@ bool ICACHE_FLASH_ATTR fireProjectile (uint8_t owner, uint8_t type, vec_t positi
 bool ICACHE_FLASH_ATTR spawnEnemy (uint8_t type, vec_t spawn, int8_t health, vec_t bbHalf, int32_t frameOffset);
 void ICACHE_FLASH_ATTR spawnEnemyFormation (uint8_t type, vec_t spawn, int8_t health, vec_t bbHalf, int32_t frameOffset, uint8_t numEnemies, int16_t xSpacing, int16_t ySpacing);
 void ICACHE_FLASH_ATTR enemyDeath (uint8_t index);
+void ICACHE_FLASH_ATTR playerDeath ();
 
 
 /*============================================================================
@@ -322,7 +334,9 @@ swadgeMode mTypeMode =
 mType_t* mType;
 
 static const char mt_title[]  = "M-TYPE";
-static const char mt_start[]  = "START";
+static const char mt_easy[]   = "EASY";
+static const char mt_medium[] = "MEDIUM";
+static const char mt_hard[]   = "HARD";
 static const char mt_scores[] = "HIGH SCORES";
 static const char mt_quit[]   = "QUIT";
 static const char mt_gameover[] = "GAME OVER";
@@ -360,8 +374,12 @@ void ICACHE_FLASH_ATTR mtEnterMode(void)
     // Init title menu system.
     mType->titleMenu = initMenu(mt_title, mtTitleMenuCallback);
     addRowToMenu(mType->titleMenu);
-    addItemToRow(mType->titleMenu, mt_start);
+
+    addItemToRow(mType->titleMenu, mt_easy);
+    addItemToRow(mType->titleMenu, mt_medium);
+    addItemToRow(mType->titleMenu, mt_hard);
     addRowToMenu(mType->titleMenu);
+
     addItemToRow(mType->titleMenu, mt_scores);
     addRowToMenu(mType->titleMenu);
     addItemToRow(mType->titleMenu, mt_quit);
@@ -517,12 +535,12 @@ static void ICACHE_FLASH_ATTR mtUpdate(void* arg __attribute__((unused)))
     }*/
 
     // Draw debug FPS counter.
-    char uiStr[32] = {0};
+    /*char uiStr[32] = {0};
     double seconds = ((double)mType->stateTime * (double)US_TO_MS_FACTOR * (double)MS_TO_S_FACTOR);
     int32_t fps = (int)((double)mType->stateFrames / seconds);
     //ets_snprintf(uiStr, sizeof(uiStr), "FPS: %d", fps);
     ets_snprintf(uiStr, sizeof(uiStr), "W:%d E:%d", mType->wave, mType->enemiesInWave);
-    plotText(OLED_WIDTH - getTextWidth(uiStr, TOM_THUMB) - 1, OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1)), uiStr, TOM_THUMB, WHITE);
+    plotText(OLED_WIDTH - getTextWidth(uiStr, TOM_THUMB) - 1, OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1)), uiStr, TOM_THUMB, WHITE);*/
 }
 
 // helper functions.
@@ -553,6 +571,8 @@ void ICACHE_FLASH_ATTR mtSetState(mTypeState_t newState)
             mType->player.shotCooldown = 0;
             mType->player.abilityChargeCounter = 0;
             mType->player.abilityCountdown = 0;
+            mType->player.numLives = PLAYER_START_LIVES;
+            mType->player.invincibilityCountdown = 0;
             mType->score = 0;
             mType->wave = 0;
             mType->enemiesInWave = 0;
@@ -576,10 +596,12 @@ void ICACHE_FLASH_ATTR mtSetState(mTypeState_t newState)
             for (int i = 0; i < MAX_POWERUPS; i++) {
                 mType->powerups[i].active = 0;
                 mType->powerups[i].type = 0;
-                mType->projectiles[i].position.x = 0;
-                mType->projectiles[i].position.y = 0;
-                mType->projectiles[i].bbHalf.x = 1;
-                mType->projectiles[i].bbHalf.y = 1;
+                mType->powerups[i].position.x = 0;
+                mType->powerups[i].position.y = 0;
+                mType->powerups[i].bbHalf.x = 1;
+                mType->powerups[i].bbHalf.y = 1;
+                mType->powerups[i].speed = 1;
+                mType->powerups[i].driftDelay = 0;
             }
 
             // initialize enemies deactivated with default values.
@@ -858,9 +880,8 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                 mType->enemies[i].position.y - mType->enemies[i].bbHalf.y, 
                 mType->enemies[i].position.x + mType->enemies[i].bbHalf.x, 
                 mType->enemies[i].position.y + mType->enemies[i].bbHalf.y)) {
-                    if (mType->player.abilityCountdown <= 0) {
-                        //TODO: game over anim and fx.
-                        mtSetState(MT_GAMEOVER);
+                    if (mType->player.abilityCountdown <= 0 && mType->player.invincibilityCountdown <= 0) {
+                        playerDeath();
                     }
                     else {
                         //TODO: should this damage an enemy or kill it? or bounce an enemy back?
@@ -976,7 +997,7 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                 /* randomly generated wave */
                 // playable area is like 5 to OLED_HEIGHT - 15
                 initialSpawn.x = OLED_WIDTH + bbHalf.x;
-                numFormations = 3 + mType->wave / 4 + mType->wave % 4;
+                numFormations = (3 + mType->wave / 2 + mType->wave % 2) * mType->difficulty;
                 for (i = 0; i < numFormations; i++) {
                     type = os_random() % 3;
                     bbHalf.x = 3;
@@ -1036,7 +1057,7 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
 
             if (mType->projectiles[i].owner == OWNER_PLAYER) {
                 for (int j = 0; j < MAX_ENEMIES; j++) {
-                    if (mType->enemies[j].active) {
+                    if (mType->enemies[j].active && mType->enemies[j].position.x - mType->enemies[j].bbHalf.x < OLED_WIDTH) {
                         if (AABBCollision(px0, py0, px1, py1, 
                             mType->enemies[j].position.x - mType->enemies[j].bbHalf.x, 
                             mType->enemies[j].position.y - mType->enemies[j].bbHalf.y, 
@@ -1081,8 +1102,12 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                         mType->projectiles[i].speed *= 2;
                     }
                     else {
-                        //TODO: game over anim and fx.
-                        mtSetState(MT_GAMEOVER);
+                        if (mType->player.invincibilityCountdown <= 0) {
+                            playerDeath();
+                        }
+                        else {
+                            mType->projectiles[i].active = 0;
+                        }
                     }
                 }
             }
@@ -1106,6 +1131,13 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
     // powerup movement and collision
     for (int i = 0; i < MAX_POWERUPS; i++) {
         if (mType->powerups[i].active) {
+            // powerups drift left after a short delay.
+            mType->powerups[i].driftDelay += mType->deltaTime;
+            if (mType->powerups[i].driftDelay >= PWRUP_DRIFT_DELAY) {
+                mType->powerups[i].position.x -= mType->powerups[i].speed;
+            }
+
+            // players collide with a powerup to recieve its effects.
             if (AABBCollision(mType->player.position.x - mType->player.bbHalf.x, 
                     mType->player.position.y - mType->player.bbHalf.y, 
                     mType->player.position.x + mType->player.bbHalf.x, 
@@ -1120,6 +1152,11 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                             mType->player.shotLevel++;
                         }
             }
+
+            // despawn powerups if they drift off of the screen.
+            if (mType->powerups[i].position.x + mType->powerups[i].bbHalf.x < 0) {
+                mType->powerups[i].active = 0;
+            }
         }
     }
 
@@ -1127,6 +1164,13 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
         mType->player.abilityCountdown -= mType->deltaTime;
         if (mType->player.abilityCountdown < 0) {
             mType->player.abilityCountdown = 0;
+        }
+    }
+
+    if (mType->player.invincibilityCountdown > 0) {
+        mType->player.invincibilityCountdown -= mType->deltaTime;
+        if (mType->player.invincibilityCountdown < 0) {
+            mType->player.invincibilityCountdown = 0;
         }
     }
 
@@ -1220,6 +1264,9 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
     if (mType->player.abilityCountdown > 0) {
         plotCircle(mType->player.position.x, mType->player.position.y, ((mType->stateFrames / 2) % 3) + 4, WHITE);//mType->stateFrames % 3 ? WHITE : BLACK);
     }
+    if (mType->player.invincibilityCountdown > 0 && mType->stateFrames % 2 == 0) {
+        fillDisplayArea((int16_t)mType->player.position.x - mType->player.bbHalf.x, (int16_t)mType->player.position.y - mType->player.bbHalf.y, (int16_t)mType->player.position.x + mType->player.bbHalf.x, (int16_t)mType->player.position.y + mType->player.bbHalf.y, INVERSE);
+    }
     //plotCircle(mType->player.position.x, mType->player.position.y, 5, WHITE);
     // draw ui
     /*
@@ -1240,6 +1287,31 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
     // upper ui border
     //plotLine(0, boundaryLineY, OLED_WIDTH - 1, boundaryLineY, WHITE);
 
+    int livesTextX = 12;
+    int livesTextY = OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1));
+
+    int livesSymbolX = 7;
+    int livesSymbolY = livesTextY + 2;
+
+    // lives display
+    /*if (mType->player.numLives < 3) {
+        // lives symbols
+        int currLivesSymbolX = livesSymbolX;
+
+        for (int i = 0; i < mType->player.numLives; i++) {
+            plotRect(currLivesSymbolX - mType->player.bbHalf.x, livesSymbolY - mType->player.bbHalf.y, currLivesSymbolX + mType->player.bbHalf.x, livesSymbolY + mType->player.bbHalf.y, WHITE);
+            currLivesSymbolX += mType->player.bbHalf.x * 2 + 2;
+        }
+    }
+    else {*/
+        // lives symbol
+        plotRect(livesSymbolX - mType->player.bbHalf.x, livesSymbolY - mType->player.bbHalf.y, livesSymbolX + mType->player.bbHalf.x, livesSymbolY + mType->player.bbHalf.y, WHITE);
+
+        // lives text
+        ets_snprintf(uiStr, sizeof(uiStr), "x%d", mType->player.numLives);
+        plotText(livesTextX, livesTextY, uiStr, TOM_THUMB, WHITE);
+    //}
+
     // reflect text
     ets_snprintf(uiStr, sizeof(uiStr), "REFLECT");
     plotText(reflectTextX, reflectTextY, uiStr, TOM_THUMB, WHITE);
@@ -1259,7 +1331,7 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
     plotLine(reflectBarX0, reflectBarY0 + 1, reflectBarFillX1, reflectBarY0 + 1, WHITE);
 
     // For each chunk coordinate
-    for(uint8_t w = 0; w < NUM_CHUNKS + 1; w++)
+    for(uint8_t w = 0; w < NUM_CHUNKS; w++)
     {
         // Plot a floor segment line between chunk coordinates
         plotLine(
@@ -1315,9 +1387,22 @@ void ICACHE_FLASH_ATTR mtGameoverDisplay(void)
  */
 static void ICACHE_FLASH_ATTR mtTitleMenuCallback(const char* menuItem)
 {
-    if (mt_start == menuItem)
+    if (mt_easy == menuItem)
     {
         // Change state to start game.
+        mType->difficulty = DIFFICULTY_EASY;
+        mtSetState(MT_GAME);
+    }
+    else if (mt_medium == menuItem)
+    {
+        // Change state to start game.
+        mType->difficulty = DIFFICULTY_MEDIUM;
+        mtSetState(MT_GAME);
+    }
+    else if (mt_hard == menuItem)
+    {
+        // Change state to start game.
+        mType->difficulty = DIFFICULTY_HARD;
         mtSetState(MT_GAME);
     }
     else if (mt_scores == menuItem)
@@ -1452,8 +1537,39 @@ void ICACHE_FLASH_ATTR enemyDeath (uint8_t index) {
                 // TODO: set dimensions of the powerup.
                 mType->powerups[k].bbHalf.x = 2;
                 mType->powerups[k].bbHalf.y = 2;
+                mType->powerups[k].driftDelay = 0;
+                mType->powerups[k].speed = 1;
                 break;
             }
         }
+    }
+}
+
+void ICACHE_FLASH_ATTR playerDeath () {
+    if (mType->player.numLives == 0) {
+        //TODO: game over anim and fx.
+        mtSetState(MT_GAMEOVER);
+    }
+    else {
+        // deactivate projectiles.
+        for (int i  = 0; i < MAX_PROJECTILES; i++) {
+            mType->projectiles[i].active = 0;
+        }
+
+        // decrease remaining lives.
+        mType->player.numLives--;
+        
+        // reset player and move back to start.
+        mType->player.position.x = PLAYER_START_X;
+        mType->player.position.y = PLAYER_START_Y;
+        mType->player.lastPosition.x = PLAYER_START_X;
+        mType->player.lastPosition.y = PLAYER_START_Y;
+        mType->player.shotLevel = 0;
+        mType->player.shotCooldown = 0;
+        mType->player.abilityChargeCounter = 0;
+        mType->player.abilityCountdown = 0;
+
+        // start spawn invincibility.
+        mType->player.invincibilityCountdown = PLAYER_INVINCIBILITY_TIME;
     }
 }
