@@ -9,6 +9,7 @@
 #define CNDRAW_H_
 
 void fillDisplayArea(int16_t x1, int16_t y1, int16_t x2, int16_t y2, color c);
+void ICACHE_FLASH_ATTR shadeDisplayArea(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint8_t shadeLevel);
 void ICACHE_FLASH_ATTR outlineTriangle( int16_t v0x, int16_t v0y, int16_t v1x, int16_t v1y,
                                         int16_t v2x, int16_t v2y, color colorA, color colorB );
 

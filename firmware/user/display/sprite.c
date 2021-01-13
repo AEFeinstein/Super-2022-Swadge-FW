@@ -44,6 +44,11 @@ int16_t ICACHE_FLASH_ATTR plotSprite(int16_t x, int16_t y, const sprite_t* p_spr
             foreground = TRANSPARENT_COLOR;
             background = TRANSPARENT_COLOR;
         }
+        case WHITE_F_TRANSPARENT_B:
+        {
+            foreground = WHITE;
+            background = TRANSPARENT_COLOR;
+        }
     }
 
     // refactor this code if it works!!!

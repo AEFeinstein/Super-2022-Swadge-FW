@@ -16,6 +16,12 @@
 #include "mode_menu.h"
 #include "mode_dance.h"
 
+#include "Screensaver.h"
+#include "Starfield.h"
+#include "ForestFire.h"
+#include "Toaster.h"
+#include "MatrixRain.h"
+
 #include "printControl.h"
 
 /*============================================================================
@@ -23,6 +29,7 @@
  *==========================================================================*/
 
 #define MENU_PAN_PERIOD_MS 20
+#define MENU_SCREENSAVER_PERIOD_MS 20
 #define MENU_PX_PER_PAN     8
 #define SQ_WAVE_LINE_LEN   16
 
@@ -90,6 +97,7 @@ typedef struct
     int16_t panIdx;
 
     bool screensaverIsRunning;
+    uint8_t screensaverIdx;
 
     button_num buttonHist[MNU_BUTTON_HIST_SIZE];
 } mnu_t;
@@ -112,6 +120,14 @@ swadgeMode menuMode =
 mnu_t* mnu;
 
 static const button_num konami[MNU_BUTTON_HIST_SIZE] = {UP, UP, DOWN, DOWN, LEFT, RIGHT, LEFT, RIGHT};
+
+screensaver* screensavers[] =
+{
+    &ssToaster,
+    &ssStarfield,
+    &ssMatrixRain,
+    &ssForestFire
+};
 
 /*============================================================================
  * Swadge Mode Functions
@@ -170,6 +186,9 @@ void ICACHE_FLASH_ATTR menuInit(void)
 
     // Make buttons sensitive, they're ignored during animation anyway
     enableDebounce(false);
+
+    // Initialize screensavers
+    mnu->screensaverIdx = 0;
 }
 
 /**
@@ -184,8 +203,13 @@ void ICACHE_FLASH_ATTR menuExit(void)
     timerDisarm(&mnu->timerScreensaverOLEDAnimation);
     timerDisarm(&mnu->timerPanning);
     timerFlush();
+
     freeGifAsset(mnu->curImg);
     freeGifAsset(mnu->nextImg);
+
+    // Free screensavers
+    screensavers[mnu->screensaverIdx]->destroyScreensaver();
+
     os_free(mnu);
 }
 
@@ -210,8 +234,8 @@ void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
             return;
         }
 
-        // Stop the screensaver, unless it's UP or DOWN
-        if((button != UP) && (button != DOWN) && stopScreensaver())
+        // Stop the screensaver if the action button is pressed
+        if((button == ACTION) && stopScreensaver())
         {
             // Draw what's under the screensaver
             drawGifFromAsset(mnu->curImg, 0, 0, false, false, 0, false);
@@ -238,24 +262,51 @@ void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
             }
             case RIGHT:
             {
-                // Cycle the currently selected mode
-                mnu->selectedMode = (mnu->selectedMode + 1) % mnu->numModes;
-                startPanning(true);
+                if(mnu->screensaverIsRunning)
+                {
+                    // Cycle the screensaver
+                    screensavers[mnu->screensaverIdx]->destroyScreensaver();
+                    mnu->screensaverIdx = (mnu->screensaverIdx + 1) % (sizeof(screensavers) / sizeof(screensavers[0]));
+                    screensavers[mnu->screensaverIdx]->initScreensaver();
+                }
+                else
+                {
+                    // Cycle the currently selected mode
+                    mnu->selectedMode = (mnu->selectedMode + 1) % mnu->numModes;
+                    startPanning(true);
+                }
                 break;
             }
             case LEFT:
             {
-                // Cycle the currently selected mode
-                if(0 == mnu->selectedMode)
+                if(mnu->screensaverIsRunning)
                 {
-                    mnu->selectedMode = mnu->numModes - 1;
+                    // Cycle the screensaver
+                    screensavers[mnu->screensaverIdx]->destroyScreensaver();
+                    if(0 == mnu->screensaverIdx)
+                    {
+                        mnu->screensaverIdx = (sizeof(screensavers) / sizeof(screensavers[0])) - 1;
+                    }
+                    else
+                    {
+                        mnu->screensaverIdx--;
+                    }
+                    screensavers[mnu->screensaverIdx]->initScreensaver();
                 }
                 else
                 {
-                    mnu->selectedMode--;
-                }
+                    // Cycle the currently selected mode
+                    if(0 == mnu->selectedMode)
+                    {
+                        mnu->selectedMode = mnu->numModes - 1;
+                    }
+                    else
+                    {
+                        mnu->selectedMode--;
+                    }
 
-                startPanning(false);
+                    startPanning(false);
+                }
                 break;
             }
             case UP:
@@ -448,7 +499,7 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
     timerArm(&mnu->timerScreensaverLEDAnimation, 1, true);
 
     // Animate the OLED at the given period
-    timerArm(&mnu->timerScreensaverOLEDAnimation, MENU_PAN_PERIOD_MS, true);
+    timerArm(&mnu->timerScreensaverOLEDAnimation, MENU_SCREENSAVER_PERIOD_MS, true);
 
     mnu->drawOLEDScreensaver = false;
 
@@ -456,6 +507,8 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
     timerArm(&mnu->timerScreensaverBright, 3000, false);
 
     mnu->screensaverIsRunning = true;
+
+    screensavers[mnu->screensaverIdx]->initScreensaver();
 }
 
 /**
@@ -493,20 +546,16 @@ static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__
 {
     if (mnu->drawOLEDScreensaver)
     {
-        // Clear the display
-        clearDisplay();
-
-        // Plot scrolling square wave
-        mnu->squareWaveScrollOffset += mnu->squareWaveScrollSpeed;
-        mnu->squareWaveScrollOffset = mnu->squareWaveScrollOffset % (SQ_WAVE_LINE_LEN * 2);
-        plotSquareWave(mnu->squareWaveScrollOffset, 0);
+        screensavers[mnu->screensaverIdx]->updateScreensaver();
 
         // Plot some tiny corner text
+        fillDisplayArea(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, textWidth("Swadge 2021", TOM_THUMB) - 1, OLED_HEIGHT, BLACK);
         plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Swadge 2021", TOM_THUMB, WHITE);
 
         // Plot the dance name
         int16_t width = textWidth(getDanceName(mnu->menuScreensaverIdx), TOM_THUMB);
-        plotText(OLED_WIDTH - width, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB,
+        fillDisplayArea(OLED_WIDTH - width, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, OLED_WIDTH, OLED_HEIGHT, BLACK);
+        plotText(OLED_WIDTH - width + 1, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB,
                  getDanceName(mnu->menuScreensaverIdx), TOM_THUMB, WHITE);
     }
 }
@@ -534,6 +583,7 @@ bool ICACHE_FLASH_ATTR stopScreensaver(void)
     timerDisarm(&mnu->timerScreensaverBright);
 
     mnu->screensaverIsRunning = false;
+    screensavers[mnu->screensaverIdx]->destroyScreensaver();
     return retVal;
 }
 

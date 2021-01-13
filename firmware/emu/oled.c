@@ -26,7 +26,7 @@ bool initOLED(bool reset)
 
 void drawPixel(int16_t x, int16_t y, color c)
 {
-    if (c != TRANSPARENT_COLOR &&
+    if (c != TRANSPARENT_COLOR && c != WHITE_F_TRANSPARENT_B &&
             (0 <= x) && (x < OLED_WIDTH) &&
             (0 <= y) && (y < OLED_HEIGHT))
     {
@@ -45,6 +45,7 @@ void drawPixel(int16_t x, int16_t y, color c)
                 *addy ^= mask;
                 break;
             case TRANSPARENT_COLOR:
+            case WHITE_F_TRANSPARENT_B:
             default:
             {
                 break;

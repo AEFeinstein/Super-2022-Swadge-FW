@@ -403,6 +403,7 @@ void ICACHE_FLASH_ATTR clearDisplay(void)
 void drawPixel(int16_t x, int16_t y, color c)
 {
     if (c != TRANSPARENT_COLOR &&
+            c != WHITE_F_TRANSPARENT_B &&
             (0 <= x) && (x < OLED_WIDTH) &&
             (0 <= y) && (y < OLED_HEIGHT))
     {
@@ -420,6 +421,7 @@ void drawPixel(int16_t x, int16_t y, color c)
             case INVERSE:
                 *addy ^= mask;
                 break;
+            case WHITE_F_TRANSPARENT_B:
             case TRANSPARENT_COLOR:
             default:
             {

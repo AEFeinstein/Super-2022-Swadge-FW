@@ -1344,6 +1344,7 @@ void ICACHE_FLASH_ATTR drawSprites(rayResult_t* rayResult)
                             }
                             case INVERSE:
                             case TRANSPARENT_COLOR:
+                            case WHITE_F_TRANSPARENT_B:
                             default:
                             {
                                 // These don't draw

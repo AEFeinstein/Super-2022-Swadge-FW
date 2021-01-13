@@ -57,6 +57,7 @@ void ICACHE_FLASH_ATTR dancePoliceSiren(uint32_t tElapsedUs, uint32_t arg, bool 
 void ICACHE_FLASH_ATTR dancePureRandom(uint32_t tElapsedUs, uint32_t arg, bool reset);
 void ICACHE_FLASH_ATTR danceRandomDance(uint32_t tElapsedUs, uint32_t arg, bool reset);
 void ICACHE_FLASH_ATTR danceChristmas(uint32_t tElapsedUs, uint32_t arg, bool reset);
+void ICACHE_FLASH_ATTR danceNone(uint32_t tElapsedUs, uint32_t arg, bool reset);
 
 /*============================================================================
  * Variables
@@ -87,6 +88,7 @@ static const ledDanceArg ledDances[] =
     {.func = dancePureRandom,    .arg = 0, .name = "Random"},
     {.func = danceChristmas,     .arg = 1, .name = "Holiday 1"},
     {.func = danceChristmas,     .arg = 0, .name = "Holiday 2"},
+    {.func = danceNone,          .arg = 0, .name = "None"},
     {.func = danceRandomDance,   .arg = 0, .name = "???"},
 };
 
@@ -1099,6 +1101,22 @@ void ICACHE_FLASH_ATTR danceChristmas(uint32_t tElapsedUs, uint32_t arg, bool re
     // Output the LED data, actually turning them on
     if(ledsUpdated)
     {
+        setDanceLeds(leds, sizeof(leds));
+    }
+}
+
+/**
+ * @brief Blank the LEDs
+ *
+ * @param tElapsedUs
+ * @param arg
+ * @param reset
+ */
+void ICACHE_FLASH_ATTR danceNone(uint32_t tElapsedUs, uint32_t arg, bool reset)
+{
+    if(reset)
+    {
+        led_t leds[NUM_LIN_LEDS] = {{0}};
         setDanceLeds(leds, sizeof(leds));
     }
 }
