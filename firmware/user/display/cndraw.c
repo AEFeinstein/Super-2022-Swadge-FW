@@ -41,9 +41,9 @@ void ICACHE_FLASH_ATTR fillDisplayArea(int16_t x1, int16_t y1, int16_t x2, int16
  */
 void ICACHE_FLASH_ATTR shadeDisplayArea(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint8_t shadeLevel)
 {
-    for(uint16_t dy = y1; dy < y2; dy++)
+    for(int16_t dy = y1; dy < y2; dy++)
     {
-        for(uint16_t dx = x1; dx < x2; dx++)
+        for(int16_t dx = x1; dx < x2; dx++)
         {
             switch(shadeLevel)
             {
