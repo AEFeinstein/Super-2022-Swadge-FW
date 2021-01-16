@@ -235,14 +235,22 @@ void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
         }
 
         // Stop the screensaver if the action button is pressed
-        if((button == ACTION) && stopScreensaver())
+        if(true == mnu->drawOLEDScreensaver)
         {
-            // Draw what's under the screensaver
-            drawGifFromAsset(mnu->curImg, 0, 0, false, false, 0, false);
-            mnuDrawArrows();
-            // But don't process the button otherwise
-            return;
+            if (button == ACTION && stopScreensaver())
+            {
+                // Draw what's under the screensaver
+                drawGifFromAsset(mnu->curImg, 0, 0, false, false, 0, false);
+                mnuDrawArrows();
+                // But don't process the button otherwise
+                return;
+            }
         }
+        else
+        {
+            stopScreensaver();
+        }
+
 
         // Don't accept button input if the menu is panning
         if(mnu->menuIsPanning)
@@ -262,7 +270,7 @@ void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
             }
             case RIGHT:
             {
-                if(mnu->screensaverIsRunning)
+                if(mnu->drawOLEDScreensaver)
                 {
                     // Cycle the screensaver
                     screensavers[mnu->screensaverIdx]->destroyScreensaver();
@@ -279,7 +287,7 @@ void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
             }
             case LEFT:
             {
-                if(mnu->screensaverIsRunning)
+                if(mnu->drawOLEDScreensaver)
                 {
                     // Cycle the screensaver
                     screensavers[mnu->screensaverIdx]->destroyScreensaver();
