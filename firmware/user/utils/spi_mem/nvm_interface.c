@@ -17,7 +17,7 @@
  * Defines
  *==========================================================================*/
 
-#define SAVE_LOAD_KEY 0xC3
+#define SAVE_LOAD_KEY 0xC4
 
 /*============================================================================
  * Structs
@@ -38,6 +38,7 @@ typedef struct __attribute__((aligned(4)))
     raycasterScores_t raycasterScores;
     char ssid[SSID_NAME_LEN];
     char ssidPw[SSID_NAME_LEN];
+    mtHighScores_t mtHighScores;
 }
 settings_t;
 
@@ -158,6 +159,17 @@ void ICACHE_FLASH_ATTR getDDRScores(ddrHighScores_t* highScores)
 void ICACHE_FLASH_ATTR setDDRScores(ddrHighScores_t* highScores)
 {
     ets_memcpy(&(settings.ddrHighScores), highScores, sizeof(ddrHighScores_t));
+    SaveSettings();
+}
+
+void ICACHE_FLASH_ATTR getMTScores(mtHighScores_t* highScores)
+{
+    ets_memcpy(highScores, &(settings.mtHighScores), sizeof(mtHighScores_t));
+}
+
+void ICACHE_FLASH_ATTR setMTScores(mtHighScores_t* highScores)
+{
+    ets_memcpy(&(settings.mtHighScores), highScores, sizeof(mtHighScores_t));
     SaveSettings();
 }
 
