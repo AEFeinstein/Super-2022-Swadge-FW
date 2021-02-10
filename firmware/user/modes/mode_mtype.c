@@ -30,6 +30,8 @@
 #include "embeddednf.h"
 #include "embeddedout.h"
 
+#include "mode_mtype.h"
+#include "nvm_interface.h"
 //NOTES:
 /*
 Need to go through includes and remove unnecessary, list what each one is for.
@@ -42,8 +44,10 @@ TODO:
 Score display / loading / saving
 LED FX
 Art assets and integration
-Attempt rising / lowering sun BG fx
 Refine enemy wave generator
+Add some incentive for collecting powerups after max level firepower.
+Add a way for players to regain lives.
+
 
 
 */
@@ -83,17 +87,15 @@ Refine enemy wave generator
 #define TYPE_BOLT 0
 
 #define PWRUP_FP 0
-#define PWRUP_REFLECT 1
-#define PWRUP_CHARGE 2
+//#define PWRUP_REFLECT 1
+//#define PWRUP_CHARGE 2
 //#define PWRUP_LIFETIME (10 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
 #define PWRUP_DRIFT_DELAY (3 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
-//TODO: other powerups?
 
 #define ENEMY_SNAKE 0
 #define ENEMY_BOMBER 1
 #define ENEMY_WALKER 2
 #define ENEMY_DARTER 3
-//TODO: other enemies?
 
 #define MAX_PROJECTILES 50
 #define MAX_ENEMIES 25
@@ -249,7 +251,7 @@ typedef struct
     menu_t* titleMenu;
     menu_t* gameoverMenu;
 
-    //TODO: every game related variable should be contained within this.
+    mtHighScores_t highScores;
 } mType_t;
 
 /*============================================================================
@@ -293,16 +295,9 @@ bool ICACHE_FLASH_ATTR mtIsButtonReleased(uint8_t button);
 bool ICACHE_FLASH_ATTR mtIsButtonDown(uint8_t button);
 bool ICACHE_FLASH_ATTR mtIsButtonUp(uint8_t button);
 
-//TODO: drawing functions.
-
-//TODO: score operations.
-/*void ICACHE_FLASH_ATTR loadHighScores(void);
-void ICACHE_FLASH_ATTR saveHighScores(void);
-bool ICACHE_FLASH_ATTR updateHighScores(uint32_t newScore);*/
-
 //TODO: LED FX functions.
 
-
+bool ICACHE_FLASH_ATTR submitMTScore(uint8_t difficulty, uint32_t timeSurvived, uint32_t score);
 uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font);
 bool ICACHE_FLASH_ATTR AABBCollision (int ax0, int ay0, int ax1, int ay1, int bx0, int by0, int bx1, int by1);
 void ICACHE_FLASH_ATTR normalize (vecdouble_t * vec);
@@ -341,6 +336,7 @@ static const char mt_scores[] = "HIGH SCORES";
 static const char mt_quit[]   = "QUIT";
 static const char mt_gameover[] = "GAME OVER";
 static const char mt_restart[]  = "RESTART";
+static const char mt_menu[]  = "MENU";
 
 /*============================================================================
  * Functions
@@ -367,6 +363,9 @@ void ICACHE_FLASH_ATTR mtEnterMode(void)
     mType->buttonState = 0;
     mType->lastButtonState = 0;
 
+    // Grab high scores.
+    getMTScores(&mType->highScores);
+
     // Reset mode state.
     mType->state = MT_TITLE;
     mtSetState(MT_TITLE);
@@ -388,6 +387,8 @@ void ICACHE_FLASH_ATTR mtEnterMode(void)
     addRowToMenu(mType->gameoverMenu);
     addItemToRow(mType->gameoverMenu, mt_restart);
     addRowToMenu(mType->gameoverMenu);
+    addItemToRow(mType->gameoverMenu, mt_menu);
+    addRowToMenu(mType->gameoverMenu);
     addItemToRow(mType->gameoverMenu, mt_quit);
 
     // Start the update loop.
@@ -407,13 +408,12 @@ void ICACHE_FLASH_ATTR mtExitMode(void)
     timerFlush();
     deinitMenu(mType->titleMenu);
     deinitMenu(mType->gameoverMenu);
-    //clear(&mType->obstacles);
-    // TODO: free and clear everything.
+    // free and clear everything.
     os_free(mType);
 }
 
 /**
- * TODO
+ * 
  *
  * @param state  A bitmask of all button states, unused
  * @param button The button which triggered this event
@@ -628,6 +628,8 @@ void ICACHE_FLASH_ATTR mtSetState(mTypeState_t newState)
             mType->xOffset = 0;
             break;
         case MT_SCORES:
+            // prevent score screen from ending as a result of the press that started it.
+            mType->lastButtonState = mType->buttonState;
             break;
         case MT_GAMEOVER:
             break;
@@ -715,8 +717,6 @@ void ICACHE_FLASH_ATTR mtGameInput(void)
         mType->player.position.y = (mType->floor - RAND_WALLS_HEIGHT) - mType->player.bbHalf.y;
     }
 
-    //TODO: dodge roll or charge beam or reflect shield? different ability update logic needs to go here.
-
     // activate the reflect shield if the ability is charged and the fire button is pressed.
     if (mtIsButtonReleased(BTN_GAME_ACTION) && mType->player.abilityChargeCounter >= PLAYER_REFLECT_CHARGE_MAX) {
         mType->player.abilityChargeCounter = 0;
@@ -741,8 +741,6 @@ void ICACHE_FLASH_ATTR mtGameInput(void)
         dir.x = 1;
         dir.y = 0;
 
-        //mType->player.shotLevel = 2; // TODO test, remove when done testing firing levels.
-
         if (mType->player.shotLevel != 1) {
             fireProjectile(OWNER_PLAYER, TYPE_BOLT, firePos, bbHalf, dir, PLAYER_PROJECTILE_SPEED, PLAYER_PROJECTILE_DAMAGE);
         }
@@ -761,8 +759,6 @@ void ICACHE_FLASH_ATTR mtGameInput(void)
             mType->player.abilityChargeCounter = PLAYER_REFLECT_CHARGE_MAX;
         }
     }
-
-    //mType->score++; TODO this was a test for increasing score, remove when score implemented.
 }
 
 void ICACHE_FLASH_ATTR mtGameLogic(void)
@@ -874,7 +870,7 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                 ply1 += PLAYER_REFLECT_COLLISION;
             }
 
-            // TODO: check collision with enemies to damage player?
+            // check collision with enemies to damage player.
             if (AABBCollision(plx0, ply0, plx1, ply1,
                 mType->enemies[i].position.x - mType->enemies[i].bbHalf.x, 
                 mType->enemies[i].position.y - mType->enemies[i].bbHalf.y, 
@@ -884,7 +880,7 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                         playerDeath();
                     }
                     else {
-                        //TODO: should this damage an enemy or kill it? or bounce an enemy back?
+                        // kill the enemy if reflect shield is up.
                         mType->score += ENEMY_KILL * REFLECT_RAM_BONUS;
                         enemyDeath(i);
                     }
@@ -1193,24 +1189,13 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
 
 void ICACHE_FLASH_ATTR mtGameDisplay(void)
 {
-    /*DEMO TODO:
-    background / terrain fx
-    ui for beam / reflect shield
-    reflect shield animation
-    enemy movement
-    enemy firing projectiles
-    enemy damage fx / explosions
-    action button is restarting game bug
-    */
 
     // clear the frame.
     fillDisplayArea(0, 0, OLED_WIDTH - 1, OLED_HEIGHT - 1, BLACK);
 
-    //TODO draw background.
-
     // score text.
     char uiStr[32] = {0};
-    ets_snprintf(uiStr, sizeof(uiStr), "%06d", mType->score);
+    ets_snprintf(uiStr, sizeof(uiStr), "%06u", mType->score);
     int scoreTextX = 52;
     int scoreTextY = 1;
     fillDisplayArea(scoreTextX, 0, scoreTextX + 23, FONT_HEIGHT_TOMTHUMB + 1, BLACK);
@@ -1324,7 +1309,7 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
     plotRect(reflectBarX0, reflectBarY0, reflectBarX1, reflectBarY1, WHITE);
 
     // reflect bar fill
-    // TODO: this should deplete from full while the reflect is winding down.
+    // this will deplete from full while the reflect is winding down.
     double charge = mType->player.abilityCountdown > 0 ? (double)mType->player.abilityCountdown / PLAYER_REFLECT_TIME : (double)mType->player.abilityChargeCounter / PLAYER_REFLECT_CHARGE_MAX;
 
     int reflectBarFillX1 = reflectBarX0 + (charge * ((reflectBarX1 - 1) - reflectBarX0));
@@ -1351,7 +1336,22 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
 
 void ICACHE_FLASH_ATTR mtScoresInput(void)
 {
-
+    if (mtIsButtonPressed(BTN_GAME_LEFT)) {
+        //1-3
+        mType->difficulty--;
+        if (mType->difficulty < DIFFICULTY_EASY) {
+            mType->difficulty = DIFFICULTY_HARD;
+        }
+    }
+    if (mtIsButtonPressed(BTN_GAME_RIGHT)) {
+        mType->difficulty++;
+        if (mType->difficulty > DIFFICULTY_HARD) {
+            mType->difficulty = DIFFICULTY_EASY;
+        }
+    }
+    if (mtIsButtonPressed(BTN_GAME_ACTION)) {
+        mtSetState(MT_TITLE);
+    }
 }
 
 void ICACHE_FLASH_ATTR mtScoresLogic(void)
@@ -1361,7 +1361,45 @@ void ICACHE_FLASH_ATTR mtScoresLogic(void)
 
 void ICACHE_FLASH_ATTR mtScoresDisplay(void)
 {
+    clearDisplay();
 
+    mtScore_t* currentDiffScores;
+    char scoresTitle[16];
+
+    switch (mType->difficulty) {
+        default:
+        case DIFFICULTY_HARD:
+            currentDiffScores = mType->highScores.hardScores;
+            ets_snprintf(scoresTitle, sizeof(scoresTitle), "HARD");
+            break;
+        case DIFFICULTY_MEDIUM:
+            currentDiffScores = mType->highScores.mediumScores;
+            ets_snprintf(scoresTitle, sizeof(scoresTitle), "MEDIUM");
+            break;
+        case DIFFICULTY_EASY:
+            currentDiffScores = mType->highScores.easyScores;
+            ets_snprintf(scoresTitle, sizeof(scoresTitle), "EASY");
+            break;
+    }
+
+    int titleXPos = (OLED_WIDTH - textWidth(scoresTitle, IBM_VGA_8)) / 2;
+    int titleYPos = 5;
+    plotText(titleXPos, titleYPos, scoresTitle, IBM_VGA_8, WHITE);
+
+    for (int i = 0; i < MT_NUM_HIGHSCORES; i++) {
+        mtScore_t currScore = currentDiffScores[i];
+        if (currScore.score > 0 || currScore.timeSurvived > 0) {
+            int yPos = 26 + (i % 4) * 10;
+            int xPos = 5 + (i / 4) * 60;
+            char scoreText[24];
+            uint32_t secondsSurvived = currScore.timeSurvived * US_TO_MS_FACTOR * MS_TO_S_FACTOR;
+            ets_snprintf(scoreText, sizeof(scoreText), "%d. %06u (%u:%02u)", (i + 1), currScore.score, secondsSurvived / 60, secondsSurvived % 60);
+            plotText(xPos, yPos, scoreText, TOM_THUMB, WHITE);
+        }
+    }
+
+    plotText(0, 56, "<", TOM_THUMB, WHITE);
+    plotText(125, 56, ">", TOM_THUMB, WHITE);
 }
 
 void ICACHE_FLASH_ATTR mtGameoverInput(void)
@@ -1381,7 +1419,7 @@ void ICACHE_FLASH_ATTR mtGameoverDisplay(void)
 }
 
 /**
- * TODO
+ * 
  *
  * @param menuItem
  */
@@ -1408,6 +1446,8 @@ static void ICACHE_FLASH_ATTR mtTitleMenuCallback(const char* menuItem)
     else if (mt_scores == menuItem)
     {
         // Change state to score screen.
+        // Start on medium scores.
+        mType->difficulty = DIFFICULTY_MEDIUM;
         mtSetState(MT_SCORES);
     }
     else if (mt_quit == menuItem)
@@ -1424,11 +1464,67 @@ static void ICACHE_FLASH_ATTR mtGameoverMenuCallback(const char* menuItem)
         // Change state to start game.
         mtSetState(MT_GAME);
     }
+    if (mt_menu == menuItem)
+    {
+        // Change state to main menu.
+        mtSetState(MT_TITLE);
+    }
     else if (mt_quit == menuItem)
     {
         // Exit this swadge mode.
         switchToSwadgeMode(0);
     }
+}
+
+bool ICACHE_FLASH_ATTR submitMTScore(uint8_t difficulty, uint32_t timeSurvived, uint32_t score) {
+    bool newHighScore = false;
+    if (difficulty == DIFFICULTY_EASY) {
+        for (int i = 0; i < MT_NUM_HIGHSCORES; i++) {
+            if (score >= mType->highScores.easyScores[i].score) {
+                newHighScore = true;
+                uint32_t tempScore = mType->highScores.easyScores[i].score;
+                uint32_t tempTimeSurvived = mType->highScores.easyScores[i].timeSurvived;
+                mType->highScores.easyScores[i].score = score;
+                mType->highScores.easyScores[i].timeSurvived = timeSurvived;
+                score = tempScore;
+                timeSurvived = tempTimeSurvived;
+            }
+        }
+    }
+    else if (difficulty == DIFFICULTY_MEDIUM) {
+        for (int i = 0; i < MT_NUM_HIGHSCORES; i++) {
+            if (score >= mType->highScores.mediumScores[i].score) {
+                newHighScore = true;
+                uint32_t tempScore = mType->highScores.mediumScores[i].score;
+                uint32_t tempTimeSurvived = mType->highScores.mediumScores[i].timeSurvived;
+                mType->highScores.mediumScores[i].score = score;
+                mType->highScores.mediumScores[i].timeSurvived = timeSurvived;
+                score = tempScore;
+                timeSurvived = tempTimeSurvived;
+            }
+        }
+    }
+    else if (difficulty == DIFFICULTY_HARD) {
+        for (int i = 0; i < MT_NUM_HIGHSCORES; i++) {
+            if (score >= mType->highScores.hardScores[i].score) {
+                newHighScore = true;
+                uint32_t tempScore = mType->highScores.hardScores[i].score;
+                uint32_t tempTimeSurvived = mType->highScores.hardScores[i].timeSurvived;
+                mType->highScores.hardScores[i].score = score;
+                mType->highScores.hardScores[i].timeSurvived = timeSurvived;
+                score = tempScore;
+                timeSurvived = tempTimeSurvived;
+            }
+        }
+    }
+    else {
+        // Unknown difficulty, do nothing.
+    }
+    
+    if (newHighScore) {
+        setMTScores(&mType->highScores);
+    }
+    return newHighScore;
 }
 
 uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font)
@@ -1548,6 +1644,7 @@ void ICACHE_FLASH_ATTR enemyDeath (uint8_t index) {
 void ICACHE_FLASH_ATTR playerDeath () {
     if (mType->player.numLives == 0) {
         //TODO: game over anim and fx.
+        submitMTScore(mType->difficulty, mType->stateTime, mType->score);
         mtSetState(MT_GAMEOVER);
     }
     else {

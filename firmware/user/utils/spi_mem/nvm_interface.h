@@ -17,6 +17,9 @@
 // For raycasterScore_t
 #include "mode_raycaster.h"
 
+// For mtHighScores_t
+#include "mode_mtype.h"
+
 #define NUM_DEMON_MEMORIALS 8
 
 typedef struct __attribute__((aligned(4)))
@@ -55,6 +58,9 @@ void ICACHE_FLASH_ATTR getSavedDemon(demon_t* demon);
 
 void ICACHE_FLASH_ATTR setDDRScores(ddrHighScores_t* highScores);
 void ICACHE_FLASH_ATTR getDDRScores(ddrHighScores_t* highScores);
+
+void ICACHE_FLASH_ATTR setMTScores(mtHighScores_t* highScores);
+void ICACHE_FLASH_ATTR getMTScores(mtHighScores_t* highScores);
 
 demonMemorial_t* ICACHE_FLASH_ATTR getDemonMemorials(void);
 void ICACHE_FLASH_ATTR addDemonMemorial(char* name, int32_t actionsTaken);
