@@ -43,6 +43,13 @@ An Update consists of detecting and handline INPUT -> running any game LOGIC tha
 TODO:
 Score display / loading / saving
 LED FX
+alternating pulsing during reflect duration.
+an effect for when bullets are fired
+game over
+title screen
+game over screen
+score screen
+
 Art assets and integration
 Refine enemy wave generator
 Add some incentive for collecting powerups after max level firepower.
@@ -141,6 +148,27 @@ Add a way for players to regain lives.
 #define CHUNK_WIDTH 8
 #define NUM_CHUNKS ((OLED_WIDTH/CHUNK_WIDTH)+1)
 #define RAND_WALLS_HEIGHT 4
+
+const led_t titleColor =
+{
+    .r = 0x00,
+    .g = 0xFF,
+    .b = 0xFF
+};
+
+const led_t scoresColor =
+{
+    .r = 0xFF,
+    .g = 0xFF,
+    .b = 0x00
+};
+
+const led_t gameoverColor =
+{
+    .r = 0xFF,
+    .g = 0x00,
+    .b = 0x00
+};
 
 // vector struct specifically for use with screen coordinates.
 typedef struct
@@ -252,6 +280,8 @@ typedef struct
     menu_t* gameoverMenu;
 
     mtHighScores_t highScores;
+
+    led_t leds[NUM_LEDS];
 } mType_t;
 
 /*============================================================================
@@ -295,7 +325,14 @@ bool ICACHE_FLASH_ATTR mtIsButtonReleased(uint8_t button);
 bool ICACHE_FLASH_ATTR mtIsButtonDown(uint8_t button);
 bool ICACHE_FLASH_ATTR mtIsButtonUp(uint8_t button);
 
-//TODO: LED FX functions.
+// LED FX functions.
+//void ICACHE_FLASH_ATTR singlePulseLEDs(uint8_t numLEDs, led_t fxColor, double progress);
+void ICACHE_FLASH_ATTR blinkLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time);
+void ICACHE_FLASH_ATTR alternatingPulseLEDS(uint8_t numLEDs, led_t fxColor, uint32_t time);
+void ICACHE_FLASH_ATTR dancingLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time);
+//void ICACHE_FLASH_ATTR countdownLEDs(uint8_t numLEDs, led_t fxColor, double progress);
+void ICACHE_FLASH_ATTR clearLEDs(uint8_t numLEDs);
+void ICACHE_FLASH_ATTR applyLEDBrightness(uint8_t numLEDs, double brightness);
 
 bool ICACHE_FLASH_ATTR submitMTScore(uint8_t difficulty, uint32_t timeSurvived, uint32_t score);
 uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font);
@@ -553,10 +590,13 @@ void ICACHE_FLASH_ATTR mtSetState(mTypeState_t newState)
     mType->stateTime = 0;
     mType->stateFrames = 0;
 
+    clearLEDs(NUM_LEDS);
+
     switch( mType->state )
     {
         default:
         case MT_TITLE:
+            dancingLEDs(NUM_LEDS, titleColor, mType->stateTime);
             break;
         case MT_GAME:
             // initialize player.
@@ -630,8 +670,10 @@ void ICACHE_FLASH_ATTR mtSetState(mTypeState_t newState)
         case MT_SCORES:
             // prevent score screen from ending as a result of the press that started it.
             mType->lastButtonState = mType->buttonState;
+            alternatingPulseLEDS(NUM_LEDS, scoresColor, mType->modeTime);
             break;
         case MT_GAMEOVER:
+            blinkLEDs(NUM_LEDS, gameoverColor, mType->stateTime);
             break;
     };
 }
@@ -656,6 +698,154 @@ bool ICACHE_FLASH_ATTR mtIsButtonUp(uint8_t button)
     return !(mType->buttonState & button);
 }
 
+// a color is puled all leds according to the type of clear.
+/*void ICACHE_FLASH_ATTR singlePulseLEDs(uint8_t numLEDs, led_t fxColor, double progress)
+{
+    double lightness = 1.0 - (progress * progress);
+
+    for (int32_t i = 0; i < numLEDs; i++)
+    {
+        mType->leds[i].r = (uint8_t)((double)fxColor.r * lightness);
+        mType->leds[i].g = (uint8_t)((double)fxColor.g * lightness);
+        mType->leds[i].b = (uint8_t)((double)fxColor.b * lightness);
+    }
+
+    applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
+    setLeds(mType->leds, sizeof(mType->leds));
+}*/
+
+// blink red in sync with OLED gameover FX.
+void ICACHE_FLASH_ATTR blinkLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time)
+{
+    //TODO: there are instances where the red flashes on the opposite of the fill draw, how to ensure this does not happen?
+    uint32_t animCycle = ((double)time * US_TO_MS_FACTOR) / DISPLAY_REFRESH_MS;
+    bool lightActive = animCycle % 2 == 0;
+
+    for (int32_t i = 0; i < numLEDs; i++)
+    {
+        mType->leds[i].r = lightActive ? fxColor.r : 0x00;
+        mType->leds[i].g = lightActive ? fxColor.g : 0x00;
+        mType->leds[i].b = lightActive ? fxColor.b : 0x00;
+    }
+    
+    // NOTE ADAM: Uncommenting this overflows irom0.text, why?
+    //applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
+    setLeds(mType->leds, sizeof(mType->leds));
+}
+
+// alternate lit up like a bulb sign
+void ICACHE_FLASH_ATTR alternatingPulseLEDS(uint8_t numLEDs, led_t fxColor, uint32_t time)
+{
+    double timeS = (double)time * US_TO_MS_FACTOR * MS_TO_S_FACTOR;
+    double risingProgress = (sin(timeS * 4.0) + 1.0) / 2.0;
+    double fallingProgress = 1.0 - risingProgress;
+
+    double risingR = risingProgress * (double)fxColor.r;
+    double risingG = risingProgress * (double)fxColor.g;
+    double risingB = risingProgress * (double)fxColor.b;
+
+    double fallingR = fallingProgress * (double)fxColor.r;
+    double fallingG = fallingProgress * (double)fxColor.g;
+    double fallingB = fallingProgress * (double)fxColor.b;
+
+    bool risingLED;
+
+    for (int32_t i = 0; i < numLEDs; i++)
+    {
+        risingLED = i % 2 == 0;
+        mType->leds[i].r = risingLED ? (uint8_t)risingR : (uint8_t)fallingR;
+        mType->leds[i].g = risingLED ? (uint8_t)risingG : (uint8_t)fallingG;
+        mType->leds[i].b = risingLED ? (uint8_t)risingB : (uint8_t)fallingB;
+    }
+
+    applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
+    setLeds(mType->leds, sizeof(mType->leds));
+}
+
+// radial wanderers.
+void ICACHE_FLASH_ATTR dancingLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time)
+{
+    uint32_t animCycle = ((double)time * US_TO_MS_FACTOR * 2.0) / DISPLAY_REFRESH_MS;
+    int32_t firstIndex = animCycle % numLEDs;
+    int32_t secondIndex = (firstIndex + (numLEDs / 2)) % numLEDs;
+
+    //uint8_t timeMS = ((double)time * US_TO_MS_FACTOR)/400;
+
+    for (int32_t i = 0; i < numLEDs; i++)
+    {
+        mType->leds[i].r = i == firstIndex || i == secondIndex ? fxColor.r : 0x00;
+        mType->leds[i].g = i == firstIndex || i == secondIndex ? fxColor.g : 0x00;
+        mType->leds[i].b = i == firstIndex || i == secondIndex ? fxColor.b : 0x00;
+    }
+
+    applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
+    setLeds(mType->leds, sizeof(mType->leds));
+}
+
+/*void ICACHE_FLASH_ATTR countdownLEDs(uint8_t numLEDs, led_t fxColor, double progress)
+{
+    // Reverse the direction of progress.
+    progress = 1.0 - progress;
+
+    // How many LEDs will be fully lit.
+    uint8_t numLitLEDs = progress * numLEDs;
+
+    // Get the length of each segment of progress.
+    double segment = 1.0 / numLEDs;
+    double segmentProgress = numLitLEDs * segment;
+    // Find the amount that the leading LED should be partially lit.
+    double modProgress = (progress - segmentProgress) / segment;
+
+    for (int32_t i = 0; i < numLEDs; i++)
+    {
+        if (i < numLitLEDs)
+        {
+            mType->leds[i].r = fxColor.r;
+            mType->leds[i].g = fxColor.g;
+            mType->leds[i].b = fxColor.b;
+        }
+        else if (i == numLitLEDs)
+        {
+            mType->leds[i].r = (uint8_t)((double)fxColor.r * modProgress);
+            mType->leds[i].g = (uint8_t)((double)fxColor.g * modProgress);
+            mType->leds[i].b = (uint8_t)((double)fxColor.b * modProgress);
+        }
+        else
+        {
+            mType->leds[i].r = 0x00;
+            mType->leds[i].g = 0x00;
+            mType->leds[i].b = 0x00;
+        }
+    }
+
+    applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
+    setLeds(mType->leds, sizeof(mType->leds));
+}*/
+
+void ICACHE_FLASH_ATTR clearLEDs(uint8_t numLEDs)
+{
+    for (int32_t i = 0; i < numLEDs; i++)
+    {
+        mType->leds[i].r = 0x00;
+        mType->leds[i].g = 0x00;
+        mType->leds[i].b = 0x00;
+    }
+
+    setLeds(mType->leds, sizeof(mType->leds));
+}
+
+void ICACHE_FLASH_ATTR applyLEDBrightness(uint8_t numLEDs, double brightness)
+{
+    // Best way would be to convert to HSV and then set, is this factor method ok?
+
+    for (int32_t i = 0; i < numLEDs; i++)
+    {
+        mType->leds[i].r = (uint8_t)((double)mType->leds[i].r * brightness);
+        mType->leds[i].g = (uint8_t)((double)mType->leds[i].g * brightness);
+        mType->leds[i].b = (uint8_t)((double)mType->leds[i].b * brightness);
+    }
+}
+
 void ICACHE_FLASH_ATTR mtTitleInput(void)
 {
     
@@ -669,6 +859,7 @@ void ICACHE_FLASH_ATTR mtTitleLogic(void)
 void ICACHE_FLASH_ATTR mtTitleDisplay(void)
 {
     drawMenu(mType->titleMenu);
+    dancingLEDs(NUM_LEDS, titleColor, mType->stateTime);
 }
 
 void ICACHE_FLASH_ATTR mtGameInput(void)
@@ -1400,6 +1591,8 @@ void ICACHE_FLASH_ATTR mtScoresDisplay(void)
 
     plotText(0, 56, "<", TOM_THUMB, WHITE);
     plotText(125, 56, ">", TOM_THUMB, WHITE);
+
+    alternatingPulseLEDS(NUM_LEDS, scoresColor, mType->modeTime);
 }
 
 void ICACHE_FLASH_ATTR mtGameoverInput(void)
@@ -1415,7 +1608,7 @@ void ICACHE_FLASH_ATTR mtGameoverLogic(void)
 void ICACHE_FLASH_ATTR mtGameoverDisplay(void)
 {
     drawMenu(mType->gameoverMenu);
-    //mtGameDisplay();
+    blinkLEDs(NUM_LEDS, gameoverColor, mType->stateTime);
 }
 
 /**
