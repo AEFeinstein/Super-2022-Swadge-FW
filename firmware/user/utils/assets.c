@@ -601,6 +601,39 @@ void ICACHE_FLASH_ATTR drawPngSequence(pngSequenceHandle* handle, int16_t xp,
 }
 
 /**
+ * Draw a PNG in a sequence of PNGs
+ *
+ * @param handle The handle to draw a png from
+ * @param xp The x coordinate to draw the asset at
+ * @param yp The y coordinate to draw the asset at
+ * @param flipLR true to flip over the Y axis, false to do nothing
+ * @param flipUD true to flip over the X axis, false to do nothing
+ * @param rotateDeg The number of degrees to rotate clockwise, must be 0-359
+ * @param frame     The frame number to draw
+ * @param inv       true to invert all colors, false to draw it normally
+ */
+void ICACHE_FLASH_ATTR drawPngSequenceInv(pngSequenceHandle* handle, int16_t xp,
+                                       int16_t yp, bool flipLR, bool flipUD,
+                                       int16_t rotateDeg, int16_t frame, bool inv)
+{
+    if(-1 == frame)
+    {
+        // Draw the PNG
+        drawPngInv(&handle->handles[handle->cFrame], xp, yp, flipLR, flipUD, rotateDeg, inv);
+        // Move to the next frame
+        handle->cFrame = (handle->cFrame + 1) % handle->count;
+    }
+    else
+    {
+        if(frame < handle->count)
+        {
+            handle->cFrame = frame;
+            drawPngInv(&handle->handles[frame], xp, yp, flipLR, flipUD, rotateDeg, inv);
+        }
+    }
+}
+
+/**
  * Load a gif from assets to a handle
  *
  * @param name The name of the asset to draw

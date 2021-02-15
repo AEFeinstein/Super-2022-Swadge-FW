@@ -39,11 +39,7 @@ This is a Swadge Mode which has states, the mode updates in different ways depen
 An Update consists of detecting and handling INPUT -> running any game LOGIC that is unrelated to input -> DISPLAY to the user the current mode state.
 
 TODO:
-minor fix for LED FX.
-Art assets and integration.
-Add player / enemy explosion animation support. Damage animation for enemies with more health?
 Refine enemy wave generator.
-Add some incentive for collecting powerups after max level firepower.
 
 */
 
@@ -90,10 +86,10 @@ Add some incentive for collecting powerups after max level firepower.
 #define ENEMY_SNAKE 0
 #define ENEMY_BOMBER 1
 #define ENEMY_WALKER 2
-#define ENEMY_DARTER 3
 
 #define MAX_PROJECTILES 50
-#define MAX_ENEMIES 25
+#define MAX_ENEMIES 50
+#define MAX_EXPLOSIONS MAX_ENEMIES
 #define MAX_POWERUPS 10
 
 #define PLAYER_SPEED 1
@@ -101,6 +97,8 @@ Add some incentive for collecting powerups after max level firepower.
 #define PLAYER_SHOT_COOLDOWN (0.1875 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
 #define PLAYER_REFLECT_CHARGE_MAX (1.5 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
 #define PLAYER_REFLECT_TIME (1 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
+
+#define GAMEOVER_START_TIME (3 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
 
 #define PLAYER_REFLECT_COLLISION 3
 
@@ -113,6 +111,8 @@ Add some incentive for collecting powerups after max level firepower.
 #define PLAYER_PROJECTILE_DAMAGE 1
 #define PLAYER_START_LIVES 3
 #define PLAYER_INVINCIBILITY_TIME (3.0 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
+
+#define EXPLOSION_FRAMES 6
 
 #define ENEMY_PROJECTILE_SPEED 1
 #define ENEMY_PROJECTILE_DAMAGE 1
@@ -214,6 +214,14 @@ typedef struct
     uint8_t damage; // the amount of damage the projectile will deal on hit.
 } projectile_t;
 
+typedef struct 
+{
+    uint8_t active; // is the explosion in-use on screen.
+    vec_t position; // position in screen coords.
+    vec_t bbHalf;
+    uint8_t frame; // current explosion frame.
+} explosion_t;
+
 typedef struct
 {
     uint8_t active;
@@ -263,11 +271,13 @@ typedef struct
     uint32_t score;
     uint32_t wave; // enemy wave number.
     uint32_t enemiesInWave; // number of enemies remaining in this wave.
+    int32_t gameoverCountdown; // how long after final player death the game over state starts 
 
     player_t player;
 
     enemy_t enemies[MAX_ENEMIES];
     projectile_t projectiles[MAX_PROJECTILES];
+    explosion_t explosions[MAX_EXPLOSIONS];
     powerup_t powerups[MAX_POWERUPS];
 
     uint8_t floors[NUM_CHUNKS + 1];
@@ -285,6 +295,17 @@ typedef struct
     mtHighScores_t highScores;
 
     led_t leds[NUM_LEDS];
+
+    pngHandle playerUpHandle;
+    pngHandle playerDownHandle;
+    pngHandle playerStraightHandle;
+
+    pngHandle powerupHandle;
+
+    pngSequenceHandle bomberSequenceHandle;
+    pngSequenceHandle snakeSequenceHandle;
+    pngSequenceHandle walkerSequenceHandle;
+    pngSequenceHandle explosionSequenceHandle;
 } mType_t;
 
 /*============================================================================
@@ -342,6 +363,7 @@ uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font);
 bool ICACHE_FLASH_ATTR AABBCollision (int ax0, int ay0, int ax1, int ay1, int bx0, int by0, int bx1, int by1);
 void ICACHE_FLASH_ATTR normalize (vecdouble_t * vec);
 bool ICACHE_FLASH_ATTR fireProjectile (uint8_t owner, uint8_t type, vec_t position, vec_t bbHalf, vecdouble_t direction, uint8_t speed, uint8_t damage);
+bool ICACHE_FLASH_ATTR spawnExplosion (vec_t spawn, vec_t bbHalf);
 bool ICACHE_FLASH_ATTR spawnEnemy (uint8_t type, vec_t spawn, int8_t health, vec_t bbHalf, int32_t frameOffset);
 void ICACHE_FLASH_ATTR spawnEnemyFormation (uint8_t type, vec_t spawn, int8_t health, vec_t bbHalf, int32_t frameOffset, uint8_t numEnemies, int16_t xSpacing, int16_t ySpacing);
 void ICACHE_FLASH_ATTR enemyDeath (uint8_t index);
@@ -395,6 +417,28 @@ void ICACHE_FLASH_ATTR mtEnterMode(void)
     mType = os_malloc(sizeof(mType_t));
     ets_memset(mType, 0, sizeof(mType_t));
 
+    allocPngAsset("mt-pu.png", &mType->playerUpHandle);
+    allocPngAsset("mt-pd.png", &mType->playerDownHandle);
+    allocPngAsset("mt-ps.png", &mType->playerStraightHandle);
+    allocPngAsset("mt-powerup.png", &mType->powerupHandle);
+
+    allocPngSequence(&mType->bomberSequenceHandle, 2,
+                     "mt-bomber1.png",
+                     "mt-bomber2.png");
+
+    allocPngSequence(&mType->snakeSequenceHandle, 2,
+                     "mt-snake1.png",
+                     "mt-snake2.png");
+
+    allocPngSequence(&mType->walkerSequenceHandle, 2,
+                     "mt-walker1.png",
+                     "mt-walker2.png");
+
+    allocPngSequence(&mType->explosionSequenceHandle, 3,
+                     "mt-explode1.png",
+                     "mt-explode2.png",
+                     "mt-explode3.png");
+
     // Reset mode time tracking.
     mType->modeStartTime = system_get_time();
     mType->modeTime = 0;
@@ -438,7 +482,7 @@ void ICACHE_FLASH_ATTR mtEnterMode(void)
     timerSetFn(&(mType->updateTimer), mtUpdate, NULL);
     timerArm(&(mType->updateTimer), UPDATE_TIME_MS, true);
 
-    //InitColorChord(); //TODO: Initialize preferred swadge LED behavior.
+    clearLEDs(NUM_LEDS); // initialize preferred swadge LED behavior.
 }
 
 /**
@@ -450,7 +494,16 @@ void ICACHE_FLASH_ATTR mtExitMode(void)
     timerFlush();
     deinitMenu(mType->titleMenu);
     deinitMenu(mType->gameoverMenu);
+    
     // free and clear everything.
+    freePngAsset(&mType->playerUpHandle);
+    freePngAsset(&mType->playerDownHandle);
+    freePngAsset(&mType->playerStraightHandle);
+    freePngAsset(&mType->powerupHandle);
+
+    freePngSequence(&mType->bomberSequenceHandle);
+    freePngSequence(&mType->snakeSequenceHandle);
+    freePngSequence(&mType->walkerSequenceHandle);
     os_free(mType);
 }
 
@@ -568,14 +621,6 @@ static void ICACHE_FLASH_ATTR mtUpdate(void* arg __attribute__((unused)))
         }
     };
 
-    /*int projectiles = 0;
-
-    for (int i = 0; i < MAX_PROJECTILES; i++) {
-        if (mType->projectiles[i].active) {
-            projectiles++;
-        }
-    }*/
-
     // Draw debug FPS counter.
     /*char uiStr[32] = {0};
     double seconds = ((double)mType->stateTime * (double)US_TO_MS_FACTOR * (double)MS_TO_S_FACTOR);
@@ -621,6 +666,7 @@ void ICACHE_FLASH_ATTR mtSetState(mTypeState_t newState)
             mType->score = 0;
             mType->wave = 0;
             mType->enemiesInWave = 0;
+            mType->gameoverCountdown = GAMEOVER_START_TIME;
 
             // initialize projectiles with default values.
             for (int i = 0; i < MAX_PROJECTILES; i++) {
@@ -635,6 +681,16 @@ void ICACHE_FLASH_ATTR mtSetState(mTypeState_t newState)
                 mType->projectiles[i].direction.y = 0;
                 mType->projectiles[i].speed = 1;
                 mType->projectiles[i].damage = 1;
+            }
+
+            // initialize explosions with default values.
+            for (int i = 0; i < MAX_EXPLOSIONS; i++) {
+                mType->explosions[i].active = 0;
+                mType->explosions[i].position.x = 0;
+                mType->explosions[i].position.y = 0;
+                mType->explosions[i].bbHalf.x = 0;
+                mType->explosions[i].bbHalf.y = 0;
+                mType->explosions[i].frame = 0;
             }
 
             // initialize powerups with default values.
@@ -715,7 +771,7 @@ void ICACHE_FLASH_ATTR singlePulseLEDs(uint8_t numLEDs, led_t fxColor, double pr
         mType->leds[i].b = (uint8_t)((double)fxColor.b * lightness);
     }
 
-    //applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
+    applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
     setLeds(mType->leds, sizeof(mType->leds));
 }
 
@@ -733,8 +789,7 @@ void ICACHE_FLASH_ATTR blinkLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time)
         mType->leds[i].b = lightActive ? fxColor.b : 0x00;
     }
     
-    // NOTE ADAM: Uncommenting this overflows irom0.text, why?
-    //applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
+    applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
     setLeds(mType->leds, sizeof(mType->leds));
 }
 
@@ -869,94 +924,96 @@ void ICACHE_FLASH_ATTR mtTitleDisplay(void)
 
 void ICACHE_FLASH_ATTR mtGameInput(void)
 {
-    // account for good movement if multiple axis of movement are in play.
-    vecdouble_t moveDir;
-    moveDir.x = 0;
-    moveDir.y = 0;
+    if (mType->player.numLives > 0) {
+        // account for good movement if multiple axis of movement are in play.
+        vecdouble_t moveDir;
+        moveDir.x = 0;
+        moveDir.y = 0;
 
-    if (mtIsButtonDown(BTN_GAME_UP)) {
-        moveDir.y--;
-    }
-    if (mtIsButtonDown(BTN_GAME_DOWN)) {
-        moveDir.y++;
-    }
-    if (mtIsButtonDown(BTN_GAME_LEFT)) {
-        moveDir.x--;
-    }
-    if (mtIsButtonDown(BTN_GAME_RIGHT)) {
-        moveDir.x++;
-    }
-
-    normalize(&moveDir);
-    moveDir.x *= mType->player.speed;
-    moveDir.y *= mType->player.speed;
-
-
-    mType->player.lastPosition.x = mType->player.position.x;
-    mType->player.lastPosition.y = mType->player.position.y;
-    mType->player.position.x += moveDir.x;
-    mType->player.position.y += moveDir.y;
-
-    // clamp position of player to within the bounds of the screen and terrain.
-    if (mType->player.position.x - mType->player.bbHalf.x < 0) {
-        mType->player.position.x = mType->player.bbHalf.x;
-    }
-    else if (mType->player.position.x + mType->player.bbHalf.x >= OLED_WIDTH) {
-        mType->player.position.x = OLED_WIDTH - 1 - mType->player.bbHalf.x;
-    }
-
-    if (mType->player.position.y - mType->player.bbHalf.y < 0) {
-        mType->player.position.y = mType->player.bbHalf.y;
-    }
-    // this bouncing effect at the lower y bound is intentional, feels like bouncing off the ground.
-    else if (mType->player.position.y >= (mType->floor - RAND_WALLS_HEIGHT)) {
-        mType->player.position.y = (mType->floor - RAND_WALLS_HEIGHT) - mType->player.bbHalf.y;
-    }
-
-    // activate the reflect shield if the ability is charged and the fire button is pressed.
-    if (mtIsButtonReleased(BTN_GAME_ACTION) && mType->player.abilityChargeCounter >= PLAYER_REFLECT_CHARGE_MAX) {
-        mType->player.abilityChargeCounter = 0;
-        mType->player.abilityCountdown = PLAYER_REFLECT_TIME;
-    }   
-
-    // update the shot cd.
-    mType->player.shotCooldown += mType->deltaTime;
-
-    if (mType->player.shotCooldown > PLAYER_SHOT_COOLDOWN) {
-        mType->player.shotCooldown = PLAYER_SHOT_COOLDOWN;
-    }
-
-    // fire a shot if the fire button is being held down and shot is off cd.
-    if (mtIsButtonDown(BTN_GAME_ACTION) && mType->player.shotCooldown >= PLAYER_SHOT_COOLDOWN && mType->player.abilityCountdown <= 0) {
-        //mType->player.abilityChargeCounter = 0; // uncomment if firing should reset ability cd.
-        vec_t firePos;
-        firePos.x = mType->player.position.x;
-        firePos.y = mType->player.position.y;
-
-        vec_t bbHalf;
-        bbHalf.x = 2;
-        bbHalf.y = 0;
-
-        vecdouble_t dir;
-        dir.x = 1;
-        dir.y = 0;
-
-        if (mType->player.shotLevel != 1) {
-            fireProjectile(OWNER_PLAYER, TYPE_BOLT, firePos, bbHalf, dir, PLAYER_PROJECTILE_SPEED, PLAYER_PROJECTILE_DAMAGE);
+        if (mtIsButtonDown(BTN_GAME_UP)) {
+            moveDir.y--;
         }
-        if (mType->player.shotLevel > 0) {
-            firePos.y = mType->player.position.y - mType->player.bbHalf.y;
-            fireProjectile(OWNER_PLAYER, TYPE_BOLT, firePos, bbHalf, dir, PLAYER_PROJECTILE_SPEED, PLAYER_PROJECTILE_DAMAGE);
-            firePos.y = mType->player.position.y + mType->player.bbHalf.y;
-            fireProjectile(OWNER_PLAYER, TYPE_BOLT, firePos, bbHalf, dir, PLAYER_PROJECTILE_SPEED, PLAYER_PROJECTILE_DAMAGE);
+        if (mtIsButtonDown(BTN_GAME_DOWN)) {
+            moveDir.y++;
         }
-        mType->player.shotCooldown = 0;
-    }
+        if (mtIsButtonDown(BTN_GAME_LEFT)) {
+            moveDir.x--;
+        }
+        if (mtIsButtonDown(BTN_GAME_RIGHT)) {
+            moveDir.x++;
+        }
 
-    if (mtIsButtonUp(BTN_GAME_ACTION) && mType->player.abilityCountdown <= 0) {
-        mType->player.abilityChargeCounter += mType->deltaTime;
-        if (mType->player.abilityChargeCounter > PLAYER_REFLECT_CHARGE_MAX) {
-            mType->player.abilityChargeCounter = PLAYER_REFLECT_CHARGE_MAX;
+        normalize(&moveDir);
+        moveDir.x *= mType->player.speed;
+        moveDir.y *= mType->player.speed;
+
+
+        mType->player.lastPosition.x = mType->player.position.x;
+        mType->player.lastPosition.y = mType->player.position.y;
+        mType->player.position.x += moveDir.x;
+        mType->player.position.y += moveDir.y;
+
+        // clamp position of player to within the bounds of the screen and terrain.
+        if (mType->player.position.x - mType->player.bbHalf.x < 0) {
+            mType->player.position.x = mType->player.bbHalf.x;
+        }
+        else if (mType->player.position.x + mType->player.bbHalf.x >= OLED_WIDTH) {
+            mType->player.position.x = OLED_WIDTH - 1 - mType->player.bbHalf.x;
+        }
+
+        if (mType->player.position.y - mType->player.bbHalf.y < 0) {
+            mType->player.position.y = mType->player.bbHalf.y;
+        }
+        // this bouncing effect at the lower y bound is intentional, feels like bouncing off the ground.
+        else if (mType->player.position.y >= (mType->floor - RAND_WALLS_HEIGHT)) {
+            mType->player.position.y = (mType->floor - RAND_WALLS_HEIGHT) - mType->player.bbHalf.y;
+        }
+
+        // activate the reflect shield if the ability is charged and the fire button is pressed.
+        if (mtIsButtonReleased(BTN_GAME_ACTION) && mType->player.abilityChargeCounter >= PLAYER_REFLECT_CHARGE_MAX) {
+            mType->player.abilityChargeCounter = 0;
+            mType->player.abilityCountdown = PLAYER_REFLECT_TIME;
+        }   
+
+        // update the shot cd.
+        mType->player.shotCooldown += mType->deltaTime;
+
+        if (mType->player.shotCooldown > PLAYER_SHOT_COOLDOWN) {
+            mType->player.shotCooldown = PLAYER_SHOT_COOLDOWN;
+        }
+
+        // fire a shot if the fire button is being held down and shot is off cd.
+        if (mtIsButtonDown(BTN_GAME_ACTION) && mType->player.shotCooldown >= PLAYER_SHOT_COOLDOWN && mType->player.abilityCountdown <= 0) {
+            //mType->player.abilityChargeCounter = 0; // uncomment if firing should reset ability cd.
+            vec_t firePos;
+            firePos.x = mType->player.position.x;
+            firePos.y = mType->player.position.y;
+
+            vec_t bbHalf;
+            bbHalf.x = 2;
+            bbHalf.y = 0;
+
+            vecdouble_t dir;
+            dir.x = 1;
+            dir.y = 0;
+
+            if (mType->player.shotLevel != 1) {
+                fireProjectile(OWNER_PLAYER, TYPE_BOLT, firePos, bbHalf, dir, PLAYER_PROJECTILE_SPEED, PLAYER_PROJECTILE_DAMAGE);
+            }
+            if (mType->player.shotLevel > 0) {
+                firePos.y = mType->player.position.y - mType->player.bbHalf.y;
+                fireProjectile(OWNER_PLAYER, TYPE_BOLT, firePos, bbHalf, dir, PLAYER_PROJECTILE_SPEED, PLAYER_PROJECTILE_DAMAGE);
+                firePos.y = mType->player.position.y + mType->player.bbHalf.y;
+                fireProjectile(OWNER_PLAYER, TYPE_BOLT, firePos, bbHalf, dir, PLAYER_PROJECTILE_SPEED, PLAYER_PROJECTILE_DAMAGE);
+            }
+            mType->player.shotCooldown = 0;
+        }
+
+        if (mtIsButtonUp(BTN_GAME_ACTION) && mType->player.abilityCountdown <= 0) {
+            mType->player.abilityChargeCounter += mType->deltaTime;
+            if (mType->player.abilityChargeCounter > PLAYER_REFLECT_CHARGE_MAX) {
+                mType->player.abilityChargeCounter = PLAYER_REFLECT_CHARGE_MAX;
+            }
         }
     }
 }
@@ -1051,9 +1108,6 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
 
                     fireProjectile(OWNER_ENEMY, TYPE_BOLT, mType->enemies[i].position, bbHalf, dir, ENEMY_PROJECTILE_SPEED, ENEMY_PROJECTILE_DAMAGE);
                 }
-            }
-            else if (mType->enemies[i].type == ENEMY_DARTER) {
-
             }
 
             int plx0, plx1, ply0, ply1;
@@ -1352,6 +1406,17 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                         mType->score += POWERUP_GET_BONUS;
                         if (mType->powerups[i].type == PWRUP_FP) {
                             mType->player.shotLevel++;
+                            // TODO: this really should be something cooler, like a screen clearing beam or bomb
+                            if (mType->player.shotLevel > 2) {
+                                // if reflect is in use, refresh reflect duration, makes chains possible.
+                                if (mType->player.abilityCountdown > 0) {
+                                    mType->player.abilityCountdown = PLAYER_REFLECT_TIME;
+                                }
+                                // max out player's reflect guage if not in use and not fully charged.
+                                else {
+                                    mType->player.abilityChargeCounter = PLAYER_REFLECT_CHARGE_MAX;
+                                }
+                            }
                         }
             }
 
@@ -1391,11 +1456,19 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
         // Randomly generate new coordinates for a chunk
         mType->floors[NUM_CHUNKS] = mType->floor - (os_random() % RAND_WALLS_HEIGHT);
     }
+
+    // gameover transition
+    if (mType->player.numLives == 0) {
+        mType->gameoverCountdown -= mType->deltaTime;
+        if (mType->gameoverCountdown <= 0) {
+            submitMTScore(mType->difficulty, mType->stateTime, mType->score);
+            mtSetState(MT_GAMEOVER);
+        }
+    }
 }
 
 void ICACHE_FLASH_ATTR mtGameDisplay(void)
 {
-
     // clear the frame.
     fillDisplayArea(0, 0, OLED_WIDTH - 1, OLED_HEIGHT - 1, BLACK);
 
@@ -1410,10 +1483,8 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
     // draw powerups.
     for (int i = 0; i < MAX_POWERUPS; i++) {
         if (mType->powerups[i].active) {
-            plotRect(mType->powerups[i].position.x - mType->powerups[i].bbHalf.x,
-                    mType->powerups[i].position.y - mType->powerups[i].bbHalf.y,
-                    mType->powerups[i].position.x + mType->powerups[i].bbHalf.x,
-                    mType->powerups[i].position.y + mType->powerups[i].bbHalf.y, mType->stateFrames % 2 ? WHITE : BLACK);
+            drawPngInv(&mType->powerupHandle, (int16_t)mType->powerups[i].position.x - mType->powerups[i].bbHalf.x, (int16_t)mType->powerups[i].position.y - mType->powerups[i].bbHalf.y, 
+                        false, false, 0, mType->stateFrames % 2);
         }
     }
 
@@ -1431,34 +1502,40 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
     for (int i = 0; i < MAX_ENEMIES; i++) {
         if (mType->enemies[i].active) {
             if (mType->enemies[i].type == ENEMY_SNAKE) {
-                plotCircle(mType->enemies[i].position.x, mType->enemies[i].position.y, 4, WHITE);
-                plotCircle(mType->enemies[i].position.x, mType->enemies[i].position.y, (mType->stateFrames / 15) % 2 ? 2 : 1, WHITE);
+                drawPngSequence(&mType->snakeSequenceHandle, 
+                                (int16_t)mType->enemies[i].position.x - mType->enemies[i].bbHalf.x, (int16_t)mType->enemies[i].position.y - mType->enemies[i].bbHalf.y,
+                                false, false, 0, mType->stateFrames % 2);
             }
             else if  (mType->enemies[i].type == ENEMY_BOMBER) {
-                plotCircle(mType->enemies[i].position.x, mType->enemies[i].position.y, 4, WHITE);
-                int anim = (mType->stateFrames / 15) % 2 ? 2 : 1;
-                plotRect(mType->enemies[i].position.x - anim, mType->enemies[i].position.y - anim,
-                        mType->enemies[i].position.x + anim, mType->enemies[i].position.y + anim, WHITE);
+                drawPngSequence(&mType->bomberSequenceHandle, 
+                                (int16_t)mType->enemies[i].position.x - mType->enemies[i].bbHalf.x, (int16_t)mType->enemies[i].position.y - mType->enemies[i].bbHalf.y,
+                                false, false, 0, mType->stateFrames % 2);
             }
             else if  (mType->enemies[i].type == ENEMY_WALKER) {
-                plotRect(mType->enemies[i].position.x - mType->enemies[i].bbHalf.x, mType->enemies[i].position.y - mType->enemies[i].bbHalf.y,
-                        mType->enemies[i].position.x + mType->enemies[i].bbHalf.x, mType->enemies[i].position.y + mType->enemies[i].bbHalf.y, WHITE);
-                int anim = (mType->stateFrames / 15) % 2 ? 2 : 1;
-                plotRect(mType->enemies[i].position.x - anim, mType->enemies[i].position.y - anim,
-                        mType->enemies[i].position.x + anim, mType->enemies[i].position.y + anim, WHITE);
+                drawPngSequence(&mType->walkerSequenceHandle, 
+                                (int16_t)mType->enemies[i].position.x - mType->enemies[i].bbHalf.x, (int16_t)mType->enemies[i].position.y - mType->enemies[i].bbHalf.y,
+                                false, false, 0, mType->stateFrames % 2);
             }
         }
     }
+
     // draw player
-    fillDisplayArea((int16_t)mType->player.position.x - mType->player.bbHalf.x, (int16_t)mType->player.position.y - mType->player.bbHalf.y, (int16_t)mType->player.position.x + mType->player.bbHalf.x, (int16_t)mType->player.position.y + mType->player.bbHalf.y, BLACK);
-    plotRect((int16_t)mType->player.position.x - mType->player.bbHalf.x, (int16_t)mType->player.position.y - mType->player.bbHalf.y, (int16_t)mType->player.position.x + mType->player.bbHalf.x, (int16_t)mType->player.position.y + mType->player.bbHalf.y, WHITE);
-    if (mType->player.abilityCountdown > 0) {
-        plotCircle(mType->player.position.x, mType->player.position.y, ((mType->stateFrames / 2) % 3) + 4, WHITE);//mType->stateFrames % 3 ? WHITE : BLACK);
+    pngHandle * playerSprite = &mType->playerStraightHandle;
+    if (mType->player.numLives > 0) {
+        if (mType->player.abilityCountdown > 0) {
+            plotCircle(mType->player.position.x, mType->player.position.y, ((mType->stateFrames / 2) % 3) + 4, WHITE);
+        }
+        if (mType->player.position.y < mType->player.lastPosition.y) {
+            playerSprite = &mType->playerUpHandle;
+        }
+        else if (mType->player.position.y > mType->player.lastPosition.y) {
+            playerSprite = &mType->playerDownHandle;
+        }
+        bool inv = mType->player.invincibilityCountdown > 0 && mType->stateFrames % 2 == 0;
+        drawPngInv(playerSprite, (int16_t)mType->player.position.x - mType->player.bbHalf.x, (int16_t)mType->player.position.y - mType->player.bbHalf.y, 
+                    true, false, 0, inv);
     }
-    if (mType->player.invincibilityCountdown > 0 && mType->stateFrames % 2 == 0) {
-        fillDisplayArea((int16_t)mType->player.position.x - mType->player.bbHalf.x, (int16_t)mType->player.position.y - mType->player.bbHalf.y, (int16_t)mType->player.position.x + mType->player.bbHalf.x, (int16_t)mType->player.position.y + mType->player.bbHalf.y, INVERSE);
-    }
-    //plotCircle(mType->player.position.x, mType->player.position.y, 5, WHITE);
+
     // draw ui
     /*
     reflect text
@@ -1485,23 +1562,12 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
     int livesSymbolY = livesTextY + 2;
 
     // lives display
-    /*if (mType->player.numLives < 3) {
-        // lives symbols
-        int currLivesSymbolX = livesSymbolX;
+    drawPngInv(playerSprite, (int16_t)livesSymbolX - mType->player.bbHalf.x, (int16_t)livesSymbolY - mType->player.bbHalf.y, 
+                false, false, 270, false);
 
-        for (int i = 0; i < mType->player.numLives; i++) {
-            plotRect(currLivesSymbolX - mType->player.bbHalf.x, livesSymbolY - mType->player.bbHalf.y, currLivesSymbolX + mType->player.bbHalf.x, livesSymbolY + mType->player.bbHalf.y, WHITE);
-            currLivesSymbolX += mType->player.bbHalf.x * 2 + 2;
-        }
-    }
-    else {*/
-        // lives symbol
-        plotRect(livesSymbolX - mType->player.bbHalf.x, livesSymbolY - mType->player.bbHalf.y, livesSymbolX + mType->player.bbHalf.x, livesSymbolY + mType->player.bbHalf.y, WHITE);
-
-        // lives text
-        ets_snprintf(uiStr, sizeof(uiStr), "x%d", mType->player.numLives);
-        plotText(livesTextX, livesTextY, uiStr, TOM_THUMB, WHITE);
-    //}
+    // lives text
+    ets_snprintf(uiStr, sizeof(uiStr), "x%d", mType->player.numLives);
+    plotText(livesTextX, livesTextY, uiStr, TOM_THUMB, WHITE);
 
     // reflect text
     ets_snprintf(uiStr, sizeof(uiStr), "REFLECT");
@@ -1533,6 +1599,20 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
             WHITE);
     }
 
+    // Since explosions are FX, they get updated after the screen has drawn.
+    for (int i = 0; i < MAX_EXPLOSIONS; i++) {
+        if (mType->explosions[i].active) {
+            drawPngSequence(&mType->explosionSequenceHandle, 
+                            (int16_t)mType->explosions[i].position.x - mType->explosions[i].bbHalf.x, (int16_t)mType->explosions[i].position.y - mType->explosions[i].bbHalf.y,
+                            false, false, 0, mType->explosions[i].frame / 2);
+
+            mType->explosions[i].frame++;
+            if (mType->explosions[i].frame >= EXPLOSION_FRAMES) {
+                mType->explosions[i].active = 0;
+            }
+        }
+    }
+
     // Update LED FX.
     if (mType->player.abilityCountdown > 0) {
         dancingLEDs(NUM_LEDS, reflectColor, mType->stateTime);
@@ -1547,7 +1627,6 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
     /*ets_snprintf(uiStr, sizeof(uiStr), "sp:%f", shotProgress);
     fillDisplayArea(OLED_WIDTH - getTextWidth(uiStr, TOM_THUMB) - 1, OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1)), OLED_WIDTH, OLED_HEIGHT, BLACK);
     plotText(OLED_WIDTH - getTextWidth(uiStr, TOM_THUMB) - 1, OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1)), uiStr, TOM_THUMB, WHITE);*/
-    
 }
 
 void ICACHE_FLASH_ATTR mtScoresInput(void)
@@ -1827,6 +1906,22 @@ bool ICACHE_FLASH_ATTR fireProjectile (uint8_t owner, uint8_t type, vec_t positi
     return false;
 }
 
+bool ICACHE_FLASH_ATTR spawnExplosion (vec_t spawn, vec_t bbHalf) 
+{
+    for (int i = 0; i < MAX_EXPLOSIONS; i++) {
+        if (!mType->explosions[i].active) {
+            mType->explosions[i].active = 1;
+            mType->explosions[i].position.x = spawn.x;
+            mType->explosions[i].position.y = spawn.y;
+            mType->explosions[i].bbHalf.x = bbHalf.x;
+            mType->explosions[i].bbHalf.y = bbHalf.y;
+            mType->explosions[i].frame = 0;
+            return true;
+        }
+    }
+    return false;
+}
+
 bool ICACHE_FLASH_ATTR spawnEnemy (uint8_t type, vec_t spawn, int8_t health, vec_t bbHalf, int32_t frameOffset) {
     for (int i = 0; i < MAX_ENEMIES; i++) {
         if (!mType->enemies[i].active) {
@@ -1859,7 +1954,7 @@ void ICACHE_FLASH_ATTR spawnEnemyFormation (uint8_t type, vec_t spawn, int8_t he
 }
 
 void ICACHE_FLASH_ATTR enemyDeath (uint8_t index) {
-    // TODO: explosion / anim sequence.
+    spawnExplosion(mType->enemies[index].position, mType->enemies[index].bbHalf);
     mType->enemies[index].active = 0;
 
     // powerup spawn determined by chance augmented by difficulty.
@@ -1882,19 +1977,20 @@ void ICACHE_FLASH_ATTR enemyDeath (uint8_t index) {
 }
 
 void ICACHE_FLASH_ATTR playerDeath () {
-    if (mType->player.numLives == 0) {
-        //TODO: game over anim and fx.
-        submitMTScore(mType->difficulty, mType->stateTime, mType->score);
-        mtSetState(MT_GAMEOVER);
-    }
-    else {
+    if (mType->player.numLives > 0) {
+        // decrease remaining lives.
+        mType->player.numLives--;
+
+        // spawn explosion at dead player position.
+        vec_t playerPos;
+        playerPos.x = (int16_t)mType->player.position.x;
+        playerPos.y = (int16_t)mType->player.position.y;
+        spawnExplosion(playerPos, mType->player.bbHalf);
+
         // deactivate projectiles.
         for (int i  = 0; i < MAX_PROJECTILES; i++) {
             mType->projectiles[i].active = 0;
         }
-
-        // decrease remaining lives.
-        mType->player.numLives--;
         
         // reset player and move back to start.
         mType->player.position.x = PLAYER_START_X;
