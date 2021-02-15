@@ -33,15 +33,15 @@ FW_FILE2_ADDR = 0x10000 # FW_FILE1_ADDR + FW_FILE1_SIZE
 # FW_FILE2_SIZE _MUST_ be in sync with irom0_0_seg len in eagle.app.v6.ld
 # There's 0xC0000 total space for code, persistent storage, and assets
 # This partition is just for code
-FW_FILE2_SIZE = 0x5C000
+FW_FILE2_SIZE = 0x6D000
 
 # This partition is for persistent storage
-USER_SETTINGS_ADDR = 0x6C000 # $(FW_FILE2_ADDR) + $(FW_FILE2_SIZE)
+USER_SETTINGS_ADDR = 0x7D000 # $(FW_FILE2_ADDR) + $(FW_FILE2_SIZE)
 USER_SETTINGS_SIZE =  0x3000
 
 # This partition is for assets
-ASSETS_ADDR = 0x6F000 # $(USER_SETTINGS_ADDR) + $(USER_SETTINGS_SIZE)
-ASSETS_SIZE = 0x51000 # $(MAX_SPI_FLASH_SIZE) - $(ASSETS_ADDR)
+ASSETS_ADDR = 0x80000 # $(USER_SETTINGS_ADDR) + $(USER_SETTINGS_SIZE)
+ASSETS_SIZE = 0x40000 # $(MAX_SPI_FLASH_SIZE) - $(ASSETS_ADDR)
 
 # Three ESP-specific partitions we must flash and register
 RF_CAL_ADDR    = 0x1FB000
