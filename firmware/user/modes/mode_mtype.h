@@ -23,6 +23,7 @@ typedef struct __attribute__((aligned(4)))
     mtScore_t easyScores[MT_NUM_HIGHSCORES];
     mtScore_t mediumScores[MT_NUM_HIGHSCORES];
     mtScore_t hardScores[MT_NUM_HIGHSCORES];
+    mtScore_t veryhardScores[MT_NUM_HIGHSCORES];
 }
 mtHighScores_t;
 

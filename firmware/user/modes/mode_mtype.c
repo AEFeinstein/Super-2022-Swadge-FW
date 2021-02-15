@@ -34,28 +34,16 @@
 #include "nvm_interface.h"
 //NOTES:
 /*
-Need to go through includes and remove unnecessary, list what each one is for.
-Start with the basic mechanics of r type, add a reflector shield with a CD, and more varied enemy attack patterns, etc.
 
 This is a Swadge Mode which has states, the mode updates in different ways depending on the current state.
-An Update consists of detecting and handline INPUT -> running any game LOGIC that is unrelated to input -> DISPLAY to the user the current mode state.
+An Update consists of detecting and handling INPUT -> running any game LOGIC that is unrelated to input -> DISPLAY to the user the current mode state.
 
 TODO:
-Score display / loading / saving
-LED FX
-alternating pulsing during reflect duration.
-an effect for when bullets are fired
-game over
-title screen
-game over screen
-score screen
-
-Art assets and integration
-Refine enemy wave generator
+minor fix for LED FX.
+Art assets and integration.
+Add player / enemy explosion animation support. Damage animation for enemies with more health?
+Refine enemy wave generator.
 Add some incentive for collecting powerups after max level firepower.
-Add a way for players to regain lives.
-
-
 
 */
 
@@ -138,11 +126,12 @@ Add a way for players to regain lives.
 #define WAVE_CLEAR_BONUS 100
 #define REFLECT_RAM_BONUS 2
 #define REFLECT_KILL_BONUS 10
-#define POWERUP_GET_BONUS 50
+#define POWERUP_GET_BONUS 1000
 
 #define DIFFICULTY_EASY 1
 #define DIFFICULTY_MEDIUM 2
 #define DIFFICULTY_HARD 3
+#define DIFFICULTY_VERYHARD 4
 
 // floor terrain consts.
 #define CHUNK_WIDTH 8
@@ -167,6 +156,20 @@ const led_t gameoverColor =
 {
     .r = 0xFF,
     .g = 0x00,
+    .b = 0x00
+};
+
+const led_t reflectColor =
+{
+    .r = 0x00,
+    .g = 0x00,
+    .b = 0xFF
+};
+
+const led_t shotColor =
+{
+    .r = 0xFF,
+    .g = 0xFF,
     .b = 0x00
 };
 
@@ -326,7 +329,7 @@ bool ICACHE_FLASH_ATTR mtIsButtonDown(uint8_t button);
 bool ICACHE_FLASH_ATTR mtIsButtonUp(uint8_t button);
 
 // LED FX functions.
-//void ICACHE_FLASH_ATTR singlePulseLEDs(uint8_t numLEDs, led_t fxColor, double progress);
+void ICACHE_FLASH_ATTR singlePulseLEDs(uint8_t numLEDs, led_t fxColor, double progress);
 void ICACHE_FLASH_ATTR blinkLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time);
 void ICACHE_FLASH_ATTR alternatingPulseLEDS(uint8_t numLEDs, led_t fxColor, uint32_t time);
 void ICACHE_FLASH_ATTR dancingLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time);
@@ -369,6 +372,7 @@ static const char mt_title[]  = "M-TYPE";
 static const char mt_easy[]   = "EASY";
 static const char mt_medium[] = "MEDIUM";
 static const char mt_hard[]   = "HARD";
+static const char mt_veryhard[]   = "DIE FOR ME";
 static const char mt_scores[] = "HIGH SCORES";
 static const char mt_quit[]   = "QUIT";
 static const char mt_gameover[] = "GAME OVER";
@@ -414,6 +418,7 @@ void ICACHE_FLASH_ATTR mtEnterMode(void)
     addItemToRow(mType->titleMenu, mt_easy);
     addItemToRow(mType->titleMenu, mt_medium);
     addItemToRow(mType->titleMenu, mt_hard);
+    addItemToRow(mType->titleMenu, mt_veryhard);
     addRowToMenu(mType->titleMenu);
 
     addItemToRow(mType->titleMenu, mt_scores);
@@ -608,7 +613,7 @@ void ICACHE_FLASH_ATTR mtSetState(mTypeState_t newState)
             mType->player.bbHalf.y = PLAYER_HALF_HEIGHT;
             mType->player.speed = PLAYER_SPEED;
             mType->player.shotLevel = 0;
-            mType->player.shotCooldown = 0;
+            mType->player.shotCooldown = PLAYER_SHOT_COOLDOWN;
             mType->player.abilityChargeCounter = 0;
             mType->player.abilityCountdown = 0;
             mType->player.numLives = PLAYER_START_LIVES;
@@ -699,7 +704,7 @@ bool ICACHE_FLASH_ATTR mtIsButtonUp(uint8_t button)
 }
 
 // a color is puled all leds according to the type of clear.
-/*void ICACHE_FLASH_ATTR singlePulseLEDs(uint8_t numLEDs, led_t fxColor, double progress)
+void ICACHE_FLASH_ATTR singlePulseLEDs(uint8_t numLEDs, led_t fxColor, double progress)
 {
     double lightness = 1.0 - (progress * progress);
 
@@ -710,9 +715,9 @@ bool ICACHE_FLASH_ATTR mtIsButtonUp(uint8_t button)
         mType->leds[i].b = (uint8_t)((double)fxColor.b * lightness);
     }
 
-    applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
+    //applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
     setLeds(mType->leds, sizeof(mType->leds));
-}*/
+}
 
 // blink red in sync with OLED gameover FX.
 void ICACHE_FLASH_ATTR blinkLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time)
@@ -838,7 +843,7 @@ void ICACHE_FLASH_ATTR applyLEDBrightness(uint8_t numLEDs, double brightness)
 {
     // Best way would be to convert to HSV and then set, is this factor method ok?
 
-    for (int32_t i = 0; i < numLEDs; i++)
+    for (uint8_t i = 0; i < numLEDs; i++)
     {
         mType->leds[i].r = (uint8_t)((double)mType->leds[i].r * brightness);
         mType->leds[i].g = (uint8_t)((double)mType->leds[i].g * brightness);
@@ -916,6 +921,10 @@ void ICACHE_FLASH_ATTR mtGameInput(void)
 
     // update the shot cd.
     mType->player.shotCooldown += mType->deltaTime;
+
+    if (mType->player.shotCooldown > PLAYER_SHOT_COOLDOWN) {
+        mType->player.shotCooldown = PLAYER_SHOT_COOLDOWN;
+    }
 
     // fire a shot if the fire button is being held down and shot is off cd.
     if (mtIsButtonDown(BTN_GAME_ACTION) && mType->player.shotCooldown >= PLAYER_SHOT_COOLDOWN && mType->player.abilityCountdown <= 0) {
@@ -1092,6 +1101,12 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
         uint8_t numEnemies;
         int16_t xSpacing;
         int16_t ySpacing;
+
+        // skip tutorial waves on higher difficulties.
+        if (mType->wave < 3 && (mType->difficulty == DIFFICULTY_HARD || mType->difficulty ==  DIFFICULTY_VERYHARD)) {
+            mType->wave += 3;
+        }
+
         switch (mType->wave) {
             case 0:
                 /* first wave */
@@ -1184,7 +1199,7 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                 /* randomly generated wave */
                 // playable area is like 5 to OLED_HEIGHT - 15
                 initialSpawn.x = OLED_WIDTH + bbHalf.x;
-                numFormations = (3 + mType->wave / 2 + mType->wave % 2) * mType->difficulty;
+                numFormations = (3 + mType->wave / 2 + mType->wave % 2) * (mType->difficulty != DIFFICULTY_VERYHARD ? mType->difficulty : 10);
                 for (i = 0; i < numFormations; i++) {
                     type = os_random() % 3;
                     bbHalf.x = 3;
@@ -1518,8 +1533,18 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
             WHITE);
     }
 
-    /*char uiStr[32] = {0};
-    ets_snprintf(uiStr, sizeof(uiStr), "BTN: %d u:%d, d:%d, l:%d, r:%d, a:%d", button, upDown, downDown, leftDown, rightDown, actionDown);
+    // Update LED FX.
+    if (mType->player.abilityCountdown > 0) {
+        dancingLEDs(NUM_LEDS, reflectColor, mType->stateTime);
+    }
+    else {
+        double shotProgress = ((double)mType->player.shotCooldown / (double)PLAYER_SHOT_COOLDOWN);
+        singlePulseLEDs(NUM_LEDS, shotColor, shotProgress);
+    }
+
+    //char uiStr[32] = {0};
+    //ets_snprintf(uiStr, sizeof(uiStr), "BTN: %d u:%d, d:%d, l:%d, r:%d, a:%d", button, upDown, downDown, leftDown, rightDown, actionDown);
+    /*ets_snprintf(uiStr, sizeof(uiStr), "sp:%f", shotProgress);
     fillDisplayArea(OLED_WIDTH - getTextWidth(uiStr, TOM_THUMB) - 1, OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1)), OLED_WIDTH, OLED_HEIGHT, BLACK);
     plotText(OLED_WIDTH - getTextWidth(uiStr, TOM_THUMB) - 1, OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1)), uiStr, TOM_THUMB, WHITE);*/
     
@@ -1531,12 +1556,12 @@ void ICACHE_FLASH_ATTR mtScoresInput(void)
         //1-3
         mType->difficulty--;
         if (mType->difficulty < DIFFICULTY_EASY) {
-            mType->difficulty = DIFFICULTY_HARD;
+            mType->difficulty = DIFFICULTY_VERYHARD;
         }
     }
     if (mtIsButtonPressed(BTN_GAME_RIGHT)) {
         mType->difficulty++;
-        if (mType->difficulty > DIFFICULTY_HARD) {
+        if (mType->difficulty > DIFFICULTY_VERYHARD) {
             mType->difficulty = DIFFICULTY_EASY;
         }
     }
@@ -1559,17 +1584,21 @@ void ICACHE_FLASH_ATTR mtScoresDisplay(void)
 
     switch (mType->difficulty) {
         default:
+        case DIFFICULTY_VERYHARD:
+            currentDiffScores = mType->highScores.veryhardScores;
+            ets_snprintf(scoresTitle, sizeof(scoresTitle), mt_veryhard);
+            break;
         case DIFFICULTY_HARD:
             currentDiffScores = mType->highScores.hardScores;
-            ets_snprintf(scoresTitle, sizeof(scoresTitle), "HARD");
+            ets_snprintf(scoresTitle, sizeof(scoresTitle), mt_hard);
             break;
         case DIFFICULTY_MEDIUM:
             currentDiffScores = mType->highScores.mediumScores;
-            ets_snprintf(scoresTitle, sizeof(scoresTitle), "MEDIUM");
+            ets_snprintf(scoresTitle, sizeof(scoresTitle), mt_medium);
             break;
         case DIFFICULTY_EASY:
             currentDiffScores = mType->highScores.easyScores;
-            ets_snprintf(scoresTitle, sizeof(scoresTitle), "EASY");
+            ets_snprintf(scoresTitle, sizeof(scoresTitle), mt_easy);
             break;
     }
 
@@ -1634,6 +1663,12 @@ static void ICACHE_FLASH_ATTR mtTitleMenuCallback(const char* menuItem)
     {
         // Change state to start game.
         mType->difficulty = DIFFICULTY_HARD;
+        mtSetState(MT_GAME);
+    }
+    else if (mt_veryhard == menuItem)
+    {
+        // Change state to start game.
+        mType->difficulty = DIFFICULTY_VERYHARD;
         mtSetState(MT_GAME);
     }
     else if (mt_scores == menuItem)
@@ -1705,6 +1740,19 @@ bool ICACHE_FLASH_ATTR submitMTScore(uint8_t difficulty, uint32_t timeSurvived, 
                 uint32_t tempTimeSurvived = mType->highScores.hardScores[i].timeSurvived;
                 mType->highScores.hardScores[i].score = score;
                 mType->highScores.hardScores[i].timeSurvived = timeSurvived;
+                score = tempScore;
+                timeSurvived = tempTimeSurvived;
+            }
+        }
+    }
+    else if (difficulty == DIFFICULTY_VERYHARD) {
+        for (int i = 0; i < MT_NUM_HIGHSCORES; i++) {
+            if (score >= mType->highScores.veryhardScores[i].score) {
+                newHighScore = true;
+                uint32_t tempScore = mType->highScores.veryhardScores[i].score;
+                uint32_t tempTimeSurvived = mType->highScores.veryhardScores[i].timeSurvived;
+                mType->highScores.veryhardScores[i].score = score;
+                mType->highScores.veryhardScores[i].timeSurvived = timeSurvived;
                 score = tempScore;
                 timeSurvived = tempTimeSurvived;
             }
@@ -1814,16 +1862,15 @@ void ICACHE_FLASH_ATTR enemyDeath (uint8_t index) {
     // TODO: explosion / anim sequence.
     mType->enemies[index].active = 0;
 
-    //TODO: should powerup spawn be determined by more than chance?
-    if (os_random() % 100 >= 80) {
+    // powerup spawn determined by chance augmented by difficulty.
+    uint8_t powerupChance = 25 - (5 * mType->difficulty);
+    if (os_random() % 100 <= powerupChance) {
         for (int k = 0; k < MAX_POWERUPS; k++) {
             if (!mType->powerups[k].active) {
                 mType->powerups[k].active = 1;
-                // TODO: spawn other powerup types?
                 mType->powerups[k].type = PWRUP_FP;
                 mType->powerups[k].position.x = mType->enemies[index].position.x;
                 mType->powerups[k].position.y = mType->enemies[index].position.y;
-                // TODO: set dimensions of the powerup.
                 mType->powerups[k].bbHalf.x = 2;
                 mType->powerups[k].bbHalf.y = 2;
                 mType->powerups[k].driftDelay = 0;
@@ -1855,7 +1902,7 @@ void ICACHE_FLASH_ATTR playerDeath () {
         mType->player.lastPosition.x = PLAYER_START_X;
         mType->player.lastPosition.y = PLAYER_START_Y;
         mType->player.shotLevel = 0;
-        mType->player.shotCooldown = 0;
+        mType->player.shotCooldown = PLAYER_SHOT_COOLDOWN;
         mType->player.abilityChargeCounter = 0;
         mType->player.abilityCountdown = 0;
 
