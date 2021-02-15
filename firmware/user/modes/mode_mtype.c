@@ -39,7 +39,8 @@ This is a Swadge Mode which has states, the mode updates in different ways depen
 An Update consists of detecting and handling INPUT -> running any game LOGIC that is unrelated to input -> DISPLAY to the user the current mode state.
 
 TODO:
-Refine enemy wave generator.
+Refine enemy wave generator to ensure better spacing between waves and formations.
+Refine enemy behavior so that there's always time for a player to react.
 
 */
 
@@ -52,6 +53,7 @@ Refine enemy wave generator.
 #define BTN_GAME_LEFT LEFT_MASK
 #define BTN_GAME_RIGHT RIGHT_MASK
 #define BTN_GAME_ACTION ACTION_MASK
+
 
 // update task info.
 #define UPDATE_TIME_MS 16
