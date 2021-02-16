@@ -185,14 +185,14 @@ typedef struct
 // precise positions for things like movement of the player.
 typedef struct
 {
-    double x;
-    double y;
-} vecdouble_t;
+    float x;
+    float y;
+} vecfloat_t;
 
 typedef struct 
 {
-    vecdouble_t position; // position in screen coords. (double for precise movement)
-    vecdouble_t lastPosition; // position of player last frame.
+    vecfloat_t position; // position in screen coords. (float for precise movement)
+    vecfloat_t lastPosition; // position of player last frame.
     vec_t bbHalf;   // half of bounding box width / height.
     uint8_t speed;  // speed of the player.
     uint8_t shotLevel;  // weapon level, controls the amount of bullets fired.
@@ -209,9 +209,9 @@ typedef struct
     uint8_t type; // the type of the projectile.
     uint8_t originalOwner;  // was the projectile originally owned by players or enemies.
     uint8_t owner;  // is the projectile owned by players or enemies.
-    vecdouble_t position; // the current position of the projectile.
+    vecfloat_t position; // the current position of the projectile.
     vec_t bbHalf; // half of bounding box width / height.
-    vecdouble_t direction;    // the direction the projectile will move on update.
+    vecfloat_t direction;    // the direction the projectile will move on update.
     uint8_t speed;  // speed of the projectile.
     uint8_t damage; // the amount of damage the projectile will deal on hit.
 } projectile_t;
@@ -242,7 +242,7 @@ typedef struct
     vec_t bbHalf;   // half of bounding box width / height.
     vec_t spawn;    // position that the enemy was spawned at in screen coords.
     //uint8_t speed;  // speed of the enemy.
-    //vecdouble_t direction;  // speed of the enemy.
+    //vecfloat_t direction;  // speed of the enemy.
     int32_t frameOffset;  // how much time in frames certain movement is offset.
     uint32_t shotCooldown;  // cooldown between firing shots.
     int8_t health; // the health of the enemy.
@@ -352,19 +352,19 @@ bool ICACHE_FLASH_ATTR mtIsButtonDown(uint8_t button);
 bool ICACHE_FLASH_ATTR mtIsButtonUp(uint8_t button);
 
 // LED FX functions.
-void ICACHE_FLASH_ATTR singlePulseLEDs(uint8_t numLEDs, led_t fxColor, double progress);
+void ICACHE_FLASH_ATTR singlePulseLEDs(uint8_t numLEDs, led_t fxColor, float progress);
 void ICACHE_FLASH_ATTR blinkLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time);
 void ICACHE_FLASH_ATTR alternatingPulseLEDS(uint8_t numLEDs, led_t fxColor, uint32_t time);
 void ICACHE_FLASH_ATTR dancingLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time);
-//void ICACHE_FLASH_ATTR countdownLEDs(uint8_t numLEDs, led_t fxColor, double progress);
+//void ICACHE_FLASH_ATTR countdownLEDs(uint8_t numLEDs, led_t fxColor, float progress);
 void ICACHE_FLASH_ATTR clearLEDs(uint8_t numLEDs);
-void ICACHE_FLASH_ATTR applyLEDBrightness(uint8_t numLEDs, double brightness);
+void ICACHE_FLASH_ATTR applyLEDBrightness(uint8_t numLEDs, float brightness);
 
 bool ICACHE_FLASH_ATTR submitMTScore(uint8_t difficulty, uint32_t timeSurvived, uint32_t score);
 uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font);
 bool ICACHE_FLASH_ATTR AABBCollision (int ax0, int ay0, int ax1, int ay1, int bx0, int by0, int bx1, int by1);
-void ICACHE_FLASH_ATTR normalize (vecdouble_t * vec);
-bool ICACHE_FLASH_ATTR fireProjectile (uint8_t owner, uint8_t type, vec_t position, vec_t bbHalf, vecdouble_t direction, uint8_t speed, uint8_t damage);
+void ICACHE_FLASH_ATTR normalize (vecfloat_t * vec);
+bool ICACHE_FLASH_ATTR fireProjectile (uint8_t owner, uint8_t type, vec_t position, vec_t bbHalf, vecfloat_t direction, uint8_t speed, uint8_t damage);
 bool ICACHE_FLASH_ATTR spawnExplosion (vec_t spawn, vec_t bbHalf);
 bool ICACHE_FLASH_ATTR spawnEnemy (uint8_t type, vec_t spawn, int8_t health, vec_t bbHalf, int32_t frameOffset);
 void ICACHE_FLASH_ATTR spawnEnemyFormation (uint8_t type, vec_t spawn, int8_t health, vec_t bbHalf, int32_t frameOffset, uint8_t numEnemies, int16_t xSpacing, int16_t ySpacing);
@@ -503,6 +503,7 @@ void ICACHE_FLASH_ATTR mtExitMode(void)
     freePngAsset(&mType->playerStraightHandle);
     freePngAsset(&mType->powerupHandle);
 
+    freePngSequence(&mType->explosionSequenceHandle);
     freePngSequence(&mType->bomberSequenceHandle);
     freePngSequence(&mType->snakeSequenceHandle);
     freePngSequence(&mType->walkerSequenceHandle);
@@ -625,8 +626,8 @@ static void ICACHE_FLASH_ATTR mtUpdate(void* arg __attribute__((unused)))
 
     // Draw debug FPS counter.
     /*char uiStr[32] = {0};
-    double seconds = ((double)mType->stateTime * (double)US_TO_MS_FACTOR * (double)MS_TO_S_FACTOR);
-    int32_t fps = (int)((double)mType->stateFrames / seconds);
+    float seconds = ((float)mType->stateTime * (float)US_TO_MS_FACTOR * (float)MS_TO_S_FACTOR);
+    int32_t fps = (int)((float)mType->stateFrames / seconds);
     //ets_snprintf(uiStr, sizeof(uiStr), "FPS: %d", fps);
     ets_snprintf(uiStr, sizeof(uiStr), "W:%d E:%d", mType->wave, mType->enemiesInWave);
     plotText(OLED_WIDTH - getTextWidth(uiStr, TOM_THUMB) - 1, OLED_HEIGHT - (1 * (FONT_HEIGHT_TOMTHUMB + 1)), uiStr, TOM_THUMB, WHITE);*/
@@ -762,15 +763,15 @@ bool ICACHE_FLASH_ATTR mtIsButtonUp(uint8_t button)
 }
 
 // a color is puled all leds according to the type of clear.
-void ICACHE_FLASH_ATTR singlePulseLEDs(uint8_t numLEDs, led_t fxColor, double progress)
+void ICACHE_FLASH_ATTR singlePulseLEDs(uint8_t numLEDs, led_t fxColor, float progress)
 {
-    double lightness = 1.0 - (progress * progress);
+    float lightness = 1.0 - (progress * progress);
 
     for (int32_t i = 0; i < numLEDs; i++)
     {
-        mType->leds[i].r = (uint8_t)((double)fxColor.r * lightness);
-        mType->leds[i].g = (uint8_t)((double)fxColor.g * lightness);
-        mType->leds[i].b = (uint8_t)((double)fxColor.b * lightness);
+        mType->leds[i].r = (uint8_t)((float)fxColor.r * lightness);
+        mType->leds[i].g = (uint8_t)((float)fxColor.g * lightness);
+        mType->leds[i].b = (uint8_t)((float)fxColor.b * lightness);
     }
 
     applyLEDBrightness(numLEDs, MODE_LED_BRIGHTNESS);
@@ -781,7 +782,7 @@ void ICACHE_FLASH_ATTR singlePulseLEDs(uint8_t numLEDs, led_t fxColor, double pr
 void ICACHE_FLASH_ATTR blinkLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time)
 {
     //TODO: there are instances where the red flashes on the opposite of the fill draw, how to ensure this does not happen?
-    uint32_t animCycle = ((double)time * US_TO_MS_FACTOR) / DISPLAY_REFRESH_MS;
+    uint32_t animCycle = ((float)time * US_TO_MS_FACTOR) / DISPLAY_REFRESH_MS;
     bool lightActive = animCycle % 2 == 0;
 
     for (int32_t i = 0; i < numLEDs; i++)
@@ -798,17 +799,17 @@ void ICACHE_FLASH_ATTR blinkLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time)
 // alternate lit up like a bulb sign
 void ICACHE_FLASH_ATTR alternatingPulseLEDS(uint8_t numLEDs, led_t fxColor, uint32_t time)
 {
-    double timeS = (double)time * US_TO_MS_FACTOR * MS_TO_S_FACTOR;
-    double risingProgress = (sin(timeS * 4.0) + 1.0) / 2.0;
-    double fallingProgress = 1.0 - risingProgress;
+    float timeS = (float)time * US_TO_MS_FACTOR * MS_TO_S_FACTOR;
+    float risingProgress = (sin(timeS * 4.0) + 1.0) / 2.0;
+    float fallingProgress = 1.0 - risingProgress;
 
-    double risingR = risingProgress * (double)fxColor.r;
-    double risingG = risingProgress * (double)fxColor.g;
-    double risingB = risingProgress * (double)fxColor.b;
+    float risingR = risingProgress * (float)fxColor.r;
+    float risingG = risingProgress * (float)fxColor.g;
+    float risingB = risingProgress * (float)fxColor.b;
 
-    double fallingR = fallingProgress * (double)fxColor.r;
-    double fallingG = fallingProgress * (double)fxColor.g;
-    double fallingB = fallingProgress * (double)fxColor.b;
+    float fallingR = fallingProgress * (float)fxColor.r;
+    float fallingG = fallingProgress * (float)fxColor.g;
+    float fallingB = fallingProgress * (float)fxColor.b;
 
     bool risingLED;
 
@@ -827,11 +828,11 @@ void ICACHE_FLASH_ATTR alternatingPulseLEDS(uint8_t numLEDs, led_t fxColor, uint
 // radial wanderers.
 void ICACHE_FLASH_ATTR dancingLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time)
 {
-    uint32_t animCycle = ((double)time * US_TO_MS_FACTOR * 2.0) / DISPLAY_REFRESH_MS;
+    uint32_t animCycle = ((float)time * US_TO_MS_FACTOR * 2.0) / DISPLAY_REFRESH_MS;
     int32_t firstIndex = animCycle % numLEDs;
     int32_t secondIndex = (firstIndex + (numLEDs / 2)) % numLEDs;
 
-    //uint8_t timeMS = ((double)time * US_TO_MS_FACTOR)/400;
+    //uint8_t timeMS = ((float)time * US_TO_MS_FACTOR)/400;
 
     for (int32_t i = 0; i < numLEDs; i++)
     {
@@ -844,7 +845,7 @@ void ICACHE_FLASH_ATTR dancingLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time
     setLeds(mType->leds, sizeof(mType->leds));
 }
 
-/*void ICACHE_FLASH_ATTR countdownLEDs(uint8_t numLEDs, led_t fxColor, double progress)
+/*void ICACHE_FLASH_ATTR countdownLEDs(uint8_t numLEDs, led_t fxColor, float progress)
 {
     // Reverse the direction of progress.
     progress = 1.0 - progress;
@@ -853,10 +854,10 @@ void ICACHE_FLASH_ATTR dancingLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time
     uint8_t numLitLEDs = progress * numLEDs;
 
     // Get the length of each segment of progress.
-    double segment = 1.0 / numLEDs;
-    double segmentProgress = numLitLEDs * segment;
+    float segment = 1.0 / numLEDs;
+    float segmentProgress = numLitLEDs * segment;
     // Find the amount that the leading LED should be partially lit.
-    double modProgress = (progress - segmentProgress) / segment;
+    float modProgress = (progress - segmentProgress) / segment;
 
     for (int32_t i = 0; i < numLEDs; i++)
     {
@@ -868,9 +869,9 @@ void ICACHE_FLASH_ATTR dancingLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time
         }
         else if (i == numLitLEDs)
         {
-            mType->leds[i].r = (uint8_t)((double)fxColor.r * modProgress);
-            mType->leds[i].g = (uint8_t)((double)fxColor.g * modProgress);
-            mType->leds[i].b = (uint8_t)((double)fxColor.b * modProgress);
+            mType->leds[i].r = (uint8_t)((float)fxColor.r * modProgress);
+            mType->leds[i].g = (uint8_t)((float)fxColor.g * modProgress);
+            mType->leds[i].b = (uint8_t)((float)fxColor.b * modProgress);
         }
         else
         {
@@ -896,15 +897,15 @@ void ICACHE_FLASH_ATTR clearLEDs(uint8_t numLEDs)
     setLeds(mType->leds, sizeof(mType->leds));
 }
 
-void ICACHE_FLASH_ATTR applyLEDBrightness(uint8_t numLEDs, double brightness)
+void ICACHE_FLASH_ATTR applyLEDBrightness(uint8_t numLEDs, float brightness)
 {
     // Best way would be to convert to HSV and then set, is this factor method ok?
 
     for (uint8_t i = 0; i < numLEDs; i++)
     {
-        mType->leds[i].r = (uint8_t)((double)mType->leds[i].r * brightness);
-        mType->leds[i].g = (uint8_t)((double)mType->leds[i].g * brightness);
-        mType->leds[i].b = (uint8_t)((double)mType->leds[i].b * brightness);
+        mType->leds[i].r = (uint8_t)((float)mType->leds[i].r * brightness);
+        mType->leds[i].g = (uint8_t)((float)mType->leds[i].g * brightness);
+        mType->leds[i].b = (uint8_t)((float)mType->leds[i].b * brightness);
     }
 }
 
@@ -928,7 +929,7 @@ void ICACHE_FLASH_ATTR mtGameInput(void)
 {
     if (mType->player.numLives > 0) {
         // account for good movement if multiple axis of movement are in play.
-        vecdouble_t moveDir;
+        vecfloat_t moveDir;
         moveDir.x = 0;
         moveDir.y = 0;
 
@@ -995,7 +996,7 @@ void ICACHE_FLASH_ATTR mtGameInput(void)
             bbHalf.x = 2;
             bbHalf.y = 0;
 
-            vecdouble_t dir;
+            vecfloat_t dir;
             dir.x = 1;
             dir.y = 0;
 
@@ -1046,7 +1047,7 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                     bbHalf.x = 0;
                     bbHalf.y = 0;
 
-                    vecdouble_t dir;
+                    vecfloat_t dir;
                     dir.x = -1;
                     dir.y = 0;
 
@@ -1076,7 +1077,7 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                     bbHalf.x = 0;
                     bbHalf.y = 0;
 
-                    vecdouble_t dir;
+                    vecfloat_t dir;
                     dir.x = 0;
                     dir.y = mType->player.position.y >= mType->enemies[i].position.y ? 1 : -1;
 
@@ -1103,7 +1104,7 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                     bbHalf.x = 0;
                     bbHalf.y = 0;
 
-                    vecdouble_t dir;
+                    vecfloat_t dir;
                     dir.x = mType->player.position.x - mType->enemies[i].position.x;
                     dir.y = mType->player.position.y - mType->enemies[i].position.y;
                     normalize(&dir);
@@ -1148,7 +1149,7 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
         vec_t bbHalf;
         vec_t initialSpawn;
         uint8_t speed;
-        vecdouble_t direction;
+        vecfloat_t direction;
         int numFormations;
         int type;
         int i;
@@ -1584,7 +1585,7 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
 
     // reflect bar fill
     // this will deplete from full while the reflect is winding down.
-    double charge = mType->player.abilityCountdown > 0 ? (double)mType->player.abilityCountdown / PLAYER_REFLECT_TIME : (double)mType->player.abilityChargeCounter / PLAYER_REFLECT_CHARGE_MAX;
+    float charge = mType->player.abilityCountdown > 0 ? (float)mType->player.abilityCountdown / PLAYER_REFLECT_TIME : (float)mType->player.abilityChargeCounter / PLAYER_REFLECT_CHARGE_MAX;
 
     int reflectBarFillX1 = reflectBarX0 + (charge * ((reflectBarX1 - 1) - reflectBarX0));
     plotLine(reflectBarX0, reflectBarY0 + 1, reflectBarFillX1, reflectBarY0 + 1, WHITE);
@@ -1620,7 +1621,7 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
         dancingLEDs(NUM_LEDS, reflectColor, mType->stateTime);
     }
     else {
-        double shotProgress = ((double)mType->player.shotCooldown / (double)PLAYER_SHOT_COOLDOWN);
+        float shotProgress = ((float)mType->player.shotCooldown / (float)PLAYER_SHOT_COOLDOWN);
         singlePulseLEDs(NUM_LEDS, shotColor, shotProgress);
     }
 
@@ -1877,16 +1878,16 @@ bool ICACHE_FLASH_ATTR AABBCollision (int ax0, int ay0, int ax1, int ay1, int bx
             ay1 > by0);
 }
 
-void ICACHE_FLASH_ATTR normalize (vecdouble_t * vec)
+void ICACHE_FLASH_ATTR normalize (vecfloat_t * vec)
 {
     if (vec->x != 0 || vec->y != 0) {
-        double mag = sqrt(pow(vec->x, 2) + pow(vec->y, 2));
+        float mag = sqrt(pow(vec->x, 2) + pow(vec->y, 2));
         vec->x /= mag;
         vec->y /= mag;
     }
 }
 
-bool ICACHE_FLASH_ATTR fireProjectile (uint8_t owner, uint8_t type, vec_t position, vec_t bbHalf, vecdouble_t direction, uint8_t speed, uint8_t damage)
+bool ICACHE_FLASH_ATTR fireProjectile (uint8_t owner, uint8_t type, vec_t position, vec_t bbHalf, vecfloat_t direction, uint8_t speed, uint8_t damage)
 {
     for (int i = 0; i < MAX_PROJECTILES; i++) {
         if (!mType->projectiles[i].active) {

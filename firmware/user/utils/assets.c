@@ -583,21 +583,7 @@ void ICACHE_FLASH_ATTR drawPngSequence(pngSequenceHandle* handle, int16_t xp,
                                        int16_t yp, bool flipLR, bool flipUD,
                                        int16_t rotateDeg, int16_t frame)
 {
-    if(-1 == frame)
-    {
-        // Draw the PNG
-        drawPng(&handle->handles[handle->cFrame], xp, yp, flipLR, flipUD, rotateDeg);
-        // Move to the next frame
-        handle->cFrame = (handle->cFrame + 1) % handle->count;
-    }
-    else
-    {
-        if(frame < handle->count)
-        {
-            handle->cFrame = frame;
-            drawPng(&handle->handles[frame], xp, yp, flipLR, flipUD, rotateDeg);
-        }
-    }
+    drawPngSequenceInv(handle, xp, yp, flipLR, flipUD, rotateDeg, frame, false);
 }
 
 /**
@@ -613,8 +599,8 @@ void ICACHE_FLASH_ATTR drawPngSequence(pngSequenceHandle* handle, int16_t xp,
  * @param inv       true to invert all colors, false to draw it normally
  */
 void ICACHE_FLASH_ATTR drawPngSequenceInv(pngSequenceHandle* handle, int16_t xp,
-                                       int16_t yp, bool flipLR, bool flipUD,
-                                       int16_t rotateDeg, int16_t frame, bool inv)
+        int16_t yp, bool flipLR, bool flipUD,
+        int16_t rotateDeg, int16_t frame, bool inv)
 {
     if(-1 == frame)
     {
