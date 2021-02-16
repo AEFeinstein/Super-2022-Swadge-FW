@@ -1112,7 +1112,8 @@ void ICACHE_FLASH_ATTR danceChristmas(uint32_t tElapsedUs, uint32_t arg, bool re
  * @param arg
  * @param reset
  */
-void ICACHE_FLASH_ATTR danceNone(uint32_t tElapsedUs, uint32_t arg, bool reset)
+void ICACHE_FLASH_ATTR danceNone(uint32_t tElapsedUs __attribute__((unused)),
+                                 uint32_t arg __attribute__((unused)), bool reset)
 {
     if(reset)
     {

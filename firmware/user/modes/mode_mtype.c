@@ -369,7 +369,7 @@ bool ICACHE_FLASH_ATTR spawnExplosion (vec_t spawn, vec_t bbHalf);
 bool ICACHE_FLASH_ATTR spawnEnemy (uint8_t type, vec_t spawn, int8_t health, vec_t bbHalf, int32_t frameOffset);
 void ICACHE_FLASH_ATTR spawnEnemyFormation (uint8_t type, vec_t spawn, int8_t health, vec_t bbHalf, int32_t frameOffset, uint8_t numEnemies, int16_t xSpacing, int16_t ySpacing);
 void ICACHE_FLASH_ATTR enemyDeath (uint8_t index);
-void ICACHE_FLASH_ATTR playerDeath ();
+void ICACHE_FLASH_ATTR playerDeath (void);
 
 
 /*============================================================================
@@ -637,7 +637,7 @@ static void ICACHE_FLASH_ATTR mtUpdate(void* arg __attribute__((unused)))
 
 void ICACHE_FLASH_ATTR mtSetState(mTypeState_t newState)
 {
-    mTypeState_t prevState = mType->state;
+    // mTypeState_t prevState = mType->state;
     mType->state = newState;
     mType->stateStartTime = system_get_time();
     mType->stateTime = 0;
@@ -1086,7 +1086,7 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
             }
             else if (mType->enemies[i].type == ENEMY_WALKER) {
                 // advance slowly across the screen, stopping to drop bombs when above the player.
-                int16_t prevX = mType->enemies[i].position.x;
+                // int16_t prevX = mType->enemies[i].position.x;
 
                 mType->enemies[i].position.x += mType->stateFrames % 4 == 0 ? -1 : 0;
                 if (mType->enemies[i].position.x < -mType->enemies[i].bbHalf.x) {
@@ -1148,8 +1148,8 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
     if (mType->enemiesInWave == 0) {
         vec_t bbHalf;
         vec_t initialSpawn;
-        uint8_t speed;
-        vecfloat_t direction;
+        // uint8_t speed;
+        // vecfloat_t direction;
         int numFormations;
         int type;
         int i;
@@ -1173,9 +1173,9 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                 bbHalf.y = 3;
                 initialSpawn.x = OLED_WIDTH + bbHalf.x * 2;
                 initialSpawn.y = OLED_HEIGHT - 35;
-                speed = 1;
-                direction.x = -1;
-                direction.y = 0;
+                // speed = 1;
+                // direction.x = -1;
+                // direction.y = 0;
                 unitFrameOffset = 10;
                 numEnemies = 3;
                 xSpacing = 10;
@@ -1198,9 +1198,9 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                 health = 1;
                 bbHalf.x = 3;
                 bbHalf.y = 3;
-                speed = 1;
-                direction.x = -1;
-                direction.y = 0;
+                // speed = 1;
+                // direction.x = -1;
+                // direction.y = 0;
                 unitFrameOffset = 10;
                 numEnemies = 3;
                 xSpacing = -10;
@@ -1225,9 +1225,9 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                 health = 1;
                 bbHalf.x = 3;
                 bbHalf.y = 3;
-                speed = 1;
-                direction.x = -1;
-                direction.y = 0;
+                // speed = 1;
+                // direction.x = -1;
+                // direction.y = 0;
                 unitFrameOffset = 10;
                 numEnemies = 3;
                 xSpacing = -10;
@@ -1261,9 +1261,9 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                     type = os_random() % 3;
                     bbHalf.x = 3;
                     bbHalf.y = 3;
-                    speed = 1;
-                    direction.x = -1;
-                    direction.y = 0;
+                    // speed = 1;
+                    // direction.x = -1;
+                    // direction.y = 0;
                     health = 1;//(mType->wave / 10);
                     unitFrameOffset = 20;
                     numEnemies = (os_random() % mType->wave);
@@ -1866,11 +1866,11 @@ uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font)
 }
 
 bool ICACHE_FLASH_ATTR AABBCollision (int ax0, int ay0, int ax1, int ay1, int bx0, int by0, int bx1, int by1) {
-    int awidth = ax1 - ax0;
-    int aheight = ay1 - ay0;
+    // int awidth = ax1 - ax0;
+    // int aheight = ay1 - ay0;
 
-    int bwidth = bx1 - bx0;
-    int bheight = by1 - by0;
+    // int bwidth = bx1 - bx0;
+    // int bheight = by1 - by0;
 
     return (ax0 < bx1 &&
             ax1 > bx0 &&
@@ -1946,7 +1946,7 @@ bool ICACHE_FLASH_ATTR spawnEnemy (uint8_t type, vec_t spawn, int8_t health, vec
 }
 
 void ICACHE_FLASH_ATTR spawnEnemyFormation (uint8_t type, vec_t spawn, int8_t health, vec_t bbHalf, int32_t frameOffset, uint8_t numEnemies, int16_t xSpacing, int16_t ySpacing) {
-    bool spawnSuccess = true;
+    // bool spawnSuccess = true;
     for (int i = 0; i < numEnemies; i++) {
         vec_t currentSpawn;
         currentSpawn.x = spawn.x + i * xSpacing;
@@ -1979,7 +1979,7 @@ void ICACHE_FLASH_ATTR enemyDeath (uint8_t index) {
     }
 }
 
-void ICACHE_FLASH_ATTR playerDeath () {
+void ICACHE_FLASH_ATTR playerDeath (void) {
     if (mType->player.numLives > 0) {
         // decrease remaining lives.
         mType->player.numLives--;
