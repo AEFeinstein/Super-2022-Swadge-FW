@@ -58,14 +58,6 @@
 
 typedef enum
 {
-    FL_PERFTEST,
-    FL_TRIANGLES,
-    FL_ENV,
-} flGameType;
-
-
-typedef enum
-{
     FLIGHT_MENU,
     FLIGHT_GAME,
     FLIGHT_GAME_OVER,
@@ -102,7 +94,6 @@ typedef struct
     timer_t updateTimer;
     int frames, tframes;
     uint8_t buttonState;
-    flGameType type;
 
     int16_t planeloc[3];
     int16_t hpr[3];
@@ -110,7 +101,6 @@ typedef struct
     int16_t pitchmoment;
     int16_t yawmoment;
     bool perfMotion;
-    tdModel * isosphere;
 
     int enviromodels;
     tdModel ** environment;
@@ -146,12 +136,11 @@ void ICACHE_FLASH_ATTR flightButtonCallback(uint8_t state __attribute__((unused)
 
 static void ICACHE_FLASH_ATTR flightUpdate(void* arg __attribute__((unused)));
 static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem);
-static void ICACHE_FLASH_ATTR flightStartGame(flGameType type);
+static void ICACHE_FLASH_ATTR flightStartGame(void);
 static bool ICACHE_FLASH_ATTR flightRender(void);
 static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight );
 static void ICACHE_FLASH_ATTR flightUpdateLEDs(flight_t * tflight);
 static void ICACHE_FLASH_ATTR flightLEDAnimate( flLEDAnimation anim );
-static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int faces, const uint16_t * indices, const int16_t * vertices, int indices_per_face /* 2= lines 3= tris */ );
 int ICACHE_FLASH_ATTR tdModelVisibilitycheck( const tdModel * m );
 void ICACHE_FLASH_ATTR tdDrawModel( const tdModel * m );
 static int ICACHE_FLASH_ATTR flightTimeHighScorePlace( int wintime, bool is100percent );
@@ -209,40 +198,6 @@ void iplotRectB( int x1, int y1, int x2, int y2 )
     }
 }
 
-
-
-
-static const int16_t IsoSphereVertices[] RODATA_ATTR = {
-           0, -256,    0,
-         185, -114,  134,        -70, -114,  217,       -228, -114,    0,        -70, -114, -217,
-         185, -114, -134,         70,  114,  217,       -185,  114,  134,       -185,  114, -134,
-          70,  114, -217,        228,  114,    0,          0,  256,    0,        108, -217,   79,
-         -41, -217,  127,         67, -134,  207,        108, -217,  -79,        217, -134,    0,
-        -134, -217,    0,       -176, -134,  127,        -41, -217, -127,       -176, -134, -127,
-          67, -134, -207,        243,    0,  -79,        243,    0,   79,        150,    0,  207,
-           0,    0,  256,       -150,    0,  207,       -243,    0,   79,       -243,    0,  -79,
-        -150,    0, -207,          0,    0, -256,        150,    0, -207,        176,  134,  127,
-         -67,  134,  207,       -217,  134,    0,        -67,  134, -207,        176,  134, -127,
-         134,  217,    0,         41,  217,  127,       -108,  217,   79,       -108,  217,  -79,
-          41,  217, -127};
-static const uint16_t IsoSphereIndices[] RODATA_ATTR = { /* 120 line segments */
-          42,  36,     36,   3,      3,  42,     42,  39,     39,  36,      6,  39,     42,   6,     39,   0,
-           0,  36,     48,   3,     36,  48,     36,  45,     45,  48,     15,  48,     45,  15,      0,  45,
-          54,  39,      6,  54,     54,  51,     51,  39,      9,  51,     54,   9,     51,   0,     60,  51,
-           9,  60,     60,  57,     57,  51,     12,  57,     60,  12,     57,   0,     63,  57,     12,  63,
-          63,  45,     45,  57,     63,  15,     69,   3,     48,  69,     48,  66,     66,  69,     30,  69,
-          66,  30,     15,  66,     75,   6,     42,  75,     42,  72,     72,  75,     18,  75,     72,  18,
-           3,  72,     81,   9,     54,  81,     54,  78,     78,  81,     21,  81,     78,  21,      6,  78,
-          87,  12,     60,  87,     60,  84,     84,  87,     24,  87,     84,  24,      9,  84,     93,  15,
-          63,  93,     63,  90,     90,  93,     27,  93,     90,  27,     12,  90,     96,  69,     30,  96,
-          96,  72,     72,  69,     96,  18,     99,  75,     18,  99,     99,  78,     78,  75,     99,  21,
-         102,  81,     21, 102,    102,  84,     84,  81,    102,  24,    105,  87,     24, 105,    105,  90,
-          90,  87,    105,  27,    108,  93,     27, 108,    108,  66,     66,  93,    108,  30,    114,  18,
-          96, 114,     96, 111,    111, 114,     33, 114,    111,  33,     30, 111,    117,  21,     99, 117,
-          99, 114,    114, 117,     33, 117,    120,  24,    102, 120,    102, 117,    117, 120,     33, 120,
-         123,  27,    105, 123,    105, 120,    120, 123,     33, 123,    108, 111,    108, 123,    123, 111,
-        };
-
 /**
  * Initializer for flight
  */
@@ -253,20 +208,17 @@ void ICACHE_FLASH_ATTR flightEnterMode(void)
     ets_memset(flight, 0, sizeof(flight_t));
 
     flight->mode = FLIGHT_MENU;
-    flight->isosphere = tdAllocateModel( sizeof(IsoSphereIndices)/sizeof(uint16_t)/2, IsoSphereIndices, IsoSphereVertices, 2 );
 
+    uint32_t retlen;
+    uint16_t * data = (uint16_t*)getAsset( "3denv.obj", &retlen );
+    data+=2; //header
+    flight->enviromodels = *(data++);
+    flight->environment = os_malloc( sizeof(tdModel *) * flight->enviromodels );
+    int i;
+    for( i = 0; i < flight->enviromodels; i++ )
     {
-        uint32_t retlen;
-        uint16_t * data = (uint16_t*)getAsset( "3denv.obj", &retlen );
-        data+=2; //header
-        flight->enviromodels = *(data++);
-        flight->environment = os_malloc( sizeof(tdModel *) * flight->enviromodels );
-        int i;
-        for( i = 0; i < flight->enviromodels; i++ )
-        {
-            tdModel * m = flight->environment[i] = (tdModel*)data;
-            data += 8 + m->nrvertnums + m->nrfaces * m->indices_per_face;
-        }
+        tdModel * m = flight->environment[i] = (tdModel*)data;
+        data += 8 + m->nrvertnums + m->nrfaces * m->indices_per_face;
     }
 
     flight->menu = initMenu(fl_title, flightMenuCb);
@@ -302,7 +254,6 @@ void ICACHE_FLASH_ATTR flightExitMode(void)
     timerDisarm(&(flight->updateTimer));
     timerFlush();
     deinitMenu(flight->menu);
-    os_free(flight->isosphere);
     os_free(flight);
 }
 
@@ -324,7 +275,7 @@ static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem)
     }
     else */ if (fl_flight_env == menuItem)
     {
-        flightStartGame(FL_ENV);
+        flightStartGame();
     }
     else if ( fl_flight_invertY0_env == menuItem )
     {
@@ -422,10 +373,9 @@ static void ICACHE_FLASH_ATTR flightUpdateLEDs(flight_t * tflight)
  * @param type
  * @param difficulty
  */
-static void ICACHE_FLASH_ATTR flightStartGame(flGameType type)
+static void ICACHE_FLASH_ATTR flightStartGame(void)
 {
     flight->mode = FLIGHT_GAME;
-    flight->type = type;
     flight->frames = 0;
 
 
@@ -804,59 +754,6 @@ void ICACHE_FLASH_ATTR Draw3DSegment( const int16_t * c1, const int16_t * c2 )
     //plotLine( sx0, sy0, sx1, sy1, WHITE );
 }
 
-static tdModel * ICACHE_FLASH_ATTR tdAllocateModel( int nrfaces, const uint16_t * indices, const int16_t * vertices, int indices_per_face )
-{
-    int i;
-    int highest_v = 0;
-    for( i = 0; i < nrfaces*2; i++ )
-    {
-        if( indices[i] > highest_v ) highest_v = indices[i];
-    }
-    highest_v += 3; //We only looked at indices.
-
-    tdModel * ret = os_malloc( sizeof( tdModel ) + highest_v * sizeof(uint16_t) + nrfaces * sizeof(uint16_t) * 2  );
-    ret->nrfaces = nrfaces;
-    ret->indices_per_face = indices_per_face;
-
-    ets_memcpy( ret->indices_and_vertices, indices, nrfaces * sizeof(uint16_t) * 2 );
-    int16_t * voffset = &ret->indices_and_vertices[nrfaces * 2];
-
-    int16_t mins[3] = {  0x7fff,  0x7fff,  0x7fff };
-    int16_t maxs[3] = { -0x7fff, -0x7fff, -0x7fff };
-    for( i = 0; i < highest_v; i+=3 )
-    {
-        const int16_t * v = &vertices[i];
-        int k;
-        for( k = 0; k < 3; k++ )
-        {
-            int16_t vk = v[k];
-            if( vk < mins[k] ) mins[k] = vk;
-            if( vk > maxs[k] ) maxs[k] = vk;
-            voffset[i+k] = v[k];
-        }
-    }
-    ret->nrvertnums = highest_v;
-    for( i = 0; i < 3; i++ )
-    {
-        ret->center[i] = (maxs[i] + mins[i])/2;
-    }
-    uint32_t dSq = 0;
-    for( i = 0; i < highest_v; i+= 3 )
-    {
-        int k;
-        uint32_t difftot = 0;
-        for( k = 0; k < 3; k++ )
-        {
-            int32_t ik = vertices[i+k] - ret->center[k];
-            difftot += ik*ik;
-        }
-        if( difftot > dSq ) dSq = difftot;
-    }
-    ret->radius = tdSQRT( dSq );
-
-    return ret;
-}
-
 int ICACHE_FLASH_ATTR tdModelVisibilitycheck( const tdModel * m )
 {
 
@@ -1003,7 +900,6 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 
     // First clear the OLED
 
-    int ij = tflight->frames;
     SetupMatrix();
 
 #ifdef EMU
@@ -1011,252 +907,133 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 #else
     // uint32_t start = xthal_get_ccount();
 #endif
-    if( tflight->type == FL_PERFTEST )
-    {
-        tdRotateEA( ProjectionMatrix, -20, 0, 0 );
-        clearDisplay();
-        int x = 0;
-        int y = -1;
-#ifndef EMU
-        PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.
-        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
-        OVERCLOCK_SECTION_ENABLE();
-#endif
-        //45 spheres x 120 line segments = 5,400 edges per frame
-        //45 spheres x 42 vertices per = 1,890 vertices per frame
-        //As of 2020-09-23 19:54, Render is: 20.89584ms + ~9.16ms for output.
-
-        if( !tflight->perfMotion )
-        {
-            ij = 0;
-        }
-        else
-        {
-            tdRotateEA( ModelviewMatrix, ij, 0, 0 );
-        }
-
-        for( x = -4; x < 5; x++ )
-        {
-            for( y = 0; y < 5; y++ )
-            {
-                //7 * 4 * 120 = 3360 lines per frame.
-                ModelviewMatrix[11] = 2600+(tflight->perfMotion?(tdSIN( (x + y)*40 + ij*1 ) )*5:0);
-                ModelviewMatrix[3] = 450*x;
-                ModelviewMatrix[7] = 500*y+500;
-                tdDrawModel( tflight->isosphere );
-            }
-        }
-#ifndef EMU
-        OVERCLOCK_SECTION_DISABLE();
-        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 );
-#endif
-    }
-    else if( tflight->type == FL_TRIANGLES )
-    {
-#ifndef EMU
-        PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.
-        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
-        OVERCLOCK_SECTION_ENABLE();
-#endif
-        int x,y;
-        int overlay = 0;
-        //1,000 triangles @ 28.3ms.
-        if( tflight->perfMotion )
-        {
-            for( overlay = 0; overlay < 100; overlay++ )
-            {
-                int col = os_random()%2;
-                outlineTriangle( (os_random()%256)-64, (os_random()%128)-32, (os_random()%256)-64, (os_random()%128)-32,
-                    (os_random()%256)-64, (os_random()%128)-32, col, !col );
-            }
-        }
-        else
-        {
-            ij = 32;
-            for( overlay = 0; overlay < 10; overlay++ )
-            for( y = 0; y < 10; y++ )
-            for( x = 0; x < 10; x++ )
-            {
-                int mx = x * 12;
-                int my = y * 6;
-                int mx1 = x*12+tdSIN( ij+x+y )/25;
-                int my1 = y*6+tdCOS( ij+x+y )/25;
-                outlineTriangle( mx, my, mx1, my, mx, my1, 0, 1 );
-                outlineTriangle( mx, my1, mx1, my1, mx1, my, 0, 1 );
-            }
-        }
-#ifndef EMU
-        OVERCLOCK_SECTION_DISABLE();
-        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 );
-#endif
-    }
-    else if( tflight->type == FL_ENV )
-    {
 
 #ifndef EMU
-        PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.
-        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
-        OVERCLOCK_SECTION_ENABLE();
+    PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.
+    GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
+    OVERCLOCK_SECTION_ENABLE();
 #endif
 
-        clearDisplay();
-        tdRotateEA( ProjectionMatrix, tflight->hpr[1]/16, tflight->hpr[0]/16, 0 );
-        tdTranslate( ModelviewMatrix, -tflight->planeloc[0], -tflight->planeloc[1], -tflight->planeloc[2] );
+    clearDisplay();
+    tdRotateEA( ProjectionMatrix, tflight->hpr[1]/16, tflight->hpr[0]/16, 0 );
+    tdTranslate( ModelviewMatrix, -tflight->planeloc[0], -tflight->planeloc[1], -tflight->planeloc[2] );
 
-        struct ModelRangePair mrp[tflight->enviromodels];
-        int mdlct = 0;
+    struct ModelRangePair mrp[tflight->enviromodels];
+    int mdlct = 0;
 
 /////////////////////////////////////////////////////////////////////////////////////////
 ////GAME LOGIC GOES HERE (FOR COLLISIONS/////////////////////////////////////////////////
 
-        int i;
-        for( i = 0; i < tflight->enviromodels;i++ )
-        {
-            tdModel * m = tflight->environment[i];
-
-            int label = m->label;
-            int draw = 1;
-            if( label )
-            {
-                draw = 0;
-                if( label >= 100 && (label - 100) == tflight->ondonut )
-                {
-                    draw = 1;
-                    if( tdDist( tflight->planeloc, m->center ) < 130 )
-                    {
-                        flightLEDAnimate( FLIGHT_LED_DONUT );
-                        tflight->ondonut++;
-                    }
-                }
-                //bean? 1000... groupings of 8.
-                int beansec = ((label-1000)/10);
-
-                if( label >= 1000 && ( beansec == tflight->ondonut || beansec == (tflight->ondonut-1) || beansec == (tflight->ondonut+1)) )
-                {
-                    if( ! (tflight->beangotmask[beansec] & (1<<((label-1000)%10))) )
-                    {
-                        draw = 1;
-
-                        if( tdDist( tflight->planeloc, m->center ) < 100 )
-                        {
-                            tflight->beans++;
-                            tflight->beangotmask[beansec] |= (1<<((label-1000)%10));
-                            flightLEDAnimate( FLIGHT_LED_BEAN );
-                        }
-                    }
-                }
-                if( label == 999 ) //gazebo
-                {
-                    draw = 1;
-                    if( flight->mode != FLIGHT_GAME_OVER && tdDist( tflight->planeloc, m->center ) < 200 && tflight->ondonut == MAX_DONUTS)
-                    {
-                        flightLEDAnimate( FLIGHT_LED_ENDING );
-                        tflight->frames = 0;
-                        tflight->wintime = (system_get_time() - tflight->timeOfStart)/10000;
-                        tflight->mode = FLIGHT_GAME_OVER;
-                    }
-                }
-            }
-
-            if( draw == 0 ) continue;
-
-            int r = tdModelVisibilitycheck( m );
-            if( r < 0 ) continue;
-            mrp[mdlct].model = m;
-            mrp[mdlct].mrange = r;
-            mdlct++;
-        }
-
-        //Painter's algorithm
-        qsort( mrp, mdlct, sizeof( struct ModelRangePair ), mdlctcmp );
-
-        for( i = 0; i < mdlct; i++ )
-        {
-            tdModel * m = mrp[i].model;
-            int label = m->label;
-            int draw = 1;
-            if( label )
-            {
-                draw = 0;
-                if( label >= 100 && label < 999 )
-                {
-                    draw = 2; //All donuts flash on.
-                }
-                if( label >= 1000 )
-                {
-                    draw = 3; //All beans flash-invert
-                }
-                if( label == 999 ) //gazebo
-                {
-                    draw = (tflight->ondonut==MAX_DONUTS)?2:1; //flash on last donut.
-                }
-            }
-
-            //XXX TODO:
-            // Flash light when you get a bean or a ring.
-            // Do laptiming per ring for fastest time.
-            // Fix time counting and presentation
-
-            //draw = 0 = invisible
-            //draw = 1 = regular
-            //draw = 2 = flashing
-            //draw = 3 = other flashing
-            if( draw == 1 )
-                tdDrawModel( m );
-            else if( draw == 2 || draw == 3 )
-            {
-                if( draw == 2 )
-                    renderlinecolor = (tflight->frames&1)?WHITE:BLACK;
-                if( draw == 3 )
-                    renderlinecolor = (tflight->frames&1)?BLACK:WHITE;
-                tdDrawModel( m );
-                renderlinecolor = WHITE;
-            }
-        }
-
-
-#ifndef EMU
-        OVERCLOCK_SECTION_DISABLE();
-        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 );
-#endif
-
-    }
-    else
+    int i;
+    for( i = 0; i < tflight->enviromodels;i++ )
     {
-        //Normal game
-        int x = 0;
-        int y = -1;
+        tdModel * m = tflight->environment[i];
 
-#ifndef EMU
-        PIN_FUNC_SELECT( PERIPHS_IO_MUX_U0TXD_U, 3); //Set to GPIO.
-        GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 0 );
-        OVERCLOCK_SECTION_ENABLE();
-#endif
-
-        clearDisplay();
-        tdRotateEA( ProjectionMatrix, tflight->hpr[1], tflight->hpr[0], 0 );
-        tdTranslate( ModelviewMatrix, -tflight->planeloc[0], -tflight->planeloc[1], -tflight->planeloc[2] );
-
-        int16_t BackupMatrix[16];
-        for( x = -6; x < 17; x++ )
+        int label = m->label;
+        int draw = 1;
+        if( label )
         {
-            for( y = -2; y < 10; y++ )
+            draw = 0;
+            if( label >= 100 && (label - 100) == tflight->ondonut )
             {
-                ets_memcpy( BackupMatrix, ModelviewMatrix, sizeof( BackupMatrix ) );
-                tdTranslate( ModelviewMatrix,
-                    500*x-800,
-                    140 + (tdSIN( (x + y)*40 + ij*1 )>>2),
-                    500*y+500 );
-                tdScale( ModelviewMatrix, 70, 70, 70 );
-                tdDrawModel( tflight->isosphere );
-                ets_memcpy( ModelviewMatrix, BackupMatrix, sizeof( BackupMatrix ) );
+                draw = 1;
+                if( tdDist( tflight->planeloc, m->center ) < 130 )
+                {
+                    flightLEDAnimate( FLIGHT_LED_DONUT );
+                    tflight->ondonut++;
+                }
+            }
+            //bean? 1000... groupings of 8.
+            int beansec = ((label-1000)/10);
+
+            if( label >= 1000 && ( beansec == tflight->ondonut || beansec == (tflight->ondonut-1) || beansec == (tflight->ondonut+1)) )
+            {
+                if( ! (tflight->beangotmask[beansec] & (1<<((label-1000)%10))) )
+                {
+                    draw = 1;
+
+                    if( tdDist( tflight->planeloc, m->center ) < 100 )
+                    {
+                        tflight->beans++;
+                        tflight->beangotmask[beansec] |= (1<<((label-1000)%10));
+                        flightLEDAnimate( FLIGHT_LED_BEAN );
+                    }
+                }
+            }
+            if( label == 999 ) //gazebo
+            {
+                draw = 1;
+                if( flight->mode != FLIGHT_GAME_OVER && tdDist( tflight->planeloc, m->center ) < 200 && tflight->ondonut == MAX_DONUTS)
+                {
+                    flightLEDAnimate( FLIGHT_LED_ENDING );
+                    tflight->frames = 0;
+                    tflight->wintime = (system_get_time() - tflight->timeOfStart)/10000;
+                    tflight->mode = FLIGHT_GAME_OVER;
+                }
             }
         }
+
+        if( draw == 0 ) continue;
+
+        int r = tdModelVisibilitycheck( m );
+        if( r < 0 ) continue;
+        mrp[mdlct].model = m;
+        mrp[mdlct].mrange = r;
+        mdlct++;
+    }
+
+    //Painter's algorithm
+    qsort( mrp, mdlct, sizeof( struct ModelRangePair ), mdlctcmp );
+
+    for( i = 0; i < mdlct; i++ )
+    {
+        tdModel * m = mrp[i].model;
+        int label = m->label;
+        int draw = 1;
+        if( label )
+        {
+            draw = 0;
+            if( label >= 100 && label < 999 )
+            {
+                draw = 2; //All donuts flash on.
+            }
+            if( label >= 1000 )
+            {
+                draw = 3; //All beans flash-invert
+            }
+            if( label == 999 ) //gazebo
+            {
+                draw = (tflight->ondonut==MAX_DONUTS)?2:1; //flash on last donut.
+            }
+        }
+
+        //XXX TODO:
+        // Flash light when you get a bean or a ring.
+        // Do laptiming per ring for fastest time.
+        // Fix time counting and presentation
+
+        //draw = 0 = invisible
+        //draw = 1 = regular
+        //draw = 2 = flashing
+        //draw = 3 = other flashing
+        if( draw == 1 )
+            tdDrawModel( m );
+        else if( draw == 2 || draw == 3 )
+        {
+            if( draw == 2 )
+                renderlinecolor = (tflight->frames&1)?WHITE:BLACK;
+            if( draw == 3 )
+                renderlinecolor = (tflight->frames&1)?BLACK:WHITE;
+            tdDrawModel( m );
+            renderlinecolor = WHITE;
+        }
+    }
+
+
 #ifndef EMU
         OVERCLOCK_SECTION_DISABLE();
         GPIO_OUTPUT_SET(GPIO_ID_PIN(1), 1 );
 #endif
-    }
 #ifdef EMU
     uint32_t stop = 0;
 #else
@@ -1307,7 +1084,7 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
 
     //If perf test, force full frame refresh
     //Otherwise, don't force full-screen refresh
-    return tflight->type == FL_PERFTEST;
+    return false;
 }
 
 static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
@@ -1459,8 +1236,6 @@ void ICACHE_FLASH_ATTR flightButtonCallback( uint8_t state,
         case FLIGHT_GAME_OVER:
         case FLIGHT_GAME:
         {
-            if( (flight->type == FL_TRIANGLES || flight->type == FL_PERFTEST) && button == 4 && down ) flight->perfMotion = !flight->perfMotion;
-
             flight->buttonState = state;
             break;
         }
