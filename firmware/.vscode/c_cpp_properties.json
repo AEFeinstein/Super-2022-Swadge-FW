@@ -10,6 +10,7 @@
                 "${workspaceFolder}/user/modes",
                 "${workspaceFolder}/user/modes/colorchord",
                 "${workspaceFolder}/user/modes/personal_demon",
+                "${workspaceFolder}/user/modes/screensavers",
                 "${workspaceFolder}/user/hdw",
                 "${workspaceFolder}/user/utils",
                 "${workspaceFolder}/user/utils/spi_mem",

@@ -148,7 +148,7 @@ void ICACHE_FLASH_ATTR initObject(flyingObj* obj, bool veryOffScreen)
     }
     obj->tAccumUs = 0;
     obj->frame = 0;
-    obj->frameMs = 10000 + (os_random() % 100000);
+    obj->frameMs = 13000 + (os_random() % 130000);
 }
 
 /**

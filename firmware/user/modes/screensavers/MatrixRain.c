@@ -175,7 +175,7 @@ void ICACHE_FLASH_ATTR initRaindrop(raindrop* obj)
     obj->tailY = obj->y - (obj->fontHeight / 2);
 
     // Random speed
-    obj->usPerPixel = 25000 + (os_random() % 50000);
+    obj->usPerPixel = 32500 + (os_random() % 65000);
     obj->tmr = 0;
 }
 
