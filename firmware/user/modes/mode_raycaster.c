@@ -2846,7 +2846,10 @@ void ICACHE_FLASH_ATTR raycasterMapSelectRenderer(uint32_t tElapsedUs __attribut
 {
     clearDisplay();
     int16_t xOffset = (OLED_WIDTH - rc->mapW) / 2;
-    int16_t yOffset = (OLED_HEIGHT - rc->mapH) / 2;
+    int16_t yOffset = FONT_HEIGHT_IBMVGA8 + (OLED_HEIGHT - rc->mapH - FONT_HEIGHT_IBMVGA8) / 2;
+
+    int16_t textOffset = (OLED_WIDTH - textWidth("MAP SELECT", IBM_VGA_8)) / 2;
+    plotText(textOffset, 0, "MAP SELECT", IBM_VGA_8, WHITE);
     for(int16_t y = 0; y < rc->mapH; y++)
     {
         for(int16_t x = 0; x < rc->mapW; x++)
