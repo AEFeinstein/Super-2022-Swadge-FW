@@ -101,6 +101,7 @@ typedef struct
     int16_t pitchmoment;
     int16_t yawmoment;
     bool perfMotion;
+    bool oob;
 
     int enviromodels;
     tdModel ** environment;
@@ -1060,6 +1061,12 @@ static bool ICACHE_FLASH_ATTR flightRender(void)
         width = textWidth(framesStr, TOM_THUMB);
         iplotRectB(OLED_WIDTH - width, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, OLED_WIDTH, OLED_HEIGHT);
         plotText(OLED_WIDTH - width + 1, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, framesStr, TOM_THUMB, WHITE);
+
+        if(flight->oob)
+        {
+            width = textWidth("TURN AROUND", IBM_VGA_8);
+            plotText((OLED_WIDTH - width) / 2, (OLED_HEIGHT - FONT_HEIGHT_IBMVGA8) / 2, "TURN AROUND", IBM_VGA_8, WHITE);
+        }
     }
     else
     {
@@ -1157,31 +1164,38 @@ static void ICACHE_FLASH_ATTR flightGameUpdate( flight_t * tflight )
     tflight->planeloc[1] -= (tflight->speed * tdSIN( tflight->hpr[1]/16 ) )>>FLIGHT_SPEED_DEC;
 
     // Bound the area
+    tflight->oob = false;
     if(tflight->planeloc[0] < -1900)
     {
         tflight->planeloc[0] = -1900;
+        tflight->oob = true;
     }
     else if(tflight->planeloc[0] > 1900)
     {
         tflight->planeloc[0] = 1900;
+        tflight->oob = true;
     }
 
     if(tflight->planeloc[1] < -800)
     {
         tflight->planeloc[1] = -800;
+        tflight->oob = true;
     }
     else if(tflight->planeloc[1] > 3500)
     {
         tflight->planeloc[1] = 3500;
+        tflight->oob = true;
     }
 
     if(tflight->planeloc[2] < -1300)
     {
         tflight->planeloc[2] = -1300;
+        tflight->oob = true;
     }
     else if(tflight->planeloc[2] > 3700)
     {
         tflight->planeloc[2] = 3700;
+        tflight->oob = true;
     }
 }
 
