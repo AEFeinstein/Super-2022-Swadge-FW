@@ -63,13 +63,6 @@ jobs:
           name: Add pyFlashGui to the ZIP
           working_directory: Super-2021-Swadge-FW-Sandbox/pyFlashGui
           command: zip -r ../firmware/<< pipeline.parameters.esp8266-artifact >> .
-      - run:
-          name: Calculate previous build number
-          working_directory: Super-2021-Swadge-FW-Sandbox/firmware
-          command: |
-            export CIRCLE_BUILD_NUM_PREV=$(expr ${CIRCLE_BUILD_NUM} - 1)
-            echo 'export CIRCLE_BUILD_NUM_PREV=$(expr ${CIRCLE_BUILD_NUM} - 1)' >> $BASH_ENV
-            source $BASH_ENV
       - store_artifacts:
           path: Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.esp8266-artifact >>
       - slack/notify:
@@ -81,7 +74,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "Fresh hot builds!"
+                    "text": "Fresh hot build!"
                   }
                 },
                 {
@@ -92,16 +85,6 @@ jobs:
                   "text": {
                     "type": "mrkdwn",
                     "text": ":esp8266-icon: ESP Build\nhttps://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.esp8266-artifact >>"
-                  }
-                },
-                {
-                  "type": "divider"
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": ":windows95: Windows Build\nhttps://${CIRCLE_BUILD_NUM_PREV}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.windows-artifact >>"
                   }
                 }
               ]
@@ -149,11 +132,31 @@ jobs:
             echo $(date) >> version.txt && echo "https://github.com/AEFeinstein/Super-2021-Swadge-FW-Sandbox/commit/${CIRCLE_SHA1}" >> version.txt
             zip << pipeline.parameters.windows-artifact >> -j emu/swadgemu.exe emu/assets.bin version.txt /bin/cygwin1.dll
       - store_artifacts:
-          path: Super-2021-Swadge-FW-Sandbox\\firmware\\<< pipeline.parameters.windows-artifact >>
-# Slack notifications don't work from the windows environment, so just make the windows build a prerequisite for the esp8266 build
-#     - slack/status:
-#         fail_only: false
-#         success_message: ':windows95: Get a fresh, hot emulator here: https://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< parameters.label >>.zip'
+          path: $CIRCLE_WORKING_DIRECTORY\\Super-2021-Swadge-FW-Sandbox\\firmware\\<< pipeline.parameters.windows-artifact >>
+      - slack/notify:
+          event: pass
+          custom: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Fresh hot build!"
+                  }
+                },
+                {
+                  "type": "divider"
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":windows95: Windows Build\nhttps://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.windows-artifact >>"
+                  }
+                }
+              ]
+            }
 
 workflows:
   version: 2
@@ -164,8 +167,6 @@ workflows:
             branches:
               only: master
       - build-firmware:
-          requires:
-            - build-windows
           filters:
             branches:
               only: master
