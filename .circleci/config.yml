@@ -63,6 +63,13 @@ jobs:
           name: Add pyFlashGui to the ZIP
           working_directory: Super-2021-Swadge-FW-Sandbox/pyFlashGui
           command: zip -r ../firmware/<< pipeline.parameters.esp8266-artifact >> .
+      - run:
+          name: Calculate previous build number
+          working_directory: Super-2021-Swadge-FW-Sandbox/firmware
+          command: |
+            export CIRCLE_BUILD_NUM_PREV=$(expr ${CIRCLE_BUILD_NUM} - 1)
+            echo 'export CIRCLE_BUILD_NUM_PREV=$(expr ${CIRCLE_BUILD_NUM} - 1)' >> $BASH_ENV
+            source $BASH_ENV
       - store_artifacts:
           path: Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.esp8266-artifact >>
       - slack/notify:
@@ -74,7 +81,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "Fresh hot build!"
+                    "text": "Fresh hot builds!"
                   }
                 },
                 {
@@ -85,6 +92,16 @@ jobs:
                   "text": {
                     "type": "mrkdwn",
                     "text": ":esp8266-icon: ESP Build\nhttps://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.esp8266-artifact >>"
+                  }
+                },
+                {
+                  "type": "divider"
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":windows95: Windows Build\nhttps://${CIRCLE_BUILD_NUM_PREV}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.windows-artifact >>"
                   }
                 }
               ]
@@ -134,30 +151,6 @@ jobs:
             cp << pipeline.parameters.windows-artifact >> /cygdrive/c/Users/circleci/project/
       - store_artifacts:
           path: << pipeline.parameters.windows-artifact >>
-      - slack/notify:
-          event: pass
-          custom: |
-            {
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "Fresh hot build!"
-                  }
-                },
-                {
-                  "type": "divider"
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": ":windows95: Windows Build\nhttps://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW-Sandbox/firmware/<< pipeline.parameters.windows-artifact >>"
-                  }
-                }
-              ]
-            }
 
 workflows:
   version: 2
@@ -168,6 +161,8 @@ workflows:
             branches:
               only: master
       - build-firmware:
+          requires:
+            - build-windows
           filters:
             branches:
               only: master
