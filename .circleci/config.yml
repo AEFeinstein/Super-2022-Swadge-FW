@@ -131,19 +131,9 @@ jobs:
             unset ESP_GDB && export SET_SWADGE_VERSION=5 && make -C emu all
             echo $(date) >> version.txt && echo "https://github.com/AEFeinstein/Super-2021-Swadge-FW-Sandbox/commit/${CIRCLE_SHA1}" >> version.txt
             zip << pipeline.parameters.windows-artifact >> -j emu/swadgemu.exe emu/assets.bin version.txt /bin/cygwin1.dll
-            pwd
-            ls -lar
-      - run:
-          name: Bash Recursive ls
-          shell: C:\\cygwin64\\bin\\bash.exe --login -eo pipefail
-          command: ls -laR /
-      - run:
-          name: Recursive ls
-          shell: powershell.exe
-          command: |
-            Get-ChildItem -Recurse
+            cp << pipeline.parameters.windows-artifact >> /cygdrive/c/Users/circleci/project/
       - store_artifacts:
-          path: Super-2021-Swadge-FW-Sandbox\\firmware\\<< pipeline.parameters.windows-artifact >>
+          path: << pipeline.parameters.windows-artifact >>
 #      - slack/notify:
 #          event: pass
 #          custom: |
