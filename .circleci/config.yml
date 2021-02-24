@@ -134,6 +134,10 @@ jobs:
             pwd
             ls -lar
       - run:
+          name: Bash Recursive ls
+          shell: C:\\cygwin64\\bin\\bash.exe --login -eo pipefail
+          command: ls -laR /
+      - run:
           name: Recursive ls
           shell: powershell.exe
           command: |
