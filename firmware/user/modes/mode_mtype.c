@@ -1282,7 +1282,7 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                     // direction.y = 0;
                     health = 1;//(mType->wave / 10);
                     unitFrameOffset = 20;
-                    numEnemies = (os_random() % mType->wave);
+                    numEnemies = mType->difficulty + (os_random() % mType->wave);
                     xSpacing = bbHalf.x * 2 + (os_random() % 20);
                     ySpacing = 0;
 
