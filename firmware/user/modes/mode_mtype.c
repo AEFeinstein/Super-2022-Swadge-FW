@@ -123,6 +123,8 @@ Refine enemy behavior so that there's always time for a player to react.
 #define ENEMY_BOMBER_SHOT_COOLDOWN (0.5 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
 #define ENEMY_WALKER_SHOT_COOLDOWN (2 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
 
+#define ENEMY_WAVE_EMPTY_TIME (10.0 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
+
 // score vars.
 #define ENEMY_KILL 10
 #define WAVE_CLEAR_BONUS 100
@@ -272,7 +274,9 @@ typedef struct
 
     uint32_t score;
     uint32_t wave; // enemy wave number.
+    uint32_t waveEmptyTime; // amount of time there have been no enemies on screen.
     uint32_t enemiesInWave; // number of enemies remaining in this wave.
+    uint32_t enemiesOnScreen; // number of enemies visible on screen.
     int32_t gameoverCountdown; // how long after final player death the game over state starts 
 
     player_t player;
@@ -668,7 +672,9 @@ void ICACHE_FLASH_ATTR mtSetState(mTypeState_t newState)
             mType->player.invincibilityCountdown = 0;
             mType->score = 0;
             mType->wave = 0;
+            mType->waveEmptyTime = 0;
             mType->enemiesInWave = 0;
+            mType->enemiesOnScreen = 0;
             mType->gameoverCountdown = GAMEOVER_START_TIME;
 
             // initialize projectiles with default values.
@@ -1025,10 +1031,15 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
 {
     // enemy movement and projectile spawning
     mType->enemiesInWave = 0;
+    mType->enemiesOnScreen = 0;
 
     for (int i = 0; i < MAX_ENEMIES; i++) {
         if (mType->enemies[i].active) {
             mType->enemiesInWave++;
+            if (mType->enemies[i].position.x >= 0 && mType->enemies[i].position.x <= OLED_WIDTH) {
+                mType->enemiesOnScreen++;
+            }
+
             if (mType->enemies[i].type == ENEMY_SNAKE) {
                 // bob up and down as they advance across the screen.
                 mType->enemies[i].position.x += mType->stateFrames % 2 == 0 ? -1 : 0;
@@ -1145,7 +1156,12 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
         }
     }
 
-    if (mType->enemiesInWave == 0) {
+    if (mType->enemiesOnScreen == 0) {
+        mType->waveEmptyTime += mType->deltaTime;
+    }
+
+    if (mType->enemiesInWave == 0 || mType->waveEmptyTime >= ENEMY_WAVE_EMPTY_TIME) {
+
         vec_t bbHalf;
         vec_t initialSpawn;
         // uint8_t speed;
@@ -1283,6 +1299,7 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
 
         mType->score += mType->wave * WAVE_CLEAR_BONUS;
         mType->wave++;
+        mType->waveEmptyTime = 0;
     }
     
     // projectile movement and collision
@@ -1544,7 +1561,7 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
     reflect text
     reflect bar rect container
     reflect line bar fill
-    score #
+    wave #
     */
 
     int reflectTextX = 30;
@@ -1589,6 +1606,21 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
 
     int reflectBarFillX1 = reflectBarX0 + (charge * ((reflectBarX1 - 1) - reflectBarX0));
     plotLine(reflectBarX0, reflectBarY0 + 1, reflectBarFillX1, reflectBarY0 + 1, WHITE);
+
+    // wave text
+    int waveTextX = reflectBarX1 + 10;
+    int waveTextY = reflectTextY;
+    uint32_t waveDisplay = mType->wave;
+    // adjust so that on higher difficulties first displays as wave 1 despite skipped tutorial waves.
+    if (mType->difficulty == DIFFICULTY_HARD || mType->difficulty ==  DIFFICULTY_VERYHARD) {
+        waveDisplay -= 3;
+    }
+    // cap at 99.
+    if (waveDisplay > 99) {
+        waveDisplay = 99;
+    }
+    ets_snprintf(uiStr, sizeof(uiStr), "WAVE:%02u", waveDisplay);
+    plotText(waveTextX, waveTextY, uiStr, TOM_THUMB, WHITE);
 
     // For each chunk coordinate
     for(uint8_t w = 0; w < NUM_CHUNKS; w++)
