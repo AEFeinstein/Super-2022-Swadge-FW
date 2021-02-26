@@ -1282,7 +1282,7 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                     // direction.y = 0;
                     health = 1;//(mType->wave / 10);
                     unitFrameOffset = 20;
-                    numEnemies = (os_random() % mType->wave);
+                    numEnemies = mType->difficulty + (os_random() % mType->wave);
                     xSpacing = bbHalf.x * 2 + (os_random() % 20);
                     ySpacing = 0;
 
@@ -1958,20 +1958,23 @@ bool ICACHE_FLASH_ATTR spawnExplosion (vec_t spawn, vec_t bbHalf)
 }
 
 bool ICACHE_FLASH_ATTR spawnEnemy (uint8_t type, vec_t spawn, int8_t health, vec_t bbHalf, int32_t frameOffset) {
-    for (int i = 0; i < MAX_ENEMIES; i++) {
-        if (!mType->enemies[i].active) {
-            mType->enemies[i].active = 1;
-            mType->enemies[i].type = type;
-            mType->enemies[i].health = health;
-            mType->enemies[i].position.x = spawn.x;
-            mType->enemies[i].position.y = spawn.y;
-            mType->enemies[i].bbHalf.x = bbHalf.x;
-            mType->enemies[i].bbHalf.y = bbHalf.y;
-            mType->enemies[i].spawn.x = spawn.x;
-            mType->enemies[i].spawn.y = spawn.y;
-            mType->enemies[i].frameOffset = frameOffset;
-            mType->enemies[i].shotCooldown = 0;
-            return true;
+    if (mType->enemiesInWave < MAX_ENEMIES) {
+        for (int i = 0; i < MAX_ENEMIES; i++) {
+            if (!mType->enemies[i].active) {
+                mType->enemies[i].active = 1;
+                mType->enemies[i].type = type;
+                mType->enemies[i].health = health;
+                mType->enemies[i].position.x = spawn.x;
+                mType->enemies[i].position.y = spawn.y;
+                mType->enemies[i].bbHalf.x = bbHalf.x;
+                mType->enemies[i].bbHalf.y = bbHalf.y;
+                mType->enemies[i].spawn.x = spawn.x;
+                mType->enemies[i].spawn.y = spawn.y;
+                mType->enemies[i].frameOffset = frameOffset;
+                mType->enemies[i].shotCooldown = 0;
+                mType->enemiesInWave++;
+                return true;
+            }
         }
     }
     return false;
@@ -1989,6 +1992,11 @@ void ICACHE_FLASH_ATTR spawnEnemyFormation (uint8_t type, vec_t spawn, int8_t he
 }
 
 void ICACHE_FLASH_ATTR enemyDeath (uint8_t index) {
+    // Update the enemy counter, useful for optimizing enemy spawning for later waves.
+    if (mType->enemiesInWave > 0) {
+        mType->enemiesInWave--;
+    }
+
     spawnExplosion(mType->enemies[index].position, mType->enemies[index].bbHalf);
     mType->enemies[index].active = 0;
 
