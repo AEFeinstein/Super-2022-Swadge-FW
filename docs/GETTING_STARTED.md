@@ -24,7 +24,7 @@ especially the comments made on March 15 2019 by phibo23.
     $ sudo apt-get update
     $ sudo apt-get dist-upgrade
     $ sudo apt-get install build-essential make curl unrar-free autoconf automake libtool gcc g++ gperf flex bison texinfo gawk ncurses-dev libexpat-dev sed git unzip bash help2man wget bzip2 libtool-bin libusb-1.0-0-dev libx11-dev libpulse-dev libasound-dev python-dev python
-    $ curl https://bootstrap.pypa.io/get-pip.py --output get-pip.py
+    $ curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
     $ sudo python2 get-pip.py
     $ pip2 install pyserial rtttl
     $ pip3 install pyserial rtttl
