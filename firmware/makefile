@@ -5,7 +5,7 @@
 ################################################################################
 
 GCC_FOLDER = $(ESP_ROOT)/xtensa-lx106-elf
-ESPTOOL_PY = python2 $(ESP_ROOT)/esptool/esptool.py
+ESPTOOL_PY = python ../pyFlashGui/esptool/esptool.py
 SDK        = ./ESP8266_NONOS_SDK
 
 XTGCCLIB     = $(GCC_FOLDER)/lib/gcc/xtensa-lx106-elf/4.8.5/libgcc.a
