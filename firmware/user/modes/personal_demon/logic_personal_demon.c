@@ -942,7 +942,7 @@ void ICACHE_FLASH_ATTR resetDemon(demon_t* pd)
  */
 bool ICACHE_FLASH_ATTR enqueueEvt(demon_t* pd, event_t evt)
 {
-    uint8_t arrLen = sizeof(pd->evQueue) / sizeof(pd->evQueue[0]);
+    uint8_t arrLen = lengthof(pd->evQueue);
     for(uint8_t i = 0; i < arrLen; i++)
     {
         if(EVT_NONE == pd->evQueue[(pd->evQueueIdx + i) % arrLen])
@@ -964,7 +964,7 @@ event_t ICACHE_FLASH_ATTR dequeueEvt(demon_t* pd)
 {
     event_t evt = pd->evQueue[pd->evQueueIdx];
     pd->evQueue[pd->evQueueIdx] = EVT_NONE;
-    pd->evQueueIdx = (pd->evQueueIdx + 1) % (sizeof(pd->evQueue) / sizeof(pd->evQueue[0]));
+    pd->evQueueIdx = (pd->evQueueIdx + 1) % (lengthof(pd->evQueue));
     return evt;
 }
 

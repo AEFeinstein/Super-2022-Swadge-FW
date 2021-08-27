@@ -1,8 +1,6 @@
-#include <osapi.h>
+#include "user_main.h"
 #include "demon-namegen.h"
 #include "esp_niceness.h"
-
-#define lengthof(x) (sizeof(x) / sizeof(x[0]))
 
 // const char *nm1[] = {"", "b", "br", "d", "dr", "g", "j", "k", "m", "r", "s", "t", "th", "tr", "v", "x", "z"};
 // const char *nm2[] = {"a", "e", "i", "o", "u"};

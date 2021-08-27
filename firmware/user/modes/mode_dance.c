@@ -103,7 +103,7 @@ uint8_t danceBrightness = 1;
  */
 uint8_t ICACHE_FLASH_ATTR getNumDances(void)
 {
-    return (sizeof(ledDances) / sizeof(ledDances[0]));
+    return (lengthof(ledDances));
 }
 
 /**

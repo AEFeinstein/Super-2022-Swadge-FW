@@ -182,8 +182,8 @@ void ICACHE_FLASH_ATTR menuInit(void)
     // Make buttons sensitive, they're ignored during animation anyway
     enableDebounce(false);
 
-    // Initialize screensavers
-    mnu->screensaverIdx = 0;
+    // Initialize screensaver index to something random
+    mnu->screensaverIdx = os_random() % (lengthof(screensavers));
 }
 
 /**
@@ -277,7 +277,7 @@ void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
                 {
                     // Cycle the screensaver
                     screensavers[mnu->screensaverIdx]->destroyScreensaver();
-                    mnu->screensaverIdx = (mnu->screensaverIdx + 1) % (sizeof(screensavers) / sizeof(screensavers[0]));
+                    mnu->screensaverIdx = (mnu->screensaverIdx + 1) % (lengthof(screensavers));
                     screensavers[mnu->screensaverIdx]->initScreensaver();
                 }
                 else
@@ -296,7 +296,7 @@ void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
                     screensavers[mnu->screensaverIdx]->destroyScreensaver();
                     if(0 == mnu->screensaverIdx)
                     {
-                        mnu->screensaverIdx = (sizeof(screensavers) / sizeof(screensavers[0])) - 1;
+                        mnu->screensaverIdx = (lengthof(screensavers)) - 1;
                     }
                     else
                     {

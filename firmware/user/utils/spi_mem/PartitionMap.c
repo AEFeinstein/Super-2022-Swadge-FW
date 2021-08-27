@@ -3,6 +3,7 @@
 
 #include "PartitionMap.h"
 #include "printControl.h"
+#include "user_main.h"
 
 /*==============================================================================
  * Partition Map Data
@@ -51,7 +52,7 @@ void ICACHE_FLASH_ATTR LoadDefaultPartitionMap(void)
     // 16 mbit is most common, so try that first
     if(system_partition_table_regist(
                 partition_table,
-                sizeof(partition_table) / sizeof(partition_table[0]),
+                lengthof(partition_table),
                 FLASH_SIZE_16M_MAP_512_512))
     {
         INIT_PRINTF("system_partition_table_regist success!!\r\n");

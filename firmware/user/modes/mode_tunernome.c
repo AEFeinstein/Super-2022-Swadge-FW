@@ -1022,7 +1022,7 @@ void ICACHE_FLASH_ATTR tunernomeButtonCallback( uint8_t state __attribute__((unu
                     case ACTION:
                     {
                         // Cycle the time signature
-                        tunernome->tSigIdx = (tunernome->tSigIdx + 1) % (sizeof(tSigs) / sizeof(tSigs[0]));
+                        tunernome->tSigIdx = (tunernome->tSigIdx + 1) % (lengthof(tSigs));
                         break;
                     }
                     case RIGHT:

@@ -180,7 +180,7 @@ void ICACHE_FLASH_ATTR user_init(void)
     // If the self test hasn't been passed yet, enter that mode
     if(false == getSelfTestPass())
     {
-        rtcMem.currentSwadgeMode = (sizeof(swadgeModes) / sizeof(swadgeModes[0])) - 1;
+        rtcMem.currentSwadgeMode = (lengthof(swadgeModes)) - 1;
     }
 #endif
 
@@ -514,7 +514,7 @@ void ExitCritical(void)
     rtcMem.currentSwadgeMode = newMode;
 #else
     // Make sure to never set this to the self test mode
-    rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % ((sizeof(swadgeModes) / sizeof(swadgeModes[0])) - 1);
+    rtcMem.currentSwadgeMode = (rtcMem.currentSwadgeMode + 1) % ((lengthof(swadgeModes)) - 1);
 #endif
 
 #if defined(EMU)
@@ -604,7 +604,7 @@ uint8_t ICACHE_FLASH_ATTR getSwadgeModes(swadgeMode***  modePtr)
 {
     *modePtr = swadgeModes;
     // Don't count self test or RSSI modes
-    return (sizeof(swadgeModes) / sizeof(swadgeModes[0])) - 2;
+    return (lengthof(swadgeModes)) - 2;
 }
 
 #if defined(FEATURE_ACCEL)

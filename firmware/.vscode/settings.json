@@ -77,7 +77,8 @@
         "embeddedout.h": "c",
         "mode_swadgepass.h": "c",
         "printcontrol.h": "c",
-        "menu_strings.h": "c"
+        "menu_strings.h": "c",
+        "demon-namegen.h": "c"
     },
     "cmake.configureOnOpen": false
 }

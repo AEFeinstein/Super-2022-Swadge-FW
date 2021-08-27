@@ -7,6 +7,7 @@
 #include "gpio_user.h"
 #include "buttons.h"
 #include "printControl.h"
+#include "user_main.h"
 
 /*============================================================================
  * Defines
@@ -15,8 +16,6 @@
 #define PIN_DIR_OUTPUT ( *((uint32_t*)0x60000310) )
 #define PIN_DIR_INPUT ( *((uint32_t*)0x60000314) )
 #define PIN_IN        ( *((volatile uint32_t*)0x60000318) )
-
-#define lengthof(x) (sizeof(x) / sizeof(x[0]))
 
 /*============================================================================
  * Prototypes
