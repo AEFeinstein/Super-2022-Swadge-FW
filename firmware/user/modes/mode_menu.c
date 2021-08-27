@@ -82,8 +82,6 @@ typedef struct
     timer_t timerScreensaverLEDAnimation;
     timer_t timerScreensaverOLEDAnimation;
     uint8_t menuScreensaverIdx;
-    int16_t squareWaveScrollOffset;
-    int16_t squareWaveScrollSpeed;
     bool drawOLEDScreensaver;
 
     gifHandle img1;
@@ -140,9 +138,6 @@ void ICACHE_FLASH_ATTR menuInit(void)
 {
     mnu = os_malloc(sizeof(mnu_t));
     ets_memset(mnu, 0, sizeof(mnu_t));
-
-    // expressed as pixels per frame.
-    mnu->squareWaveScrollSpeed = -1;
 
     // Assign pointers
     mnu->curImg = &mnu->img1;
@@ -246,8 +241,16 @@ void ICACHE_FLASH_ATTR menuButtonCallback(uint8_t state __attribute__((unused)),
                 return;
             }
         }
+        else if(true == mnu->screensaverIsRunning)
+        {
+            // LEDs are running without the OLED screensaver
+            // Reset the timer to go bright, don't mess with anything else
+            timerDisarm(&mnu->timerScreensaverBright);
+            timerArm(&mnu->timerScreensaverBright, 3000, false);
+        }
         else
         {
+            // No OLED or LED screensaver, stop to cleanup
             stopScreensaver();
         }
 
@@ -527,7 +530,6 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
  */
 static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unused)))
 {
-    mnu->squareWaveScrollOffset = 0;
     mnu->drawOLEDScreensaver = true;
 
     // Set the brightness to high
