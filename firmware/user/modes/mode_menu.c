@@ -497,8 +497,8 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
     // Set the brightness to medium
     setDanceBrightness(32);
 
-    // Start on a random dance, but not the one that cycles dances
-    mnu->menuScreensaverIdx = os_random() % (getNumDances() - 1);
+    // Start on a random dance, but not the one that cycles dances, and not none either
+    mnu->menuScreensaverIdx = os_random() % (getNumDances() - 2);
 
     // Reset variables
     danceClearVars(mnu->menuScreensaverIdx);
