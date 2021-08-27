@@ -34,6 +34,7 @@
 #include "printControl.h"
 #include "nvm_interface.h"
 #include "espconn.h"
+#include "menu_strings.h"
 
 /*============================================================================
  * Defines, Structs, Enums
@@ -172,7 +173,6 @@ static const char fl_station[]  = "Station";
 static const char fl_scan[]     = "Scan";
 static const char fl_softap[]   = "Soft AP";
 static const char fl_connlast[] = "Connect Last";
-static const char fl_quit[]     = "Quit";
 
 /*============================================================================
  * Functions
@@ -203,7 +203,7 @@ static void ICACHE_FLASH_ATTR rssiSetupMenu(void)
     addRowToMenu(rssi->menu);
     addItemToRow(rssi->menu, fl_softap);
     addRowToMenu(rssi->menu);
-    addItemToRow(rssi->menu, fl_quit);
+    addItemToRow(rssi->menu, str_quit);
     drawMenu(rssi->menu);
 }
 
@@ -368,7 +368,7 @@ static void ICACHE_FLASH_ATTR rssiMenuCb(const char* menuItem)
 
         rssi->mode = RSSI_STATION;
     }
-    else if (fl_quit == menuItem)
+    else if (str_quit == menuItem)
     {
         switchToSwadgeMode(0);
     }

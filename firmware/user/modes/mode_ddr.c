@@ -25,6 +25,7 @@
 #include "hpatimer.h"
 #include "menu2d.h"
 #include "nvm_interface.h"
+#include "menu_strings.h"
 
 #include "assets.h"
 #include "synced_timer.h"
@@ -211,13 +212,6 @@ typedef struct
 ddr_t* ddr;
 
 static const char ddr_title[]  = "StomP";
-static const char ddr_very_easy[]   = "2 YOUNG 2 DIE";
-static const char ddr_easy[]   = "HURT ME PLENTY";
-static const char ddr_medium[] = "ULTRA-VIOLENCE";
-static const char ddr_hard[]   = "NIGHTMARE";
-static const char ddr_highscores[]   = "SCORES";
-static const char ddr_quit[]   = "QUIT";
-
 
 /*============================================================================
  * Functions
@@ -242,14 +236,14 @@ void ICACHE_FLASH_ATTR ddrEnterMode(void)
 
     ddr->menu = initMenu(ddr_title, ddrMenuCb);
     addRowToMenu(ddr->menu);
-    addItemToRow(ddr->menu, ddr_easy);
-    addItemToRow(ddr->menu, ddr_medium);
-    addItemToRow(ddr->menu, ddr_hard);
-    addItemToRow(ddr->menu, ddr_very_easy);
+    addItemToRow(ddr->menu, str_medium);
+    addItemToRow(ddr->menu, str_hard);
+    addItemToRow(ddr->menu, str_v_hard);
+    addItemToRow(ddr->menu, str_easy);
     addRowToMenu(ddr->menu);
-    addItemToRow(ddr->menu, ddr_highscores);
+    addItemToRow(ddr->menu, str_high_scores);
     addRowToMenu(ddr->menu);
-    addItemToRow(ddr->menu, ddr_quit);
+    addItemToRow(ddr->menu, str_quit);
     drawMenu(ddr->menu);
 
     getDDRScores(&ddr->highScores);
@@ -275,27 +269,27 @@ void ICACHE_FLASH_ATTR ddrEnterMode(void)
 
 static void ICACHE_FLASH_ATTR ddrMenuCb(const char* menuItem)
 {
-    if(ddr_very_easy == menuItem)
+    if(str_easy == menuItem)
     {
         ddrStartGame(60, 0.2f, 0, 50, DDR_VERY_EASY);
     }
-    else if(ddr_easy == menuItem)
+    else if(str_medium == menuItem)
     {
         ddrStartGame(80, 0.8f, 0, 20, DDR_EASY);
     }
-    else if (ddr_medium == menuItem)
+    else if (str_hard == menuItem)
     {
         ddrStartGame(85, 2.f, 10, 5, DDR_MEDIUM);
     }
-    else if (ddr_hard == menuItem)
+    else if (str_v_hard == menuItem)
     {
         ddrStartGame(90, 3.f, 40, 0, DDR_HARD);
     }
-    else if (ddr_quit == menuItem)
+    else if (str_quit == menuItem)
     {
         switchToSwadgeMode(0);
     }
-    else if (ddr_highscores == menuItem)
+    else if (str_high_scores == menuItem)
     {
         ddrGoToScores();
     }
@@ -713,19 +707,19 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
                 default:
                 case DDR_HARD:
                     currentDiffScores = ddr->highScores.hardWins;
-                    diffName = ddr_hard;
+                    diffName = str_v_hard;
                     break;
                 case DDR_MEDIUM:
                     currentDiffScores = ddr->highScores.mediumWins;
-                    diffName = ddr_medium;
+                    diffName = str_hard;
                     break;
                 case DDR_EASY:
                     currentDiffScores = ddr->highScores.easyWins;
-                    diffName = ddr_easy;
+                    diffName = str_medium;
                     break;
                 case DDR_VERY_EASY:
                     currentDiffScores = ddr->highScores.veryEasyWins;
-                    diffName = ddr_very_easy;
+                    diffName = str_easy;
                     break;
             }
 

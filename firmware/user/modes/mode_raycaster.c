@@ -17,6 +17,7 @@
 #include "font.h"
 #include "cndraw.h"
 #include "hsv_utils.h"
+#include "menu_strings.h"
 
 #include "buttons.h"
 
@@ -411,11 +412,6 @@ static const WorldMapTile_t worldMap_s[MAP_S_W][MAP_S_H] =
 };
 
 static const char rc_title[]  = "SHREDDER";
-static const char rc_easy[]   = "EASY";
-static const char rc_med[]    = "MEDIUM";
-static const char rc_hard[]   = "HARD";
-static const char rc_scores[] = "SCORES";
-static const char rc_quit[]   = "QUIT";
 
 static const char rc_small[]   = "SM";
 static const char rc_medium[]  = "MD";
@@ -441,13 +437,13 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
     rc->mode = RC_MENU;
     rc->menu = initMenu(rc_title, raycasterMenuButtonCallback);
     addRowToMenu(rc->menu);
-    addItemToRow(rc->menu, rc_easy);
-    addItemToRow(rc->menu, rc_med);
-    addItemToRow(rc->menu, rc_hard);
+    addItemToRow(rc->menu, str_easy);
+    addItemToRow(rc->menu, str_medium);
+    addItemToRow(rc->menu, str_hard);
     addRowToMenu(rc->menu);
-    addItemToRow(rc->menu, rc_scores);
+    addItemToRow(rc->menu, str_high_scores);
     addRowToMenu(rc->menu);
-    addItemToRow(rc->menu, rc_quit);
+    addItemToRow(rc->menu, str_quit);
 
     // Turn off debounce
     enableDebounce(false);
@@ -762,24 +758,24 @@ void ICACHE_FLASH_ATTR raycasterButtonCallback(uint8_t state, int32_t button, in
 void ICACHE_FLASH_ATTR raycasterMenuButtonCallback(const char* selected)
 {
     // Do a thing based on the menu option selected
-    if(rc_quit == selected)
+    if(str_quit == selected)
     {
         // Quit to the Swadge menu
         switchToSwadgeMode(0);
     }
-    else if(rc_easy == selected)
+    else if(str_easy == selected)
     {
         rc->difficulty = RC_EASY;
     }
-    else if(rc_med == selected)
+    else if(str_medium == selected)
     {
         rc->difficulty = RC_MED;
     }
-    else if(rc_hard == selected)
+    else if(str_hard == selected)
     {
         rc->difficulty = RC_HARD;
     }
-    else if (rc_scores == selected)
+    else if (str_high_scores == selected)
     {
         // Show some scores
         rc->mode = RC_SCORES;
@@ -787,9 +783,9 @@ void ICACHE_FLASH_ATTR raycasterMenuButtonCallback(const char* selected)
     }
 
     // Then set mode to map select if it was a game start
-    if(     (rc_easy == selected) ||
-            (rc_med  == selected) ||
-            (rc_hard == selected))
+    if((str_easy   == selected) ||
+       (str_medium == selected) ||
+       (str_hard   == selected))
     {
         rc->mode = RC_MAP_SELECT;
         rc->mapIdx = RC_MAP_S;
@@ -2707,17 +2703,17 @@ void ICACHE_FLASH_ATTR raycasterDrawScores(void)
         case RC_NUM_DIFFICULTIES:
         case RC_EASY:
         {
-            difficulty = rc_easy;
+            difficulty = str_easy;
             break;
         }
         case RC_MED:
         {
-            difficulty = rc_med;
+            difficulty = str_medium;
             break;
         }
         case RC_HARD:
         {
-            difficulty = rc_hard;
+            difficulty = str_hard;
             break;
         }
     }

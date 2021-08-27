@@ -40,6 +40,7 @@
 #include "gpio.h"
 #include "esp_niceness.h"
 #include "hsv_utils.h"
+#include "menu_strings.h"
 
 #include "embeddednf.h"
 #include "embeddedout.h"
@@ -177,13 +178,9 @@ swadgeMode flightMode =
 flight_t* flight;
 
 static const char fl_title[]  = "Flightsim";
-// static const char fl_flight_perf[] = "PERF";
-// static const char fl_flight_triangles[] = "TRIS";
 static const char fl_flight_env[] = "Take Flight";
 static const char fl_flight_invertY0_env[] = "Y NOT INVERTED";
 static const char fl_flight_invertY1_env[] = "Y INVERTED";
-static const char fl_highscores[] = "HIGH SCORES";
-static const char fl_quit[]   = "QUIT";
 
 /*============================================================================
  * Functions
@@ -228,7 +225,7 @@ void ICACHE_FLASH_ATTR flightEnterMode(void)
     // addItemToRow(flight->menu, fl_flight_triangles);
     addItemToRow(flight->menu, fl_flight_env);
     addRowToMenu(flight->menu);
-    addItemToRow(flight->menu, fl_quit);
+    addItemToRow(flight->menu, str_quit);
 
     addRowToMenu(flight->menu);
     flight->invYmnu = addItemToRow(flight->menu,
@@ -237,7 +234,7 @@ void ICACHE_FLASH_ATTR flightEnterMode(void)
             fl_flight_invertY0_env );
 
     addRowToMenu(flight->menu);
-    addItemToRow(flight->menu, fl_highscores );
+    addItemToRow(flight->menu, str_high_scores );
 
     drawMenu(flight->menu);
 
@@ -292,11 +289,11 @@ static void ICACHE_FLASH_ATTR flightMenuCb(const char* menuItem)
         setFlightSaveData( sd );
         flight->invYmnu->item.name = fl_flight_invertY0_env;
     }
-    else if ( fl_highscores == menuItem )
+    else if ( str_high_scores == menuItem )
     {
         flight->mode = FLIGHT_SHOW_HIGH_SCORES;
     }
-    else if (fl_quit == menuItem)
+    else if (str_quit == menuItem)
     {
         switchToSwadgeMode(0);
     }

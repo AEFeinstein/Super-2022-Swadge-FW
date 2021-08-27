@@ -26,6 +26,7 @@
 #include "menu2d.h"
 #include "linked_list.h"
 #include "font.h"
+#include "menu_strings.h"
 
 #include "embeddednf.h"
 #include "embeddedout.h"
@@ -397,12 +398,6 @@ swadgeMode mTypeMode =
 mType_t* mType;
 
 static const char mt_title[]  = "M-TYPE";
-static const char mt_easy[]   = "EASY";
-static const char mt_medium[] = "MEDIUM";
-static const char mt_hard[]   = "HARD";
-static const char mt_veryhard[]   = "DIE FOR ME";
-static const char mt_scores[] = "HIGH SCORES";
-static const char mt_quit[]   = "QUIT";
 static const char mt_gameover[] = "GAME OVER";
 static const char mt_restart[]  = "RESTART";
 static const char mt_menu[]  = "MENU";
@@ -465,15 +460,15 @@ void ICACHE_FLASH_ATTR mtEnterMode(void)
     mType->titleMenu = initMenu(mt_title, mtTitleMenuCallback);
     addRowToMenu(mType->titleMenu);
 
-    addItemToRow(mType->titleMenu, mt_easy);
-    addItemToRow(mType->titleMenu, mt_medium);
-    addItemToRow(mType->titleMenu, mt_hard);
-    addItemToRow(mType->titleMenu, mt_veryhard);
+    addItemToRow(mType->titleMenu, str_easy);
+    addItemToRow(mType->titleMenu, str_medium);
+    addItemToRow(mType->titleMenu, str_hard);
+    addItemToRow(mType->titleMenu, str_v_hard);
     addRowToMenu(mType->titleMenu);
 
-    addItemToRow(mType->titleMenu, mt_scores);
+    addItemToRow(mType->titleMenu, str_high_scores);
     addRowToMenu(mType->titleMenu);
-    addItemToRow(mType->titleMenu, mt_quit);
+    addItemToRow(mType->titleMenu, str_quit);
 
     mType->gameoverMenu = initMenu(mt_gameover, mtGameoverMenuCallback);
     addRowToMenu(mType->gameoverMenu);
@@ -481,7 +476,7 @@ void ICACHE_FLASH_ATTR mtEnterMode(void)
     addRowToMenu(mType->gameoverMenu);
     addItemToRow(mType->gameoverMenu, mt_menu);
     addRowToMenu(mType->gameoverMenu);
-    addItemToRow(mType->gameoverMenu, mt_quit);
+    addItemToRow(mType->gameoverMenu, str_quit);
 
     // Start the update loop.
     timerDisarm(&(mType->updateTimer));
@@ -1700,19 +1695,19 @@ void ICACHE_FLASH_ATTR mtScoresDisplay(void)
         default:
         case DIFFICULTY_VERYHARD:
             currentDiffScores = mType->highScores.veryhardScores;
-            ets_snprintf(scoresTitle, sizeof(scoresTitle), mt_veryhard);
+            ets_snprintf(scoresTitle, sizeof(scoresTitle), "%s", str_v_hard);
             break;
         case DIFFICULTY_HARD:
             currentDiffScores = mType->highScores.hardScores;
-            ets_snprintf(scoresTitle, sizeof(scoresTitle), mt_hard);
+            ets_snprintf(scoresTitle, sizeof(scoresTitle), "%s", str_hard);
             break;
         case DIFFICULTY_MEDIUM:
             currentDiffScores = mType->highScores.mediumScores;
-            ets_snprintf(scoresTitle, sizeof(scoresTitle), mt_medium);
+            ets_snprintf(scoresTitle, sizeof(scoresTitle), "%s", str_medium);
             break;
         case DIFFICULTY_EASY:
             currentDiffScores = mType->highScores.easyScores;
-            ets_snprintf(scoresTitle, sizeof(scoresTitle), mt_easy);
+            ets_snprintf(scoresTitle, sizeof(scoresTitle), "%s", str_easy);
             break;
     }
 
@@ -1761,38 +1756,38 @@ void ICACHE_FLASH_ATTR mtGameoverDisplay(void)
  */
 static void ICACHE_FLASH_ATTR mtTitleMenuCallback(const char* menuItem)
 {
-    if (mt_easy == menuItem)
+    if (str_easy == menuItem)
     {
         // Change state to start game.
         mType->difficulty = DIFFICULTY_EASY;
         mtSetState(MT_GAME);
     }
-    else if (mt_medium == menuItem)
+    else if (str_medium == menuItem)
     {
         // Change state to start game.
         mType->difficulty = DIFFICULTY_MEDIUM;
         mtSetState(MT_GAME);
     }
-    else if (mt_hard == menuItem)
+    else if (str_hard == menuItem)
     {
         // Change state to start game.
         mType->difficulty = DIFFICULTY_HARD;
         mtSetState(MT_GAME);
     }
-    else if (mt_veryhard == menuItem)
+    else if (str_v_hard == menuItem)
     {
         // Change state to start game.
         mType->difficulty = DIFFICULTY_VERYHARD;
         mtSetState(MT_GAME);
     }
-    else if (mt_scores == menuItem)
+    else if (str_high_scores == menuItem)
     {
         // Change state to score screen.
         // Start on medium scores.
         mType->difficulty = DIFFICULTY_MEDIUM;
         mtSetState(MT_SCORES);
     }
-    else if (mt_quit == menuItem)
+    else if (str_quit == menuItem)
     {
         // Exit this swadge mode.
         switchToSwadgeMode(0);
@@ -1811,7 +1806,7 @@ static void ICACHE_FLASH_ATTR mtGameoverMenuCallback(const char* menuItem)
         // Change state to main menu.
         mtSetState(MT_TITLE);
     }
-    else if (mt_quit == menuItem)
+    else if (str_quit == menuItem)
     {
         // Exit this swadge mode.
         switchToSwadgeMode(0);

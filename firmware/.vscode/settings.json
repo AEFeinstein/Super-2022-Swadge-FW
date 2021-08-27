@@ -76,7 +76,8 @@
         "ccconfig.h": "c",
         "embeddedout.h": "c",
         "mode_swadgepass.h": "c",
-        "printcontrol.h": "c"
+        "printcontrol.h": "c",
+        "menu_strings.h": "c"
     },
     "cmake.configureOnOpen": false
 }
