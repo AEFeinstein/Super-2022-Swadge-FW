@@ -78,7 +78,8 @@ static const ledDanceArg ledDances[] =
     {.func = dancePulse, .arg = RGB_2_ARG(0, 0, 0xFF), .name = "Pulse B"},
     {.func = dancePulse, .arg = RGB_2_ARG(0, 0, 0),    .name = "Pulse RGB"},
     {.func = danceSharpRainbow,  .arg = 0, .name = "Rainbow Sharp"},
-    {.func = danceSmoothRainbow, .arg = 0, .name = "Rainbow Smooth"},
+    {.func = danceSmoothRainbow, .arg = 20000, .name = "Rainbow Slow"},
+    {.func = danceSmoothRainbow, .arg =  4000, .name = "Rainbow Fast"},
     {.func = danceRainbowSolid,  .arg = 0, .name = "Rainbow Solid"},
     {.func = danceFire, .arg = RGB_2_ARG(0xFF, 51, 0), .name = "Fire R"},
     {.func = danceFire, .arg = RGB_2_ARG(0, 0xFF, 51), .name = "Fire G"},
@@ -454,7 +455,7 @@ void ICACHE_FLASH_ATTR danceRise(uint32_t tElapsedUs, uint32_t arg, bool reset)
  * @param tElapsedUs The time elapsed since last call, in microseconds
  * @param reset      true to reset this dance's variables
  */
-void ICACHE_FLASH_ATTR danceSmoothRainbow(uint32_t tElapsedUs, uint32_t arg __attribute__((unused)), bool reset)
+void ICACHE_FLASH_ATTR danceSmoothRainbow(uint32_t tElapsedUs, uint32_t arg , bool reset)
 {
     static uint32_t tAccumulated = 0;
     static uint8_t ledCount = 0;
@@ -462,7 +463,7 @@ void ICACHE_FLASH_ATTR danceSmoothRainbow(uint32_t tElapsedUs, uint32_t arg __at
     if(reset)
     {
         ledCount = 0;
-        tAccumulated = 20000;
+        tAccumulated = arg;
         return;
     }
 
@@ -471,9 +472,9 @@ void ICACHE_FLASH_ATTR danceSmoothRainbow(uint32_t tElapsedUs, uint32_t arg __at
     bool ledsUpdated = false;
 
     tAccumulated += tElapsedUs;
-    while(tAccumulated >= 20000)
+    while(tAccumulated >= arg)
     {
-        tAccumulated -= 20000;
+        tAccumulated -= arg;
         ledsUpdated = true;
 
         ledCount--;
