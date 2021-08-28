@@ -181,9 +181,6 @@ void ICACHE_FLASH_ATTR menuInit(void)
 
     // Make buttons sensitive, they're ignored during animation anyway
     enableDebounce(false);
-
-    // Initialize screensaver index to something random
-    mnu->screensaverIdx = os_random() % (lengthof(screensavers));
 }
 
 /**
@@ -518,8 +515,6 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
     timerArm(&mnu->timerScreensaverBright, 3000, false);
 
     mnu->screensaverIsRunning = true;
-
-    screensavers[mnu->screensaverIdx]->initScreensaver();
 }
 
 /**
@@ -530,6 +525,13 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
  */
 static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unused)))
 {
+    // Pick a random OLED screensaver
+    mnu->screensaverIdx = os_random() % (lengthof(screensavers));
+
+    // Initialize the OLED screensaver
+    screensavers[mnu->screensaverIdx]->initScreensaver();
+
+    // Set the OLED screensaver to draw
     mnu->drawOLEDScreensaver = true;
 
     // Set the brightness to high

@@ -79,13 +79,14 @@ void ICACHE_FLASH_ATTR initStarField(void)
     if(NULL == stars)
     {
         stars = os_malloc(sizeof(Star) * NUM_STARS);
-        /* Initialize the stars */
-        for(int i = 0; i < NUM_STARS; i++)
-        {
-            stars[i].x = randomInt(-OLED_WIDTH / 2, OLED_WIDTH / 2);
-            stars[i].y = randomInt(-OLED_HEIGHT / 2, OLED_HEIGHT / 2);
-            stars[i].z = 1 + (os_random() % 1023);
-        }
+    }
+
+    /* Initialize the stars */
+    for(int i = 0; i < NUM_STARS; i++)
+    {
+        stars[i].x = randomInt(-OLED_WIDTH / 2, OLED_WIDTH / 2);
+        stars[i].y = randomInt(-OLED_HEIGHT / 2, OLED_HEIGHT / 2);
+        stars[i].z = 1 + (os_random() % 1023);
     }
 }
 

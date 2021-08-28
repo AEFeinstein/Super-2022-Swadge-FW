@@ -93,11 +93,11 @@ void ICACHE_FLASH_ATTR initMatrixRain(void)
     if(NULL == mr)
     {
         mr = os_malloc(sizeof(matrixRain));
+    }
 
-        for(uint8_t i = 0; i < NUM_RAINDROPS; i++)
-        {
-            initRaindrop(&mr->rain[i]);
-        }
+    for(uint8_t i = 0; i < NUM_RAINDROPS; i++)
+    {
+        initRaindrop(&mr->rain[i]);
     }
 }
 

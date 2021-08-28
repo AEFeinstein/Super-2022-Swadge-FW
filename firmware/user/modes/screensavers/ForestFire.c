@@ -67,19 +67,13 @@ void ICACHE_FLASH_ATTR initForestFire(void)
     if(NULL == fFire)
     {
         fFire = os_malloc(sizeof(forestFireSim));
-        for(int16_t x = 0; x < OLED_WIDTH; x++)
+    }
+
+    for(int16_t x = 0; x < OLED_WIDTH; x++)
+    {
+        for(int16_t y = 0; y < OLED_HEIGHT; y++)
         {
-            for(int16_t y = 0; y < OLED_HEIGHT; y++)
-            {
-                if(os_random() % 2 == 0)
-                {
-                    fFire->forest[x][y] = TREE;
-                }
-                else
-                {
-                    fFire->forest[x][y] = EMPTY;
-                }
-            }
+            fFire->forest[x][y] = EMPTY;
         }
     }
 }

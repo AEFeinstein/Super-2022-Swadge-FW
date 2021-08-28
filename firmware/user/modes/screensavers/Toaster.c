@@ -90,11 +90,11 @@ void ICACHE_FLASH_ATTR initToaster(void)
                          "toaster2.png",
                          "toaster1.png");
         allocPngAsset("toast.png", &(toaster->toast));
+    }
 
-        for(uint8_t i = 0; i < NUM_OBJECTS; i++)
-        {
-            initObject(&toaster->objects[i], true);
-        }
+    for(uint8_t i = 0; i < NUM_OBJECTS; i++)
+    {
+        initObject(&toaster->objects[i], true);
     }
 }
 

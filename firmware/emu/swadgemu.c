@@ -357,6 +357,8 @@ void emuCheckResize()
 
     boottime = OGGetAbsoluteTime();
 
+    srand(time(NULL));
+
     initOLED(0);
 
     void user_init();
