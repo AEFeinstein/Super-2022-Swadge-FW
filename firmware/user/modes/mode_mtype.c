@@ -460,10 +460,10 @@ void ICACHE_FLASH_ATTR mtEnterMode(void)
     mType->titleMenu = initMenu(mt_title, mtTitleMenuCallback);
     addRowToMenu(mType->titleMenu);
 
-    addItemToRow(mType->titleMenu, str_easy);
     addItemToRow(mType->titleMenu, str_medium);
     addItemToRow(mType->titleMenu, str_hard);
     addItemToRow(mType->titleMenu, str_v_hard);
+    addItemToRow(mType->titleMenu, str_easy);
     addRowToMenu(mType->titleMenu);
 
     addItemToRow(mType->titleMenu, str_high_scores);

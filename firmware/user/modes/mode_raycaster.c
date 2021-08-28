@@ -437,9 +437,9 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
     rc->mode = RC_MENU;
     rc->menu = initMenu(rc_title, raycasterMenuButtonCallback);
     addRowToMenu(rc->menu);
-    addItemToRow(rc->menu, str_easy);
     addItemToRow(rc->menu, str_medium);
-    addItemToRow(rc->menu, str_hard);
+    addItemToRow(rc->menu, str_v_hard);
+    addItemToRow(rc->menu, str_easy);
     addRowToMenu(rc->menu);
     addItemToRow(rc->menu, str_high_scores);
     addRowToMenu(rc->menu);
@@ -771,7 +771,7 @@ void ICACHE_FLASH_ATTR raycasterMenuButtonCallback(const char* selected)
     {
         rc->difficulty = RC_MED;
     }
-    else if(str_hard == selected)
+    else if(str_v_hard == selected)
     {
         rc->difficulty = RC_HARD;
     }
@@ -785,7 +785,7 @@ void ICACHE_FLASH_ATTR raycasterMenuButtonCallback(const char* selected)
     // Then set mode to map select if it was a game start
     if((str_easy   == selected) ||
        (str_medium == selected) ||
-       (str_hard   == selected))
+       (str_v_hard   == selected))
     {
         rc->mode = RC_MAP_SELECT;
         rc->mapIdx = RC_MAP_S;
@@ -2713,7 +2713,7 @@ void ICACHE_FLASH_ATTR raycasterDrawScores(void)
         }
         case RC_HARD:
         {
-            difficulty = str_hard;
+            difficulty = str_v_hard;
             break;
         }
     }
@@ -2743,8 +2743,8 @@ void ICACHE_FLASH_ATTR raycasterDrawScores(void)
     // Plot the title
     char title[64] = {0};
     ets_snprintf(title, sizeof(title) - 1, "%s (%s)", difficulty, map);
-    uint16_t width = textWidth(title, RADIOSTARS);
-    plotText((OLED_WIDTH - width) / 2, 0, title, RADIOSTARS, WHITE);
+    uint16_t width = textWidth(title, IBM_VGA_8);
+    plotText((OLED_WIDTH - width) / 2, 0, title, IBM_VGA_8, WHITE);
 
     // Display scores
     raycasterScores_t* s = getRaycasterScores();
