@@ -126,7 +126,7 @@ typedef enum
 } raycasterMode_t;
 
 // World map tiles. Make sure this is packed
-typedef enum  __attribute__((__packed__))
+typedef enum
 {
     WMT_W1 = 0, ///< Wall 1
     WMT_W2 = 1, ///< Wall 2
@@ -305,7 +305,7 @@ raycaster_t* rc;
 
 #define MAP_L_W 48
 #define MAP_L_H 48
-static const WorldMapTile_t worldMap_l[MAP_L_W][MAP_L_H] =
+static const WorldMapTile_t worldMap_l[MAP_L_W][MAP_L_H] RODATA_ATTR =
 {
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, },
     {0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 2, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 1, 1, 1, 1, 1, },
@@ -359,7 +359,7 @@ static const WorldMapTile_t worldMap_l[MAP_L_W][MAP_L_H] =
 
 #define MAP_M_W 30
 #define MAP_M_H 30
-static const WorldMapTile_t worldMap_m[MAP_M_W][MAP_M_H] =
+static const WorldMapTile_t worldMap_m[MAP_M_W][MAP_M_H] RODATA_ATTR =
 {
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
     {1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
@@ -395,7 +395,7 @@ static const WorldMapTile_t worldMap_m[MAP_M_W][MAP_M_H] =
 
 #define MAP_S_W 12
 #define MAP_S_H 12
-static const WorldMapTile_t worldMap_s[MAP_S_W][MAP_S_H] =
+static const WorldMapTile_t worldMap_s[MAP_S_W][MAP_S_H] RODATA_ATTR =
 {
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
     {1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, },
