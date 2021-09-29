@@ -123,7 +123,7 @@ An Update consists of detecting and handling INPUT -> running any game LOGIC tha
 #define ENEMY_BOMBER_SHOT_COOLDOWN (0.5 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
 #define ENEMY_WALKER_SHOT_COOLDOWN (2 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
 
-#define ENEMY_WAVE_EMPTY_TIME (10.0 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
+// #define ENEMY_WAVE_EMPTY_TIME (10.0 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
 
 // score vars.
 #define ENEMY_KILL 10
