@@ -90,6 +90,11 @@ void ICACHE_FLASH_ATTR LoadSettings(void)
         settings.isMuted = false;
         ets_memset(&(settings.savedDemon), 0, sizeof(demon_t));
         settings.selfTestPassed = false;
+        
+        for(int i = 0; i < NUM_DEMON_MEMORIALS; i++)
+        {
+            settings.demonMemorials[i].actionsTaken = -1;
+        }
         // Save the values
         SaveSettings();
     }

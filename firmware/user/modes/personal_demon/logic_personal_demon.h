@@ -36,6 +36,7 @@ typedef enum __attribute__((__packed__))
     ACT_WHEEL_HEART,
     ACT_WHEEL_CHALICE,
     ACT_DRINK_CHALICE,
+    ACT_KILL,
     ACT_QUIT,
     ACT_NUM_ACTIONS
 }

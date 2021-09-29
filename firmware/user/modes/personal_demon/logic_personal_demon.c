@@ -450,6 +450,7 @@ void ICACHE_FLASH_ATTR wheelResult(demon_t* pd, action_t result)
         case ACT_MEDICINE:
         case ACT_FLUSH:
         case ACT_WHEEL_OF_FORTUNE:
+        case ACT_KILL:
         case ACT_QUIT:
         case ACT_NUM_ACTIONS:
         default:
@@ -504,6 +505,20 @@ void ICACHE_FLASH_ATTR drinkChalice(demon_t* pd)
  */
 void ICACHE_FLASH_ATTR updateStatus(demon_t* pd)
 {
+    /***************************************************************************
+     * First Health Status, check if demon was killed by the last action
+     **************************************************************************/
+
+    // Zero health means the demon died
+    if (pd->health <= 0)
+    {
+        animateEvent(EVT_DEAD);
+        // Empty and free the event queue
+        while(EVT_NONE != dequeueEvt(pd)) {;}
+        // All done
+        return;
+    }
+
     /***************************************************************************
      * Sick Status
      **************************************************************************/
@@ -888,6 +903,12 @@ bool ICACHE_FLASH_ATTR takeAction(demon_t* pd, action_t action)
         case ACT_WHEEL_OF_FORTUNE:
         {
             spinWheel(pd);
+            break;
+        }
+        case ACT_KILL:
+        {
+            // Oh yeah, he dead (negative health)
+            pd->health = -10;
             break;
         }
         case ACT_WHEEL_CHALICE:

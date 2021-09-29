@@ -232,6 +232,7 @@ char menuScold[] = "Scold";
 char menuMeds[]  = "Meds";
 char menuFlush[] = "Flush";
 char menuSpin[] = "Spin";
+char menuKill[] = "Kill";
 char menuDrink[] = "Drink Chalice";
 char menuRecords[] = "Records";
 char menuQuit[]  = "Quit";
@@ -348,6 +349,7 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     addItemToRow(pd->menu, menuMeds);
     addItemToRow(pd->menu, menuFlush);
     addItemToRow(pd->menu, menuSpin);
+    addItemToRow(pd->menu, menuKill);
     addItemToRow(pd->menu, menuRecords);
     addItemToRow(pd->menu, menuQuit);
 
@@ -548,6 +550,10 @@ static void ICACHE_FLASH_ATTR demonMenuCb(const char* menuItem)
     {
         takeAction(&(pd->demon), ACT_WHEEL_OF_FORTUNE);
     }
+    else if(menuItem == menuKill)
+    {
+        takeAction(&(pd->demon), ACT_KILL);
+    }
     else if (menuItem == menuDrink)
     {
         takeAction(&(pd->demon), ACT_DRINK_CHALICE);
@@ -644,7 +650,7 @@ bool ICACHE_FLASH_ATTR personalDemonAnimationRender(void)
             for(int i = 0; i < 5; i++)
             {
                 // If there's an entry
-                if(memorials[i].actionsTaken > 0 && memorials[i].name[0] != 0)
+                if(memorials[i].actionsTaken >= 0 && memorials[i].name[0] != 0)
                 {
                     // Plot the name, left justified
                     plotText(0, 1 + i * (FONT_HEIGHT_IBMVGA8 + 2), memorials[i].name, IBM_VGA_8, WHITE);
