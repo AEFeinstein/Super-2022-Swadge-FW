@@ -39,10 +39,6 @@
 This is a Swadge Mode which has states, the mode updates in different ways depending on the current state.
 An Update consists of detecting and handling INPUT -> running any game LOGIC that is unrelated to input -> DISPLAY to the user the current mode state.
 
-TODO:
-Refine enemy wave generator to ensure better spacing between waves and formations.
-Refine enemy behavior so that there's always time for a player to react.
-
 */
 
 /*============================================================================
@@ -84,19 +80,22 @@ Refine enemy behavior so that there's always time for a player to react.
 //#define PWRUP_REFLECT 1
 //#define PWRUP_CHARGE 2
 //#define PWRUP_LIFETIME (10 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
-#define PWRUP_DRIFT_DELAY (3 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
+#define PWRUP_DRIFT_DELAY (3.0 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
 
 #define ENEMY_SNAKE 0
 #define ENEMY_BOMBER 1
 #define ENEMY_WALKER 2
 
+#define ENEMY_WALKER_SPAWN_Y (OLED_HEIGHT - 18)
+
 #define MAX_PROJECTILES 50
-#define MAX_ENEMIES 50
+#define MAX_ENEMIES 25
 #define MAX_EXPLOSIONS MAX_ENEMIES
 #define MAX_POWERUPS 10
 
 #define PLAYER_SPEED 1
 
+#define PLAYER_INITIAL_SHOT_COOLDOWN (1.0 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
 #define PLAYER_SHOT_COOLDOWN (0.1875 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
 #define PLAYER_REFLECT_CHARGE_MAX (1.5 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
 #define PLAYER_REFLECT_TIME (1 * S_TO_MS_FACTOR * MS_TO_US_FACTOR)
@@ -105,10 +104,10 @@ Refine enemy behavior so that there's always time for a player to react.
 
 #define PLAYER_REFLECT_COLLISION 3
 
-#define PLAYER_HALF_WIDTH 3
-#define PLAYER_HALF_HEIGHT 3
-#define PLAYER_START_X 10
-#define PLAYER_START_Y OLED_HALF_HEIGHT
+#define PLAYER_WIDTH 6
+#define PLAYER_HEIGHT 6
+#define PLAYER_START_X 7
+#define PLAYER_START_Y (OLED_HALF_HEIGHT - 3)
 
 #define PLAYER_PROJECTILE_SPEED 3
 #define PLAYER_PROJECTILE_DAMAGE 1
@@ -196,7 +195,8 @@ typedef struct
 {
     vecfloat_t position; // position in screen coords. (float for precise movement)
     vecfloat_t lastPosition; // position of player last frame.
-    vec_t bbHalf;   // half of bounding box width / height.
+    vec_t bounds;   //  bounding box width / height. Extends right and down from position.
+    vec_t bbHalf;   //  half of bounding box width / height. Cached for some calculations.
     uint8_t speed;  // speed of the player.
     uint8_t shotLevel;  // weapon level, controls the amount of bullets fired.
     uint32_t shotCooldown;  // cooldown between firing shots.
@@ -213,7 +213,7 @@ typedef struct
     uint8_t originalOwner;  // was the projectile originally owned by players or enemies.
     uint8_t owner;  // is the projectile owned by players or enemies.
     vecfloat_t position; // the current position of the projectile.
-    vec_t bbHalf; // half of bounding box width / height.
+    vec_t bounds; // bounding box width / height. Extends right and down from position.
     vecfloat_t direction;    // the direction the projectile will move on update.
     uint8_t speed;  // speed of the projectile.
     uint8_t damage; // the amount of damage the projectile will deal on hit.
@@ -223,7 +223,7 @@ typedef struct
 {
     uint8_t active; // is the explosion in-use on screen.
     vec_t position; // position in screen coords.
-    vec_t bbHalf;
+    vec_t bounds;   // bounding box width / height. Extends right and down from position.
     uint8_t frame; // current explosion frame.
 } explosion_t;
 
@@ -232,7 +232,7 @@ typedef struct
     uint8_t active;
     uint8_t type;
     vec_t position;
-    vec_t bbHalf;
+    vec_t bounds;   // bounding box width / height. Extends right and down from position.
     uint8_t speed;  // drift speed of the powerup.
     uint32_t driftDelay;  // drift speed of the powerup.
 } powerup_t;
@@ -242,7 +242,7 @@ typedef struct
     uint8_t active; // is enemy in-use on screen.
     uint8_t type; // the type of the enemy.
     vec_t position; // position in screen coords.
-    vec_t bbHalf;   // half of bounding box width / height.
+    vec_t bounds;   // bounding box width / height. Extends right and down from position.
     vec_t spawn;    // position that the enemy was spawned at in screen coords.
     //uint8_t speed;  // speed of the enemy.
     //vecfloat_t direction;  // speed of the enemy.
@@ -367,14 +367,15 @@ void ICACHE_FLASH_ATTR applyLEDBrightness(uint8_t numLEDs, float brightness);
 
 bool ICACHE_FLASH_ATTR submitMTScore(uint8_t difficulty, uint32_t timeSurvived, uint32_t score);
 uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font);
-bool ICACHE_FLASH_ATTR AABBCollision (int ax0, int ay0, int ax1, int ay1, int bx0, int by0, int bx1, int by1);
+bool ICACHE_FLASH_ATTR AABBCollision (int ax0, int ay0, int ax1, int ay1, int bx0, int by0, int bx1, int by1, bool bounds);
 void ICACHE_FLASH_ATTR normalize (vecfloat_t * vec);
-bool ICACHE_FLASH_ATTR fireProjectile (uint8_t owner, uint8_t type, vec_t position, vec_t bbHalf, vecfloat_t direction, uint8_t speed, uint8_t damage);
-bool ICACHE_FLASH_ATTR spawnExplosion (vec_t spawn, vec_t bbHalf);
-bool ICACHE_FLASH_ATTR spawnEnemy (uint8_t type, vec_t spawn, int8_t health, vec_t bbHalf, int32_t frameOffset);
-void ICACHE_FLASH_ATTR spawnEnemyFormation (uint8_t type, vec_t spawn, int8_t health, vec_t bbHalf, int32_t frameOffset, uint8_t numEnemies, int16_t xSpacing, int16_t ySpacing);
+bool ICACHE_FLASH_ATTR fireProjectile (uint8_t owner, uint8_t type, vec_t position, vec_t bounds, vecfloat_t direction, uint8_t speed, uint8_t damage);
+bool ICACHE_FLASH_ATTR spawnExplosion (vec_t spawn, vec_t bounds);
+bool ICACHE_FLASH_ATTR spawnEnemy (uint8_t type, vec_t spawn, int8_t health, vec_t bounds, int32_t frameOffset);
+void ICACHE_FLASH_ATTR spawnEnemyFormation (uint8_t type, vec_t spawn, int8_t health, vec_t bounds, int32_t frameOffset, uint8_t numEnemies, int16_t xSpacing, int16_t ySpacing);
 void ICACHE_FLASH_ATTR enemyDeath (uint8_t index);
 void ICACHE_FLASH_ATTR playerDeath (void);
+uint8_t ICACHE_FLASH_ATTR isEven (uint32_t n);
 
 
 /*============================================================================
@@ -656,8 +657,10 @@ void ICACHE_FLASH_ATTR mtSetState(mTypeState_t newState)
             mType->player.position.y = PLAYER_START_Y;
             mType->player.lastPosition.x = PLAYER_START_X;
             mType->player.lastPosition.y = PLAYER_START_Y;
-            mType->player.bbHalf.x = PLAYER_HALF_WIDTH;
-            mType->player.bbHalf.y = PLAYER_HALF_HEIGHT;
+            mType->player.bounds.x = PLAYER_WIDTH;
+            mType->player.bounds.y = PLAYER_HEIGHT;
+            mType->player.bbHalf.x = PLAYER_WIDTH / 2;
+            mType->player.bbHalf.y = PLAYER_HEIGHT / 2;
             mType->player.speed = PLAYER_SPEED;
             mType->player.shotLevel = 0;
             mType->player.shotCooldown = PLAYER_SHOT_COOLDOWN;
@@ -679,8 +682,8 @@ void ICACHE_FLASH_ATTR mtSetState(mTypeState_t newState)
                 mType->projectiles[i].owner = OWNER_PLAYER;
                 mType->projectiles[i].position.x = 0;
                 mType->projectiles[i].position.y = 0;
-                mType->projectiles[i].bbHalf.x = 1;
-                mType->projectiles[i].bbHalf.y = 1;
+                mType->projectiles[i].bounds.x = 1;
+                mType->projectiles[i].bounds.y = 1;
                 mType->projectiles[i].direction.x = 0;
                 mType->projectiles[i].direction.y = 0;
                 mType->projectiles[i].speed = 1;
@@ -692,8 +695,8 @@ void ICACHE_FLASH_ATTR mtSetState(mTypeState_t newState)
                 mType->explosions[i].active = 0;
                 mType->explosions[i].position.x = 0;
                 mType->explosions[i].position.y = 0;
-                mType->explosions[i].bbHalf.x = 0;
-                mType->explosions[i].bbHalf.y = 0;
+                mType->explosions[i].bounds.x = 0;
+                mType->explosions[i].bounds.y = 0;
                 mType->explosions[i].frame = 0;
             }
 
@@ -703,8 +706,8 @@ void ICACHE_FLASH_ATTR mtSetState(mTypeState_t newState)
                 mType->powerups[i].type = 0;
                 mType->powerups[i].position.x = 0;
                 mType->powerups[i].position.y = 0;
-                mType->powerups[i].bbHalf.x = 1;
-                mType->powerups[i].bbHalf.y = 1;
+                mType->powerups[i].bounds.x = 1;
+                mType->powerups[i].bounds.y = 1;
                 mType->powerups[i].speed = 1;
                 mType->powerups[i].driftDelay = 0;
             }
@@ -716,8 +719,8 @@ void ICACHE_FLASH_ATTR mtSetState(mTypeState_t newState)
                 mType->enemies[i].health = 0;
                 mType->enemies[i].position.x = 0;
                 mType->enemies[i].position.y = 0;
-                mType->enemies[i].bbHalf.x = 0;
-                mType->enemies[i].bbHalf.y = 0;
+                mType->enemies[i].bounds.x = 0;
+                mType->enemies[i].bounds.y = 0;
                 mType->enemies[i].spawn.x = 0;
                 mType->enemies[i].spawn.y = 0;
                 //mType->enemies[i].speed = 0;
@@ -782,9 +785,9 @@ void ICACHE_FLASH_ATTR singlePulseLEDs(uint8_t numLEDs, led_t fxColor, float pro
 // blink red in sync with OLED gameover FX.
 void ICACHE_FLASH_ATTR blinkLEDs(uint8_t numLEDs, led_t fxColor, uint32_t time)
 {
-    //TODO: there are instances where the red flashes on the opposite of the fill draw, how to ensure this does not happen?
+    // TODO: there are instances where the red flashes on the opposite of the fill draw, how to ensure this does not happen?
     uint32_t animCycle = ((float)time * US_TO_MS_FACTOR) / DISPLAY_REFRESH_MS;
-    bool lightActive = animCycle % 2 == 0;
+    bool lightActive = isEven(animCycle);
 
     for (int32_t i = 0; i < numLEDs; i++)
     {
@@ -816,7 +819,7 @@ void ICACHE_FLASH_ATTR alternatingPulseLEDS(uint8_t numLEDs, led_t fxColor, uint
 
     for (int32_t i = 0; i < numLEDs; i++)
     {
-        risingLED = i % 2 == 0;
+        risingLED = isEven(i);
         mType->leds[i].r = risingLED ? (uint8_t)risingR : (uint8_t)fallingR;
         mType->leds[i].g = risingLED ? (uint8_t)risingG : (uint8_t)fallingG;
         mType->leds[i].b = risingLED ? (uint8_t)risingB : (uint8_t)fallingB;
@@ -958,19 +961,19 @@ void ICACHE_FLASH_ATTR mtGameInput(void)
         mType->player.position.y += moveDir.y;
 
         // clamp position of player to within the bounds of the screen and terrain.
-        if (mType->player.position.x - mType->player.bbHalf.x < 0) {
-            mType->player.position.x = mType->player.bbHalf.x;
+        if (mType->player.position.x < 0) {
+            mType->player.position.x = 0;
         }
-        else if (mType->player.position.x + mType->player.bbHalf.x >= OLED_WIDTH) {
-            mType->player.position.x = OLED_WIDTH - 1 - mType->player.bbHalf.x;
+        else if (mType->player.position.x + mType->player.bounds.x >= OLED_WIDTH) {
+            mType->player.position.x = OLED_WIDTH - 1 - mType->player.bounds.x;
         }
 
-        if (mType->player.position.y - mType->player.bbHalf.y < 0) {
-            mType->player.position.y = mType->player.bbHalf.y;
+        if (mType->player.position.y < 0) {
+            mType->player.position.y = 0;
         }
         // this bouncing effect at the lower y bound is intentional, feels like bouncing off the ground.
-        else if (mType->player.position.y >= (mType->floor - RAND_WALLS_HEIGHT)) {
-            mType->player.position.y = (mType->floor - RAND_WALLS_HEIGHT) - mType->player.bbHalf.y;
+        else if (mType->player.position.y + mType->player.bbHalf.y >= (mType->floor - RAND_WALLS_HEIGHT)) {
+            mType->player.position.y = (mType->floor - RAND_WALLS_HEIGHT) - mType->player.bounds.y;
         }
 
         // activate the reflect shield if the ability is charged and the fire button is pressed.
@@ -987,28 +990,29 @@ void ICACHE_FLASH_ATTR mtGameInput(void)
         }
 
         // fire a shot if the fire button is being held down and shot is off cd.
-        if (mtIsButtonDown(BTN_GAME_ACTION) && mType->player.shotCooldown >= PLAYER_SHOT_COOLDOWN && mType->player.abilityCountdown <= 0) {
+        if (mtIsButtonDown(BTN_GAME_ACTION) && mType->player.shotCooldown >= PLAYER_SHOT_COOLDOWN && mType->player.abilityCountdown <= 0 && mType->stateTime >= PLAYER_INITIAL_SHOT_COOLDOWN) {
             //mType->player.abilityChargeCounter = 0; // uncomment if firing should reset ability cd.
             vec_t firePos;
-            firePos.x = mType->player.position.x;
+            firePos.x = mType->player.position.x + mType->player.bbHalf.x;
             firePos.y = mType->player.position.y;
 
-            vec_t bbHalf;
-            bbHalf.x = 2;
-            bbHalf.y = 0;
+            vec_t bounds;
+            bounds.x = 4;
+            bounds.y = 0;
 
             vecfloat_t dir;
             dir.x = 1;
             dir.y = 0;
 
             if (mType->player.shotLevel != 1) {
-                fireProjectile(OWNER_PLAYER, TYPE_BOLT, firePos, bbHalf, dir, PLAYER_PROJECTILE_SPEED, PLAYER_PROJECTILE_DAMAGE);
+                firePos.y = mType->player.position.y + mType->player.bbHalf.y;
+                fireProjectile(OWNER_PLAYER, TYPE_BOLT, firePos, bounds, dir, PLAYER_PROJECTILE_SPEED, PLAYER_PROJECTILE_DAMAGE);
             }
             if (mType->player.shotLevel > 0) {
-                firePos.y = mType->player.position.y - mType->player.bbHalf.y;
-                fireProjectile(OWNER_PLAYER, TYPE_BOLT, firePos, bbHalf, dir, PLAYER_PROJECTILE_SPEED, PLAYER_PROJECTILE_DAMAGE);
-                firePos.y = mType->player.position.y + mType->player.bbHalf.y;
-                fireProjectile(OWNER_PLAYER, TYPE_BOLT, firePos, bbHalf, dir, PLAYER_PROJECTILE_SPEED, PLAYER_PROJECTILE_DAMAGE);
+                firePos.y = mType->player.position.y;
+                fireProjectile(OWNER_PLAYER, TYPE_BOLT, firePos, bounds, dir, PLAYER_PROJECTILE_SPEED, PLAYER_PROJECTILE_DAMAGE);
+                firePos.y = mType->player.position.y + mType->player.bounds.y;
+                fireProjectile(OWNER_PLAYER, TYPE_BOLT, firePos, bounds, dir, PLAYER_PROJECTILE_SPEED, PLAYER_PROJECTILE_DAMAGE);
             }
             mType->player.shotCooldown = 0;
         }
@@ -1022,131 +1026,161 @@ void ICACHE_FLASH_ATTR mtGameInput(void)
     }
 }
 
+
+
 void ICACHE_FLASH_ATTR mtGameLogic(void)
 {
-    // enemy movement and projectile spawning
+    // enemy movement and projectile spawning.
     mType->enemiesInWave = 0;
     mType->enemiesOnScreen = 0;
+
+    // cache player position info for other calculations.
+    int plx0, plx1, ply0, ply1;
+    plx0 = mType->player.position.x;
+    plx1 = mType->player.position.x + mType->player.bounds.x;
+
+    ply0 = mType->player.position.y;
+    ply1 = mType->player.position.y + mType->player.bounds.y;
+
+    if (mType->player.abilityCountdown > 0) {
+        plx0 -= PLAYER_REFLECT_COLLISION;
+        plx1 += PLAYER_REFLECT_COLLISION;
+        ply0 -= PLAYER_REFLECT_COLLISION;
+        ply1 += PLAYER_REFLECT_COLLISION;
+    }
 
     for (int i = 0; i < MAX_ENEMIES; i++) {
         if (mType->enemies[i].active) {
             mType->enemiesInWave++;
+
+            // selectively update enemy ai.
+            //if (isEven(mType->stateFrames) == isEven(i)) {
+                if (mType->enemies[i].type == ENEMY_SNAKE) {
+                    // bob up and down as they advance across the screen.
+                    mType->enemies[i].position.x -= isEven(mType->stateFrames); // resolves to -1 if even, 0 if odd.
+                    if (mType->enemies[i].position.x < -mType->enemies[i].bounds.x) {
+                        mType->enemies[i].frameOffset = mType->stateFrames;
+                        mType->enemies[i].position.x = OLED_WIDTH;
+                    }
+                    mType->enemies[i].position.y = mType->enemies[i].spawn.y + (7 * sin(((mType->stateFrames + mType->enemies[i].frameOffset) / 25.0)));
+
+                    // update enemy shot cooldown.
+                    mType->enemies[i].shotCooldown += mType->deltaTime;
+                    if (mType->enemies[i].shotCooldown >= ENEMY_SNAKE_SHOT_COOLDOWN) {
+                        mType->enemies[i].shotCooldown = 0;
+
+                        if (mType->enemies[i].position.x > 0 && mType->enemies[i].position.x < OLED_WIDTH) {
+                            vec_t bounds;
+                            bounds.x = 0;
+                            bounds.y = 0;
+
+                            vecfloat_t dir;
+                            dir.x = -1;
+                            dir.y = 0;
+
+                            vec_t firingPos;
+                            firingPos.x = mType->enemies[i].position.x + (mType->enemies[i].bounds.x / 2);
+                            firingPos.y = mType->enemies[i].position.y + (mType->enemies[i].bounds.y / 2);
+
+                            fireProjectile(OWNER_ENEMY, TYPE_BOLT, firingPos, bounds, dir, ENEMY_PROJECTILE_SPEED, ENEMY_PROJECTILE_DAMAGE);
+                        }
+                    }
+                }
+                else if (mType->enemies[i].type == ENEMY_BOMBER) {
+                    // advance slowly across the screen, stopping to drop bombs when above the player.
+                    int16_t prevX = mType->enemies[i].position.x;
+
+                    mType->enemies[i].position.x -= 1;
+                    if (mType->enemies[i].position.x < -mType->enemies[i].bounds.x) {
+                        mType->enemies[i].frameOffset = mType->stateFrames;
+                        mType->enemies[i].position.x = OLED_WIDTH;
+                    }
+
+                    // update enemy shot cooldown.
+                    mType->enemies[i].shotCooldown += mType->deltaTime;
+
+                    bool inRange = (prevX > mType->player.lastPosition.x && mType->enemies[i].position.x <= mType->player.position.x) ||
+                                    (prevX < mType->player.lastPosition.x && mType->enemies[i].position.x >= mType->player.position.x);
+
+                    if (mType->enemies[i].shotCooldown >= ENEMY_BOMBER_SHOT_COOLDOWN && inRange) {
+                        mType->enemies[i].shotCooldown = 0;
+
+                        vec_t bounds;
+                        bounds.x = 0;
+                        bounds.y = 0;
+
+                        vecfloat_t dir;
+                        dir.x = 0;
+                        dir.y = mType->player.position.y >= mType->enemies[i].position.y ? 1 : -1;
+
+                        vec_t firingPos;
+                        firingPos.x = mType->enemies[i].position.x + (mType->enemies[i].bounds.x / 2);
+                        firingPos.y = mType->enemies[i].position.y + (mType->enemies[i].bounds.y / 2);
+
+                        fireProjectile(OWNER_ENEMY, TYPE_BOLT, firingPos, bounds, dir, ENEMY_PROJECTILE_SPEED, ENEMY_PROJECTILE_DAMAGE);
+                    }
+                }
+                else if (mType->enemies[i].type == ENEMY_WALKER) {
+                    // advance slowly across the screen, stopping to drop bombs when above the player.
+                    // int16_t prevX = mType->enemies[i].position.x;
+
+                    mType->enemies[i].position.x -= mType->stateFrames % 4 == 0 ? 1 : 0;
+                    if (mType->enemies[i].position.x < -mType->enemies[i].bounds.x) {
+                        mType->enemies[i].frameOffset = mType->stateFrames;
+                        mType->enemies[i].position.x = OLED_WIDTH;
+                    }
+
+                    // update enemy shot cooldown.
+                    mType->enemies[i].shotCooldown += mType->deltaTime;
+
+                    if (mType->enemies[i].shotCooldown >= ENEMY_WALKER_SHOT_COOLDOWN) {
+                        mType->enemies[i].shotCooldown = 0;
+
+                        if (mType->enemies[i].position.x > 0 && mType->enemies[i].position.x < OLED_WIDTH) {
+                            vec_t bounds;
+                            bounds.x = 0;
+                            bounds.y = 0;
+
+                            vecfloat_t dir;
+                            dir.x = mType->player.position.x - mType->enemies[i].position.x;
+                            dir.y = mType->player.position.y - mType->enemies[i].position.y;
+                            normalize(&dir);
+
+                            vec_t firingPos;
+                            firingPos.x = mType->enemies[i].position.x + (mType->enemies[i].bounds.x / 2);
+                            firingPos.y = mType->enemies[i].position.y + (mType->enemies[i].bounds.y / 2);
+
+                            fireProjectile(OWNER_ENEMY, TYPE_BOLT, firingPos, bounds, dir, ENEMY_PROJECTILE_SPEED, ENEMY_PROJECTILE_DAMAGE);
+                        }
+                    }
+                }
+            //}
+
+            // If there are no enemies on screen start moving them all closer to the play area.
+            if (mType->waveEmptyTime > 0) {
+                mType->enemies[i].position.x -= 1;
+            }
+
+            // check if the enemy is visible on screen.
             if (mType->enemies[i].position.x >= 0 && mType->enemies[i].position.x <= OLED_WIDTH) {
                 mType->enemiesOnScreen++;
-            }
-
-            if (mType->enemies[i].type == ENEMY_SNAKE) {
-                // bob up and down as they advance across the screen.
-                mType->enemies[i].position.x += mType->stateFrames % 2 == 0 ? -1 : 0;
-                if (mType->enemies[i].position.x < -mType->enemies[i].bbHalf.x) {
-                    mType->enemies[i].frameOffset = mType->stateFrames;
-                    mType->enemies[i].position.x = OLED_WIDTH + mType->enemies[i].bbHalf.x;
+            
+                // check collision with enemies to damage player.
+                if (AABBCollision(plx0, ply0, plx1, ply1,
+                    mType->enemies[i].position.x, 
+                    mType->enemies[i].position.y, 
+                    mType->enemies[i].position.x + mType->enemies[i].bounds.x, 
+                    mType->enemies[i].position.y + mType->enemies[i].bounds.y, 
+                    false)) {
+                        if (mType->player.abilityCountdown <= 0 && mType->player.invincibilityCountdown <= 0) {
+                            playerDeath();
+                        }
+                        else if (mType->player.numLives > 0) {
+                            // kill the enemy if reflect shield is up.
+                            mType->score += ENEMY_KILL * REFLECT_RAM_BONUS;
+                            enemyDeath(i);
+                        }
                 }
-                mType->enemies[i].position.y = mType->enemies[i].spawn.y + (7 * sin(((mType->stateFrames + mType->enemies[i].frameOffset) / 25.0)));
-
-                // update enemy shot cooldown.
-                mType->enemies[i].shotCooldown += mType->deltaTime;
-                if (mType->enemies[i].shotCooldown >= ENEMY_SNAKE_SHOT_COOLDOWN) {
-                    mType->enemies[i].shotCooldown = 0;
-
-                    vec_t bbHalf;
-                    bbHalf.x = 0;
-                    bbHalf.y = 0;
-
-                    vecfloat_t dir;
-                    dir.x = -1;
-                    dir.y = 0;
-
-                    fireProjectile(OWNER_ENEMY, TYPE_BOLT, mType->enemies[i].position, bbHalf, dir, ENEMY_PROJECTILE_SPEED, ENEMY_PROJECTILE_DAMAGE);
-                }
-            }
-            else if (mType->enemies[i].type == ENEMY_BOMBER) {
-                // advance slowly across the screen, stopping to drop bombs when above the player.
-                int16_t prevX = mType->enemies[i].position.x;
-
-                mType->enemies[i].position.x += -1;//mType->stateFrames % 2 == 0 ? -1 : 0;
-                if (mType->enemies[i].position.x < -mType->enemies[i].bbHalf.x) {
-                    mType->enemies[i].frameOffset = mType->stateFrames;
-                    mType->enemies[i].position.x = OLED_WIDTH + mType->enemies[i].bbHalf.x;
-                }
-
-                // update enemy shot cooldown.
-                mType->enemies[i].shotCooldown += mType->deltaTime;
-
-                bool inRange = (prevX > mType->player.lastPosition.x && mType->enemies[i].position.x <= mType->player.position.x) ||
-                                (prevX < mType->player.lastPosition.x && mType->enemies[i].position.x >= mType->player.position.x);
-
-                if (mType->enemies[i].shotCooldown >= ENEMY_BOMBER_SHOT_COOLDOWN && inRange) {
-                    mType->enemies[i].shotCooldown = 0;
-
-                    vec_t bbHalf;
-                    bbHalf.x = 0;
-                    bbHalf.y = 0;
-
-                    vecfloat_t dir;
-                    dir.x = 0;
-                    dir.y = mType->player.position.y >= mType->enemies[i].position.y ? 1 : -1;
-
-                    fireProjectile(OWNER_ENEMY, TYPE_BOLT, mType->enemies[i].position, bbHalf, dir, ENEMY_PROJECTILE_SPEED, ENEMY_PROJECTILE_DAMAGE);
-                }
-            }
-            else if (mType->enemies[i].type == ENEMY_WALKER) {
-                // advance slowly across the screen, stopping to drop bombs when above the player.
-                // int16_t prevX = mType->enemies[i].position.x;
-
-                mType->enemies[i].position.x += mType->stateFrames % 4 == 0 ? -1 : 0;
-                if (mType->enemies[i].position.x < -mType->enemies[i].bbHalf.x) {
-                    mType->enemies[i].frameOffset = mType->stateFrames;
-                    mType->enemies[i].position.x = OLED_WIDTH + mType->enemies[i].bbHalf.x;
-                }
-
-                // update enemy shot cooldown.
-                mType->enemies[i].shotCooldown += mType->deltaTime;
-
-                if (mType->enemies[i].shotCooldown >= ENEMY_WALKER_SHOT_COOLDOWN) {
-                    mType->enemies[i].shotCooldown = 0;
-
-                    vec_t bbHalf;
-                    bbHalf.x = 0;
-                    bbHalf.y = 0;
-
-                    vecfloat_t dir;
-                    dir.x = mType->player.position.x - mType->enemies[i].position.x;
-                    dir.y = mType->player.position.y - mType->enemies[i].position.y;
-                    normalize(&dir);
-
-                    fireProjectile(OWNER_ENEMY, TYPE_BOLT, mType->enemies[i].position, bbHalf, dir, ENEMY_PROJECTILE_SPEED, ENEMY_PROJECTILE_DAMAGE);
-                }
-            }
-
-            int plx0, plx1, ply0, ply1;
-            plx0 = mType->player.position.x - mType->player.bbHalf.x;
-            plx1 = mType->player.position.x + mType->player.bbHalf.x;
-
-            ply0 = mType->player.position.y - mType->player.bbHalf.y;
-            ply1 = mType->player.position.y + mType->player.bbHalf.y;
-
-            if (mType->player.abilityCountdown > 0) {
-                plx0 -= PLAYER_REFLECT_COLLISION;
-                plx1 += PLAYER_REFLECT_COLLISION;
-                ply0 -= PLAYER_REFLECT_COLLISION;
-                ply1 += PLAYER_REFLECT_COLLISION;
-            }
-
-            // check collision with enemies to damage player.
-            if (AABBCollision(plx0, ply0, plx1, ply1,
-                mType->enemies[i].position.x - mType->enemies[i].bbHalf.x, 
-                mType->enemies[i].position.y - mType->enemies[i].bbHalf.y, 
-                mType->enemies[i].position.x + mType->enemies[i].bbHalf.x, 
-                mType->enemies[i].position.y + mType->enemies[i].bbHalf.y)) {
-                    if (mType->player.abilityCountdown <= 0 && mType->player.invincibilityCountdown <= 0) {
-                        playerDeath();
-                    }
-                    else {
-                        // kill the enemy if reflect shield is up.
-                        mType->score += ENEMY_KILL * REFLECT_RAM_BONUS;
-                        enemyDeath(i);
-                    }
             }
         }
     }
@@ -1154,10 +1188,13 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
     if (mType->enemiesOnScreen == 0) {
         mType->waveEmptyTime += mType->deltaTime;
     }
+    else {
+        mType->waveEmptyTime = 0;
+    }
 
-    if (mType->enemiesInWave == 0 || mType->waveEmptyTime >= ENEMY_WAVE_EMPTY_TIME) {
+    if (mType->enemiesInWave == 0) {// || mType->waveEmptyTime >= ENEMY_WAVE_EMPTY_TIME) {
 
-        vec_t bbHalf;
+        vec_t bounds;
         vec_t initialSpawn;
         // uint8_t speed;
         // vecfloat_t direction;
@@ -1169,6 +1206,8 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
         uint8_t numEnemies;
         int16_t xSpacing;
         int16_t ySpacing;
+        int16_t colSpawnXOffset;
+        int16_t waveSpawnXOffset;
 
         // skip tutorial waves on higher difficulties.
         if (mType->wave < 3 && (mType->difficulty == DIFFICULTY_HARD || mType->difficulty ==  DIFFICULTY_VERYHARD)) {
@@ -1180,9 +1219,9 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                 /* first wave */
                 type = ENEMY_SNAKE;
                 health = 1;
-                bbHalf.x = 3;
-                bbHalf.y = 3;
-                initialSpawn.x = OLED_WIDTH + bbHalf.x * 2;
+                bounds.x = 6;
+                bounds.y = 6;
+                initialSpawn.x = OLED_WIDTH + bounds.x;
                 initialSpawn.y = OLED_HEIGHT - 35;
                 // speed = 1;
                 // direction.x = -1;
@@ -1192,23 +1231,23 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                 xSpacing = 10;
                 ySpacing = 0;
                 
-                spawnEnemyFormation(type, initialSpawn, health, bbHalf, unitFrameOffset, numEnemies, xSpacing, ySpacing);
+                spawnEnemyFormation(type, initialSpawn, health, bounds, unitFrameOffset, numEnemies, xSpacing, ySpacing);
 
                 initialSpawn.x = OLED_WIDTH + 75;
                 initialSpawn.y = OLED_HEIGHT - 55;
-                spawnEnemyFormation(type, initialSpawn, health, bbHalf, unitFrameOffset, numEnemies, xSpacing, ySpacing);
+                spawnEnemyFormation(type, initialSpawn, health, bounds, unitFrameOffset, numEnemies, xSpacing, ySpacing);
 
                 initialSpawn.x = OLED_WIDTH + 145;
                 initialSpawn.y = OLED_HEIGHT - 25;
-                spawnEnemyFormation(type, initialSpawn, health, bbHalf, unitFrameOffset, numEnemies, xSpacing, ySpacing);
+                spawnEnemyFormation(type, initialSpawn, health, bounds, unitFrameOffset, numEnemies, xSpacing, ySpacing);
 
                 break;
             case 1:
                 /* second wave */
                 type = ENEMY_SNAKE;
                 health = 1;
-                bbHalf.x = 3;
-                bbHalf.y = 3;
+                bounds.x = 6;
+                bounds.y = 6;
                 // speed = 1;
                 // direction.x = -1;
                 // direction.y = 0;
@@ -1219,23 +1258,23 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
 
                 initialSpawn.x = OLED_WIDTH + 20;
                 initialSpawn.y = OLED_HEIGHT - 35;
-                spawnEnemyFormation(type, initialSpawn, health, bbHalf, unitFrameOffset, numEnemies, xSpacing, ySpacing);
+                spawnEnemyFormation(type, initialSpawn, health, bounds, unitFrameOffset, numEnemies, xSpacing, ySpacing);
 
                 initialSpawn.x = OLED_WIDTH + 85;
-                spawnEnemyFormation(type, initialSpawn, health, bbHalf, unitFrameOffset, numEnemies, xSpacing, ySpacing);
+                spawnEnemyFormation(type, initialSpawn, health, bounds, unitFrameOffset, numEnemies, xSpacing, ySpacing);
 
                 type = ENEMY_WALKER;
                 initialSpawn.x = OLED_WIDTH + 35;
-                initialSpawn.y = OLED_HEIGHT - 15;
+                initialSpawn.y = ENEMY_WALKER_SPAWN_Y;
                 xSpacing = 80;
-                spawnEnemyFormation(type, initialSpawn, health, bbHalf, unitFrameOffset, numEnemies, xSpacing, ySpacing);
+                spawnEnemyFormation(type, initialSpawn, health, bounds, unitFrameOffset, numEnemies, xSpacing, ySpacing);
                 break;
             case 2:
                 /* third wave */
                 type = ENEMY_SNAKE;
                 health = 1;
-                bbHalf.x = 3;
-                bbHalf.y = 3;
+                bounds.x = 6;
+                bounds.y = 6;
                 // speed = 1;
                 // direction.x = -1;
                 // direction.y = 0;
@@ -1246,48 +1285,88 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
 
                 /*initialSpawn.x = OLED_WIDTH + 25;
                 initialSpawn.y = OLED_HEIGHT - 35;
-                spawnEnemyFormation(type, initialSpawn, health, bbHalf, unitFrameOffset, numEnemies, xSpacing, ySpacing);
+                spawnEnemyFormation(type, initialSpawn, health, bounds, unitFrameOffset, numEnemies, xSpacing, ySpacing);
 
                 initialSpawn.x = OLED_WIDTH + 125;
-                spawnEnemyFormation(type, initialSpawn, health, bbHalf, unitFrameOffset, numEnemies, xSpacing, ySpacing);*/
+                spawnEnemyFormation(type, initialSpawn, health, bounds, unitFrameOffset, numEnemies, xSpacing, ySpacing);*/
 
                 type = ENEMY_BOMBER;
                 initialSpawn.x = OLED_WIDTH + 35;
                 initialSpawn.y = 10;
                 xSpacing = 25;
-                spawnEnemyFormation(type, initialSpawn, health, bbHalf, unitFrameOffset, numEnemies, xSpacing, ySpacing);
+                spawnEnemyFormation(type, initialSpawn, health, bounds, unitFrameOffset, numEnemies, xSpacing, ySpacing);
 
                 type = ENEMY_WALKER;
                 initialSpawn.x = OLED_WIDTH + 35;
-                initialSpawn.y = OLED_HEIGHT - 15;
+                initialSpawn.y = ENEMY_WALKER_SPAWN_Y;
                 xSpacing = 40;
-                spawnEnemyFormation(type, initialSpawn, health, bbHalf, unitFrameOffset, numEnemies, xSpacing, ySpacing);
+                spawnEnemyFormation(type, initialSpawn, health, bounds, unitFrameOffset, numEnemies, xSpacing, ySpacing);
                 break;
             default:
+                // TODO: single walker formation with variable spacing on the bottom of the screen, make sure it doesn't greatly exceed the x length of other formations.
+                // TODO: avoid multiple bomber clusters, feels incorrect.
+                // Start at the top of the screen, spawn appropriate and loop until wave spawning done.
                 /* randomly generated wave */
                 // playable area is like 5 to OLED_HEIGHT - 15
-                initialSpawn.x = OLED_WIDTH + bbHalf.x;
-                numFormations = (3 + mType->wave / 2 + mType->wave % 2) * (mType->difficulty != DIFFICULTY_VERYHARD ? mType->difficulty : 10);
+                bounds.x = 6;
+                bounds.y = 6;
+                
+                initialSpawn.x = OLED_WIDTH + bounds.x;
+                initialSpawn.y = bounds.y;
+                numFormations = mType->wave * mType->difficulty;//(3 + mType->wave / 2 + isEven(mType->wave)) * (mType->difficulty != DIFFICULTY_VERYHARD ? mType->difficulty : 10);
+                
+                health = 1;//(mType->wave / 10);
+                unitFrameOffset = 20; // TODO: why is this set to this value?
+                colSpawnXOffset = 0;
+                waveSpawnXOffset = 0;
                 for (i = 0; i < numFormations; i++) {
-                    type = os_random() % 3;
-                    bbHalf.x = 3;
-                    bbHalf.y = 3;
-                    // speed = 1;
-                    // direction.x = -1;
-                    // direction.y = 0;
-                    health = 1;//(mType->wave / 10);
-                    unitFrameOffset = 20;
-                    numEnemies = mType->difficulty + (os_random() % mType->wave);
-                    xSpacing = bbHalf.x * 2 + (os_random() % 20);
+                    numEnemies = mType->difficulty + (os_random() % (mType->wave / 2));
+                    // a bit of a hack, but when enough enemies are spawned, spawn walkers to cover the rough ground of the wave.
+                    if (mType->enemiesInWave + numEnemies >= MAX_ENEMIES || i == numFormations - 1) {
+                        type = ENEMY_WALKER;
+                        initialSpawn.y = ENEMY_WALKER_SPAWN_Y;
+                        xSpacing = (waveSpawnXOffset - (os_random() % 10)) / numEnemies;//bounds.x * 3 + (os_random() % 5);
+                        //xSpacing += bounds.x;
+                        ySpacing = 0;
+                        initialSpawn.x = OLED_WIDTH + bounds.x;// + (os_random() % 5);
+                        spawnEnemyFormation(type, initialSpawn, health, bounds, unitFrameOffset, numEnemies, xSpacing, ySpacing);
+                        break;
+                    }
+
+                    // air formations either bombers or snakes.
+                    type = os_random() % 4 > 1 ? ENEMY_SNAKE : ENEMY_BOMBER;
+                    xSpacing = bounds.x * 2 + (os_random() % 5);
                     ySpacing = 0;
 
-                    initialSpawn.x += (os_random() % 50);
-                    initialSpawn.y = (os_random() % (OLED_HEIGHT - 25)) + 5;
-                    if (type == ENEMY_WALKER) {
-                        initialSpawn.y = OLED_HEIGHT - 15;
-                        xSpacing *= 2;
+                    // slight variation from exact interval.
+                    initialSpawn.x += (os_random() % 5);
+                    initialSpawn.y += (os_random() % 5);
+
+                    // if we're close to or at the walker spawn point, make this a walker formation.
+                    /*if (initialSpawn.y >= ENEMY_WALKER_SPAWN_Y - bounds.y) {
+                        initialSpawn.y = ENEMY_WALKER_SPAWN_Y;
+                        type = ENEMY_WALKER;
+                        xSpacing += bounds.x;
+                    }*/
+
+                    // spawn the enemy formation.
+                    spawnEnemyFormation(type, initialSpawn, health, bounds, unitFrameOffset, numEnemies, xSpacing, ySpacing);
+
+                    // move the spawn pointer further down the screen.
+                    initialSpawn.y += bounds.y * 2;
+
+                    // adjust the maximum we'll have to move the spawner over when done this "column" of enemy formations.
+                    if (type != ENEMY_WALKER && colSpawnXOffset < initialSpawn.x + numEnemies * xSpacing) {
+                        colSpawnXOffset = initialSpawn.x + numEnemies * xSpacing;
                     }
-                    spawnEnemyFormation(type, initialSpawn, health, bbHalf, unitFrameOffset, numEnemies, xSpacing, ySpacing);
+
+                    // we've hit the bottom of the screen, move the enemy spawner back to the top of the screen and more right.
+                    if (initialSpawn.y >= ENEMY_WALKER_SPAWN_Y - bounds.y) {
+                        initialSpawn.x += colSpawnXOffset;
+                        waveSpawnXOffset += colSpawnXOffset;
+                        initialSpawn.y = bounds.y;
+                        colSpawnXOffset = 0;
+                    }
                 }
                 break;
         }
@@ -1306,8 +1385,8 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
             // check projectile collisions as a bounding box that is defined by the projectiles current position and its projected position.
             int px0, px1, py0, py1;
 
-            px0 = mType->projectiles[i].position.x - mType->projectiles[i].bbHalf.x;
-            px1 = mType->projectiles[i].position.x + mType->projectiles[i].bbHalf.x;
+            px0 = mType->projectiles[i].position.x;
+            px1 = mType->projectiles[i].position.x + mType->projectiles[i].bounds.x;
 
             if (mType->projectiles[i].direction.x < 0) {
                 px0 -= mType->projectiles[i].direction.x * mType->projectiles[i].speed;
@@ -1316,8 +1395,8 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                 px1 += mType->projectiles[i].direction.x * mType->projectiles[i].speed;
             }
 
-            py0 = mType->projectiles[i].position.y - mType->projectiles[i].bbHalf.y;
-            py1 = mType->projectiles[i].position.y + mType->projectiles[i].bbHalf.y;
+            py0 = mType->projectiles[i].position.y;
+            py1 = mType->projectiles[i].position.y + mType->projectiles[i].bounds.y;
 
             if (mType->projectiles[i].direction.y < 0) {
                 py0 -= mType->projectiles[i].direction.y * mType->projectiles[i].speed;
@@ -1328,16 +1407,17 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
 
             if (mType->projectiles[i].owner == OWNER_PLAYER) {
                 for (int j = 0; j < MAX_ENEMIES; j++) {
-                    if (mType->enemies[j].active && mType->enemies[j].position.x - mType->enemies[j].bbHalf.x < OLED_WIDTH) {
+                    if (mType->enemies[j].active && mType->enemies[j].position.x < OLED_WIDTH) {
                         if (AABBCollision(px0, py0, px1, py1, 
-                            mType->enemies[j].position.x - mType->enemies[j].bbHalf.x, 
-                            mType->enemies[j].position.y - mType->enemies[j].bbHalf.y, 
-                            mType->enemies[j].position.x + mType->enemies[j].bbHalf.x, 
-                            mType->enemies[j].position.y + mType->enemies[j].bbHalf.y)) {
+                            mType->enemies[j].position.x, 
+                            mType->enemies[j].position.y, 
+                            mType->enemies[j].position.x + mType->enemies[j].bounds.x, 
+                            mType->enemies[j].position.y + mType->enemies[j].bounds.y,
+                            true)) {
                             mType->projectiles[i].active = 0;
                             mType->enemies[j].health -= mType->projectiles[i].damage;
                             if (mType->enemies[j].health <= 0) {
-                                //TODO: increase by amount of enemy health.
+                                // TODO: increase by amount of enemy health?
                                 mType->score += mType->projectiles[i].originalOwner == OWNER_ENEMY ? ENEMY_KILL * REFLECT_KILL_BONUS : ENEMY_KILL;
                                 enemyDeath(j);
                             }
@@ -1348,22 +1428,9 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
 
             if (mType->projectiles[i].owner == OWNER_ENEMY) {
                 // if player reflect shield is up then the range to check for collisions is larger.
-                int plx0, plx1, ply0, ply1;
-                plx0 = mType->player.position.x - mType->player.bbHalf.x;
-                plx1 = mType->player.position.x + mType->player.bbHalf.x;
-
-                ply0 = mType->player.position.y - mType->player.bbHalf.y;
-                ply1 = mType->player.position.y + mType->player.bbHalf.y;
-
-                if (mType->player.abilityCountdown > 0) {
-                    plx0 -= PLAYER_REFLECT_COLLISION;
-                    plx1 += PLAYER_REFLECT_COLLISION;
-                    ply0 -= PLAYER_REFLECT_COLLISION;
-                    ply1 += PLAYER_REFLECT_COLLISION;
-                }
 
                 if (AABBCollision(px0, py0, px1, py1, 
-                    plx0, ply0, plx1, ply1)) {
+                    plx0, ply0, plx1, ply1, false)) {
                     
                     // reflect projectiles if reflect is up.
                     if (mType->player.abilityCountdown > 0) {
@@ -1376,7 +1443,7 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                         if (mType->player.invincibilityCountdown <= 0) {
                             playerDeath();
                         }
-                        else {
+                        else if (mType->player.numLives > 0) {
                             mType->projectiles[i].active = 0;
                         }
                     }
@@ -1384,10 +1451,10 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
             }
 
             // deactivate projectile if it is entirely out of bounds.
-            if (mType->projectiles[i].position.x - mType->projectiles[i].bbHalf.x >= OLED_WIDTH ||
-                mType->projectiles[i].position.x + mType->projectiles[i].bbHalf.x < 0 ||
-                mType->projectiles[i].position.y - mType->projectiles[i].bbHalf.y >= OLED_HEIGHT ||
-                mType->projectiles[i].position.y + mType->projectiles[i].bbHalf.y < 0) {
+            if (mType->projectiles[i].position.x >= OLED_WIDTH ||
+                mType->projectiles[i].position.x + mType->projectiles[i].bounds.x < 0 ||
+                mType->projectiles[i].position.y >= OLED_HEIGHT ||
+                mType->projectiles[i].position.y + mType->projectiles[i].bounds.y < 0) {
                 mType->projectiles[i].active = 0;
             }
 
@@ -1409,19 +1476,20 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
             }
 
             // players collide with a powerup to recieve its effects.
-            if (AABBCollision(mType->player.position.x - mType->player.bbHalf.x, 
-                    mType->player.position.y - mType->player.bbHalf.y, 
-                    mType->player.position.x + mType->player.bbHalf.x, 
-                    mType->player.position.y + mType->player.bbHalf.y, 
-                    mType->powerups[i].position.x - mType->powerups[i].bbHalf.x, 
-                    mType->powerups[i].position.y - mType->powerups[i].bbHalf.y, 
-                    mType->powerups[i].position.x + mType->powerups[i].bbHalf.x, 
-                    mType->powerups[i].position.y + mType->powerups[i].bbHalf.y)) {
+            if (AABBCollision(mType->player.position.x, 
+                    mType->player.position.y, 
+                    mType->player.position.x + mType->player.bounds.x, 
+                    mType->player.position.y + mType->player.bounds.y, 
+                    mType->powerups[i].position.x, 
+                    mType->powerups[i].position.y, 
+                    mType->powerups[i].position.x + mType->powerups[i].bounds.x, 
+                    mType->powerups[i].position.y + mType->powerups[i].bounds.y,
+                    true)) {
                         mType->powerups[i].active = 0;
                         mType->score += POWERUP_GET_BONUS;
                         if (mType->powerups[i].type == PWRUP_FP) {
                             mType->player.shotLevel++;
-                            // TODO: this really should be something cooler, like a screen clearing beam or bomb
+                            // TODO: this really should be something cooler, like a screen clearing beam or bomb.
                             if (mType->player.shotLevel > 2) {
                                 // if reflect is in use, refresh reflect duration, makes chains possible.
                                 if (mType->player.abilityCountdown > 0) {
@@ -1436,7 +1504,7 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
             }
 
             // despawn powerups if they drift off of the screen.
-            if (mType->powerups[i].position.x + mType->powerups[i].bbHalf.x < 0) {
+            if (mType->powerups[i].position.x + mType->powerups[i].bounds.x < 0) {
                 mType->powerups[i].active = 0;
             }
         }
@@ -1460,7 +1528,7 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
     mType->xOffset++;
 
     // If we've moved CHUNK_WIDTH pixels
-    if(mType->xOffset == CHUNK_WIDTH)
+    if (mType->xOffset == CHUNK_WIDTH)
     {
         // Reset the X offset
         mType->xOffset = 0;
@@ -1498,18 +1566,19 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
     // draw powerups.
     for (int i = 0; i < MAX_POWERUPS; i++) {
         if (mType->powerups[i].active) {
-            drawPngInv(&mType->powerupHandle, (int16_t)mType->powerups[i].position.x - mType->powerups[i].bbHalf.x, (int16_t)mType->powerups[i].position.y - mType->powerups[i].bbHalf.y, 
-                        false, false, 0, mType->stateFrames % 2);
+            drawPngInv(&mType->powerupHandle, (int16_t)mType->powerups[i].position.x, (int16_t)mType->powerups[i].position.y, 
+                        false, false, 0, isEven(mType->stateFrames));
+            //plotRect((int16_t)mType->powerups[i].position.x, (int16_t)mType->powerups[i].position.y, (int16_t)mType->powerups[i].position.x + mType->powerups[i].bounds.x, (int16_t)mType->powerups[i].position.y + mType->powerups[i].bounds.y, WHITE);
         }
     }
 
     // draw projectiles.
     for (int i = 0; i < MAX_PROJECTILES; i++) {
         if (mType->projectiles[i].active) {
-            plotLine(mType->projectiles[i].position.x - mType->projectiles[i].bbHalf.x, 
-                    mType->projectiles[i].position.y - mType->projectiles[i].bbHalf.y, 
-                    mType->projectiles[i].position.x + mType->projectiles[i].bbHalf.x, 
-                    mType->projectiles[i].position.y + mType->projectiles[i].bbHalf.y, WHITE);
+            plotLine(mType->projectiles[i].position.x, 
+                    mType->projectiles[i].position.y, 
+                    mType->projectiles[i].position.x + mType->projectiles[i].bounds.x, 
+                    mType->projectiles[i].position.y + mType->projectiles[i].bounds.y, WHITE);
         }   
     }
 
@@ -1518,19 +1587,20 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
         if (mType->enemies[i].active) {
             if (mType->enemies[i].type == ENEMY_SNAKE) {
                 drawPngSequence(&mType->snakeSequenceHandle, 
-                                (int16_t)mType->enemies[i].position.x - mType->enemies[i].bbHalf.x, (int16_t)mType->enemies[i].position.y - mType->enemies[i].bbHalf.y,
-                                false, false, 0, mType->stateFrames % 2);
+                                (int16_t)mType->enemies[i].position.x, (int16_t)mType->enemies[i].position.y,
+                                false, false, 0, isEven(mType->stateFrames));
             }
             else if  (mType->enemies[i].type == ENEMY_BOMBER) {
                 drawPngSequence(&mType->bomberSequenceHandle, 
-                                (int16_t)mType->enemies[i].position.x - mType->enemies[i].bbHalf.x, (int16_t)mType->enemies[i].position.y - mType->enemies[i].bbHalf.y,
-                                false, false, 0, mType->stateFrames % 2);
+                                (int16_t)mType->enemies[i].position.x, (int16_t)mType->enemies[i].position.y,
+                                false, false, 0, isEven(mType->stateFrames));
             }
             else if  (mType->enemies[i].type == ENEMY_WALKER) {
                 drawPngSequence(&mType->walkerSequenceHandle, 
-                                (int16_t)mType->enemies[i].position.x - mType->enemies[i].bbHalf.x, (int16_t)mType->enemies[i].position.y - mType->enemies[i].bbHalf.y,
-                                false, false, 0, mType->stateFrames % 2);
+                                (int16_t)mType->enemies[i].position.x, (int16_t)mType->enemies[i].position.y,
+                                false, false, 0, isEven(mType->stateFrames));
             }
+            //plotRect((int16_t)mType->enemies[i].position.x, (int16_t)mType->enemies[i].position.y, (int16_t)mType->enemies[i].position.x + mType->enemies[i].bounds.x, (int16_t)mType->enemies[i].position.y + mType->enemies[i].bounds.y, WHITE);
         }
     }
 
@@ -1538,7 +1608,7 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
     pngHandle * playerSprite = &mType->playerStraightHandle;
     if (mType->player.numLives > 0) {
         if (mType->player.abilityCountdown > 0) {
-            plotCircle(mType->player.position.x, mType->player.position.y, ((mType->stateFrames / 2) % 3) + 4, WHITE);
+            plotCircle(mType->player.position.x + mType->player.bbHalf.x, mType->player.position.y + mType->player.bbHalf.y, ((mType->stateFrames / 2) % 3) + 4, WHITE);
         }
         if (mType->player.position.y < mType->player.lastPosition.y) {
             playerSprite = &mType->playerUpHandle;
@@ -1546,9 +1616,10 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
         else if (mType->player.position.y > mType->player.lastPosition.y) {
             playerSprite = &mType->playerDownHandle;
         }
-        bool inv = mType->player.invincibilityCountdown > 0 && mType->stateFrames % 2 == 0;
-        drawPngInv(playerSprite, (int16_t)mType->player.position.x - mType->player.bbHalf.x, (int16_t)mType->player.position.y - mType->player.bbHalf.y, 
+        bool inv = mType->player.invincibilityCountdown > 0 && isEven(mType->stateFrames);
+        drawPngInv(playerSprite, (int16_t)mType->player.position.x, (int16_t)mType->player.position.y, 
                     true, false, 0, inv);
+        //plotRect((int16_t)mType->player.position.x, (int16_t)mType->player.position.y, (int16_t)mType->player.position.x + mType->player.bounds.x, (int16_t)mType->player.position.y + mType->player.bounds.y, WHITE);
     }
 
     // draw ui
@@ -1618,8 +1689,7 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
     plotText(waveTextX, waveTextY, uiStr, TOM_THUMB, WHITE);
 
     // For each chunk coordinate
-    for(uint8_t w = 0; w < NUM_CHUNKS; w++)
-    {
+    for (uint8_t w = 0; w < NUM_CHUNKS; w++) {
         // Plot a floor segment line between chunk coordinates
         plotLine(
             (w * CHUNK_WIDTH) - mType->xOffset,
@@ -1633,7 +1703,7 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
     for (int i = 0; i < MAX_EXPLOSIONS; i++) {
         if (mType->explosions[i].active) {
             drawPngSequence(&mType->explosionSequenceHandle, 
-                            (int16_t)mType->explosions[i].position.x - mType->explosions[i].bbHalf.x, (int16_t)mType->explosions[i].position.y - mType->explosions[i].bbHalf.y,
+                            (int16_t)mType->explosions[i].position.x, (int16_t)mType->explosions[i].position.y,
                             false, false, 0, mType->explosions[i].frame / 2);
 
             mType->explosions[i].frame++;
@@ -1892,17 +1962,14 @@ uint8_t ICACHE_FLASH_ATTR getTextWidth(char* text, fonts font)
     return textWidth;
 }
 
-bool ICACHE_FLASH_ATTR AABBCollision (int ax0, int ay0, int ax1, int ay1, int bx0, int by0, int bx1, int by1) {
+bool ICACHE_FLASH_ATTR AABBCollision (int ax0, int ay0, int ax1, int ay1, int bx0, int by0, int bx1, int by1, bool bounds) {
     // int awidth = ax1 - ax0;
     // int aheight = ay1 - ay0;
 
     // int bwidth = bx1 - bx0;
     // int bheight = by1 - by0;
 
-    return (ax0 < bx1 &&
-            ax1 > bx0 &&
-            ay0 < by1 &&
-            ay1 > by0);
+    return bounds ? (ax0 <= bx1 && ax1 >= bx0 && ay0 <= by1 && ay1 >= by0) : (ax0 < bx1 && ax1 > bx0 && ay0 < by1 && ay1 > by0);
 }
 
 void ICACHE_FLASH_ATTR normalize (vecfloat_t * vec)
@@ -1914,7 +1981,7 @@ void ICACHE_FLASH_ATTR normalize (vecfloat_t * vec)
     }
 }
 
-bool ICACHE_FLASH_ATTR fireProjectile (uint8_t owner, uint8_t type, vec_t position, vec_t bbHalf, vecfloat_t direction, uint8_t speed, uint8_t damage)
+bool ICACHE_FLASH_ATTR fireProjectile (uint8_t owner, uint8_t type, vec_t position, vec_t bounds, vecfloat_t direction, uint8_t speed, uint8_t damage)
 {
     for (int i = 0; i < MAX_PROJECTILES; i++) {
         if (!mType->projectiles[i].active) {
@@ -1924,8 +1991,8 @@ bool ICACHE_FLASH_ATTR fireProjectile (uint8_t owner, uint8_t type, vec_t positi
             mType->projectiles[i].owner = owner;
             mType->projectiles[i].position.x = position.x;
             mType->projectiles[i].position.y = position.y;
-            mType->projectiles[i].bbHalf.x = bbHalf.x;
-            mType->projectiles[i].bbHalf.y = bbHalf.y;
+            mType->projectiles[i].bounds.x = bounds.x;
+            mType->projectiles[i].bounds.y = bounds.y;
             mType->projectiles[i].direction.x = direction.x;
             mType->projectiles[i].direction.y = direction.y;
             mType->projectiles[i].speed = speed;
@@ -1936,15 +2003,15 @@ bool ICACHE_FLASH_ATTR fireProjectile (uint8_t owner, uint8_t type, vec_t positi
     return false;
 }
 
-bool ICACHE_FLASH_ATTR spawnExplosion (vec_t spawn, vec_t bbHalf) 
+bool ICACHE_FLASH_ATTR spawnExplosion (vec_t spawn, vec_t bounds) 
 {
     for (int i = 0; i < MAX_EXPLOSIONS; i++) {
         if (!mType->explosions[i].active) {
             mType->explosions[i].active = 1;
             mType->explosions[i].position.x = spawn.x;
             mType->explosions[i].position.y = spawn.y;
-            mType->explosions[i].bbHalf.x = bbHalf.x;
-            mType->explosions[i].bbHalf.y = bbHalf.y;
+            mType->explosions[i].bounds.x = bounds.x;
+            mType->explosions[i].bounds.y = bounds.y;
             mType->explosions[i].frame = 0;
             return true;
         }
@@ -1952,7 +2019,7 @@ bool ICACHE_FLASH_ATTR spawnExplosion (vec_t spawn, vec_t bbHalf)
     return false;
 }
 
-bool ICACHE_FLASH_ATTR spawnEnemy (uint8_t type, vec_t spawn, int8_t health, vec_t bbHalf, int32_t frameOffset) {
+bool ICACHE_FLASH_ATTR spawnEnemy (uint8_t type, vec_t spawn, int8_t health, vec_t bounds, int32_t frameOffset) {
     if (mType->enemiesInWave < MAX_ENEMIES) {
         for (int i = 0; i < MAX_ENEMIES; i++) {
             if (!mType->enemies[i].active) {
@@ -1961,8 +2028,8 @@ bool ICACHE_FLASH_ATTR spawnEnemy (uint8_t type, vec_t spawn, int8_t health, vec
                 mType->enemies[i].health = health;
                 mType->enemies[i].position.x = spawn.x;
                 mType->enemies[i].position.y = spawn.y;
-                mType->enemies[i].bbHalf.x = bbHalf.x;
-                mType->enemies[i].bbHalf.y = bbHalf.y;
+                mType->enemies[i].bounds.x = bounds.x;
+                mType->enemies[i].bounds.y = bounds.y;
                 mType->enemies[i].spawn.x = spawn.x;
                 mType->enemies[i].spawn.y = spawn.y;
                 mType->enemies[i].frameOffset = frameOffset;
@@ -1975,14 +2042,14 @@ bool ICACHE_FLASH_ATTR spawnEnemy (uint8_t type, vec_t spawn, int8_t health, vec
     return false;
 }
 
-void ICACHE_FLASH_ATTR spawnEnemyFormation (uint8_t type, vec_t spawn, int8_t health, vec_t bbHalf, int32_t frameOffset, uint8_t numEnemies, int16_t xSpacing, int16_t ySpacing) {
+void ICACHE_FLASH_ATTR spawnEnemyFormation (uint8_t type, vec_t spawn, int8_t health, vec_t bounds, int32_t frameOffset, uint8_t numEnemies, int16_t xSpacing, int16_t ySpacing) {
     // bool spawnSuccess = true;
     for (int i = 0; i < numEnemies; i++) {
         vec_t currentSpawn;
         currentSpawn.x = spawn.x + i * xSpacing;
         currentSpawn.y = spawn.y + i * ySpacing;
         int32_t currentFrameOffset = frameOffset * i;
-        spawnEnemy(type, currentSpawn, health, bbHalf, currentFrameOffset);
+        spawnEnemy(type, currentSpawn, health, bounds, currentFrameOffset);
     }
 }
 
@@ -1992,7 +2059,7 @@ void ICACHE_FLASH_ATTR enemyDeath (uint8_t index) {
         mType->enemiesInWave--;
     }
 
-    spawnExplosion(mType->enemies[index].position, mType->enemies[index].bbHalf);
+    spawnExplosion(mType->enemies[index].position, mType->enemies[index].bounds);
     mType->enemies[index].active = 0;
 
     // powerup spawn determined by chance augmented by difficulty.
@@ -2004,8 +2071,8 @@ void ICACHE_FLASH_ATTR enemyDeath (uint8_t index) {
                 mType->powerups[k].type = PWRUP_FP;
                 mType->powerups[k].position.x = mType->enemies[index].position.x;
                 mType->powerups[k].position.y = mType->enemies[index].position.y;
-                mType->powerups[k].bbHalf.x = 2;
-                mType->powerups[k].bbHalf.y = 2;
+                mType->powerups[k].bounds.x = 4;
+                mType->powerups[k].bounds.y = 4;
                 mType->powerups[k].driftDelay = 0;
                 mType->powerups[k].speed = 1;
                 break;
@@ -2023,7 +2090,7 @@ void ICACHE_FLASH_ATTR playerDeath (void) {
         vec_t playerPos;
         playerPos.x = (int16_t)mType->player.position.x;
         playerPos.y = (int16_t)mType->player.position.y;
-        spawnExplosion(playerPos, mType->player.bbHalf);
+        spawnExplosion(playerPos, mType->player.bounds);
 
         // deactivate projectiles.
         for (int i  = 0; i < MAX_PROJECTILES; i++) {
@@ -2043,4 +2110,9 @@ void ICACHE_FLASH_ATTR playerDeath (void) {
         // start spawn invincibility.
         mType->player.invincibilityCountdown = PLAYER_INVINCIBILITY_TIME;
     }
+}
+
+// bitwise even check, should be faster than mod operator
+uint8_t ICACHE_FLASH_ATTR isEven (uint32_t n) {
+    return (uint8_t)((n ^ 1) == (n + 1));
 }
