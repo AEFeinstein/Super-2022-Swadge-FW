@@ -115,6 +115,8 @@ typedef struct
     esp_udp server_udp_pf_udp;
 
     led_t set_leds[NUM_LIN_LEDS];
+
+    char githash[32];
 } rssi_t;
 
 #define ABS(X) (((X) < 0) ? -(X) : (X))
@@ -203,6 +205,10 @@ static void ICACHE_FLASH_ATTR rssiSetupMenu(void)
 
     addRowToMenu(rssi->menu);
     addItemToRow(rssi->menu, fl_softap);
+
+    getGitHash(rssi->githash);
+    addRowToMenu(rssi->menu);
+    addItemToRow(rssi->menu, rssi->githash);
 
     addRowToMenu(rssi->menu);
     addItemToRow(rssi->menu, fl_total_reset);
@@ -1031,6 +1037,10 @@ void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
             {
                 if( button == LEFT )
                 {
+                    // Clear LEDs when switching modes
+                    ets_memset( rssi->set_leds, 0, sizeof( rssi->set_leds ) );
+                    setLeds( rssi->set_leds, sizeof(rssi->set_leds));
+
                     rssi->bAlreadyUpdated = false;
                     rssiSubmode m = rssi->submode;
                     m++;
@@ -1045,6 +1055,10 @@ void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
                 }
                 else if( button == RIGHT )
                 {
+                    // Clear LEDs when switching modes
+                    ets_memset( rssi->set_leds, 0, sizeof( rssi->set_leds ) );
+                    setLeds( rssi->set_leds, sizeof(rssi->set_leds));
+
                     rssi->bAlreadyUpdated = false;
                     rssiSubmode m = rssi->submode;
                     if( m == 0 )
