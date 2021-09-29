@@ -21,6 +21,7 @@
 #include "ForestFire.h"
 #include "Toaster.h"
 #include "MatrixRain.h"
+#include "EmptyScreensaver.h"
 
 #include "printControl.h"
 
@@ -124,7 +125,8 @@ screensaver* screensavers[] =
     &ssToaster,
     &ssStarfield,
     &ssMatrixRain,
-    &ssForestFire
+    &ssForestFire,
+    &ssEmptyScreensaver
 };
 
 /*============================================================================
