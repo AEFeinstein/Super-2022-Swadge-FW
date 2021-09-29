@@ -317,3 +317,9 @@ void ICACHE_FLASH_ATTR setSsidPw(char* ssid, char* pw)
     memcpy(settings.ssidPw, pw, SSID_NAME_LEN);
     SaveSettings();
 }
+
+void ICACHE_FLASH_ATTR clearAllNvm(void)
+{
+    ets_memset(&settings, 0, sizeof(settings));
+    SaveSettings();
+}

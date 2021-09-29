@@ -82,4 +82,6 @@ void ICACHE_FLASH_ATTR addRaycasterScore(raycasterDifficulty_t difficulty, rayca
 void ICACHE_FLASH_ATTR setSsidPw(char* ssid, char* pw);
 void ICACHE_FLASH_ATTR getSsidPw(char* ssid, char* pw);
 
+void ICACHE_FLASH_ATTR clearAllNvm(void);
+
 #endif /* USER_CUSTOM_COMMANDS_H_ */

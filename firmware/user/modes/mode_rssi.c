@@ -173,6 +173,7 @@ static const char fl_station[]  = "Station";
 static const char fl_scan[]     = "Scan";
 static const char fl_softap[]   = "Soft AP";
 static const char fl_connlast[] = "Connect Last";
+static const char fl_total_reset[] = "Reset Swadge";
 
 /*============================================================================
  * Functions
@@ -202,8 +203,13 @@ static void ICACHE_FLASH_ATTR rssiSetupMenu(void)
 
     addRowToMenu(rssi->menu);
     addItemToRow(rssi->menu, fl_softap);
+
+    addRowToMenu(rssi->menu);
+    addItemToRow(rssi->menu, fl_total_reset);
+
     addRowToMenu(rssi->menu);
     addItemToRow(rssi->menu, str_quit);
+
     drawMenu(rssi->menu);
 }
 
@@ -239,11 +245,10 @@ void ICACHE_FLASH_ATTR rssiExitMode(void)
     timerDisarm(&(rssi->updateTimer));
     timerFlush();
     deinitMenu(rssi->menu);
-    os_free(rssi);
-    rssi = 0;
-
     ets_memset( rssi->set_leds, 0, sizeof( rssi->set_leds ) );
     setLeds( rssi->set_leds, sizeof(rssi->set_leds));
+    os_free(rssi);
+    rssi = 0;
 }
 
 /**
@@ -367,6 +372,11 @@ static void ICACHE_FLASH_ATTR rssiMenuCb(const char* menuItem)
         wifi_set_sleep_type(NONE_SLEEP_T);
 
         rssi->mode = RSSI_STATION;
+    }
+    else if (fl_total_reset == menuItem)
+    {
+        clearAllNvm();
+        switchToSwadgeMode(0);
     }
     else if (str_quit == menuItem)
     {
