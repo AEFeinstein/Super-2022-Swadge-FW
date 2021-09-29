@@ -126,7 +126,7 @@ screensaver* screensavers[] =
     &ssStarfield,
     &ssMatrixRain,
     &ssForestFire,
-    &ssEmptyScreensaver
+    &ssEmptyScreensaver // Must be last
 };
 
 /*============================================================================
@@ -528,7 +528,7 @@ static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unus
 static void ICACHE_FLASH_ATTR menuBrightScreensaver(void* arg __attribute__((unused)))
 {
     // Pick a random OLED screensaver
-    mnu->screensaverIdx = os_random() % (lengthof(screensavers));
+    mnu->screensaverIdx = os_random() % (lengthof(screensavers) - 1);
 
     // Initialize the OLED screensaver
     screensavers[mnu->screensaverIdx]->initScreensaver();
