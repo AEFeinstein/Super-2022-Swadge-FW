@@ -443,6 +443,12 @@ static void ICACHE_FLASH_ATTR ddrLedFunc(void* arg __attribute__((unused)))
                 {
                     float intensity_mod = 1.0 - ((float)abs(ddr->PulseTimeLeft - halfWindow)) / halfWindow;
 
+                    // Don't fade in, only fade out
+                    if(ddr->PulseTimeLeft > halfWindow)
+                    {
+                        intensity_mod = 0;
+                    }
+
                     int blue = 128 * (intensity_mod * intensity_mod);
 
                     leds[0].b = blue;
@@ -979,10 +985,10 @@ static void ICACHE_FLASH_ATTR ddrGameOver()
 static void ICACHE_FLASH_ATTR ddrCheckSongEnd()
 {
     if (ddr->isSongOver
-            && ddr->arrowRows[0].count == 0
-            && ddr->arrowRows[1].count == 0
-            && ddr->arrowRows[2].count == 0
-            && ddr->arrowRows[3].count == 0 )
+        && ddr->arrowRows[0].count == 0
+        && ddr->arrowRows[1].count == 0
+        && ddr->arrowRows[2].count == 0
+        && ddr->arrowRows[3].count == 0 )
     {
         if (!ddr->didLose)
         {
