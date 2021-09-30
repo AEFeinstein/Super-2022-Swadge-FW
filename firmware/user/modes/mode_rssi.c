@@ -53,6 +53,7 @@ typedef enum
     RSSI_SCAN,
     RSSI_STATION,
     RSSI_SOFTAP,
+    RSSI_CREDITS,
 } rssiModeScreen;
 
 typedef enum
@@ -175,6 +176,7 @@ static const char fl_station[]  = "Station";
 static const char fl_scan[]     = "Scan";
 static const char fl_softap[]   = "Soft AP";
 static const char fl_connlast[] = "Connect Last";
+static const char fl_credits[]  = "Credits";
 static const char fl_total_reset[] = "Reset Swadge";
 
 /*============================================================================
@@ -205,6 +207,9 @@ static void ICACHE_FLASH_ATTR rssiSetupMenu(void)
 
     addRowToMenu(rssi->menu);
     addItemToRow(rssi->menu, fl_softap);
+
+    addRowToMenu(rssi->menu);
+    addItemToRow(rssi->menu, fl_credits);
 
     getGitHash(rssi->githash);
     addRowToMenu(rssi->menu);
@@ -383,6 +388,10 @@ static void ICACHE_FLASH_ATTR rssiMenuCb(const char* menuItem)
     {
         clearAllNvm();
         switchToSwadgeMode(0);
+    }
+    else if (fl_credits == menuItem)
+    {
+        rssi->mode = RSSI_CREDITS;
     }
     else if (str_quit == menuItem)
     {
@@ -935,6 +944,82 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
             setLeds(rssi->set_leds, sizeof(rssi->set_leds));
             break;
         }
+        case RSSI_CREDITS:
+        {
+            // Keep track of the time elapsed
+            static uint32_t tLast = 0;
+            if(0 == tLast)
+            {
+                tLast = system_get_time();
+            }
+            else
+            {
+                uint32_t tNow = system_get_time();
+                uint32_t tElapsedUs = tNow - tLast;
+                tLast = tNow;
+
+                static uint32_t tAccumulated = 0;
+                tAccumulated += tElapsedUs;
+
+                // If enough time has passed, translate and redraw text
+                if(tAccumulated > 100000)
+                {
+                    tAccumulated -= 100000;
+
+                    // Everyone's here
+                    const char* creditNames[] =
+                    {
+                        "Adam Feinstein",
+                        "Socks Magocs",
+                        "Bryce Browner",
+                        "Dac",
+                        "Jonathan Moriarty",
+                        "Yokaiy",
+                        "Kevin \"PF3k\" Lin",
+                        "Les Farkas",
+                        "",
+                        "Thanks for",
+                        "playing!",
+                        "<3",
+                        "",
+                        "",
+                    };
+
+                    // This static var tracks the vertical scrolling offset
+                    static int16_t yOffset = OLED_HEIGHT;
+                    yOffset--;
+
+                    // Clear first
+                    clearDisplay();
+
+                    // Draw names until the cursor is off the screen
+                    int16_t yPos = 0;
+                    int16_t idx = 0;
+                    while((yPos + yOffset) < OLED_HEIGHT)
+                    {
+                        // Only draw names with negative offsets if they're a little on screen
+                        if((yPos + yOffset) >= -FONT_HEIGHT_IBMVGA8)
+                        {
+                            // If the names have scrolled back to the start, reset the scroll vars
+                            if(0 == (yPos + yOffset) && 0 == idx)
+                            {
+                                yOffset = 0;
+                                yPos = 0;
+                            }
+
+                            // Center and draw the text
+                            int16_t tWidth = textWidth(creditNames[idx], IBM_VGA_8);
+                            plotText((OLED_WIDTH - tWidth) / 2, (yPos + yOffset), creditNames[idx], IBM_VGA_8, WHITE);
+                        }
+
+                        // Always update the idx and cursor position, even if the text wasn't drawn
+                        idx = (idx + 1) % lengthof(creditNames);
+                        yPos += FONT_HEIGHT_IBMVGA8 + 3;
+                    }
+                }
+            }
+            break;
+        }
     }
 }
 
@@ -973,6 +1058,7 @@ static void ICACHE_FLASH_ATTR HandleEnterPressOnSubmode( rssiSubmode sm )
         case RSSI_PASSWORD_ENTER:
         case RSSI_MENU:
         case RSSI_SCAN:
+        case RSSI_CREDITS:
         {
             break;
         }
@@ -1123,6 +1209,14 @@ void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
                 }
             }
             rssi->buttonState = state;
+            break;
+        }
+        case RSSI_CREDITS:
+        {
+            if(down)
+            {
+                rssi->mode = RSSI_MENU;
+            }
             break;
         }
     }
