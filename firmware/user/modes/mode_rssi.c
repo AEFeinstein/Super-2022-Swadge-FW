@@ -201,8 +201,13 @@ static void ICACHE_FLASH_ATTR rssiSetupMenu(void)
         addItemToRow(rssi->menu, rssi->aps[i].ssid);
     }
 
-    addRowToMenu(rssi->menu);
-    addItemToRow(rssi->menu, fl_connlast);
+    // If there is a saved SSID, show the 'connect last' entry
+    getSsidPw(rssi->connectssid, rssi->password);
+    if(0 != ets_strlen(rssi->connectssid))
+    {
+        addRowToMenu(rssi->menu);
+        addItemToRow(rssi->menu, fl_connlast);
+    }
 
     // addRowToMenu(rssi->menu);
     // addItemToRow(rssi->menu, fl_softap);
