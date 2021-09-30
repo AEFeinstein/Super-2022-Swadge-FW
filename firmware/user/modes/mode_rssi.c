@@ -171,11 +171,10 @@ swadgeMode rssiMode =
 
 rssi_t* rssi;
 
-static const char fl_title[]    = "Rssi";
-static const char fl_station[]  = "Station";
-static const char fl_scan[]     = "Scan";
-static const char fl_softap[]   = "Soft AP";
+static const char fl_title[]    = "Easter Egg";
+static const char fl_scan[]     = "Scan WiFi";
 static const char fl_connlast[] = "Connect Last";
+// static const char fl_softap[]   = "Soft AP";
 static const char fl_credits[]  = "Credits";
 static const char fl_total_reset[] = "Reset Swadge";
 
@@ -205,8 +204,8 @@ static void ICACHE_FLASH_ATTR rssiSetupMenu(void)
     addRowToMenu(rssi->menu);
     addItemToRow(rssi->menu, fl_connlast);
 
-    addRowToMenu(rssi->menu);
-    addItemToRow(rssi->menu, fl_softap);
+    // addRowToMenu(rssi->menu);
+    // addItemToRow(rssi->menu, fl_softap);
 
     addRowToMenu(rssi->menu);
     addItemToRow(rssi->menu, fl_credits);
@@ -345,7 +344,6 @@ static void ICACHE_FLASH_ATTR to_scan(void)
  */
 static void ICACHE_FLASH_ATTR rssiMenuCb(const char* menuItem)
 {
-    //if(fl_station == menuItem)
     if(fl_scan == menuItem)
     {
         wifi_set_sleep_type(NONE_SLEEP_T);
@@ -354,15 +352,15 @@ static void ICACHE_FLASH_ATTR rssiMenuCb(const char* menuItem)
         rssi->mode = RSSI_SCAN;
         to_scan();
     }
-    else if(fl_softap == menuItem)
-    {
-        rssi->mode = RSSI_SOFTAP;
-        rssi->submode = 0;
-        rssi->bAlreadyUpdated = false;
-        wifi_set_opmode_current( SOFTAP_MODE );
-        wifi_set_sleep_type(NONE_SLEEP_T);
-        wifi_enable_signaling_measurement();
-    }
+    // else if(fl_softap == menuItem)
+    // {
+    //     rssi->mode = RSSI_SOFTAP;
+    //     rssi->submode = 0;
+    //     rssi->bAlreadyUpdated = false;
+    //     wifi_set_opmode_current( SOFTAP_MODE );
+    //     wifi_set_sleep_type(NONE_SLEEP_T);
+    //     wifi_enable_signaling_measurement();
+    // }
     else if( fl_connlast == menuItem)
     {
         // Get last used params
