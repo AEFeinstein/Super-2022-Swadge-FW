@@ -197,7 +197,7 @@ typedef struct
     vecfloat_t lastPosition; // position of player last frame.
     vec_t bounds;   //  bounding box width / height. Extends right and down from position.
     vec_t bbHalf;   //  half of bounding box width / height. Cached for some calculations.
-    uint8_t speed;  // speed of the player.
+    float_t speed;  // speed of the player.
     uint8_t shotLevel;  // weapon level, controls the amount of bullets fired.
     uint32_t shotCooldown;  // cooldown between firing shots.
     uint32_t abilityChargeCounter;    // counter for ability charge.
@@ -950,9 +950,10 @@ void ICACHE_FLASH_ATTR mtGameInput(void)
             moveDir.x++;
         }
 
+        //mType->player.shotLevel = 3;
         normalize(&moveDir);
-        moveDir.x *= mType->player.speed;
-        moveDir.y *= mType->player.speed;
+        moveDir.x *= mType->player.shotLevel > 2 ? mType->player.speed * 1.3 : mType->player.speed;
+        moveDir.y *= mType->player.shotLevel > 2 ? mType->player.speed * 1.3 : mType->player.speed;
 
 
         mType->player.lastPosition.x = mType->player.position.x;
@@ -1303,7 +1304,6 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                 spawnEnemyFormation(type, initialSpawn, health, bounds, unitFrameOffset, numEnemies, xSpacing, ySpacing);
                 break;
             default:
-                // TODO: single walker formation with variable spacing on the bottom of the screen, make sure it doesn't greatly exceed the x length of other formations.
                 // TODO: avoid multiple bomber clusters, feels incorrect.
                 // Start at the top of the screen, spawn appropriate and loop until wave spawning done.
                 /* randomly generated wave */
@@ -1315,12 +1315,22 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                 initialSpawn.y = bounds.y;
                 numFormations = mType->wave * mType->difficulty;//(3 + mType->wave / 2 + isEven(mType->wave)) * (mType->difficulty != DIFFICULTY_VERYHARD ? mType->difficulty : 10);
                 
+                // feedback is nightmare starts too heavy too fast, so we'll add in a slight offset for the first few waves.
+                if (mType->difficulty == DIFFICULTY_VERYHARD && mType->wave < 6) {
+                    numFormations -= 2;
+                }
+
                 health = 1;//(mType->wave / 10);
                 unitFrameOffset = 20; // TODO: why is this set to this value?
                 colSpawnXOffset = 0;
                 waveSpawnXOffset = 0;
                 for (i = 0; i < numFormations; i++) {
                     numEnemies = mType->difficulty + (os_random() % (mType->wave / 2));
+                    // feedback is nightmare starts too heavy too fast, so we'll add in a slight offset for the first few waves.
+                    if (mType->difficulty == DIFFICULTY_VERYHARD && mType->wave < 6) {
+                        numEnemies -= 2;
+                    }
+
                     // a bit of a hack, but when enough enemies are spawned, spawn walkers to cover the rough ground of the wave.
                     if (mType->enemiesInWave + numEnemies >= MAX_ENEMIES || i == numFormations - 1) {
                         type = ENEMY_WALKER;
@@ -1334,7 +1344,7 @@ void ICACHE_FLASH_ATTR mtGameLogic(void)
                     }
 
                     // air formations either bombers or snakes.
-                    type = os_random() % 4 > 1 ? ENEMY_SNAKE : ENEMY_BOMBER;
+                    type = os_random() % 6 > 1 ? ENEMY_SNAKE : ENEMY_BOMBER;
                     xSpacing = bounds.x * 2 + (os_random() % 5);
                     ySpacing = 0;
 
