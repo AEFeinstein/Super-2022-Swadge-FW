@@ -818,12 +818,14 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
                 curCount = curRow->count;
                 curEnd = (curStart + curCount) % ARROW_ROW_MAX_COUNT;
 
+                int8_t yPosLUT[4] = {49, 32, 16, -1};
+
                 for(int arrowIdx = curStart; arrowIdx != curEnd; arrowIdx = (arrowIdx + 1) % ARROW_ROW_MAX_COUNT)
                 {
                     curArrow = &(curRow->arrows[arrowIdx]);
 
 
-                    drawPngSequence(&ddr->ddrSkullSequenceHandle, (*curArrow - 400) / 12, 48 - rowIdx * 16, rowHFlip, false, rowRot,
+                    drawPngSequence(&ddr->ddrSkullSequenceHandle, (*curArrow - 400) / 12, yPosLUT[rowIdx], rowHFlip, false, rowRot,
                                     ddr->NoteIdx);
                 }
             }
