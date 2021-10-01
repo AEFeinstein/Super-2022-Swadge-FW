@@ -251,6 +251,16 @@ typedef struct
     int8_t health; // the health of the enemy.
 } enemy_t;
 
+// stolen from screensaver without apologies.
+typedef enum
+{
+    M_UP    = 0,
+    M_UPLEFT = 1,
+    M_DOWN  = 2,
+    M_DOWNLEFT = 3,
+    M_NUM_DIRS
+} sqDir_t;
+
 typedef enum
 {
     MT_TITLE,
@@ -376,6 +386,7 @@ void ICACHE_FLASH_ATTR spawnEnemyFormation (uint8_t type, vec_t spawn, int8_t he
 void ICACHE_FLASH_ATTR enemyDeath (uint8_t index);
 void ICACHE_FLASH_ATTR playerDeath (void);
 uint8_t ICACHE_FLASH_ATTR isEven (uint32_t n);
+void ICACHE_FLASH_ATTR drawSquareWaveTrail(int x0, int y0, uint8_t xWaveLength, uint8_t yWaveLength, uint32_t frames);
 
 
 /*============================================================================
@@ -1632,6 +1643,11 @@ void ICACHE_FLASH_ATTR mtGameDisplay(void)
         //plotRect((int16_t)mType->player.position.x, (int16_t)mType->player.position.y, (int16_t)mType->player.position.x + mType->player.bounds.x, (int16_t)mType->player.position.y + mType->player.bounds.y, WHITE);
     }
 
+    // draw player trail for speed powerup.
+    if (mType->player.shotLevel > 2) {
+        drawSquareWaveTrail(mType->player.position.x - 1, mType->player.position.y + mType->player.bbHalf.y, 2, 4, mType->stateFrames / 10);
+    }
+
     // draw ui
     /*
     reflect text
@@ -2125,4 +2141,71 @@ void ICACHE_FLASH_ATTR playerDeath (void) {
 // bitwise even check, should be faster than mod operator
 uint8_t ICACHE_FLASH_ATTR isEven (uint32_t n) {
     return (uint8_t)((n ^ 1) == (n + 1));
+}
+
+// shamelessly stolen and modified screensaver square wave code.
+void ICACHE_FLASH_ATTR drawSquareWaveTrail (int x, int y,  uint8_t xWaveLength, uint8_t yWaveLength, uint32_t frames)
+{
+    // frame offset (?)
+    uint32_t frameOffset = frames % (xWaveLength * 2);
+
+    // draw the starting half segment from the center.
+    int16_t pt1x = x;
+    int16_t pt1y = y;
+    int16_t pt2x = x;
+    int16_t pt2y = frameOffset >= xWaveLength ? y - (yWaveLength / 2) : y + (yWaveLength / 2);
+    plotDashedLine(pt1x, pt1y, pt2x, pt2y, WHITE);
+
+    // Direction the square wave is traveling
+    sqDir_t sqDir = frameOffset >= xWaveLength ? M_UPLEFT : M_DOWNLEFT;
+
+    // Starting point for the line
+    pt1x = pt2x;
+    pt1y = pt2y;
+
+    if (frameOffset >= xWaveLength) frameOffset -= xWaveLength;
+
+    // Ending point for the line
+    pt2x = pt1x - frameOffset;
+    pt2y = pt1y;
+
+    // Draw a square wave, one line at a time
+    while (pt1x >= (x - xWaveLength * 2))
+    {
+        // Draw the line
+        plotDashedLine(pt1x, pt1y, pt2x, pt2y, WHITE);
+
+        // Move the starting point of the line
+        pt1x = pt2x;
+        pt1y = pt2y;
+
+        // Move the ending point of the line
+        switch (sqDir)
+        {
+            case M_UP:
+            {
+                pt2y -= yWaveLength;
+                break;
+            }
+            case M_DOWN:
+            {
+                pt2y += yWaveLength;
+                break;
+            }
+            case M_UPLEFT:
+            case M_DOWNLEFT:
+            {
+                pt2x -= xWaveLength;
+                break;
+            }
+            case M_NUM_DIRS:
+            default:
+            {
+                break;
+            }
+        }
+
+        // Move to the next part of the square wave
+        sqDir = (sqDir + 1) % M_NUM_DIRS;
+    }
 }
