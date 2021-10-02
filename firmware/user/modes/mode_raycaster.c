@@ -219,6 +219,7 @@ typedef struct
     pngHandle heart;
     pngHandle mnote;
     pngSequenceHandle gtr;
+    pngSequenceHandle boot;
 
     // For the map
     uint16_t mapW;
@@ -504,6 +505,10 @@ void ICACHE_FLASH_ATTR raycasterEnterMode(void)
                      "gtr3.png",
                      "gtr4.png",
                      "gtr5.png");
+    allocPngSequence(&(rc->boot), 3,
+                     "boot1.png",
+                     "boot2.png",
+                     "boot3.png");
 
     // Set up the LED timer
     rc->closestDist = 0xFFFFFFFF;
@@ -530,6 +535,7 @@ void ICACHE_FLASH_ATTR raycasterExitMode(void)
     freePngAsset(&(rc->heart));
     freePngAsset(&(rc->mnote));
     freePngSequence(&(rc->gtr));
+    freePngSequence(&(rc->boot));
 
     // stop the LED timer
     timerDisarm(&(rc->ledTimer));
@@ -1653,6 +1659,8 @@ void ICACHE_FLASH_ATTR handleRayInput(uint32_t tElapsedUs)
         // Set the cooldown, tell drawSprites() to check the shot, and pull the trigger
         rc->shotCooldown = PLAYER_SHOT_COOLDOWN;
         rc->checkShot = true;
+        // Assume it's not a critical hit (misses aren't critical!)
+        rc->isCriticalHit = false;
         triggerPulled = true;
     }
     else if(triggerPulled && (rc->rButtonState & ACTION_MASK) == 0)
@@ -2419,18 +2427,37 @@ void ICACHE_FLASH_ATTR drawHUD(void)
     }
     else
     {
-        // Get the frame index from the shotCooldown count
-        int8_t idx = (rc->gtr.count * (PLAYER_SHOT_COOLDOWN - rc->shotCooldown)) / PLAYER_SHOT_COOLDOWN;
-        // Make sure this is in bounds
-        if(idx >= rc->gtr.count)
+        // If it's a critical hit, draw DAS BOOT, otherwise draw the guitar
+        if(rc->isCriticalHit)
         {
-            idx = rc->gtr.count - 1;
+            // Get the frame index from the shotCooldown count
+            int8_t idx = (rc->boot.count * (PLAYER_SHOT_COOLDOWN - rc->shotCooldown)) / PLAYER_SHOT_COOLDOWN;
+            // Make sure this is in bounds
+            if(idx >= rc->boot.count)
+            {
+                idx = rc->boot.count - 1;
+            }
+            // Draw the boot frame
+            drawPngSequence(&(rc->boot),
+                            (OLED_WIDTH - rc->boot.handles[idx].width) / 2,
+                            (OLED_HEIGHT - rc->boot.handles[idx].height),
+                            false, false, 0, idx);
         }
-        // Draw the guitar frame
-        drawPngSequence(&(rc->gtr),
-                        (OLED_WIDTH - rc->gtr.handles->width) / 2,
-                        (OLED_HEIGHT - rc->gtr.handles->height),
-                        false, false, 0, idx);
+        else
+        {
+            // Get the frame index from the shotCooldown count
+            int8_t idx = (rc->gtr.count * (PLAYER_SHOT_COOLDOWN - rc->shotCooldown)) / PLAYER_SHOT_COOLDOWN;
+            // Make sure this is in bounds
+            if(idx >= rc->gtr.count)
+            {
+                idx = rc->gtr.count - 1;
+            }
+            // Draw the guitar frame
+            drawPngSequence(&(rc->gtr),
+                            (OLED_WIDTH - rc->gtr.handles->width) / 2,
+                            (OLED_HEIGHT - rc->gtr.handles->height),
+                            false, false, 0, idx);
+        }
     }
 
     // Only draw clock while playing the game
@@ -2511,6 +2538,9 @@ void ICACHE_FLASH_ATTR raycasterDrawRoundOver(uint32_t tElapsedUs)
     plotText((OLED_WIDTH - width) / 2, (FONT_HEIGHT_RADIOSTARS + 5), killstr, IBM_VGA_8, WHITE);
     width = textWidth(timestr, IBM_VGA_8);
     plotText((OLED_WIDTH - width) / 2, (FONT_HEIGHT_RADIOSTARS + 5) + (FONT_HEIGHT_IBMVGA8 + 3), timestr, IBM_VGA_8, WHITE);
+
+    // Only draw the guitar on this screen, never the boot
+    rc->isCriticalHit = false;
 
     // Draw the HUD, with animation if you win!
     if(rc->liveSprites > 0)
