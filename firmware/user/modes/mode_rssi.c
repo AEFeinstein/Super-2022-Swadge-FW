@@ -973,13 +973,22 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                     const char* creditNames[] =
                     {
                         "Adam Feinstein",
-                        "Socks Magocs",
+                        "ArsenioDev", // Final?
                         "Bryce Browner",
+                        "cnlohr",
                         "Dac",
+                        "Dr. Kelley", // Final?
+                        "Emma Atlas",
+                        "Greg Lord",
+                        "Hex", // Final?
                         "Jonathan Moriarty",
-                        "Yokaiy",
+                        "Justin Wood", // Final?
                         "Kevin \"PF3k\" Lin",
                         "Les Farkas",
+                        "Rick W Van Tassel",
+                        "Socks Magocs",
+                        "Thaeli",
+                        "Yokaiy",
                         "",
                         "Thanks for",
                         "playing!",
