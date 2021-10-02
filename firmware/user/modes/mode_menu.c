@@ -490,12 +490,14 @@ void ICACHE_FLASH_ATTR plotSquareWave (int16_t x, int16_t y)
 }
 
 /**
- * @brief Called on a timer if there's no user input to start a screensaver
+ * @brief Called on a timer if there's no user input to start a screensavers
  *
  * @param arg unused
  */
 static void ICACHE_FLASH_ATTR menuStartScreensaver(void* arg __attribute__((unused)))
 {
+    timerDisarm(&mnu->timerScreensaverStart);
+
     // Set the brightness to medium
     setDanceBrightness(32);
 
