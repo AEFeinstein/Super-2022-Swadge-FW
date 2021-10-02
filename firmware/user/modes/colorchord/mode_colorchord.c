@@ -67,6 +67,7 @@ struct
     uint32_t exitTimeAccumulatedUs;
     uint32_t tLastCallUs;
     bool shouldExit;
+    pngHandle upArrowPng;
 } cc;
 
 struct CCSettings CCS =
@@ -111,6 +112,8 @@ void ICACHE_FLASH_ATTR colorchordEnterMode(void)
     cc.shouldExit = false;
     timerSetFn(&(cc.exitTimer), ccExitTimerFn, NULL);
 
+    allocPngAsset("uparrow.png", &(cc.upArrowPng));
+
     enableDebounce(false);
 }
 
@@ -150,6 +153,7 @@ bool ICACHE_FLASH_ATTR ccRenderTask(void)
     ets_snprintf(text, sizeof(text) - 1, "GAIN:%d", ampLevel);
     fillDisplayArea(0, 0, textWidth(text, IBM_VGA_8), FONT_HEIGHT_IBMVGA8, BLACK);
     plotText(0, 0, text, IBM_VGA_8, WHITE);
+    drawPng(&cc.upArrowPng, 0, FONT_HEIGHT_IBMVGA8 + 1, false, false, 270);
 
     // Plot output mode
     ets_memset(text, sizeof(text), 0);
@@ -170,6 +174,7 @@ bool ICACHE_FLASH_ATTR ccRenderTask(void)
     uint16_t width = textWidth(text, IBM_VGA_8);
     fillDisplayArea(OLED_WIDTH - width - 1, 0, OLED_WIDTH, FONT_HEIGHT_IBMVGA8, BLACK);
     plotText(OLED_WIDTH - width, 0, text, IBM_VGA_8, WHITE);
+    drawPng(&cc.upArrowPng, OLED_WIDTH - cc.upArrowPng.width, FONT_HEIGHT_IBMVGA8 + 1, false, false, 90);
 
     // Plot exit label
     char exit[] = "exit";
@@ -180,6 +185,8 @@ bool ICACHE_FLASH_ATTR ccRenderTask(void)
                     OLED_HEIGHT - 1,
                     BLACK);
     plotText((OLED_WIDTH - width) / 2, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, exit, IBM_VGA_8, WHITE);
+    drawPng(&cc.upArrowPng, (OLED_WIDTH - cc.upArrowPng.width) / 2,
+            OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1 - cc.upArrowPng.height, false, false, 180);
 
     // If the quit button is being held
     if(cc.exitTimeAccumulatedUs > 0)
@@ -195,6 +202,8 @@ bool ICACHE_FLASH_ATTR ccRenderTask(void)
  */
 void ICACHE_FLASH_ATTR colorchordExitMode(void)
 {
+    freePngAsset(&(cc.upArrowPng));
+
     timerDisarm(&(cc.exitTimer));
     timerFlush();
 }
