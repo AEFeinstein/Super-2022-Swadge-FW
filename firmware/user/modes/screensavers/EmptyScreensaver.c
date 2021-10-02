@@ -62,5 +62,5 @@ void ICACHE_FLASH_ATTR destroyEmptyScreensaver(void)
  */
 void ICACHE_FLASH_ATTR updateEmptyScreensaver(void)
 {
-    // Nothing to update
+    clearDisplay();
 }
