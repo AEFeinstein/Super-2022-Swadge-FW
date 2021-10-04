@@ -403,28 +403,28 @@ static void ICACHE_FLASH_ATTR ddrLedFunc(void* arg __attribute__((unused)))
                     switch(ddr->currentFeedback)
                     {
                         case FEEDBACK_PERFECT:
-                            leds[2].g = 150;
-                            leds[2].b = 50;
-                            leds[3].g = 150;
-                            leds[3].b = 50;
+                            leds[0].g = 150;
+                            leds[0].b = 50;
+                            leds[5].g = 150;
+                            leds[5].b = 50;
                             break;
 
                         case FEEDBACK_HIT_EARLY:
-                            leds[2].g = 50;
-                            leds[3].g = 50;
+                            leds[0].g = 50;
+                            leds[5].g = 50;
                             break;
 
                         case FEEDBACK_HIT_LATE:
-                            leds[2].g = 100;
-                            leds[2].r = 150;
-                            leds[3].g = 100;
-                            leds[3].r = 150;
+                            leds[0].g = 100;
+                            leds[0].r = 150;
+                            leds[5].g = 100;
+                            leds[5].r = 150;
                             break;
 
                         default:
                         case FEEDBACK_MISS:
-                            leds[2].r = 50;
-                            leds[3].r = 50;
+                            leds[0].r = 50;
+                            leds[5].r = 50;
                     }
                 }
             }
@@ -452,11 +452,10 @@ static void ICACHE_FLASH_ATTR ddrLedFunc(void* arg __attribute__((unused)))
                 ddr->ledBeat = 0;
             }
 
-            leds[0].b = ddr->ledBeat;
             leds[1].b = ddr->ledBeat;
-
-            leds[NUM_LIN_LEDS - 2].b = ddr->ledBeat;
-            leds[NUM_LIN_LEDS - 1].b = ddr->ledBeat;
+            leds[2].b = ddr->ledBeat;
+            leds[3].b = ddr->ledBeat;
+            leds[4].b = ddr->ledBeat;
             break;
         }
         case DDR_SCORE:
