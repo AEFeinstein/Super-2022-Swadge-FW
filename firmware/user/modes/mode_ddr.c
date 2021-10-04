@@ -180,6 +180,7 @@ typedef struct
 
     uint8_t feedbackTimer;
     uint8_t currentFeedback;
+    uint8_t lastFeedback;
 
     uint8_t successMeter;
     uint8_t successMeterShineStart;
@@ -329,7 +330,8 @@ static void ICACHE_FLASH_ATTR ddrStartGame(int tempo, float eighthNoteProbabilit
 
     ddr->PulseTimeLeft = START_PULSE_TIMER;
 
-    ddr->currentFeedback = 0;
+    ddr->currentFeedback = FEEDBACK_NONE;
+    ddr->lastFeedback = FEEDBACK_NONE;
     ddr->feedbackTimer = 0;
 
     ddr->successMeter = 80;
@@ -869,9 +871,44 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
             if (ddr->currentCombo > 3)
             {
                 char comboText[24];
-                ets_snprintf(comboText, sizeof(comboText),   "Combo!!  %04d", ddr->currentCombo);
-                plotText(15, 30, comboText, TOM_THUMB, INVERSE);
+                ets_snprintf(comboText, sizeof(comboText),   "Combo!! %3d", ddr->currentCombo);
+                plotText(15, (OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB) / 2, comboText, TOM_THUMB, INVERSE);
             }
+
+            if(FEEDBACK_NONE != ddr->currentFeedback)
+            {
+                ddr->lastFeedback = ddr->currentFeedback;
+            }
+
+            char accuracyText[8] = {0};
+            switch(ddr->lastFeedback)
+            {
+                case FEEDBACK_HIT_EARLY:
+                {
+                    ets_snprintf(accuracyText, sizeof(accuracyText), "EARLY");
+                    break;
+                }
+                case FEEDBACK_HIT_LATE:
+                {
+                    ets_snprintf(accuracyText, sizeof(accuracyText), "LATE");
+                    break;
+                }
+                case FEEDBACK_PERFECT:
+                {
+                    ets_snprintf(accuracyText, sizeof(accuracyText), "PERFECT");
+                    break;
+                }
+                case FEEDBACK_MISS:
+                {
+                    ets_snprintf(accuracyText, sizeof(accuracyText), "MISS");
+                    break;
+                }
+                default:
+                {
+                    break;
+                }
+            }
+            plotText(64, (OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB) / 2, accuracyText, TOM_THUMB, INVERSE);
 
             ddr->ButtonDownState = 0;
             break;
@@ -987,10 +1024,10 @@ static void ICACHE_FLASH_ATTR ddrGameOver()
 static void ICACHE_FLASH_ATTR ddrCheckSongEnd()
 {
     if (ddr->isSongOver
-        && ddr->arrowRows[0].count == 0
-        && ddr->arrowRows[1].count == 0
-        && ddr->arrowRows[2].count == 0
-        && ddr->arrowRows[3].count == 0 )
+            && ddr->arrowRows[0].count == 0
+            && ddr->arrowRows[1].count == 0
+            && ddr->arrowRows[2].count == 0
+            && ddr->arrowRows[3].count == 0 )
     {
         if (!ddr->didLose)
         {
