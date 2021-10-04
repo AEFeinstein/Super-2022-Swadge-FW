@@ -45,9 +45,7 @@
 #define MAX_SIXTEENTH_TIMER (60000 / 4 / ARROWS_TIMER)
 
 #define LEDS_TIMER ARROWS_TIMER
-#define MAX_PULSE_TIMER (60000 / LEDS_TIMER)
 #define ARROW_SPACING_FACTOR 0.12
-#define START_PULSE_TIMER 3000
 
 #define SONG_DURATION 1000 * 60
 
@@ -176,7 +174,8 @@ typedef struct
     int restAvoidanceProbability;
     int doubleAvoidanceProbability;
 
-    uint16_t PulseTimeLeft;
+    uint8_t ledBeat;
+    uint16_t ledOffsetMs;
 
     uint8_t feedbackTimer;
     uint8_t currentFeedback;
@@ -328,7 +327,8 @@ static void ICACHE_FLASH_ATTR ddrStartGame(int tempo, float eighthNoteProbabilit
 
     ddr->ButtonDownState = 0;
 
-    ddr->PulseTimeLeft = START_PULSE_TIMER;
+    ddr->ledBeat = 0;
+    ddr->ledOffsetMs = 0;
 
     ddr->currentFeedback = FEEDBACK_NONE;
     ddr->lastFeedback = FEEDBACK_NONE;
@@ -429,37 +429,34 @@ static void ICACHE_FLASH_ATTR ddrLedFunc(void* arg __attribute__((unused)))
                 }
             }
 
-            uint16_t pulseTimeReduction = ddr->tempo;
-            if (pulseTimeReduction > ddr->PulseTimeLeft)
+            // Decrement the offset to blink the LED
+            if(ddr->ledOffsetMs > 15)
             {
-                ddr->PulseTimeLeft = MAX_PULSE_TIMER - pulseTimeReduction + ddr->PulseTimeLeft;
+                // This function is called in 15ms increments, so decrement the counter the same
+                ddr->ledOffsetMs -= 15;
+            }
+            else if (0 != ddr->ledOffsetMs)
+            {
+                ddr->ledOffsetMs = 0;
+                // Actually flash the LED
+                ddr->ledBeat = 255;
+            }
+
+            // The LED starts bright and fades out
+            if(ddr->ledBeat >= 10)
+            {
+                ddr->ledBeat -= 10;
             }
             else
             {
-                ddr->PulseTimeLeft -= pulseTimeReduction;
-
-                int pulseWindow = 4000;
-                float halfWindow = (float)pulseWindow * 0.5f;
-
-                if (ddr->PulseTimeLeft < pulseWindow)
-                {
-                    float intensity_mod = 1.0 - ((float)abs(ddr->PulseTimeLeft - halfWindow)) / halfWindow;
-
-                    // Don't fade in, only fade out
-                    if(ddr->PulseTimeLeft > halfWindow)
-                    {
-                        intensity_mod = 0;
-                    }
-
-                    int blue = 128 * (intensity_mod * intensity_mod);
-
-                    leds[0].b = blue;
-                    leds[1].b = blue;
-
-                    leds[NUM_LIN_LEDS - 2].b = blue;
-                    leds[NUM_LIN_LEDS - 1].b = blue;
-                }
+                ddr->ledBeat = 0;
             }
+
+            leds[0].b = ddr->ledBeat;
+            leds[1].b = ddr->ledBeat;
+
+            leds[NUM_LIN_LEDS - 2].b = ddr->ledBeat;
+            leds[NUM_LIN_LEDS - 1].b = ddr->ledBeat;
             break;
         }
         case DDR_SCORE:
@@ -506,6 +503,14 @@ static void ICACHE_FLASH_ATTR ddrHandleArrows(void)
     {
         ddr->sixteenthNoteCounter = MAX_SIXTEENTH_TIMER - ddr->tempo + ddr->sixteenthNoteCounter;
         ddr->sixteenths = (ddr->sixteenths + 1 ) % 16;
+
+        // For every quarter note, start an offset to blink the LED
+        if(0 == ddr->sixteenths % 4)
+        {
+            // Pick the calibrated offset based on difficulty.
+            const int16_t ledDelayPerDifficulty[] = {480, 495, 345, 450};
+            ddr->ledOffsetMs = ledDelayPerDifficulty[ddr->currentDifficultyType];
+        }
 
 #ifdef DEBUG_QUARTER_NOTES
         // 100 percent chance on each beat
