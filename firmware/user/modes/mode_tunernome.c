@@ -873,18 +873,18 @@ bool ICACHE_FLASH_ATTR tunernomeRenderTask(void)
                     {
                         for(int i = 0; i < NUM_LIN_LEDS; i++)
                         {
-                            leds[i].r = 0xFF;
+                            leds[i].r = 0x40;
                             leds[i].g = 0xFF;
-                            leds[i].b = 0xFF;
+                            leds[i].b = 0x00;
                         }
                     }
                     else
                     {
                         for(int i = 0; i < NUM_LIN_LEDS; i++)
                         {
-                            leds[i].r = 0xDD;
-                            leds[i].g = 0xDD;
-                            leds[i].b = 0x00;
+                            leds[i].r = 0x40;
+                            leds[i].g = 0x00;
+                            leds[i].b = 0xFF;
                         }
                         leds[2].r = 0x00;
                         leds[2].g = 0x00;
