@@ -646,9 +646,9 @@ bool ICACHE_FLASH_ATTR tunernomeRenderTask(void)
             clearDisplay();
 
             // Instructions at top of display
-            plotText(0, 0, "Blu= Flat", TOM_THUMB, WHITE);
-            plotText((OLED_WIDTH - textWidth("Wht= OK", TOM_THUMB)) / 2, 0, "Wht= OK", TOM_THUMB, WHITE);
-            plotText(OLED_WIDTH - textWidth("Red= Sharp", TOM_THUMB) + 1, 0, "Red= Sharp", TOM_THUMB, WHITE);
+            plotText(0, 0, "Blue=Flat", TOM_THUMB, WHITE);
+            plotText((OLED_WIDTH - textWidth("White=OK", TOM_THUMB)) / 2, 0, "White=OK", TOM_THUMB, WHITE);
+            plotText(OLED_WIDTH - textWidth("Red=Sharp", TOM_THUMB) + 1, 0, "Red=Sharp", TOM_THUMB, WHITE);
 
             // Left/Right button functions at bottom of display
             int16_t afterExit = plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, leftStr, TOM_THUMB, WHITE);
