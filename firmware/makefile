@@ -20,7 +20,7 @@ CP           = cp
 # Options for burning
 ################################################################################
 
-FLASH_WRITE_FLAGS = --flash_size 16m # --verify 
+FLASH_WRITE_FLAGS = --flash_size 2MB # --verify 
 
 # These values all come from the Getting Started Guide, tables 4-1 & 4-2, for 2M flash
 # https://www.espressif.com/sites/default/files/documentation/2a-esp8266-sdk_getting_started_guide_en.pdf
