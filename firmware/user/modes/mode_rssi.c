@@ -118,6 +118,11 @@ typedef struct
     led_t set_leds[NUM_LIN_LEDS];
 
     char githash[32];
+
+    int16_t yOffsetCredits;
+    uint32_t tAccumulatedCredits;
+    uint32_t tLastCredits;
+    int8_t creditsScrollMod;
 } rssi_t;
 
 #define ABS(X) (((X) < 0) ? -(X) : (X))
@@ -394,6 +399,12 @@ static void ICACHE_FLASH_ATTR rssiMenuCb(const char* menuItem)
     }
     else if (fl_credits == menuItem)
     {
+        // Initialize credits variables
+        rssi->yOffsetCredits = OLED_HEIGHT;
+        rssi->tAccumulatedCredits = 0;
+        rssi->tLastCredits = system_get_time();
+        rssi->creditsScrollMod = 1;
+        // Set credits mode
         rssi->mode = RSSI_CREDITS;
     }
     else if (str_quit == menuItem)
@@ -950,24 +961,23 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
         case RSSI_CREDITS:
         {
             // Keep track of the time elapsed
-            static uint32_t tLast = 0;
-            if(0 == tLast)
+            if(0 == rssi->tLastCredits)
             {
-                tLast = system_get_time();
+                rssi->tLastCredits = system_get_time();
             }
             else
             {
                 uint32_t tNow = system_get_time();
-                uint32_t tElapsedUs = tNow - tLast;
-                tLast = tNow;
+                uint32_t tElapsedUs = tNow - rssi->tLastCredits;
+                rssi->tLastCredits = tNow;
 
-                static uint32_t tAccumulated = 0;
-                tAccumulated += tElapsedUs;
+                rssi->tAccumulatedCredits += tElapsedUs;
 
                 // If enough time has passed, translate and redraw text
-                if(tAccumulated > 100000)
+                int32_t updateTime = 100000 / ABS(rssi->creditsScrollMod);
+                if(rssi->tAccumulatedCredits > updateTime)
                 {
-                    tAccumulated -= 100000;
+                    rssi->tAccumulatedCredits -= updateTime;
 
                     // Everyone's here
                     const char* creditNames[] =
@@ -998,8 +1008,7 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                     };
 
                     // This static var tracks the vertical scrolling offset
-                    static int16_t yOffset = OLED_HEIGHT;
-                    yOffset--;
+                    rssi->yOffsetCredits -= (rssi->creditsScrollMod > 0) ? 1 : -1;
 
                     // Clear first
                     clearDisplay();
@@ -1007,21 +1016,21 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                     // Draw names until the cursor is off the screen
                     int16_t yPos = 0;
                     int16_t idx = 0;
-                    while((yPos + yOffset) < OLED_HEIGHT)
+                    while((yPos + rssi->yOffsetCredits) < OLED_HEIGHT)
                     {
                         // Only draw names with negative offsets if they're a little on screen
-                        if((yPos + yOffset) >= -FONT_HEIGHT_IBMVGA8)
+                        if((yPos + rssi->yOffsetCredits) >= -FONT_HEIGHT_IBMVGA8)
                         {
                             // If the names have scrolled back to the start, reset the scroll vars
-                            if(0 == (yPos + yOffset) && 0 == idx)
+                            if(0 == (yPos + rssi->yOffsetCredits) && 0 == idx)
                             {
-                                yOffset = 0;
+                                rssi->yOffsetCredits = 0;
                                 yPos = 0;
                             }
 
                             // Center and draw the text
                             int16_t tWidth = textWidth(creditNames[idx], IBM_VGA_8);
-                            plotText((OLED_WIDTH - tWidth) / 2, (yPos + yOffset), creditNames[idx], IBM_VGA_8, WHITE);
+                            plotText((OLED_WIDTH - tWidth) / 2, (yPos + rssi->yOffsetCredits), creditNames[idx], IBM_VGA_8, WHITE);
                         }
 
                         // Always update the idx and cursor position, even if the text wasn't drawn
@@ -1227,8 +1236,55 @@ void ICACHE_FLASH_ATTR rssiButtonCallback( uint8_t state,
         {
             if(down)
             {
-                rssi->mode = RSSI_MENU;
+                // Button is pressed
+                switch (button)
+                {
+                    case ACTION:
+                    case LEFT:
+                    case RIGHT:
+                    default:
+                    {
+                        // These buttons exit to the menu
+                        rssi->mode = RSSI_MENU;
+                        break;
+                    }
+                    case UP:
+                    {
+                        // Scroll faster
+                        rssi->creditsScrollMod = 4;
+                        break;
+                    }
+                    case DOWN:
+                    {
+                        // Scroll faster, backwards
+                        rssi->creditsScrollMod = -4;
+                        break;
+                    }
+                }
             }
+            else
+            {
+                // Button is released
+                switch (button)
+                {
+                    case ACTION:
+                    case LEFT:
+                    case RIGHT:
+                    default:
+                    {
+                        // Do nothing
+                        break;
+                    }
+                    case UP:
+                    case DOWN:
+                    {
+                        // Resume normal scrolling speed
+                        rssi->creditsScrollMod = 1;
+                        break;
+                    }
+                }
+            }
+            
             break;
         }
     }
