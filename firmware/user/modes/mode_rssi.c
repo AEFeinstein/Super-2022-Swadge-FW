@@ -974,7 +974,7 @@ static void ICACHE_FLASH_ATTR rssiUpdate(void* arg __attribute__((unused)))
                 rssi->tAccumulatedCredits += tElapsedUs;
 
                 // If enough time has passed, translate and redraw text
-                int32_t updateTime = 100000 / ABS(rssi->creditsScrollMod);
+                uint32_t updateTime = 100000 / ABS(rssi->creditsScrollMod);
                 if(rssi->tAccumulatedCredits > updateTime)
                 {
                     rssi->tAccumulatedCredits -= updateTime;
