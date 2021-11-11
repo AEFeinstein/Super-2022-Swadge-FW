@@ -6,7 +6,7 @@ orbs:
 parameters:
   src-repo-url:
     type: string
-    default: https://github.com/AEFeinstein/Super-2021-Swadge-FW.git
+    default: https://github.com/AEFeinstein/Super-2022-Swadge-FW.git
   windows-artifact:
     type: string
     default: swadge-chainsaw-windows.zip
@@ -49,29 +49,29 @@ jobs:
           command: git clone << pipeline.parameters.src-repo-url >> --recurse-submodules
       - run:
           name: Build Swadge
-          working_directory: Super-2021-Swadge-FW/firmware
+          working_directory: Super-2022-Swadge-FW/firmware
           command: unset ESP_GDB && export SET_SWADGE_VERSION=5 && make -j$(nproc) all debug
       - run:
           name: Store version information
-          working_directory: Super-2021-Swadge-FW/firmware
-          command: echo $(date) >> version.txt && echo "https://github.com/AEFeinstein/Super-2021-Swadge-FW/commit/${CIRCLE_SHA1}" >> version.txt
+          working_directory: Super-2022-Swadge-FW/firmware
+          command: echo $(date) >> version.txt && echo "https://github.com/AEFeinstein/Super-2022-Swadge-FW/commit/${CIRCLE_SHA1}" >> version.txt
       - run:
           name: Create a ZIP of firmware
-          working_directory: Super-2021-Swadge-FW/firmware
+          working_directory: Super-2022-Swadge-FW/firmware
           command: zip -j << pipeline.parameters.esp8266-artifact >> version.txt image* assets.bin ESP8266_NONOS_SDK/bin/blank.bin ESP8266_NONOS_SDK/bin/esp_init_data_default_v08.bin
       - run:
           name: Add pyFlashGui to the ZIP
-          working_directory: Super-2021-Swadge-FW/pyFlashGui
+          working_directory: Super-2022-Swadge-FW/pyFlashGui
           command: zip -r ../firmware/<< pipeline.parameters.esp8266-artifact >> .
       - run:
           name: Calculate previous build number
-          working_directory: Super-2021-Swadge-FW/firmware
+          working_directory: Super-2022-Swadge-FW/firmware
           command: |
             export CIRCLE_BUILD_NUM_PREV=$(expr ${CIRCLE_BUILD_NUM} - 1)
             echo 'export CIRCLE_BUILD_NUM_PREV=$(expr ${CIRCLE_BUILD_NUM} - 1)' >> $BASH_ENV
             source $BASH_ENV
       - store_artifacts:
-          path: Super-2021-Swadge-FW/firmware/<< pipeline.parameters.esp8266-artifact >>
+          path: Super-2022-Swadge-FW/firmware/<< pipeline.parameters.esp8266-artifact >>
       - slack/notify:
           event: pass
           custom: |
@@ -91,7 +91,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": ":esp8266-icon: ESP Build\nhttps://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2021-Swadge-FW/firmware/<< pipeline.parameters.esp8266-artifact >>"
+                    "text": ":esp8266-icon: ESP Build\nhttps://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2022-Swadge-FW/firmware/<< pipeline.parameters.esp8266-artifact >>"
                   }
                 },
                 {
@@ -144,9 +144,9 @@ jobs:
             mkdir -p $CIRCLE_WORKING_DIRECTORY
             cd $CIRCLE_WORKING_DIRECTORY
             git clone << pipeline.parameters.src-repo-url >> --recurse-submodules
-            cd Super-2021-Swadge-FW/firmware
+            cd Super-2022-Swadge-FW/firmware
             unset ESP_GDB && export SET_SWADGE_VERSION=5 && make -C emu all
-            echo $(date) >> version.txt && echo "https://github.com/AEFeinstein/Super-2021-Swadge-FW/commit/${CIRCLE_SHA1}" >> version.txt
+            echo $(date) >> version.txt && echo "https://github.com/AEFeinstein/Super-2022-Swadge-FW/commit/${CIRCLE_SHA1}" >> version.txt
             zip << pipeline.parameters.windows-artifact >> -j emu/swadgemu.exe emu/assets.bin version.txt /bin/cygwin1.dll
             cp << pipeline.parameters.windows-artifact >> /cygdrive/c/Users/circleci/project/
       - store_artifacts:

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # This script is based on the build-firmware job found in
-# https://github.com/AEFeinstein/Super-2021-Swadge-FW/blob/master/.circleci/config.yml
+# https://github.com/AEFeinstein/Super-2022-Swadge-FW/blob/master/.circleci/config.yml
 # It was tested on Ubuntu 21.04 on March 7th, 2021
 # If the build step cannot find the xtensa compiler, try rebooting and running the script again
 
@@ -28,10 +28,10 @@ export ESP_ROOT=$HOME/esp-open-sdk
 export PATH=$HOME/esp-open-sdk/xtensa-lx106-elf/bin:$PATH
 
 # Clone the git repo
-git clone https://github.com/AEFeinstein/Super-2021-Swadge-FW.git --recurse-submodules
+git clone https://github.com/AEFeinstein/Super-2022-Swadge-FW.git --recurse-submodules
 
 # Build the project
-cd ./Super-2021-Swadge-FW/firmware
+cd ./Super-2022-Swadge-FW/firmware
 # Firmware
 unset ESP_GDB && export SET_SWADGE_VERSION=5 && make -j$(nproc) all debug
 # Emulator

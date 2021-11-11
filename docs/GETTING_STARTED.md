@@ -52,8 +52,8 @@ The steps below do pretty much the same thing, but you have more control and und
 1. Restart your Linux environment so the environment variables are actually set.
 1. Clone out this repository, move to the `firmware` folder, and build it. 
     ```
-    $ git clone https://github.com/AEFeinstein/Super-2021-Swadge-FW.git --recurse-submodules
-    $ cd Super-2021-Swadge-FW/firmware/
+    $ git clone https://github.com/AEFeinstein/Super-2022-Swadge-FW.git --recurse-submodules
+    $ cd Super-2022-Swadge-FW/firmware/
     $ unset ESP_GDB && export SET_SWADGE_VERSION=5 && make -j$(nproc)
     ```
 

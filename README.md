@@ -9,7 +9,7 @@ The corresponding hardware repository for the Super Magfest 2022 Swadge [can be 
 If you have any questions, feel free to create a Github ticket or email us at circuitboards@magfest.org.
 
 ## Continuous Integration
-[![AEFeinstein](https://circleci.com/gh/AEFeinstein/Super-2021-Swadge-FW.svg?style=svg)](https://circleci.com/gh/AEFeinstein/Super-2021-Swadge-FW)
+[![AEFeinstein](https://circleci.com/gh/AEFeinstein/Super-2022-Swadge-FW.svg?style=svg)](https://circleci.com/gh/AEFeinstein/Super-2022-Swadge-FW)
 
 ## History 
 
