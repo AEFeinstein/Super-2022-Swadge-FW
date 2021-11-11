@@ -28,7 +28,7 @@ jobs:
           command: sudo apt-get update
       - run:
           name: Install dependencies
-          command: sudo apt-get -y install build-essential make curl unrar-free autoconf automake libtool gcc g++ gperf flex bison texinfo gawk ncurses-dev libexpat-dev sed git unzip bash help2man wget bzip2 libtool-bin python-dev python python-serial python3-pip zip zlib1g zlib1g-dev 
+          command: sudo apt-get -y install build-essential make curl unrar-free autoconf automake libtool gcc g++ gperf flex bison texinfo gawk ncurses-dev libexpat-dev sed git unzip bash help2man wget bzip2 libtool-bin python-dev python python-serial python3-pip zip libtiff5-dev libjpeg8-dev libopenjp2-7-dev zlib1g-dev libfreetype6-dev liblcms2-dev libwebp-dev tcl8.6-dev tk8.6-dev python3-tk libharfbuzz-dev libfribidi-dev libxcb1-dev
       - run:
           name: Install python dependencies
           command: pip3 install pillow rtttl
