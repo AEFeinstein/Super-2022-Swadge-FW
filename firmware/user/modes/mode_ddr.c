@@ -345,6 +345,9 @@ static void ICACHE_FLASH_ATTR ddrStartGame(int tempo, float eighthNoteProbabilit
     ddr->misses = 0;
     ddr->currentCombo = 0;
 
+    ddr->winResult.score = 0;
+    ddr->winResult.winType = DDR_FAIL;
+
     ddr->currentDifficultyType = diffType;
     ddr->mode = DDR_GAME;
 
@@ -684,6 +687,9 @@ static void ICACHE_FLASH_ATTR ddrMakeScoreString(ddrWinResult_t curWin, char* sc
         case DDR_ALL_PERFECT:
             typeText = "AAA";
             break;
+        case DDR_FAIL:
+            typeText = "";
+            break;
     }
 
     if (ddr->isNewHighScore)
@@ -691,7 +697,7 @@ static void ICACHE_FLASH_ATTR ddrMakeScoreString(ddrWinResult_t curWin, char* sc
         ets_snprintf(scoreText, size, "*%-3s %9d*", typeText, curWin.score);
 
     }
-    else
+    else if(curWin.winType != DDR_FAIL)
     {
         ets_snprintf(scoreText, size, " %-3s %9d ", typeText, curWin.score);
     }
@@ -745,7 +751,7 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
                 ddrWinResult_t curWin = currentDiffScores[i];
                 int yPos = 26 + (i % 4) * 10;
                 int xPos = 5 + (i / 4) * 60;
-                char scoreText[24];
+                char scoreText[24] = {0};
                 ddrMakeScoreString(curWin, scoreText, sizeof(scoreText));
                 plotText(xPos, yPos, scoreText, TOM_THUMB, WHITE);
             }
@@ -761,7 +767,7 @@ static void ICACHE_FLASH_ATTR ddrUpdateDisplay(void* arg __attribute__((unused))
             char perfectsText[24];
             char hitsText[24];
             char missesText[24];
-            char scoreText[24];
+            char scoreText[24] = {0};
 
             ets_snprintf(perfectsText, sizeof(perfectsText),   "Perfects:    %03d", ddr->perfects);
             ets_snprintf(hitsText, sizeof(perfectsText),       "Okays:       %03d", ddr->okays);

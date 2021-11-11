@@ -26,7 +26,8 @@ typedef enum
     DDR_MANY_HIT,
     DDR_MANY_PERFECT,
     DDR_ALL_HIT,
-    DDR_ALL_PERFECT
+    DDR_ALL_PERFECT,
+    DDR_FAIL
 } ddrWinType;
 
 typedef struct __attribute__((aligned(4)))
