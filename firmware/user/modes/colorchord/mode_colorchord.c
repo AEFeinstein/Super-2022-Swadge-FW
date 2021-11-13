@@ -23,6 +23,7 @@
 #include "font.h"
 #include "buttons.h"
 #include "bresenham.h"
+#include "menu_strings.h"
 
 /*==============================================================================
  * Defines
@@ -177,14 +178,13 @@ bool ICACHE_FLASH_ATTR ccRenderTask(void)
     drawPng(&cc.upArrowPng, OLED_WIDTH - cc.upArrowPng.width, FONT_HEIGHT_IBMVGA8 + 1, false, false, 90);
 
     // Plot exit label
-    char exit[] = "exit";
-    width = textWidth(exit, IBM_VGA_8);
+    width = textWidth(str_quit, IBM_VGA_8);
     fillDisplayArea((OLED_WIDTH - width) / 2 - 1,
                     OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 2,
                     (OLED_WIDTH - width) / 2 + width - 1,
                     OLED_HEIGHT - 1,
                     BLACK);
-    plotText((OLED_WIDTH - width) / 2, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, exit, IBM_VGA_8, WHITE);
+    plotText((OLED_WIDTH - width) / 2, OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1, str_quit, IBM_VGA_8, WHITE);
     drawPng(&cc.upArrowPng, (OLED_WIDTH - cc.upArrowPng.width) / 2,
             OLED_HEIGHT - FONT_HEIGHT_IBMVGA8 - 1 - cc.upArrowPng.height, false, false, 180);
 

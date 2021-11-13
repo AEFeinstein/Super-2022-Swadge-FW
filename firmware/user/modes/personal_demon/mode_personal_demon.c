@@ -15,6 +15,7 @@
 #include "logic_personal_demon.h"
 #include "nvm_interface.h"
 #include "menu2d.h"
+#include "menu_strings.h"
 
 /*==============================================================================
  * Defines, Enums
@@ -235,7 +236,6 @@ char menuSpin[] = "Spin";
 char menuKill[] = "Kill";
 char menuDrink[] = "Drink Chalice";
 char menuRecords[] = "Records";
-char menuQuit[]  = "Quit";
 
 /*==============================================================================
  * Functions
@@ -351,7 +351,7 @@ void ICACHE_FLASH_ATTR personalDemonEnterMode(void)
     addItemToRow(pd->menu, menuSpin);
     addItemToRow(pd->menu, menuKill);
     addItemToRow(pd->menu, menuRecords);
-    addItemToRow(pd->menu, menuQuit);
+    addItemToRow(pd->menu, str_quit);
 
     allocPngSequence(&(pd->pizza), 3,
                      "pizza1.png",
@@ -563,7 +563,7 @@ static void ICACHE_FLASH_ATTR demonMenuCb(const char* menuItem)
     {
         pd->isDisplayingRecords = true;
     }
-    else if(menuItem == menuQuit)
+    else if(menuItem == str_quit)
     {
         // Save before quitting, otherwise pd->demon is free()'d
         setSavedDemon(&(pd->demon));

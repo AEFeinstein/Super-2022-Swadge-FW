@@ -43,7 +43,7 @@
 
 #define NUM_GUITAR_STRINGS    6
 #define NUM_VIOLIN_STRINGS    4
-#define NUM_UKELELE_STRINGS   4
+#define NUM_UKULELE_STRINGS   4
 #define GUITAR_OFFSET         0
 #define CHROMATIC_OFFSET      6 // adjust start point by quartertones
 #define SENSITIVITY           5
@@ -80,7 +80,7 @@ typedef enum
 {
     GUITAR_TUNER = 0,
     VIOLIN_TUNER,
-    UKELELE_TUNER,
+    UKULELE_TUNER,
     SEMITONE_0,
     SEMITONE_1,
     SEMITONE_2,
@@ -221,7 +221,7 @@ const uint16_t freqBinIdxsViolin[NUM_VIOLIN_STRINGS] =
  * Indicies into fuzzed_bins[], a realtime DFT of sorts
  * fuzzed_bins[0] = A ... 1/2 steps are every 2.
  */
-const uint16_t freqBinIdxsUkelele[NUM_UKELELE_STRINGS] =
+const uint16_t freqBinIdxsUkulele[NUM_UKULELE_STRINGS] =
 {
     68, // G
     54, // C
@@ -255,7 +255,7 @@ const char* violinNoteNames[4] =
     "E5"
 };
 
-const char* ukeleleNoteNames[4] =
+const char* UkuleleNoteNames[4] =
 {
     "G4",
     "C4",
@@ -283,7 +283,7 @@ const char* semitoneNoteNames[NUM_SEMITONES] =
 static const char tn_title[] = "Tunernome";
 static const char theWordGuitar[] = "Guitar";
 static const char theWordViolin[] = "Violin";
-static const char theWordUkelele[] = "Ukelele";
+static const char theWordUkulele[] = "Ukulele";
 static const char leftStr[] = "< Exit";
 static const char rightStrTuner[] = "Tuner >";
 static const char rightStrMetronome[] = "Metronome >";
@@ -682,9 +682,9 @@ bool ICACHE_FLASH_ATTR tunernomeRenderTask(void)
                     plotInstrumentNameAndNotes(theWordViolin, violinNoteNames, NUM_VIOLIN_STRINGS);
                     break;
                 }
-                case UKELELE_TUNER:
+                case UKULELE_TUNER:
                 {
-                    plotInstrumentNameAndNotes(theWordUkelele, ukeleleNoteNames, NUM_UKELELE_STRINGS);
+                    plotInstrumentNameAndNotes(theWordUkulele, UkuleleNoteNames, NUM_UKULELE_STRINGS);
                     break;
                 }
                 case LISTENING:
@@ -1143,9 +1143,9 @@ void ICACHE_FLASH_ATTR tunernomeSampleHandler(int32_t samp)
                     instrumentTunerMagic(freqBinIdxsViolin, NUM_VIOLIN_STRINGS, colors, fourNoteStringIdxToLedIdx);
                     break;
                 }
-                case UKELELE_TUNER:
+                case UKULELE_TUNER:
                 {
-                    instrumentTunerMagic(freqBinIdxsUkelele, NUM_UKELELE_STRINGS, colors, fourNoteStringIdxToLedIdx);
+                    instrumentTunerMagic(freqBinIdxsUkulele, NUM_UKULELE_STRINGS, colors, fourNoteStringIdxToLedIdx);
                     break;
                 }
                 case MAX_GUITAR_MODES:
