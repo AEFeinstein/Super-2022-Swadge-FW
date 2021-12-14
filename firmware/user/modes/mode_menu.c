@@ -565,8 +565,8 @@ static void ICACHE_FLASH_ATTR menuAnimateScreensaverOLED(void* arg __attribute__
         screensavers[mnu->screensaverIdx]->updateScreensaver();
 
         // Plot some tiny corner text
-        fillDisplayArea(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, textWidth("Swadge 2022 v1.0", TOM_THUMB) - 1, OLED_HEIGHT, BLACK);
-        plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Swadge 2022 v1.0", TOM_THUMB, WHITE);
+        fillDisplayArea(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB - 1, textWidth("Swadge 2022 v1.1", TOM_THUMB) - 1, OLED_HEIGHT, BLACK);
+        plotText(0, OLED_HEIGHT - FONT_HEIGHT_TOMTHUMB, "Swadge 2022 v1.1", TOM_THUMB, WHITE);
 
         // Plot the dance name
         int16_t width = textWidth(getDanceName(mnu->menuScreensaverIdx), TOM_THUMB);
