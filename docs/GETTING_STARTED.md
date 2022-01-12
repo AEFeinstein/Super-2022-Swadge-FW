@@ -108,9 +108,15 @@ The Swadge programmer is a breakout for all the ESP8266 pins, a USB-UART chip, a
 1. Set the Swadge to USB power
 1. Set the programmer to "OFF" and "5V"
 1. Plug the Swadge into the programmer
-1. Either hold the `GPIO0` button or put a jumper between `GND` and `SCL` breakout pins
+1. Either hold the `GPIO0` button if you have a 2.0.x programmer, hold down the `GPIO15` button if you have a 2.1.x programmer, or put a jumper between `GND` and `SCL` breakout pins. See the note below for more information.
 1. Set the programmer to "ON"
 1. Program your Swadge with the serial port noted in step 6 of [Compiling and Flashing a Swadge](#2-compiling-and-flashing-a-swadge).
+
+## Flashing with a Black Swadge 2022 Programmer 2.1.0
+
+The 2022 Programmer does not come with a jumper preinstalled on the J5 pins, which means that the power switch *must* be in the `3.3V` position. In order to use `5V` power, you must place a jumper on J5 between the two pins closest to the Swadge (PCIe) connector.
+
+The 2022 Programmer incorrectly labeled the GPIO buttons. What is labeled as `GPIO15` is actually `GPIO0` and what is labeled as `GPIO0` is actually `GPIO15`. This means that to program a Swadge, the Swadge must be powered on while the `GPIO15` button (far right) is held down.
 
 ## Flashing with the Programmer on a Mac
 
