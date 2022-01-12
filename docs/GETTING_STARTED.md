@@ -114,6 +114,8 @@ The Swadge programmer is a breakout for all the ESP8266 pins, a USB-UART chip, a
 
 ## Flashing with a Black Swadge 2022 Programmer 2.1.0
 
+![swadge_programmer_2 1 0](https://user-images.githubusercontent.com/231180/149211700-4c0211d7-9ae9-42f1-9bfb-a7765a6dbdca.jpg)
+
 The 2022 Programmer does not come with a jumper preinstalled on the J5 pins, which means that the power switch *must* be in the `3.3V` position. In order to use `5V` power, you must place a jumper on J5 between the two pins closest to the Swadge (PCIe) connector.
 
 The 2022 Programmer incorrectly labeled the GPIO buttons. What is labeled as `GPIO15` is actually `GPIO0` and what is labeled as `GPIO0` is actually `GPIO15`. This means that to program a Swadge, the Swadge must be powered on while the `GPIO15` button (far right) is held down.
