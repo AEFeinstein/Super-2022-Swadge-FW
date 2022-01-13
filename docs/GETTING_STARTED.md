@@ -33,15 +33,14 @@ The steps below do pretty much the same thing, but you have more control and und
     $ pip2 install pyserial rtttl
     $ pip3 install pyserial rtttl
     ```
-1. Check out the [pfalcon's esp-open-sdk](https://github.com/pfalcon/esp-open-sdk), move to the `esp-open-sdk` folder and build it. More detailed instructions are on that project's page. Warning, building this takes a while (like 30 minutes)!
+1. Download and unzip the ESP8266 toolchain. It's easiest to do this in your home directory.
     ```
-    $ git clone --recursive https://github.com/pfalcon/esp-open-sdk.git
-    $ cd esp-open-sdk/
-    $ make -j$(nproc)
+    $ cd ~
+    $ wget https://github.com/cnlohr/esp82xx_bin_toolchain/raw/master/esp-open-sdk-x86_64-20200810.tar.xz
+    $ tar xJvf esp-open-sdk-x86_64-20200810.tar.xz
+    $ rm esp-open-sdk-x86_64-20200810.tar.xz
     ```
-    * Developers using WSL are encouraged to **avoid cloning into windows directories** (e.g., `/mnt/c/...`) due to conflicts between WSL and Windows file permissions.
-    * If there are issues with `make` recognizing bash, you may need to go into `esp-open-sdk/crosstool-NG/configure.ac` and change line 193 from `|$EGREP '^GNU bash, version (3.[1-9]|4)')` to `|$EGREP '^GNU bash, version (3.[1-9]|4|5)')`.
-1. Set up environment variables by appending the following to your `.bashrc` file. If you cloned `esp-open-sdk` elsewhere, you'll want to modify the paths to match.
+1. Set up environment variables by appending the following to your `.bashrc` file. If you downloaded `esp-open-sdk` elsewhere, you'll want to modify the paths to match.
     ```
     $ nano ~/.bashrc
     
@@ -56,6 +55,19 @@ The steps below do pretty much the same thing, but you have more control and und
     $ cd Super-2022-Swadge-FW/firmware/
     $ unset ESP_GDB && export SET_SWADGE_VERSION=5 && make -j$(nproc)
     ```
+
+### The Old Way
+
+For step 2 above, before cnlohr created the precompiled 8266 toolchain, you would have to compile `esp-open-sdk`. For legacy purposes, the instructions on how to do so are as follows.
+
+2. Check out the [pfalcon's esp-open-sdk](https://github.com/pfalcon/esp-open-sdk), move to the `esp-open-sdk` folder and build it. More detailed instructions are on that project's page. Warning, building this takes a while (like 30 minutes)!
+    ```
+    $ git clone --recursive https://github.com/pfalcon/esp-open-sdk.git
+    $ cd esp-open-sdk/
+    $ make -j$(nproc)
+    ```
+    * Developers using WSL are encouraged to **avoid cloning into windows directories** (e.g., `/mnt/c/...`) due to conflicts between WSL and Windows file permissions.
+    * If there are issues with `make` recognizing bash, you may need to go into `esp-open-sdk/crosstool-NG/configure.ac` and change line 193 from `|$EGREP '^GNU bash, version (3.[1-9]|4)')` to `|$EGREP '^GNU bash, version (3.[1-9]|4|5)')`.
 
 # Setting up an IDE
  
