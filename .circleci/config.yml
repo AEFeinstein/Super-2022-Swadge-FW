@@ -2,84 +2,154 @@ version: 2.1
 
 orbs:
   slack: circleci/slack@4.4.0
-  win: circleci/windows@2.4.1
 
 parameters:
   src-repo-url:
     type: string
-    default: https://github.com/AEFeinstein/esp32-c3-playground.git
-  windows-emu-artifact:
+    default: https://github.com/AEFeinstein/Super-2022-Swadge-FW.git
+  windows-artifact:
     type: string
-    default: swadge-32-windows.zip
-  firmware-artifact:
+    default: swadge-chainsaw-windows.zip
+  esp8266-artifact:
     type: string
-    default: swadge-32-firmware.zip
+    default: swadge-chainsaw-esp8266.zip
 
 jobs:
-  build-windows:
-    executor:
-      name: win/default
-      size: medium
-      shell: powershell.exe
+  build-firmware:
+    docker:
+      - image: cimg/base:2020.01
     parameters:
       label:
         type: string
-        default: swadge-32-windows
+        default: swadge-chainsaw-firmware
     steps:
       - run:
-          name: Download and setup MSYS2
-          command: |
-            # Download installer
-            Invoke-WebRequest -Uri https://github.com/msys2/msys2-installer/releases/download/2022-01-28/msys2-base-x86_64-20220128.sfx.exe -Outfile msys2.exe
-            # Extract to C:\msys64
-            .\msys2.exe -y -oC:\
-            # Delete the installer
-            Remove-Item .\msys2.exe
-            # Run for the first time
-            C:\msys64\usr\bin\bash -lc ' '
-            # Update MSYS2
-            C:\msys64\usr\bin\bash -lc 'pacman --noconfirm -Syuu'  # Core update (in case any core packages are outdated)
-            C:\msys64\usr\bin\bash -lc 'pacman --noconfirm -Syuu'  # Normal update
-            # Install packages
-            C:\msys64\usr\bin\bash -lc 'pacman --noconfirm -S base-devel mingw-w64-i686-toolchain mingw-w64-x86_64-toolchain git make zip'
+          name: Update packages
+          command: sudo apt-get update
       - run:
-          name: Download and setup ESP-IDF
-          command: |
-            cd ~
-            mkdir esp
-            cd esp
-            git clone https://github.com/AEFeinstein/esp-idf.git -j (Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors
-            cd esp-idf
-            git submodule update --init --recursive -j (Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors
-            .\install.ps1
+          name: Install dependencies
+          command: sudo apt-get -y install build-essential make curl unrar-free autoconf automake libtool gcc g++ gperf flex bison texinfo gawk ncurses-dev libexpat-dev sed git unzip bash help2man wget bzip2 libtool-bin python-dev python python-serial python3-pip zip libtiff5-dev libjpeg8-dev libopenjp2-7-dev zlib1g-dev libfreetype6-dev liblcms2-dev libwebp-dev tcl8.6-dev tk8.6-dev python3-tk libharfbuzz-dev libfribidi-dev libxcb1-dev
       - run:
-          name: Clone and build Swadge Emulator and Firmware
+          name: Install python dependencies
+          command: pip3 install pillow rtttl
+      - run:
+          name: Download toolchain
+          command: wget https://github.com/cnlohr/esp82xx_bin_toolchain/raw/master/esp-open-sdk-x86_64-20200810.tar.xz
+      - run:
+          name: Unzip toolchain
+          command: tar xJvf esp-open-sdk-x86_64-20200810.tar.xz
+      - run:
+          name: Set SDK environment variable
+          command: echo 'export ESP_ROOT=$HOME/project/esp-open-sdk' >> $BASH_ENV
+      - run:
+          name: Append xtenxa bin to PATH
+          command: echo 'export PATH=$HOME/project/esp-open-sdk/xtensa-lx106-elf/bin:$PATH' >> $BASH_ENV
+      - run:
+          name: Clone Repository
+          command: git clone << pipeline.parameters.src-repo-url >> --recurse-submodules
+      - run:
+          name: Build Swadge
+          working_directory: Super-2022-Swadge-FW/firmware
+          command: unset ESP_GDB && export SET_SWADGE_VERSION=5 && make -j$(nproc) all debug
+      - run:
+          name: Store version information
+          working_directory: Super-2022-Swadge-FW/firmware
+          command: echo $(date) >> version.txt && echo "https://github.com/AEFeinstein/Super-2022-Swadge-FW/commit/${CIRCLE_SHA1}" >> version.txt
+      - run:
+          name: Create a ZIP of firmware
+          working_directory: Super-2022-Swadge-FW/firmware
+          command: zip -j << pipeline.parameters.esp8266-artifact >> version.txt image* assets.bin ESP8266_NONOS_SDK/bin/blank.bin ESP8266_NONOS_SDK/bin/esp_init_data_default_v08.bin
+      - run:
+          name: Add pyFlashGui to the ZIP
+          working_directory: Super-2022-Swadge-FW/pyFlashGui
+          command: zip -r ../firmware/<< pipeline.parameters.esp8266-artifact >> .
+      - run:
+          name: Calculate previous build number
+          working_directory: Super-2022-Swadge-FW/firmware
+          command: |
+            export CIRCLE_BUILD_NUM_PREV=$(expr ${CIRCLE_BUILD_NUM} - 1)
+            echo 'export CIRCLE_BUILD_NUM_PREV=$(expr ${CIRCLE_BUILD_NUM} - 1)' >> $BASH_ENV
+            source $BASH_ENV
+      - store_artifacts:
+          path: Super-2022-Swadge-FW/firmware/<< pipeline.parameters.esp8266-artifact >>
+      - slack/notify:
+          event: pass
+          custom: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Fresh hot builds!"
+                  }
+                },
+                {
+                  "type": "divider"
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":esp8266-icon: ESP Build\nhttps://${CIRCLE_BUILD_NUM}-236183421-gh.circle-artifacts.com/0/Super-2022-Swadge-FW/firmware/<< pipeline.parameters.esp8266-artifact >>"
+                  }
+                },
+                {
+                  "type": "divider"
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":windows95: Windows Build\nhttps://${CIRCLE_BUILD_NUM_PREV}-236183421-gh.circle-artifacts.com/0/<< pipeline.parameters.windows-artifact >>"
+                  }
+                }
+              ]
+            }
+  build-windows:
+    machine:
+      image: windows-server-2019-vs2019:stable
+      shell: bash.exe
+    resource_class: windows.medium
+    parameters:
+      label:
+        type: string
+        default: swadge-chainsaw-windows
+    steps:
+      - run:
+          name: Download Cygwin installer
+          command: curl -sSJOL https://cygwin.com/setup-x86_64.exe
+      - run:
+          name: Install Cygwin and required packages
           shell: powershell.exe
           command: |
-            # Set the path to find msys2 binaries
-            $env:Path = "C:\msys64\mingw32\bin;C:\msys64\usr\bin;" + $env:Path
-            # Export the IDF symbols
-            ~\esp\esp-idf\export.ps1
-            # Check out the repository, move to the folder
-            git clone << pipeline.parameters.src-repo-url >> --recurse-submodules -j (Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors
-            cd esp32-c3-playground
-            # Build the emulator
-            make -f emu.mk all
-            # Build the firmware
-            idf.py all build dfu
-            # Generate a file with the date and version
-            echo $(date) >> version.txt
-            echo "https://github.com/AEFeinstein/esp32-c3-playground/commit/$env:CIRCLE_SHA1" >> version.txt
-            # zip everything up in two zips
-            zip << pipeline.parameters.windows-emu-artifact >> -r swadge_emulator.exe spiffs_image version.txt
-            zip << pipeline.parameters.firmware-artifact >> -j build\bootloader\bootloader.bin build\partition_table\partition-table.bin build\swadge-esp32.bin build\storage.bin build\dfu.bin version.txt
-            # Move the zips to where circleci expects it so that it gets uploaded as an artifact
-            cp << pipeline.parameters.windows-emu-artifact >> C:\Users\circleci\project\
-            cp << pipeline.parameters.firmware-artifact >> C:\Users\circleci\project\
+            .\setup-x86_64.exe -q -s https://mirrors.kernel.org/sourceware/cygwin/ -P git,gcc-core,make,zip,find,python3,python38,python38-devel,python38-pip,python38-imaging
+            $env:Path = "C:\cygwin64\bin\;" + $env:Path
+      - run:
+          name: Setup Python
+          shell: C:\\cygwin64\\bin\\bash.exe --login -eo pipefail
+          command: |
+            alias python3='python3.8'
+            alias python='python3.8'
+            # pip3 install --upgrade pip
+            pip3 install rtttl
+      - run:
+          name: Clone and build Swadge
+          shell: C:\\cygwin64\\bin\\bash.exe --login -eo pipefail
+          command: |
+            alias python3='python3.8'
+            alias python='python3.8'
+            CIRCLE_WORKING_DIRECTORY=$(eval "echo $CIRCLE_WORKING_DIRECTORY")
+            mkdir -p $CIRCLE_WORKING_DIRECTORY
+            cd $CIRCLE_WORKING_DIRECTORY
+            git clone << pipeline.parameters.src-repo-url >> --recurse-submodules
+            cd Super-2022-Swadge-FW/firmware
+            unset ESP_GDB && export SET_SWADGE_VERSION=5 && make -C emu all
+            echo $(date) >> version.txt && echo "https://github.com/AEFeinstein/Super-2022-Swadge-FW/commit/${CIRCLE_SHA1}" >> version.txt
+            zip << pipeline.parameters.windows-artifact >> -j emu/swadgemu.exe emu/assets.bin version.txt /bin/cygwin1.dll
+            cp << pipeline.parameters.windows-artifact >> /cygdrive/c/Users/circleci/project/
       - store_artifacts:
-          path: << pipeline.parameters.windows-emu-artifact >>
-      - store_artifacts:
-          path: << pipeline.parameters.firmware-artifact >>
+          path: << pipeline.parameters.windows-artifact >>
 
 workflows:
   version: 2
@@ -88,4 +158,10 @@ workflows:
       - build-windows:
           filters:
             branches:
-              only: main
+              only: master
+      - build-firmware:
+          requires:
+            - build-windows
+          filters:
+            branches:
+              only: master
